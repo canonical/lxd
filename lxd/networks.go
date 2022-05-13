@@ -447,7 +447,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
-	revert.Add(func() { d.db.Cluster.DeleteNetwork(projectName, req.Name) })
+	revert.Add(func() error { return d.db.Cluster.DeleteNetwork(projectName, req.Name) })
 
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
@@ -665,7 +665,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 		return err
 	}
 
-	revert.Add(func() { n.Delete(clientType) })
+	revert.Add(func() error { return n.Delete(clientType) })
 
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).

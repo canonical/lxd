@@ -1189,7 +1189,9 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 		if err != nil {
 			return err
 		}
-		revert.Add(func() { storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol) })
+		revert.Add(func() error {
+			return storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol)
+		})
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
@@ -1781,7 +1783,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		return response.InternalError(err)
 	}
 	defer os.Remove(backupFile.Name())
-	revert.Add(func() { backupFile.Close() })
+	revert.Add(backupFile.Close)
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(backupFile, data)

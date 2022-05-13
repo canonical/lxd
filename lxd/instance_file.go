@@ -157,7 +157,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { client.Close() })
+	reverter.Add(client.Close)
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)
@@ -189,7 +189,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		if err != nil {
 			return response.SmartError(err)
 		}
-		reverter.Add(func() { file.Close() })
+		reverter.Add(file.Close)
 
 		// Setup cleanup logic.
 		cleanup := reverter.Clone()
@@ -318,7 +318,7 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { client.Close() })
+	reverter.Add(client.Close)
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)

@@ -664,7 +664,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Start clustering tasks.
 		d.startClusterTasks()
-		revert.Add(func() { d.stopClusterTasks() })
+		revert.Add(func() error {
+			d.stopClusterTasks()
+			return nil
+		})
 
 		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
@@ -855,7 +858,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 // clusterInitMember initialises storage pools and networks on this member. We pass two LXD client instances, one
 // connected to ourselves (the joining member) and one connected to the target cluster member to join.
 // Returns a revert function that can be used to undo the setup if a subsequent step fails.
-func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (func(), error) {
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (revert.Hook, error) {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
@@ -2701,8 +2704,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		}
 
 		// Ensure node is put into its previous state if anything fails.
-		reverter.Add(func() {
-			evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
+		reverter.Add(func() error {
+			return evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
 		})
 
 		metadata := make(map[string]any)
@@ -2903,8 +2906,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Ensure node is put into its previous state if anything fails.
-		reverter.Add(func() {
-			evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
+		reverter.Add(func() error {
+			return evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
 		})
 
 		var source lxd.InstanceServer

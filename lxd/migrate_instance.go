@@ -961,7 +961,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
 		// deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh {
-			revert.Add(func() { args.Instance.Delete(true) })
+			revert.Add(func() error { return args.Instance.Delete(true) })
 		}
 
 		return nil

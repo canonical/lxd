@@ -36,7 +36,7 @@ type initDataCluster struct {
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
+func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -49,7 +49,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 
 		// Setup reverter.
-		revert.Add(func() { d.UpdateServer(currentServer.Writable(), "") })
+		revert.Add(func() error { return d.UpdateServer(currentServer.Writable(), "") })
 
 		// Prepare the update.
 		newServer := api.ServerPut{}
@@ -86,7 +86,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteStoragePool(storagePool.Name) })
+			revert.Add(func() error { return d.DeleteStoragePool(storagePool.Name) })
 			return nil
 		}
 
@@ -104,7 +104,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
+			revert.Add(func() error { return d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
 
 			// Prepare the update.
 			newStoragePool := api.StoragePoolPut{}
@@ -162,7 +162,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
+			revert.Add(func() error { return d.UseProject(network.Project).DeleteNetwork(network.Name) })
 		} else {
 			// Get the current network.
 			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
@@ -194,8 +194,8 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() {
-				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+			revert.Add(func() error {
+				return d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
 			})
 		}
 
@@ -238,7 +238,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteProject(project.Name) })
+			revert.Add(func() error { return d.DeleteProject(project.Name) })
 			return nil
 		}
 
@@ -251,7 +251,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateProject(currentProject.Name, currentProject.Writable(), "") })
+			revert.Add(func() error { return d.UpdateProject(currentProject.Name, currentProject.Writable(), "") })
 
 			// Prepare the update.
 			newProject := api.ProjectPut{}
@@ -327,7 +327,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteProfile(profile.Name) })
+			revert.Add(func() error { return d.DeleteProfile(profile.Name) })
 			return nil
 		}
 
@@ -340,7 +340,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
+			revert.Add(func() error { return d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
 
 			// Prepare the update.
 			newProfile := api.ProfilePut{}
@@ -404,7 +404,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 
 	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, nil
+	return revertExternal.FailHook, nil
 }
 
 // Helper to initialize LXD clustering.

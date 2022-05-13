@@ -616,7 +616,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		return response.InternalError(err)
 	}
 	defer os.Remove(backupFile.Name())
-	revert.Add(func() { backupFile.Close() })
+	revert.Add(backupFile.Close)
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(backupFile, data)
@@ -751,7 +751,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		}
 
 		// Clean up created instance if the post hook fails below.
-		runRevert.Add(func() { inst.Delete(true) })
+		runRevert.Add(func() error { return inst.Delete(true) })
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).

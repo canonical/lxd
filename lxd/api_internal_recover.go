@@ -200,9 +200,10 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				}
 			}()
 
-			revert.Add(func() {
+			revert.Add(func() error {
 				cleanupPool := pools[pool.Name()]
-				cleanupPool.Unmount() // Defer won't do it if record exists, so unmount on failure.
+				_, err := cleanupPool.Unmount() // Defer won't do it if record exists, so unmount on failure.
+				return err
 			})
 		}
 
@@ -360,8 +361,8 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					}
 				}
 
-				revert.Add(func() {
-					dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
+				revert.Add(func() error {
+					return dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
 				})
 
 				// Set storage pool node to storagePoolCreated.

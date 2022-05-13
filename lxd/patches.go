@@ -452,7 +452,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
-	revert.Add(func() { tx.Rollback() })
+	revert.Add(func() error { return tx.Rollback() })
 
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
