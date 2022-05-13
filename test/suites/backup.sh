@@ -327,17 +327,26 @@ test_backup_import_with_project() {
     lxc delete --force c3
   fi
 
-  # Test hyphenated container and snapshot names
+  # Test exporting container and snapshot names that container hyphens.
+  # Also check that the container storage volume config is correctly captured and restored.
+  default_pool="$(lxc profile device get default root pool)"
+
   lxc launch testimage c1-foo
+  lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap0
   lxc snapshot c1-foo c1-foo-snap0
+  lxc storage volume set "${default_pool}" container/c1-foo user.foo=c1-foo-snap1
+  lxc snapshot c1-foo c1-foo-snap1
+  lxc storage volume set "${default_pool}" container/c1-foo user.foo=post-c1-foo-snap1
 
   lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
   lxc delete --force c1-foo
 
   lxc import "${LXD_DIR}/c1-foo.tar.gz"
+  lxc storage volume ls "${default_pool}"
+  lxc storage volume get "${default_pool}" container/c1-foo user.foo | grep -Fx "post-c1-foo-snap1"
+  lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap0 user.foo | grep -Fx "c1-foo-snap0"
+  lxc storage volume get "${default_pool}" container/c1-foo/c1-foo-snap1 user.foo | grep -Fx "c1-foo-snap1"
   lxc delete --force c1-foo
-
-  default_pool="$(lxc profile device get default root pool)"
 
   # Create new storage pools
   lxc storage create pool_1 dir
