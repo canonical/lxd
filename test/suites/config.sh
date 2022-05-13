@@ -270,6 +270,15 @@ test_config_edit() {
     lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
     lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
     lxc config show foo | grep -q 'description: bar'
+
+    # Check instance name is included in edit screen.
+    cmd=$(unset -f lxc; command -v lxc)
+    output=$(EDITOR="cat" "${cmd}" config edit foo)
+    echo "${output}" | grep "name: foo"
+
+    # Check expanded config isn't included in edit screen.
+    ! echo "${output}" | grep "expanded" || false
+
     lxc delete foo
 }
 
@@ -346,6 +355,14 @@ test_container_snapshot_config() {
     # Remove expiry date using empty value
     echo 'expires_at:' | lxc config edit foo/snap0
     lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+
+    # Check instance name is included in edit screen.
+    cmd=$(unset -f lxc; command -v lxc)
+    output=$(EDITOR="cat" "${cmd}" config edit foo/snap0)
+    echo "${output}" | grep "name: snap0"
+
+    # Check expanded config isn't included in edit screen.
+    ! echo "${output}"  | grep "expanded" || false
 
     lxc delete -f foo
 }
