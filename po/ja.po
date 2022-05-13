@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-10 16:11-0400\n"
+"POT-Creation-Date: 2022-05-12 19:14+0200\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1249,7 +1249,7 @@ msgid ""
 "versions.\n"
 msgstr ""
 
-#: lxc/config_device.go:344 lxc/config_device.go:345
+#: lxc/config_device.go:350 lxc/config_device.go:351
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr "プロファイルに継承されたデバイスをコピーし、設定キーを上書きします"
 
@@ -1561,10 +1561,10 @@ msgstr "警告を削除します"
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
 #: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360
 #: lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
-#: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196
-#: lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438
-#: lxc/config_device.go:535 lxc/config_device.go:542 lxc/config_device.go:651
-#: lxc/config_device.go:723 lxc/config_metadata.go:27 lxc/config_metadata.go:55
+#: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:202
+#: lxc/config_device.go:280 lxc/config_device.go:351 lxc/config_device.go:444
+#: lxc/config_device.go:541 lxc/config_device.go:548 lxc/config_device.go:657
+#: lxc/config_device.go:729 lxc/config_metadata.go:27 lxc/config_metadata.go:55
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
@@ -1659,17 +1659,17 @@ msgstr "インスタンスからストレージボリュームを取り外しま
 msgid "Detach storage volumes from profiles"
 msgstr "プロファイルからストレージボリュームを取り外します"
 
-#: lxc/config_device.go:174
+#: lxc/config_device.go:180
 #, c-format
 msgid "Device %s added to %s"
 msgstr "デバイス %s が %s に追加されました"
 
-#: lxc/config_device.go:415
+#: lxc/config_device.go:421
 #, c-format
 msgid "Device %s overridden for %s"
 msgstr "デバイス %s が %s で上書きされました"
 
-#: lxc/config_device.go:516
+#: lxc/config_device.go:522
 #, c-format
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
@@ -1679,12 +1679,12 @@ msgstr "デバイス %s が %s から削除されました"
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
 
-#: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475
-#: lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
+#: lxc/config_device.go:241 lxc/config_device.go:255 lxc/config_device.go:481
+#: lxc/config_device.go:501 lxc/config_device.go:595 lxc/config_device.go:616
 msgid "Device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/config_device.go:613
+#: lxc/config_device.go:619
 msgid ""
 "Device from profile(s) cannot be modified for individual instance. Override "
 "device or modify profile instead"
@@ -1692,7 +1692,7 @@ msgstr ""
 "プロファイルのデバイスは個々のインスタンスでは変更できません。デバイスを上書"
 "きするかプロファイルを変更してください"
 
-#: lxc/config_device.go:498
+#: lxc/config_device.go:504
 msgid ""
 "Device from profile(s) cannot be removed from individual instance. Override "
 "device or modify profile instead"
@@ -1700,7 +1700,7 @@ msgstr ""
 "プロファイルのデバイスは個々のインスタンスでは削除できません。デバイスを上書"
 "きするかプロファイルを変更してください"
 
-#: lxc/config_device.go:252
+#: lxc/config_device.go:258
 msgid "Device from profile(s) cannot be retrieved for individual instance"
 msgstr "プロファイルのデバイスは個々のインスタンスでは取得できません"
 
@@ -2306,7 +2306,7 @@ msgstr "ネットワークのランタイム情報を取得します"
 msgid "Get values for cluster member configuration keys"
 msgstr "クラスターメンバーの設定値を取得します"
 
-#: lxc/config_device.go:195 lxc/config_device.go:196
+#: lxc/config_device.go:201 lxc/config_device.go:202
 msgid "Get values for device configuration keys"
 msgstr "デバイスの設定値を取得します"
 
@@ -2907,7 +2907,7 @@ msgstr ""
 "    u - アップロード日\n"
 "    t - タイプ"
 
-#: lxc/config_device.go:273 lxc/config_device.go:274
+#: lxc/config_device.go:279 lxc/config_device.go:280
 msgid "List instance devices"
 msgstr "インスタンスのデバイスを一覧表示します"
 
@@ -3402,8 +3402,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -3515,9 +3515,9 @@ msgstr "インスタンス名を指定する必要があります"
 msgid "Missing listen address"
 msgstr "リッスンアドレスを指定する必要があります"
 
-#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303
-#: lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570
-#: lxc/config_device.go:675
+#: lxc/config_device.go:119 lxc/config_device.go:226 lxc/config_device.go:309
+#: lxc/config_device.go:375 lxc/config_device.go:468 lxc/config_device.go:576
+#: lxc/config_device.go:681
 msgid "Missing name"
 msgstr "名前を指定する必要があります"
 
@@ -3909,7 +3909,7 @@ msgstr "コピー元のボリュームに対するストレージプールが指
 msgid "No storage pool for target volume specified"
 msgstr "コピー先のボリュームに対するストレージプールが指定されていません"
 
-#: lxc/config_device.go:124 lxc/config_device.go:393
+#: lxc/config_device.go:130 lxc/config_device.go:399
 #, c-format
 msgid "No value found in %q"
 msgstr "%q に設定する値が指定されていません"
@@ -4345,7 +4345,7 @@ msgstr "マッチするルールをすべて削除します"
 msgid "Remove entries from a network zone record"
 msgstr "ネットワークゾーンレコードからエントリを削除します"
 
-#: lxc/config_device.go:437 lxc/config_device.go:438
+#: lxc/config_device.go:443 lxc/config_device.go:444
 msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
@@ -4600,11 +4600,11 @@ msgstr "クラスターメンバーの設定を行います"
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際の認証ユーザーを設定する"
 
-#: lxc/config_device.go:532
+#: lxc/config_device.go:538
 msgid "Set device configuration keys"
 msgstr "デバイスの設定項目を設定します"
 
-#: lxc/config_device.go:535
+#: lxc/config_device.go:541
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -4617,7 +4617,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 
-#: lxc/config_device.go:542
+#: lxc/config_device.go:548
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -4857,7 +4857,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 msgid "Show events from all projects"
 msgstr "すべてのプロジェクトのイベントを表示します"
 
-#: lxc/config_device.go:650 lxc/config_device.go:651
+#: lxc/config_device.go:656 lxc/config_device.go:657
 msgid "Show full device configuration"
 msgstr "デバイスの設定をすべて表示します"
 
@@ -5187,7 +5187,7 @@ msgstr "--target-project と --target は同時に指定できません"
 msgid "The destination LXD server is not clustered"
 msgstr "移動先の LXD サーバはクラスタに属していません"
 
-#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:381
+#: lxc/config_device.go:146 lxc/config_device.go:163 lxc/config_device.go:387
 msgid "The device already exists"
 msgstr "デバイスはすでに存在します"
 
@@ -5229,7 +5229,7 @@ msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
 
-#: lxc/config_device.go:386
+#: lxc/config_device.go:392
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
@@ -5492,7 +5492,7 @@ msgstr "クラスターメンバーの設定を削除します"
 msgid "Unset all profiles on the target instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
-#: lxc/config_device.go:722 lxc/config_device.go:723
+#: lxc/config_device.go:728 lxc/config_device.go:729
 msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
@@ -5847,16 +5847,16 @@ msgstr "[<remote>:]<image> [<target>]"
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
+#: lxc/config_device.go:283 lxc/config_device.go:652 lxc/config_metadata.go:53
 #: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 msgid "[<remote>:]<instance>"
 msgstr "[<remote>:]<instance>"
 
-#: lxc/config_device.go:191 lxc/config_device.go:718
+#: lxc/config_device.go:197 lxc/config_device.go:724
 msgid "[<remote>:]<instance> <device> <key>"
 msgstr "[<remote>:]<instance> <device> <key>"
 
-#: lxc/config_device.go:534
+#: lxc/config_device.go:540
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 
@@ -5864,11 +5864,11 @@ msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr "[<remote>:]<instance> <device> <type> [key=value...]"
 
-#: lxc/config_device.go:343
+#: lxc/config_device.go:349
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "[<remote>:]<instance> <device> [key=value...]"
 
-#: lxc/config_device.go:432
+#: lxc/config_device.go:438
 msgid "[<remote>:]<instance> <name>..."
 msgstr "[<remote>:]<instance> <name>..."
 
@@ -6135,20 +6135,20 @@ msgstr "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 
-#: lxc/config_device.go:279 lxc/config_device.go:648 lxc/profile.go:301
+#: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:301
 #: lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
 msgid "[<remote>:]<profile>"
 msgstr "[<remote>:]<profile>"
 
-#: lxc/config_device.go:193 lxc/config_device.go:720
+#: lxc/config_device.go:199 lxc/config_device.go:726
 msgid "[<remote>:]<profile> <device> <key>"
 msgstr "[<remote>:]<profile> <device> <key>"
 
-#: lxc/config_device.go:541
+#: lxc/config_device.go:547
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 
-#: lxc/config_device.go:86
+#: lxc/config_device.go:89
 msgid "[<remote>:]<profile> <device> <type> [key=value...]"
 msgstr "[<remote>:]<profile> <device> <type> [key=value...]"
 
@@ -6160,7 +6160,7 @@ msgstr "[<remote>:]<profile> <key>"
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr "[<remote>:]<profile> <key><value>..."
 
-#: lxc/config_device.go:434
+#: lxc/config_device.go:440
 msgid "[<remote>:]<profile> <name>..."
 msgstr "[<remote>:]<profile> <name>..."
 
@@ -6325,10 +6325,15 @@ msgstr ""
 "    \"foo\" を \"default\" クラスタグループのみ使用するように再設定します。"
 
 #: lxc/config_device.go:82
+#, fuzzy
 msgid ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    Will mount the host's /share/c1 onto /opt in the instance."
+"    Will mount the host's /share/c1 onto /opt in the instance.\n"
+"\n"
+"lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool "
+"source=some-volume path=opt\n"
+"    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
@@ -6564,11 +6569,16 @@ msgstr ""
 "lxc profile assign foo ''\n"
 "    \"foo\" からすべてのプロファイルを削除します。"
 
-#: lxc/config_device.go:87
+#: lxc/config_device.go:90
+#, fuzzy
 msgid ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    Will mount the host's /share/c1 onto /opt in the instance."
+"    Will mount the host's /share/c1 onto /opt in the instance.\n"
+"\n"
+"lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool "
+"source=some-volume path=opt\n"
+"    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
@@ -6651,8 +6661,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -8351,8 +8361,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"

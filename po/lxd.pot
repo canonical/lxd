@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2022-05-10 16:11-0400\n"
+        "POT-Creation-Date: 2022-05-12 19:14+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -962,7 +962,7 @@ msgid   "Copy instances within or in between LXD servers\n"
         "The pull transfer mode is the default as it is compatible with all LXD versions.\n"
 msgstr  ""
 
-#: lxc/config_device.go:344 lxc/config_device.go:345
+#: lxc/config_device.go:350 lxc/config_device.go:351
 msgid   "Copy profile inherited devices and override configuration keys"
 msgstr  ""
 
@@ -1252,7 +1252,7 @@ msgstr  ""
 msgid   "Delete warning"
 msgstr  ""
 
-#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147 lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:119 lxc/cluster.go:201 lxc/cluster.go:250 lxc/cluster.go:297 lxc/cluster.go:349 lxc/cluster.go:378 lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709 lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1063 lxc/cluster.go:1084 lxc/cluster_group.go:30 lxc/cluster_group.go:79 lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261 lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518 lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48 lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730 lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438 lxc/config_device.go:535 lxc/config_device.go:542 lxc/config_device.go:651 lxc/config_device.go:723 lxc/config_metadata.go:27 lxc/config_metadata.go:55 lxc/config_metadata.go:177 lxc/config_template.go:28 lxc/config_template.go:68 lxc/config_template.go:111 lxc/config_template.go:153 lxc/config_template.go:239 lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88 lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422 lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627 lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42 lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169 lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38 lxc/image.go:146 lxc/image.go:314 lxc/image.go:365 lxc/image.go:490 lxc/image.go:649 lxc/image.go:870 lxc/image.go:1005 lxc/image.go:1303 lxc/image.go:1382 lxc/image.go:1441 lxc/image.go:1493 lxc/image.go:1549 lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:35 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33 lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360 lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703 lxc/network.go:761 lxc/network.go:884 lxc/network.go:976 lxc/network.go:1045 lxc/network.go:1095 lxc/network.go:1165 lxc/network.go:1227 lxc/network_acl.go:31 lxc/network_acl.go:96 lxc/network_acl.go:166 lxc/network_acl.go:219 lxc/network_acl.go:265 lxc/network_acl.go:314 lxc/network_acl.go:397 lxc/network_acl.go:457 lxc/network_acl.go:484 lxc/network_acl.go:615 lxc/network_acl.go:664 lxc/network_acl.go:713 lxc/network_acl.go:728 lxc/network_acl.go:849 lxc/network_forward.go:30 lxc/network_forward.go:87 lxc/network_forward.go:167 lxc/network_forward.go:231 lxc/network_forward.go:327 lxc/network_forward.go:382 lxc/network_forward.go:460 lxc/network_forward.go:487 lxc/network_forward.go:628 lxc/network_forward.go:690 lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/network_peer.go:30 lxc/network_peer.go:83 lxc/network_peer.go:159 lxc/network_peer.go:216 lxc/network_peer.go:330 lxc/network_peer.go:385 lxc/network_peer.go:454 lxc/network_peer.go:481 lxc/network_peer.go:606 lxc/network_zone.go:29 lxc/network_zone.go:86 lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650 lxc/network_zone.go:719 lxc/network_zone.go:769 lxc/network_zone.go:817 lxc/network_zone.go:897 lxc/network_zone.go:953 lxc/network_zone.go:980 lxc/network_zone.go:1098 lxc/network_zone.go:1147 lxc/network_zone.go:1162 lxc/network_zone.go:1208 lxc/operation.go:24 lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:184 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247 lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531 lxc/profile.go:580 lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766 lxc/profile.go:825 lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159 lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491 lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688 lxc/project.go:747 lxc/publish.go:33 lxc/query.go:33 lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:575 lxc/remote.go:611 lxc/remote.go:697 lxc/remote.go:767 lxc/remote.go:821 lxc/remote.go:859 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93 lxc/storage.go:167 lxc/storage.go:217 lxc/storage.go:337 lxc/storage.go:397 lxc/storage.go:523 lxc/storage.go:598 lxc/storage.go:672 lxc/storage.go:756 lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240 lxc/storage_volume.go:331 lxc/storage_volume.go:520 lxc/storage_volume.go:599 lxc/storage_volume.go:675 lxc/storage_volume.go:757 lxc/storage_volume.go:838 lxc/storage_volume.go:1038 lxc/storage_volume.go:1126 lxc/storage_volume.go:1260 lxc/storage_volume.go:1342 lxc/storage_volume.go:1526 lxc/storage_volume.go:1559 lxc/storage_volume.go:1672 lxc/storage_volume.go:1760 lxc/storage_volume.go:1859 lxc/storage_volume.go:1893 lxc/storage_volume.go:1991 lxc/storage_volume.go:2058 lxc/storage_volume.go:2199 lxc/version.go:22 lxc/warning.go:30 lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301 lxc/warning.go:355
+#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147 lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:119 lxc/cluster.go:201 lxc/cluster.go:250 lxc/cluster.go:297 lxc/cluster.go:349 lxc/cluster.go:378 lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709 lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1063 lxc/cluster.go:1084 lxc/cluster_group.go:30 lxc/cluster_group.go:79 lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261 lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518 lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48 lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360 lxc/config.go:452 lxc/config.go:610 lxc/config.go:730 lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:202 lxc/config_device.go:280 lxc/config_device.go:351 lxc/config_device.go:444 lxc/config_device.go:541 lxc/config_device.go:548 lxc/config_device.go:657 lxc/config_device.go:729 lxc/config_metadata.go:27 lxc/config_metadata.go:55 lxc/config_metadata.go:177 lxc/config_template.go:28 lxc/config_template.go:68 lxc/config_template.go:111 lxc/config_template.go:153 lxc/config_template.go:239 lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88 lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422 lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627 lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42 lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169 lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38 lxc/image.go:146 lxc/image.go:314 lxc/image.go:365 lxc/image.go:490 lxc/image.go:649 lxc/image.go:870 lxc/image.go:1005 lxc/image.go:1303 lxc/image.go:1382 lxc/image.go:1441 lxc/image.go:1493 lxc/image.go:1549 lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29 lxc/info.go:35 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33 lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360 lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703 lxc/network.go:761 lxc/network.go:884 lxc/network.go:976 lxc/network.go:1045 lxc/network.go:1095 lxc/network.go:1165 lxc/network.go:1227 lxc/network_acl.go:31 lxc/network_acl.go:96 lxc/network_acl.go:166 lxc/network_acl.go:219 lxc/network_acl.go:265 lxc/network_acl.go:314 lxc/network_acl.go:397 lxc/network_acl.go:457 lxc/network_acl.go:484 lxc/network_acl.go:615 lxc/network_acl.go:664 lxc/network_acl.go:713 lxc/network_acl.go:728 lxc/network_acl.go:849 lxc/network_forward.go:30 lxc/network_forward.go:87 lxc/network_forward.go:167 lxc/network_forward.go:231 lxc/network_forward.go:327 lxc/network_forward.go:382 lxc/network_forward.go:460 lxc/network_forward.go:487 lxc/network_forward.go:628 lxc/network_forward.go:690 lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/network_peer.go:30 lxc/network_peer.go:83 lxc/network_peer.go:159 lxc/network_peer.go:216 lxc/network_peer.go:330 lxc/network_peer.go:385 lxc/network_peer.go:454 lxc/network_peer.go:481 lxc/network_peer.go:606 lxc/network_zone.go:29 lxc/network_zone.go:86 lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650 lxc/network_zone.go:719 lxc/network_zone.go:769 lxc/network_zone.go:817 lxc/network_zone.go:897 lxc/network_zone.go:953 lxc/network_zone.go:980 lxc/network_zone.go:1098 lxc/network_zone.go:1147 lxc/network_zone.go:1162 lxc/network_zone.go:1208 lxc/operation.go:24 lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:184 lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247 lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531 lxc/profile.go:580 lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766 lxc/profile.go:825 lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159 lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491 lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688 lxc/project.go:747 lxc/publish.go:33 lxc/query.go:33 lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:575 lxc/remote.go:611 lxc/remote.go:697 lxc/remote.go:767 lxc/remote.go:821 lxc/remote.go:859 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93 lxc/storage.go:167 lxc/storage.go:217 lxc/storage.go:337 lxc/storage.go:397 lxc/storage.go:523 lxc/storage.go:598 lxc/storage.go:672 lxc/storage.go:756 lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240 lxc/storage_volume.go:331 lxc/storage_volume.go:520 lxc/storage_volume.go:599 lxc/storage_volume.go:675 lxc/storage_volume.go:757 lxc/storage_volume.go:838 lxc/storage_volume.go:1038 lxc/storage_volume.go:1126 lxc/storage_volume.go:1260 lxc/storage_volume.go:1342 lxc/storage_volume.go:1526 lxc/storage_volume.go:1559 lxc/storage_volume.go:1672 lxc/storage_volume.go:1760 lxc/storage_volume.go:1859 lxc/storage_volume.go:1893 lxc/storage_volume.go:1991 lxc/storage_volume.go:2058 lxc/storage_volume.go:2199 lxc/version.go:22 lxc/warning.go:30 lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301 lxc/warning.go:355
 msgid   "Description"
 msgstr  ""
 
@@ -1281,17 +1281,17 @@ msgstr  ""
 msgid   "Detach storage volumes from profiles"
 msgstr  ""
 
-#: lxc/config_device.go:174
+#: lxc/config_device.go:180
 #, c-format
 msgid   "Device %s added to %s"
 msgstr  ""
 
-#: lxc/config_device.go:415
+#: lxc/config_device.go:421
 #, c-format
 msgid   "Device %s overridden for %s"
 msgstr  ""
 
-#: lxc/config_device.go:516
+#: lxc/config_device.go:522
 #, c-format
 msgid   "Device %s removed from %s"
 msgstr  ""
@@ -1301,19 +1301,19 @@ msgstr  ""
 msgid   "Device already exists: %s"
 msgstr  ""
 
-#: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475 lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
+#: lxc/config_device.go:241 lxc/config_device.go:255 lxc/config_device.go:481 lxc/config_device.go:501 lxc/config_device.go:595 lxc/config_device.go:616
 msgid   "Device doesn't exist"
 msgstr  ""
 
-#: lxc/config_device.go:613
+#: lxc/config_device.go:619
 msgid   "Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"
 msgstr  ""
 
-#: lxc/config_device.go:498
+#: lxc/config_device.go:504
 msgid   "Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"
 msgstr  ""
 
-#: lxc/config_device.go:252
+#: lxc/config_device.go:258
 msgid   "Device from profile(s) cannot be retrieved for individual instance"
 msgstr  ""
 
@@ -1849,7 +1849,7 @@ msgstr  ""
 msgid   "Get values for cluster member configuration keys"
 msgstr  ""
 
-#: lxc/config_device.go:195 lxc/config_device.go:196
+#: lxc/config_device.go:201 lxc/config_device.go:202
 msgid   "Get values for device configuration keys"
 msgstr  ""
 
@@ -2393,7 +2393,7 @@ msgid   "List images\n"
         "    t - Type"
 msgstr  ""
 
-#: lxc/config_device.go:273 lxc/config_device.go:274
+#: lxc/config_device.go:279 lxc/config_device.go:280
 msgid   "List instance devices"
 msgstr  ""
 
@@ -2851,7 +2851,7 @@ msgstr  ""
 msgid   "Missing listen address"
 msgstr  ""
 
-#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303 lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570 lxc/config_device.go:675
+#: lxc/config_device.go:119 lxc/config_device.go:226 lxc/config_device.go:309 lxc/config_device.go:375 lxc/config_device.go:468 lxc/config_device.go:576 lxc/config_device.go:681
 msgid   "Missing name"
 msgstr  ""
 
@@ -3190,7 +3190,7 @@ msgstr  ""
 msgid   "No storage pool for target volume specified"
 msgstr  ""
 
-#: lxc/config_device.go:124 lxc/config_device.go:393
+#: lxc/config_device.go:130 lxc/config_device.go:399
 #, c-format
 msgid   "No value found in %q"
 msgstr  ""
@@ -3616,7 +3616,7 @@ msgstr  ""
 msgid   "Remove entries from a network zone record"
 msgstr  ""
 
-#: lxc/config_device.go:437 lxc/config_device.go:438
+#: lxc/config_device.go:443 lxc/config_device.go:444
 msgid   "Remove instance devices"
 msgstr  ""
 
@@ -3859,18 +3859,18 @@ msgstr  ""
 msgid   "Set authentication user when using SSH SFTP listener"
 msgstr  ""
 
-#: lxc/config_device.go:532
+#: lxc/config_device.go:538
 msgid   "Set device configuration keys"
 msgstr  ""
 
-#: lxc/config_device.go:535
+#: lxc/config_device.go:541
 msgid   "Set device configuration keys\n"
         "\n"
         "For backward compatibility, a single configuration key may still be set with:\n"
         "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 msgstr  ""
 
-#: lxc/config_device.go:542
+#: lxc/config_device.go:548
 msgid   "Set device configuration keys\n"
         "\n"
         "For backward compatibility, a single configuration key may still be set with:\n"
@@ -4043,7 +4043,7 @@ msgstr  ""
 msgid   "Show events from all projects"
 msgstr  ""
 
-#: lxc/config_device.go:650 lxc/config_device.go:651
+#: lxc/config_device.go:656 lxc/config_device.go:657
 msgid   "Show full device configuration"
 msgstr  ""
 
@@ -4371,7 +4371,7 @@ msgstr  ""
 msgid   "The destination LXD server is not clustered"
 msgstr  ""
 
-#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:381
+#: lxc/config_device.go:146 lxc/config_device.go:163 lxc/config_device.go:387
 msgid   "The device already exists"
 msgstr  ""
 
@@ -4406,7 +4406,7 @@ msgstr  ""
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
 
-#: lxc/config_device.go:386
+#: lxc/config_device.go:392
 msgid   "The profile device doesn't exist"
 msgstr  ""
 
@@ -4632,7 +4632,7 @@ msgstr  ""
 msgid   "Unset all profiles on the target instance"
 msgstr  ""
 
-#: lxc/config_device.go:722 lxc/config_device.go:723
+#: lxc/config_device.go:728 lxc/config_device.go:729
 msgid   "Unset device configuration keys"
 msgstr  ""
 
@@ -4965,15 +4965,15 @@ msgstr  ""
 msgid   "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr  ""
 
-#: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53 lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
+#: lxc/config_device.go:283 lxc/config_device.go:652 lxc/config_metadata.go:53 lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 msgid   "[<remote>:]<instance>"
 msgstr  ""
 
-#: lxc/config_device.go:191 lxc/config_device.go:718
+#: lxc/config_device.go:197 lxc/config_device.go:724
 msgid   "[<remote>:]<instance> <device> <key>"
 msgstr  ""
 
-#: lxc/config_device.go:534
+#: lxc/config_device.go:540
 msgid   "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr  ""
 
@@ -4981,11 +4981,11 @@ msgstr  ""
 msgid   "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr  ""
 
-#: lxc/config_device.go:343
+#: lxc/config_device.go:349
 msgid   "[<remote>:]<instance> <device> [key=value...]"
 msgstr  ""
 
-#: lxc/config_device.go:432
+#: lxc/config_device.go:438
 msgid   "[<remote>:]<instance> <name>..."
 msgstr  ""
 
@@ -5229,19 +5229,19 @@ msgstr  ""
 msgid   "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr  ""
 
-#: lxc/config_device.go:279 lxc/config_device.go:648 lxc/profile.go:301 lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
+#: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:301 lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
 msgid   "[<remote>:]<profile>"
 msgstr  ""
 
-#: lxc/config_device.go:193 lxc/config_device.go:720
+#: lxc/config_device.go:199 lxc/config_device.go:726
 msgid   "[<remote>:]<profile> <device> <key>"
 msgstr  ""
 
-#: lxc/config_device.go:541
+#: lxc/config_device.go:547
 msgid   "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr  ""
 
-#: lxc/config_device.go:86
+#: lxc/config_device.go:89
 msgid   "[<remote>:]<profile> <device> <type> [key=value...]"
 msgstr  ""
 
@@ -5253,7 +5253,7 @@ msgstr  ""
 msgid   "[<remote>:]<profile> <key><value>..."
 msgstr  ""
 
-#: lxc/config_device.go:434
+#: lxc/config_device.go:440
 msgid   "[<remote>:]<profile> <name>..."
 msgstr  ""
 
@@ -5400,7 +5400,10 @@ msgstr  ""
 
 #: lxc/config_device.go:82
 msgid   "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/c1 path=opt\n"
-        "    Will mount the host's /share/c1 onto /opt in the instance."
+        "    Will mount the host's /share/c1 onto /opt in the instance.\n"
+        "\n"
+        "lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool source=some-volume path=opt\n"
+        "    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr  ""
 
 #: lxc/config.go:94
@@ -5525,9 +5528,12 @@ msgid   "lxc profile assign foo default,bar\n"
         "    Remove all profile from \"foo\""
 msgstr  ""
 
-#: lxc/config_device.go:87
+#: lxc/config_device.go:90
 msgid   "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=opt\n"
-        "    Will mount the host's /share/c1 onto /opt in the instance."
+        "    Will mount the host's /share/c1 onto /opt in the instance.\n"
+        "\n"
+        "lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool source=some-volume path=opt\n"
+        "    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr  ""
 
 #: lxc/profile.go:409
