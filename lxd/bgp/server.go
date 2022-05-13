@@ -214,7 +214,7 @@ func (s *Server) reconfigure(address string, asn uint32, routerID net.IP) error 
 	// Check if we should start.
 	if address != "" && asn > 0 && routerID != nil {
 		// Restore old address on failure.
-		revert.Add(func() { s.start(oldAddress, oldASN, oldRouterID) })
+		revert.Add(func() error { return s.start(oldAddress, oldASN, oldRouterID) })
 
 		// Start the listener with the new address.
 		err = s.start(address, asn, routerID)
