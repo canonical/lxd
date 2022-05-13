@@ -3246,14 +3246,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
 		srcVol := b.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
-		// Check the supplied config and remove any fields not relevant for pool type.
-		err := b.driver.ValidateVolume(vol, true)
-		if err != nil {
-			return err
-		}
-
-		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+		// Validate config and create database entry for new storage volume.
+		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false)
 		if err != nil {
 			return err
 		}
@@ -3264,8 +3258,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		for _, snapName := range snapshotNames {
 			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
+			// Validate config and create database entry for new storage volume.
 			// Copy volume config from parent.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
+			err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
