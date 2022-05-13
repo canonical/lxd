@@ -507,7 +507,7 @@ type cmdConfigTrustRemove struct {
 
 func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("remove", i18n.G("[<remote>:] <fingerprint>"))
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<fingerprint>"))
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove trusted client")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -526,20 +526,23 @@ func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse remote
-	remote := ""
-	if len(args) > 0 {
-		remote = args[0]
-	}
-
-	resources, err := c.global.ParseServers(remote)
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
 	resource := resources[0]
 
+	// Support both legacy "<remote>: <fingerprint>" and current "<remote>:<fingerprint>".
+	var fingerprint string
+	if len(args) == 2 {
+		fingerprint = args[1]
+	} else {
+		fingerprint = resource.name
+	}
+
 	// Remove trust relationship
-	return resource.server.DeleteCertificate(args[len(args)-1])
+	return resource.server.DeleteCertificate(fingerprint)
 }
 
 // List tokens

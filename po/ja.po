@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-13 10:39-0400\n"
+"POT-Creation-Date: 2022-05-13 11:22-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1042,7 +1042,7 @@ msgstr "カード %d:"
 msgid "Card: %s (%s)"
 msgstr "カード: %s (%s)"
 
-#: lxc/config_trust.go:606
+#: lxc/config_trust.go:609
 #, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "%s に対する証明書追加トークンが削除されました"
@@ -1570,7 +1570,7 @@ msgstr "警告を削除します"
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422
-#: lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627
+#: lxc/config_trust.go:513 lxc/config_trust.go:559 lxc/config_trust.go:630
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
 #: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
@@ -3486,7 +3486,7 @@ msgstr "マイグレーションが失敗しました: %w"
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
-#: lxc/config_trust.go:261 lxc/config_trust.go:652
+#: lxc/config_trust.go:261 lxc/config_trust.go:655
 msgid "Missing certificate fingerprint"
 msgstr "証明書のフィンガープリントがありません"
 
@@ -3874,7 +3874,7 @@ msgstr "イメージに新しいエイリアスを追加します"
 msgid "New key/value to apply to a specific device"
 msgstr "指定するデバイスに適用する新しいキー/値"
 
-#: lxc/config_trust.go:613
+#: lxc/config_trust.go:616
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr "メンバー %s に対する証明書追加トークンがリモートにありません: %s"
@@ -4500,7 +4500,7 @@ msgstr "インスタンスのコンソールログを取得します"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/config_trust.go:555 lxc/config_trust.go:556
+#: lxc/config_trust.go:558 lxc/config_trust.go:559
 msgid "Revoke certificate add token"
 msgstr "証明書追加トークンを失効（Revoke）させます"
 
@@ -4961,7 +4961,7 @@ msgstr "ストレージプールで利用可能なリソースを表示します
 msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
 
-#: lxc/config_trust.go:626 lxc/config_trust.go:627
+#: lxc/config_trust.go:629 lxc/config_trust.go:630
 msgid "Show trust configurations"
 msgstr "信頼済みクライアントの設定を表示します"
 
@@ -5725,11 +5725,7 @@ msgstr "[<remote>:] <backup file> [<instance name>]"
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "[<remote>:] <cert.crt> <cert.key>"
 
-#: lxc/config_trust.go:510
-msgid "[<remote>:] <fingerprint>"
-msgstr "[<remote>:] <fingerprint>"
-
-#: lxc/cluster.go:509 lxc/config_trust.go:554
+#: lxc/cluster.go:509 lxc/config_trust.go:557
 msgid "[<remote>:] <name>"
 msgstr "[<remote>:] <name>"
 
@@ -5806,7 +5802,7 @@ msgstr "[<remote>:]<alias> <new-name>"
 msgid "[<remote>:]<cluster member>"
 msgstr "[<remote>:]<cluster member>"
 
-#: lxc/config_trust.go:227 lxc/config_trust.go:625
+#: lxc/config_trust.go:227 lxc/config_trust.go:510 lxc/config_trust.go:628
 msgid "[<remote>:]<fingerprint>"
 msgstr "[<remote>:]<fingerprint>"
 
@@ -6731,6 +6727,9 @@ msgstr "y"
 #: lxc/image.go:1099
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "[<remote>:] <fingerprint>"
+#~ msgstr "[<remote>:] <fingerprint>"
 
 #~ msgid ""
 #~ "Add new trusted clients\n"
