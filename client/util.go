@@ -26,7 +26,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 		Proxy:                 shared.ProxyFromEnvironment,
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
@@ -118,7 +118,7 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 		Dial:                  unixDial,
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
