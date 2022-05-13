@@ -97,7 +97,7 @@ func tlsTransport(config *tls.Config) (*http.Transport, func()) {
 		DisableKeepAlives:     true,
 		MaxIdleConns:          0,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 	return transport, transport.CloseIdleConnections
