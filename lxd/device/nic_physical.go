@@ -107,8 +107,8 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 		if shared.IsTrue(saveData["last_state.created"]) {
-			revert.Add(func() {
-				networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
+			revert.Add(func() error {
+				return networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
 			})
 		}
 

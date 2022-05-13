@@ -257,7 +257,7 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns a revert function, and a file handle to the proxy process.
-func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), *os.File, error) {
+func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (revert.Hook, *os.File, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -297,7 +297,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix dialed file: %w", err)
 	}
-	revert.Add(func() { cDialUnixFile.Close() })
+	revert.Add(cDialUnixFile.Close)
 
 	cAccept, err := listener.Accept()
 	if err != nil {
@@ -334,7 +334,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
 
-	revert.Add(func() { proc.Stop() })
+	revert.Add(func() error { return proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
@@ -343,7 +343,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 
 	revertExternal := revert.Clone()
 	revert.Success()
-	return revertExternal.Fail, cDialUnixFile, err
+	return revertExternal.FailHook, cDialUnixFile, err
 }
 
 // DiskVMVirtfsProxyStop stops the virtfs-proxy-helper process.
@@ -371,7 +371,7 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (revert.Hook, net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -419,9 +419,9 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
 	}
-	revert.Add(func() {
+	revert.Add(func() error {
 		listener.Close()
-		os.Remove(socketPath)
+		return os.Remove(socketPath)
 	})
 
 	unixListener, ok := listener.(*net.UnixListener)
@@ -451,7 +451,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, fmt.Errorf("Failed to start virtiofsd: %w", err)
 	}
 
-	revert.Add(func() { proc.Stop() })
+	revert.Add(func() error { return proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
@@ -460,7 +460,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 
 	revertExternal := revert.Clone()
 	revert.Success()
-	return revertExternal.Fail, listener, err
+	return revertExternal.FailHook, listener, err
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.

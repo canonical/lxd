@@ -107,11 +107,24 @@ func DeviceDriverOverride(pciDev Device, driverOverride string) error {
 		return err
 	}
 
-	revert.Add(func() {
+	revert.Add(func() error {
 		// Reset the driver override and rebind to original driver (if needed).
-		DeviceUnbind(pciDev)
-		DeviceSetDriverOverride(pciDev, pciDev.Driver)
-		DeviceProbe(pciDev)
+		err := DeviceUnbind(pciDev)
+		if err != nil {
+			return err
+		}
+
+		err = DeviceSetDriverOverride(pciDev, pciDev.Driver)
+		if err != nil {
+			return err
+		}
+
+		err = DeviceProbe(pciDev)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	// Set driver override.

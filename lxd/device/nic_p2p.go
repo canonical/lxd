@@ -108,7 +108,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() error { return network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)

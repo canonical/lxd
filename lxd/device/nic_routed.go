@@ -284,8 +284,8 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
 		if shared.IsTrue(saveData["last_state.created"]) {
-			revert.Add(func() {
-				networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
+			revert.Add(func() error {
+				return networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
 			})
 
 			err := d.setupParentSysctls(d.effectiveParentName)
@@ -332,7 +332,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() error { return network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -436,7 +436,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed adding neighbour proxy %q to %q: %w", np.Addr.String(), np.DevName, err)
 				}
 
-				revert.Add(func() { np.Delete() })
+				revert.Add(func() error { return np.Delete() })
 			}
 		}
 

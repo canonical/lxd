@@ -355,7 +355,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 
-		revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+		revert.Add(func() error { return network.InterfaceRemove(saveData["host_name"]) })
 	}
 
 	// Populate device config with volatile fields if needed.
@@ -775,8 +775,8 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 		return fmt.Errorf("Failed setting up OVN port: %w", err)
 	}
 
-	revert.Add(func() {
-		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
+	revert.Add(func() error {
+		return d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
 			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 			DeviceName:   d.name,
 			DeviceConfig: d.config,
@@ -795,7 +795,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 		return err
 	}
 
-	revert.Add(func() { ovs.BridgePortDelete(integrationBridge, hostName) })
+	revert.Add(func() error { return ovs.BridgePortDelete(integrationBridge, hostName) })
 
 	// Link OVS port to OVN logical port.
 	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, logicalPortName)

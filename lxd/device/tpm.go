@@ -112,7 +112,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 	defer revert.Fail()
 
 	// Stop the TPM emulator if anything goes wrong.
-	revert.Add(func() { proc.Stop() })
+	revert.Add(func() error { return proc.Stop() })
 
 	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 
@@ -199,7 +199,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() { proc.Stop() })
+	revert.Add(func() error { return proc.Stop() })
 
 	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 

@@ -131,7 +131,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 				return nil, fmt.Errorf("Failed to create virtual gpu %q: %w", mdevUUID, err)
 			}
 
-			revert.Add(func() {
+			revert.Add(func() error {
 				path := fmt.Sprintf("/sys/bus/mdev/devices/%s", mdevUUID)
 
 				if shared.PathExists(path) {
@@ -140,6 +140,8 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 						d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": mdevUUID, "err": err})
 					}
 				}
+
+				return nil
 			})
 		}
 	}

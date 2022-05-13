@@ -287,7 +287,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("Failed to bring up the tap interface %q: %w", hostName, err)
 	}
-	revert.Add(func() { network.InterfaceRemove(hostName) })
+	revert.Add(func() error { return network.InterfaceRemove(hostName) })
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	var mtu uint32
@@ -364,14 +364,14 @@ func networkNICRouteAdd(routeDev string, routes ...string) error {
 			return err
 		}
 
-		revert.Add(func() {
+		revert.Add(func() error {
 			r := &ip.Route{
 				DevName: routeDev,
 				Route:   route,
 				Proto:   "boot",
 				Family:  ipVersion,
 			}
-			r.Flush()
+			return r.Flush()
 		})
 	}
 
@@ -631,7 +631,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 		return vfPCIDev, 0, err
 	}
 
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() error { return pcidev.DeviceProbe(vfPCIDev) })
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
@@ -780,7 +780,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() error { return pcidev.DeviceProbe(vfPCIDev) })
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {

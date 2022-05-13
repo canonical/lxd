@@ -196,7 +196,7 @@ func (d *gpuSRIOV) setupSriovParent(parentPCIAddress string, vfID int, volatile 
 		return vfPCIDev, err
 	}
 
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() error { return pcidev.DeviceProbe(vfPCIDev) })
 
 	// Register VF device with vfio-pci driver so it can be passed to VM.
 	err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
@@ -317,7 +317,7 @@ func (d *gpuSRIOV) restoreSriovParent(volatile map[string]string) error {
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() error { return pcidev.DeviceProbe(vfPCIDev) })
 
 	// Bind VF device onto the host so that the settings will take effect.
 	err = pcidev.DeviceProbe(vfPCIDev)

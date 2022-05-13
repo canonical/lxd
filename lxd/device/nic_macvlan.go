@@ -166,8 +166,8 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 	if shared.IsTrue(saveData["last_state.created"]) {
-		revert.Add(func() {
-			networkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
+		revert.Add(func() error {
+			return networkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
 		})
 	}
 
@@ -201,7 +201,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() error { return network.InterfaceRemove(saveData["host_name"]) })
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {

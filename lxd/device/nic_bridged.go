@@ -533,7 +533,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() error { return network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -574,7 +574,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	revert.Add(func() { network.DetachInterface(d.config["parent"], saveData["host_name"]) })
+	revert.Add(func() error { return network.DetachInterface(d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
@@ -951,12 +951,15 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hoo
 			return nil, err
 		}
 
-		revert.Add(func() { d.removeFilters(d.config) })
+		revert.Add(func() error {
+			d.removeFilters(d.config)
+			return nil
+		})
 	}
 
 	revertExternal := revert.Clone()
 	revert.Success()
-	return revertExternal.Fail, nil
+	return revertExternal.FailHook, nil
 }
 
 // removeFilters removes any network level filters defined for the instance.
@@ -1118,7 +1121,10 @@ func (d *nicBridged) setFilters() (err error) {
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { d.removeFilters(config) })
+	revert.Add(func() error {
+		d.removeFilters(config)
+		return nil
+	})
 
 	IPv4Nets, IPv6Nets, err := allowedIPNets(config)
 	if err != nil {
