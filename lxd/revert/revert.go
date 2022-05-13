@@ -1,8 +1,10 @@
 package revert
 
+import "github.com/lxc/lxd/shared/logger"
+
 // Hook is a function that can be added to the revert via the Add() function.
 // These will be run in the reverse order that they were added if the reverter's Fail() function is called.
-type Hook func()
+type Hook func() error
 
 // Reverter is a helper type to manage revert functions.
 type Reverter struct {
@@ -26,7 +28,10 @@ func (r *Reverter) Fail() {
 	for k := range r.revertFuncs {
 		// Run the revert functions in reverse order.
 		k = funcCount - 1 - k
-		r.revertFuncs[k]()
+		err := r.revertFuncs[k]()
+		if err != nil {
+			logger.Warn("Failed executing revert hook", logger.Ctx{"err": err})
+		}
 	}
 }
 
@@ -34,6 +39,13 @@ func (r *Reverter) Fail() {
 // Should be called on successful completion of a task to prevent revert functions from being run.
 func (r *Reverter) Success() {
 	r.revertFuncs = nil
+}
+
+// FailHook calls Fail and returns nil. This function can be passed into another reverter as a hook, say for combining
+// reverters across many function calls.
+func (r *Reverter) FailHook() error {
+	r.Fail()
+	return nil
 }
 
 // Clone returns a copy of the reverter with the current set of revert functions added.
