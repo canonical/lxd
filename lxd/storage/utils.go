@@ -206,7 +206,8 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 
 // VolumeDBCreate creates a volume in the database.
 // If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
-func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
+// If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
+func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return fmt.Errorf("Pool is not a lxdBackend")
@@ -253,7 +254,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	}
 
 	// Validate config.
-	err = pool.Driver().ValidateVolume(vol, false)
+	err = pool.Driver().ValidateVolume(vol, removeUnknownKeys)
 	if err != nil {
 		return err
 	}
