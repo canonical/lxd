@@ -379,8 +379,9 @@ func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *sha
 	}
 
 	revert := revert.New()
-	revert.Add(func() {
+	revert.Add(func() error {
 		client.Disconnect()
+		return nil
 	})
 
 	listener, err := client.GetEventsAllProjects()

@@ -1003,7 +1003,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to HTTP endpoint %q: %w", addr, err)
 	}
-	revert.Add(func() { conn.Close() })
+	revert.Add(conn.Close)
 
 	l := logger.AddContext(logger.Log, logger.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
 	l.Info("Dqlite connected outbound")
