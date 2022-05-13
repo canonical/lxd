@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:24-0500\n"
+"POT-Creation-Date: 2022-06-20 18:28-0500\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1049,7 +1049,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Cacheado: %s"
 
-#: lxc/config_trust.go:606
+#: lxc/config_trust.go:609
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Perfil %s eliminado"
@@ -1578,7 +1578,7 @@ msgstr ""
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422
-#: lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627
+#: lxc/config_trust.go:513 lxc/config_trust.go:559 lxc/config_trust.go:630
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
 #: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
@@ -3306,7 +3306,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:261 lxc/config_trust.go:652
+#: lxc/config_trust.go:261 lxc/config_trust.go:655
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Certificado de la huella digital: %s"
@@ -3699,7 +3699,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
-#: lxc/config_trust.go:613
+#: lxc/config_trust.go:616
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -4320,7 +4320,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:555 lxc/config_trust.go:556
+#: lxc/config_trust.go:558 lxc/config_trust.go:559
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "Nombre del Miembro del Cluster"
@@ -4745,7 +4745,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:626 lxc/config_trust.go:627
+#: lxc/config_trust.go:629 lxc/config_trust.go:630
 msgid "Show trust configurations"
 msgstr ""
 
@@ -5491,12 +5491,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_trust.go:510
-#, fuzzy
-msgid "[<remote>:] <fingerprint>"
-msgstr "No se puede proveer el nombre del container a la lista"
-
-#: lxc/cluster.go:509 lxc/config_trust.go:554
+#: lxc/cluster.go:509 lxc/config_trust.go:557
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -5592,7 +5587,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<cluster member>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_trust.go:227 lxc/config_trust.go:625
+#: lxc/config_trust.go:227 lxc/config_trust.go:510 lxc/config_trust.go:628
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -6475,6 +6470,10 @@ msgstr ""
 #: lxc/image.go:1095
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "[<remote>:] <fingerprint>"
+#~ msgstr "No se puede proveer el nombre del container a la lista"
 
 #, fuzzy
 #~ msgid "[<remote>:] <token>"
