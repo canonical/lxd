@@ -96,11 +96,11 @@ func (d *ceph) Create() error {
 
 	// Set default properties if missing.
 	if d.config["ceph.cluster_name"] == "" {
-		d.config["ceph.cluster_name"] = "ceph"
+		d.config["ceph.cluster_name"] = CephDefaultCluster
 	}
 
 	if d.config["ceph.user.name"] == "" {
-		d.config["ceph.user.name"] = "admin"
+		d.config["ceph.user.name"] = CephDefaultUser
 	}
 
 	if d.config["ceph.osd.pg_num"] == "" {
