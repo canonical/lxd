@@ -21,6 +21,12 @@ import (
 	"github.com/lxc/lxd/shared/subprocess"
 )
 
+// RBDFormatPrefix is the prefix used in disk paths to identify RBD.
+const RBDFormatPrefix = "rbd"
+
+// RBDFormatSeparator is the field separate used in disk paths for RBD devices.
+const RBDFormatSeparator = " "
+
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
 	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
