@@ -144,7 +144,7 @@ func (d *lvm) Create() error {
 			return fmt.Errorf("Failed to create sparse file %q: %w", d.config["source"], err)
 		}
 
-		revert.Add(func() { os.Remove(d.config["source"]) })
+		revert.Add(func() error { return os.Remove(d.config["source"]) })
 
 		// Open the loop file.
 		loopFile, err := d.openLoopFile(d.config["source"])
@@ -286,7 +286,10 @@ func (d *lvm) Create() error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { shared.TryRunCommand("pvremove", pvName) })
+			revert.Add(func() error {
+				_, err := shared.TryRunCommand("pvremove", pvName)
+				return err
+			})
 		}
 
 		// Create volume group.
@@ -295,7 +298,10 @@ func (d *lvm) Create() error {
 			return err
 		}
 		d.logger.Debug("Volume group created", logger.Ctx{"pv_name": pvName, "vg_name": d.config["lvm.vg_name"]})
-		revert.Add(func() { shared.TryRunCommand("vgremove", d.config["lvm.vg_name"]) })
+		revert.Add(func() error {
+			_, err := shared.TryRunCommand("vgremove", d.config["lvm.vg_name"])
+			return err
+		})
 	}
 
 	// Create thin pool if needed.
@@ -306,8 +312,8 @@ func (d *lvm) Create() error {
 		}
 		d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
 
-		revert.Add(func() {
-			d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
+		revert.Add(func() error {
+			return d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
 		})
 	}
 

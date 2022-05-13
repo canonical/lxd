@@ -44,9 +44,13 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	if err != nil {
 		return err
 	}
-	revert.Add(func() {
-		d.deleteSubvolume(volPath, false)
-		os.Remove(volPath)
+	revert.Add(func() error {
+		err := d.deleteSubvolume(volPath, false)
+		if err != nil {
+			logger.Warn("Could not delete subvolume during revert", logger.Ctx{"err": err})
+		}
+
+		return os.Remove(volPath)
 	})
 
 	// Create sparse loopback file if volume is block.
@@ -151,15 +155,18 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 
 	// Define a revert function that will be used both to revert if an error occurs inside this
 	// function but also return it for use from the calling functions if no error internally.
-	revertHook := func() {
+	revertHook := func() error {
 		for _, snapName := range srcBackup.Snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
+			err := d.DeleteVolumeSnapshot(snapVol, op)
+			if err != nil {
+				logger.Warn("Could not delete volume snapshot during revert", logger.Ctx{"err": err})
+			}
 		}
 
 		// And lastly the main volume.
-		d.DeleteVolume(vol, op)
+		return d.DeleteVolume(vol, op)
 	}
 	// Only execute the revert function if we have had an error internally.
 	revert.Add(revertHook)
@@ -397,7 +404,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 		return err
 	}
 
-	revert.Add(func() { d.deleteSubvolume(target, true) })
+	revert.Add(func() error { return d.deleteSubvolume(target, true) })
 
 	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
 	subVolCount := len(subVols)
@@ -460,7 +467,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 				return err
 			}
 
-			revert.Add(func() { d.deleteSubvolume(dstSnapshot, true) })
+			revert.Add(func() error { return d.deleteSubvolume(dstSnapshot, true) })
 		}
 	}
 
@@ -656,7 +663,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		if err != nil {
 			return err
 		}
-		revert.Add(func() { deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name) })
+		revert.Add(func() error { return deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name) })
 
 		// Transfer the snapshots.
 		for _, snapName := range volTargetArgs.Snapshots {
@@ -1154,8 +1161,8 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		return "", nil, err
 	}
 
-	reverter.Add(func() {
-		os.RemoveAll(tmpDir)
+	reverter.Add(func() error {
+		return os.RemoveAll(tmpDir)
 	})
 
 	err = os.Chmod(tmpDir, 0100)
@@ -1170,8 +1177,8 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		return "", nil, err
 	}
 
-	reverter.Add(func() {
-		d.deleteSubvolume(mountPath, true)
+	reverter.Add(func() error {
+		return d.deleteSubvolume(mountPath, true)
 	})
 
 	err = d.setSubvolumeReadonlyProperty(mountPath, true)
@@ -1822,14 +1829,14 @@ func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Op
 	if err != nil {
 		return fmt.Errorf("Failed to rename %q to %q: %w", target, backupSubvolume, err)
 	}
-	revert.Add(func() { os.Rename(backupSubvolume, target) })
+	revert.Add(func() error { return os.Rename(backupSubvolume, target) })
 
 	// Restore the snapshot.
 	err = d.snapshotSubvolume(srcVol.MountPath(), target, true)
 	if err != nil {
 		return err
 	}
-	revert.Add(func() { d.deleteSubvolume(target, true) })
+	revert.Add(func() error { return d.deleteSubvolume(target, true) })
 
 	// Restore readonly property on subvolumes in reverse order (except root which should be left writable).
 	subVolCount := len(subVols)

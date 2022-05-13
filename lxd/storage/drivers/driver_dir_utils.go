@@ -21,7 +21,7 @@ func (d *dir) withoutGetVolID() Driver {
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
 // Returns a revert function that can be used to remove the quota if there is a subsequent error.
-func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
+func (d *dir) setupInitialQuota(vol Volume) (revert.Hook, error) {
 	if vol.IsVMBlock() {
 		return nil, nil
 	}
@@ -38,7 +38,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	defer revert.Fail()
 
 	// Define a function to revert the quota being setup.
-	revertFunc := func() { d.deleteQuota(volPath, volID) }
+	revertFunc := func() error { return d.deleteQuota(volPath, volID) }
 	revert.Add(revertFunc)
 
 	// Initialise the volume's project using the volume ID and set the quota.

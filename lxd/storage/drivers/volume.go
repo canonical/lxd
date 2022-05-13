@@ -202,7 +202,7 @@ func (v Volume) EnsureMountPath() error {
 		if err != nil {
 			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
 		}
-		revert.Add(func() { os.Remove(volPath) })
+		revert.Add(func() error { return os.Remove(volPath) })
 	}
 
 	// Set very restrictive mode 0100 for non-custom and non-image volumes.
