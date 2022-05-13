@@ -308,7 +308,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceRemove(dev, false) })
+			revert.Add(func() error { return d.deviceRemove(dev, false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -317,7 +317,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 			return nil, err
 		}
 
-		revert.Add(func() { d.maasDelete(d) })
+		revert.Add(func() error { return d.maasDelete(d) })
 	}
 
 	d.logger.Info("Created container", logger.Ctx{"ephemeral": d.ephemeral})
@@ -1406,11 +1406,20 @@ func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfi
 		return nil, err
 	}
 
-	revert.Add(func() {
-		runConf, _ := dev.Stop()
-		if runConf != nil {
-			d.runHooks(runConf.PostHooks)
+	revert.Add(func() error {
+		runConf, err := dev.Stop()
+		if err != nil {
+			d.logger.Warn("Failed to stop device during revert", logger.Ctx{"err": err})
 		}
+
+		if runConf != nil {
+			err := d.runHooks(runConf.PostHooks)
+			if err != nil {
+				d.logger.Warn("Failed to run device hooks during revert", logger.Ctx{"err": err})
+			}
+		}
+
+		return nil
 	})
 
 	// If runConf supplied, perform any container specific setup of device.
@@ -1951,7 +1960,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	revert.Add(func() { d.unmount() })
+	revert.Add(func() error { return d.unmount() })
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
@@ -2051,11 +2060,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		}
 
 		// Stop device on failure to setup container.
-		revert.Add(func() {
+		revert.Add(func() error {
 			err := d.deviceStop(dev, false, "")
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
+
+			return nil
 		})
 
 		if runConf == nil {
@@ -2063,7 +2074,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		}
 
 		if runConf.Revert != nil {
-			revert.Add(runConf.Revert.Fail)
+			revert.Add(runConf.Revert.FailHook)
 		}
 
 		// Process rootfs setup.
@@ -3881,7 +3892,10 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	// Set the new name in the struct.
 	d.name = newName
-	revert.Add(func() { d.name = oldName })
+	revert.Add(func() error {
+		d.name = oldName
+		return nil
+	})
 
 	// Rename the backups.
 	backups, err := d.Backups()
@@ -3900,7 +3914,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			return err
 		}
 
-		revert.Add(func() { b.Rename(oldName) })
+		revert.Add(func() error { return b.Rename(oldName) })
 	}
 
 	// Invalidate the go-lxc cache.
@@ -4790,7 +4804,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 		}
 
-		revert.Add(func() { d.deviceRemove(dev, instanceRunning) })
+		revert.Add(func() error { return d.deviceRemove(dev, instanceRunning) })
 
 		if instanceRunning {
 			err = dev.PreStartCheck()
@@ -4803,7 +4817,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev, instanceRunning, "") })
+			revert.Add(func() error { return d.deviceStop(dev, instanceRunning, "") })
 		}
 	}
 
@@ -5498,9 +5512,9 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Always cleanup on failure.
 		// This isn't defered as we want those run immediately after
 		// forkfile exits and not after other defers are run.
-		reverter.Add(func() {
+		reverter.Add(func() error {
 			forkfileListener.Close()
-			os.Remove(forkfilePath)
+			return os.Remove(forkfilePath)
 		})
 
 		// Mount the filesystem if needed.

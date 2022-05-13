@@ -322,12 +322,12 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 			return fmt.Errorf("Failed adding block device: %w", err)
 		}
 
-		revert.Add(func() {
+		revert.Add(func() error {
 			blockDevDel := map[string]any{
 				"node-name": blockDev["devName"],
 			}
 
-			m.run("blockdev-del", blockDevDel, nil)
+			return m.run("blockdev-del", blockDevDel, nil)
 		})
 	}
 
@@ -418,15 +418,12 @@ func (m *Monitor) AddNIC(netDev map[string]any, device map[string]string) error 
 			return fmt.Errorf("Failed adding NIC netdev: %w", err)
 		}
 
-		revert.Add(func() {
+		revert.Add(func() error {
 			netDevDel := map[string]any{
 				"id": netDev["id"],
 			}
 
-			err = m.run("netdev_del", netDevDel, nil)
-			if err != nil {
-				return
-			}
+			return m.run("netdev_del", netDevDel, nil)
 		})
 	}
 

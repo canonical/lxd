@@ -1065,7 +1065,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 			return err
 		}
 
-		revert.Add(func() { op.Done(err) })
+		revert.Add(func() error {
+			op.Done(err)
+			return nil
+		})
 
 		return nil
 	})
@@ -1082,7 +1085,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		return nil, nil, err
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
+	revert.Add(func() error { return s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := Create(s, args, revert)

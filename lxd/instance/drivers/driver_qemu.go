@@ -283,7 +283,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceRemove(dev, false) })
+			revert.Add(func() error { return d.deviceRemove(dev, false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -292,7 +292,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 			return nil, err
 		}
 
-		revert.Add(func() { d.maasDelete(d) })
+		revert.Add(func() error { return d.maasDelete(d) })
 	}
 
 	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
@@ -1041,7 +1041,7 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	revert.Add(func() { d.unmount() })
+	revert.Add(func() error { return d.unmount() })
 
 	volatileSet := make(map[string]string)
 
@@ -1137,11 +1137,13 @@ func (d *qemu) Start(stateful bool) error {
 			return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
-		revert.Add(func() {
+		revert.Add(func() error {
 			err := d.deviceStop(dev, false)
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
+
+			return nil
 		})
 
 		if runConf == nil {
@@ -1149,7 +1151,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if runConf.Revert != nil {
-			revert.Add(runConf.Revert.Fail)
+			revert.Add(runConf.Revert.FailHook)
 		}
 
 		// Add post-start hooks
@@ -1172,7 +1174,7 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		return fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
 	}
-	revert.Add(func() { d.configDriveMountPathClear() })
+	revert.Add(func() error { return d.configDriveMountPathClear() })
 
 	// Mount the config drive device as readonly. This way it will be readonly irrespective of whether its
 	// exported via 9p for virtio-fs.
@@ -1439,8 +1441,8 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	revert.Add(func() {
-		d.killQemuProcess(pid)
+	revert.Add(func() error {
+		return d.killQemuProcess(pid)
 	})
 
 	// Start QMP monitoring.
@@ -1723,11 +1725,20 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 		return nil, err
 	}
 
-	revert.Add(func() {
-		runConf, _ := dev.Stop()
-		if runConf != nil {
-			d.runHooks(runConf.PostHooks)
+	revert.Add(func() error {
+		runConf, err := dev.Stop()
+		if err != nil {
+			d.logger.Warn("Failed to stop device during revert", logger.Ctx{"err": err})
 		}
+
+		if runConf != nil {
+			err := d.runHooks(runConf.PostHooks)
+			if err != nil {
+				d.logger.Warn("Failed to run device hooks during revert", logger.Ctx{"err": err})
+			}
+		}
+
+		return nil
 	})
 
 	// If runConf supplied, perform any instance specific setup of device.
@@ -3238,8 +3249,8 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		if err != nil {
 			return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
 		}
-		revert.Add(func() {
-			m.RemoveFDFromFDSet(nodeName)
+		revert.Add(func() error {
+			return m.RemoveFDFromFDSet(nodeName)
 		})
 
 		blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
@@ -3386,7 +3397,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			if err != nil {
 				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
 			}
-			revert.Add(func() { os.Chown(vfioGroupFile, 0, -1) })
+			revert.Add(func() error { return os.Chown(vfioGroupFile, 0, -1) })
 		}
 	}
 
@@ -3614,8 +3625,8 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 		if err != nil {
 			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
-		revert.Add(func() {
-			m.RemoveFDFromFDSet(device["id"])
+		revert.Add(func() error {
+			return m.RemoveFDFromFDSet(device["id"])
 		})
 
 		device["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
@@ -4138,7 +4149,10 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	// Set the new name in the struct.
 	d.name = newName
-	revert.Add(func() { d.name = oldName })
+	revert.Add(func() error {
+		d.name = oldName
+		return nil
+	})
 
 	// Rename the backups.
 	backups, err := d.Backups()
@@ -4157,7 +4171,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			return err
 		}
 
-		revert.Add(func() { b.Rename(oldName) })
+		revert.Add(func() error { return b.Rename(oldName) })
 	}
 
 	// Update lease files.
@@ -4311,7 +4325,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	oldExpiryDate := d.expiryDate
 
 	// Revert local changes if update fails.
-	revert.Add(func() {
+	revert.Add(func() error {
 		d.description = oldDescription
 		d.architecture = oldArchitecture
 		d.ephemeral = oldEphemeral
@@ -4321,6 +4335,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		d.localDevices = oldLocalDevices
 		d.profiles = oldProfiles
 		d.expiryDate = oldExpiryDate
+		return nil
 	})
 
 	// Apply the various changes to local vars.
@@ -4734,7 +4749,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 		}
 
-		revert.Add(func() { d.deviceRemove(dev, instanceRunning) })
+		revert.Add(func() error { return d.deviceRemove(dev, instanceRunning) })
 
 		if instanceRunning {
 			err = dev.PreStartCheck()
@@ -4747,7 +4762,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev, instanceRunning) })
+			revert.Add(func() error { return d.deviceStop(dev, instanceRunning) })
 		}
 	}
 
@@ -5283,7 +5298,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		to.Close()
 	}
 
-	revert.Add(func() { os.Remove(fPath) })
+	revert.Add(func() error { return os.Remove(fPath) })
 
 	cmd = append(cmd, mountInfo.DiskPath, fPath)
 
@@ -5472,7 +5487,10 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
-	revert.Add(agent.Disconnect)
+	revert.Add(func() error {
+		agent.Disconnect()
+		return nil
+	})
 
 	dataDone := make(chan bool)
 	controlSendCh := make(chan api.InstanceExecControl)
