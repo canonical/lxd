@@ -122,7 +122,7 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 		Proxy:                 proxy,
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
