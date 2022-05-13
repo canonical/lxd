@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -37,15 +39,37 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		typeStr = "logging,operation,lifecycle,config"
 	}
 
-	// Upgrade the connection to websocket
-	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return err
+	var listenerConnection events.EventListenerConnection
+
+	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
+	if r.Header.Get("Upgrade") == "websocket" {
+		// Upgrade the connection to websocket
+		c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = c.Close() }() // This ensures the go routine below is ended when this function ends.
+
+		listenerConnection = events.NewWebsocketListenerConnection(c)
+	} else {
+		h, ok := w.(http.Hijacker)
+		if !ok {
+			return fmt.Errorf("Missing implemented http.Hijacker interface")
+		}
+
+		conn, _, err := h.Hijack()
+		if err != nil {
+			return err
+		}
+
+		listenerConnection, err = events.NewStreamListenerConnection(conn)
+		if err != nil {
+			return err
+		}
 	}
-	defer func() { _ = c.Close() }() // This ensures the go routine below is ended when this function ends.
 
 	// As we don't know which project we are in, subscribe to events from all projects.
-	listener, err := d.events.AddListener("", true, c, strings.Split(typeStr, ","), nil, nil, nil)
+	listener, err := d.events.AddListener("", true, listenerConnection, strings.Split(typeStr, ","), nil, nil, nil)
 	if err != nil {
 		return err
 	}
