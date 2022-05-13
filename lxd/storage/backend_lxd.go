@@ -3460,8 +3460,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	if !args.Refresh || !b.driver.HasVolume(vol) {
-		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+		// Validate config and create database entry for new storage volume.
+		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
 		if err != nil {
 			return err
 		}
@@ -3474,8 +3475,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		for _, snapName := range args.Snapshots {
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
+			// Validate config and create database entry for new storage volume.
+			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 			// Copy volume config from parent.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
+			err = VolumeDBCreate(b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType(), true)
 			if err != nil {
 				return err
 			}
