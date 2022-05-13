@@ -64,7 +64,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Insert backup info into database: %w", err)
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteInstanceBackup(args.Name) })
+	revert.Add(func() error { return s.DB.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
@@ -112,7 +112,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 			return err
 		}
 
-		revert.Add(func() { os.Remove(backupsPath) })
+		revert.Add(func() error { return os.Remove(backupsPath) })
 	}
 
 	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), b.Name()))
@@ -124,7 +124,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
 	defer tarFileWriter.Close()
-	revert.Add(func() { os.Remove(target) })
+	revert.Add(func() error { return os.Remove(target) })
 
 	// Get IDMap to unshift container as the tarball is created.
 	var idmap *idmap.IdmapSet
@@ -372,7 +372,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed creating backup record: %w", err)
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
+	revert.Add(func() error { return s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
 
 	backupRow, err := s.DB.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
 	if err != nil {
@@ -401,7 +401,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 			return err
 		}
 
-		revert.Add(func() { os.Remove(backupsPath) })
+		revert.Add(func() error { return os.Remove(backupsPath) })
 	}
 
 	target := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
@@ -413,7 +413,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
 	defer tarFileWriter.Close()
-	revert.Add(func() { os.Remove(target) })
+	revert.Add(func() error { return os.Remove(target) })
 
 	// Create the tarball.
 	tarPipeReader, tarPipeWriter := io.Pipe()
