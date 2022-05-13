@@ -317,6 +317,10 @@ test_projects_profiles() {
 
   # Delete the profile from the default project
   lxc profile delete p1
+
+  # Try project copy
+  lxc profile copy --project default --target-project foo default bar
+  lxc profile delete bar
 }
 
 # Use global profiles in a project.
