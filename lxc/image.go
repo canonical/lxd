@@ -1248,14 +1248,20 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Image{})
+
 	var images []api.Image
-	allImages, err := remoteServer.GetImages()
+	allImages, err := remoteServer.GetImagesWithFilter(serverFilters)
 	if err != nil {
-		return err
+		allImages, err = remoteServer.GetImages()
+		if err != nil {
+			return err
+		}
+		clientFilters = filters
 	}
 
 	for _, image := range allImages {
-		if !c.imageShouldShow(filters, &image) {
+		if !c.imageShouldShow(clientFilters, &image) {
 			continue
 		}
 
@@ -1265,7 +1271,7 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 	// Render the table
 	data := [][]string{}
 	for _, image := range images {
-		if !c.imageShouldShow(filters, &image) {
+		if !c.imageShouldShow(clientFilters, &image) {
 			continue
 		}
 
