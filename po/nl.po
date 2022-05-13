@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-10 16:11-0400\n"
+"POT-Creation-Date: 2022-05-12 19:14+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Heimen Stoffels <vistausss@fastmail.com>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/linux-containers/"
@@ -1218,7 +1218,7 @@ msgid ""
 "versions.\n"
 msgstr ""
 
-#: lxc/config_device.go:344 lxc/config_device.go:345
+#: lxc/config_device.go:350 lxc/config_device.go:351
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr ""
 
@@ -1526,10 +1526,10 @@ msgstr ""
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
 #: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360
 #: lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
-#: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196
-#: lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438
-#: lxc/config_device.go:535 lxc/config_device.go:542 lxc/config_device.go:651
-#: lxc/config_device.go:723 lxc/config_metadata.go:27 lxc/config_metadata.go:55
+#: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:202
+#: lxc/config_device.go:280 lxc/config_device.go:351 lxc/config_device.go:444
+#: lxc/config_device.go:541 lxc/config_device.go:548 lxc/config_device.go:657
+#: lxc/config_device.go:729 lxc/config_metadata.go:27 lxc/config_metadata.go:55
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
@@ -1624,17 +1624,17 @@ msgstr ""
 msgid "Detach storage volumes from profiles"
 msgstr ""
 
-#: lxc/config_device.go:174
+#: lxc/config_device.go:180
 #, c-format
 msgid "Device %s added to %s"
 msgstr ""
 
-#: lxc/config_device.go:415
+#: lxc/config_device.go:421
 #, c-format
 msgid "Device %s overridden for %s"
 msgstr ""
 
-#: lxc/config_device.go:516
+#: lxc/config_device.go:522
 #, c-format
 msgid "Device %s removed from %s"
 msgstr ""
@@ -1644,24 +1644,24 @@ msgstr ""
 msgid "Device already exists: %s"
 msgstr ""
 
-#: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475
-#: lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
+#: lxc/config_device.go:241 lxc/config_device.go:255 lxc/config_device.go:481
+#: lxc/config_device.go:501 lxc/config_device.go:595 lxc/config_device.go:616
 msgid "Device doesn't exist"
 msgstr ""
 
-#: lxc/config_device.go:613
+#: lxc/config_device.go:619
 msgid ""
 "Device from profile(s) cannot be modified for individual instance. Override "
 "device or modify profile instead"
 msgstr ""
 
-#: lxc/config_device.go:498
+#: lxc/config_device.go:504
 msgid ""
 "Device from profile(s) cannot be removed from individual instance. Override "
 "device or modify profile instead"
 msgstr ""
 
-#: lxc/config_device.go:252
+#: lxc/config_device.go:258
 msgid "Device from profile(s) cannot be retrieved for individual instance"
 msgstr ""
 
@@ -2222,7 +2222,7 @@ msgstr ""
 msgid "Get values for cluster member configuration keys"
 msgstr ""
 
-#: lxc/config_device.go:195 lxc/config_device.go:196
+#: lxc/config_device.go:201 lxc/config_device.go:202
 msgid "Get values for device configuration keys"
 msgstr ""
 
@@ -2776,7 +2776,7 @@ msgid ""
 "    t - Type"
 msgstr ""
 
-#: lxc/config_device.go:273 lxc/config_device.go:274
+#: lxc/config_device.go:279 lxc/config_device.go:280
 msgid "List instance devices"
 msgstr ""
 
@@ -3147,8 +3147,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -3256,9 +3256,9 @@ msgstr ""
 msgid "Missing listen address"
 msgstr ""
 
-#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303
-#: lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570
-#: lxc/config_device.go:675
+#: lxc/config_device.go:119 lxc/config_device.go:226 lxc/config_device.go:309
+#: lxc/config_device.go:375 lxc/config_device.go:468 lxc/config_device.go:576
+#: lxc/config_device.go:681
 msgid "Missing name"
 msgstr ""
 
@@ -3640,7 +3640,7 @@ msgstr ""
 msgid "No storage pool for target volume specified"
 msgstr ""
 
-#: lxc/config_device.go:124 lxc/config_device.go:393
+#: lxc/config_device.go:130 lxc/config_device.go:399
 #, c-format
 msgid "No value found in %q"
 msgstr ""
@@ -4073,7 +4073,7 @@ msgstr ""
 msgid "Remove entries from a network zone record"
 msgstr ""
 
-#: lxc/config_device.go:437 lxc/config_device.go:438
+#: lxc/config_device.go:443 lxc/config_device.go:444
 msgid "Remove instance devices"
 msgstr ""
 
@@ -4320,11 +4320,11 @@ msgstr ""
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr ""
 
-#: lxc/config_device.go:532
+#: lxc/config_device.go:538
 msgid "Set device configuration keys"
 msgstr ""
 
-#: lxc/config_device.go:535
+#: lxc/config_device.go:541
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -4333,7 +4333,7 @@ msgid ""
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 msgstr ""
 
-#: lxc/config_device.go:542
+#: lxc/config_device.go:548
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -4528,7 +4528,7 @@ msgstr ""
 msgid "Show events from all projects"
 msgstr ""
 
-#: lxc/config_device.go:650 lxc/config_device.go:651
+#: lxc/config_device.go:656 lxc/config_device.go:657
 msgid "Show full device configuration"
 msgstr ""
 
@@ -4858,7 +4858,7 @@ msgstr ""
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
-#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:381
+#: lxc/config_device.go:146 lxc/config_device.go:163 lxc/config_device.go:387
 msgid "The device already exists"
 msgstr ""
 
@@ -4895,7 +4895,7 @@ msgstr ""
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
 
-#: lxc/config_device.go:386
+#: lxc/config_device.go:392
 msgid "The profile device doesn't exist"
 msgstr ""
 
@@ -5134,7 +5134,7 @@ msgstr ""
 msgid "Unset all profiles on the target instance"
 msgstr ""
 
-#: lxc/config_device.go:722 lxc/config_device.go:723
+#: lxc/config_device.go:728 lxc/config_device.go:729
 msgid "Unset device configuration keys"
 msgstr ""
 
@@ -5481,16 +5481,16 @@ msgstr ""
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
-#: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
+#: lxc/config_device.go:283 lxc/config_device.go:652 lxc/config_metadata.go:53
 #: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 msgid "[<remote>:]<instance>"
 msgstr ""
 
-#: lxc/config_device.go:191 lxc/config_device.go:718
+#: lxc/config_device.go:197 lxc/config_device.go:724
 msgid "[<remote>:]<instance> <device> <key>"
 msgstr ""
 
-#: lxc/config_device.go:534
+#: lxc/config_device.go:540
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr ""
 
@@ -5498,11 +5498,11 @@ msgstr ""
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr ""
 
-#: lxc/config_device.go:343
+#: lxc/config_device.go:349
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr ""
 
-#: lxc/config_device.go:432
+#: lxc/config_device.go:438
 msgid "[<remote>:]<instance> <name>..."
 msgstr ""
 
@@ -5760,20 +5760,20 @@ msgstr ""
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr ""
 
-#: lxc/config_device.go:279 lxc/config_device.go:648 lxc/profile.go:301
+#: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:301
 #: lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
 msgid "[<remote>:]<profile>"
 msgstr ""
 
-#: lxc/config_device.go:193 lxc/config_device.go:720
+#: lxc/config_device.go:199 lxc/config_device.go:726
 msgid "[<remote>:]<profile> <device> <key>"
 msgstr ""
 
-#: lxc/config_device.go:541
+#: lxc/config_device.go:547
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr ""
 
-#: lxc/config_device.go:86
+#: lxc/config_device.go:89
 msgid "[<remote>:]<profile> <device> <type> [key=value...]"
 msgstr ""
 
@@ -5785,7 +5785,7 @@ msgstr ""
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr ""
 
-#: lxc/config_device.go:434
+#: lxc/config_device.go:440
 msgid "[<remote>:]<profile> <name>..."
 msgstr ""
 
@@ -5940,7 +5940,11 @@ msgstr ""
 msgid ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    Will mount the host's /share/c1 onto /opt in the instance."
+"    Will mount the host's /share/c1 onto /opt in the instance.\n"
+"\n"
+"lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool "
+"source=some-volume path=opt\n"
+"    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 
 #: lxc/config.go:94
@@ -6087,11 +6091,15 @@ msgid ""
 "    Remove all profile from \"foo\""
 msgstr ""
 
-#: lxc/config_device.go:87
+#: lxc/config_device.go:90
 msgid ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    Will mount the host's /share/c1 onto /opt in the instance."
+"    Will mount the host's /share/c1 onto /opt in the instance.\n"
+"\n"
+"lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool "
+"source=some-volume path=opt\n"
+"    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 
 #: lxc/profile.go:409
@@ -6152,8 +6160,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
