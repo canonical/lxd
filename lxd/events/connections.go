@@ -2,7 +2,10 @@ package events
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -10,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // EventListenerConnection represents an event listener connection.
@@ -26,6 +30,12 @@ type websockListenerConnection struct {
 
 	lock         sync.Mutex
 	pongsPending int
+}
+
+type streamListenerConnection struct {
+	net.Conn
+
+	lock sync.Mutex
 }
 
 // NewWebsocketListenerConnection returns a new websocket listener connection.
@@ -121,4 +131,95 @@ func (e *websockListenerConnection) WriteJSON(event any) error {
 	}
 
 	return e.Conn.WriteJSON(event)
+}
+
+// NewStreamListenerConnection returns a new http stream listener connection.
+func NewStreamListenerConnection(connection net.Conn) (EventListenerConnection, error) {
+	// Send HTTP response to let the client know what to expect.
+	// This is only sent once, and is followed by events.
+	//
+	// The X-Content-Type-Options response HTTP header is a marker used by the server to indicate
+	// that the MIME types advertised in the Content-Type headers should be followed and not be
+	// changed. The header allows you to avoid MIME type sniffing by saying that the MIME types are
+	// deliberately configured.
+	_, err := io.WriteString(connection, `HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Type: application/json
+X-Content-Type-Options: nosniff
+
+`)
+	if err != nil {
+		return nil, fmt.Errorf("Failed sending initial HTTP response: %w", err)
+	}
+
+	return &streamListenerConnection{
+		Conn: connection,
+	}, nil
+}
+
+func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHandler) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+
+	close := func() {
+		e.lock.Lock()
+		defer e.lock.Unlock()
+
+		if ctx.Err() != nil {
+			return
+		}
+
+		err := e.Close()
+		if err != nil {
+			logger.Warn("Failed closing connection", logger.Ctx{"err": err})
+		}
+
+		cancelFunc()
+	}
+
+	defer close()
+
+	// Start reader from client.
+	go func() {
+		defer close()
+
+		buf := make([]byte, 1)
+
+		// This is used to determine whether the client has terminated.
+		_, err := e.Read(buf)
+		if err != nil && errors.Is(err, io.EOF) {
+			return
+		}
+	}()
+
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (e *streamListenerConnection) WriteJSON(event any) error {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	err := e.SetWriteDeadline(time.Now().Add(5 * (time.Second)))
+	if err != nil {
+		return fmt.Errorf("Failed setting write deadline: %w", err)
+	}
+
+	err = json.NewEncoder(e.Conn).Encode(event)
+	if err != nil {
+		return fmt.Errorf("Failed sending event: %w", err)
+	}
+
+	return nil
+}
+
+func (e *streamListenerConnection) Close() error {
+	return e.Conn.Close()
 }
