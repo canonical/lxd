@@ -22,7 +22,7 @@ func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.T
 		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
 			db.Exec("ROLLBACK")
 		}
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
 	err = f(ctx, tx)
