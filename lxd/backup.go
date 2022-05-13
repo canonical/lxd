@@ -352,9 +352,9 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
-	_, vol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	vol, err := storagePools.VolumeDBGet(pool, projectName, volumeName, storageDrivers.VolumeTypeCustom)
 	if err != nil {
-		return fmt.Errorf("Failed loading custom volume %q: %w", volumeName, err)
+		return fmt.Errorf("Failed loading custom volume record: %w", err)
 	}
 
 	// Ignore requests for optimized backups when pool driver doesn't support it.
