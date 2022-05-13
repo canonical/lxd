@@ -132,7 +132,7 @@ func (s *Server) reconfigure(address string) error {
 	// Check if we should start.
 	if address != "" {
 		// Restore old address on failure.
-		revert.Add(func() { s.start(oldAddress) })
+		revert.Add(func() error { return s.start(oldAddress) })
 
 		// Start the listener with the new address.
 		err = s.start(address)
