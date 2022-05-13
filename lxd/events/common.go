@@ -143,10 +143,3 @@ func (e *listenerCommon) WriteJSON(v any) error {
 	return e.Conn.WriteJSON(v)
 }
 
-// WriteMessage to the connection.
-func (e *listenerCommon) WriteMessage(messageType int, data []byte) error {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.Conn.WriteMessage(messageType, data)
-}
