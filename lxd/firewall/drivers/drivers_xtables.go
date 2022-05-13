@@ -929,7 +929,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
+	revert.Add(func() error { return d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
 
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
