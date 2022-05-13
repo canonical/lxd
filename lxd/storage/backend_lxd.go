@@ -769,21 +769,46 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		defer postHookRevert.Fail()
 
 		// Create database entry for new storage volume.
-		// The instance backup restore interface does not currently provide volume config so just create
-		// with default volume config for the storage pool.
-		volumeConfig := make(map[string]string)
-		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType)
+		// If the backup restore interface provides volume config use it, otherwise use default volume
+		// config for the storage pool.
+		var volumeDescription string
+		var volumeConfig map[string]string
+		if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+			volumeDescription = srcBackup.Config.Volume.Description
+			volumeConfig = srcBackup.Config.Volume.Config
+		}
+
+		// Validate config and create database entry for new storage volume.
+		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+		err = VolumeDBCreate(b, inst.Project(), inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true)
 		if err != nil {
 			return err
 		}
 
 		postHookRevert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
 
-		// The instance backup file does not currently contain snapshot volume config so just create with
-		// default volume config for the storage pool.
-		for _, backupFileSnap := range srcBackup.Snapshots {
+		// If the backup restore interface provides volume snapshot config use it, otherwise use default
+		// volume config for the storage pool.
+		for i, backupFileSnap := range srcBackup.Snapshots {
+			var volumeSnapDescription string
+			var volumeSnapConfig map[string]string
+			var volumeSnapExpiryDate time.Time
+
+			// Check if snapshot volume config is available for restore and matches snapshot name.
+			if srcBackup.Config != nil && len(srcBackup.Config.VolumeSnapshots) >= i-1 && srcBackup.Config.VolumeSnapshots[i] != nil && srcBackup.Config.VolumeSnapshots[i].Name == backupFileSnap {
+				volumeSnapDescription = srcBackup.Config.VolumeSnapshots[i].Description
+				volumeSnapConfig = srcBackup.Config.VolumeSnapshots[i].Config
+
+				if srcBackup.Config.VolumeSnapshots[i].ExpiresAt != nil {
+					volumeSnapExpiryDate = *srcBackup.Config.VolumeSnapshots[i].ExpiresAt
+				}
+			}
+
 			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), backupFileSnap)
-			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, nil, time.Time{}, contentType)
+
+			// Validate config and create database entry for new storage volume.
+			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapExpiryDate, contentType, true)
 			if err != nil {
 				return err
 			}
