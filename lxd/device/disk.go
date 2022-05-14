@@ -712,21 +712,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
-			poolName := fields[0]
-			volumeName := fields[1]
 			clusterName, userName := d.cephCreds()
-
-			// Configuration values containing :, @, or = can be escaped with a leading \ character.
-			// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
-			optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
-			opts := []string{
-				fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
-				fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
-			}
-
 			runConf.Mounts = []deviceConfig.MountEntryItem{
 				{
-					DevPath: fmt.Sprintf("rbd:%s/%s:%s", optEscaper.Replace(poolName), optEscaper.Replace(volumeName), strings.Join(opts, ":")),
+					DevPath: DiskGetRBDFormat(clusterName, userName, fields[0], fields[1]),
 					DevName: d.name,
 				},
 			}
@@ -744,6 +733,20 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// be returned as the path to the block device).
 			if d.config["pool"] != "" {
 				var revertFunc func()
+
+				// If the pool is ceph backed, don't mount it, instead pass config to QEMU instance
+				// to use the built in RBD support.
+				if d.pool.Driver().Info().Remote {
+					clusterName, userName := d.cephCreds()
+					runConf.Mounts = []deviceConfig.MountEntryItem{
+						{
+							DevPath: DiskGetRBDFormat(clusterName, userName, d.pool.ToAPI().Config["ceph.osd.pool_name"], d.config["source"]),
+							DevName: d.name,
+						},
+					}
+
+					return &runConf, nil
+				}
 
 				revertFunc, mount.DevPath, err = d.mountPoolVolume()
 				if err != nil {
@@ -2068,12 +2071,12 @@ func (d *disk) cephCreds() (string, string) {
 	// Apply the ceph configuration.
 	userName := d.config["ceph.user_name"]
 	if userName == "" {
-		userName = "admin"
+		userName = storageDrivers.CephDefaultUser
 	}
 
 	clusterName := d.config["ceph.cluster_name"]
 	if clusterName == "" {
-		clusterName = "ceph"
+		clusterName = storageDrivers.CephDefaultCluster
 	}
 
 	return clusterName, userName

@@ -542,3 +542,21 @@ func (m *Monitor) GetBlockStats() (map[string]BlockStats, error) {
 
 	return out, nil
 }
+
+// AddSecret adds a secret object with the given ID and secret. This function won't return an error
+// if the secret object already exists.
+func (m *Monitor) AddSecret(id string, secret string) error {
+	args := map[string]any{
+		"qom-type": "secret",
+		"id":       id,
+		"data":     secret,
+		"format":   "base64",
+	}
+
+	err := m.run("object-add", &args, nil)
+	if err != nil && !strings.Contains(err.Error(), "attempt to add duplicate property") {
+		return fmt.Errorf("Failed adding object: %w", err)
+	}
+
+	return nil
+}
