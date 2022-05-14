@@ -387,19 +387,22 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		var projects []dbCluster.Project
 		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			projects, err = dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
+			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
-			for _, p := range projects {
+			projects = make([]dbCluster.Project, 0, len(allProjects))
+			for _, p := range allProjects {
 				err = project.AllowSnapshotCreation(tx, &p)
 				if err != nil {
 					continue
 				}
+
+				projects = append(projects, p)
 			}
 
-			return err
+			return nil
 		})
 		if err != nil {
 			return
