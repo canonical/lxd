@@ -406,23 +406,24 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 
 	var srcVol *api.StorageVolume
 
-	// Check if requested storage volume exists
-	isSnapshot := shared.IsSnapshot(srcVolName)
+	// Check if requested storage volume exists.
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := shared.InstanceGetParentAndSnapshotName(srcVolName)
+	srcVol, _, err = srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolParentName)
+	if err != nil {
+		return err
+	}
 
-	if isSnapshot {
-		fields := strings.SplitN(srcVolName, "/", 2)
-		_, _, err = srcServer.GetStoragePoolVolumeSnapshot(srcVolPool,
-			"custom", fields[0], fields[1])
+	// If source is a snapshot get source snapshot volume info and apply to the srcVol.
+	if srcIsSnapshot {
+		srcVolSnapshot, _, err := srcServer.GetStoragePoolVolumeSnapshot(srcVolPool, "custom", srcVolParentName, srcVolSnapName)
 		if err != nil {
 			return err
 		}
 
-		srcVol, _, err = srcServer.GetStoragePoolVolume(srcVolPool, "custom", fields[0])
-	} else {
-		srcVol, _, err = srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
-	}
-	if err != nil {
-		return err
+		// Copy info from source snapshot into source volume used for new volume.
+		srcVol.Name = srcVolName
+		srcVol.Config = srcVolSnapshot.Config
+		srcVol.Description = srcVolSnapshot.Description
 	}
 
 	// If destination target was specified, copy the volume onto the given member.
@@ -445,10 +446,6 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		args.VolumeOnly = false
 		args.Project = c.flagTargetProject
 
-		if isSnapshot {
-			srcVol.Name = srcVolName
-		}
-
 		op, err = dstServer.MoveStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
 		if err != nil {
 			return err
@@ -462,10 +459,6 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 
 		if c.flagTargetProject != "" {
 			dstServer = dstServer.UseProject(c.flagTargetProject)
-		}
-
-		if isSnapshot {
-			srcVol.Name = srcVolName
 		}
 
 		op, err = dstServer.CopyStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
