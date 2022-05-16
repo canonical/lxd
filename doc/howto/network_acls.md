@@ -9,6 +9,9 @@ discourse: 13223
 Network ACLs are available for the {ref}`OVN NIC type <instance_device_type_nic_ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions, see {ref}`network-acls-bridge-limitations`).
 ```
 
+```{youtube} https://www.youtube.com/watch?v=mu34G0cX6Io
+```
+
 Network {abbr}`ACLs (Access Control Lists)` define traffic rules that allow controlling network access between different instances connected to the same network, and access to and from other networks.
 
 Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance or to a network.
