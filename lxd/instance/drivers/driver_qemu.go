@@ -2992,7 +2992,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 
 		config := d.storagePool.ToAPI().Config
 
-		userName := config["ceph.user_name"]
+		userName := config["ceph.user.name"]
 		if userName == "" {
 			userName = storageDrivers.CephDefaultUser
 		}
