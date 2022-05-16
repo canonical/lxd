@@ -1,5 +1,8 @@
 package migration
 
+// IndexHeaderVersion version of the index header to be sent/recv.
+const IndexHeaderVersion uint32 = 1
+
 // BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const BTRFSFeatureMigrationHeader = "migration_header"
 
