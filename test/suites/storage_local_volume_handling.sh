@@ -108,6 +108,11 @@ test_storage_local_volume_handling() {
 
     # Copy snapshot to volume
     lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol3"
+
+    # Check snapshot volume config was copied from snapshot
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3 user.foo | grep -Fx "snap0"
+
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
