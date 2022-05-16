@@ -3228,7 +3228,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		// Handle different name for instance volumes.
 		if driveConf.TargetPath == "/" {
 			volumeType = storageDrivers.VolumeTypeVM
-			volumeName = project.Instance(d.project, volName)
+			volumeName = volName
 		}
 
 		// Get the RBD image name.
