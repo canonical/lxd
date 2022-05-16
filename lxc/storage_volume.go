@@ -487,10 +487,15 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmd.Name() == "move" && srcServer != dstServer {
-		err := srcServer.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+		if srcIsSnapshot {
+			_, err = srcServer.DeleteStoragePoolVolumeSnapshot(srcVolPool, srcVol.Type, srcVolParentName, srcVolSnapName)
+		} else {
+			err = srcServer.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+		}
+
 		if err != nil {
 			progress.Done("")
-			return err
+			return fmt.Errorf("Failed deleting source volume after copy: %w", err)
 		}
 	}
 	progress.Done(finalMsg)
