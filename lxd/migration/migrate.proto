@@ -64,21 +64,22 @@ message zfsFeatures {
 message btrfsFeatures {
 	optional bool		migration_header = 1;
 	optional bool		header_subvolumes = 2;
-	optional bool       header_subvolume_uuids = 3;
+	optional bool       	header_subvolume_uuids = 3;
 }
 
 message MigrationHeader {
-	required MigrationFSType		fs		= 1;
-	optional CRIUType			criu		= 2;
-	repeated IDMapType	 		idmap		= 3;
-	repeated string				snapshotNames	= 4;
-	repeated Snapshot			snapshots	= 5;
-	optional bool				predump		= 7;
-	optional rsyncFeatures			rsyncFeatures 	= 8;
-	optional bool				refresh		= 9;
-	optional zfsFeatures			zfsFeatures 	= 10;
-	optional int64				volumeSize	= 11;
-	optional btrfsFeatures			btrfsFeatures 	= 12;
+	required MigrationFSType		fs			= 1;
+	optional CRIUType			criu			= 2;
+	repeated IDMapType	 		idmap			= 3;
+	repeated string				snapshotNames		= 4;
+	repeated Snapshot			snapshots		= 5;
+	optional bool				predump			= 7;
+	optional rsyncFeatures			rsyncFeatures 		= 8;
+	optional bool				refresh			= 9;
+	optional zfsFeatures			zfsFeatures 		= 10;
+	optional int64				volumeSize		= 11;
+	optional btrfsFeatures			btrfsFeatures 		= 12;
+	optional uint32				indexHeaderVersion	= 13;
 }
 
 message MigrationControl {
