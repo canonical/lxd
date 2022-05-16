@@ -2992,7 +2992,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 
 		config := d.storagePool.ToAPI().Config
 
-		userName := config["ceph.user_name"]
+		userName := config["ceph.user.name"]
 		if userName == "" {
 			userName = storageDrivers.CephDefaultUser
 		}
@@ -3228,7 +3228,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		// Handle different name for instance volumes.
 		if driveConf.TargetPath == "/" {
 			volumeType = storageDrivers.VolumeTypeVM
-			volumeName = project.Instance(d.project, volName)
+			volumeName = volName
 		}
 
 		// Get the RBD image name.
