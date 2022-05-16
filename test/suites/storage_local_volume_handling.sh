@@ -95,6 +95,8 @@ test_storage_local_volume_handling() {
 
     # Check snapshot volume config was copied
     lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1 user.foo | grep -Fx "postsnap1"
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0 user.foo | grep -Fx "snap0"
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap1 user.foo | grep -Fx "snap1"
 
     # Copy volume only
     lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol2"
