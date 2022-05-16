@@ -62,16 +62,57 @@ test_storage_local_volume_handling() {
     fi
 
     lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=snap0
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 snapshots.expiry=1H
+
     # This will create the snapshot vol1/snap0
     lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
-    # Copy volume with snapshots
+
+    # This will create the snapshot vol1/snap1
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=snap1
+    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+    lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 user.foo=postsnap1
+
+    # Copy volume with snapshots in same pool
+    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1copy"
+
+    # Ensure the target snapshots are there
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap0
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap1
+
+    # Check snapshot volume config was copied
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy user.foo | grep -Fx "postsnap1"
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap0 user.foo | grep -Fx "snap0"
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy/snap1 user.foo | grep -Fx "snap1"
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1copy
+
+    # Copy volume with snapshots in different pool
     lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-    # Ensure the target snapshot is there
+
+    # Ensure the target snapshots are there
     lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap1
+
+    # Check snapshot volume config was copied
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1 user.foo | grep -Fx "postsnap1"
+
     # Copy volume only
     lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol2"
+
+    # Ensure the target snapshots are not there
+    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2/snap0 || false
+    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2/snap1 || false
+
+    # Check snapshot volume config was copied
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2 user.foo | grep -Fx "postsnap1"
+
     # Copy snapshot to volume
     lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol3"
+
+    # Check snapshot volume config was copied from snapshot
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
+    lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3 user.foo | grep -Fx "snap0"
+
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
