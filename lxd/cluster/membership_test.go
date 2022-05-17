@@ -34,7 +34,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 				f.ClusterAddress("1.2.3.4:666")
 				f.RaftNode("5.6.7.8:666")
 				filename := filepath.Join(f.state.OS.VarDir, "cluster.crt")
-				ioutil.WriteFile(filename, []byte{}, 0644)
+				_ = ioutil.WriteFile(filename, []byte{}, 0644)
 			},
 			"Inconsistent state: found leftover cluster certificate",
 		},
@@ -74,7 +74,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 			serverCert := shared.TestingKeyPair()
 			state.ServerCert = func() *shared.CertInfo { return serverCert }
 			gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
-			defer gateway.Shutdown()
+			defer func() { _ = gateway.Shutdown() }()
 
 			err := cluster.Bootstrap(state, gateway, "buzz")
 			assert.EqualError(t, err, c.error)
@@ -89,7 +89,7 @@ func TestBootstrap(t *testing.T) {
 	serverCert := shared.TestingKeyPair()
 	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
 	state.ServerCert = func() *shared.CertInfo { return serverCert }
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	mux := http.NewServeMux()
 	server := newServer(serverCert, mux)
@@ -211,7 +211,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 
 			serverCert := shared.TestingKeyPair()
 			gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
-			defer gateway.Shutdown()
+			defer func() { _ = gateway.Shutdown() }()
 
 			c.setup(&membershipFixtures{t: t, state: state})
 
@@ -228,7 +228,7 @@ func TestAccept(t *testing.T) {
 
 	serverCert := shared.TestingKeyPair()
 	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	f := &membershipFixtures{t: t, state: state}
 	f.RaftNode("1.2.3.4:666")
@@ -255,7 +255,7 @@ func TestJoin(t *testing.T) {
 	defer cleanup()
 
 	targetGateway := newGateway(t, targetState.DB.Node, targetCert, targetCert)
-	defer targetGateway.Shutdown()
+	defer func() { _ = targetGateway.Shutdown() }()
 
 	altServerCert := shared.TestingAltKeyPair()
 	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
@@ -304,7 +304,7 @@ func TestJoin(t *testing.T) {
 
 	gateway := newGateway(t, state.DB.Node, targetCert, altServerCert)
 
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	for path, handler := range gateway.HandlerFuncs(nil, trustedCerts) {
 		mux.HandleFunc(path, handler)

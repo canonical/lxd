@@ -428,7 +428,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	if err != nil {
 		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
@@ -633,7 +633,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 
 		wg.Add(1)
 		go func(address string) {
-			HeartbeatNode(context.Background(), address, state.Endpoints.NetworkCert(), state.ServerCert(), hbState)
+			_ = HeartbeatNode(context.Background(), address, state.Endpoints.NetworkCert(), state.ServerCert(), hbState)
 			wg.Done()
 		}(node.Address)
 	}
@@ -787,7 +787,7 @@ assign:
 	if err != nil {
 		return fmt.Errorf("Connect to cluster leader: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Figure out our current role.
 	role := db.RaftRole(-1)
@@ -939,7 +939,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	if err != nil {
 		return "", fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	err = client.Remove(ctx, info.ID)
 	if err != nil {
 		return "", fmt.Errorf("Failed to leave the cluster: %w", err)
