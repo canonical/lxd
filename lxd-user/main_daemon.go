@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -91,7 +92,10 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Create our own socket.
 		unixPath := "unix.socket"
-		os.Remove(unixPath)
+		err := os.Remove(unixPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Failed to delete pre-existing unix socket: %w", err)
+		}
 
 		unixAddr, err := net.ResolveUnixAddr("unix", unixPath)
 		if err != nil {
