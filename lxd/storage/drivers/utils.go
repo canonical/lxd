@@ -50,7 +50,7 @@ func wipeDirectory(path string) error {
 func forceRemoveAll(path string) error {
 	err := os.RemoveAll(path)
 	if err != nil {
-		shared.RunCommand("chattr", "-ai", "-R", path)
+		_, _ = shared.RunCommand("chattr", "-ai", "-R", path)
 		err = os.RemoveAll(path)
 		if err != nil {
 			return err
@@ -100,7 +100,7 @@ func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	// Make it read-only.
 	err = TryMount("", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 	if err != nil {
-		forceUnmount(dstPath)
+		_, _ = forceUnmount(dstPath)
 		return false, err
 	}
 
@@ -300,14 +300,14 @@ func ensureSparseFile(filePath string, sizeBytes int64) error {
 	if err != nil {
 		return fmt.Errorf("Failed to open %s: %w", filePath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
 		return fmt.Errorf("Failed to create sparse file %s: %w", filePath, err)
 	}
 
-	return nil
+	return f.Close()
 }
 
 // roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest multiple of
@@ -684,13 +684,13 @@ func copyDevice(inputPath string, outputPath string) error {
 	from, err := os.OpenFile(inputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "iflag=direct")
-		from.Close()
+		_ = from.Close()
 	}
 
 	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "oflag=direct")
-		to.Close()
+		_ = to.Close()
 	}
 
 	_, err = shared.RunCommand(cmd[0], cmd[1:]...)
@@ -730,7 +730,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 		}
 
 		roSubvols = append(roSubvols, subvol)
-		BTRFSSubVolumeMakeRw(subvol)
+		_ = BTRFSSubVolumeMakeRw(subvol)
 	}
 
 	if shift {
@@ -740,7 +740,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	}
 
 	for _, subvol := range roSubvols {
-		BTRFSSubVolumeMakeRo(subvol)
+		_ = BTRFSSubVolumeMakeRo(subvol)
 	}
 
 	return err
@@ -755,7 +755,7 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	}
 
 	// Unprivileged users can't get to fs internals
-	filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+	_ = filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
 		// Skip walk errors
 		if err != nil {
 			return nil
@@ -842,7 +842,7 @@ func BlockDiskSizeBytes(blockDiskPath string) (int64, error) {
 		if err != nil {
 			return -1, err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		fd := int(f.Fd())
 
 		// Retrieve the block device size.

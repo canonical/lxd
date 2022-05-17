@@ -429,7 +429,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	d.logger.Debug("Logical volume snapshot created", logCtx)
 
 	revert.Add(func() {
-		d.removeLogicalVolume(d.lvmDevPath(vgName, snapVol.volType, snapVol.contentType, snapVol.name))
+		_ = d.removeLogicalVolume(d.lvmDevPath(vgName, snapVol.volType, snapVol.contentType, snapVol.name))
 	})
 
 	targetVolDevPath := d.lvmDevPath(vgName, snapVol.volType, snapVol.contentType, snapVol.name)
@@ -531,7 +531,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 				return err
 			}
 
-			revert.Add(func() { os.RemoveAll(newSnapVolPath) })
+			revert.Add(func() { _ = os.RemoveAll(newSnapVolPath) })
 
 			// We do not modify the original snapshot so as to avoid damaging if it is corrupted for
 			// some reason. If the filesystem needs to have a unique UUID generated in order to mount
@@ -542,7 +542,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 			}
 
 			revert.Add(func() {
-				d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], newSnapVol.volType, newSnapVol.contentType, newSnapVol.name))
+				_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], newSnapVol.volType, newSnapVol.contentType, newSnapVol.name))
 			})
 		}
 	}
@@ -565,7 +565,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 
 			revert.Add(func() {
 				// Rename the original volume back to the original name.
-				d.renameLogicalVolume(tmpVolDevPath, newVolDevPath)
+				_ = d.renameLogicalVolume(tmpVolDevPath, newVolDevPath)
 			})
 		} else {
 			return fmt.Errorf("LVM volume already exists %q", vol.name)
@@ -577,7 +577,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 			return err
 		}
 
-		revert.Add(func() { os.RemoveAll(volPath) })
+		revert.Add(func() { _ = os.RemoveAll(volPath) })
 	}
 
 	// Create snapshot of source volume as new volume.
@@ -589,7 +589,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 
 	revert.Add(func() {
-		d.removeLogicalVolume(volDevPath)
+		_ = d.removeLogicalVolume(volDevPath)
 	})
 
 	if vol.contentType == ContentTypeFS {

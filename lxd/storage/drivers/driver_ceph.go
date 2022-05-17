@@ -144,7 +144,7 @@ func (d *ceph) Create() error {
 			return err
 		}
 
-		revert.Add(func() { d.osdDeletePool() })
+		revert.Add(func() { _ = d.osdDeletePool() })
 
 		// Initialize the pool. This is not necessary but allows the pool to be monitored.
 		_, err = shared.TryRunCommand("rbd",
