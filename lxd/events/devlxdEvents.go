@@ -100,7 +100,7 @@ func (s *DevLXDServer) broadcast(instanceID int, event api.Event) error {
 				return
 			}
 
-			listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			_ = listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			err := listener.WriteJSON(event)
 			if err != nil {
 				// Remove the listener from the list
