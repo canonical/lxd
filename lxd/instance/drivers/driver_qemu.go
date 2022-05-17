@@ -3266,7 +3266,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		blockDev["image"] = rbdImageName
 		blockDev["user"] = userName
 		blockDev["server"] = []map[string]string{}
-		blockDev["conf"] = fmt.Sprintf("/etc/ceph/%s.conf", poolName)
+		blockDev["conf"] = fmt.Sprintf("/etc/ceph/%s.conf", clusterName)
 
 		// Setup the Ceph cluster config (monitors and keyring).
 		monitors, err := storageDrivers.CephMonitors(clusterName)
