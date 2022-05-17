@@ -225,7 +225,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Lock()
 		for i := range s.conns {
 			if s.conns[i] != nil {
-				s.conns[i].Close()
+				_ = s.conns[i].Close()
 			}
 		}
 		s.connsLock.Unlock()
@@ -262,7 +262,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[0]
 
 		if s.width > 0 && s.height > 0 {
-			shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
+			_ = shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
 		}
 	} else {
 		ttys = make([]*os.File, 3)
@@ -287,7 +287,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		close(attachedChildIsDead)
 
 		for _, tty := range ttys {
-			tty.Close()
+			_ = tty.Close()
 		}
 
 		s.connsLock.Lock()
@@ -295,13 +295,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn != nil {
-			conn.Close() // Close control connection (will cause control go routine to end).
+			_ = conn.Close() // Close control connection (will cause control go routine to end).
 		}
 
 		wgEOF.Wait()
 
 		for _, pty := range ptys {
-			pty.Close()
+			_ = pty.Close()
 		}
 
 		metadata := shared.Jmap{"return": cmdResult}
@@ -467,7 +467,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			<-readDone
 			<-writeDone
-			conn.Close()
+			_ = conn.Close()
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
@@ -482,14 +482,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 					s.connsLock.Unlock()
 
 					<-shared.WebsocketRecvStream(ttys[i], conn)
-					ttys[i].Close()
+					_ = ttys[i].Close()
 				} else {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
-					ptys[i].Close()
+					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
 			}(i)

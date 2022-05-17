@@ -23,7 +23,7 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Da
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for _, c := range api10 {
@@ -46,7 +46,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 
 		if !authenticate(r, cert) {
 			logger.Error("Not authorized")
-			response.InternalError(fmt.Errorf("Not authorized")).Render(w)
+			_ = response.InternalError(fmt.Errorf("Not authorized")).Render(w)
 			return
 		}
 
@@ -56,7 +56,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
 			if _, err := io.Copy(multiW, r.Body); err != nil {
-				response.InternalError(err).Render(w)
+				_ = response.InternalError(err).Render(w)
 				return
 			}
 

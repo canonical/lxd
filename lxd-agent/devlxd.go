@@ -183,10 +183,10 @@ func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdRespons
 				debugLogger = logger.Logger(logger.Log)
 			}
 
-			util.WriteJSON(w, resp.content, debugLogger)
+			_ = util.WriteJSON(w, resp.content, debugLogger)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
-			fmt.Fprint(w, resp.content.(string))
+			_, _ = fmt.Fprint(w, resp.content.(string))
 		}
 	}
 }
@@ -234,7 +234,7 @@ func createDevLxdlListener(dir string) (net.Listener, error) {
 
 	err = socketUnixSetPermissions(path, 0600)
 	if err != nil {
-		listener.Close()
+		_ = listener.Close()
 		return nil, err
 	}
 
