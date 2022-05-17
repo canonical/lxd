@@ -16,6 +16,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -3945,7 +3946,7 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 // ImportCustomVolume takes an existing custom volume on the storage backend and ensures that the DB records,
 // volume directories and symlinks are restored as needed to make it operational with LXD.
 // Used during the recovery import stage.
-func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error {
+func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error {
 	if poolVol.Volume == nil {
 		return fmt.Errorf("Invalid pool volume config supplied")
 	}
@@ -4309,8 +4310,8 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
-// GenerateCustomVolumeBackupConfig returns the backup.Config entry for this volume.
-func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backup.Config, error) {
+// GenerateCustomVolumeBackupConfig returns the backup config entry for this volume.
+func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
 	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return nil, err
@@ -4320,7 +4321,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 		return nil, fmt.Errorf("Unsupported volume type %q", vol.Type)
 	}
 
-	config := &backup.Config{
+	config := &backupConfig.Config{
 		Volume: vol,
 	}
 
@@ -4351,8 +4352,8 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 	return config, nil
 }
 
-// GenerateInstanceBackupConfig returns the backup.Config entry for this instance.
-func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backup.Config, error) {
+// GenerateInstanceBackupConfig returns the backup config entry for this instance.
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
 		return nil, fmt.Errorf("Cannot generate backup config for snapshots")
@@ -4379,7 +4380,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 		return nil, err
 	}
 
-	config := &backup.Config{
+	config := &backupConfig.Config{
 		Container: ci.(*api.Instance),
 		Pool:      &b.db,
 		Volume:    volume,
@@ -4503,7 +4504,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 // config are removed from the storage device, and any snapshots that exist in the backup config but do not exist
 // on the storage device are ignored. The remaining set of snapshots that exist on both the storage device and the
 // backup config are returned. They set can be used to re-create the snapshot database entries when importing.
-func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
 	l.Debug("CheckInstanceBackupFileSnapshots started")
 	defer l.Debug("CheckInstanceBackupFileSnapshots finished")
@@ -4602,7 +4603,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 
 // ListUnknownVolumes returns volumes that exist on the storage pool but don't have records in the database.
 // Returns the unknown volumes parsed/generated backup config in a slice (keyed on project name).
-func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error) {
+func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error) {
 	// Get a list of volumes on the storage pool. We only expect to get 1 volume per logical LXD volume.
 	// So for VMs we only expect to get the block volume for a VM and not its filesystem one too. This way we
 	// can operate on the volume using the existing storage pool functions and let the pool then handle the
@@ -4612,7 +4613,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 		return nil, fmt.Errorf("Failed getting pool volumes: %w", err)
 	}
 
-	projectVols := make(map[string][]*backup.Config)
+	projectVols := make(map[string][]*backupConfig.Config)
 
 	for _, poolVol := range poolVols {
 		volType := poolVol.Type()
@@ -4641,7 +4642,7 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 // detectUnknownInstanceVolume detects if a volume is unknown and if so attempts to mount the volume and parse the
 // backup stored on it. It then runs a series of consistency checks that compare the contents of the backup file to
 // the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
-func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVols map[string][]*backup.Config, op *operations.Operation) error {
+func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
 	volType := vol.Type()
 
 	volDBType, err := VolumeTypeToDBType(volType)
@@ -4678,7 +4679,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 	}
 
 	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
-	var backupConf *backup.Config
+	var backupConf *backupConfig.Config
 
 	// If the instance is running, it should already be mounted, so check if the backup file
 	// is already accessible, and if so parse it directly, without disturbing the mount count.
@@ -4760,7 +4761,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	// Add to volume to unknown volumes list for the project.
 	if projectVols[projectName] == nil {
-		projectVols[projectName] = []*backup.Config{backupConf}
+		projectVols[projectName] = []*backupConfig.Config{backupConf}
 	} else {
 		projectVols[projectName] = append(projectVols[projectName], backupConf)
 	}
@@ -4798,7 +4799,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 // detectUnknownCustomVolume detects if a volume is unknown and if so attempts to discover the filesystem of the
 // volume (for filesystem volumes). It then runs a series of consistency checks, and if all checks out, it adds
 // generates a simulated backup config for the custom volume and adds it to projectVols.
-func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols map[string][]*backup.Config, op *operations.Operation) error {
+func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols map[string][]*backupConfig.Config, op *operations.Operation) error {
 	volType := vol.Type()
 
 	volDBType, err := VolumeTypeToDBType(volType)
@@ -4874,7 +4875,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		return fmt.Errorf("Failed custom volume validation: %w", err)
 	}
 
-	backupConf := &backup.Config{
+	backupConf := &backupConfig.Config{
 		Volume: &api.StorageVolume{
 			Name:        volName,
 			Type:        db.StoragePoolVolumeTypeNameCustom,
@@ -4896,7 +4897,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 	// Add to volume to unknown volumes list for the project.
 	if projectVols[projectName] == nil {
-		projectVols[projectName] = []*backup.Config{backupConf}
+		projectVols[projectName] = []*backupConfig.Config{backupConf}
 	} else {
 		projectVols[projectName] = append(projectVols[projectName], backupConf)
 	}
@@ -4908,7 +4909,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 // and symlinks are restored as needed to make it operational with LXD. Used during the recovery import stage.
 // If the instance exists on the local cluster member then the local mount status is restored as needed.
 // If the optional poolVol argument is provided then it is used to create the storage volume database records.
-func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
+func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	l.Debug("ImportInstance started")
 	defer l.Debug("ImportInstance finished")
