@@ -110,7 +110,7 @@ func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics
 	if err != nil {
 		return out, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read it line by line.
 	memRSS := int64(-1)
