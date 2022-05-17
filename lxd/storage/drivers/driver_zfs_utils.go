@@ -321,8 +321,8 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	go func() {
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
-		conn.Close()
-		stderr.Close()
+		_ = conn.Close()
+		_ = stderr.Close()
 	}()
 
 	// Run the command.
@@ -376,7 +376,7 @@ func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper f
 	chCopyConn := make(chan error, 1)
 	go func() {
 		_, err = io.Copy(stdin, conn)
-		stdin.Close()
+		_ = stdin.Close()
 		chCopyConn <- err
 	}()
 

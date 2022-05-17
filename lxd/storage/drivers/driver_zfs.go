@@ -261,7 +261,7 @@ func (d *zfs) Create() error {
 			return
 		}
 
-		d.Delete(nil)
+		_ = d.Delete(nil)
 	}()
 
 	// Apply our default configuration.

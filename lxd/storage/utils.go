@@ -504,13 +504,13 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		from, err := os.OpenFile(imgPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 		if err == nil {
 			cmd = append(cmd, "-T", "none")
-			from.Close()
+			_ = from.Close()
 		}
 
 		to, err := os.OpenFile(dstPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 		if err == nil {
 			cmd = append(cmd, "-t", "none")
-			to.Close()
+			_ = to.Close()
 		}
 
 		// Check if we should do parallel unpacking.
@@ -548,7 +548,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		if err != nil {
 			return -1, err
 		}
-		defer os.RemoveAll(tempDir)
+		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Unpack the whole image.
 		err = archive.Unpack(imageFile, tempDir, blockBackend, sysOS, tracker)
@@ -893,7 +893,7 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 	if err != nil {
 		return -1, err
 	}
-	defer InstanceUnmount(pool, inst, op)
+	defer func() { _ = InstanceUnmount(pool, inst, op) }()
 
 	if mountInfo.DiskPath == "" {
 		return -1, fmt.Errorf("No disk path available from mount")
