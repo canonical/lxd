@@ -2,9 +2,11 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -3200,27 +3202,23 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		}
 	}
 
-	// Check source volume exists and is custom type.
-	srcVolRow, err := VolumeDBGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
+	// Check source volume exists and is custom type, and get its config.
+	srcConfig, err := srcPool.GenerateCustomVolumeBackupConfig(srcProjectName, srcVolName, snapshots, op)
 	if err != nil {
-		if response.IsNotFoundError(err) {
-			return fmt.Errorf("Source volume doesn't exist")
-		}
-
-		return err
+		return fmt.Errorf("Failed generating volume migration config: %w", err)
 	}
 
 	// Use the source volume's config if not supplied.
 	if config == nil {
-		config = srcVolRow.Config
+		config = srcConfig.Volume.Config
 	}
 
 	// Use the source volume's description if not supplied.
 	if desc == "" {
-		desc = srcVolRow.Description
+		desc = srcConfig.Volume.Description
 	}
 
-	contentDBType, err := VolumeContentTypeNameToContentType(srcVolRow.ContentType)
+	contentDBType, err := VolumeContentTypeNameToContentType(srcConfig.Volume.ContentType)
 	if err != nil {
 		return err
 	}
@@ -3246,22 +3244,19 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	var snapshotNames []string
-	var snapshotInfo []db.StorageVolumeArgs
 	if snapshots {
-		snapshotInfo, err = VolumeDBSnapshotsGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
-		if err != nil {
-			return err
-		}
-
-		snapshotNames = make([]string, 0, len(snapshotInfo))
-		for _, snapshot := range snapshotInfo {
-			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
-			snapshotNames = append(snapshotNames, snapShotName)
+		snapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
+		for _, snapshot := range srcConfig.VolumeSnapshots {
+			snapshotNames = append(snapshotNames, snapshot.Name)
 		}
 	}
 
 	revert := revert.New()
 	defer revert.Fail()
+
+	// Get the src volume name on storage.
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
 	// migration system as it will be quicker.
@@ -3271,10 +3266,6 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		// Get the volume name on storage.
 		volStorageName := project.StorageVolume(projectName, volName)
 		vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
-
-		// Get the src volume name on storage.
-		srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
-		srcVol := b.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
 		// Validate config and create database entry for new storage volume.
 		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false)
@@ -3287,9 +3278,13 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		// Create database entries for new storage volume snapshots.
 		for i, snapName := range snapshotNames {
 			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
+			var volumeSnapExpiryDate time.Time
+			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
+				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
+			}
 
 			// Validate config and create database entry for new storage volume.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, snapshotInfo[i].Description, vol.Type(), true, snapshotInfo[i].Config, snapshotInfo[i].ExpiryDate, vol.ContentType(), false)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
@@ -3326,10 +3321,6 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	var volSize int64
 
 	if contentType == drivers.ContentTypeBlock {
-		// Get the src volume name on storage.
-		srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
-		srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
-
 		err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
@@ -3363,11 +3354,13 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	bEndErrCh := make(chan error, 1)
 	go func() {
 		err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
-			Name:          srcVolName,
-			Snapshots:     snapshotNames,
-			MigrationType: migrationTypes[0],
-			TrackProgress: true, // Do use a progress tracker on sender.
-			ContentType:   string(contentType),
+			IndexHeaderVersion: migration.IndexHeaderVersion,
+			Name:               srcVolName,
+			Snapshots:          snapshotNames,
+			MigrationType:      migrationTypes[0],
+			TrackProgress:      true, // Do use a progress tracker on sender.
+			ContentType:        string(contentType),
+			Config:             srcConfig,
 		}, op)
 
 		if err != nil {
@@ -3378,14 +3371,15 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 	go func() {
 		err := b.CreateCustomVolumeFromMigration(projectName, bEnd, migration.VolumeTargetArgs{
-			Name:          volName,
-			Description:   desc,
-			Config:        config,
-			Snapshots:     snapshotNames,
-			MigrationType: migrationTypes[0],
-			TrackProgress: false, // Do not use a progress tracker on receiver.
-			ContentType:   string(contentType),
-			VolumeSize:    volSize, // Block size setting override.
+			IndexHeaderVersion: migration.IndexHeaderVersion,
+			Name:               volName,
+			Description:        desc,
+			Config:             config,
+			Snapshots:          snapshotNames,
+			MigrationType:      migrationTypes[0],
+			TrackProgress:      false, // Do not use a progress tracker on receiver.
+			ContentType:        string(contentType),
+			VolumeSize:         volSize, // Block size setting override.
 		}, op)
 
 		if err != nil {
