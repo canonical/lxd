@@ -4,6 +4,7 @@ package device
 
 import (
 	"fmt"
+	"github.com/lxc/lxd/shared/logger"
 	"strings"
 
 	udev "github.com/jochenvg/go-udev"
@@ -191,12 +192,24 @@ func (d *unixHotplug) loadUnixDevice() *udev.Device {
 	e := u.NewEnumerate()
 
 	if d.config["vendorid"] != "" {
-		e.AddMatchProperty("ID_VENDOR_ID", d.config["vendorid"])
+		err := e.AddMatchProperty("ID_VENDOR_ID", d.config["vendorid"])
+		if err != nil {
+			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "ID_VENDOR_ID", "property_value": d.config["vendorid"], "err": err})
+		}
 	}
+
 	if d.config["productid"] != "" {
-		e.AddMatchProperty("ID_MODEL_ID", d.config["productid"])
+		err := e.AddMatchProperty("ID_MODEL_ID", d.config["productid"])
+		if err != nil {
+			logger.Warn("Failed to add property to device", logger.Ctx{"property_name": "ID_MODEL_ID", "property_value": d.config["productid"], "err": err})
+		}
 	}
-	e.AddMatchIsInitialized()
+
+	err := e.AddMatchIsInitialized()
+	if err != nil {
+		logger.Warn("Failed to add initialised property to device", logger.Ctx{"err": err})
+	}
+
 	devices, _ := e.Devices()
 	var device *udev.Device
 	for i := range devices {
