@@ -358,14 +358,14 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 
 	dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 	if err != nil {
-		srcConn.Close()
+		_ = srcConn.Close()
 		fmt.Printf("Warning: Failed to connect to target: %v\n", err)
 		return err
 	}
 
 	if proxy && cAddr.ConnType == "tcp" {
 		if lAddr.ConnType == "unix" {
-			dstConn.Write([]byte(fmt.Sprintf("PROXY UNKNOWN\r\n")))
+			_, _ = dstConn.Write([]byte(fmt.Sprintf("PROXY UNKNOWN\r\n")))
 		} else {
 			cHost, cPort, err := net.SplitHostPort(srcConn.RemoteAddr().String())
 			if err != nil {
@@ -385,7 +385,7 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 				proto = fmt.Sprintf("%s4", proto)
 			}
 
-			dstConn.Write([]byte(fmt.Sprintf("PROXY %s %s %s %s %s\r\n", proto, cHost, dHost, cPort, dPort)))
+			_, _ = dstConn.Write([]byte(fmt.Sprintf("PROXY %s %s %s %s %s\r\n", proto, cHost, dHost, cPort, dPort)))
 		}
 	}
 
@@ -414,7 +414,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	// Quick checks.
 	if len(args) != 12 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil
@@ -452,7 +452,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if C.whoami == C.FORKPROXY_CHILD {
-		defer unix.Close(forkproxyUDSSockFDNum)
+		defer func() { _ = unix.Close(forkproxyUDSSockFDNum) }()
 
 		if lAddr.ConnType == "unix" && !lAddr.Abstract {
 			err := os.Remove(lAddr.Address)
@@ -489,7 +489,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				break
 			}
 
-			file.Close()
+			_ = file.Close()
 		}
 
 		if lAddr.ConnType == "unix" && !lAddr.Abstract {
@@ -552,19 +552,19 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			fmt.Printf("Error: Failed to receive fd from listener process: %v\n", err)
-			unix.Close(forkproxyUDSSockFDNum)
+			_ = unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
 
 		if f == nil {
 			fmt.Printf("Error: Failed to receive fd from listener process\n")
-			unix.Close(forkproxyUDSSockFDNum)
+			_ = unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
 
 		files = append(files, f)
 	}
-	unix.Close(forkproxyUDSSockFDNum)
+	_ = unix.Close(forkproxyUDSSockFDNum)
 
 	var listenerMap map[int]*lStruct
 
@@ -620,7 +620,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigs, unix.SIGTERM)
 
 	if lAddr.ConnType == "unix" && !lAddr.Abstract {
-		defer os.Remove(lAddr.Address)
+		defer func() { _ = os.Remove(lAddr.Address) }()
 	}
 
 	epFd := C.epoll_create1(C.EPOLL_CLOEXEC)
@@ -634,20 +634,20 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		<-sigs
 		for _, f := range files {
 			C.epoll_ctl(epFd, C.EPOLL_CTL_DEL, C.int(f.Fd()), nil)
-			f.Close()
+			_ = f.Close()
 		}
-		unix.Close(int(epFd))
+		_ = unix.Close(int(epFd))
 
 		if !isUDPListener {
 			for _, l := range listenerMap {
 				conn := (*l).lConn
-				(*conn).Close()
+				_ = (*conn).Close()
 			}
 		}
 
-		unix.Kill(self, unix.SIGKILL)
+		_ = unix.Kill(self, unix.SIGKILL)
 	}()
-	defer unix.Kill(self, unix.SIGTERM)
+	defer func() { _ = unix.Kill(self, unix.SIGTERM) }()
 
 	for _, f := range files {
 		var ev C.struct_epoll_event
@@ -730,9 +730,9 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 					udpSessions[addr.String()] = us
 					udpSessionsLock.Unlock()
 
-					go proxyCopy(src, dc)
+					go func() { _ = proxyCopy(src, dc) }()
 					us.timer = time.AfterFunc(30*time.Minute, func() {
-						us.target.Close()
+						_ = us.target.Close()
 
 						udpSessionsLock.Lock()
 						delete(udpSessions, addr.String())
@@ -842,8 +842,8 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 		}
 	}
 
-	src.Close()
-	dst.Close()
+	_ = src.Close()
+	_ = dst.Close()
 
 	// Empty the channels
 	if !isUDP {
@@ -935,8 +935,8 @@ func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 		}
 	}
 
-	src.Close()
-	dst.Close()
+	_ = src.Close()
+	_ = dst.Close()
 
 	// Empty the channels
 	<-chSend
@@ -976,7 +976,7 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 		UDPConn, err = net.ListenUDP(protocol, udpAddr)
 		if err == nil {
 			file, err := UDPConn.File()
-			UDPConn.Close()
+			_ = UDPConn.Close()
 			return file, err
 		}
 
@@ -991,7 +991,7 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 	}
 
 	file, err := UDPConn.File()
-	UDPConn.Close()
+	_ = UDPConn.Close()
 	return file, err
 }
 

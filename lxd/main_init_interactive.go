@@ -148,7 +148,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 				return fmt.Errorf("Can't bind address %q: %w", address, err)
 			}
 
-			listener.Close()
+			_ = listener.Close()
 			return nil
 		}
 
@@ -1013,7 +1013,7 @@ they otherwise would.
 					return fmt.Errorf("Can't bind address %q: %w", address, err)
 				}
 
-				listener.Close()
+				_ = listener.Close()
 				return nil
 			})
 			if err != nil {

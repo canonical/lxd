@@ -79,7 +79,6 @@ fi
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	err = f.Chmod(0500)
 	if err != nil {
@@ -87,7 +86,11 @@ fi
 	}
 
 	_, err = f.WriteString(script)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return f.Close()
 }
 
 func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
@@ -552,7 +555,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			dumpDone := make(chan bool, 1)
 			actionScriptOpSecret, err := shared.RandomCryptoString()
 			if err != nil {
-				os.RemoveAll(checkpointDir)
+				_ = os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
@@ -594,13 +597,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				nil,
 			)
 			if err != nil {
-				os.RemoveAll(checkpointDir)
+				_ = os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
 			err = writeActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
-				os.RemoveAll(checkpointDir)
+				_ = os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
@@ -630,7 +633,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					}
 					final, err = s.preDumpLoop(state, &loopArgs)
 					if err != nil {
-						os.RemoveAll(checkpointDir)
+						_ = os.RemoveAll(checkpointDir)
 						return abort(err)
 					}
 					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
@@ -642,7 +645,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			_, err = actionScriptOp.Run()
 			if err != nil {
-				os.RemoveAll(checkpointDir)
+				_ = os.RemoveAll(checkpointDir)
 				return abort(err)
 			}
 
@@ -660,7 +663,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				// Do the final CRIU dump. This is needs no special handling if
 				// pre-dumps are used or not.
 				dumpSuccess <- s.instance.Migrate(&criuMigrationArgs)
-				os.RemoveAll(checkpointDir)
+				_ = os.RemoveAll(checkpointDir)
 			}()
 
 			select {
@@ -673,7 +676,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			}
 		} else {
 			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
-			defer os.RemoveAll(checkpointDir)
+			defer func() { _ = os.RemoveAll(checkpointDir) }()
 			criuMigrationArgs := instance.CriuMigrationArgs{
 				Cmd:          liblxc.MIGRATE_DUMP,
 				StateDir:     checkpointDir,
@@ -961,7 +964,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
 		// deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh {
-			revert.Add(func() { args.Instance.Delete(true) })
+			revert.Add(func() { _ = args.Instance.Delete(true) })
 		}
 
 		return nil
@@ -1118,7 +1121,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				return
 			}
 
-			defer os.RemoveAll(imagesDir)
+			defer func() { _ = os.RemoveAll(imagesDir) }()
 
 			var criuConn *websocket.Conn
 			if c.push {

@@ -410,7 +410,7 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 		ctx, httpbakery.RequestVersion(r), caveats, derr.Ops...)
 	if err != nil {
 		resp := response.ErrorResponse(http.StatusInternalServerError, err.Error())
-		resp.Render(w)
+		_ = resp.Render(w)
 		return
 	}
 
@@ -487,7 +487,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			case <-d.setupChan:
 			default:
 				response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
-				response.Render(w)
+				_ = response.Render(w)
 				return
 			}
 		}
@@ -498,7 +498,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)
 			if !ok {
-				response.InternalError(err).Render(w)
+				_ = response.InternalError(err).Render(w)
 				return
 			}
 		}
@@ -508,7 +508,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != "tls" {
 				logger.Warn("Rejecting remote internal API request", logger.Ctx{"ip": r.RemoteAddr})
-				response.Forbidden(nil).Render(w)
+				_ = response.Forbidden(nil).Render(w)
 				return
 			}
 		}
@@ -579,7 +579,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			if err != nil {
 				logCtx["err"] = err
 				logger.Warn("Rejecting remote API request", logCtx)
-				response.Forbidden(nil).Render(w)
+				_ = response.Forbidden(nil).Render(w)
 				return
 			}
 
@@ -604,7 +604,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return
 		} else {
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
-			response.Forbidden(nil).Render(w)
+			_ = response.Forbidden(nil).Render(w)
 			return
 		}
 
@@ -614,7 +614,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
 			if _, err := io.Copy(multiW, r.Body); err != nil {
-				response.InternalError(err).Render(w)
+				_ = response.InternalError(err).Render(w)
 				return
 			}
 
@@ -650,7 +650,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
-			response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
+			_ = response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
 			return
 		}
 
@@ -756,7 +756,7 @@ func (d *Daemon) Init() error {
 	// ignored.
 	if err != nil {
 		logger.Error("Failed to start the daemon", logger.Ctx{"err": err})
-		d.Stop(context.Background(), unix.SIGINT)
+		_ = d.Stop(context.Background(), unix.SIGINT)
 		return err
 	}
 
@@ -978,7 +978,7 @@ func (d *Daemon) init() error {
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
 	testDevNum := int(unix.Mkdev(0, 0))
-	os.Remove(testDev)
+	_ = os.Remove(testDev)
 	err = unix.Mknod(testDev, 0600|unix.S_IFCHR, testDevNum)
 	if err == nil {
 		fd, err := os.Open(testDev)
@@ -986,8 +986,8 @@ func (d *Daemon) init() error {
 			logger.Warn("Unable to access device nodes, LXD likely running on a nodev mount")
 			d.os.Nodev = true
 		}
-		fd.Close()
-		os.Remove(testDev)
+		_ = fd.Close()
+		_ = os.Remove(testDev)
 	}
 
 	/* Initialize the database */
@@ -1064,7 +1064,10 @@ func (d *Daemon) init() error {
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")
 		if !filesystem.IsMountPoint(devlxd) {
-			unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+			err = unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+			if err != nil {
+				logger.Warn("Failed to mount devlxd", logger.Ctx{"err": err})
+			}
 		}
 	}
 
@@ -1161,10 +1164,10 @@ func (d *Daemon) init() error {
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
 			hbGroup.Start(d.shutdownCtx)
 			d.gateway.WaitUpgradeNotification()
-			hbGroup.Stop(time.Second)
+			_ = hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
 
-			d.db.Cluster.Close()
+			_ = d.db.Cluster.Close()
 
 			continue
 		}
@@ -1429,7 +1432,7 @@ func (d *Daemon) init() error {
 					logger.Warn("Unable to connect to MAAS, trying again in a minute", logger.Ctx{"url": maasAPIURL, "err": err})
 
 					if !warningAdded {
-						d.db.Cluster.UpsertWarningLocalNode("", -1, -1, db.WarningUnableToConnectToMAAS, err.Error())
+						_ = d.db.Cluster.UpsertWarningLocalNode("", -1, -1, db.WarningUnableToConnectToMAAS, err.Error())
 
 						warningAdded = true
 					}
@@ -1439,7 +1442,7 @@ func (d *Daemon) init() error {
 
 				// Resolve any previously created warning once connected
 				if warningAdded {
-					warnings.ResolveWarningsByLocalNodeAndType(d.db.Cluster, db.WarningUnableToConnectToMAAS)
+					_ = warnings.ResolveWarningsByLocalNodeAndType(d.db.Cluster, db.WarningUnableToConnectToMAAS)
 				}
 			}()
 		}
@@ -1491,7 +1494,7 @@ func (d *Daemon) startClusterTasks() {
 }
 
 func (d *Daemon) stopClusterTasks() {
-	d.clusterTasks.Stop(3 * time.Second)
+	_ = d.clusterTasks.Stop(3 * time.Second)
 	d.clusterTasks = task.Group{}
 }
 
@@ -1616,7 +1619,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 			// Make all future queries fail fast as DB is not available.
 			d.gateway.Kill()
-			d.db.Cluster.Close()
+			_ = d.db.Cluster.Close()
 		}
 
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -1732,8 +1735,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if shouldUnmount {
 		logger.Info("Unmounting temporary filesystems")
 
-		unix.Unmount(shared.VarPath("devlxd"), unix.MNT_DETACH)
-		unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
+		_ = unix.Unmount(shared.VarPath("devlxd"), unix.MNT_DETACH)
+		_ = unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
 
 		logger.Info("Done unmounting temporary filesystems")
 	} else {

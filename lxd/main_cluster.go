@@ -58,7 +58,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
-	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
 }
 
@@ -365,7 +365,7 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	for i, address := range addresses {
 		data[i] = []string{address}
 	}
-	utils.RenderTable(utils.TableFormatTable, columns, data, nil)
+	_ = utils.RenderTable(utils.TableFormatTable, columns, data, nil)
 
 	return nil
 }
@@ -459,7 +459,7 @@ func (c *cmdClusterRemoveRaftNode) Command() *cobra.Command {
 
 func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
-		cmd.Help()
+		_ = cmd.Help()
 		return fmt.Errorf("Missing required arguments")
 	}
 

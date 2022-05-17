@@ -157,7 +157,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { client.Close() })
+	reverter.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)
@@ -189,7 +189,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		if err != nil {
 			return response.SmartError(err)
 		}
-		reverter.Add(func() { file.Close() })
+		reverter.Add(func() { _ = file.Close() })
 
 		// Setup cleanup logic.
 		cleanup := reverter.Clone()
@@ -318,7 +318,7 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { client.Close() })
+	reverter.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)
@@ -429,7 +429,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
@@ -454,7 +454,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		if err != nil {
 			return response.SmartError(err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		// Go to the end of the file.
 		_, err = file.Seek(0, io.SeekEnd)
@@ -584,7 +584,7 @@ func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Delete the file.
 	err = client.Remove(path)
