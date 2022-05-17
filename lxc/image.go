@@ -106,7 +106,7 @@ hash or alias name (if one is set).`))
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
-	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
 }
 
@@ -543,13 +543,13 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer dest.Close()
+	defer func() { _ = dest.Close() }()
 
 	destRootfs, err := os.Create(targetRootfs)
 	if err != nil {
 		return err
 	}
-	defer destRootfs.Close()
+	defer func() { _ = destRootfs.Close() }()
 
 	// Prepare the download request
 	progress := utils.ProgressRenderer{
@@ -566,8 +566,8 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	// Download the image
 	resp, err := remoteServer.GetImageFile(fingerprint, req)
 	if err != nil {
-		os.Remove(targetMeta)
-		os.Remove(targetRootfs)
+		_ = os.Remove(targetMeta)
+		_ = os.Remove(targetRootfs)
 		progress.Done("")
 		return err
 	}
@@ -589,8 +589,8 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	if resp.RootfsSize == 0 {
 		err := os.Remove(targetRootfs)
 		if err != nil {
-			os.Remove(targetMeta)
-			os.Remove(targetRootfs)
+			_ = os.Remove(targetMeta)
+			_ = os.Remove(targetRootfs)
 			progress.Done("")
 			return err
 		}
@@ -601,8 +601,8 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 		if resp.MetaName != "" {
 			err := os.Rename(targetMeta, shared.HostPathFollow(filepath.Join(target, resp.MetaName)))
 			if err != nil {
-				os.Remove(targetMeta)
-				os.Remove(targetRootfs)
+				_ = os.Remove(targetMeta)
+				_ = os.Remove(targetRootfs)
 				progress.Done("")
 				return err
 			}
@@ -611,8 +611,8 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 		if resp.RootfsSize > 0 && resp.RootfsName != "" {
 			err := os.Rename(targetRootfs, shared.HostPathFollow(filepath.Join(target, resp.RootfsName)))
 			if err != nil {
-				os.Remove(targetMeta)
-				os.Remove(targetRootfs)
+				_ = os.Remove(targetMeta)
+				_ = os.Remove(targetRootfs)
 				progress.Done("")
 				return err
 			}
@@ -622,7 +622,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 			extension := strings.SplitN(resp.MetaName, ".", 2)[1]
 			err := os.Rename(targetMeta, fmt.Sprintf("%s.%s", targetMeta, extension))
 			if err != nil {
-				os.Remove(targetMeta)
+				_ = os.Remove(targetMeta)
 				progress.Done("")
 				return err
 			}
@@ -670,12 +670,15 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	outFileName := outFile.Name()
-	shared.RunCommand("tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	_, err = shared.RunCommand("tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	if err != nil {
+		return "", err
+	}
 
-	return outFileName, nil
+	return outFileName, outFile.Close()
 }
 
 func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
@@ -781,14 +784,14 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			// remove temp file
-			defer os.Remove(imageFile)
+			defer func() { _ = os.Remove(imageFile) }()
 
 		}
 		meta, err = os.Open(imageFile)
 		if err != nil {
 			return err
 		}
-		defer meta.Close()
+		defer func() { _ = meta.Close() }()
 
 		// Open rootfs
 		if rootfsFile != "" {
@@ -796,13 +799,16 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			defer rootfs.Close()
+			defer func() { _ = rootfs.Close() }()
 
 			_, ext, _, err := shared.DetectCompressionFile(rootfs)
 			if err != nil {
 				return err
 			}
-			rootfs.(*os.File).Seek(0, 0)
+			_, err = rootfs.(*os.File).Seek(0, 0)
+			if err != nil {
+				return err
+			}
 
 			if ext == ".qcow2" {
 				imageType = "virtual-machine"

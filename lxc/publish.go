@@ -148,7 +148,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 					return
 				}
 
-				op.Wait()
+				_ = op.Wait()
 			}()
 
 			// If we had to clear the ephemeral flag, restore it now.
@@ -256,7 +256,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 	// For remote publish, copy to target now
 	if cRemote != iRemote {
-		defer s.DeleteImage(fingerprint)
+		defer func() { _, _ = s.DeleteImage(fingerprint) }()
 
 		// Get the source image
 		image, _, err := s.GetImage(fingerprint)

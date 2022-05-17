@@ -127,7 +127,7 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
-	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
 }
 
@@ -2150,7 +2150,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 		// Delete backup after we're done
 		op, err = d.DeleteStoragePoolVolumeBackup(name, volName, backupName)
 		if err == nil {
-			op.Wait()
+			_ = op.Wait()
 		}
 	}()
 
@@ -2165,7 +2165,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer target.Close()
+	defer func() { _ = target.Close() }()
 
 	// Prepare the download request
 	progress = utils.ProgressRenderer{
@@ -2180,9 +2180,9 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	// Export tarball
 	_, err = d.GetStoragePoolVolumeBackupFile(name, volName, backupName, &backupFileRequest)
 	if err != nil {
-		os.Remove(targetName)
+		_ = os.Remove(targetName)
 		progress.Done("")
-		return fmt.Errorf("Fetch storage volume backup file: %w", err)
+		return fmt.Errorf("Failed to fetch storage volume backup file: %w", err)
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))
@@ -2240,7 +2240,7 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	fstat, err := file.Stat()
 	if err != nil {

@@ -73,7 +73,7 @@ func (c *Config) ServerCertPath(remote string) string {
 // SaveCookies saves cookies to file
 func (c *Config) SaveCookies() {
 	for _, jar := range c.cookieJars {
-		jar.Save()
+		_ = jar.Save()
 	}
 }
 

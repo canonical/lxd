@@ -82,7 +82,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	fstat, err := file.Stat()

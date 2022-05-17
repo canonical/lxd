@@ -67,7 +67,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 && !c.flagEmpty {
-		cmd.Usage()
+		_ = cmd.Usage()
 		return nil
 	}
 
