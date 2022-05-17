@@ -39,19 +39,19 @@ func (c *Config) CopyGlobalCert(src string, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer sourceFile.Close()
+	defer func() { _ = sourceFile.Close() }()
 
 	// Create new file
 	newFile, err := os.Create(newPath)
 	if err != nil {
 		return err
 	}
-	defer newFile.Close()
+	defer func() { _ = newFile.Close() }()
 
 	_, err = io.Copy(newFile, sourceFile)
 	if err != nil {
 		return err
 	}
-	return nil
 
+	return newFile.Close()
 }

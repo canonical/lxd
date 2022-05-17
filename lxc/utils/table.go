@@ -35,9 +35,12 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(data)
+		err := w.WriteAll(data)
+		if err != nil {
+			return err
+		}
 
-		err := w.Error()
+		err = w.Error()
 		if err != nil {
 			return err
 		}

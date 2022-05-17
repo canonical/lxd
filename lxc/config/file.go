@@ -78,7 +78,10 @@ func LoadConfig(path string) (*Config, error) {
 	images, ok := c.Remotes["images"]
 	if ok && images.Protocol != ImagesRemote.Protocol && images.Addr == ImagesRemote.Addr {
 		c.Remotes["images"] = ImagesRemote
-		c.SaveConfig(path)
+		err = c.SaveConfig(path)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -114,7 +117,7 @@ func (c *Config) SaveConfig(path string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to create the configuration file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Write the new config
 	data, err := yaml.Marshal(conf)
@@ -125,6 +128,11 @@ func (c *Config) SaveConfig(path string) error {
 	_, err = f.Write(data)
 	if err != nil {
 		return fmt.Errorf("Unable to write the configuration: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return fmt.Errorf("Unable to close the configuration file: %w", err)
 	}
 
 	return nil

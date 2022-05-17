@@ -114,7 +114,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		// Delete backup after we're done
 		op, err = d.DeleteInstanceBackup(name, backupName)
 		if err == nil {
-			op.Wait()
+			_ = op.Wait()
 		}
 	}()
 
@@ -134,7 +134,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer target.Close()
+		defer func() { _ = target.Close() }()
 	}
 
 	// Prepare the download request
@@ -150,9 +150,14 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	// Export tarball
 	_, err = d.GetInstanceBackupFile(name, backupName, &backupFileRequest)
 	if err != nil {
-		os.Remove(targetName)
+		_ = os.Remove(targetName)
 		progress.Done("")
 		return fmt.Errorf("Fetch instance backup file: %w", err)
+	}
+
+	err = target.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to close export file: %w", err)
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))

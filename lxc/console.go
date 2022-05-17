@@ -165,7 +165,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	if err != nil {
 		return err
 	}
-	defer termios.Restore(cfd, oldTTYstate)
+	defer func() { _ = termios.Restore(cfd, oldTTYstate) }()
 
 	handler := c.controlSocketHandler
 
@@ -230,7 +230,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	handler := func(control *websocket.Conn) {
 		<-controlDone
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		control.WriteMessage(websocket.CloseMessage, closeMsg)
+		_ = control.WriteMessage(websocket.CloseMessage, closeMsg)
 	}
 
 	// Prepare the remote console.
@@ -263,7 +263,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
-		path.Close()
+		_ = path.Close()
 
 		err = os.Remove(path.Name())
 		if err != nil {
@@ -275,7 +275,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
-		defer os.Remove(path.Name())
+		defer func() { _ = os.Remove(path.Name()) }()
 
 		socket = fmt.Sprintf("spice+unix://%s", path.Name())
 	} else {
@@ -291,7 +291,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 	// Clean everything up when the viewer is done.
 	go func() {
 		<-chViewer
-		listener.Close()
+		_ = listener.Close()
 		close(chDisconnect)
 	}()
 
@@ -346,11 +346,14 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		// Start the command.
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Start()
+		err := cmd.Start()
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed starting command: %w"), err)
+		}
 
 		// Handle the command exiting.
 		go func() {
-			cmd.Wait()
+			_ = cmd.Wait()
 			close(chViewer)
 		}()
 
@@ -363,7 +366,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 				return
 			}
 
-			cmd.Process.Kill()
+			_ = cmd.Process.Kill()
 		}()
 	} else {
 		fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
