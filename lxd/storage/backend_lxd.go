@@ -3419,7 +3419,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 // MigrateCustomVolume sends a volume for migration.
 func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": fmt.Sprintf("%+v", args)})
 	l.Debug("MigrateCustomVolume started")
 	defer l.Debug("MigrateCustomVolume finished")
 
@@ -3449,7 +3449,7 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 
 // CreateCustomVolumeFromMigration receives a volume being migrated.
 func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateCustomVolumeFromMigration started")
 	defer l.Debug("CreateCustomVolumeFromMigration finished")
 
