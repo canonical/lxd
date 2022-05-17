@@ -169,11 +169,13 @@ func (d *infinibandSRIOV) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *infinibandSRIOV) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name":         "",
-		"last_state.hwaddr": "",
-		"last_state.mtu":    "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name":         "",
+			"last_state.hwaddr": "",
+			"last_state.mtu":    "",
+		})
+	}()
 
 	// Remove infiniband host files for this device.
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")

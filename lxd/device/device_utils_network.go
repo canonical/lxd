@@ -219,7 +219,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 
 	err = veth.SetUp()
 	if err != nil {
-		network.InterfaceRemove(hostName)
+		_ = network.InterfaceRemove(hostName)
 		return "", 0, fmt.Errorf("Failed to bring up the veth interface %q: %w", hostName, err)
 	}
 
@@ -228,7 +228,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		link := &ip.Link{Name: peerName}
 		err := link.SetAddress(m["hwaddr"])
 		if err != nil {
-			network.InterfaceRemove(peerName)
+			_ = network.InterfaceRemove(peerName)
 			return "", 0, fmt.Errorf("Failed to set the MAC address: %w", err)
 		}
 	}
@@ -252,13 +252,13 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	if mtu > 0 {
 		err = NetworkSetDevMTU(peerName, mtu)
 		if err != nil {
-			network.InterfaceRemove(peerName)
+			_ = network.InterfaceRemove(peerName)
 			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
 		}
 
 		err = NetworkSetDevMTU(hostName, mtu)
 		if err != nil {
-			network.InterfaceRemove(peerName)
+			_ = network.InterfaceRemove(peerName)
 			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
 		}
 	}
@@ -287,7 +287,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("Failed to bring up the tap interface %q: %w", hostName, err)
 	}
-	revert.Add(func() { network.InterfaceRemove(hostName) })
+	revert.Add(func() { _ = network.InterfaceRemove(hostName) })
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	var mtu uint32
@@ -371,7 +371,8 @@ func networkNICRouteAdd(routeDev string, routes ...string) error {
 				Proto:   "boot",
 				Family:  ipVersion,
 			}
-			r.Flush()
+
+			_ = r.Flush()
 		})
 	}
 
@@ -411,7 +412,8 @@ func networkNICRouteDelete(routeDev string, routes ...string) {
 			Proto:   "boot",
 			Family:  ipVersion,
 		}
-		r.Flush()
+
+		err = r.Flush()
 		if err != nil {
 			logger.Errorf("Failed to remove static route %q to %q: %v", route, routeDev, err)
 			continue
@@ -454,9 +456,9 @@ func networkSetupHostVethLimits(m deviceConfig.Device) error {
 
 	// Clean any existing entry
 	qdisc := &ip.Qdisc{Dev: veth, Root: true}
-	qdisc.Delete()
+	_ = qdisc.Delete()
 	qdisc = &ip.Qdisc{Dev: veth, Ingress: true}
-	qdisc.Delete()
+	_ = qdisc.Delete()
 
 	// Apply new limits
 	if m["limits.ingress"] != "" {
@@ -631,7 +633,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 		return vfPCIDev, 0, err
 	}
 
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { _ = pcidev.DeviceProbe(vfPCIDev) })
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
@@ -780,7 +782,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	revert.Add(func() { pcidev.DeviceProbe(vfPCIDev) })
+	revert.Add(func() { _ = pcidev.DeviceProbe(vfPCIDev) })
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
@@ -944,7 +946,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		return false, err
 	}
 
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	netipAddr, ok := netip.AddrFromSlice(address)
 	if !ok {
@@ -960,13 +962,13 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		TargetAddress: netipAddr,
 	}
 
-	conn.SetDeadline(deadline)
+	_ = conn.SetDeadline(deadline)
 	err = conn.WriteTo(neighbourSolicitationMessage, nil, solicitedNodeMulticast)
 	if err != nil {
 		return false, err
 	}
 
-	conn.SetDeadline(deadline)
+	_ = conn.SetDeadline(deadline)
 	msg, _, _, err := conn.ReadFrom()
 	if err != nil {
 		if cause, ok := err.(net.Error); ok && cause.Timeout() {

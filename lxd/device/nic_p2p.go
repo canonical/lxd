@@ -108,7 +108,7 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -198,9 +198,11 @@ func (d *nicP2P) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicP2P) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name": "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name": "",
+		})
+	}()
 
 	v := d.volatileGet()
 

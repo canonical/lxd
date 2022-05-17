@@ -533,7 +533,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -574,7 +574,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	revert.Add(func() { network.DetachInterface(d.config["parent"], saveData["host_name"]) })
+	revert.Add(func() { _ = network.DetachInterface(d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
@@ -797,9 +797,11 @@ func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicBridged) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name": "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name": "",
+		})
+	}()
 
 	v := d.volatileGet()
 
@@ -1242,7 +1244,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var dstDUID string
 	errs := []error{}
@@ -1319,7 +1321,7 @@ func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP,
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	//Random DHCP transaction ID
 	xid := rand.Uint32()
@@ -1351,7 +1353,11 @@ func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP,
 	}
 
 	_, err = conn.Write(buf.Bytes())
-	return err
+	if err != nil {
+		return err
+	}
+
+	return conn.Close()
 }
 
 // networkDHCPv6Release sends a DHCPv6 release packet to a DHCP server.
@@ -1364,7 +1370,7 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Construct a DHCPv6 packet pretending to be from the source IP and MAC supplied.
 	dhcp := layers.DHCPv6{
@@ -1413,7 +1419,10 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 	}
 
 	_, err = conn.Write(buf.Bytes())
-	return err
+	if err != nil {
+		return err
+	}
+	return conn.Close()
 }
 
 // networkDHCPv6CreateIANA creates a DHCPv6 Identity Association for Non-temporary Address (rfc3315 IA_NA) option.
