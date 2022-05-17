@@ -48,7 +48,7 @@ func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 	if err != nil {
 		return err
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -60,7 +60,7 @@ func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 		return err
 	}
 
-	return nil
+	return w.Close()
 }
 
 // ProtoSendControl sends a migration control message over a websocket
@@ -75,5 +75,5 @@ func ProtoSendControl(ws *websocket.Conn, err error) {
 		Message: proto.String(message),
 	}
 
-	ProtoSend(ws, &msg)
+	_ = ProtoSend(ws, &msg)
 }
