@@ -341,7 +341,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		names = args
 
 		if len(args) == 0 {
-			cmd.Usage()
+			_ = cmd.Usage()
 			return nil
 		}
 	}
