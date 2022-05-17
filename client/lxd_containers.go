@@ -119,7 +119,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
 	response, _, err := lxdParseResponse(resp)
@@ -191,7 +191,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 			rop.targetOp = op
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -550,7 +550,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 			rop.targetOp = op
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -668,7 +668,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				go func() {
 					shared.WebsocketSendStream(conn, args.Stdin, -1)
 					<-shared.WebsocketRecvStream(args.Stdout, conn)
-					conn.Close()
+					_ = conn.Close()
 
 					if args.DataDone != nil {
 						close(args.DataDone)
@@ -730,7 +730,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 				if fds["0"] != "" {
 					if args.Stdin != nil {
-						args.Stdin.Close()
+						_ = args.Stdin.Close()
 					}
 
 					// Empty the stdin channel but don't block on it as
@@ -741,7 +741,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				}
 
 				for _, conn := range conns {
-					conn.Close()
+					_ = conn.Close()
 				}
 
 				if args.DataDone != nil {
@@ -1215,7 +1215,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 			rop.targetOp = op
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -1554,15 +1554,15 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 		<-consoleDisconnect
 		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
 		// We don't care if this fails. This is just for convenience.
-		controlConn.WriteMessage(websocket.CloseMessage, msg)
-		controlConn.Close()
+		_ = controlConn.WriteMessage(websocket.CloseMessage, msg)
+		_ = controlConn.Close()
 	}(args.ConsoleDisconnect)
 
 	// And attach stdin and stdout to it
 	go func() {
 		shared.WebsocketSendStream(conn, args.Terminal, -1)
 		<-shared.WebsocketRecvStream(args.Terminal, conn)
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	return op, nil
@@ -1748,7 +1748,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	defer close(doneCh)
 
 	if response.StatusCode != http.StatusOK {

@@ -150,8 +150,9 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				if err != nil {
 					return nil, err
 				}
-				defer deltaFile.Close()
-				defer os.Remove(deltaFile.Name())
+				defer func() { _ = deltaFile.Close() }()
+
+				defer func() { _ = os.Remove(deltaFile.Name()) }()
 
 				// Download the delta
 				_, err = download(file.Path, "rootfs delta", file.Sha256, deltaFile)
@@ -164,8 +165,9 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				if err != nil {
 					return nil, err
 				}
-				defer patchedFile.Close()
-				defer os.Remove(patchedFile.Name())
+				defer func() { _ = patchedFile.Close() }()
+
+				defer func() { _ = os.Remove(patchedFile.Name()) }()
 
 				// Apply it
 				_, err = shared.RunCommand("xdelta3", "-f", "-d", "-s", srcPath, deltaFile.Name(), patchedFile.Name())

@@ -450,7 +450,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
 	response, _, err := lxdParseResponse(resp)
@@ -529,7 +529,7 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			rop.handlerLock.Unlock()
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -550,7 +550,7 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 		if !success {
 			rop.err = remoteOperationError("Failed instance creation", errors)
 			if op != nil {
-				op.Cancel()
+				_ = op.Cancel()
 			}
 		}
 
@@ -912,7 +912,7 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			rop.targetOp = op
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -1065,7 +1065,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				go func() {
 					shared.WebsocketSendStream(conn, args.Stdin, -1)
 					<-shared.WebsocketRecvStream(args.Stdout, conn)
-					conn.Close()
+					_ = conn.Close()
 
 					if args.DataDone != nil {
 						close(args.DataDone)
@@ -1127,7 +1127,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 				if fds["0"] != "" {
 					if args.Stdin != nil {
-						args.Stdin.Close()
+						_ = args.Stdin.Close()
 					}
 
 					// Empty the stdin channel but don't block on it as
@@ -1138,7 +1138,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 				}
 
 				for _, conn := range conns {
-					conn.Close()
+					_ = conn.Close()
 				}
 
 				if args.DataDone != nil {
@@ -1434,14 +1434,14 @@ func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, er
 	// Get a SFTP client.
 	client, err := sftp.NewClientPipe(conn, conn)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	go func() {
 		// Wait for the client to be done before closing the connection.
-		client.Wait()
-		conn.Close()
+		_ = client.Wait()
+		_ = conn.Close()
 	}()
 
 	return client, nil
@@ -1791,7 +1791,7 @@ func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instance
 			rop.targetOp = op
 
 			for _, handler := range rop.handlers {
-				rop.targetOp.AddHandler(handler)
+				_, _ = rop.targetOp.AddHandler(handler)
 			}
 
 			err = rop.targetOp.Wait()
@@ -2215,15 +2215,15 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 		<-consoleDisconnect
 		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
 		// We don't care if this fails. This is just for convenience.
-		controlConn.WriteMessage(websocket.CloseMessage, msg)
-		controlConn.Close()
+		_ = controlConn.WriteMessage(websocket.CloseMessage, msg)
+		_ = controlConn.Close()
 	}(args.ConsoleDisconnect)
 
 	// And attach stdin and stdout to it
 	go func() {
 		shared.WebsocketSendStream(conn, args.Terminal, -1)
 		<-shared.WebsocketRecvStream(args.Terminal, conn)
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	return op, nil
@@ -2295,8 +2295,8 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		<-consoleDisconnect
 		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
 		// We don't care if this fails. This is just for convenience.
-		controlConn.WriteMessage(websocket.CloseMessage, msg)
-		controlConn.Close()
+		_ = controlConn.WriteMessage(websocket.CloseMessage, msg)
+		_ = controlConn.Close()
 	}(args.ConsoleDisconnect)
 
 	f := func(rwc io.ReadWriteCloser) error {
@@ -2309,7 +2309,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 		// Attach reader/writer.
 		shared.WebsocketSendStream(conn, rwc, -1)
 		<-shared.WebsocketRecvStream(rwc, conn)
-		conn.Close()
+		_ = conn.Close()
 
 		return nil
 	}
@@ -2538,7 +2538,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	defer close(doneCh)
 
 	if response.StatusCode != http.StatusOK {
@@ -2640,8 +2640,8 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	go func() {
 		// Wait for control socket
 		<-proxies["control"].done
-		proxies["control"].sourceConn.Close()
-		proxies["control"].targetConn.Close()
+		_ = proxies["control"].sourceConn.Close()
+		_ = proxies["control"].targetConn.Close()
 
 		// Then deal with the others
 		for name, proxy := range proxies {
@@ -2650,8 +2650,8 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 			}
 
 			<-proxy.done
-			proxy.sourceConn.Close()
-			proxy.targetConn.Close()
+			_ = proxy.sourceConn.Close()
+			_ = proxy.targetConn.Close()
 		}
 	}()
 
