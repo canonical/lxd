@@ -1393,13 +1393,13 @@ func updateFromV42(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("Failed preparing query: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	rows, err := stmt.Query()
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type dupeRow struct {
 		storagePoolID int64
@@ -1462,13 +1462,13 @@ func updateFromV41(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("Failed preparing query: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	rows, err := stmt.Query()
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type dupeRow struct {
 		networkID  int64
@@ -1570,7 +1570,7 @@ func updateFromV37(tx *sql.Tx) error {
 	}
 
 	if len(ids) == 1 {
-		tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (?, 'features.networks', 'true');", ids[0])
+		_, _ = tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (?, 'features.networks', 'true');", ids[0])
 	}
 
 	return nil
@@ -2116,7 +2116,7 @@ CREATE VIEW projects_used_by_ref (name,
 
 // Attempt to add missing project feature
 func updateFromV28(tx *sql.Tx) error {
-	tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
+	_, _ = tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
 	return nil
 }
 
@@ -2490,7 +2490,7 @@ func updateFromV19(tx *sql.Tx) error {
 		return err
 	}
 
-	defer tx.Exec("PRAGMA ignore_check_constraints=off")
+	defer func() { _, _ = tx.Exec("PRAGMA ignore_check_constraints=off") }()
 
 	// The column has a not-null constraint and a default value of
 	// 0. However, leaving the 0 default won't effectively be accepted when
@@ -3727,7 +3727,7 @@ FROM storage_volumes
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, func(i int) []any {
 		return []any{
 			&volumes[i].ID,

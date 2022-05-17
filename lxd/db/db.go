@@ -407,7 +407,7 @@ func (c *Cluster) NodeID(id int64) {
 // Close the database facade.
 func (c *Cluster) Close() error {
 	for _, stmt := range c.stmts {
-		stmt.Close()
+		_ = stmt.Close()
 	}
 	return c.db.Close()
 }
@@ -461,7 +461,7 @@ func DqliteLatestSegment() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Unable to open directory %s with error %v", dir, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	fileNames, err := file.Readdirnames(0)
 	if err != nil {
@@ -513,7 +513,7 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
+			defer func() { _ = rows.Close() }()
 
 			for rows.Next() {
 				ptrargs := make([]any, len(outargs))

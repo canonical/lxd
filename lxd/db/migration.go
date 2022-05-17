@@ -60,7 +60,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 		columns, err := rows.Columns()
 		if err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("failed to get columns of %s: %w", table, err)
 		}
 		dump.Schema[table] = columns
@@ -73,17 +73,17 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			}
 			err := rows.Scan(row...)
 			if err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, fmt.Errorf("failed to scan row from %s: %w", table, err)
 			}
 			data = append(data, values)
 		}
 		err = rows.Err()
 		if err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("error while fetching rows from %s: %w", table, err)
 		}
-		rows.Close()
+		_ = rows.Close()
 
 		dump.Data[table] = data
 	}
@@ -244,7 +244,10 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 			// Also insert the image ID to node ID association.
 			if shared.StringInSlice(table, []string{"images", "networks", "storage_pools"}) {
 				entity := table[:len(table)-1]
-				importNodeAssociation(entity, columns, row, tx)
+				err := importNodeAssociation(entity, columns, row, tx)
+				if err != nil {
+					return fmt.Errorf("Failed to import node associations")
+				}
 			}
 		}
 	}

@@ -43,7 +43,7 @@ func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch raft nodes: %w", err)

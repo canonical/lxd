@@ -984,8 +984,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		}
 	}
 
-	m.begin(buf, comment, args, rets, isInterface)
-	return nil
+	return m.begin(buf, comment, args, rets, isInterface)
 }
 
 func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) error {
