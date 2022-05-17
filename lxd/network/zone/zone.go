@@ -233,7 +233,7 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
-			d.state.DB.Cluster.UpdateNetworkZone(d.id, &oldConfig)
+			_ = d.state.DB.Cluster.UpdateNetworkZone(d.id, &oldConfig)
 			d.info.NetworkZonePut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
 		})

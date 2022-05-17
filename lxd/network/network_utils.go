@@ -262,7 +262,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	ifaceName := ""
 
@@ -501,7 +501,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	if err != nil {
 		return servers, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -571,7 +571,7 @@ func inRoutingTable(subnet *net.IPNet) bool {
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewReader(file)
 	for {
@@ -733,7 +733,7 @@ func GetHostDevice(parent string, vlan string) string {
 	if err != nil {
 		return defaultVlan
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -1033,7 +1033,7 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 	}
 
 	// Attempt to disable IPv6 router advertisement acceptance.
-	util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
+	_ = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
 
 	// We created a new vlan interface, return true.
 	return true, nil
