@@ -33,7 +33,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	if err != nil {
 		return err
 	}
-	revert.Add(func() { os.RemoveAll(volPath) })
+	revert.Add(func() { _ = os.RemoveAll(volPath) })
 
 	// Create sparse loopback file if volume is block.
 	rootBlockPath := ""
@@ -390,7 +390,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	defer revert.Fail()
 
 	snapPath := snapVol.MountPath()
-	revert.Add(func() { os.RemoveAll(snapPath) })
+	revert.Add(func() { _ = os.RemoveAll(snapPath) })
 
 	if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom {
 		var rsyncArgs []string

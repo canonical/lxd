@@ -40,7 +40,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	revertPath := true
 	defer func() {
 		if revertPath {
-			os.RemoveAll(volPath)
+			_ = os.RemoveAll(volPath)
 		}
 	}()
 
@@ -88,10 +88,10 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
+			_ = d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
-		os.RemoveAll(volPath)
+		_ = os.RemoveAll(volPath)
 	}()
 
 	// Ensure the volume is mounted.
@@ -177,10 +177,10 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
-			d.DeleteVolumeSnapshot(snapVol, op)
+			_ = d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
-		os.RemoveAll(volPath)
+		_ = os.RemoveAll(volPath)
 	}()
 
 	// Ensure the volume is mounted.
@@ -391,16 +391,16 @@ func (d *cephfs) RenameVolume(vol Volume, newVolName string, op *operations.Oper
 		// Remove any paths rename if we are reverting.
 		for _, vol := range revertPaths {
 			if vol.isSymlink {
-				os.Symlink(vol.oldPath, vol.newPath)
+				_ = os.Symlink(vol.oldPath, vol.newPath)
 			} else {
-				os.Rename(vol.newPath, vol.oldPath)
+				_ = os.Rename(vol.newPath, vol.oldPath)
 			}
 		}
 
 		// Remove the new snapshot directory if we are reverting.
 		if len(revertPaths) > 0 {
 			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
-			os.RemoveAll(snapshotDir)
+			_ = os.RemoveAll(snapshotDir)
 		}
 	}()
 

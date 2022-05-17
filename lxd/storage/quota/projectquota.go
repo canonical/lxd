@@ -183,7 +183,7 @@ func devForPath(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer mountinfo.Close()
+	defer func() { _ = mountinfo.Close() }()
 
 	scanner := bufio.NewScanner(mountinfo)
 	for scanner.Scan() {

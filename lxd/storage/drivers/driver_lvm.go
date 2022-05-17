@@ -144,14 +144,14 @@ func (d *lvm) Create() error {
 			return fmt.Errorf("Failed to create sparse file %q: %w", d.config["source"], err)
 		}
 
-		revert.Add(func() { os.Remove(d.config["source"]) })
+		revert.Add(func() { _ = os.Remove(d.config["source"]) })
 
 		// Open the loop file.
 		loopFile, err := d.openLoopFile(d.config["source"])
 		if err != nil {
 			return err
 		}
-		defer loopFile.Close()
+		defer func() { _ = loopFile.Close() }()
 
 		// Check if the physical volume already exists.
 		pvName = loopFile.Name()
@@ -286,7 +286,7 @@ func (d *lvm) Create() error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { shared.TryRunCommand("pvremove", pvName) })
+			revert.Add(func() { _, _ = shared.TryRunCommand("pvremove", pvName) })
 		}
 
 		// Create volume group.
@@ -295,7 +295,7 @@ func (d *lvm) Create() error {
 			return err
 		}
 		d.logger.Debug("Volume group created", logger.Ctx{"pv_name": pvName, "vg_name": d.config["lvm.vg_name"]})
-		revert.Add(func() { shared.TryRunCommand("vgremove", d.config["lvm.vg_name"]) })
+		revert.Add(func() { _, _ = shared.TryRunCommand("vgremove", d.config["lvm.vg_name"]) })
 	}
 
 	// Create thin pool if needed.
@@ -307,7 +307,7 @@ func (d *lvm) Create() error {
 		d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
 
 		revert.Add(func() {
-			d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
+			_ = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
 		})
 	}
 
@@ -333,7 +333,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if err != nil {
 			return err
 		}
-		defer loopFile.Close()
+		defer func() { _ = loopFile.Close() }()
 	}
 
 	vgExists, vgTags, err := d.volumeGroupExists(d.config["lvm.vg_name"])
