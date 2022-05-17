@@ -169,13 +169,13 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 		if err != nil {
 			return vf, err
 		}
-		defer stdout.Close()
+		defer func() { _ = stdout.Close() }()
 
 		err = cmd.Start()
 		if err != nil {
 			return vf, err
 		}
-		defer cmd.Wait()
+		defer func() { _ = cmd.Wait() }()
 
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
 		reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
@@ -226,13 +226,13 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 	if err != nil {
 		return vf, err
 	}
-	defer stdout.Close()
+	defer func() { _ = stdout.Close() }()
 
 	err = cmd.Start()
 	if err != nil {
 		return vf, err
 	}
-	defer cmd.Wait()
+	defer func() { _ = cmd.Wait() }()
 
 	// Temporary struct to decode ip output into.
 	var ifInfo []struct {
