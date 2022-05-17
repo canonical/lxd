@@ -50,7 +50,7 @@ func TestEndpoints_NetworkSocketBasedActivation(t *testing.T) {
 	defer cleanup()
 
 	listener := newTCPListener(t)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	file, err := listener.File()
 	require.NoError(t, err)

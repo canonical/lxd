@@ -135,7 +135,7 @@ func Up(config *Config) (*Endpoints, error) {
 
 	err := endpoints.up(config)
 	if err != nil {
-		endpoints.Down()
+		_ = endpoints.Down()
 		return nil, err
 	}
 	return endpoints, nil
@@ -207,7 +207,7 @@ func (e *Endpoints) up(config *Config) error {
 		listener, ok := e.listeners[network]
 		if ok {
 			logger.Infof("Replacing inherited TCP socket with configured one")
-			listener.Close()
+			_ = listener.Close()
 			e.inherited[network] = false
 		}
 
@@ -360,7 +360,7 @@ func (e *Endpoints) Down() error {
 
 	if e.tomb != nil {
 		e.tomb.Kill(nil)
-		e.tomb.Wait()
+		_ = e.tomb.Wait()
 	}
 
 	return nil
@@ -391,8 +391,7 @@ func (e *Endpoints) serve(kind kind) {
 	}
 
 	e.tomb.Go(func() error {
-		server.Serve(listener)
-		return nil
+		return server.Serve(listener)
 	})
 }
 
