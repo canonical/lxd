@@ -60,7 +60,7 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 	msg := migration.MigrationControl{}
 	err = migration.ProtoRecv(wsControl, &msg)
 	if err != nil {
-		wsControl.Close()
+		_ = wsControl.Close()
 		return err
 	}
 
