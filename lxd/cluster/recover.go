@@ -188,9 +188,14 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		_, err = file.Write([]byte(content))
+		if err != nil {
+			return err
+		}
+
+		err = file.Close()
 		if err != nil {
 			return err
 		}
@@ -226,7 +231,7 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	err = client.Remove(ctx, id)
 	if err != nil {
 		return fmt.Errorf("Failed to remove node: %w", err)

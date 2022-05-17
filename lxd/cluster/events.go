@@ -312,7 +312,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				return
 			}
 
-			listener.AddHandler(nil, func(event api.Event) {
+			_, _ = listener.AddHandler(nil, func(event api.Event) {
 				// Inject event received via pull as forwarded so that its not forwarded again
 				// onto other members.
 				inject(event, events.EventSourcePull)

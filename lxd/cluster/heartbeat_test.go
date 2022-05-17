@@ -201,7 +201,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	serverCert := shared.TestingKeyPair()
 	state.ServerCert = func() *shared.CertInfo { return serverCert }
 	gateway := newGateway(f.t, state.DB.Node, serverCert, serverCert)
-	f.cleanups = append(f.cleanups, func() { gateway.Shutdown() })
+	f.cleanups = append(f.cleanups, func() { _ = gateway.Shutdown() })
 
 	mux := http.NewServeMux()
 	server := newServer(serverCert, mux)
