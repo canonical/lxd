@@ -279,8 +279,8 @@ func ListenAddresses(configListenAddress string) ([]string, error) {
 // see the docstring of SystemdListenFDsStart below.
 func GetListeners(start int) []net.Listener {
 	defer func() {
-		os.Unsetenv("LISTEN_PID")
-		os.Unsetenv("LISTEN_FDS")
+		_ = os.Unsetenv("LISTEN_PID")
+		_ = os.Unsetenv("LISTEN_FDS")
 	}()
 
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
