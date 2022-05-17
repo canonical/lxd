@@ -23,7 +23,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -351,11 +350,6 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
-	vol, err := storagePools.VolumeDBGet(pool, projectName, volumeName, storageDrivers.VolumeTypeCustom)
-	if err != nil {
-		return fmt.Errorf("Failed loading custom volume record: %w", err)
-	}
-
 	// Ignore requests for optimized backups when pool driver doesn't support it.
 	if args.OptimizedStorage && !pool.Driver().Info().OptimizedBackups {
 		args.OptimizedStorage = false
@@ -441,7 +435,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 	// Write index file.
 	l.Debug("Adding backup index file")
-	err = volumeBackupWriteIndex(s, projectName, vol, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, tarWriter)
+	err = volumeBackupWriteIndex(s, projectName, volumeName, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, tarWriter)
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -480,56 +474,37 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 }
 
 // volumeBackupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func volumeBackupWriteIndex(s *state.State, projectName string, vol *api.StorageVolume, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
-	if vol.Type != db.StoragePoolVolumeTypeNameCustom {
-		return fmt.Errorf("Unsupported volume type %q", vol.Type)
-	}
-
+func volumeBackupWriteIndex(s *state.State, projectName string, volumeName string, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
 	// Indicate whether the driver will include a driver-specific optimized header.
 	poolDriverOptimizedHeader := false
 	if optimized {
 		poolDriverOptimizedHeader = pool.Driver().Info().OptimizedBackupHeader
 	}
 
+	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volumeName, snapshots, nil)
+	if err != nil {
+		return fmt.Errorf("Failed generating volume backup config: %w", err)
+	}
+
 	indexInfo := backup.Info{
-		Name:             vol.Name,
+		Name:             config.Volume.Name,
 		Pool:             pool.Name(),
-		Snapshots:        []string{},
 		Backend:          pool.Driver().Info().Name,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
 		Type:             backup.TypeCustom,
-		Config: &backup.Config{
-			Volume: vol,
-		},
+		Config:           config,
 	}
 
 	if snapshots {
-		snaps, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, vol.Name, storageDrivers.VolumeTypeCustom)
-		if err != nil {
-			return fmt.Errorf("Failed loading custom volume snapshot records: %w", err)
-		}
-
-		for i := range snaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snaps[i].Name)
-			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
-
-			snapshot := api.StorageVolumeSnapshot{
-				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
-					Description: snaps[i].Description,
-					ExpiresAt:   &snaps[i].ExpiryDate,
-				},
-				Name:        snapName, // Snapshot only name, not full name.
-				Config:      snaps[i].Config,
-				ContentType: snaps[i].ContentType,
-			}
-
-			indexInfo.Config.VolumeSnapshots = append(indexInfo.Config.VolumeSnapshots, &snapshot)
+		indexInfo.Snapshots = make([]string, 0, len(config.VolumeSnapshots))
+		for _, s := range config.VolumeSnapshots {
+			indexInfo.Snapshots = append(indexInfo.Snapshots, s.Name)
 		}
 	}
 
 	// Convert to YAML.
-	indexData, err := yaml.Marshal(&indexInfo)
+	indexData, err := yaml.Marshal(indexInfo)
 	if err != nil {
 		return err
 	}
