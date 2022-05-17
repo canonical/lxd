@@ -1082,7 +1082,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		return nil, nil, err
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
+	revert.Add(func() { _ = s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := Create(s, args, revert)
@@ -1093,7 +1093,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 
 	// Wipe any existing log for this instance name.
 	if clearLogDir {
-		os.RemoveAll(inst.LogPath())
+		_ = os.RemoveAll(inst.LogPath())
 	}
 
 	return inst, op, nil
