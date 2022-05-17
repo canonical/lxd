@@ -155,7 +155,7 @@ func lxdSetupUser(uid uint32) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create user directory: %w", err)
 	}
-	revert.Add(func() { os.RemoveAll(userPath) })
+	revert.Add(func() { _ = os.RemoveAll(userPath) })
 
 	// Generate certificate.
 	err = shared.FindOrGenCert(filepath.Join(userPath, "client.crt"), filepath.Join(userPath, "client.key"), true, false)
@@ -169,7 +169,7 @@ func lxdSetupUser(uid uint32) error {
 		return fmt.Errorf("Unable to connect to LXD: %w", err)
 	}
 
-	client.GetServer()
+	_, _, _ = client.GetServer()
 
 	// Setup the project (with restrictions).
 	projects, err := client.GetProjectNames()
@@ -202,7 +202,7 @@ func lxdSetupUser(uid uint32) error {
 			return fmt.Errorf("Unable to create project: %w", err)
 		}
 
-		revert.Add(func() { client.DeleteProject(projectName) })
+		revert.Add(func() { _ = client.DeleteProject(projectName) })
 	}
 
 	// Parse the certificate.
@@ -225,7 +225,7 @@ func lxdSetupUser(uid uint32) error {
 		return fmt.Errorf("Unable to add user certificate: %w", err)
 	}
 
-	revert.Add(func() { client.DeleteCertificate(shared.CertFingerprint(x509Cert)) })
+	revert.Add(func() { _ = client.DeleteCertificate(shared.CertFingerprint(x509Cert)) })
 
 	// Setup default profile.
 	err = client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
