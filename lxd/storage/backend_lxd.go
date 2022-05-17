@@ -3989,7 +3989,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 			return err
 		}
 
-		revert.Add(func() { revert.Add(func() { VolumeDBDelete(b, projectName, fullSnapName, drivers.VolumeTypeCustom) }) })
+		revert.Add(func() { _ = VolumeDBDelete(b, projectName, fullSnapName, drivers.VolumeTypeCustom) })
 	}
 
 	// Get the volume name on storage.
