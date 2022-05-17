@@ -40,8 +40,8 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 	if err != nil {
 		return fmt.Errorf("Failed to start extract: Failed to load profile: %w", err)
 	}
-	defer apparmor.ArchiveDelete(sysOS, outputPath)
-	defer apparmor.ArchiveUnload(sysOS, outputPath)
+	defer func() { _ = apparmor.ArchiveDelete(sysOS, outputPath) }()
+	defer func() { _ = apparmor.ArchiveUnload(sysOS, outputPath) }()
 
 	p, err := subprocess.NewProcessWithFds(cmd, args, stdin, output, nil)
 	if err != nil {
@@ -55,8 +55,8 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 		return fmt.Errorf("Failed to start extract: Failed running: tar: %w", err)
 	}
 
-	p.Wait(context.Background())
-	return nil
+	_, err = p.Wait(context.Background())
+	return err
 }
 
 // CompressedTarReader returns a tar reader from the supplied (optionally compressed) tarball stream.
@@ -66,7 +66,11 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string, sysOS *sys.OS, outputPath string) (*tar.Reader, context.CancelFunc, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
-	r.Seek(0, 0)
+	_, err := r.Seek(0, 0)
+	if err != nil {
+		return nil, cancelFunc, err
+	}
+
 	var tr *tar.Reader
 
 	if len(unpacker) > 0 {
@@ -98,10 +102,10 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 		// the unpacker process to complete.
 		cancelFunc = func() {
 			ctxCancelFunc()
-			pipeWriter.Close()
-			p.Wait(ctx)
-			apparmor.ArchiveUnload(sysOS, outputPath)
-			apparmor.ArchiveDelete(sysOS, outputPath)
+			_ = pipeWriter.Close()
+			_, _ = p.Wait(ctx)
+			_ = apparmor.ArchiveUnload(sysOS, outputPath)
+			_ = apparmor.ArchiveDelete(sysOS, outputPath)
 		}
 
 		tr = tar.NewReader(pipeReader)
@@ -142,7 +146,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		reader = f
 
@@ -187,7 +191,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 	if err != nil {
 		return fmt.Errorf("Error opening directory: %w", err)
 	}
-	defer outputDir.Close()
+	defer func() { _ = outputDir.Close() }()
 
 	var readCloser io.ReadCloser
 	if reader != nil {
