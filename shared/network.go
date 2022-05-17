@@ -44,8 +44,8 @@ func RFC3493Dialer(network string, address string) (net.Conn, error) {
 		}
 
 		if tc, ok := c.(*net.TCPConn); ok {
-			tc.SetKeepAlive(true)
-			tc.SetKeepAlivePeriod(3 * time.Second)
+			_ = tc.SetKeepAlive(true)
+			_ = tc.SetKeepAlivePeriod(3 * time.Second)
 		}
 
 		return c, nil
@@ -200,7 +200,7 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader, bufferSize int) chan
 				break
 			}
 		}
-		conn.WriteMessage(websocket.TextMessage, []byte{})
+		_ = conn.WriteMessage(websocket.TextMessage, []byte{})
 		ch <- true
 	}(conn, r)
 
@@ -269,7 +269,7 @@ func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan struct{
 			}
 
 			_, err = io.Copy(w, r)
-			w.Close()
+			_ = w.Close()
 			if err != nil {
 				break
 			}
@@ -293,8 +293,8 @@ func WebsocketProxy(source *websocket.Conn, target *websocket.Conn) chan struct{
 		case <-chRecv:
 		}
 
-		source.Close()
-		target.Close()
+		_ = source.Close()
+		_ = target.Close()
 
 		close(ch)
 	}()
@@ -311,9 +311,9 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 	for {
 		buf, ok := <-in
 		if !ok {
-			r.Close()
+			_ = r.Close()
 			logger.Debug("Sending write barrier")
-			conn.WriteMessage(websocket.TextMessage, []byte{})
+			_ = conn.WriteMessage(websocket.TextMessage, []byte{})
 			readDone <- true
 			return
 		}
@@ -325,9 +325,9 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 		}
 	}
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	conn.WriteMessage(websocket.CloseMessage, closeMsg)
+	_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
 	readDone <- true
-	r.Close()
+	_ = r.Close()
 }
 
 func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool) {
@@ -364,7 +364,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 		}
 	}
 	writeDone <- true
-	w.Close()
+	_ = w.Close()
 }
 
 // WebsocketIO is a wrapper implementing ReadWriteCloser on top of websocket
@@ -417,14 +417,13 @@ func (w *WebsocketIO) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return -1, err
 	}
-	defer wr.Close()
 
 	n, err = wr.Write(p)
 	if err != nil {
 		return -1, err
 	}
 
-	return n, nil
+	return n, wr.Close()
 }
 
 // Close sends a control message indicating the stream is finished, but it does not actually close
@@ -475,10 +474,10 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 		for {
 			buf, ok := <-in
 			if !ok {
-				r.Close()
+				_ = r.Close()
 				logger.Debugf("Sending write barrier")
-				conn.WriteMessage(websocket.BinaryMessage, []byte("\r"))
-				conn.WriteMessage(websocket.TextMessage, []byte{})
+				_ = conn.WriteMessage(websocket.BinaryMessage, []byte("\r"))
+				_ = conn.WriteMessage(websocket.TextMessage, []byte{})
 				readDone <- true
 				return
 			}
@@ -491,9 +490,9 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 		}
 
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
 		readDone <- true
-		r.Close()
+		_ = r.Close()
 	}(conn, r)
 
 	return readDone, writeDone
@@ -514,6 +513,6 @@ func AllocatePort() (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
+
+	return l.Addr().(*net.TCPAddr).Port, l.Close()
 }

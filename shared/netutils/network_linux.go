@@ -23,7 +23,7 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 		for {
 			buf, ok := <-in
 			if !ok {
-				r.Close()
+				_ = r.Close()
 				logger.Debugf("Sending write barrier")
 				err := conn.WriteMessage(websocket.TextMessage, []byte{})
 				if err != nil {
@@ -41,9 +41,9 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 		}
 
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		_ = conn.WriteMessage(websocket.CloseMessage, closeMsg)
 		readDone <- true
-		r.Close()
+		_ = r.Close()
 	}(conn, r)
 
 	return readDone, writeDone

@@ -18,7 +18,7 @@ func TestKeyPairAndCA(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create temporary dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	info, err := shared.KeyPairAndCA(dir, "test", shared.CertServer, true)
 	if err != nil {

@@ -47,22 +47,22 @@ func TestFileCopy(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	defer os.Remove(source.Name())
+	defer func() { _ = os.Remove(source.Name()) }()
 
 	if err := WriteAll(source, helloWorld); err != nil {
-		source.Close()
+		_ = source.Close()
 		t.Error(err)
 		return
 	}
-	source.Close()
+	_ = source.Close()
 
 	dest, err := ioutil.TempFile("", "")
-	defer os.Remove(dest.Name())
+	defer func() { _ = os.Remove(dest.Name()) }()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	dest.Close()
+	_ = dest.Close()
 
 	if err := FileCopy(source.Name(), dest.Name()); err != nil {
 		t.Error(err)
@@ -90,7 +90,7 @@ func TestFileCopy(t *testing.T) {
 func TestDirCopy(t *testing.T) {
 	dir, err := ioutil.TempDir("", "lxd-shared-util-")
 	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	source := filepath.Join(dir, "source")
 	dest := filepath.Join(dir, "dest")
@@ -127,7 +127,7 @@ func TestDirCopy(t *testing.T) {
 
 func TestReaderToChannel(t *testing.T) {
 	buf := make([]byte, 1*1024*1024)
-	rand.Read(buf)
+	_, _ = rand.Read(buf)
 
 	offset := 0
 	finished := false

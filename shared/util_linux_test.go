@@ -22,15 +22,15 @@ func TestGetAllXattr(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	defer os.Remove(xattrFile.Name())
-	xattrFile.Close()
+	defer func() { _ = os.Remove(xattrFile.Name()) }()
+	_ = xattrFile.Close()
 
 	xattrDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	defer os.Remove(xattrDir)
+	defer func() { _ = os.Remove(xattrDir) }()
 
 	for k, v := range testxattr {
 		err = unix.Setxattr(xattrFile.Name(), k, []byte(v), 0)

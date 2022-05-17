@@ -72,7 +72,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		netnsID = C.netns_get_nsid(C.__s32(f.Fd()))
 		if netnsID < 0 {
