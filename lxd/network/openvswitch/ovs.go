@@ -148,7 +148,7 @@ func (o *OVS) InterfaceAssociateOVNSwitchPort(interfaceName string, ovnSwitchPor
 			// the OVS association has been successfully removed, so the new port being added next
 			// won't fail to work properly.
 			link := &ip.Link{Name: port}
-			link.Delete()
+			_ = link.Delete()
 		}
 	}
 

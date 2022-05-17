@@ -1817,7 +1817,7 @@ func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPN
 			// address sets already exist. If there was a problem creating the address set it will be
 			// revealead when we run the original command again next.
 			for ipVersion := range ipVersions {
-				o.nbctl("create", "address_set", fmt.Sprintf("name=%s_ip%d", addressSetPrefix, ipVersion))
+				_, _ = o.nbctl("create", "address_set", fmt.Sprintf("name=%s_ip%d", addressSetPrefix, ipVersion))
 			}
 
 			// Try original command again.

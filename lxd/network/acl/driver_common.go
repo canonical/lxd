@@ -595,7 +595,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
-			d.state.DB.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+			_ = d.state.DB.Cluster.UpdateNetworkACL(d.id, &oldConfig)
 			d.info.NetworkACLPut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
 		})
@@ -741,7 +741,7 @@ func (d *common) GetLog(clientType request.ClientType) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 
 	logEntries := []string{}
 	scanner := bufio.NewScanner(logFile)
@@ -774,7 +774,7 @@ func (d *common) GetLog(clientType request.ClientType) (string, error) {
 			if err != nil {
 				return err
 			}
-			defer entries.Close()
+			defer func() { _ = entries.Close() }()
 
 			// Prevent concurrent writes to the log entries slice.
 			mu.Lock()
