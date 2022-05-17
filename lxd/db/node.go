@@ -457,7 +457,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 			return nil, err
 		}
 	} else {
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for i := 0; rows.Next(); i++ {
 			var nodeID int64
@@ -481,7 +481,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 			return nil, err
 		}
 
-		rows.Close()
+		_ = rows.Close()
 	}
 
 	// Get node groups
@@ -496,7 +496,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 			return nil, err
 		}
 	} else {
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for i := 0; rows.Next(); i++ {
 			var nodeID int64
@@ -559,7 +559,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
@@ -973,7 +973,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	if err != nil {
 		return "", err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get image list for node %d: %w", id, err)

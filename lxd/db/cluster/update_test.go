@@ -266,7 +266,7 @@ func TestUpdateFromV5(t *testing.T) {
 	// Check that a volume row for n2 was added for v1 on p2.
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	nodeIDs, err := query.SelectIntegers(tx, `
 SELECT node_id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY node_id
 `)
@@ -332,7 +332,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check the zfs.pool_name config is now node-specific.
 	for _, nodeID := range []int{1, 2} {
@@ -368,7 +368,7 @@ func TestUpdateFromV9(t *testing.T) {
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	types, err := query.SelectIntegers(tx, `SELECT type FROM operations`)
 	require.NoError(t, err)
@@ -423,7 +423,7 @@ INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default');
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check that a project_id column has been added to the various talbles
 	// and that existing rows default to 1 (the ID of the default project).
@@ -485,7 +485,7 @@ INSERT INTO containers VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1,
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check that the new instances table can be queried.
 	count, err := query.Count(tx, "instances", "")
@@ -534,7 +534,7 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check that snapshots were migrated to the new tables.
 	count, err := query.Count(tx, "instances", "")
@@ -596,7 +596,7 @@ func TestUpdateFromV19(t *testing.T) {
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	expectedArch, err := osarch.ArchitectureGetLocalID()
 	require.NoError(t, err)
@@ -647,12 +647,12 @@ func TestUpdateFromV25(t *testing.T) {
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check that regular volumes were kept.
 	count, err := query.Count(tx, "storage_volumes", "")
@@ -677,7 +677,7 @@ func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 }
 
 func TestUpdateFromV26_WithVolumes(t *testing.T) {
@@ -706,12 +706,12 @@ func TestUpdateFromV26_WithVolumes(t *testing.T) {
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
 
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	ids, err := query.SelectIntegers(tx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes'")
 	require.NoError(t, err)
 
@@ -744,11 +744,11 @@ func TestUpdateFromV34(t *testing.T) {
 		require.NoError(t, err)
 	})
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Only one volume is left and it's node ID is set to NULL.
 	count, err := query.Count(tx, "storage_volumes", "")

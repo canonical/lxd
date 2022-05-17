@@ -147,7 +147,7 @@ func updateFromV39(tx *sql.Tx) error {
 		return err
 	}
 
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
@@ -382,7 +382,7 @@ func updateFromV28(tx *sql.Tx) error {
 INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "aadisable", 2 FROM profiles WHERE name="docker";
 INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "source", "/dev/null" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker" AND profiles_devices.name = "aadisable";
 INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "path", "/sys/module/apparmor/parameters/enabled" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker" AND profiles_devices.name = "aadisable";`
-	tx.Exec(stmt)
+	_, _ = tx.Exec(stmt)
 
 	return nil
 }
@@ -415,7 +415,7 @@ INSERT INTO profiles_config (profile_id, key, value) SELECT id, "security.nestin
 INSERT INTO profiles_config (profile_id, key, value) SELECT id, "linux.kernel_modules", "overlay, nf_nat" FROM profiles WHERE name="docker";
 INSERT INTO profiles_devices (profile_id, name, type) SELECT id, "fuse", "unix-char" FROM profiles WHERE name="docker";
 INSERT INTO profiles_devices_config (profile_device_id, key, value) SELECT profiles_devices.id, "path", "/dev/fuse" FROM profiles_devices LEFT JOIN profiles WHERE profiles_devices.profile_id = profiles.id AND profiles.name = "docker";`
-	tx.Exec(stmt)
+	_, _ = tx.Exec(stmt)
 
 	return nil
 }
@@ -476,7 +476,7 @@ func updateFromV18(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		err := rows.Scan(&id, &value)
@@ -521,7 +521,7 @@ func updateFromV18(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		err := rows.Scan(&id, &value)
@@ -840,7 +840,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tablestodelete []string
 	var rowidtodelete []int
@@ -851,11 +851,14 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 		var targetname string
 		var keynumber int
 
-		rows.Scan(&tablename, &rowid, &targetname, &keynumber)
+		err := rows.Scan(&tablename, &rowid, &targetname, &keynumber)
+		if err != nil {
+			return err
+		}
+
 		tablestodelete = append(tablestodelete, tablename)
 		rowidtodelete = append(rowidtodelete, rowid)
 	}
-	rows.Close()
 
 	for i := range tablestodelete {
 		_, err = tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE rowid = %d;", tablestodelete[i], rowidtodelete[i]))
@@ -864,7 +867,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 		}
 	}
 
-	return err
+	return nil
 }
 
 func updateFromV5(tx *sql.Tx) error {
@@ -893,7 +896,7 @@ CREATE TABLE IF NOT EXISTS config (
 	passOut, err := os.Open(passfname)
 	oldPassword := ""
 	if err == nil {
-		defer passOut.Close()
+		defer func() { _ = passOut.Close() }()
 		buff := make([]byte, 96)
 		_, err = passOut.Read(buff)
 		if err != nil {
@@ -916,7 +919,7 @@ CREATE TABLE IF NOT EXISTS config (
 
 func updateFromV3(tx *sql.Tx) error {
 	// Attempt to create a default profile (but don't fail if already there)
-	tx.Exec("INSERT INTO profiles (name) VALUES (\"default\");")
+	_, _ = tx.Exec("INSERT INTO profiles (name) VALUES (\"default\");")
 
 	return nil
 }

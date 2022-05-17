@@ -8,14 +8,16 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Any error happening when beginning the transaction will be propagated.
 func TestTransaction_BeginError(t *testing.T) {
 	db := newDB(t)
-	db.Close()
+	err := db.Close()
+	require.NoError(t, err)
 
-	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
+	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed to begin transaction")
 }
