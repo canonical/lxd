@@ -63,6 +63,6 @@ var validateErrorCases = []struct {
 // If a value has an expected kind code, a panic is thrown.
 func TestKey_UnexpectedKind(t *testing.T) {
 	value := Key{Type: 999}
-	f := func() { value.validate("foo") }
+	f := func() { _ = value.validate("foo") }
 	assert.PanicsWithValue(t, "unexpected value type: 999", f)
 }
