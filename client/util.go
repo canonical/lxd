@@ -61,14 +61,14 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 			// Validate the connection
 			err = tlsConn.Handshake()
 			if err != nil {
-				conn.Close()
+				_ = conn.Close()
 				return nil, err
 			}
 
 			if !config.InsecureSkipVerify {
 				err := tlsConn.VerifyHostname(config.ServerName)
 				if err != nil {
-					conn.Close()
+					_ = conn.Close()
 					return nil, err
 				}
 			}

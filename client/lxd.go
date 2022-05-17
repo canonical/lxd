@@ -293,7 +293,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return lxdParseResponse(resp)
 }
