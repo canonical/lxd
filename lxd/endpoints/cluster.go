@@ -44,7 +44,7 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 	defer e.mu.Unlock()
 
 	// Close the previous socket
-	e.closeListener(cluster)
+	_ = e.closeListener(cluster)
 
 	// If turning off listening, we're done
 	if address == "" {

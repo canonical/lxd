@@ -60,7 +60,7 @@ func (e *Endpoints) PprofUpdateAddress(address string) error {
 	defer e.mu.Unlock()
 
 	// Close the previous socket
-	e.closeListener(pprof)
+	_ = e.closeListener(pprof)
 
 	// If turning off listening, we're done
 	if address == "" {
