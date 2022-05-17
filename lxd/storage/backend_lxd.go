@@ -4309,6 +4309,48 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// GenerateCustomVolumeBackupConfig returns the backup.Config entry for this volume.
+func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backup.Config, error) {
+	vol, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
+	if err != nil {
+		return nil, err
+	}
+
+	if vol.Type != db.StoragePoolVolumeTypeNameCustom {
+		return nil, fmt.Errorf("Unsupported volume type %q", vol.Type)
+	}
+
+	config := &backup.Config{
+		Volume: vol,
+	}
+
+	if snapshots {
+		dbVolSnaps, err := VolumeDBSnapshotsGet(b, projectName, vol.Name, drivers.VolumeTypeCustom)
+		if err != nil {
+			return nil, err
+		}
+
+		config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+		for i := range dbVolSnaps {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+
+			snapshot := api.StorageVolumeSnapshot{
+				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+					Description: dbVolSnaps[i].Description,
+					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
+				},
+				Name:        snapName, // Snapshot only name, not full name.
+				Config:      dbVolSnaps[i].Config,
+				ContentType: dbVolSnaps[i].ContentType,
+			}
+
+			config.VolumeSnapshots = append(config.VolumeSnapshots, &snapshot)
+		}
+	}
+
+	return config, nil
+}
+
 // GenerateInstanceBackupConfig returns the backup.Config entry for this instance.
 func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backup.Config, error) {
 	// We only write backup files out for actual instances.
