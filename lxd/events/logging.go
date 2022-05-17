@@ -26,12 +26,11 @@ func (h Handler) Fire(entry *logrus.Entry) error {
 		return nil
 	}
 
-	LoggingServer.Send("", "logging", api.EventLogging{
+	return LoggingServer.Send("", "logging", api.EventLogging{
 		Message: entry.Message,
 		Level:   entry.Level.String(),
 		Context: logContextMap(entry.Data),
 	})
-	return nil
 }
 
 // Levels returns the list of supported log levels.

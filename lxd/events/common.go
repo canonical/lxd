@@ -67,7 +67,7 @@ func (e *listenerCommon) heartbeat() {
 		} else {
 			// Run a blocking reader to detect if the client has disconnected. We don't expect to get
 			// anything from the remote side, so this should remain blocked until disconnected.
-			e.Conn.NextReader()
+			_, _, _ = e.Conn.NextReader()
 		}
 	}()
 
@@ -128,7 +128,10 @@ func (e *listenerCommon) Close() {
 
 	logger.Debug("Event listener server handler stopped", logger.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr()})
 
-	e.Conn.Close()
+	err := e.Conn.Close()
+	if err != nil {
+		logger.Error("Failed closing listener connection", logger.Ctx{"listener": e.ID(), "err": err})
+	}
 	e.ctxCancel()
 }
 
