@@ -137,6 +137,10 @@ func (b *mockBackend) UpdateInstance(inst instance.Instance, newDesc string, new
 	return nil
 }
 
+func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backup.Config, error) {
+	return nil, nil
+}
+
 func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
