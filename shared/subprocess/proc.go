@@ -143,11 +143,11 @@ func (p *Process) start(fds []*os.File) error {
 	}
 
 	if p.Stdout != nil && p.closeFds {
-		defer p.Stdout.Close()
+		defer func() { _ = p.Stdout.Close() }()
 	}
 
 	if p.Stderr != nil && p.Stderr != p.Stdout && p.closeFds {
-		defer p.Stderr.Close()
+		defer func() { _ = p.Stderr.Close() }()
 	}
 
 	// Start the process.

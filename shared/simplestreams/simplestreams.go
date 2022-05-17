@@ -72,13 +72,13 @@ func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
 
 	fi, err := os.Stat(cacheName)
 	if err != nil {
-		os.Remove(cacheName)
+		_ = os.Remove(cacheName)
 		return nil, false
 	}
 
 	body, err := ioutil.ReadFile(cacheName)
 	if err != nil {
-		os.Remove(cacheName)
+		_ = os.Remove(cacheName)
 		return nil, false
 	}
 
@@ -121,7 +121,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 
 		return nil, err
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	if r.StatusCode != http.StatusOK {
 		// On local connectivity error, return from cache anyway
@@ -140,8 +140,8 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	// Attempt to store in cache
 	if s.cachePath != "" {
 		cacheName := filepath.Join(s.cachePath, fileName)
-		os.Remove(cacheName)
-		ioutil.WriteFile(cacheName, body, 0644)
+		_ = os.Remove(cacheName)
+		_ = ioutil.WriteFile(cacheName, body, 0644)
 	}
 
 	return body, nil

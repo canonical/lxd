@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -294,7 +295,7 @@ func DeviceTotalMemory() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read it line by line
 	scan := bufio.NewScanner(f)
@@ -324,7 +325,8 @@ func DeviceTotalMemory() (int64, error) {
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
 func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) {
-	revert := true
+	reverter := revert.New()
+	defer reverter.Fail()
 	var fd int
 	var ptx *os.File
 	var err error
@@ -339,11 +341,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		return nil, nil, err
 	}
 	ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
-	defer func() {
-		if revert {
-			ptx.Close()
-		}
-	}()
+	reverter.Add(func() { _ = ptx.Close() })
 
 	// Unlock the ptx and pty.
 	val := 0
@@ -382,11 +380,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 			return nil, nil, err
 		}
 	}
-	defer func() {
-		if revert {
-			pty.Close()
-		}
-	}()
+	reverter.Add(func() { _ = pty.Close() })
 
 	// Configure both sides
 	for _, entry := range []*os.File{ptx, pty} {
@@ -433,7 +427,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		return nil, nil, err
 	}
 
-	revert = false
+	reverter.Success()
 	return ptx, pty, nil
 }
 
