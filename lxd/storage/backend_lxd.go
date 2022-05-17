@@ -4309,6 +4309,96 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	return nil
 }
 
+// GenerateInstanceBackupConfig returns the backup.Config entry for this instance.
+func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backup.Config, error) {
+	// We only write backup files out for actual instances.
+	if inst.IsSnapshot() {
+		return nil, fmt.Errorf("Cannot generate backup config for snapshots")
+	}
+
+	// Immediately return if the instance directory doesn't exist yet.
+	if !shared.PathExists(inst.Path()) {
+		return nil, os.ErrNotExist
+	}
+
+	// Generate the YAML.
+	ci, _, err := inst.Render()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to render instance metadata: %w", err)
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	volume, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &backup.Config{
+		Container: ci.(*api.Instance),
+		Pool:      &b.db,
+		Volume:    volume,
+	}
+
+	if snapshots {
+		snapshots, err := inst.Snapshots()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get snapshots: %w", err)
+		}
+
+		config.Snapshots = make([]*api.InstanceSnapshot, 0, len(snapshots))
+		for _, s := range snapshots {
+			si, _, err := s.Render()
+			if err != nil {
+				return nil, err
+			}
+
+			config.Snapshots = append(config.Snapshots, si.(*api.InstanceSnapshot))
+		}
+
+		dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(snapshots) != len(dbVolSnaps) {
+			return nil, fmt.Errorf("Instance snapshot record count doesn't match instance snapshot volume record count")
+		}
+
+		config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+		for i := range dbVolSnaps {
+			foundInstanceSnapshot := false
+			for _, snap := range snapshots {
+				if snap.Name() == dbVolSnaps[i].Name {
+					foundInstanceSnapshot = true
+					break
+				}
+			}
+
+			if !foundInstanceSnapshot {
+				return nil, fmt.Errorf("Instance snapshot record missing for %q", dbVolSnaps[i].Name)
+			}
+
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+
+			config.VolumeSnapshots = append(config.VolumeSnapshots, &api.StorageVolumeSnapshot{
+				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+					Description: dbVolSnaps[i].Description,
+					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
+				},
+				Name:        snapName,
+				Config:      dbVolSnaps[i].Config,
+				ContentType: dbVolSnaps[i].ContentType,
+			})
+		}
+	}
+
+	return config, nil
+}
+
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
 func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
@@ -4320,78 +4410,24 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return nil
 	}
 
-	// Immediately return if the instance directory doesn't exist yet.
-	if !shared.PathExists(inst.Path()) {
-		return os.ErrNotExist
-	}
-
-	// Generate the YAML.
-	ci, _, err := inst.Render()
-	if err != nil {
-		return fmt.Errorf("Failed to render instance metadata: %w", err)
-	}
-
-	snapshots, err := inst.Snapshots()
-	if err != nil {
-		return fmt.Errorf("Failed to get snapshots: %w", err)
-	}
-
-	sis := make([]*api.InstanceSnapshot, 0, len(snapshots))
-	for _, s := range snapshots {
-		si, _, err := s.Render()
-		if err != nil {
-			return err
-		}
-
-		sis = append(sis, si.(*api.InstanceSnapshot))
-	}
-
-	volType, err := InstanceTypeToVolumeType(inst.Type())
+	config, err := b.GenerateInstanceBackupConfig(inst, true, op)
 	if err != nil {
 		return err
 	}
 
-	contentType := InstanceContentType(inst)
-
-	volume, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
-	if err != nil {
-		return err
-	}
-
-	dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project(), inst.Name(), volType)
-	if err != nil {
-		return err
-	}
-
-	volSnaps := make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
-	for i := range dbVolSnaps {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
-
-		volSnaps = append(volSnaps, &api.StorageVolumeSnapshot{
-			StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
-				Description: dbVolSnaps[i].Description,
-				ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
-			},
-			Name:        snapName,
-			Config:      dbVolSnaps[i].Config,
-			ContentType: dbVolSnaps[i].ContentType,
-		})
-	}
-
-	data, err := yaml.Marshal(&backup.Config{
-		Container:       ci.(*api.Instance),
-		Snapshots:       sis,
-		Pool:            &b.db,
-		Volume:          volume,
-		VolumeSnapshots: volSnaps,
-	})
+	data, err := yaml.Marshal(config)
 	if err != nil {
 		return err
 	}
 
 	// Get the volume name on storage.
 	volStorageName := project.Instance(inst.Project(), inst.Name())
-	vol := b.GetVolume(volType, contentType, volStorageName, volume.Config)
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+	contentType := InstanceContentType(inst)
+	vol := b.GetVolume(volType, contentType, volStorageName, config.Volume.Config)
 
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
