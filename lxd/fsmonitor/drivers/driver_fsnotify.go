@@ -35,7 +35,7 @@ func (d *fsnotify) load(ctx context.Context) error {
 
 	err = d.watchFSTree(d.prefixPath)
 	if err != nil {
-		d.watcher.Close()
+		_ = d.watcher.Close()
 		fsnotifyLoaded = false
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
 	}
@@ -52,7 +52,7 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 		select {
 		// Clean up if context is done
 		case <-ctx.Done():
-			d.watcher.Close()
+			_ = d.watcher.Close()
 			fsnotifyLoaded = false
 			return
 		case event := <-d.watcher.Events:
@@ -67,7 +67,7 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 			stat, err := os.Lstat(event.Name)
 			if err == nil && stat.IsDir() {
 				if event.Op&fsn.Create != 0 {
-					d.watchFSTree(event.Name)
+					_ = d.watchFSTree(event.Name)
 				}
 
 				// Check whether there's a watch on a specific file or directory.
