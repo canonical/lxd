@@ -62,6 +62,7 @@ type Pool interface {
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
+	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backup.Config, error)
 	CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
 	ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error
 
