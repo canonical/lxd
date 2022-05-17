@@ -103,14 +103,14 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		conn := &shared.WebsocketIO{Conn: wsFs}
 
 		go func() {
 			<-ctx.Done()
-			conn.Close()
-			f.Close()
+			_ = conn.Close()
+			_ = f.Close()
 		}()
 
 		_, err = io.Copy(conn, f)
@@ -118,14 +118,17 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 			return err
 		}
 
-		conn.Close()
+		err = conn.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Check the result
 	msg := migration.MigrationControl{}
 	err = migration.ProtoRecv(wsControl, &msg)
 	if err != nil {
-		wsControl.Close()
+		_ = wsControl.Close()
 		return err
 	}
 
@@ -192,7 +195,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 		if err != nil {
 			return nil, "", err
 		}
-		f.Close()
+		_ = f.Close()
 
 		jar, err := cookiejar.New(
 			&cookiejar.Options{
@@ -287,7 +290,10 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 				}
 			} else {
 				fmt.Print("Press ENTER after the certificate was added to the remote server: ")
-				bufio.NewReader(os.Stdin).ReadString('\n')
+				_, err = bufio.NewReader(os.Stdin).ReadString('\n')
+				if err != nil {
+					return nil, "", err
+				}
 			}
 		}
 	} else {
@@ -298,7 +304,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 	srv, _, err = c.GetServer()
 	if err != nil {
 		if clientFingerprint != "" {
-			c.DeleteCertificate(clientFingerprint)
+			_ = c.DeleteCertificate(clientFingerprint)
 		}
 
 		return nil, "", err
