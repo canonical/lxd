@@ -301,7 +301,7 @@ func HasConnectivity(networkCert *shared.CertInfo, serverCert *shared.CertInfo, 
 	dialer := &net.Dialer{Timeout: time.Second}
 	conn, err = tls.DialWithDialer(dialer, "tcp", address, config)
 	if err == nil {
-		conn.Close()
+		_ = conn.Close()
 		return true
 	}
 	return false
