@@ -3,6 +3,7 @@ package bgp
 import (
 	"context"
 	"fmt"
+	"github.com/lxc/lxd/shared/logger"
 	"net"
 	"strconv"
 	"sync"
@@ -69,7 +70,8 @@ func (s *Server) setup() {
 		s.paths = map[string]path{}
 
 		for _, path := range paths {
-			s.addPrefix(path.prefix, path.nexthop, path.owner)
+			err := s.addPrefix(path.prefix, path.nexthop, path.owner)
+			logger.Warn("Unable to add prefix to BGP server", logger.Ctx{"prefix": path.prefix.String(), "err": err})
 		}
 	}
 }
@@ -214,7 +216,7 @@ func (s *Server) reconfigure(address string, asn uint32, routerID net.IP) error 
 	// Check if we should start.
 	if address != "" && asn > 0 && routerID != nil {
 		// Restore old address on failure.
-		revert.Add(func() { s.start(oldAddress, oldASN, oldRouterID) })
+		revert.Add(func() { _ = s.start(oldAddress, oldASN, oldRouterID) })
 
 		// Start the listener with the new address.
 		err = s.start(address, asn, routerID)
