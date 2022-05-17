@@ -477,8 +477,8 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	if err != nil {
 		return false
 	}
-	tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = tmpfile.Close() }()
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	err = os.Chmod(tmpfile.Name(), 0001)
 	if err != nil {
