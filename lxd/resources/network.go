@@ -255,13 +255,19 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 				continue
 			}
 
-			ethtoolAddPortInfo(info)
+			err = ethtoolAddPortInfo(info)
+			if err != nil {
+				return fmt.Errorf("Failed to add port info: %w", err)
+			}
 
 			card.Ports = append(card.Ports, *info)
 		}
 
 		if len(card.Ports) > 0 {
-			ethtoolAddCardInfo(card.Ports[0].ID, card)
+			err = ethtoolAddCardInfo(card.Ports[0].ID, card)
+			if err != nil {
+				return fmt.Errorf("Failed to add card info: %w", err)
+			}
 		}
 	}
 

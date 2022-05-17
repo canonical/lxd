@@ -35,7 +35,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	memInfo := bufio.NewScanner(f)
 
 	// Get common memory information
