@@ -15,9 +15,9 @@ func Upgrade(hijackedConn net.Conn, protocolName string) error {
 	sb.WriteString(fmt.Sprintf("Upgrade: %s\r\n", protocolName))
 	sb.WriteString("Connection: Upgrade\r\n\r\n")
 
-	hijackedConn.SetWriteDeadline(time.Now().Add(time.Second * 5))
+	_ = hijackedConn.SetWriteDeadline(time.Now().Add(time.Second * 5))
 	n, err := hijackedConn.Write([]byte(sb.String()))
-	hijackedConn.SetWriteDeadline(time.Time{}) // Cancel deadline.
+	_ = hijackedConn.SetWriteDeadline(time.Time{}) // Cancel deadline.
 
 	if err != nil {
 		return fmt.Errorf("Failed writing upgrade headers: %w", err)

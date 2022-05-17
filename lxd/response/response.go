@@ -267,9 +267,9 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 
 	w.WriteHeader(r.code) // Set the error code in the HTTP header response.
 
-	fmt.Fprintln(w, buf.String())
+	_, err = fmt.Fprintln(w, buf.String())
 
-	return nil
+	return err
 }
 
 // FileResponseEntry represents a file response entry.
@@ -328,7 +328,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 
 			fi, err := f.Stat()
 			if err != nil {
@@ -355,7 +355,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	// Now the complex multipart answer.
 	mw := multipart.NewWriter(w)
-	defer mw.Close()
+	defer func() { _ = mw.Close() }()
 
 	w.Header().Set("Content-Type", mw.FormDataContentType())
 	w.Header().Set("Transfer-Encoding", "chunked")
@@ -369,7 +369,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			if err != nil {
 				return err
 			}
-			defer fd.Close()
+			defer func() { _ = fd.Close() }()
 
 			rd = fd
 		}
@@ -390,7 +390,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	}
 
-	return nil
+	return mw.Close()
 }
 
 func (r *fileResponse) String() string {
