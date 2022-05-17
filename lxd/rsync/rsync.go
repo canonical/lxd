@@ -105,7 +105,7 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	/*
 	 * Here, the path /tmp/foo is ignored. Since we specify localhost,
@@ -174,15 +174,15 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	case conn = <-chConn:
 		if conn == nil {
 			output, _ := ioutil.ReadAll(stderr)
-			cmd.Process.Kill()
-			cmd.Wait()
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
 			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
 		output, _ := ioutil.ReadAll(stderr)
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
 	}
 
@@ -211,9 +211,9 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 	go func() {
 		_, err := io.Copy(conn, readNetcatPipe)
 		chCopyNetcat <- err
-		readNetcatPipe.Close()
-		netcatConn.Close()
-		conn.Close() // sends barrier message.
+		_ = readNetcatPipe.Close()
+		_ = netcatConn.Close()
+		_ = conn.Close() // sends barrier message.
 	}()
 
 	// Forward from target to netcat.
@@ -222,13 +222,13 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 	go func() {
 		_, err := io.Copy(writeNetcatPipe, conn)
 		chCopyTarget <- err
-		writeNetcatPipe.Close()
+		_ = writeNetcatPipe.Close()
 	}()
 
 	// Wait for rsync to complete.
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
 	}
 
@@ -287,8 +287,8 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	chCopyRsync := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(conn, stdout)
-		stdout.Close()
-		conn.Close() // sends barrier message.
+		_ = stdout.Close()
+		_ = conn.Close() // sends barrier message.
 		chCopyRsync <- err
 	}()
 
@@ -309,13 +309,13 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	chCopySource := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(stdin, readSourcePipe)
-		stdin.Close()
+		_ = stdin.Close()
 		chCopySource <- err
 	}()
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
 	}
 
