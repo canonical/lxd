@@ -31,7 +31,7 @@ func TestTask_ExecutePeriodically(t *testing.T) {
 func TestTask_Reset(t *testing.T) {
 	f, wait := newFunc(t, 3)
 	stop, reset := task.Start(context.Background(), f, task.Every(250*time.Millisecond))
-	defer stop(time.Second)
+	defer func() { _ = stop(time.Second) }()
 
 	wait(50 * time.Millisecond)  // First execution, immediately
 	reset()                      // Trigger a reset
