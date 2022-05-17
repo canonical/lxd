@@ -2702,7 +2702,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 		// Ensure node is put into its previous state if anything fails.
 		reverter.Add(func() {
-			evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
+			_ = evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
 		})
 
 		metadata := make(map[string]any)
@@ -2729,7 +2729,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			isRunning := inst.IsRunning()
 			if isRunning && !(migrate && live) {
 				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
-				op.UpdateMetadata(metadata)
+				_ = op.UpdateMetadata(metadata)
 
 				// Get the shutdown timeout for the instance.
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -2749,7 +2749,10 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				}
 
 				// Mark the instance as RUNNING in volatile so its state can be properly restored.
-				inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
+				err = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
+				if err != nil {
+					logger.Warn("Failed to set instance state to RUNNING", logger.Ctx{"instance": inst.Name(), "err": err})
+				}
 			}
 
 			// If not migratable, the instance is just stopped.
@@ -2788,11 +2791,11 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 			// Start migrating the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project(), targetNodeName)
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
 			if inst.LocalConfig()["volatile.evacuate.origin"] == "" {
-				inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
+				_ = inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
 			}
 
 			// Migrate the instance.
@@ -2818,7 +2821,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			dest = dest.UseProject(inst.Project())
 
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
 			if err != nil {
@@ -2904,7 +2907,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Ensure node is put into its previous state if anything fails.
 		reverter.Add(func() {
-			evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
+			_ = evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
 		})
 
 		var source lxd.InstanceServer
@@ -2926,7 +2929,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Start the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
 			if err != nil {
@@ -2940,7 +2943,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			_, live := inst.CanMigrate()
 
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				sourceNode, err = tx.GetNodeByName(inst.Location())
@@ -2969,7 +2972,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			isRunning := apiInst.StatusCode == api.Running
 			if isRunning && !live {
 				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
-				op.UpdateMetadata(metadata)
+				_ = op.UpdateMetadata(metadata)
 
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
@@ -3049,7 +3052,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
 			if err != nil {

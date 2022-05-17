@@ -156,7 +156,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		console, _, err := s.instance.Console("vga")
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return err
 		}
 
@@ -197,11 +197,11 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
-	defer console.Close()
+	defer func() { _ = console.Close() }()
 
 	// Detect size of window and set it into console.
 	if s.width > 0 && s.height > 0 {
-		shared.SetSize(int(console.Fd()), s.width, s.height)
+		_ = shared.SetSize(int(console.Fd()), s.width, s.height)
 	}
 
 	consoleDoneCh := make(chan struct{})
@@ -289,24 +289,31 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 		close(consoleDisconnectCh)
 	}
 
+	// Get the console and control websockets.
+	s.connsLock.Lock()
+	consoleConn := s.conns[0]
+	ctrlConn := s.conns[-1]
+	s.connsLock.Unlock()
+
+	defer func() {
+		_ = consoleConn.WriteMessage(websocket.BinaryMessage, []byte("\n\r"))
+		_ = consoleConn.Close()
+		_ = ctrlConn.Close()
+	}()
+
 	// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
 	// and then close it. This ordering is important, close the console before closing the
 	// websocket to ensure console doesn't get stuck reading.
-	console.Write([]byte("\x1bc"))
-	console.Close()
+	_, err = console.Write([]byte("\x1bc"))
+	if err != nil {
+		_ = console.Close()
+		return err
+	}
 
-	// Get the console websocket and close it.
-	s.connsLock.Lock()
-	consoleConn := s.conns[0]
-	s.connsLock.Unlock()
-	consoleConn.WriteMessage(websocket.BinaryMessage, []byte("\n\r"))
-	consoleConn.Close()
-
-	// Get the control websocket and close it.
-	s.connsLock.Lock()
-	ctrlConn := s.conns[-1]
-	s.connsLock.Unlock()
-	ctrlConn.Close()
+	err = console.Close()
+	if err != nil {
+		return err
+	}
 
 	// Indicate to the control socket go routine to end if not already.
 	close(s.controlConnected)
@@ -345,18 +352,18 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 	s.connsLock.Lock()
 	control := s.conns[-1]
 	s.connsLock.Unlock()
-	control.Close()
+	err := control.Close()
 
 	// Close all dynamic connections.
 	for conn, console := range s.dynamic {
-		conn.Close()
-		console.Close()
+		_ = conn.Close()
+		_ = console.Close()
 	}
 
 	// Indicate to the control socket go routine to end if not already.
 	close(s.controlConnected)
 
-	return nil
+	return err
 }
 
 // swagger:operation POST /1.0/instances/{name}/console instances instance_console_post

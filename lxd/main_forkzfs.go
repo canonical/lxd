@@ -37,7 +37,7 @@ func (c *cmdForkZFS) Command() *cobra.Command {
 func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 1 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil
@@ -73,7 +73,7 @@ func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Unmount all mounts under LXD directory
 	scanner := bufio.NewScanner(file)
@@ -85,7 +85,7 @@ func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		unix.Unmount(rows[4], unix.MNT_DETACH)
+		_ = unix.Unmount(rows[4], unix.MNT_DETACH)
 	}
 
 	// Run the ZFS command

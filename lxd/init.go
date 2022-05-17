@@ -49,7 +49,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 
 		// Setup reverter.
-		revert.Add(func() { d.UpdateServer(currentServer.Writable(), "") })
+		revert.Add(func() { _ = d.UpdateServer(currentServer.Writable(), "") })
 
 		// Prepare the update.
 		newServer := api.ServerPut{}
@@ -86,7 +86,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteStoragePool(storagePool.Name) })
+			revert.Add(func() { _ = d.DeleteStoragePool(storagePool.Name) })
 			return nil
 		}
 
@@ -104,7 +104,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
+			revert.Add(func() { _ = d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "") })
 
 			// Prepare the update.
 			newStoragePool := api.StoragePoolPut{}
@@ -162,7 +162,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
+			revert.Add(func() { _ = d.UseProject(network.Project).DeleteNetwork(network.Name) })
 		} else {
 			// Get the current network.
 			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
@@ -195,7 +195,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 
 			// Setup reverter.
 			revert.Add(func() {
-				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+				_ = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
 			})
 		}
 
@@ -238,7 +238,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteProject(project.Name) })
+			revert.Add(func() { _ = d.DeleteProject(project.Name) })
 			return nil
 		}
 
@@ -251,7 +251,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateProject(currentProject.Name, currentProject.Writable(), "") })
+			revert.Add(func() { _ = d.UpdateProject(currentProject.Name, currentProject.Writable(), "") })
 
 			// Prepare the update.
 			newProject := api.ProjectPut{}
@@ -327,7 +327,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.DeleteProfile(profile.Name) })
+			revert.Add(func() { _ = d.DeleteProfile(profile.Name) })
 			return nil
 		}
 
@@ -340,7 +340,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			}
 
 			// Setup reverter.
-			revert.Add(func() { d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
+			revert.Add(func() { _ = d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "") })
 
 			// Prepare the update.
 			newProfile := api.ProfilePut{}

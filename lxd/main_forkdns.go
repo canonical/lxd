@@ -195,7 +195,7 @@ func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, er
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -291,7 +291,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -335,7 +335,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 3 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil

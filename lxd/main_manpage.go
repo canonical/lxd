@@ -29,7 +29,7 @@ func (c *cmdManpage) Command() *cobra.Command {
 func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 1 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil
@@ -50,7 +50,7 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 		CommandSeparator: ".",
 	}
 
-	doc.GenManTreeFromOpts(c.global.cmd, opts)
+	_ = doc.GenManTreeFromOpts(c.global.cmd, opts)
 
 	return nil
 }

@@ -69,7 +69,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 			// Validate the connection.
 			err = tlsConn.Handshake()
 			if err != nil {
-				conn.Close()
+				_ = conn.Close()
 				return nil, err
 			}
 

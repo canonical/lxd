@@ -35,7 +35,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) < 2 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil

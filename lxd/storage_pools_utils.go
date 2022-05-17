@@ -75,7 +75,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clien
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() { dbStoragePoolDeleteAndUpdateCache(state, req.Name) })
+	revert.Add(func() { _ = dbStoragePoolDeleteAndUpdateCache(state, req.Name) })
 
 	_, err = storagePoolCreateLocal(state, id, req, clientType)
 	if err != nil {
@@ -111,7 +111,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 		return nil, err
 	}
 
-	revert.Add(func() { pool.Delete(clientType, nil) })
+	revert.Add(func() { _ = pool.Delete(clientType, nil) })
 
 	// Mount the pool.
 	_, err = pool.Mount()

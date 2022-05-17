@@ -50,7 +50,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
 
-	revert.Add(func() { inst.Delete(true) })
+	revert.Add(func() { _ = inst.Delete(true) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -170,7 +170,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		return nil, fmt.Errorf("Failed creating instance from image: %w", err)
 	}
 
-	revert.Add(func() { inst.Delete(true) })
+	revert.Add(func() { _ = inst.Delete(true) })
 
 	err = inst.UpdateBackupFile()
 	if err != nil {
@@ -339,7 +339,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
 
-		revert.Add(func() { inst.Delete(true) })
+		revert.Add(func() { _ = inst.Delete(true) })
 
 		if opts.applyTemplateTrigger {
 			// Trigger the templates on next start.

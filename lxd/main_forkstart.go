@@ -35,7 +35,7 @@ func (c *cmdForkstart) Command() *cobra.Command {
 func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
 	if len(args) != 3 {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return nil
@@ -73,20 +73,20 @@ func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 	 * close our stdin/stdout/stderr here. Collecting some of the logs is
 	 * better than collecting no logs, though.
 	 */
-	os.Stdin.Close()
-	os.Stderr.Close()
-	os.Stdout.Close()
+	_ = os.Stdin.Close()
+	_ = os.Stderr.Close()
+	_ = os.Stdout.Close()
 
 	// Redirect stdout and stderr to a log file
 	logPath := shared.LogPath(name, "forkstart.log")
 	if shared.PathExists(logPath) {
-		os.Remove(logPath)
+		_ = os.Remove(logPath)
 	}
 
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err == nil {
-		unix.Dup3(int(logFile.Fd()), 1, 0)
-		unix.Dup3(int(logFile.Fd()), 2, 0)
+		_ = unix.Dup3(int(logFile.Fd()), 1, 0)
+		_ = unix.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
 	return d.Start()
