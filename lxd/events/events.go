@@ -104,7 +104,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 
 // SendLifecycle broadcasts a lifecycle event.
 func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
-	s.Send(projectName, "lifecycle", event)
+	_ = s.Send(projectName, "lifecycle", event)
 }
 
 // Send broadcasts a custom event.
@@ -205,7 +205,7 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 				return
 			}
 
-			listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			_ = listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			err := listener.WriteJSON(event)
 			if err != nil {
 				// Remove the listener from the list
