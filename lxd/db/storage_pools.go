@@ -220,7 +220,7 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest, storagePoolPending)
 	if err != nil {
 		return nil, err
@@ -395,7 +395,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest, name)
 	if err != nil {
 		return err
@@ -498,7 +498,7 @@ func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, e
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, poolID)
 	if err != nil {
@@ -841,7 +841,7 @@ func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[strin
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range poolConfig {
 		if v == "" {

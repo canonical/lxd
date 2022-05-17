@@ -63,7 +63,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, networkPending)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	projectNetworks := make(map[string]map[int64]api.Network)
 
@@ -306,7 +306,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, projectName, name)
 	if err != nil {
@@ -459,7 +459,7 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, networkID)
 	if err != nil {
@@ -856,7 +856,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
 		if v == "" {

@@ -109,7 +109,7 @@ func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 	require.NoError(t, err)
 
 	address := listener.Addr().String()
-	listener.Close()
+	require.NoError(t, listener.Close())
 
 	dir, dirCleanup := newDir(t)
 	err = os.Mkdir(filepath.Join(dir, "global"), 0755)

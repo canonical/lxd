@@ -81,7 +81,7 @@ func scanSingleColumn(tx *sql.Tx, query string, args []any, typeName string, sca
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		err := scan(rows)

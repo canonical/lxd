@@ -65,7 +65,7 @@ func (c *ClusterTx) QueryScan(sql string, rowFunc func(scan func(dest ...any) er
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		err = rowFunc(rows.Scan)

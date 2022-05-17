@@ -129,7 +129,7 @@ func networkPeerConfigAdd(tx *sql.Tx, peerID int64, config map[string]string) er
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
 		if v == "" {

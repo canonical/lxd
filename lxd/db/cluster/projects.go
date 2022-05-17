@@ -107,7 +107,7 @@ func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := map[int64]string{}
 	for i := 0; rows.Next(); i++ {

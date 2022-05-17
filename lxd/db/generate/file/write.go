@@ -96,7 +96,7 @@ func Append(entity string, path string, snippet Snippet, iface bool) error {
 		if err != nil {
 			return fmt.Errorf("Open target source code file %q: %w", path, err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 	}
 
 	bytes, err := buffer.code()
@@ -107,6 +107,11 @@ func Append(entity string, path string, snippet Snippet, iface bool) error {
 	_, err = file.Write(bytes)
 	if err != nil {
 		return fmt.Errorf("Append snippet to target source code file %q: %w", path, err)
+	}
+
+	// Return any errors on close if file is not stdout.
+	if path != "-" {
+		return file.Close()
 	}
 
 	return nil
@@ -134,7 +139,7 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 	if err != nil {
 		return fmt.Errorf("Open target source code file %q: %w", interfacePath, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	err = snippet.GenerateSignature(buffer)
 	if err != nil {
@@ -174,5 +179,5 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 		return fmt.Errorf("Append snippet to target source code file %q: %w", interfacePath, err)
 	}
 
-	return nil
+	return file.Close()
 }

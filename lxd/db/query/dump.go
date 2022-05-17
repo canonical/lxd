@@ -67,7 +67,7 @@ func getEntitiesSchemas(ctx context.Context, tx *sql.Tx) (map[string][2]string, 
 		return nil, nil, fmt.Errorf("Could not get table names and their schema: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	tablesSchemas := make(map[string][2]string)
 	var names []string
@@ -98,7 +98,7 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 		return nil, fmt.Errorf("Failed to fetch rows for table %q: %w", table, err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Get the column names.
 	columns, err := rows.Columns()

@@ -111,7 +111,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, imageID)
 	if err != nil {
@@ -191,7 +191,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 		return err
 	}
 
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, id)
 	if err != nil {
@@ -933,7 +933,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 
 		_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
 		if err != nil {
@@ -949,7 +949,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		if err != nil {
 			return err
 		}
-		defer stmt2.Close()
+		defer func() { _ = stmt2.Close() }()
 
 		for key, value := range properties {
 			if value == "" {
@@ -985,7 +985,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 			if err != nil {
 				return err
 			}
-			defer stmt3.Close()
+			defer func() { _ = stmt3.Close() }()
 
 			for _, profileID := range profileIds {
 				_, err = stmt3.Exec(id, profileID)
@@ -1049,7 +1049,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 
 		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
 		if err != nil {
@@ -1067,7 +1067,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 			if err != nil {
 				return err
 			}
-			defer pstmt.Close()
+			defer func() { _ = pstmt.Close() }()
 
 			for k, v := range properties {
 				// we can assume, that there is just one
