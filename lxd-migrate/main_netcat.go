@@ -30,13 +30,13 @@ func (c *cmdNetcat) Command() *cobra.Command {
 func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	// Help and usage
 	if len(args) == 0 {
-		cmd.Help()
+		_ = cmd.Help()
 		return nil
 	}
 
 	// Handle mandatory arguments
 	if len(args) != 1 {
-		cmd.Help()
+		_ = cmd.Help()
 		return fmt.Errorf("Missing required argument")
 	}
 
@@ -56,17 +56,17 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 	wg.Add(1)
 
 	go func() {
-		io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
-		conn.Close()
+		_, err = io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
+		_ = conn.Close()
 		wg.Done()
 	}()
 
 	go func() {
-		io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
+		_, _ = io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
 	}()
 
 	// Wait
 	wg.Wait()
 
-	return nil
+	return err
 }
