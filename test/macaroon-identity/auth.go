@@ -90,15 +90,15 @@ func writeJSON(w http.ResponseWriter, code int, val any) error {
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
-	w.Write(data)
-	return nil
+	_, err = w.Write(data)
+	return err
 }
 
 func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	s.LogRequest(req)
 	switch req.Method {
 	case "GET":
-		writeJSON(w, http.StatusOK, schemaResponse)
+		_ = writeJSON(w, http.StatusOK, schemaResponse)
 	case "POST":
 		content, err := ioutil.ReadAll(req.Body)
 		if err != nil {
@@ -130,7 +130,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 				Value: []byte(token),
 			},
 		}
-		writeJSON(w, http.StatusOK, loginResponse)
+		_ = writeJSON(w, http.StatusOK, loginResponse)
 
 	default:
 		s.Fail(w, http.StatusMethodNotAllowed, "%s method not allowed", req.Method)
