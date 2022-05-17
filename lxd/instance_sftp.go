@@ -107,7 +107,7 @@ func (r *sftpServeResponse) String() string {
 }
 
 func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
-	defer r.instConn.Close()
+	defer func() { _ = r.instConn.Close() }()
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
@@ -118,7 +118,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	if err != nil {
 		return api.StatusErrorf(http.StatusInternalServerError, "Failed to hijack connection: %v", err)
 	}
-	defer remoteConn.Close()
+	defer func() { _ = remoteConn.Close() }()
 
 	remoteTCP, _ := tcp.ExtractConn(remoteConn)
 	if remoteTCP != nil {
@@ -153,8 +153,8 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 				l.Warn("Failed copying SFTP instance connection to remote connection", logger.Ctx{"err": err})
 			}
 		}
-		cancel()           // Cancel context first so when remoteConn is closed it doesn't cause a warning.
-		remoteConn.Close() // Trigger the cancellation of the io.Copy reading from remoteConn.
+		cancel()               // Cancel context first so when remoteConn is closed it doesn't cause a warning.
+		_ = remoteConn.Close() // Trigger the cancellation of the io.Copy reading from remoteConn.
 	}()
 
 	_, err = io.Copy(r.instConn, remoteConn)
@@ -163,8 +163,12 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 			l.Warn("Failed copying SFTP remote connection to instance connection", logger.Ctx{"err": err})
 		}
 	}
-	cancel()           // Cancel context first so when instConn is closed it doesn't cause a warning.
-	r.instConn.Close() // Trigger the cancellation of the io.Copy reading from instConn.
+	cancel() // Cancel context first so when instConn is closed it doesn't cause a warning.
+
+	err = r.instConn.Close() // Trigger the cancellation of the io.Copy reading from instConn.
+	if err != nil {
+		return fmt.Errorf("Failed closing connection to remote server: %w", err)
+	}
 
 	wg.Wait() // Wait for copy go routine to finish.
 

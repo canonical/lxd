@@ -62,7 +62,7 @@ func restServer(d *Daemon) *http.Server {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
@@ -90,7 +90,7 @@ func restServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
-		response.NotFound(nil).Render(w)
+		_ = response.NotFound(nil).Render(w)
 	})
 
 	return &http.Server{
@@ -107,7 +107,7 @@ func metricsServer(d *Daemon) *http.Server {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
@@ -120,7 +120,7 @@ func metricsServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
-		response.NotFound(nil).Render(w)
+		_ = response.NotFound(nil).Render(w)
 	})
 
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
@@ -145,7 +145,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		})
 		if err != nil {
 			resp := response.SmartError(err)
-			resp.Render(rw)
+			_ = resp.Render(rw)
 			return
 		}
 	}

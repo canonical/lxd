@@ -130,8 +130,8 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
-		defer tempfile.Close()
-		defer os.Remove(tempfile.Name())
+		defer func() { _ = tempfile.Close() }()
+		defer func() { _ = os.Remove(tempfile.Name()) }()
 
 		// Prepare 'tar2sqfs' arguments
 		args := []string{"tar2sqfs"}
@@ -147,7 +147,10 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
-		tempfile.Seek(0, 0)
+		_, err = tempfile.Seek(0, 0)
+		if err != nil {
+			return err
+		}
 		_, err = io.Copy(outfile, tempfile)
 		if err != nil {
 			return err
@@ -220,7 +223,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(imageFile.Name())
+	defer func() { _ = os.Remove(imageFile.Name()) }()
 
 	// Calculate (close estimate of) total size of input to image
 	totalSize := int64(0)
@@ -253,7 +256,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 				}
 
 				shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Image pack", percent, processed, speed)
-				op.UpdateMetadata(metadata)
+				_ = op.UpdateMetadata(metadata)
 			},
 			Length: totalSize,
 		},
@@ -306,7 +309,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 
 			// If a compression error occurred, close the writer to end the instance export.
 			if compressErr != nil {
-				imageProgressWriter.Close()
+				_ = imageProgressWriter.Close()
 			}
 		}()
 	} else {
@@ -328,9 +331,9 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	// Clean up file handles.
 	// When compression is used, Close on imageProgressWriter/tarWriter is required for compressFile/gzip to
 	// know it is finished. Otherwise it is equivalent to imageFile.Close.
-	imageProgressWriter.Close()
+	_ = imageProgressWriter.Close()
 	wg.Wait() // Wait until compression helper has finished if used.
-	imageFile.Close()
+	_ = imageFile.Close()
 
 	// Check compression errors.
 	if compressErr != nil {
@@ -529,10 +532,14 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		if err != nil {
 			return nil, err
 		}
-		defer os.Remove(imageTarf.Name())
+		defer func() { _ = os.Remove(imageTarf.Name()) }()
 
 		// Parse the POST data
-		post.Seek(0, 0)
+		_, err = post.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
 		mr := multipart.NewReader(post, ctypeParams["boundary"])
 
 		// Get the metadata tarball
@@ -548,7 +555,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		size, err = io.Copy(io.MultiWriter(imageTarf, sha256), part)
 		info.Size += size
 
-		imageTarf.Close()
+		_ = imageTarf.Close()
 		if err != nil {
 			l.Error("Failed to copy the image tarfile", logger.Ctx{"err": err})
 			return nil, err
@@ -575,12 +582,12 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		if err != nil {
 			return nil, err
 		}
-		defer os.Remove(rootfsTarf.Name())
+		defer func() { _ = os.Remove(rootfsTarf.Name()) }()
 
 		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
 		info.Size += size
 
-		rootfsTarf.Close()
+		_ = rootfsTarf.Close()
 		if err != nil {
 			l.Error("Failed to copy the rootfs tarfile", logger.Ctx{"err": err})
 			return nil, err
@@ -621,7 +628,10 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			return nil, err
 		}
 	} else {
-		post.Seek(0, 0)
+		_, err = post.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
 		size, err = io.Copy(sha256, post)
 		if err != nil {
 			l.Error("Failed to copy the tarfile", logger.Ctx{"err": err})
@@ -862,7 +872,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 	cleanup := func(path string, fd *os.File) {
 		if fd != nil {
-			fd.Close()
+			_ = fd.Close()
 		}
 
 		err := os.RemoveAll(path)
@@ -897,7 +907,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Is this a container request?
-	post.Seek(0, 0)
+	_, err = post.Seek(0, 0)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	decoder := json.NewDecoder(post)
 	imageUpload := false
 
@@ -934,7 +948,11 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
-			post.Seek(0, 0)
+			_, err = post.Seek(0, 0)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
 			r.Body = post
 			resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 			if err != nil {
@@ -986,7 +1004,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				metadata["secret"] = secret.(string)
 			}
 
-			op.UpdateMetadata(metadata)
+			_ = op.UpdateMetadata(metadata)
 		}
 		if err != nil {
 			return err
@@ -1064,14 +1082,17 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	if err != nil {
 		return nil, "unknown", err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	// Decompress if needed
 	_, algo, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, "unknown", err
 	}
-	r.Seek(0, 0)
+	_, err = r.Seek(0, 0)
+	if err != nil {
+		return nil, "", err
+	}
 
 	if unpacker == nil {
 		return nil, "unknown", fmt.Errorf("Unsupported backup compression")
@@ -1090,16 +1111,16 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		if err != nil {
 			return nil, "unknown", err
 		}
-		defer stdout.Close()
+		defer func() { _ = stdout.Close() }()
 
 		err = cmd.Start()
 		if err != nil {
 			return nil, "unknown", err
 		}
-		defer cmd.Wait()
+		defer func() { _ = cmd.Wait() }()
 
 		// Double close stdout, this is to avoid blocks in Wait()
-		defer stdout.Close()
+		defer func() { _ = stdout.Close() }()
 
 		tr = tar.NewReader(stdout)
 	} else {
@@ -1713,7 +1734,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 		if err != nil {
 			return err
 		}
-		defer metaFile.Close()
+		defer func() { _ = metaFile.Close() }()
 
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
@@ -1724,7 +1745,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 			if err != nil {
 				return err
 			}
-			defer rootfsFile.Close()
+			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
 			createArgs.RootfsName = filepath.Base(imageRootfsPath)
@@ -1740,7 +1761,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 		select {
 		case <-ctx.Done():
-			op.Cancel()
+			_ = op.Cancel()
 			return ctx.Err()
 		default:
 		}
@@ -1861,7 +1882,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 		}
 
 		metadata := map[string]any{"refreshed": result}
-		op.UpdateMetadata(metadata)
+		_ = op.UpdateMetadata(metadata)
 
 		// Sent a lifecycle event if the refresh actually happened.
 		if result {
@@ -3579,7 +3600,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
-		defer metaFile.Close()
+		defer func() { _ = metaFile.Close() }()
 
 		createArgs.MetaFile = metaFile
 		createArgs.MetaName = filepath.Base(imageMetaPath)
@@ -3589,7 +3610,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
-			defer rootfsFile.Close()
+			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
 			createArgs.RootfsName = filepath.Base(imageRootfsPath)
@@ -3689,19 +3710,19 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for download: %w", err)
 	}
-	defer os.RemoveAll(buildDir)
+	defer func() { _ = os.RemoveAll(buildDir) }()
 
 	metaFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}
-	defer metaFile.Close()
+	defer func() { _ = metaFile.Close() }()
 
 	rootfsFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}
-	defer rootfsFile.Close()
+	defer func() { _ = rootfsFile.Close() }()
 
 	getReq := lxd.ImageFileRequest{
 		MetaFile:   io.WriteSeeker(metaFile),

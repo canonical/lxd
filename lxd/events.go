@@ -57,7 +57,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 			_, err := d.db.GetProject(context.Background(), projectName)
 			if err != nil {
 				if response.IsNotFoundError(err) {
-					response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
+					_ = response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
 				}
 
 				return err
@@ -80,13 +80,13 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// Validate event types.
 	for _, entry := range types {
 		if !shared.StringInSlice(entry, eventTypes) {
-			response.BadRequest(fmt.Errorf("'%s' isn't a supported event type", entry)).Render(w)
+			_ = response.BadRequest(fmt.Errorf("'%s' isn't a supported event type", entry)).Render(w)
 			return nil
 		}
 	}
 
 	if shared.StringInSlice("logging", types) && !rbac.UserIsAdmin(r) {
-		response.Forbidden(nil).Render(w)
+		_ = response.Forbidden(nil).Render(w)
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	if err != nil {
 		return err
 	}
-	defer c.Close() // This ensures the go routine below is ended when this function ends.
+	defer func() { _ = c.Close() }() // This ensures the go routine below is ended when this function ends.
 
 	var excludeLocations []string
 	// Get the current local serverName and store it for the events.

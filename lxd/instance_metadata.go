@@ -106,7 +106,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, c, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// If missing, just return empty result
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
@@ -119,7 +119,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer metadataFile.Close()
+	defer func() { _ = metadataFile.Close() }()
 
 	data, err := ioutil.ReadAll(metadataFile)
 	if err != nil {
@@ -213,7 +213,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, inst, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
 	// Read the existing data.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
@@ -223,7 +223,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
-		defer metadataFile.Close()
+		defer func() { _ = metadataFile.Close() }()
 
 		data, err := ioutil.ReadAll(metadataFile)
 		if err != nil {
@@ -335,7 +335,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, inst, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
 	return doInstanceMetadataUpdate(d, inst, metadata, r)
 }
@@ -448,7 +448,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, c, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -490,15 +490,19 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer template.Close()
+	defer func() { _ = template.Close() }()
 
 	tempfile, err := ioutil.TempFile("", "lxd_template")
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer tempfile.Close()
 
 	_, err = io.Copy(tempfile, template)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	err = tempfile.Close()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -507,7 +511,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	files[0].Identifier = templateName
 	files[0].Path = tempfile.Name()
 	files[0].Filename = templateName
-	files[0].Cleanup = func() { os.Remove(tempfile.Name()) }
+	files[0].Cleanup = func() { _ = os.Remove(tempfile.Name()) }
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
@@ -591,7 +595,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, c, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")
@@ -617,9 +621,13 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer template.Close()
 
 	_, err = io.Copy(template, r.Body)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	err = template.Close()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -702,7 +710,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	if err != nil {
 		return response.SmartError(err)
 	}
-	defer storagePools.InstanceUnmount(pool, c, nil)
+	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request
 	templateName := r.FormValue("path")

@@ -60,14 +60,16 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 	tick := time.Tick(time.Second)
 	logTick := time.Tick(time.Minute)
 
-	defer cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := tx.DeleteOperations(cluster.GetNodeID())
-		if err != nil {
-			logger.Error("Failed cleaning up operations")
-		}
+	defer func() {
+		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err := tx.DeleteOperations(cluster.GetNodeID())
+			if err != nil {
+				logger.Error("Failed cleaning up operations")
+			}
 
-		return nil
-	})
+			return nil
+		})
+	}()
 
 	for {
 		<-tick
@@ -107,7 +109,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 			if err != nil {
 				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
 			} else if opAPI.MayCancel {
-				op.Cancel()
+				_, _ = op.Cancel()
 			}
 		}
 

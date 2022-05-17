@@ -34,7 +34,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	profiles := c.Profiles()
 	suite.Len(
@@ -63,7 +63,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
-		suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.DeleteProfile("default", "unprivileged")
 		})
 	}()
@@ -78,7 +78,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	profiles := c.Profiles()
 	suite.Len(
@@ -116,7 +116,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	suite.Req.Nil(err)
 
 	state := out.(*api.Instance)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	suite.Equal(
 		"unknownbr0",
@@ -145,7 +145,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	c, op, err := instance.CreateInternal(state, args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	poolName, err := c.StoragePool()
 	suite.Req.Nil(err)
@@ -183,7 +183,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path())
@@ -200,7 +200,7 @@ func (suite *containerTestSuite) TestContainer_LogPath() {
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPath())
 }
@@ -305,7 +305,7 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c.Delete(true)
+	defer func() { _ = c.Delete(true) }()
 
 	suite.Req.Nil(c.Rename("testFoo2", true), "Failed to rename the container.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
@@ -321,7 +321,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	}, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c1.Delete(true)
+	defer func() { _ = c1.Delete(true) }()
 
 	c2, op, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -332,7 +332,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	}, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c2.Delete(true)
+	defer func() { _ = c2.Delete(true) }()
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -364,7 +364,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	}, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c1.Delete(true)
+	defer func() { _ = c1.Delete(true) }()
 
 	c2, op, err := instance.CreateInternal(suite.d.State(), db.InstanceArgs{
 		Type: instancetype.Container,
@@ -375,7 +375,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	}, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c2.Delete(true)
+	defer func() { _ = c2.Delete(true) }()
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -408,7 +408,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	}, true, revert.New())
 	suite.Req.Nil(err)
 	op.Done(nil)
-	defer c1.Delete(true)
+	defer func() { _ = c1.Delete(true) }()
 
 	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
@@ -455,7 +455,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 		}
 
 		op.Done(nil)
-		defer c.Delete(true)
+		defer func() { _ = c.Delete(true) }()
 
 		m, err := c.(instance.Container).NextIdmap()
 		suite.Req.Nil(err)
