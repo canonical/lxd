@@ -848,7 +848,7 @@ func DeleteProfile(c Instance) {
 	/* similar to AppArmor, if we've never started this container, the
 	 * delete can fail and that's ok.
 	 */
-	os.Remove(ProfilePath(c))
+	_ = os.Remove(ProfilePath(c))
 }
 
 // Server defines a seccomp server.
@@ -911,13 +911,13 @@ func NewSeccompIovec(ucred *unix.Ucred) *Iovec {
 // PutSeccompIovec puts a seccomp iovec.
 func (siov *Iovec) PutSeccompIovec() {
 	if siov.memFd >= 0 {
-		unix.Close(siov.memFd)
+		_ = unix.Close(siov.memFd)
 	}
 	if siov.procFd >= 0 {
-		unix.Close(siov.procFd)
+		_ = unix.Close(siov.procFd)
 	}
 	if siov.notifyFd >= 0 {
-		unix.Close(siov.notifyFd)
+		_ = unix.Close(siov.notifyFd)
 	}
 	C.free(unsafe.Pointer(siov.msg))
 	C.free(unsafe.Pointer(siov.req))
@@ -1062,12 +1062,12 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.Pid, err)
-						c.Close()
+						_ = c.Close()
 						return
 					}
 
 					if siov.IsValidSeccompIovec(bytes) {
-						go server.HandleValid(int(unixFile.Fd()), siov, findPID)
+						go func() { _ = server.HandleValid(int(unixFile.Fd()), siov, findPID) }()
 					} else {
 						go server.HandleInvalid(int(unixFile.Fd()), siov)
 					}
@@ -1164,7 +1164,7 @@ func FindTGID(procFd int) (int, error) {
 	}
 	statusFile = os.NewFile(uintptr(fd), "/proc/<pid>/status")
 	status, err := ioutil.ReadAll(statusFile)
-	statusFile.Close()
+	_ = statusFile.Close()
 	if err != nil {
 		return -1, err
 	}
@@ -1194,7 +1194,7 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 
 	pidFdNr, pidFd := MakePidFd(requestPID, s)
 	if pidFdNr >= 0 {
-		defer pidFd.Close()
+		defer func() { _ = pidFd.Close() }()
 	}
 
 	_, stderr, err := shared.RunCommandSplit(
@@ -1414,7 +1414,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
-		defer pidFd.Close()
+		defer func() { _ = pidFd.Close() }()
 	}
 
 	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
@@ -1561,7 +1561,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 
 	pidFdNr, pidFd := MakePidFd(args.pidCaller, s.s)
 	if pidFdNr >= 0 {
-		defer pidFd.Close()
+		defer func() { _ = pidFd.Close() }()
 	}
 
 	uid, gid, _, _, err := TaskIDs(args.pidCaller)
@@ -1841,7 +1841,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 
 	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
 	if pidFdNr >= 0 {
-		defer pidFd.Close()
+		defer func() { _ = pidFd.Close() }()
 	}
 
 	mntSource := [unix.PathMax]C.char{}
@@ -2109,9 +2109,9 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 	c, err := findPID(int32(siov.msg.monitor_pid), s.s)
 	if err != nil {
 		if s.s.OS.SeccompListenerContinue {
-			siov.SendSeccompIovec(fd, 0, seccompUserNotifFlagContinue)
+			_ = siov.SendSeccompIovec(fd, 0, seccompUserNotifFlagContinue)
 		} else {
-			siov.SendSeccompIovec(fd, int(-C.EPERM), 0)
+			_ = siov.SendSeccompIovec(fd, int(-C.EPERM), 0)
 		}
 		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
 		return err
@@ -2129,7 +2129,7 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 
 // Stop stops a seccomp server.
 func (s *Server) Stop() error {
-	os.Remove(s.path)
+	_ = os.Remove(s.path)
 	return s.l.Close()
 }
 
@@ -2182,7 +2182,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 		return fmt.Errorf("LXC doesn't support notify proxy: %w", err)
 	}
 
-	c.Release()
+	_ = c.Release()
 	return nil
 }
 
