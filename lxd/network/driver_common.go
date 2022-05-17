@@ -378,7 +378,7 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
 	if shared.PathExists(shared.VarPath("networks", newName)) {
-		os.RemoveAll(shared.VarPath("networks", newName))
+		_ = os.RemoveAll(shared.VarPath("networks", newName))
 	}
 
 	// Rename directory to new name.
@@ -423,7 +423,7 @@ func (n *common) delete(clientType request.ClientType) error {
 
 	// Cleanup storage.
 	if shared.PathExists(shared.VarPath("networks", n.name)) {
-		os.RemoveAll(shared.VarPath("networks", n.name))
+		_ = os.RemoveAll(shared.VarPath("networks", n.name))
 	}
 
 	pn := ProjectNetwork{

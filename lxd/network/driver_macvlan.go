@@ -120,7 +120,7 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+		_ = n.common.update(oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.
