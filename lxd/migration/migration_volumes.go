@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"io"
 
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
 )
+
+// Info represents the index frame sent if supported.
+type Info struct {
+	Config *backupConfig.Config `json:"config,omitempty" yaml:"config,omitempty"` // Equivalent of backup.yaml but embedded in index.
+}
 
 // Type represents the migration transport type. It indicates the method by which the migration can
 // take place and what optional features are available.
@@ -19,30 +25,33 @@ type Type struct {
 
 // VolumeSourceArgs represents the arguments needed to setup a volume migration source.
 type VolumeSourceArgs struct {
-	Name              string
-	Snapshots         []string
-	MigrationType     Type
-	TrackProgress     bool
-	MultiSync         bool
-	FinalSync         bool
-	Data              any // Optional store to persist storage driver state between MultiSync phases.
-	ContentType       string
-	AllowInconsistent bool
-	Refresh           bool
+	IndexHeaderVersion uint32
+	Name               string
+	Snapshots          []string
+	MigrationType      Type
+	TrackProgress      bool
+	MultiSync          bool
+	FinalSync          bool
+	Data               any // Optional store to persist storage driver state between MultiSync phases.
+	ContentType        string
+	AllowInconsistent  bool
+	Refresh            bool
+	Info               *Info
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
 type VolumeTargetArgs struct {
-	Name          string
-	Description   string
-	Config        map[string]string
-	Snapshots     []string
-	MigrationType Type
-	TrackProgress bool
-	Refresh       bool
-	Live          bool
-	VolumeSize    int64
-	ContentType   string
+	IndexHeaderVersion uint32
+	Name               string
+	Description        string
+	Config             map[string]string
+	Snapshots          []string
+	MigrationType      Type
+	TrackProgress      bool
+	Refresh            bool
+	Live               bool
+	VolumeSize         int64
+	ContentType        string
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument
