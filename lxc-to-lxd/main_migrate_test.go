@@ -95,7 +95,7 @@ func TestValidateConfig(t *testing.T) {
 
 	lxcPath, err := ioutil.TempDir("", "lxc-to-lxd-test-")
 	require.NoError(t, err)
-	defer os.RemoveAll(lxcPath)
+	defer require.NoError(t, os.RemoveAll(lxcPath))
 
 	c, err := liblxc.NewContainer("c1", lxcPath)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 
 	lxcPath, err := ioutil.TempDir("", "lxc-to-lxd-test-")
 	require.NoError(t, err)
-	defer os.RemoveAll(lxcPath)
+	defer func() { _ = os.RemoveAll(lxcPath) }()
 
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
@@ -216,7 +216,8 @@ func TestConvertNetworkConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// In case the system uses a lxc.conf file
-		c.ClearConfigItem("lxc.net.0")
+		err = c.ClearConfigItem("lxc.net.0")
+		require.NoError(t, err)
 
 		for _, conf := range tt.config {
 			parts := strings.SplitN(conf, "=", 2)
