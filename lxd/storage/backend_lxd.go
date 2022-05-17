@@ -3205,7 +3205,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// Check source volume exists and is custom type, and get its config.
 	srcConfig, err := srcPool.GenerateCustomVolumeBackupConfig(srcProjectName, srcVolName, snapshots, op)
 	if err != nil {
-		return fmt.Errorf("Failed generating volume migration config: %w", err)
+		return fmt.Errorf("Failed generating volume copy config: %w", err)
 	}
 
 	// Use the source volume's config if not supplied.
@@ -3360,7 +3360,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			MigrationType:      migrationTypes[0],
 			TrackProgress:      true, // Do use a progress tracker on sender.
 			ContentType:        string(contentType),
-			Config:             srcConfig,
+			Info:               &migration.Info{Config: srcConfig},
 		}, op)
 
 		if err != nil {
@@ -3430,9 +3430,52 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 		return err
 	}
 
-	// Volume config not needed to send a volume so set to nil.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, nil)
+	if args.Info != nil && args.Info.Config == nil || args.Info.Config.Volume == nil || args.Info.Config.Volume.Config == nil {
+		return fmt.Errorf("Volume config is required")
+	}
 
+	if len(args.Snapshots) != len(args.Info.Config.VolumeSnapshots) {
+		return fmt.Errorf("Requested snapshots count (%d) doesn't match volume snapshot config count (%d)", len(args.Snapshots), len(args.Info.Config.VolumeSnapshots))
+	}
+
+	// Send migration index header frame with volume info and wait for receipt.
+	if args.IndexHeaderVersion == migration.IndexHeaderVersion {
+		headerJSON, err := json.Marshal(args.Info.Config)
+		if err != nil {
+			return fmt.Errorf("Failed encoding migration index header: %w", err)
+		}
+
+		_, err = conn.Write(headerJSON)
+		if err != nil {
+			return fmt.Errorf("Failed sending migration index header: %w", err)
+		}
+
+		err = conn.Close() //End the frame.
+		if err != nil {
+			return fmt.Errorf("Failed closing migration index header frame: %w", err)
+		}
+
+		l.Debug("Sent migration index header, waiting for response")
+
+		respBuf, err := ioutil.ReadAll(conn)
+		if err != nil {
+			return fmt.Errorf("Failed reading migration index header: %w", err)
+		}
+
+		infoResp := migration.InfoResponse{}
+		err = json.Unmarshal(respBuf, &infoResp)
+		if err != nil {
+			return fmt.Errorf("Failed decoding migration index header: %w", err)
+		}
+
+		if infoResp.Err() != nil {
+			return fmt.Errorf("Failed negotiating migration options: %w", err)
+		}
+
+		l.Info("Received migration index header response", logger.Ctx{"response": infoResp})
+	}
+
+	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, args.Info.Config.Volume.Config)
 	err = b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
 		return err
@@ -3510,6 +3553,41 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
+	var srcConfig *backupConfig.Config
+
+	// Receive index header from source if applicable and response confirming receipt.
+	if args.IndexHeaderVersion == migration.IndexHeaderVersion {
+		buf, err := ioutil.ReadAll(conn)
+		if err != nil {
+			return fmt.Errorf("Failed reading migration index header: %w", err)
+		}
+
+		err = json.Unmarshal(buf, &srcConfig)
+		if err != nil {
+			return fmt.Errorf("Failed decoding migration index header: %w", err)
+		}
+
+		l.Info("Received migration index header, sending response")
+
+		infoResp := migration.InfoResponse{StatusCode: http.StatusOK}
+		headerJSON, err := json.Marshal(infoResp)
+		if err != nil {
+			return fmt.Errorf("Failed encoding migration index header response: %w", err)
+		}
+
+		_, err = conn.Write(headerJSON)
+		if err != nil {
+			return fmt.Errorf("Failed sending migration index header response: %w", err)
+		}
+
+		err = conn.Close() //End the frame.
+		if err != nil {
+			return fmt.Errorf("Failed closing migration index header response frame: %w", err)
+		}
+
+		l.Debug("Sent migration index header response")
+	}
+
 	if !args.Refresh || !b.driver.HasVolume(vol) {
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
@@ -3526,10 +3604,29 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		for _, snapName := range args.Snapshots {
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
+			snapConfig := vol.Config() // Use parent volume config by default.
+			snapDescription := args.Description
+			snapExpiryDate := time.Time{}
+
+			// If the source snapshot config is available, use that.
+			if srcConfig != nil {
+				for _, srcSnap := range srcConfig.VolumeSnapshots {
+					if srcSnap.Name == snapName {
+						snapConfig = srcSnap.Config
+						snapDescription = srcSnap.Description
+
+						if srcSnap.ExpiresAt != nil {
+							snapExpiryDate = *srcSnap.ExpiresAt
+						}
+
+						break
+					}
+				}
+			}
+
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			// Copy volume config from parent.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType(), true)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, snapDescription, vol.Type(), true, snapConfig, snapExpiryDate, vol.ContentType(), true)
 			if err != nil {
 				return err
 			}
