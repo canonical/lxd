@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -459,7 +460,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		<-sigChan
 
 		if clientFingerprint != "" {
-			server.DeleteCertificate(clientFingerprint)
+			_ = server.DeleteCertificate(clientFingerprint)
 		}
 
 		cancel()
@@ -467,7 +468,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}()
 
 	if clientFingerprint != "" {
-		defer server.DeleteCertificate(clientFingerprint)
+		defer func() { _ = server.DeleteCertificate(clientFingerprint) }()
 	}
 
 	config, err := c.RunInteractive(server)
@@ -508,8 +509,8 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 
 	// Automatically clean-up the temporary path on exit
 	defer func(path string) {
-		unix.Unmount(path, unix.MNT_DETACH)
-		os.Remove(path)
+		_ = unix.Unmount(path, unix.MNT_DETACH)
+		_ = os.Remove(path)
 	}(path)
 
 	var fullPath string
@@ -557,18 +558,18 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 	config.InstanceArgs.Architecture = architectureName
 
+	reverter := revert.New()
+	defer reverter.Fail()
+
 	// Create the instance
-	success := false
 	op, err := server.CreateInstance(config.InstanceArgs)
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		if !success {
-			server.DeleteInstance(config.InstanceArgs.Name)
-		}
-	}()
+	reverter.Add(func() {
+		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
+	})
 
 	progress := utils.ProgressRenderer{Format: "Transferring instance: %s"}
 	_, err = op.AddHandler(progress.UpdateOp)
@@ -583,7 +584,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress.Done(fmt.Sprintf("Instance %s successfully created", config.InstanceArgs.Name))
-	success = true
+	reverter.Success()
 
 	return nil
 }
