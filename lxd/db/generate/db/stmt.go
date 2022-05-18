@@ -272,11 +272,19 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 			}
 			params[i] += fmt.Sprintf(" WHERE")
 			for _, other := range via[ref] {
-				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef)
-				params[i] += fmt.Sprintf(" %s.name = ? AND", otherTable)
+				join := other.Config.Get("join")
+				if join == "" {
+					join = other.Config.Get("leftjoin")
+				}
+				params[i] += fmt.Sprintf(" %s = ? AND", join)
 			}
-			params[i] += fmt.Sprintf(" %s.name = ?)", table)
+
+			join := field.Config.Get("join")
+			if join == "" {
+				join = field.Config.Get("leftjoin")
+			}
+
+			params[i] += fmt.Sprintf(" %s = ?)", join)
 		} else {
 			columns[i] = field.Column()
 			params[i] = "?"
