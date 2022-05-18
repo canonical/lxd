@@ -284,22 +284,68 @@ migration() {
   remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
 
   lxc_remote storage volume create l1:"$remote_pool1" vol1
-  lxc_remote storage volume create l1:"$remote_pool1" vol2
-  lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
+  lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap0vol1
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
+  lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snap1vol1
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol1
+  lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=postsnap1vol1
 
-  # remote storage volume migration in "pull" mode
+  # remote storage volume and snapshots migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
-  lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
-  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol4" --volume-only
-  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol5"
-  lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol6"
-
+  lxc_remote storage volume show l2:"$remote_pool2" vol2
+  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
+  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
+
+  # check moving volume and snapshots.
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l1:"$remote_pool1/vol2"
+  lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol3"
+  ! lxc_remote storage volume show l1:"$remote_pool1" vol2 || false
+  lxc_remote storage volume show l2:"$remote_pool2" vol3
+  lxc_remote storage volume show l2:"$remote_pool2" vol3/snap0
+  lxc_remote storage volume show l2:"$remote_pool2" vol3/snap1
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
-  lxc_remote storage volume delete l2:"$remote_pool2" vol4
-  lxc_remote storage volume delete l2:"$remote_pool2" vol5
-  lxc_remote storage volume delete l2:"$remote_pool2" vol6
+
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --volume-only
+  lxc_remote storage volume show l2:"$remote_pool2" vol2
+  ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0 || false
+  ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1 || false
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
+
+  # remote storage volume and snapshots migration refresh in "pull" mode
+  lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=snapremovevol1
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol1 snapremove
+  lxc_remote storage volume set l1:"$remote_pool1" vol1 user.foo=postsnap1vol1
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
+  lxc_remote storage volume delete l1:"$remote_pool1" vol1
+
+  lxc_remote storage volume show l2:"$remote_pool2" vol2
+  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
+  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
+  lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove
+
+  # check remote storage volume refresh from a different volume
+  lxc_remote storage volume create l1:"$remote_pool1" vol3
+  lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap0vol3
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
+  lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap1vol3
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
+  lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=snap2vol3
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
+  lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=postsnap1vol3
+
+  # check snapshot volumes are refreshed
+  # FIX ME: Have to skip these checks on ZFS due to optimized refresh bug (https://github.com/lxc/lxd/issues/10186).
+  if [ "$lxd2_backend" != "zfs" ]; then
+    lxc_remote storage volume copy l1:"$remote_pool1/vol3" l2:"$remote_pool2/vol2" --refresh
+    lxc_remote storage volume delete l1:"$remote_pool1" vol3
+    lxc_remote storage volume show l2:"$remote_pool2" vol2
+    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
+    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
+    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap2
+    ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove || false
+  fi
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
 
   # remote storage volume migration in "push" mode
   lxc_remote storage volume create l1:"$remote_pool1" vol1
