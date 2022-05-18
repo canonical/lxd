@@ -29,7 +29,7 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 		return -1, fmt.Errorf("Failed to get \"profiles\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
