@@ -292,22 +292,22 @@ migration() {
 
   # remote storage volume and snapshots migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
-  lxc_remote storage volume show l2:"$remote_pool2" vol2
-  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
-  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
+  lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo | grep -Fx "postsnap1vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 user.foo | grep -Fx "snap0vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 user.foo | grep -Fx "snap1vol1"
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
 
   # check moving volume and snapshots.
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l1:"$remote_pool1/vol2"
   lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol3"
   ! lxc_remote storage volume show l1:"$remote_pool1" vol2 || false
-  lxc_remote storage volume show l2:"$remote_pool2" vol3
-  lxc_remote storage volume show l2:"$remote_pool2" vol3/snap0
-  lxc_remote storage volume show l2:"$remote_pool2" vol3/snap1
+  lxc_remote storage volume get l2:"$remote_pool2" vol3 user.foo | grep -Fx "postsnap1vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol3/snap0 user.foo | grep -Fx "snap0vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol3/snap1 user.foo | grep -Fx "snap1vol1"
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --volume-only
-  lxc_remote storage volume show l2:"$remote_pool2" vol2
+  lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo | grep -Fx "postsnap1vol1"
   ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0 || false
   ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1 || false
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
@@ -319,10 +319,10 @@ migration() {
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --refresh
   lxc_remote storage volume delete l1:"$remote_pool1" vol1
 
-  lxc_remote storage volume show l2:"$remote_pool2" vol2
-  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
-  lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
-  lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove
+  lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo | grep -Fx "postsnap1vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 user.foo | grep -Fx "snap0vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 user.foo | grep -Fx "snap1vol1"
+  lxc_remote storage volume get l2:"$remote_pool2" vol2/snapremove user.foo | grep -Fx "snapremovevol1"
 
   # check remote storage volume refresh from a different volume
   lxc_remote storage volume create l1:"$remote_pool1" vol3
@@ -334,15 +334,18 @@ migration() {
   lxc_remote storage volume snapshot l1:"$remote_pool1" vol3
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=postsnap1vol3
 
-  # check snapshot volumes are refreshed
+  # check snapshot volumes and snapshots are refreshed
   # FIX ME: Have to skip these checks on ZFS due to optimized refresh bug (https://github.com/lxc/lxd/issues/10186).
+  # FIX ME: Due to a known issue (https://github.com/lxc/lxd/issues/10436) we are currently only diffing the
+  # snapshots by name, so infact existing snapshots of the same name won't be overwritten even if their config or
+  # contents is different.
   if [ "$lxd2_backend" != "zfs" ]; then
     lxc_remote storage volume copy l1:"$remote_pool1/vol3" l2:"$remote_pool2/vol2" --refresh
     lxc_remote storage volume delete l1:"$remote_pool1" vol3
-    lxc_remote storage volume show l2:"$remote_pool2" vol2
-    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap0
-    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap1
-    lxc_remote storage volume show l2:"$remote_pool2" vol2/snap2
+    lxc_remote storage volume get l2:"$remote_pool2" vol2 user.foo | grep -Fx "postsnap1vol1"   # Should be postsnap1vol3
+    lxc_remote storage volume get l2:"$remote_pool2" vol2/snap0 user.foo | grep -Fx "snap0vol1" # Should be snap0vol3
+    lxc_remote storage volume get l2:"$remote_pool2" vol2/snap1 user.foo | grep -Fx "snap1vol1" # Should be snap1vol3
+    lxc_remote storage volume get l2:"$remote_pool2" vol2/snap2 user.foo | grep -Fx "snap2vol3"
     ! lxc_remote storage volume show l2:"$remote_pool2" vol2/snapremove || false
   fi
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
