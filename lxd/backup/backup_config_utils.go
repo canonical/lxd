@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -16,17 +17,8 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-// Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
-type Config struct {
-	Container       *api.Instance                `yaml:"container,omitempty"` // Used by VM backups too.
-	Snapshots       []*api.InstanceSnapshot      `yaml:"snapshots,omitempty"`
-	Pool            *api.StoragePool             `yaml:"pool,omitempty"`
-	Volume          *api.StorageVolume           `yaml:"volume,omitempty"`
-	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
-}
-
-// ToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
-func (c *Config) ToInstanceDBArgs(projectName string) *db.InstanceArgs {
+// ConfigToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
+func ConfigToInstanceDBArgs(c *config.Config, projectName string) *db.InstanceArgs {
 	if c.Container == nil {
 		return nil
 	}
@@ -54,13 +46,13 @@ func (c *Config) ToInstanceDBArgs(projectName string) *db.InstanceArgs {
 }
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
-func ParseConfigYamlFile(path string) (*Config, error) {
+func ParseConfigYamlFile(path string) (*config.Config, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	backupConf := Config{}
+	backupConf := config.Config{}
 	if err := yaml.Unmarshal(data, &backupConf); err != nil {
 		return nil, err
 	}

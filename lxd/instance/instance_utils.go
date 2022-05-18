@@ -559,7 +559,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
 	}
 
-	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
+	instDBArgs := backup.ConfigToInstanceDBArgs(backupConf, projectName)
 
 	if !applyProfiles {
 		// Stop instance.Load() from expanding profile config from DB, and apply expanded config from

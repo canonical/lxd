@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -60,26 +59,16 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	_, vol, err := state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, !s.volumeOnly, migrateOp)
 	if err != nil {
-		return err
-	}
-
-	dbContentType, err := storagePools.VolumeContentTypeNameToContentType(vol.ContentType)
-	if err != nil {
-		return err
-	}
-
-	volContentType, err := storagePools.VolumeDBContentTypeToContentType(dbContentType)
-	if err != nil {
-		return err
+		return fmt.Errorf("Failed generating volume migration config: %w", err)
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(volContentType, false)
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(config.Volume.ContentType), false)
 	if len(poolMigrationTypes) < 0 {
 		return fmt.Errorf("No source migration types available")
 	}
@@ -87,19 +76,17 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Convert the pool's migration type options to an offer header to target.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
-	snapshots := []*migration.Snapshot{}
-	snapshotNames := []string{}
+	var snapshots []*migration.Snapshot
+	var snapshotNames []string
 
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
-		var err error
-		snaps, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, volName, storageDrivers.VolumeTypeCustom)
-		if err == nil {
-			for _, snap := range snaps {
-				snapshots = append(snapshots, volumeSnapshotToProtobuf(snap))
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-				snapshotNames = append(snapshotNames, snapName)
-			}
+		snapshots = make([]*migration.Snapshot, 0, len(config.VolumeSnapshots))
+		snapshotNames = make([]string, 0, len(config.VolumeSnapshots))
+
+		for i := range config.VolumeSnapshots {
+			snapshotNames = append(snapshotNames, config.VolumeSnapshots[i].Name)
+			snapshots = append(snapshots, volumeSnapshotToProtobuf(config.VolumeSnapshots[i]))
 		}
 	}
 
@@ -124,7 +111,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(volContentType), poolMigrationTypes)
+	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(config.Volume.ContentType)), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
 		s.sendControl(err)
@@ -136,7 +123,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		MigrationType: migrationTypes[0],
 		Snapshots:     snapshotNames,
 		TrackProgress: true,
-		ContentType:   vol.ContentType,
+		ContentType:   config.Volume.ContentType,
 	}
 
 	if respHeader.GetRefresh() {
@@ -463,7 +450,7 @@ func (s *migrationSourceWs) ConnectStorageTarget(target api.StorageVolumePostTar
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
-func volumeSnapshotToProtobuf(vol db.StorageVolumeArgs) *migration.Snapshot {
+func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range vol.Config {
 		kCopy := string(k)
@@ -471,10 +458,8 @@ func volumeSnapshotToProtobuf(vol db.StorageVolumeArgs) *migration.Snapshot {
 		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
 	}
 
-	_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(vol.Name)
-
 	return &migration.Snapshot{
-		Name:         &snapOnlyName,
+		Name:         &vol.Name,
 		LocalConfig:  config,
 		Profiles:     []string{},
 		Ephemeral:    proto.Bool(false),
