@@ -169,7 +169,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
