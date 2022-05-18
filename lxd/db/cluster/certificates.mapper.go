@@ -128,7 +128,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 		return -1, fmt.Errorf("Failed to get \"certificates\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
