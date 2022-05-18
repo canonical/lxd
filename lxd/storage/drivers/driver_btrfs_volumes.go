@@ -165,7 +165,11 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	revert.Add(revertHook)
 
 	// Find the compression algorithm used for backup source data.
-	srcData.Seek(0, 0)
+	_, err := srcData.Seek(0, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	_, _, unpacker, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, nil, err
