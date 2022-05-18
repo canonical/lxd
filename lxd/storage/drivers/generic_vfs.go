@@ -691,7 +691,10 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 			// Extract filesystem volume.
 			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
-			srcData.Seek(0, 0)
+			_, err := srcData.Seek(0, 0)
+			if err != nil {
+				return err
+			}
 
 			f, err := os.OpenFile(mountPath, os.O_RDONLY, 0)
 			if err != nil {
@@ -781,7 +784,11 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 	defer revert.Fail()
 
 	// Find the compression algorithm used for backup source data.
-	srcData.Seek(0, 0)
+	_, err := srcData.Seek(0, 0)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	tarArgs, _, unpacker, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, nil, err
