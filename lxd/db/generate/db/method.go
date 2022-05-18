@@ -441,7 +441,7 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
 	buf.L("rows, err := stmt.Query(%s)", mapping.FieldParams(nk))
 	m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity)))
-	buf.L("defer rows.Close()")
+	buf.L("defer func() { _ = rows.Close() }()")
 	buf.N()
 	buf.L("// Ensure we read one and only one row.")
 	buf.L("if !rows.Next() {")
