@@ -224,7 +224,7 @@ func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
 		return -1, fmt.Errorf("Failed to get \"warnings\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {

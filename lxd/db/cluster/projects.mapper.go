@@ -221,7 +221,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
