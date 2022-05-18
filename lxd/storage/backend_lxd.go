@@ -1271,7 +1271,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
 			srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
-			srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+			err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
 				srcPoolBackend, ok := srcPool.(*lxdBackend)
 				if !ok {
 					return fmt.Errorf("Pool is not a lxdBackend")
@@ -1289,6 +1289,9 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 				return nil
 			}, nil)
+			if err != nil {
+				return err
+			}
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -3327,7 +3330,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
 		srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
-		srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+		err = srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			srcPoolBackend, ok := srcPool.(*lxdBackend)
 			if !ok {
 				return fmt.Errorf("Pool is not a lxdBackend")
@@ -3345,6 +3348,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 			return nil
 		}, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
