@@ -461,6 +461,15 @@ migration() {
   lxc_remote rm -f l1:c1
   lxc_remote rm -f l2:c1
 
+  # On zfs, this used to crash due to a websocket read issue.
+  lxc launch testimage c1
+  lxc snapshot c1
+  lxc copy c1 l2:c1 --stateless
+  lxc copy c1 l2:c1 --stateless --refresh
+
+  lxc_remote rm -f l1:c1
+  lxc_remote rm -f l2:c1
+
   if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
