@@ -40,6 +40,7 @@ self
 getting_started
 configuration
 images
+storage
 networks
 operation
 restapi_landing
