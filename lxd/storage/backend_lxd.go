@@ -4845,7 +4845,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 				}
 			} else {
 				vol.SetMountFilesystemProbe(true)
-				vol.MountTask(func(mountPath string, op *operations.Operation) error {
+				err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 					blockFS, err = filesystem.Detect(mountPath)
 					if err != nil {
 						return err
@@ -4853,6 +4853,9 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 
 					return nil
 				}, op)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Record detected filesystem in config.
