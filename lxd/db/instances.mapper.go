@@ -524,7 +524,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
