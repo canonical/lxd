@@ -194,13 +194,49 @@ test_storage_local_volume_handling() {
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4 | grep -q 'content_type: block'
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol4/snap0 | grep -q 'content_type: block'
 
-          # create volumes
+          # check refreshing volumes
+
+          # create storage volume with user config differing over snapshots
           lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 --type=block size=4194304
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snap0vol5
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snap1vol5
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=snapremovevol5
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 snapremove
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol5 user.foo=postsnap1vol5
+
+          # create storage volume with user config differing over snapshots and additional snapshot than vol5
           lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 --type=block size=4194304
-          # copy to empty volume destination with refresh flag
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap0vol6
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap1vol6
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=snap2vol6
+          lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6
+          lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol6 user.foo=postsnap1vol6
+
+          # copy to new volume destination with refresh flag
           lxc storage volume copy --refresh "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol5" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol5"
+
+          # check snapshot volumes (including config) were copied
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5 user.foo | grep -Fx "postsnap1vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo | grep -Fx "snapremovevol5"
+
           # incremental copy to existing volume destination with refresh flag
           lxc storage volume copy --refresh "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol6" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol5"
+
+          # check snapshot volumes (including config) was overridden from new source and that missing snapshot is
+          # present and that the missing snapshot has been removed.
+          # Note: Due to a known issue we are currently only diffing the snapshots by name, so infact existing
+          # snapshots of the same name won't be overwritten even if their config or contents is different.
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5 user.foo | grep -Fx "postsnap1vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap0 user.foo | grep -Fx "snap0vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap1 user.foo | grep -Fx "snap1vol5"
+          lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snap2 user.foo | grep -Fx "snap2vol6"
+          ! lxc storage volume get "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol5/snapremove user.foo || false
 
           # clean up
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
