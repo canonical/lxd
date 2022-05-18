@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/lxc/lxd/lxd/backup"
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -142,7 +143,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 	}
 
 	// Used to store the unknown volumes for each pool & project.
-	poolsProjectVols := make(map[string]map[string][]*backup.Config)
+	poolsProjectVols := make(map[string]map[string][]*backupConfig.Config)
 
 	// Used to store a handle to each pool containing user supplied config.
 	pools := make(map[string]storagePools.Pool)
@@ -328,8 +329,8 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 			// Create missing storage pool DB record if neeed.
 			if pool.ID() == storagePools.PoolIDTemporary {
-				var instPoolVol *backup.Config // Instance volume used for new pool record.
-				var poolID int64               // Pool ID of created pool record.
+				var instPoolVol *backupConfig.Config // Instance volume used for new pool record.
+				var poolID int64                     // Pool ID of created pool record.
 
 				// Search unknown volumes looking for an instance volume that can be used to
 				// restore the pool DB config from. This is preferable over using the user
@@ -462,7 +463,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 }
 
 // internalRecoverImportInstance recreates the database records for an instance and returns the new instance.
-func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backup.Config, profiles []api.Profile, revert *revert.Reverter) (instance.Instance, error) {
+func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile, revert *revert.Reverter) (instance.Instance, error) {
 	if poolVol.Container == nil {
 		return nil, fmt.Errorf("Pool volume is not an instance volume")
 	}
@@ -478,7 +479,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 
 	internalImportRootDevicePopulate(pool.Name(), poolVol.Container.Devices, poolVol.Container.ExpandedDevices, profiles)
 
-	dbInst := poolVol.ToInstanceDBArgs(projectName)
+	dbInst := backup.ConfigToInstanceDBArgs(poolVol, projectName)
 
 	if dbInst.Type < 0 {
 		return nil, fmt.Errorf("Invalid instance type")
@@ -494,7 +495,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 }
 
 // internalRecoverImportInstance recreates the database records for an instance snapshot.
-func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backup.Config, snap *api.InstanceSnapshot, profiles []api.Profile, revert *revert.Reverter) error {
+func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile, revert *revert.Reverter) error {
 	if poolVol.Container == nil || snap == nil {
 		return fmt.Errorf("Pool volume is not an instance volume")
 	}

@@ -756,7 +756,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf("No instance config in backup config")
 	}
 
-	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
+	instDBArgs := backup.ConfigToInstanceDBArgs(backupConf, projectName)
 
 	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, revert)
 	if err != nil {

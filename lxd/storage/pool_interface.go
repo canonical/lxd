@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
@@ -62,8 +63,9 @@ type Pool interface {
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
-	CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
-	ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error
+	GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
+	CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
+	ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) error
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
@@ -99,8 +101,9 @@ type Pool interface {
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
 	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
-	ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error
+	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
+	GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error)
 
 	// Custom volume snapshots.
 	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error
@@ -119,5 +122,5 @@ type Pool interface {
 	CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error
 
 	// Storage volume recovery.
-	ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error)
+	ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error)
 }

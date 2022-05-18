@@ -6,6 +6,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -39,15 +40,15 @@ func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
 
 // Info represents exported backup information.
 type Info struct {
-	Project          string   `json:"-" yaml:"-"` // Project is set during import based on current project.
-	Name             string   `json:"name" yaml:"name"`
-	Backend          string   `json:"backend" yaml:"backend"`
-	Pool             string   `json:"pool" yaml:"pool"`
-	Snapshots        []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	OptimizedStorage *bool    `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
-	OptimizedHeader  *bool    `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
-	Type             Type     `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
-	Config           *Config  `json:"config,omitempty" yaml:"config,omitempty"`                     // Equivalent of backup.yaml but embedded in index for quick retrieval.
+	Project          string         `json:"-" yaml:"-"` // Project is set during import based on current project.
+	Name             string         `json:"name" yaml:"name"`
+	Backend          string         `json:"backend" yaml:"backend"`
+	Pool             string         `json:"pool" yaml:"pool"`
+	Snapshots        []string       `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	OptimizedStorage *bool          `json:"optimized,omitempty" yaml:"optimized,omitempty"`               // Optional field to handle older optimized backups that don't have this field.
+	OptimizedHeader  *bool          `json:"optimized_header,omitempty" yaml:"optimized_header,omitempty"` // Optional field to handle older optimized backups that don't have this field.
+	Type             Type           `json:"type,omitempty" yaml:"type,omitempty"`                         // Type of backup.
+	Config           *config.Config `json:"config,omitempty" yaml:"config,omitempty"`                     // Equivalent of backup.yaml but embedded in index for quick retrieval.
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.

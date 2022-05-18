@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
@@ -137,19 +138,27 @@ func (b *mockBackend) UpdateInstance(inst instance.Instance, newDesc string, new
 	return nil
 }
 
+func (b *mockBackend) GenerateCustomVolumeBackupConfig(projectName string, volName string, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	return nil, nil
+}
+
+func (b *mockBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
+	return nil, nil
+}
+
 func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
+func (b *mockBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
 	return nil, nil
 }
 
-func (b *mockBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error) {
+func (b *mockBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backupConfig.Config, error) {
 	return nil, nil
 }
 
-func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
+func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backupConfig.Config, op *operations.Operation) error {
 	return nil
 }
 
@@ -269,7 +278,7 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
-func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error {
+func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error {
 	return nil
 }
 
