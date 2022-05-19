@@ -3479,6 +3479,31 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	// Check the supplied config and remove any fields not relevant for destination pool type.
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, args.Config)
 
+	// Check if the volume exists on storage.
+	volExists := b.driver.HasVolume(vol)
+
+	// Check if the volume exists in database.
+	dbVol, err := VolumeDBGet(b, projectName, args.Name, drivers.VolumeTypeCustom)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
+	// Check for inconsistencies between database and storage before continuing.
+	if dbVol == nil && volExists {
+		return fmt.Errorf("Volume already exists on storage but not in database")
+	}
+
+	if dbVol != nil && !volExists {
+		return fmt.Errorf("Volume exists in database but not on storage")
+	}
+
+	// Disable refresh mode if volume doesn't exist yet.
+	if args.Refresh && !volExists {
+		args.Refresh = false
+	} else if !args.Refresh && volExists {
+		return fmt.Errorf("Cannot create volume, already exists on migration target storage")
+	}
+
 	// VolumeSize is set to the actual size of the underlying block device.
 	// The target should use this value if present, otherwise it might get an error like
 	// "no space left on device".
