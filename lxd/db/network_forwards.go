@@ -76,7 +76,7 @@ func networkForwardConfigAdd(tx *sql.Tx, forwardID int64, config map[string]stri
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
 		if v == "" {

@@ -125,7 +125,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	}
 
 	if len(raftNodeMap) > 0 && hbState.cluster != nil {
-		hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_ = hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for addr, raftNode := range raftNodeMap {
 				_, err := tx.GetPendingNodeByAddress(addr)
 				if err != nil {
@@ -548,7 +548,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	if err != nil {
 		return fmt.Errorf("Failed to send heartbeat request: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("Heartbeat request failed with status: %w", api.StatusErrorf(response.StatusCode, response.Status))

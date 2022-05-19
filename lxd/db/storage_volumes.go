@@ -297,7 +297,11 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 			var expiryDate sql.NullTime
 			var contentType int
 
-			scan(&s.ID, &snapName, &s.Description, &expiryDate, &contentType)
+			err := scan(&s.ID, &snapName, &s.Description, &expiryDate, &contentType)
+			if err != nil {
+				return err
+			}
+
 			s.Name = volumeName + shared.SnapshotDelimiter + snapName
 			s.PoolID = poolID
 			s.ProjectName = projectName
@@ -751,7 +755,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
@@ -956,7 +960,7 @@ func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range volumeConfig {
 		if v == "" {
@@ -1065,7 +1069,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	volumes := []StorageVolumeArgs{}
 	dest := func(i int) []any {

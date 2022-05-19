@@ -355,7 +355,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 
-		revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+		revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 	}
 
 	// Populate device config with volatile fields if needed.
@@ -554,18 +554,20 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicOVN) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name":                "",
-		"last_state.hwaddr":        "",
-		"last_state.mtu":           "",
-		"last_state.created":       "",
-		"last_state.vf.parent":     "",
-		"last_state.vf.id":         "",
-		"last_state.vf.hwaddr":     "",
-		"last_state.vf.vlan":       "",
-		"last_state.vf.spoofcheck": "",
-		"last_state.pci.driver":    "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name":                "",
+			"last_state.hwaddr":        "",
+			"last_state.mtu":           "",
+			"last_state.created":       "",
+			"last_state.vf.parent":     "",
+			"last_state.vf.id":         "",
+			"last_state.vf.hwaddr":     "",
+			"last_state.vf.vlan":       "",
+			"last_state.vf.spoofcheck": "",
+			"last_state.pci.driver":    "",
+		})
+	}()
 
 	v := d.volatileGet()
 
@@ -776,7 +778,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 	}
 
 	revert.Add(func() {
-		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
+		_ = d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
 			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
 			DeviceName:   d.name,
 			DeviceConfig: d.config,
@@ -795,7 +797,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 		return err
 	}
 
-	revert.Add(func() { ovs.BridgePortDelete(integrationBridge, hostName) })
+	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
 
 	// Link OVS port to OVN logical port.
 	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, logicalPortName)

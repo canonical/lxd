@@ -33,7 +33,10 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	c.srv = srv
 
 	// Print the initial header
-	benchmark.PrintServerInfo(srv)
+	err = benchmark.PrintServerInfo(srv)
+	if err != nil {
+		return err
+	}
 
 	// Setup report handling
 	if c.flagReportFile != "" {
@@ -60,9 +63,12 @@ func (c *cmdGlobal) Teardown(cmd *cobra.Command, args []string) error {
 		label = c.flagReportLabel
 	}
 
-	c.report.AddRecord(label, c.reportDuration)
+	err := c.report.AddRecord(label, c.reportDuration)
+	if err != nil {
+		return err
+	}
 
-	err := c.report.Write()
+	err = c.report.Write()
 	if err != nil {
 		return err
 	}

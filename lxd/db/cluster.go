@@ -146,7 +146,7 @@ func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
@@ -454,7 +454,7 @@ INSERT INTO nodes_cluster_groups (group_id, node_id)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, node := range nodes {
 		_, err = stmt.Exec(id, node)

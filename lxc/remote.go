@@ -63,7 +63,7 @@ func (c *cmdRemote) Command() *cobra.Command {
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
-	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
+	cmd.Run = func(cmd *cobra.Command, args []string) { _ = cmd.Usage() }
 	return cmd
 }
 
@@ -195,8 +195,15 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 				return fmt.Errorf(i18n.G("Failed to create %q: %w"), certf, err)
 			}
 
-			pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-			certOut.Close()
+			err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+			if err != nil {
+				return fmt.Errorf(i18n.G("Failed to write server cert file %q: %w"), certf, err)
+			}
+
+			err = certOut.Close()
+			if err != nil {
+				return fmt.Errorf(i18n.G("Failed to close server cert file %q: %w"), certf, err)
+			}
 		}
 
 		d, err = conf.GetInstanceServer(server)
@@ -429,8 +436,15 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-		certOut.Close()
+		err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not write server cert file %q: %w"), certf, err)
+		}
+
+		err = certOut.Close()
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not close server cert file %q: %w"), certf, err)
+		}
 
 		// Setup a new connection, this time with the remote certificate
 		if c.flagPublic {
@@ -801,8 +815,8 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 
 	delete(conf.Remotes, args[0])
 
-	os.Remove(conf.ServerCertPath(args[0]))
-	os.Remove(conf.CookiesPath(args[0]))
+	_ = os.Remove(conf.ServerCertPath(args[0]))
+	_ = os.Remove(conf.CookiesPath(args[0]))
 
 	return conf.SaveConfig(c.global.confPath)
 }

@@ -285,7 +285,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
 		if shared.IsTrue(saveData["last_state.created"]) {
 			revert.Add(func() {
-				networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
+				_ = networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
 			})
 
 			err := d.setupParentSysctls(d.effectiveParentName)
@@ -332,7 +332,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
@@ -436,7 +436,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed adding neighbour proxy %q to %q: %w", np.Addr.String(), np.DevName, err)
 				}
 
-				revert.Add(func() { np.Delete() })
+				revert.Add(func() { _ = np.Delete() })
 			}
 		}
 
@@ -586,10 +586,12 @@ func (d *nicRouted) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicRouted) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"last_state.created": "",
-		"host_name":          "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"last_state.created": "",
+			"host_name":          "",
+		})
+	}()
 
 	errs := []error{}
 
@@ -619,7 +621,7 @@ func (d *nicRouted) postStop() error {
 					Addr:    net.ParseIP(addr),
 				}
 
-				neighProxy.Delete()
+				_ = neighProxy.Delete()
 			}
 		}
 	}

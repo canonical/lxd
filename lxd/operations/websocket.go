@@ -61,10 +61,8 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 	<-shared.WebsocketProxy(r.source, target)
 
 	// Make sure both sides are closed.
-	r.source.Close()
-	target.Close()
-
-	return nil
+	_ = r.source.Close()
+	return target.Close()
 }
 
 func (r *forwardedOperationWebSocket) String() string {

@@ -61,7 +61,7 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 	defer e.mu.Unlock()
 
 	// Close the previous socket
-	e.closeListener(metrics)
+	_ = e.closeListener(metrics)
 
 	// If turning off listening, we're done
 	if address == "" {

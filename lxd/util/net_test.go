@@ -20,7 +20,11 @@ func TestInMemoryNetwork(t *testing.T) {
 	server, err := listener.Accept()
 	require.NoError(t, err)
 
-	go client.Write([]byte("hello"))
+	go func() {
+		_, err := client.Write([]byte("hello"))
+		require.NoError(t, err)
+	}()
+
 	buffer := make([]byte, 5)
 	n, err := server.Read(buffer)
 	require.NoError(t, err)
@@ -30,7 +34,8 @@ func TestInMemoryNetwork(t *testing.T) {
 
 	// Closing the server makes all further client reads and
 	// writes fail.
-	server.Close()
+	err = server.Close()
+	assert.NoError(t, err)
 	_, err = client.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 	_, err = client.Write([]byte("hello"))
@@ -110,7 +115,7 @@ func TestIsAddressCovered(t *testing.T) {
 func TestListenImplicitIPv6Wildcard(t *testing.T) {
 	listener, err := net.Listen("tcp", ":9999")
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	assert.Equal(t, "[::]:9999", listener.Addr().String())
 }

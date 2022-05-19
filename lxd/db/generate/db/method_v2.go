@@ -229,7 +229,7 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 				return fmt.Errorf("Parse entity struct: %w", err)
 			}
 
-			defer m.getRefs(buf, refMapping)
+			defer func() { _ = m.getRefs(buf, refMapping) }()
 		}
 	}
 
@@ -591,7 +591,7 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 				return fmt.Errorf("Parse entity struct: %w", err)
 			}
 
-			defer m.createRefs(buf, refMapping)
+			defer func() { _ = m.createRefs(buf, refMapping) }()
 		}
 	}
 
@@ -820,7 +820,7 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 				return fmt.Errorf("Parse entity struct: %w", err)
 			}
 
-			defer m.updateRefs(buf, refMapping)
+			defer func() { _ = m.updateRefs(buf, refMapping) }()
 		}
 	}
 
@@ -1213,8 +1213,7 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 		}
 	}
 
-	m.begin(buf, comment, args, rets, isInterface)
-	return nil
+	return m.begin(buf, comment, args, rets, isInterface)
 }
 
 func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) error {

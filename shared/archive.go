@@ -13,7 +13,7 @@ func DetectCompression(fname string) ([]string, string, []string, error) {
 	if err != nil {
 		return nil, "", nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	return DetectCompressionFile(f)
 }

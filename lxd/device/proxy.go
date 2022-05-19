@@ -261,14 +261,14 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			for _, file := range proxyValues.inheritFds {
-				file.Close()
+				_ = file.Close()
 			}
 
 			// Poll log file a few times until we see "Started" to indicate successful start.
 			for i := 0; i < 10; i++ {
 				started, err := d.checkProcStarted(logPath)
 				if err != nil {
-					p.Stop()
+					_ = p.Stop()
 					return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 				}
 
@@ -290,7 +290,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				time.Sleep(time.Second)
 			}
 
-			p.Stop()
+			_ = p.Stop()
 			return fmt.Errorf("Failed to start device %q: Please look in %s", d.name, logPath)
 		},
 	}
@@ -305,7 +305,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -485,7 +485,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cc.Release()
+	defer func() { _ = cc.Release() }()
 
 	containerPid := strconv.Itoa(cc.InitPid())
 	lxdPid := strconv.Itoa(os.Getpid())
@@ -571,7 +571,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 		return fmt.Errorf("Unable to kill forkproxy: %s", err)
 	}
 
-	os.Remove(pidPath)
+	_ = os.Remove(pidPath)
 	return nil
 }
 

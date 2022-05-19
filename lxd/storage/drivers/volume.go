@@ -202,7 +202,7 @@ func (v Volume) EnsureMountPath() error {
 		if err != nil {
 			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
 		}
-		revert.Add(func() { os.Remove(volPath) })
+		revert.Add(func() { _ = os.Remove(volPath) })
 	}
 
 	// Set very restrictive mode 0100 for non-custom and non-image volumes.
@@ -286,7 +286,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 		}
 
 		if ourUnmount {
-			defer v.driver.MountVolumeSnapshot(v, op)
+			defer func() { _ = v.driver.MountVolumeSnapshot(v, op) }()
 		}
 	} else {
 		ourUnmount, err := v.driver.UnmountVolume(v, keepBlockDev, op)
@@ -295,7 +295,7 @@ func (v Volume) UnmountTask(task func(op *operations.Operation) error, keepBlock
 		}
 
 		if ourUnmount {
-			defer v.driver.MountVolume(v, op)
+			defer func() { _ = v.driver.MountVolume(v, op) }()
 		}
 	}
 

@@ -13,7 +13,7 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for i := 0; rows.Next(); i++ {
 		err := rows.Scan(dest(i)...)

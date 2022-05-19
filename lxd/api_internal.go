@@ -423,7 +423,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to start transaction: %w", err))
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	dump, err := query.Dump(r.Context(), tx, schemaOnly == 1)
 	if err != nil {
@@ -480,11 +480,11 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
 			err = internalSQLSelect(tx, query, &result)
-			tx.Rollback()
+			_ = tx.Rollback()
 		} else {
 			err = internalSQLExec(tx, query, &result)
 			if err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 			} else {
 				err = tx.Commit()
 			}
@@ -507,7 +507,7 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 		return fmt.Errorf("Failed to execute query: %w", err)
 	}
 
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result.Columns, err = rows.Columns()
 	if err != nil {
@@ -577,10 +577,10 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	// Get a list of all storage pools.
 	storagePoolNames, err := storagePoolsDir.Readdirnames(-1)
 	if err != nil {
-		storagePoolsDir.Close()
+		_ = storagePoolsDir.Close()
 		return err
 	}
-	storagePoolsDir.Close()
+	_ = storagePoolsDir.Close()
 
 	// Check whether the instance exists on any of the storage pools as either a container or a VM.
 	instanceMountPoints := []string{}

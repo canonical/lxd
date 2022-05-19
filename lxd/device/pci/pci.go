@@ -29,7 +29,7 @@ func ParseUeventFile(ueventFilePath string) (Device, error) {
 	if err != nil {
 		return dev, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -109,9 +109,9 @@ func DeviceDriverOverride(pciDev Device, driverOverride string) error {
 
 	revert.Add(func() {
 		// Reset the driver override and rebind to original driver (if needed).
-		DeviceUnbind(pciDev)
-		DeviceSetDriverOverride(pciDev, pciDev.Driver)
-		DeviceProbe(pciDev)
+		_ = DeviceUnbind(pciDev)
+		_ = DeviceSetDriverOverride(pciDev, pciDev.Driver)
+		_ = DeviceProbe(pciDev)
 	})
 
 	// Set driver override.

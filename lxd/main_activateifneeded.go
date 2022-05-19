@@ -99,7 +99,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer sqldb.Close()
+	defer func() { _ = sqldb.Close() }()
 
 	d.db.Cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
 	if err != nil {

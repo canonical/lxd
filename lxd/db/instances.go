@@ -217,7 +217,7 @@ SELECT nodes.id, nodes.address
 	if err != nil {
 		return "", err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		return "", api.StatusErrorf(http.StatusNotFound, "Instance not found")
@@ -286,7 +286,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := map[string][][2]string{}
 
@@ -431,7 +431,7 @@ SELECT instances.name, nodes.name, projects.name
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := map[[2]string]string{}
 
@@ -618,7 +618,7 @@ func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(id, state)
 	if err != nil {
@@ -636,7 +636,7 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(date, id)
 	if err != nil {
@@ -884,7 +884,7 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
 		if v == "" {
@@ -909,7 +909,7 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	ephemeralInt := 0
 	if ephemeral {

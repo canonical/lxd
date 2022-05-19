@@ -104,7 +104,7 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 		if err != nil {
 			return false
 		}
-		defer cmd.Wait()
+		defer func() { _ = cmd.Wait() }()
 
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
@@ -112,7 +112,7 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 
 			// Check for lines that indicate a rule being used.
 			if strings.HasPrefix(line, "-A") || strings.HasPrefix(line, "-R") || strings.HasPrefix(line, "-I") {
-				cmd.Process.Kill()
+				_ = cmd.Process.Kill()
 				return true
 			}
 		}
@@ -143,7 +143,7 @@ func (d Xtables) ebtablesInUse() bool {
 	if err != nil {
 		return false
 	}
-	defer cmd.Wait()
+	defer func() { _ = cmd.Wait() }()
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
@@ -929,7 +929,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
+	revert.Add(func() { _ = d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
 
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
@@ -1282,7 +1282,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		for scanner.Scan() {
 			tables = append(tables, scanner.Text())
 		}
-		file.Close()
+		_ = file.Close()
 	}
 
 	for _, fromTable := range fromTables {

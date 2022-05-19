@@ -48,7 +48,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		revert.Add(func() { os.Remove(vol.MountPath()) })
+		revert.Add(func() { _ = os.Remove(vol.MountPath()) })
 	}
 
 	// Look for previously deleted images.
@@ -132,7 +132,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// After this point we'll have a volume, so setup revert.
-	revert.Add(func() { d.DeleteVolume(vol, op) })
+	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 
 	if vol.contentType == ContentTypeFS {
 		// Create the filesystem dataset.
@@ -199,7 +199,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		revert.Add(func() { d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
 	}
 
 	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -311,11 +311,11 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		for _, snapName := range srcBackup.Snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
 			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
+			_ = d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
 		// And lastly the main volume.
-		d.DeleteVolume(vol, op)
+		_ = d.DeleteVolume(vol, op)
 	}
 
 	// Only execute the revert function if we have had an error internally.
@@ -470,7 +470,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if err != nil {
 				return nil, nil, err
 			}
-			revert.Add(func() { d.UnmountVolume(v, false, op) })
+			revert.Add(func() { _, _ = d.UnmountVolume(v, false, op) })
 
 			postHook = func(postVol Volume) error {
 				_, err := d.UnmountVolume(postVol, false, op)
@@ -498,7 +498,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			return err
 		}
 
-		revert.Add(func() { os.Remove(vol.MountPath()) })
+		revert.Add(func() { _ = os.Remove(vol.MountPath()) })
 	}
 
 	// For VMs, also copy the filesystem dataset.
@@ -513,7 +513,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 
 		// Delete on revert.
-		revert.Add(func() { d.DeleteVolume(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(fsVol, op) })
 	}
 
 	// Retrieve snapshots on the source.
@@ -543,11 +543,11 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// If zfs.clone_copy is disabled delete the snapshot at the end.
 		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 			// Delete the snapshot at the end.
-			defer shared.RunCommand("zfs", "destroy", srcSnapshot)
+			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 		} else {
 			// Delete the snapshot on revert.
 			revert.Add(func() {
-				shared.RunCommand("zfs", "destroy", srcSnapshot)
+				_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
 			})
 		}
 	}
@@ -678,7 +678,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 
 		// Delete on revert.
-		revert.Add(func() { d.DeleteVolume(vol, op) })
+		revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 	}
 
 	// Apply the properties.
@@ -1661,7 +1661,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { d.setDatasetProperties(dataset, "volmode=none") })
+			revert.Add(func() { _ = d.setDatasetProperties(dataset, "volmode=none") })
 
 			// Wait half a second to give udev a chance to kick in.
 			time.Sleep(500 * time.Millisecond)
@@ -1796,7 +1796,7 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	}
 
 	revert.Add(func() {
-		genericVFSRenameVolume(d, newVol, vol.name, op)
+		_ = genericVFSRenameVolume(d, newVol, vol.name, op)
 	})
 
 	// Rename the ZFS datasets.
@@ -1806,7 +1806,7 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	}
 
 	revert.Add(func() {
-		shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
+		_, _ = shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
 	})
 
 	// Ensure the volume has correct mountpoint settings.
@@ -1827,7 +1827,7 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 		revert.Add(func() {
 			newFsVol := NewVolume(d, d.name, newVol.volType, ContentTypeFS, newVol.name, newVol.config, newVol.poolConfig)
-			d.RenameVolume(newFsVol, vol.name, op)
+			_ = d.RenameVolume(newFsVol, vol.name, op)
 		})
 	}
 
@@ -2016,8 +2016,8 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 					finalParent = volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()]
 				}
 
-				defer shared.RunCommand("zfs", "destroy", finalParent)
-				defer shared.RunCommand("zfs", "destroy", srcSnapshot)
+				defer func() { _, _ = shared.RunCommand("zfs", "destroy", finalParent) }()
+				defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 			} else {
 				if volSrcArgs.Data == nil {
 					volSrcArgs.Data = map[ContentType]string{}
@@ -2025,7 +2025,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 				volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()] = srcSnapshot // Persist parent state for final sync.
 			}
 		} else {
-			defer shared.RunCommand("zfs", "destroy", srcSnapshot)
+			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 		}
 	}
 
@@ -2060,7 +2060,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		return "", nil, err
 	}
 	reverter.Add(func() {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	})
 
 	err = os.Chmod(tmpDir, 0100)
@@ -2075,7 +2075,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		return "", nil, err
 	}
 	reverter.Add(func() {
-		shared.RunCommand("zfs", "destroy", srcSnapshot)
+		_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
 	})
 	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
 
@@ -2159,8 +2159,8 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}
-		defer tmpFile.Close()
-		defer os.Remove(tmpFile.Name())
+		defer func() { _ = tmpFile.Close() }()
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 		// Write the subvolume to the file.
 		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
@@ -2226,7 +2226,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 	if err != nil {
 		return err
 	}
-	defer shared.RunCommand("zfs", "destroy", srcSnapshot)
+	defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 
 	// Dump the container to a file.
 	fileName := "container.bin"
@@ -2274,7 +2274,7 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 		return err
 	}
 
-	revert.Add(func() { d.DeleteVolumeSnapshot(vol, op) })
+	revert.Add(func() { _ = d.DeleteVolumeSnapshot(vol, op) })
 
 	// For VM images, create a filesystem volume too.
 	if vol.IsVMBlock() {
@@ -2284,7 +2284,7 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 			return err
 		}
 
-		revert.Add(func() { d.DeleteVolumeSnapshot(fsVol, op) })
+		revert.Add(func() { _ = d.DeleteVolumeSnapshot(fsVol, op) })
 	}
 
 	// All done.
@@ -2376,7 +2376,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if err != nil {
 			return err
 		}
-		revert.Add(func() { d.UnmountVolume(parentVol, false, op) })
+		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, op) })
 
 		parentDataset := d.dataset(parentVol, false)
 
@@ -2596,7 +2596,7 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	}
 
 	revert.Add(func() {
-		genericVFSRenameVolumeSnapshot(d, newVol, vol.name, op)
+		_ = genericVFSRenameVolumeSnapshot(d, newVol, vol.name, op)
 	})
 
 	// Rename the ZFS datasets.
@@ -2606,7 +2606,7 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	}
 
 	revert.Add(func() {
-		shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
+		_, _ = shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
 	})
 
 	// For VM images, create a filesystem volume too.
@@ -2619,7 +2619,7 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 
 		revert.Add(func() {
 			newFsVol := NewVolume(d, d.name, newVol.volType, ContentTypeFS, newVol.name, newVol.config, newVol.poolConfig)
-			d.RenameVolumeSnapshot(newFsVol, vol.name, op)
+			_ = d.RenameVolumeSnapshot(newFsVol, vol.name, op)
 		})
 	}
 

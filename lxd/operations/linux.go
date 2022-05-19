@@ -75,5 +75,5 @@ func (op *Operation) sendEvent(eventMessage any) {
 		return
 	}
 
-	op.events.Send(op.projectName, "operation", eventMessage)
+	_ = op.events.Send(op.projectName, "operation", eventMessage)
 }

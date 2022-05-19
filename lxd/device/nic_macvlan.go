@@ -167,7 +167,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	if shared.IsTrue(saveData["last_state.created"]) {
 		revert.Add(func() {
-			networkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
+			_ = networkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
 		})
 	}
 
@@ -201,7 +201,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {
@@ -271,12 +271,14 @@ func (d *nicMACVLAN) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicMACVLAN) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name":          "",
-		"last_state.hwaddr":  "",
-		"last_state.mtu":     "",
-		"last_state.created": "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name":          "",
+			"last_state.hwaddr":  "",
+			"last_state.mtu":     "",
+			"last_state.created": "",
+		})
+	}()
 
 	errs := []error{}
 	v := d.volatileGet()

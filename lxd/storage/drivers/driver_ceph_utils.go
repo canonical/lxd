@@ -1135,7 +1135,7 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 	go func() {
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	err = cmd.Start()
@@ -1190,7 +1190,7 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 	chCopyConn := make(chan error, 1)
 	go func() {
 		_, err = io.Copy(stdin, conn)
-		stdin.Close()
+		_ = stdin.Close()
 		chCopyConn <- err
 	}()
 

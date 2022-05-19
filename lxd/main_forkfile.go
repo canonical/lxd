@@ -138,7 +138,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	// Convert the rootfs FD number.
 	rootfsFD, err := strconv.Atoi(args[1])
@@ -166,7 +166,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 		<-sigs
 
 		// Prevent new connections.
-		listener.Close()
+		_ = listener.Close()
 
 		// Wait for connections to be gone and exit.
 		for {
@@ -188,7 +188,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		go func(conn net.Conn) {
-			defer conn.Close()
+			defer func() { _ = conn.Close() }()
 
 			// Setup connection counter.
 			for {
@@ -219,7 +219,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 			_ = server.Serve()
 
 			// Sync the filesystem.
-			unix.Syncfs(int(rootfsFD))
+			_ = unix.Syncfs(int(rootfsFD))
 		}(conn)
 	}
 }

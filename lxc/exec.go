@@ -151,7 +151,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		defer termios.Restore(stdinFd, oldttystate)
+		defer func() { _ = termios.Restore(stdinFd, oldttystate) }()
 	}
 
 	// Setup interactive console handler

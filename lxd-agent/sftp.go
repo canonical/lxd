@@ -49,7 +49,7 @@ func (r *sftpServe) Render(w http.ResponseWriter) error {
 
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	err = response.Upgrade(conn, "sftp")
 	if err != nil {

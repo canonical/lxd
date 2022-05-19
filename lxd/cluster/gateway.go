@@ -264,7 +264,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 				http.Error(w, "500 failed to get dqlite client", http.StatusInternalServerError)
 				return
 			}
-			defer client.Close()
+			defer func() { _ = client.Close() }()
 			ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
 			defer cancel()
 			leader, err := client.Leader(ctx)
@@ -286,7 +286,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 				http.Error(w, "500 no elected leader", http.StatusInternalServerError)
 				return
 			}
-			util.WriteJSON(w, map[string]string{"leader": leader}, nil)
+			_ = util.WriteJSON(w, map[string]string{"leader": leader}, nil)
 			return
 		}
 
@@ -312,7 +312,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 		err = response.Upgrade(conn, "dqlite")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			conn.Close()
+			_ = conn.Close()
 
 			return
 		}
@@ -417,7 +417,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 			return nil, fmt.Errorf("Failed to connect to unix listener: %w", err)
 		}
 
-		listener.Close()
+		_ = listener.Close()
 
 		go dqliteProxy("raft", g.stopCh, conn, goUnix)
 
@@ -455,7 +455,7 @@ func (g *Gateway) TransferLeadership() error {
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Try to find a voter that is also online.
 	servers, err := client.Cluster(context.Background())
@@ -510,12 +510,13 @@ func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 func (g *Gateway) Shutdown() error {
 	logger.Infof("Stop database gateway")
 
+	var err error
 	if g.server != nil {
 		if g.info.Role == db.RaftVoter {
 			g.Sync()
 		}
 
-		g.server.Close()
+		err = g.server.Close()
 		close(g.stopCh)
 
 		// Unset the memory dial, since Shutdown() is also called for
@@ -525,7 +526,7 @@ func (g *Gateway) Shutdown() error {
 		g.lock.Unlock()
 	}
 
-	return nil
+	return err
 }
 
 // Sync dumps the content of the database to disk. This is useful for
@@ -545,7 +546,7 @@ func (g *Gateway) Sync() {
 		logger.Warnf("Failed to get client: %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	files, err := client.Dump(context.Background(), "db.bin")
 	if err != nil {
@@ -618,15 +619,15 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 			leader, err := client.Leader(ctx)
 			if err != nil {
-				client.Close()
+				_ = client.Close()
 				return "", fmt.Errorf("Failed to get leader address: %w", err)
 			}
 
 			if leader != nil && leader.Address != "" {
-				client.Close()
+				_ = client.Close()
 				return leader.Address, nil
 			}
-			client.Close()
+			_ = client.Close()
 
 			select {
 			case <-ctx.Done():
@@ -755,7 +756,7 @@ func (g *Gateway) init(bootstrap bool) error {
 			return fmt.Errorf("Failed to autobind unix socket: %w", err)
 		}
 		g.bindAddress = listener.Addr().String()
-		listener.Close()
+		_ = listener.Close()
 
 		options := []dqlite.Option{
 			dqlite.WithBindAddress(g.bindAddress),
@@ -767,7 +768,10 @@ func (g *Gateway) init(bootstrap bool) error {
 			}
 			g.memoryDial = dqliteMemoryDial(g.bindAddress)
 			g.store.inMemory = client.NewInmemNodeStore()
-			g.store.Set(context.Background(), []client.NodeInfo{info.NodeInfo})
+			err = g.store.Set(context.Background(), []client.NodeInfo{info.NodeInfo})
+			if err != nil {
+				return fmt.Errorf("Failed setting node info in store: %w", err)
+			}
 		} else {
 			go runDqliteProxy(g.stopCh, g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
@@ -854,7 +858,7 @@ func (g *Gateway) isLeader() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Failed to get dqlite client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
 	defer cancel()
 	leader, err := client.Leader(ctx)
@@ -889,7 +893,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	servers, err := client.Cluster(context.Background())
 	if err != nil {
@@ -1003,7 +1007,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to HTTP endpoint %q: %w", addr, err)
 	}
-	revert.Add(func() { conn.Close() })
+	revert.Add(func() { _ = conn.Close() })
 
 	l := logger.AddContext(logger.Log, logger.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
 	l.Info("Dqlite connected outbound")
@@ -1130,30 +1134,30 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 	select {
 	case <-stopCh:
 		// Force closing, ignore errors.
-		remote.Close()
-		local.Close()
+		_ = remote.Close()
+		_ = local.Close()
 		<-remoteToLocal
 		<-localToRemote
 	case err := <-remoteToLocal:
 		if err != nil {
 			errs[0] = fmt.Errorf("remote -> local: %w", err)
 		}
-		local.(*net.UnixConn).CloseRead()
+		_ = local.(*net.UnixConn).CloseRead()
 		if err := <-localToRemote; err != nil {
 			errs[1] = fmt.Errorf("local -> remote: %w", err)
 		}
-		remote.Close()
-		local.Close()
+		_ = remote.Close()
+		_ = local.Close()
 	case err := <-localToRemote:
 		if err != nil {
 			errs[0] = fmt.Errorf("local -> remote: %w", err)
 		}
-		remoteTCP.CloseRead()
+		_ = remoteTCP.CloseRead()
 		if err := <-remoteToLocal; err != nil {
 			errs[1] = fmt.Errorf("remote -> local: %w", err)
 		}
-		local.Close()
-		remote.Close()
+		_ = local.Close()
+		_ = remote.Close()
 	}
 
 	if errs[0] != nil || errs[1] != nil {

@@ -191,7 +191,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		return err
 	}
 	if created {
-		revert.Add(func() { InterfaceRemove(hostName) })
+		revert.Add(func() { _ = InterfaceRemove(hostName) })
 	}
 
 	// Set the MTU.
@@ -324,7 +324,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	// Define a function which reverts everything.
 	revert.Add(func() {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+		_ = n.common.update(oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.

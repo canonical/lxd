@@ -120,7 +120,7 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) er
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		data, err := yaml.Marshal(&backup)
 		if err != nil {
@@ -132,7 +132,7 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) er
 			return err
 		}
 
-		return nil
+		return file.Close()
 	}
 
 	err = f(filepath.Join(mountPath, "backup.yaml"))

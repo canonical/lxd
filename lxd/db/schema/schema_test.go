@@ -21,10 +21,14 @@ func WriteTempFile(dir string, prefix string, content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	_, err = f.WriteString(content)
-	return f.Name(), err
+	if err != nil {
+		return "", err
+	}
+
+	return f.Name(), f.Close()
 }
 
 // Create a new Schema by specifying an explicit map from versions to Update
@@ -367,7 +371,7 @@ func TestSchema_File_Garbage(t *testing.T) {
 
 	path, err := WriteTempFile("", "lxd-db-schema-", "SELECT FROM baz")
 	require.NoError(t, err)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	schema.File(path)
 
@@ -390,7 +394,7 @@ func TestSchema_File(t *testing.T) {
 INSERT INTO test VALUES (2);
 `)
 	require.NoError(t, err)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	schema.File(path)
 
@@ -421,7 +425,7 @@ func TestSchema_File_Hook(t *testing.T) {
 	// non-existing table.
 	path, err := WriteTempFile("", "lxd-db-schema-", "INSERT INTO test VALUES (2)")
 	require.NoError(t, err)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	schema.File(path)
 

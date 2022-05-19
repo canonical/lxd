@@ -477,7 +477,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		// On function return, set the flag back on
 		defer func() {
 			args.Ephemeral = ephemeral
-			inst.Update(args, false)
+			_ = inst.Update(args, false)
 		}()
 	}
 
@@ -566,14 +566,14 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
 
-	revert.Add(func() { snap.Delete(true) })
+	revert.Add(func() { _ = snap.Delete(true) })
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot (mount source): %w", err)
 	}
-	defer pool.UnmountInstance(inst, d.op)
+	defer func() { _ = pool.UnmountInstance(inst, d.op) }()
 
 	// Attempt to update backup.yaml for instance.
 	err = inst.UpdateBackupFile()
@@ -598,7 +598,7 @@ func (d *common) updateProgress(progress string) {
 
 	if meta["container_progress"] != progress {
 		meta["container_progress"] = progress
-		d.op.UpdateMetadata(meta)
+		_ = d.op.UpdateMetadata(meta)
 	}
 }
 
@@ -859,7 +859,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	op := operationlock.Get(d.Project(), d.Name())
 	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
-		op.Wait()
+		_ = op.Wait()
 		op = nil
 	}
 

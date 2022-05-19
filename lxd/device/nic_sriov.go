@@ -218,18 +218,20 @@ func (d *nicSRIOV) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicSRIOV) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name":                "",
-		"last_state.hwaddr":        "",
-		"last_state.mtu":           "",
-		"last_state.created":       "",
-		"last_state.vf.parent":     "",
-		"last_state.vf.id":         "",
-		"last_state.vf.hwaddr":     "",
-		"last_state.vf.vlan":       "",
-		"last_state.vf.spoofcheck": "",
-		"last_state.pci.driver":    "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name":                "",
+			"last_state.hwaddr":        "",
+			"last_state.mtu":           "",
+			"last_state.created":       "",
+			"last_state.vf.parent":     "",
+			"last_state.vf.id":         "",
+			"last_state.vf.hwaddr":     "",
+			"last_state.vf.vlan":       "",
+			"last_state.vf.spoofcheck": "",
+			"last_state.pci.driver":    "",
+		})
+	}()
 
 	v := d.volatileGet()
 

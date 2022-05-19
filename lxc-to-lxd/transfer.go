@@ -25,15 +25,15 @@ func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 	}
 
 	if dataSocket != nil {
-		defer dataSocket.Close()
+		defer func() { _ = dataSocket.Close() }()
 	}
 
 	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, io.ReadCloser(dataSocket), nil, nil)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
 	}
 
@@ -108,11 +108,11 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 
 	conn, err := l.Accept()
 	if err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 		return nil, nil, nil, err
 	}
-	l.Close()
+	_ = l.Close()
 
 	return cmd, conn, stderr, nil
 }
@@ -122,7 +122,7 @@ func protoSendError(ws *websocket.Conn, err error) {
 
 	if err != nil {
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		ws.WriteMessage(websocket.CloseMessage, closeMsg)
-		ws.Close()
+		_ = ws.WriteMessage(websocket.CloseMessage, closeMsg)
+		_ = ws.Close()
 	}
 }

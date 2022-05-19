@@ -122,7 +122,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
-	defer conn.Close() // This ensures the go routine below is ended when this function ends.
+	defer func() { _ = conn.Close() }() // This ensures the go routine below is ended when this function ends.
 
 	listener, err := d.devlxdEvents.AddListener(c.ID(), conn, strings.Split(typeStr, ","))
 	if err != nil {
@@ -205,10 +205,10 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 				debugLogger = logger.Logger(logger.Log)
 			}
 
-			util.WriteJSON(w, resp.content, debugLogger)
+			_ = util.WriteJSON(w, resp.content, debugLogger)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
-			fmt.Fprint(w, resp.content.(string))
+			_, _ = fmt.Fprint(w, resp.content.(string))
 		}
 	}
 }

@@ -207,7 +207,7 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 			return
 		}
 
-		c.DeleteContainer(inst)
+		_ = c.DeleteContainer(inst)
 	}()
 
 	// Create the rest of the interfaces

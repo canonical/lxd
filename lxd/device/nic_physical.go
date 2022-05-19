@@ -108,7 +108,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 		if shared.IsTrue(saveData["last_state.created"]) {
 			revert.Add(func() {
-				networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
+				_ = networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
 			})
 		}
 
@@ -201,14 +201,16 @@ func (d *nicPhysical) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicPhysical) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"host_name":                "",
-		"last_state.hwaddr":        "",
-		"last_state.mtu":           "",
-		"last_state.created":       "",
-		"last_state.pci.slot.name": "",
-		"last_state.pci.driver":    "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"host_name":                "",
+			"last_state.hwaddr":        "",
+			"last_state.mtu":           "",
+			"last_state.created":       "",
+			"last_state.pci.slot.name": "",
+			"last_state.pci.driver":    "",
+		})
+	}()
 
 	v := d.volatileGet()
 

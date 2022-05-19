@@ -39,7 +39,7 @@ func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
-		daemon.Stop(context.Background(), unix.SIGQUIT)
+		assert.NoError(t, daemon.Stop(context.Background(), unix.SIGQUIT))
 		osCleanup()
 	}
 

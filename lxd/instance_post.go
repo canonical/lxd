@@ -633,7 +633,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		}
 
 		handler := func(newOp api.Operation) {
-			op.UpdateMetadata(newOp.Metadata)
+			_ = op.UpdateMetadata(newOp.Metadata)
 		}
 
 		_, err = copyOp.AddHandler(handler)

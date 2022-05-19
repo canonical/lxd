@@ -1189,7 +1189,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 		if err != nil {
 			return err
 		}
-		revert.Add(func() { storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol) })
+		revert.Add(func() { _ = storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol) })
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
@@ -1780,8 +1780,8 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer os.Remove(backupFile.Name())
-	revert.Add(func() { backupFile.Close() })
+	defer func() { _ = os.Remove(backupFile.Name()) }()
+	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(backupFile, data)
@@ -1790,7 +1790,10 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	}
 
 	// Detect squashfs compression and convert to tarball.
-	backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, 0)
+	if err != nil {
+		return response.InternalError(err)
+	}
 	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
 	if err != nil {
 		return response.InternalError(err)
@@ -1805,7 +1808,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		if err != nil {
 			return response.InternalError(err)
 		}
-		defer os.Remove(tarFile.Name())
+		defer func() { _ = os.Remove(tarFile.Name()) }()
 
 		// Decompress to tarFile temporary file.
 		err = archive.ExtractWithFds(decomArgs[0], decomArgs[1:], nil, nil, d.State().OS, tarFile)
@@ -1814,15 +1817,19 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		}
 
 		// We don't need the original squashfs file anymore.
-		backupFile.Close()
-		os.Remove(backupFile.Name())
+		_ = backupFile.Close()
+		_ = os.Remove(backupFile.Name())
 
 		// Replace the backup file handle with the handle to the tar file.
 		backupFile = tarFile
 	}
 
 	// Parse the backup information.
-	backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, 0)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	logger.Debug("Reading backup file info")
 	bInfo, err := backup.GetInfo(backupFile, d.State().OS, backupFile.Name())
 	if err != nil {
@@ -1881,7 +1888,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	runRevert := revert.Clone()
 
 	run := func(op *operations.Operation) error {
-		defer backupFile.Close()
+		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
 		pool, err := storagePools.LoadByName(d.State(), bInfo.Pool)

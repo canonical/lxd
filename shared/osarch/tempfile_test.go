@@ -13,11 +13,11 @@ func WriteTempFile(s suite.Suite, dir string, prefix string, content string) (st
 	if err != nil {
 		s.T().Errorf("Failed to create temporary file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	_, err = f.WriteString(content)
 	if err != nil {
 		s.T().Errorf("Failed to write string to temp file: %v", err)
 	}
-	return f.Name(), func() { os.Remove(f.Name()) }
+	return f.Name(), func() { _ = os.Remove(f.Name()) }
 }
