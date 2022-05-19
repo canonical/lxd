@@ -79,19 +79,19 @@ They will grow up to the limit you select but deleting instances or images will 
 LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images, instances and custom volumes.
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS  | CEPH
-:---                                        | :---      | :---  | :---  | :--- | :---
-Optimized image storage                     | no        | yes   | yes   | yes  | yes
-Optimized instance creation                 | no        | yes   | yes   | yes  | yes
-Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes
-Optimized image transfer                    | no        | yes   | no    | yes  | yes
-Optimized instance transfer                 | no        | yes   | no    | yes  | yes
-Copy on write                               | no        | yes   | yes   | yes  | yes
-Block based                                 | no        | no    | yes   | no   | yes
-Instant cloning                             | no        | yes   | yes   | yes  | yes
-Storage driver usable inside a container    | yes       | yes   | no    | no   | no
-Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes
-Storage quotas                              | yes(\*)   | yes   | yes   | yes  | yes
+Feature                                     | Directory | Btrfs | LVM   | ZFS  | CEPH | CEPHFS
+:---                                        | :---      | :---  | :---  | :--- | :--- | :---
+Optimized image storage                     | no        | yes   | yes   | yes  | yes  | n/a
+Optimized instance creation                 | no        | yes   | yes   | yes  | yes  | n/a
+Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes  | yes
+Optimized image transfer                    | no        | yes   | no    | yes  | yes  | n/a
+Optimized instance transfer                 | no        | yes   | no    | yes  | yes  | n/a
+Copy on write                               | no        | yes   | yes   | yes  | yes  | yes
+Block based                                 | no        | no    | yes   | no   | yes  | no
+Instant cloning                             | no        | yes   | yes   | yes  | yes  | yes
+Storage driver usable inside a container    | yes       | yes   | no    | no   | no   | n/a
+Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes  | yes
+Storage quotas                              | yes(\*)   | yes   | yes   | yes  | yes  | yes
 
 ### Recommended setup
 The two best options for use with LXD are ZFS and btrfs.
