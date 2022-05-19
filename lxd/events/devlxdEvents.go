@@ -56,7 +56,7 @@ func (s *DevLXDServer) AddListener(instanceID int, connection EventListenerConne
 
 	s.listeners[listener.id] = listener
 
-	go listener.heartbeat()
+	go listener.start()
 
 	return listener, nil
 }
