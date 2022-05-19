@@ -96,7 +96,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection Ev
 
 	s.listeners[listener.id] = listener
 
-	go listener.heartbeat()
+	go listener.start()
 
 	return listener, nil
 }

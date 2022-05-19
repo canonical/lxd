@@ -31,7 +31,7 @@ type listenerCommon struct {
 	recvFunc     EventHandler
 }
 
-func (e *listenerCommon) heartbeat() {
+func (e *listenerCommon) start() {
 	logger.Debug("Event listener server handler started", logger.Ctx{"id": e.id, "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
 	e.Reader(e.ctx, e.recvFunc)
