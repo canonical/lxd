@@ -6,6 +6,8 @@ package main
  */
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -40,7 +42,40 @@ var devLxdTransport = &http.Transport{
 	Dial: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
 }
 
-func devlxdMonitor(c http.Client) {
+func devlxdMonitorStream() {
+	client := http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", "/dev/lxd/sock")
+			},
+		},
+	}
+
+	resp, err := client.Get("http://unix/1.0/events")
+	if err != nil {
+		panic(err)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+
+	for scanner.Scan() {
+		message := make(map[string]any)
+		err = json.Unmarshal(scanner.Bytes(), &message)
+		if err != nil {
+			return
+		}
+		message["timestamp"] = nil
+
+		msg, err := yaml.Marshal(&message)
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("%s\n", msg)
+	}
+}
+
+func devlxdMonitorWebsocket(c http.Client) {
 	dialer := websocket.Dialer{
 		NetDial:          devLxdTransport.Dial,
 		HandshakeTimeout: time.Second * 5,
@@ -103,8 +138,13 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
-		if os.Args[1] == "monitor" {
-			devlxdMonitor(c)
+		if os.Args[1] == "monitor-websocket" {
+			devlxdMonitorWebsocket(c)
+			os.Exit(0)
+		}
+
+		if os.Args[1] == "monitor-stream" {
+			devlxdMonitorStream()
 			os.Exit(0)
 		}
 
