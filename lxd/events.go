@@ -146,7 +146,9 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 	}
 
-	listener, err := d.events.AddListener(projectName, allProjects, c, types, excludeSources, recvFunc, excludeLocations)
+	listenerConnection := events.NewWebsocketListenerConnection(c)
+
+	listener, err := d.events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
 		return err
 	}
