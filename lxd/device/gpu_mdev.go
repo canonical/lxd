@@ -180,11 +180,13 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *gpuMdev) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"last_state.pci.slot.name": "",
-		"last_state.pci.driver":    "",
-		"vgpu.uuid":                "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"last_state.pci.slot.name": "",
+			"last_state.pci.driver":    "",
+			"vgpu.uuid":                "",
+		})
+	}()
 
 	v := d.volatileGet()
 

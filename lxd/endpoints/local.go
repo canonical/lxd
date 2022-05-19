@@ -25,7 +25,7 @@ func localCreateListener(path string, group string) (net.Listener, error) {
 
 	err = localSetAccess(path, group)
 	if err != nil {
-		listener.Close()
+		_ = listener.Close()
 		return nil, err
 	}
 

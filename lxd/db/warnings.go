@@ -177,7 +177,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(status, time.Now(), UUID)
 	if err != nil {
@@ -194,7 +194,7 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status Warni
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	now := time.Now()
 

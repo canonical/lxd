@@ -466,7 +466,7 @@ func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 
 func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, maxArgs int) (bool, error) {
 	if len(args) < minArgs || (maxArgs != -1 && len(args) > maxArgs) {
-		cmd.Help()
+		_ = cmd.Help()
 
 		if len(args) == 0 {
 			return true, nil

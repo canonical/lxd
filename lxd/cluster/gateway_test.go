@@ -28,7 +28,7 @@ func TestGateway_Single(t *testing.T) {
 
 	cert := shared.TestingKeyPair()
 	gateway := newGateway(t, node, cert, cert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
@@ -87,7 +87,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	setRaftRole(t, node, address)
 
 	gateway := newGateway(t, node, cert, cert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
@@ -128,7 +128,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	setRaftRole(t, node, address)
 
 	gateway := newGateway(t, node, cert, cert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
@@ -168,7 +168,7 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	setRaftRole(t, node, address)
 
 	gateway := newGateway(t, node, cert, cert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	nodes, err := gateway.RaftNodes()
 	require.NoError(t, err)

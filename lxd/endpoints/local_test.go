@@ -31,11 +31,11 @@ func TestEndpoints_LocalCreateUnixSocket(t *testing.T) {
 // Endpoints' unix socket.
 func TestEndpoints_LocalSocketBasedActivation(t *testing.T) {
 	listener := newUnixListener(t)
-	defer listener.Close() // This will also remove the underlying file
+	defer func() { _ = listener.Close() }() // This will also remove the underlying file
 
 	file, err := listener.File()
 	require.NoError(t, err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	endpoints, config, cleanup := newEndpoints(t)
 	defer cleanup()
@@ -96,8 +96,9 @@ func newUnixListener(t *testing.T) *net.UnixListener {
 	require.NoError(t, err)
 
 	path := file.Name()
-	file.Close()
-	os.Remove(path)
+	require.NoError(t, file.Close())
+	err = os.Remove(path)
+	require.NoError(t, err)
 
 	addr, err := net.ResolveUnixAddr("unix", path)
 	require.NoError(t, err)

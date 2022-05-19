@@ -183,7 +183,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 
 	// Create the devices directory if missing.
 	if !shared.PathExists(devicesPath) {
-		os.Mkdir(devicesPath, 0711)
+		err := os.Mkdir(devicesPath, 0711)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create devices path: %s", err)
 		}
@@ -229,7 +229,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			return nil, err
 		}
-		f.Close()
+		_ = f.Close()
 
 		err = DiskMount(srcPath, devPath, false, false, "", nil, "none")
 		if err != nil {
@@ -498,7 +498,7 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 
 			// Remove the host side mount.
 			if s.OS.RunningInUserNS {
-				unix.Unmount(devPath, unix.MNT_DETACH)
+				_ = unix.Unmount(devPath, unix.MNT_DETACH)
 			}
 
 			// Remove the host side device file.

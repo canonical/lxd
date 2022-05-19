@@ -51,7 +51,7 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 			return nil, err
 		}
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return nil, err

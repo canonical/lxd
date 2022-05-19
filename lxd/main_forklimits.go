@@ -40,7 +40,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 	args := c.global.rawArgs(cmd)
 
 	if len(args) == 0 {
-		cmd.Help()
+		_ = cmd.Help()
 		return nil
 	}
 
@@ -71,7 +71,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			fdParts := strings.SplitN(arg, "=", 2)
 			fdNum, err := strconv.Atoi(fdParts[1])
 			if err != nil {
-				cmd.Help()
+				_ = cmd.Help()
 				return fmt.Errorf("Invalid file descriptor number")
 			}
 			fds = append(fds, uintptr(fdNum))
@@ -81,7 +81,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			}
 			break // No more passing of arguments needed.
 		} else {
-			cmd.Help()
+			_ = cmd.Help()
 			return fmt.Errorf("Unrecognised argument")
 		}
 	}
@@ -124,7 +124,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 	}
 
 	if len(cmdParts) == 0 {
-		cmd.Help()
+		_ = cmd.Help()
 		return fmt.Errorf("Missing required command argument")
 	}
 

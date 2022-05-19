@@ -79,7 +79,7 @@ func newServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		util.WriteJSON(w, api.ResponseRaw{}, nil)
+		_ = util.WriteJSON(w, api.ResponseRaw{}, nil)
 	})
 	return &http.Server{Handler: mux, ErrorLog: log.New(ioutil.Discard, "", 0)}
 }
@@ -87,8 +87,8 @@ func newServer() *http.Server {
 // Set the environment-variable for socket-based activation using the given
 // file.
 func setupSocketBasedActivation(endpoints *endpoints.Endpoints, file *os.File) {
-	os.Setenv("LISTEN_PID", strconv.Itoa(os.Getpid()))
-	os.Setenv("LISTEN_FDS", "1")
+	_ = os.Setenv("LISTEN_PID", strconv.Itoa(os.Getpid()))
+	_ = os.Setenv("LISTEN_FDS", "1")
 	endpoints.SystemdListenFDsStart(int(file.Fd()))
 }
 

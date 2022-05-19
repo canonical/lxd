@@ -98,8 +98,8 @@ func (s *Server) stop() error {
 	}
 
 	// Stop the listener.
-	s.tcpDNS.Shutdown()
-	s.udpDNS.Shutdown()
+	_ = s.tcpDNS.Shutdown()
+	_ = s.udpDNS.Shutdown()
 
 	// Unset the address.
 	s.address = ""
@@ -132,7 +132,7 @@ func (s *Server) reconfigure(address string) error {
 	// Check if we should start.
 	if address != "" {
 		// Restore old address on failure.
-		revert.Add(func() { s.start(oldAddress) })
+		revert.Add(func() { _ = s.start(oldAddress) })
 
 		// Start the listener with the new address.
 		err = s.start(address)

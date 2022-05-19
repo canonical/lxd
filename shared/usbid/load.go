@@ -37,7 +37,7 @@ func Load() {
 		}
 		return
 	}
-	defer usbids.Close()
+	defer func() { _ = usbids.Close() }()
 
 	ids, cls, err := ParseIDs(usbids)
 	if err != nil {

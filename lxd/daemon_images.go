@@ -261,8 +261,8 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	failure := true
 	cleanup := func() {
 		if failure {
-			os.Remove(destName)
-			os.Remove(destName + ".rootfs")
+			_ = os.Remove(destName)
+			_ = os.Remove(destName + ".rootfs")
 		}
 	}
 	defer cleanup()
@@ -280,7 +280,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 		if meta["download_progress"] != progress.Text {
 			meta["download_progress"] = progress.Text
-			op.UpdateMetadata(meta)
+			_ = op.UpdateMetadata(meta)
 		}
 	}
 
@@ -296,13 +296,13 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			return nil, err
 		}
-		defer dest.Close()
+		defer func() { _ = dest.Close() }()
 
 		destRootfs, err := os.Create(destName + ".rootfs")
 		if err != nil {
 			return nil, err
 		}
-		defer destRootfs.Close()
+		defer func() { _ = destRootfs.Close() }()
 
 		// Get the image information
 		if info == nil {
@@ -377,6 +377,16 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 				return nil, err
 			}
 		}
+
+		err = dest.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		err = destRootfs.Close()
+		if err != nil {
+			return nil, err
+		}
 	} else if protocol == "direct" {
 		// Setup HTTP client
 		httpClient, err := util.HTTPClient(args.Certificate, d.proxy)
@@ -418,7 +428,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		// Hashing
 		sha256 := sha256.New()
@@ -450,6 +460,11 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
 		info.Type = imageType
+
+		err = f.Close()
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
 	}

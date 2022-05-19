@@ -83,7 +83,7 @@ func parseMountinfo(name string) int {
 	if err != nil {
 		return -1
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -142,7 +142,7 @@ func SyncFS(path string) error {
 	if err != nil {
 		return err
 	}
-	defer fsFile.Close()
+	defer func() { _ = fsFile.Close() }()
 
 	// Call SyncFS.
 	return unix.Syncfs(int(fsFile.Fd()))

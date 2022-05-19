@@ -212,7 +212,7 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 			return nil, err
 		}
 	case <-time.After(5 * time.Second):
-		qmpConn.Disconnect()
+		_ = qmpConn.Disconnect()
 		return nil, fmt.Errorf("QMP connection timed out")
 	}
 
@@ -253,7 +253,7 @@ func (m *Monitor) Disconnect() {
 	if !m.disconnected {
 		close(m.chDisconnect)
 		m.disconnected = true
-		m.qmp.Disconnect()
+		_ = m.qmp.Disconnect()
 	}
 
 	// Remove from the map.

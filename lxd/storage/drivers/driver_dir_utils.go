@@ -14,7 +14,7 @@ func (d *dir) withoutGetVolID() Driver {
 	newDriver := &dir{}
 	getVolID := func(volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
 	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.commonRules)
-	newDriver.load()
+	_ = newDriver.load()
 
 	return newDriver
 }
@@ -38,7 +38,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	defer revert.Fail()
 
 	// Define a function to revert the quota being setup.
-	revertFunc := func() { d.deleteQuota(volPath, volID) }
+	revertFunc := func() { _ = d.deleteQuota(volPath, volID) }
 	revert.Add(revertFunc)
 
 	// Initialise the volume's project using the volume ID and set the quota.

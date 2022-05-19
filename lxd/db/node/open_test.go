@@ -15,7 +15,7 @@ func TestOpen(t *testing.T) {
 	defer cleanup()
 
 	db, err := node.Open(dir)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	require.NoError(t, err)
 }
 
@@ -27,7 +27,7 @@ func TestEnsureSchema(t *testing.T) {
 
 	db, err := node.Open(dir)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	initial, err := node.EnsureSchema(db, dir)
 	require.NoError(t, err)

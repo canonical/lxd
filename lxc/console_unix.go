@@ -28,7 +28,7 @@ func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	}
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	control.WriteMessage(websocket.CloseMessage, closeMsg)
+	_ = control.WriteMessage(websocket.CloseMessage, closeMsg)
 }
 
 func (c *cmdConsole) findCommand(name string) string {

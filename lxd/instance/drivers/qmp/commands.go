@@ -327,7 +327,7 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 				"node-name": blockDev["devName"],
 			}
 
-			m.run("blockdev-del", blockDevDel, nil)
+			_ = m.run("blockdev-del", blockDevDel, nil)
 		})
 	}
 

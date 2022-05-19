@@ -58,7 +58,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	c, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, driver.WithDialFunc(dial))
 	require.NoError(t, err)
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	// certificates
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {

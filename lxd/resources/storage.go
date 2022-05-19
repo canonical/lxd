@@ -24,7 +24,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 	// Attempt to open the device path
 	f, err := os.Open(devicePath)
 	if err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		// Retrieve the block size
 		// This can't just be done with unix.Ioctl as that particular
@@ -47,7 +47,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 		if err != nil {
 			return fmt.Errorf("Failed to open %q: %w", udevInfo, err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		udevProperties := map[string]string{}
 		udevInfo := bufio.NewScanner(f)

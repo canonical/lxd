@@ -136,7 +136,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("Failed to get %s", url)
@@ -157,7 +157,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 
 	// Set an initial value from the cache
 	if instanceTypes == nil {
-		instanceLoadCache()
+		_ = instanceLoadCache()
 	}
 
 	// Get the list of instance type sources

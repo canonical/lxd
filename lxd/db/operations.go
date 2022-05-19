@@ -66,7 +66,7 @@ WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type =
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var op Operation

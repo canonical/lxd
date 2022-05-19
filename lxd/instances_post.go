@@ -615,8 +615,8 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer os.Remove(backupFile.Name())
-	revert.Add(func() { backupFile.Close() })
+	defer func() { _ = os.Remove(backupFile.Name()) }()
+	revert.Add(func() { _ = backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(backupFile, data)
@@ -625,7 +625,11 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	}
 
 	// Detect squashfs compression and convert to tarball.
-	backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, 0)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
 	if err != nil {
 		return response.InternalError(err)
@@ -640,7 +644,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		if err != nil {
 			return response.InternalError(err)
 		}
-		defer os.Remove(tarFile.Name())
+		defer func() { _ = os.Remove(tarFile.Name()) }()
 
 		// Decompress to tarFile temporary file.
 		err = archive.ExtractWithFds(decomArgs[0], decomArgs[1:], nil, nil, d.State().OS, tarFile)
@@ -649,15 +653,19 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		}
 
 		// We don't need the original squashfs file anymore.
-		backupFile.Close()
-		os.Remove(backupFile.Name())
+		_ = backupFile.Close()
+		_ = os.Remove(backupFile.Name())
 
 		// Replace the backup file handle with the handle to the tar file.
 		backupFile = tarFile
 	}
 
 	// Parse the backup information.
-	backupFile.Seek(0, 0)
+	_, err = backupFile.Seek(0, 0)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	logger.Debug("Reading backup file info")
 	bInfo, err := backup.GetInfo(backupFile, d.State().OS, backupFile.Name())
 	if err != nil {
@@ -716,7 +724,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	runRevert := revert.Clone()
 
 	run := func(op *operations.Operation) error {
-		defer backupFile.Close()
+		defer func() { _ = backupFile.Close() }()
 		defer runRevert.Fail()
 
 		pool, err := storagePools.LoadByName(d.State(), bInfo.Pool)
@@ -751,7 +759,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		}
 
 		// Clean up created instance if the post hook fails below.
-		runRevert.Add(func() { inst.Delete(true) })
+		runRevert.Add(func() { _ = inst.Delete(true) })
 
 		// Run the storage post hook to perform any final actions now that the instance has been created
 		// in the database (this normally includes unmounting volumes that were mounted).

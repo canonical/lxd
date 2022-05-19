@@ -61,7 +61,7 @@ func proxyConnection(conn *net.UnixConn) {
 	}()
 
 	// Close on exit.
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Get credentials.
 	creds, err := ucred.GetCred(conn)
@@ -102,7 +102,7 @@ func proxyConnection(conn *net.UnixConn) {
 		log.Errorf("Unable to connect to target server: %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Get the TLS configuration
 	tlsConfig, err := tlsConfig(creds.Uid)
@@ -123,12 +123,12 @@ func proxyConnection(conn *net.UnixConn) {
 	// Establish the TLS handshake.
 	err = tlsClient.Handshake()
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		log.Errorf("Failed TLS handshake with target server: %v", err)
 		return
 	}
 
 	// Start proxying.
-	go io.Copy(conn, tlsClient)
-	io.Copy(tlsClient, conn)
+	go func() { _, _ = io.Copy(conn, tlsClient) }()
+	_, _ = io.Copy(tlsClient, conn)
 }

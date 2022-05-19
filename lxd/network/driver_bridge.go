@@ -610,7 +610,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { ovs.BridgeDelete(n.name) })
+			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
 		} else {
 
 			bridge := &ip.Bridge{
@@ -620,7 +620,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { bridge.Delete() })
+			revert.Add(func() { _ = bridge.Delete() })
 		}
 	}
 
@@ -682,10 +682,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 		err = dummy.Add()
 		if err == nil {
-			revert.Add(func() { dummy.Delete() })
+			revert.Add(func() { _ = dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
-				AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				_ = AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
 		}
 	}
@@ -1288,7 +1288,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			// Fails if the map is already set.
-			tunLink.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
+			_ = tunLink.Change("ipip", fmt.Sprintf("%s:%s", overlay, underlay))
 
 			r = &ip.Route{
 				DevName: "tunl0",
@@ -1614,7 +1614,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
-			f.Close()
+			_ = f.Close()
 
 			err = n.spawnForkDNS(dnsClusteredAddress)
 			if err != nil {
@@ -1798,10 +1798,10 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 		// Define a function which reverts everything.
 		revert.Add(func() {
 			// Reset changes to all nodes and database.
-			n.common.update(oldNetwork, targetNode, clientType)
+			_ = n.common.update(oldNetwork, targetNode, clientType)
 
 			// Reset any change that was made to local bridge.
-			n.setup(newNetwork.Config)
+			_ = n.setup(newNetwork.Config)
 		})
 
 		// Bring the bridge down entirely if the driver has changed.
@@ -2164,7 +2164,7 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 	if err != nil {
 		return err
 	}
-	defer tmpFile.Close()
+	defer func() { _ = tmpFile.Close() }()
 
 	for _, address := range addresses {
 		_, err := tmpFile.WriteString(address + "\n")
@@ -2173,7 +2173,10 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 		}
 	}
 
-	tmpFile.Close()
+	err = tmpFile.Close()
+	if err != nil {
+		return err
+	}
 
 	// Atomically rename finished file into permanent location so forkdns can pick it up.
 	err = os.Rename(tmpName, permName)
@@ -2579,9 +2582,9 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	}
 
 	revert.Add(func() {
-		n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+		_ = n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		_ = n.forwardSetupFirewall()
+		_ = n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()
@@ -2721,9 +2724,9 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	}
 
 	revert.Add(func() {
-		n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+		_ = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
+		_ = n.forwardSetupFirewall()
+		_ = n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()
@@ -2756,9 +2759,9 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 			NetworkForwardPut: forward.NetworkForwardPut,
 			ListenAddress:     forward.ListenAddress,
 		}
-		n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+		_, _ = n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
+		_ = n.forwardSetupFirewall()
+		_ = n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()

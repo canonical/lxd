@@ -35,7 +35,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 		unix.SIGCONT)
 
 	closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	defer control.WriteMessage(websocket.CloseMessage, closeMsg)
+	defer func() { _ = control.WriteMessage(websocket.CloseMessage, closeMsg) }()
 
 	for {
 		sig := <-ch
@@ -63,7 +63,7 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 		case unix.SIGHUP:
 			file, err := os.OpenFile("/dev/tty", os.O_RDONLY|unix.O_NOCTTY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0666)
 			if err == nil {
-				file.Close()
+				_ = file.Close()
 				err = c.forwardSignal(control, unix.SIGHUP)
 			} else {
 				err = c.forwardSignal(control, unix.SIGTERM)

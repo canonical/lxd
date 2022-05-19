@@ -156,7 +156,7 @@ func getCPUdmi() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	// Decode SMBIOS structures.
 	d := smbios.NewDecoder(stream)
@@ -200,7 +200,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open /proc/cpuinfo: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	cpuInfo := bufio.NewScanner(f)
 
 	// List all the CPUs

@@ -447,7 +447,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
-	revert.Add(func() { d.db.Cluster.DeleteNetwork(projectName, req.Name) })
+	revert.Add(func() { _ = d.db.Cluster.DeleteNetwork(projectName, req.Name) })
 
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
@@ -665,7 +665,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 		return err
 	}
 
-	revert.Add(func() { n.Delete(clientType) })
+	revert.Add(func() { _ = n.Delete(clientType) })
 
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
@@ -1412,7 +1412,7 @@ func networkStartup(s *state.State) error {
 		err = n.Start()
 		if err != nil {
 			err = fmt.Errorf("Failed starting: %w", err)
-			s.DB.Cluster.UpsertWarningLocalNode(n.Project(), dbCluster.TypeNetwork, int(n.ID()), db.WarningNetworkUnvailable, err.Error())
+			_ = s.DB.Cluster.UpsertWarningLocalNode(n.Project(), dbCluster.TypeNetwork, int(n.ID()), db.WarningNetworkUnvailable, err.Error())
 
 			return err
 		}
@@ -1427,7 +1427,7 @@ func networkStartup(s *state.State) error {
 
 		delete(initNetworks, pn)
 
-		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), db.WarningNetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
+		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), db.WarningNetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
 
 		return nil
 	}
@@ -1553,7 +1553,7 @@ func networkStartup(s *state.State) error {
 	return nil
 }
 
-func networkShutdown(s *state.State) error {
+func networkShutdown(s *state.State) {
 	var err error
 
 	// Get a list of projects.
@@ -1564,21 +1564,24 @@ func networkShutdown(s *state.State) error {
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to load projects: %w", err)
+		logger.Error("Failed shutting down networks, couldn't load projects", logger.Ctx{"err": err})
+		return
 	}
 
 	for _, projectName := range projectNames {
 		// Get a list of managed networks.
 		networks, err := s.DB.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+			logger.Error("Failed shutting down networks, couldn't load networks for project", logger.Ctx{"project": projectName, "err": err})
+			continue
 		}
 
 		// Bring them all down.
 		for _, name := range networks {
 			n, err := network.LoadByName(s, projectName, name)
 			if err != nil {
-				return fmt.Errorf("Failed to load network %q in project %q: %w", name, projectName, err)
+				logger.Error("Failed shutting down network, couldn't load network", logger.Ctx{"network": name, "project": projectName, "err": err})
+				continue
 			}
 
 			err = n.Stop()
@@ -1587,8 +1590,6 @@ func networkShutdown(s *state.State) error {
 			}
 		}
 	}
-
-	return nil
 }
 
 // networkRestartOVN is used to trigger a restart of all OVN networks.

@@ -138,7 +138,7 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 			cpu := ""
 
 			if dev != "cpu" {
-				fmt.Sscanf(dev, "cpu%s", &cpu)
+				_, _ = fmt.Sscanf(dev, "cpu%s", &cpu)
 			}
 
 			if cpu != "" {

@@ -63,7 +63,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Insert backup info into database: %w", err)
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteInstanceBackup(args.Name) })
+	revert.Add(func() { _ = s.DB.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
@@ -110,7 +110,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 			return err
 		}
 
-		revert.Add(func() { os.Remove(backupsPath) })
+		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
 	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), b.Name()))
@@ -121,8 +121,8 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
-	defer tarFileWriter.Close()
-	revert.Add(func() { os.Remove(target) })
+	defer func() { _ = tarFileWriter.Close() }()
+	revert.Add(func() { _ = os.Remove(target) })
 
 	// Get IDMap to unshift container as the tarball is created.
 	var idmap *idmap.IdmapSet
@@ -136,7 +136,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 	// Create the tarball.
 	tarPipeReader, tarPipeWriter := io.Pipe()
-	defer tarPipeWriter.Close() // Ensure that go routine below always ends.
+	defer func() { _ = tarPipeWriter.Close() }() // Ensure that go routine below always ends.
 	tarWriter := instancewriter.NewInstanceTarWriter(tarPipeWriter, idmap)
 
 	// Setup tar writer go routine, with optional compression.
@@ -153,7 +153,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 				progressText := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(value, 2), units.GetByteSizeString(speed, 2))
 				meta["create_backup_progress"] = progressText
-				op.UpdateMetadata(meta)
+				_ = op.UpdateMetadata(meta)
 			},
 		},
 	}
@@ -167,7 +167,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
-				tarPipeWriter.Close()
+				_ = tarPipeWriter.Close()
 			}
 		} else {
 			backupProgressWriter.WriteCloser = tarFileWriter
@@ -210,6 +210,11 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	err = <-tarWriterRes
 	if err != nil {
 		return fmt.Errorf("Error writing tarball: %w", err)
+	}
+
+	err = tarFileWriter.Close()
+	if err != nil {
+		return fmt.Errorf("Error closing tar file: %w", err)
 	}
 
 	revert.Success()
@@ -365,7 +370,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed creating backup record: %w", err)
 	}
 
-	revert.Add(func() { s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
+	revert.Add(func() { _ = s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
 
 	backupRow, err := s.DB.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
 	if err != nil {
@@ -394,7 +399,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 			return err
 		}
 
-		revert.Add(func() { os.Remove(backupsPath) })
+		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
 	target := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
@@ -405,12 +410,12 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
-	defer tarFileWriter.Close()
-	revert.Add(func() { os.Remove(target) })
+	defer func() { _ = tarFileWriter.Close() }()
+	revert.Add(func() { _ = os.Remove(target) })
 
 	// Create the tarball.
 	tarPipeReader, tarPipeWriter := io.Pipe()
-	defer tarPipeWriter.Close() // Ensure that go routine below always ends.
+	defer func() { _ = tarPipeWriter.Close() }() // Ensure that go routine below always ends.
 	tarWriter := instancewriter.NewInstanceTarWriter(tarPipeWriter, nil)
 
 	// Setup tar writer go routine, with optional compression.
@@ -425,7 +430,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
-				tarPipeWriter.Close()
+				_ = tarPipeWriter.Close()
 			}
 		} else {
 			_, err = io.Copy(tarFileWriter, tarPipeReader)
@@ -467,6 +472,11 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	err = <-tarWriterRes
 	if err != nil {
 		return fmt.Errorf("Error writing tarball: %w", err)
+	}
+
+	err = tarFileWriter.Close()
+	if err != nil {
+		return fmt.Errorf("Error closing tar file: %w", err)
 	}
 
 	revert.Success()

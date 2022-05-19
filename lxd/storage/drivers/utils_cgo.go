@@ -335,7 +335,7 @@ func releaseLoopDev(source string) error {
 
 	// Prepare a Go file and defer close on the loop device.
 	fd := os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev)))
-	defer fd.Close()
+	defer func() { _ = fd.Close() }()
 
 	if loopFd >= 0 {
 		_, err := C.free_loop_device(C.int(loopFd))

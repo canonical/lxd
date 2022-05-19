@@ -392,7 +392,7 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 	return instances, nil
 }
 
-func instancesShutdown(s *state.State, instances []instance.Instance) error {
+func instancesShutdown(s *state.State, instances []instance.Instance) {
 	var wg sync.WaitGroup
 
 	sort.Sort(instanceStopList(instances))
@@ -438,7 +438,7 @@ func instancesShutdown(s *state.State, instances []instance.Instance) error {
 					// If DB was available then the instance shutdown process will have set
 					// the last power state to STOPPED, so set that back to RUNNING so that
 					// when LXD restarts the instance will be started again.
-					inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
+					_ = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 				}
 
 				wg.Done()
@@ -446,6 +446,4 @@ func instancesShutdown(s *state.State, instances []instance.Instance) error {
 		}
 	}
 	wg.Wait()
-
-	return nil
 }

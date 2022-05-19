@@ -21,7 +21,7 @@ func SelectConfig(tx *sql.Tx, table string, where string, args ...any) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	values := map[string]string{}
 	for rows.Next() {

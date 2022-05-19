@@ -89,8 +89,15 @@ func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername 
 	r.ctx, r.ctxCancel = context.WithCancel(context.Background())
 
 	var keyPair bakery.KeyPair
-	keyPair.Private.UnmarshalText([]byte(agentPrivateKey))
-	keyPair.Public.UnmarshalText([]byte(agentPublicKey))
+	err := keyPair.Private.UnmarshalText([]byte(agentPrivateKey))
+	if err != nil {
+		return nil, err
+	}
+
+	err = keyPair.Public.UnmarshalText([]byte(agentPublicKey))
+	if err != nil {
+		return nil, err
+	}
 
 	r.client = httpbakery.NewClient()
 	authInfo := agent.AuthInfo{
@@ -103,7 +110,7 @@ func NewServer(apiURL string, apiKey string, agentAuthURL string, agentUsername 
 		},
 	}
 
-	err := agent.SetUpAuth(r.client, &authInfo)
+	err = agent.SetUpAuth(r.client, &authInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -164,20 +171,20 @@ func (r *Server) StartStatusCheck() {
 
 			if resp.StatusCode == 504 {
 				// 504 indicates the server timed out the background connection, just re-connect.
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				continue
 			}
 
 			if resp.StatusCode != 200 {
 				// For other errors we assume a server restart and give it a few seconds.
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				logger.Debugf("RBAC server disconnected, re-connecting. (code=%v)", resp.StatusCode)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 
 			err = json.NewDecoder(resp.Body).Decode(&status)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if err != nil {
 				logger.Errorf("Failed to parse RBAC response, re-trying: %v", err)
 				time.Sleep(5 * time.Second)
@@ -291,7 +298,7 @@ func (r *Server) UserAccess(username string) (*UserAccess, error) {
 	_, cached := r.permissions[username]
 
 	if !cached {
-		r.syncPermissions(username)
+		_ = r.syncPermissions(username)
 	}
 
 	// Checked if the user exists.
@@ -365,7 +372,7 @@ func (r *Server) syncAdmin(username string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var permissions map[string][]string
 
@@ -397,7 +404,7 @@ func (r *Server) syncPermissions(username string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var permissions map[string][]string
 
@@ -459,7 +466,7 @@ func (r *Server) postResources(updates []rbacResource, removals []string, force 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
 	if resp.StatusCode == 409 {

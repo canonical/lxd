@@ -84,7 +84,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			if len(r.eventListeners[listener.projectName]) == 0 {
 				// We don't need the connection anymore, disconnect and clear.
 				if r.eventListeners[listener.projectName] != nil {
-					r.eventConns[listener.projectName].Close()
+					_ = r.eventConns[listener.projectName].Close()
 					delete(r.eventConns, listener.projectName)
 				}
 
@@ -187,6 +187,6 @@ func (r *ProtocolLXD) SendEvent(event api.Event) error {
 		deadline = time.Now().Add(5 * time.Second)
 	}
 
-	eventConn.SetWriteDeadline(deadline)
+	_ = eventConn.SetWriteDeadline(deadline)
 	return eventConn.WriteJSON(event)
 }

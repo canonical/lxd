@@ -55,7 +55,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	// Create a stub upgrade script that just touches a stamp file.
 	stamp := filepath.Join(dir, "stamp")
@@ -67,7 +67,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	_ = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
 			{NodeInfo: client.NodeInfo{ID: 1, Address: "0.0.0.0:666"}},
 			{NodeInfo: client.NodeInfo{ID: 2, Address: "1.2.3.4:666"}},
@@ -77,7 +77,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		return nil
 	})
 
-	state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	_ = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 		require.NoError(t, err)
 
@@ -93,10 +93,10 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		return nil
 	})
 
-	os.Setenv("LXD_CLUSTER_UPDATE", script)
-	defer os.Unsetenv("LXD_CLUSTER_UPDATE")
+	_ = os.Setenv("LXD_CLUSTER_UPDATE", script)
+	defer func() { _ = os.Unsetenv("LXD_CLUSTER_UPDATE") }()
 
-	cluster.MaybeUpdate(state)
+	_ = cluster.MaybeUpdate(state)
 
 	_, err = os.Stat(stamp)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestMaybeUpdate_NothingToDo(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	// Create a stub upgrade script that just touches a stamp file.
 	stamp := filepath.Join(dir, "stamp")
@@ -119,10 +119,10 @@ func TestMaybeUpdate_NothingToDo(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	os.Setenv("LXD_CLUSTER_UPDATE", script)
-	defer os.Unsetenv("LXD_CLUSTER_UPDATE")
+	_ = os.Setenv("LXD_CLUSTER_UPDATE", script)
+	defer func() { _ = os.Unsetenv("LXD_CLUSTER_UPDATE") }()
 
-	cluster.MaybeUpdate(state)
+	_ = cluster.MaybeUpdate(state)
 
 	_, err = os.Stat(stamp)
 	require.True(t, os.IsNotExist(err))
@@ -141,7 +141,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	setRaftRole(t, state.DB.Node, address)
 
 	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
-	defer gateway.Shutdown()
+	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil

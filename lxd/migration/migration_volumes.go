@@ -224,7 +224,7 @@ func progressWrapperRender(op *operations.Operation, key string, description str
 
 	if meta[key] != progress {
 		meta[key] = progress
-		op.UpdateMetadata(meta)
+		_ = op.UpdateMetadata(meta)
 	}
 }
 

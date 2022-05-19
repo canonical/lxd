@@ -54,7 +54,10 @@ func templatesApply(path string) ([]string, error) {
 				}
 			} else {
 				// Create the directories leading to the file.
-				os.MkdirAll(filepath.Dir(tplPath), 0755)
+				err := os.MkdirAll(filepath.Dir(tplPath), 0755)
+				if err != nil {
+					return err
+				}
 
 				// Create the file itself.
 				w, err = os.Create(tplPath)
@@ -63,18 +66,26 @@ func templatesApply(path string) ([]string, error) {
 				}
 
 				// Fix mode.
-				w.Chmod(0644)
+				err = w.Chmod(0644)
+				if err != nil {
+					return err
+				}
 			}
-			defer w.Close()
+			defer func() { _ = w.Close() }()
 
 			// Do the copy.
 			src, err := os.Open(filePath)
 			if err != nil {
 				return err
 			}
-			defer src.Close()
+			defer func() { _ = src.Close() }()
 
 			_, err = io.Copy(w, src)
+			if err != nil {
+				return err
+			}
+
+			err = w.Close()
 			if err != nil {
 				return err
 			}

@@ -145,7 +145,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect to local dqlite member: %w", err)
 	}
-	defer dqliteClient.Close()
+	defer func() { _ = dqliteClient.Close() }()
 
 	// Check that each member is present in the raft configuration, and add it if not.
 	for _, member := range members {

@@ -184,7 +184,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
-	defer pool.UnmountCustomVolume(project.Default, volumeName, nil)
+	defer func() { _, _ = pool.UnmountCustomVolume(project.Default, volumeName, nil) }()
 
 	// Validate volume is empty (ignore lost+found).
 	volStorageName := project.StorageVolume(project.Default, volumeName)

@@ -50,17 +50,17 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 			CommandSeparator: ".",
 		}
 
-		doc.GenManTreeFromOpts(c.global.cmd, opts)
+		err = doc.GenManTreeFromOpts(c.global.cmd, opts)
 
 	case "md":
-		doc.GenMarkdownTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenMarkdownTree(c.global.cmd, shared.HostPathFollow(args[0]))
 
 	case "rest":
-		doc.GenReSTTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenReSTTree(c.global.cmd, shared.HostPathFollow(args[0]))
 
 	case "yaml":
-		doc.GenYamlTree(c.global.cmd, shared.HostPathFollow(args[0]))
+		err = doc.GenYamlTree(c.global.cmd, shared.HostPathFollow(args[0]))
 	}
 
-	return nil
+	return err
 }

@@ -283,7 +283,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceRemove(dev, false) })
+			revert.Add(func() { _ = d.deviceRemove(dev, false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -292,7 +292,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 			return nil, err
 		}
 
-		revert.Add(func() { d.maasDelete(d) })
+		revert.Add(func() { _ = d.maasDelete(d) })
 	}
 
 	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
@@ -459,7 +459,7 @@ func (d *qemu) generateAgentCert() (string, string, string, string, error) {
 	if err != nil {
 		return "", "", "", "", err
 	}
-	defer d.unmount()
+	defer func() { _ = d.unmount() }()
 
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(d.Path(), "agent.key")
@@ -554,7 +554,7 @@ func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperatio
 		}
 
 		if op != nil {
-			op.Reset() // Reset timeout to 30s.
+			_ = op.Reset() // Reset timeout to 30s.
 		}
 
 		time.Sleep(time.Millisecond * time.Duration(250))
@@ -589,7 +589,7 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	// Reset timeout to 30s.
-	op.Reset()
+	_ = op.Reset()
 
 	// Record power state.
 	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
@@ -600,11 +600,11 @@ func (d *qemu) onStop(target string) error {
 
 	// Cleanup.
 	d.cleanupDevices() // Must be called before unmount.
-	os.Remove(d.pidFilePath())
-	os.Remove(d.monitorPath())
+	_ = os.Remove(d.pidFilePath())
+	_ = os.Remove(d.monitorPath())
 
 	// Stop the storage for the instance.
-	op.Reset()
+	_ = op.Reset()
 	err = d.unmount()
 	if err != nil {
 		err = fmt.Errorf("Failed unmounting instance: %w", err)
@@ -627,7 +627,7 @@ func (d *qemu) onStop(target string) error {
 	// Reboot the instance.
 	if target == "reboot" {
 		// Reset timeout to 30s.
-		op.Reset()
+		_ = op.Reset()
 
 		err = d.Start(false)
 		if err != nil {
@@ -638,7 +638,7 @@ func (d *qemu) onStop(target string) error {
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
 		// Reset timeout to 30s.
-		op.Reset()
+		_ = op.Reset()
 
 		// Destroy ephemeral virtual machines.
 		err = d.Delete(true)
@@ -737,7 +737,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
 			// Keep the operation alive so its around for onStop() if the VM takes
 			// longer than the default 30s that the operation is kept alive for.
-			op.Reset()
+			_ = op.Reset()
 			continue
 		}
 
@@ -830,23 +830,23 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 
 	uncompressedState, err := gzip.NewReader(stateFile)
 	if err != nil {
-		stateFile.Close()
+		_ = stateFile.Close()
 		return err
 	}
 
 	pipeRead, pipeWrite, err := os.Pipe()
 	if err != nil {
-		uncompressedState.Close()
-		stateFile.Close()
+		_ = uncompressedState.Close()
+		_ = stateFile.Close()
 		return err
 	}
 
 	go func() {
-		io.Copy(pipeWrite, uncompressedState)
-		uncompressedState.Close()
-		stateFile.Close()
-		pipeWrite.Close()
-		pipeRead.Close()
+		_, _ = io.Copy(pipeWrite, uncompressedState)
+		_ = uncompressedState.Close()
+		_ = stateFile.Close()
+		_ = pipeWrite.Close()
+		_ = pipeRead.Close()
 	}()
 
 	err = monitor.SendFile("migration", pipeRead)
@@ -865,7 +865,7 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 // saveState dumps the current VM state to disk.
 // Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
 func (d *qemu) saveState(monitor *qmp.Monitor) error {
-	os.Remove(d.StatePath())
+	_ = os.Remove(d.StatePath())
 
 	// Prepare the state file.
 	stateFile, err := os.Create(d.StatePath())
@@ -875,40 +875,40 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 
 	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
 	if err != nil {
-		stateFile.Close()
+		_ = stateFile.Close()
 		return err
 	}
 
 	pipeRead, pipeWrite, err := os.Pipe()
 	if err != nil {
-		compressedState.Close()
-		stateFile.Close()
+		_ = compressedState.Close()
+		_ = stateFile.Close()
 		return err
 	}
-	defer pipeRead.Close()
-	defer pipeWrite.Close()
+	defer func() { _ = pipeRead.Close() }()
+	defer func() { _ = pipeWrite.Close() }()
 
-	go io.Copy(compressedState, pipeRead)
+	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
 
 	// Send the target file to qemu.
 	err = monitor.SendFile("migration", pipeWrite)
 	if err != nil {
-		compressedState.Close()
-		stateFile.Close()
+		_ = compressedState.Close()
+		_ = stateFile.Close()
 		return err
 	}
 
 	// Issue the migration command.
 	err = monitor.Migrate("fd:migration")
 	if err != nil {
-		compressedState.Close()
-		stateFile.Close()
+		_ = compressedState.Close()
+		_ = stateFile.Close()
 		return err
 	}
 
 	// Close the file to avoid unmount delays.
-	compressedState.Close()
-	stateFile.Close()
+	_ = compressedState.Close()
+	_ = stateFile.Close()
 
 	return nil
 }
@@ -1017,7 +1017,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Rotate the log file.
 	logfile := d.LogFilePath()
 	if shared.PathExists(logfile) {
-		os.Remove(logfile + ".old")
+		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
 		if err != nil {
 			op.Done(err)
@@ -1041,7 +1041,7 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	revert.Add(func() { d.unmount() })
+	revert.Add(func() { _ = d.unmount() })
 
 	volatileSet := make(map[string]string)
 
@@ -1177,7 +1177,7 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		return fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
 	}
-	revert.Add(func() { d.configDriveMountPathClear() })
+	revert.Add(func() { _ = d.configDriveMountPathClear() })
 
 	// Mount the config drive device as readonly. This way it will be readonly irrespective of whether its
 	// exported via 9p for virtio-fs.
@@ -1199,14 +1199,14 @@ func (d *qemu) Start(stateful bool) error {
 
 			if errUnsupported == device.ErrMissingVirtiofsd {
 				// Create a warning if virtiofsd is missing.
-				d.state.DB.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
+				_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 			} else {
 				// Resolve previous warning.
-				warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
+				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			}
 		} else {
 			// Resolve previous warning.
-			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
+			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			op.Done(err)
 			return fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 		}
@@ -1214,7 +1214,7 @@ func (d *qemu) Start(stateful bool) error {
 		revert.Add(revertFunc)
 
 		// Request the unix listener is closed after QEMU has connected on startup.
-		defer unixListener.Close()
+		defer func() { _ = unixListener.Close() }()
 	}
 
 	// Get qemu configuration and check qemu is installed.
@@ -1408,7 +1408,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Ensure passed files are closed after qemu has started.
 	for _, file := range fdFiles {
-		defer file.Close()
+		defer func(file *os.File) { _ = file.Close() }(file)
 	}
 
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
@@ -1421,7 +1421,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Reset timeout to 30s.
-	op.Reset()
+	_ = op.Reset()
 
 	err = p.StartWithFiles(fdFiles)
 	if err != nil {
@@ -1445,7 +1445,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	revert.Add(func() {
-		d.killQemuProcess(pid)
+		_ = d.killQemuProcess(pid)
 	})
 
 	// Start QMP monitoring.
@@ -1516,10 +1516,10 @@ func (d *qemu) Start(stateful bool) error {
 	// for it to rebuild its boot config and to take into account the devices bootindex settings.
 	// This also means we cannot start the QEMU process with the -no-reboot flag and have to handle restarting
 	// the process from a guest initiated reset using the event handler returned from getMonitorEventHandler().
-	monitor.Reset()
+	_ = monitor.Reset()
 
 	// Reset timeout to 30s.
-	op.Reset()
+	_ = op.Reset()
 
 	// Restore the state.
 	if stateful {
@@ -1540,7 +1540,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Finish handling stateful start.
 	if stateful {
 		// Cleanup state.
-		os.Remove(d.StatePath())
+		_ = os.Remove(d.StatePath())
 		d.stateful = false
 
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
@@ -1565,7 +1565,7 @@ func (d *qemu) Start(stateful bool) error {
 		op.Done(err) // Must come before Stop() otherwise stop will not proceed.
 
 		// Shut down the VM if hooks fail.
-		d.Stop(false)
+		_ = d.Stop(false)
 		return err
 	}
 
@@ -1592,7 +1592,7 @@ func (d *qemu) setupNvram() error {
 	if err != nil {
 		return err
 	}
-	defer d.unmount()
+	defer func() { _ = d.unmount() }()
 
 	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
 	if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
@@ -1614,7 +1614,7 @@ func (d *qemu) setupNvram() error {
 		return missingEFIFirmwareErr
 	}
 
-	os.Remove(d.nvramPath())
+	_ = os.Remove(d.nvramPath())
 	err = shared.FileCopy(srcOvmfFile, d.nvramPath())
 	if err != nil {
 		return err
@@ -1733,7 +1733,7 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	revert.Add(func() {
 		runConf, _ := dev.Stop()
 		if runConf != nil {
-			d.runHooks(runConf.PostHooks)
+			_ = d.runHooks(runConf.PostHooks)
 		}
 	})
 
@@ -2283,7 +2283,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	templateFilesPath := filepath.Join(configDrivePath, "files")
 
 	// Clear path and recreate.
-	os.RemoveAll(templateFilesPath)
+	_ = os.RemoveAll(templateFilesPath)
 	err = os.MkdirAll(templateFilesPath, 0500)
 	if err != nil {
 		return err
@@ -2321,7 +2321,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 	// Clear NICConfigDir to ensure that no leftover configuration is erroneously applied by the agent.
 	nicConfigPath := filepath.Join(configDrivePath, deviceConfig.NICConfigDir)
-	os.RemoveAll(nicConfigPath)
+	_ = os.RemoveAll(nicConfigPath)
 	err = os.MkdirAll(nicConfigPath, 0500)
 	if err != nil {
 		return err
@@ -2395,8 +2395,12 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Fix ownership and mode.
-			w.Chmod(0644)
-			defer w.Close()
+			err = w.Chmod(0644)
+			if err != nil {
+				return err
+			}
+
+			defer func() { _ = w.Close() }()
 
 			// Read the template.
 			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
@@ -2421,7 +2425,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			}
 
 			// Render the template.
-			tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+			err = tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
 				"path":       tplPath,
 				"instance":   instanceMeta,
 				"container":  instanceMeta, // FIXME: remove once most images have moved away.
@@ -2429,8 +2433,11 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				"devices":    d.expandedDevices,
 				"properties": tpl.Properties,
 				"config_get": configGet}, w)
+			if err != nil {
+				return err
+			}
 
-			return nil
+			return w.Close()
 		}(tplPath, tpl)
 		if err != nil {
 			return err
@@ -3346,14 +3353,14 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			if err != nil {
 				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 
 			info, err := m.SendFileWithFDSet(nodeName, f, readonly)
 			if err != nil {
 				return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
 			}
 			revert.Add(func() {
-				m.RemoveFDFromFDSet(nodeName)
+				_ = m.RemoveFDFromFDSet(nodeName)
 			})
 
 			blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
@@ -3501,7 +3508,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			if err != nil {
 				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
 			}
-			revert.Add(func() { os.Chown(vfioGroupFile, 0, -1) })
+			revert.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 		}
 	}
 
@@ -3515,7 +3522,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 				if err != nil {
 					return fmt.Errorf("Error opening exta file %q: %w", fileName, err)
 				}
-				defer f.Close() // Close file after device has been added.
+				defer func() { _ = f.Close() }() // Close file after device has been added.
 
 				err = m.SendFile(fileName, f)
 				if err != nil {
@@ -3723,14 +3730,14 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 		if err != nil {
 			return fmt.Errorf("Failed to open host device: %w", err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		info, err := m.SendFileWithFDSet(device["id"], f, false)
 		if err != nil {
 			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
 		revert.Add(func() {
-			m.RemoveFDFromFDSet(device["id"])
+			_ = m.RemoveFDFromFDSet(device["id"])
 		})
 
 		device["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
@@ -4064,7 +4071,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
-				d.Update(args, false)
+				_ = d.Update(args, false)
 			}()
 		}
 
@@ -4231,7 +4238,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	// Rename the logging path.
 	newFullName := project.Instance(d.Project(), d.Name())
-	os.RemoveAll(shared.LogPath(newFullName))
+	_ = os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
@@ -4272,11 +4279,14 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			return err
 		}
 
-		revert.Add(func() { b.Rename(oldName) })
+		revert.Add(func() { _ = b.Rename(oldName) })
 	}
 
 	// Update lease files.
-	network.UpdateDNSMasqStatic(d.state, "")
+	err = network.UpdateDNSMasqStatic(d.state, "")
+	if err != nil {
+		return err
+	}
 
 	// Reset cloud-init instance-id (causes a re-run on name changes).
 	if !d.IsSnapshot() {
@@ -4853,7 +4863,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 		}
 
-		revert.Add(func() { d.deviceRemove(dev, instanceRunning) })
+		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
 
 		if instanceRunning {
 			err = dev.PreStartCheck()
@@ -4866,7 +4876,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev, instanceRunning) })
+			revert.Add(func() { _ = d.deviceStop(dev, instanceRunning) })
 		}
 	}
 
@@ -4959,17 +4969,17 @@ func (d *qemu) removeDiskDevices() error {
 
 func (d *qemu) cleanup() {
 	// Unmount any leftovers
-	d.removeUnixDevices()
-	d.removeDiskDevices()
+	_ = d.removeUnixDevices()
+	_ = d.removeDiskDevices()
 
 	// Remove the security profiles
-	apparmor.InstanceDelete(d.state.OS, d)
+	_ = apparmor.InstanceDelete(d.state.OS, d)
 
 	// Remove the devices path
-	os.Remove(d.DevicesPath())
+	_ = os.Remove(d.DevicesPath())
 
 	// Remove the shmounts path
-	os.RemoveAll(d.ShmountsPath())
+	_ = os.RemoveAll(d.ShmountsPath())
 }
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
@@ -5197,7 +5207,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
-	defer d.unmount()
+	defer func() { _ = d.unmount() }()
 
 	// Create the tarball.
 	tarWriter := instancewriter.NewInstanceTarWriter(w, nil)
@@ -5226,11 +5236,11 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		// Generate a new metadata.yaml.
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
-		defer os.RemoveAll(tempDir)
+		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Get the instance's architecture.
 		var arch string
@@ -5238,7 +5248,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
 			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
 			if err != nil {
-				tarWriter.Close()
+				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
@@ -5266,7 +5276,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
@@ -5275,21 +5285,21 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		fnam = filepath.Join(tempDir, "metadata.yaml")
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
 		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
@@ -5297,14 +5307,14 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		// Parse the metadata.
 		content, err := ioutil.ReadFile(fnam)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
 
 		err = yaml.Unmarshal(content, &meta)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
@@ -5321,15 +5331,15 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
-				tarWriter.Close()
+				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
-			defer os.RemoveAll(tempDir)
+			defer func() { _ = os.RemoveAll(tempDir) }()
 
 			data, err := yaml.Marshal(&meta)
 			if err != nil {
-				tarWriter.Close()
+				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
@@ -5338,7 +5348,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			fnam = filepath.Join(tempDir, "metadata.yaml")
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
-				tarWriter.Close()
+				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
@@ -5347,7 +5357,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		// Include metadata.yaml in the tarball.
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Debug("Error statting during export", logger.Ctx{"fileName": fnam})
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
@@ -5360,7 +5370,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			err = tarWriter.WriteFile(fnam[offset:], fnam, fi, false)
 		}
 		if err != nil {
-			tarWriter.Close()
+			_ = tarWriter.Close()
 			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
@@ -5372,7 +5382,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	if err != nil {
 		return meta, err
 	}
-	defer os.RemoveAll(tmpPath)
+	defer func() { _ = os.RemoveAll(tmpPath) }()
 
 	if mountInfo.DiskPath == "" {
 		return meta, fmt.Errorf("No disk path available from mount")
@@ -5393,16 +5403,16 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	from, err := os.OpenFile(mountInfo.DiskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "-T", "none")
-		from.Close()
+		_ = from.Close()
 	}
 
 	to, err := os.OpenFile(fPath, unix.O_DIRECT|unix.O_CREAT, 0)
 	if err == nil {
 		cmd = append(cmd, "-t", "none")
-		to.Close()
+		_ = to.Close()
 	}
 
-	revert.Add(func() { os.Remove(fPath) })
+	revert.Add(func() { _ = os.Remove(fPath) })
 
 	cmd = append(cmd, mountInfo.DiskPath, fPath)
 
@@ -5531,14 +5541,14 @@ func (d *qemu) FileSFTP() (*sftp.Client, error) {
 	// Get a SFTP client.
 	client, err := sftp.NewClientPipe(conn, conn)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	go func() {
 		// Wait for the client to be done before closing the connection.
-		client.Wait()
-		conn.Close()
+		_ = client.Wait()
+		_ = conn.Close()
 	}()
 
 	return client, nil
@@ -5569,7 +5579,7 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("Get socket file: %w", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
 
@@ -5600,7 +5610,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 	// This is the signal control handler, it receives signals from lxc CLI and forwards them to the VM agent.
 	controlHandler := func(control *websocket.Conn) {
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		defer control.WriteMessage(websocket.CloseMessage, closeMsg)
+		defer func() { _ = control.WriteMessage(websocket.CloseMessage, closeMsg) }()
 
 		for {
 			select {
@@ -6363,7 +6373,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer os.Remove(pidFile.Name())
+	defer func() { _ = os.Remove(pidFile.Name()) }()
 
 	qemuArgs := []string{
 		"qemu",
@@ -6391,7 +6401,11 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		return false, nil // VM support available, but io_ring feature not.
 	}
 
-	pidFile.Seek(0, 0)
+	_, err = pidFile.Seek(0, 0)
+	if err != nil {
+		return false, err
+	}
+
 	content, err := ioutil.ReadAll(pidFile)
 	if err != nil {
 		return false, err
@@ -6402,7 +6416,11 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		return false, err
 	}
 
-	unix.Kill(pid, unix.SIGKILL)
+	err = unix.Kill(pid, unix.SIGKILL)
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 

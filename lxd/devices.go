@@ -520,7 +520,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 			continue
 		}
 
-		cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif, networkInt))
+		_ = cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif, networkInt))
 	}
 
 	return
@@ -559,7 +559,10 @@ func deviceEventListener(s *state.State) {
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(s, e[0])
-			networkAutoAttach(s.DB.Cluster, e[0])
+			err = networkAutoAttach(s.DB.Cluster, e[0])
+			if err != nil {
+				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err})
+			}
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
 		case e := <-chUnix:
@@ -631,7 +634,7 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 		return "", "", false
 	}
 
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	vendor, product, err = getHidrawDevInfo(int(file.Fd()))
 	if err != nil {

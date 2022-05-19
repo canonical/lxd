@@ -144,7 +144,7 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cmd.Wait()
+	defer func() { _ = cmd.Wait() }()
 
 	// This only extracts certain generic parts of the ruleset, see man libnftables-json for more info.
 	v := &struct {

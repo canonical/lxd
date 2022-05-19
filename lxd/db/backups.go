@@ -176,7 +176,7 @@ func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 		result, err := stmt.Exec(args.InstanceID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
 			optimizedStorageInt)
@@ -219,7 +219,7 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 
 		logger.Debug(
 			"Calling SQL Query",
@@ -369,7 +369,7 @@ func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) er
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 		result, err := stmt.Exec(args.VolumeID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), volumeOnlyInt,
 			optimizedStorageInt)
@@ -488,7 +488,7 @@ func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer func() { _ = stmt.Close() }()
 
 		logger.Debug(
 			"Calling SQL Query",

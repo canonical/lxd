@@ -72,7 +72,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 	defer e.mu.Unlock()
 
 	// Close the previous socket
-	e.closeListener(network)
+	_ = e.closeListener(network)
 
 	// If turning off listening, we're done.
 	if address == "" {
@@ -82,7 +82,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 	// If the new address covers the cluster one, turn off the cluster
 	// listener.
 	if clusterAddress != "" && util.IsAddressCovered(clusterAddress, address) {
-		e.closeListener(cluster)
+		_ = e.closeListener(cluster)
 	}
 
 	// Attempt to setup the new listening socket

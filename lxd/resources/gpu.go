@@ -48,7 +48,7 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open %q: %w", filepath.Join(entryPath, "information"), err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		gpuInfo := bufio.NewScanner(f)
 		nvidiaCard := &api.ResourcesGPUCardNvidia{}

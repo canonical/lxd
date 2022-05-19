@@ -38,7 +38,7 @@ func setReceivedUUID(path string, UUID string) error {
 	if err != nil {
 		return fmt.Errorf("Failed opening %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	args := btrfsIoctlReceivedSubvolArgs{}
 
@@ -153,7 +153,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 			subSubVolSnapPath := filepath.Join(dest, subSubVol)
 
 			// Clear the target for the subvol to use.
-			os.Remove(subSubVolSnapPath)
+			_ = os.Remove(subSubVolSnapPath)
 
 			err := snapshot(filepath.Join(path, subSubVol), subSubVolSnapPath)
 			if err != nil {
@@ -171,12 +171,12 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		// Attempt (but don't fail on) to delete any qgroup on the subvolume.
 		qgroup, _, err := d.getQGroup(path)
 		if err == nil {
-			shared.RunCommand("btrfs", "qgroup", "destroy", qgroup, path)
+			_, _ = shared.RunCommand("btrfs", "qgroup", "destroy", qgroup, path)
 		}
 
 		// Temporarily change ownership & mode to help with nesting.
-		os.Chmod(path, 0700)
-		os.Chown(path, 0, 0)
+		_ = os.Chmod(path, 0700)
+		_ = os.Chown(path, 0, 0)
 
 		// Delete the subvolume itself.
 		_, err = shared.RunCommand("btrfs", "subvolume", "delete", path)
@@ -303,8 +303,8 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	go func() {
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
-		conn.Close()
-		cmd.Process.Kill() // This closes stderr.
+		_ = conn.Close()
+		_ = cmd.Process.Kill() // This closes stderr.
 	}()
 
 	// Run the command.

@@ -45,7 +45,7 @@ func TestCount(t *testing.T) {
 
 func TestCountAll(t *testing.T) {
 	tx := newTxForCount(t)
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	counts, err := query.CountAll(tx)
 	require.NoError(t, err)

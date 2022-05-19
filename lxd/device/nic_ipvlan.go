@@ -422,10 +422,12 @@ func (d *nicIPVLAN) Stop() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *nicIPVLAN) postStop() error {
-	defer d.volatileSet(map[string]string{
-		"last_state.created": "",
-		"host_name":          "",
-	})
+	defer func() {
+		_ = d.volatileSet(map[string]string{
+			"last_state.created": "",
+			"host_name":          "",
+		})
+	}()
 
 	v := d.volatileGet()
 

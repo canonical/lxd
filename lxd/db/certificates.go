@@ -50,7 +50,7 @@ func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
@@ -82,7 +82,7 @@ func (n *NodeTx) ReplaceCertificates(certs []cluster.Certificate) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, cert := range certs {
 		_, err = stmt.Exec(cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
