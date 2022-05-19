@@ -70,7 +70,7 @@ See the linked YouTube video for the complete tutorial using four machines.
 
         ip -4 a
 
-   e. Open `/etc/defaul/ovn-central` for editing.
+   e. Open `/etc/default/ovn-central` for editing.
 
    f. Paste in the following configuration (replace `<server_1>`, `<server_2>` and `<server_3>` with the IP addresses of the respective machines, and `<local>` with the IP address of the machine that you are on):
 
