@@ -31,10 +31,13 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
-		migrationFields: migrationFields{instance: inst},
-		allConnected:    make(chan struct{}),
+		migrationFields: migrationFields{
+			instance:          inst,
+			allowInconsistent: allowInconsistent,
+		},
+		allConnected: make(chan struct{}),
 	}
 	ret.instanceOnly = instanceOnly
 
@@ -520,6 +523,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	volSourceArgs.Snapshots = sendSnapshotNames
 	volSourceArgs.TrackProgress = true
 	volSourceArgs.Refresh = respHeader.GetRefresh()
+	volSourceArgs.AllowInconsistent = s.migrationFields.allowInconsistent
 
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
