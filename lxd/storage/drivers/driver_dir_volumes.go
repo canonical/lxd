@@ -142,7 +142,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	}
 
 	// Run the generic copy.
-	return genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, srcSnapshots, false, op)
+	return genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, srcSnapshots, false, allowInconsistent, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
@@ -152,7 +152,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
 func (d *dir) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, srcSnapshots, true, op)
+	return genericVFSCopyVolume(d, d.setupInitialQuota, vol, srcVol, srcSnapshots, true, false, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
