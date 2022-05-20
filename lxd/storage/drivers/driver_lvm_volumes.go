@@ -122,7 +122,7 @@ func (d *lvm) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+func (d *lvm) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	var err error
 	var srcSnapshots []Volume
 

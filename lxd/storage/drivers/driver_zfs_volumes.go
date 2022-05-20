@@ -486,7 +486,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	// Revert handling
 	revert := revert.New()
 	defer revert.Fail()
@@ -507,7 +507,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		srcFSVol := srcVol.NewVMBlockFilesystemVolume()
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, copySnapshots, op)
+		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, copySnapshots, false, op)
 		if err != nil {
 			return err
 		}
@@ -1027,7 +1027,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op
 			return err
 		}
 
-		return d.CreateVolumeFromCopy(vol, srcVol, len(srcSnapshots) > 0, op)
+		return d.CreateVolumeFromCopy(vol, srcVol, len(srcSnapshots) > 0, false, op)
 	}
 
 	transfer := func(src Volume, target Volume, origin Volume) error {

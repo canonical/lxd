@@ -310,7 +310,7 @@ func (d *ceph) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	var err error
 	revert := revert.New()
 	defer revert.Fail()
@@ -425,7 +425,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		if vol.IsVMBlock() {
 			srcFSVol := srcVol.NewVMBlockFilesystemVolume()
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, op)
+			err := d.CreateVolumeFromCopy(fsVol, srcFSVol, false, false, op)
 			if err != nil {
 				return err
 			}
