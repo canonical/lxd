@@ -303,7 +303,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly)
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent)
 		if err != nil {
 			return response.InternalError(err)
 		}
