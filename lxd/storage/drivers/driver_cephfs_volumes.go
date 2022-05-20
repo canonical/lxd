@@ -66,7 +66,7 @@ func (d *cephfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDa
 }
 
 // CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
-func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	bwlimit := d.config["rsync.bwlimit"]
 
 	// Create the main volume path.
