@@ -614,7 +614,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *ceph) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, false, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
