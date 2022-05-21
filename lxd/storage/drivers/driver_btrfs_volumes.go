@@ -383,7 +383,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
-func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -761,7 +761,7 @@ func (d *btrfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, 
 	// as btrfs can then use an incremental streams instead of just copying the datasets.
 	if len(targetSnapshots) == 0 || len(srcSnapshotsAll) == 0 {
 		d.logger.Debug("Performing generic volume refresh")
-		return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+		return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, false, op)
 	}
 
 	d.logger.Debug("Performing optimized volume refresh")

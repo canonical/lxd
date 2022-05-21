@@ -897,7 +897,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, op *operations.Operation) error {
+func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, allowInconsistent bool, op *operations.Operation) error {
 	if vol.contentType != srcVol.contentType {
 		return fmt.Errorf("Content type of source and target must be the same")
 	}
@@ -927,8 +927,10 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 	sendFSVol := func(srcPath string, targetPath string) error {
 		d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcPath, "targetPath": targetPath, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
 		_, err := rsync.LocalCopy(srcPath, targetPath, bwlimit, true, rsyncArgs...)
-		if err != nil {
-			return err
+
+		status, _ := shared.ExitStatus(err)
+		if allowInconsistent && status == 24 {
+			return nil
 		}
 
 		return err
