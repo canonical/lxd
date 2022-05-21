@@ -52,7 +52,8 @@ type migrationFields struct {
 	instance     instance.Instance
 
 	// storage specific fields
-	volumeOnly bool
+	volumeOnly        bool
+	allowInconsistent bool
 }
 
 func (c *migrationFields) send(m proto.Message) error {
