@@ -3419,7 +3419,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 // MigrateCustomVolume sends a volume for migration.
 func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": fmt.Sprintf("%+v", args)})
 	l.Debug("MigrateCustomVolume started")
 	defer l.Debug("MigrateCustomVolume finished")
 
@@ -3449,7 +3449,7 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 
 // CreateCustomVolumeFromMigration receives a volume being migrated.
 func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateCustomVolumeFromMigration started")
 	defer l.Debug("CreateCustomVolumeFromMigration finished")
 
@@ -3478,6 +3478,31 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, args.Config)
+
+	// Check if the volume exists on storage.
+	volExists := b.driver.HasVolume(vol)
+
+	// Check if the volume exists in database.
+	dbVol, err := VolumeDBGet(b, projectName, args.Name, drivers.VolumeTypeCustom)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
+	// Check for inconsistencies between database and storage before continuing.
+	if dbVol == nil && volExists {
+		return fmt.Errorf("Volume already exists on storage but not in database")
+	}
+
+	if dbVol != nil && !volExists {
+		return fmt.Errorf("Volume exists in database but not on storage")
+	}
+
+	// Disable refresh mode if volume doesn't exist yet.
+	if args.Refresh && !volExists {
+		args.Refresh = false
+	} else if !args.Refresh && volExists {
+		return fmt.Errorf("Cannot create volume, already exists on migration target storage")
+	}
 
 	// VolumeSize is set to the actual size of the underlying block device.
 	// The target should use this value if present, otherwise it might get an error like
