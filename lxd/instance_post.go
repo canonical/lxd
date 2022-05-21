@@ -237,7 +237,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" {
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, op)
+				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, req.AllowInconsistent, op)
 			}
 
 			resources := map[string][]string{}
@@ -259,7 +259,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostProjectMigration(d, inst, req.Name, req.Project, req.InstanceOnly, req.Live, op)
+				return instancePostProjectMigration(d, inst, req.Name, req.Project, req.InstanceOnly, req.Live, req.AllowInconsistent, op)
 			}
 
 			resources := map[string][]string{}
@@ -374,7 +374,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance to another pool.
-func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, op *operations.Operation) error {
+func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
 	}
@@ -438,6 +438,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		targetInstance:       args,
 		instanceOnly:         instanceOnly,
 		applyTemplateTrigger: false, // Don't apply templates when moving.
+		allowInconsistent:    allowInconsistent,
 	}, op)
 	if err != nil {
 		return err
@@ -468,7 +469,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 }
 
 // Move an instance to another project.
-func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, op *operations.Operation) error {
+func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, allowInconsistent bool, op *operations.Operation) error {
 	localConfig := inst.LocalConfig()
 
 	statefulStart := false
@@ -515,6 +516,7 @@ func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName str
 		targetInstance:       args,
 		instanceOnly:         instanceOnly,
 		applyTemplateTrigger: false, // Don't apply templates when moving.
+		allowInconsistent:    allowInconsistent,
 	}, op)
 	if err != nil {
 		return err

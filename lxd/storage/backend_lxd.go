@@ -1015,7 +1015,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
 		}
 
-		err = b.driver.CreateVolumeFromCopy(*vol, srcVol, snapshots, op)
+		err = b.driver.CreateVolumeFromCopy(*vol, srcVol, snapshots, allowInconsistent, op)
 		if err != nil {
 			return err
 		}
@@ -1653,7 +1653,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		l.Debug("Set new volume size", logger.Ctx{"size": newVolSize})
 
 		// Proceed to create a new volume by copying the optimized image volume.
-		err = b.driver.CreateVolumeFromCopy(*vol, imgVol, false, op)
+		err = b.driver.CreateVolumeFromCopy(*vol, imgVol, false, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume that the new volume
 		// is to be created from is larger than the requested new volume size, and cannot be shrunk.
@@ -3297,7 +3297,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 		}
 
-		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
+		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, false, op)
 		if err != nil {
 			return err
 		}
