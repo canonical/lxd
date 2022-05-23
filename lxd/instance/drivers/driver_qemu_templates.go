@@ -105,12 +105,6 @@ func qemuMemorySections(opts *qemuMemoryOpts) []cfgSection {
 	}}
 }
 
-var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
-# Memory
-[memory]
-size = "{{.memSizeBytes}}M"
-`))
-
 var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
 # Virtual serial bus
 [device "dev-qemu_serial"]
