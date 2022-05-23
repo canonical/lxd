@@ -94,4 +94,31 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_memory", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuMemoryOpts
+			expected string
+		}{{
+			qemuMemoryOpts{4096},
+			`# Memory
+			[memory]
+			size = "4096M"`,
+		}, {
+			qemuMemoryOpts{8192},
+			`# Memory
+			[memory]
+			size = "8192M"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuMemorySections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
