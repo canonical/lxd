@@ -202,55 +202,6 @@ func qemuSerialSections(opts *qemuSerialOpts) []cfgSection {
 	}}
 }
 
-var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
-# Virtual serial bus
-[device "dev-qemu_serial"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-serial-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-serial-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-
-# LXD serial identifier
-[chardev "{{.chardevName}}"]
-backend = "ringbuf"
-size = "{{.ringbufSizeBytes}}B"
-
-[device "qemu_serial"]
-driver = "virtserialport"
-name = "org.linuxcontainers.lxd"
-chardev = "{{.chardevName}}"
-bus = "dev-qemu_serial.0"
-
-# Spice agent
-[chardev "qemu_spice-chardev"]
-backend = "spicevmc"
-name = "vdagent"
-
-[device "qemu_spice"]
-driver = "virtserialport"
-name = "com.redhat.spice.0"
-chardev = "qemu_spice-chardev"
-bus = "dev-qemu_serial.0"
-
-# Spice folder
-[chardev "qemu_spicedir-chardev"]
-backend = "spiceport"
-name = "org.spice-space.webdav.0"
-
-[device "qemu_spicedir"]
-driver = "virtserialport"
-name = "org.spice-space.webdav.0"
-chardev = "qemu_spicedir-chardev"
-bus = "dev-qemu_serial.0"
-`))
-
 var qemuPCIe = template.Must(template.New("qemuPCIe").Parse(`
 [device "{{.portName}}"]
 driver = "pcie-root-port"
