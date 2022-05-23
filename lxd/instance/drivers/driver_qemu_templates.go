@@ -105,6 +105,103 @@ func qemuMemorySections(opts *qemuMemoryOpts) []cfgSection {
 	}}
 }
 
+type qemuDevOpts struct {
+	busName       string
+	devBus        string
+	devAddr       string
+	multifunction bool
+}
+
+type qemuDevEntriesOpts struct {
+	dev     qemuDevOpts
+	pciName string
+	ccwName string
+}
+
+func qemuDeviceEntries(opts *qemuDevEntriesOpts) []cfgEntry {
+	entries := []cfgEntry{}
+
+	if opts.dev.busName == "pci" || opts.dev.busName == "pcie" {
+		entries = append(entries, []cfgEntry{
+			{key: "driver", value: opts.pciName},
+			{key: "bus", value: opts.dev.devBus},
+			{key: "addr", value: opts.dev.devAddr},
+		}...)
+	} else if opts.dev.busName == "ccw" {
+		entries = append(entries, cfgEntry{key: "driver", value: opts.ccwName})
+	}
+
+	if opts.dev.multifunction {
+		entries = append(entries, cfgEntry{key: "multifunction", value: "on"})
+	}
+
+	return entries
+}
+
+type qemuSerialOpts struct {
+	dev              qemuDevOpts
+	charDevName      string
+	ringbufSizeBytes int
+}
+
+func qemuSerialSections(opts *qemuSerialOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     opts.dev,
+		pciName: "virtio-serial-pci",
+		ccwName: "virtio-serial-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "dev-qemu_serial"`,
+		comment: "Virtual serial bus",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}, {
+		name:    fmt.Sprintf(`chardev "%s"`, opts.charDevName),
+		comment: "LXD serial identifier",
+		entries: []cfgEntry{
+			{key: "backend", value: "ringbuf"},
+			{key: "size", value: fmt.Sprintf("%dB", opts.ringbufSizeBytes)}},
+	}, {
+		name: `device "qemu_serial"`,
+		entries: []cfgEntry{
+			{key: "driver", value: "virtserialport"},
+			{key: "name", value: "org.linuxcontainers.lxd"},
+			{key: "chardev", value: opts.charDevName},
+			{key: "bus", value: "dev-qemu_serial.0"},
+		},
+	}, {
+		name:    `chardev "qemu_spice-chardev"`,
+		comment: "Spice agent",
+		entries: []cfgEntry{
+			{key: "backend", value: "spicevmc"},
+			{key: "name", value: "vdagent"},
+		},
+	}, {
+		name: `device "qemu_spice"`,
+		entries: []cfgEntry{
+			{key: "driver", value: "virtserialport"},
+			{key: "name", value: "com.redhat.spice.0"},
+			{key: "chardev", value: "qemu_spice-chardev"},
+			{key: "bus", value: "dev-qemu_serial.0"},
+		},
+	}, {
+		name:    `chardev "qemu_spicedir-chardev"`,
+		comment: "Spice folder",
+		entries: []cfgEntry{
+			{key: "backend", value: "spiceport"},
+			{key: "name", value: "org.spice-space.webdav.0"},
+		},
+	}, {
+		name: `device "qemu_spicedir"`,
+		entries: []cfgEntry{
+			{key: "driver", value: "virtserialport"},
+			{key: "name", value: "org.spice-space.webdav.0"},
+			{key: "chardev", value: "qemu_spicedir-chardev"},
+			{key: "bus", value: "dev-qemu_serial.0"},
+		},
+	}}
+}
+
 var qemuSerial = template.Must(template.New("qemuSerial").Parse(`
 # Virtual serial bus
 [device "dev-qemu_serial"]
