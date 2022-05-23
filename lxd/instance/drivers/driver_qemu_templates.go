@@ -1,6 +1,8 @@
 package drivers
 
 import (
+	"fmt"
+	"strings"
 	"text/template"
 )
 
@@ -41,6 +43,93 @@ value = "1"
 [boot-opts]
 strict = "on"
 `))
+
+type cfgEntry struct {
+	key   string
+	value string
+}
+
+type cfgSection struct {
+	name    string
+	comment string
+	entries []cfgEntry
+}
+
+func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
+	for _, section := range sections {
+		if section.comment != "" {
+			sb.WriteString(fmt.Sprintf("# %s\n", section.comment))
+		}
+
+		sb.WriteString(fmt.Sprintf("[%s]\n", section.name))
+
+		for _, entry := range section.entries {
+			value := entry.value
+			if value != "" {
+				sb.WriteString(fmt.Sprintf("%s = \"%s\"\n", entry.key, value))
+			}
+		}
+
+		sb.WriteString("\n")
+	}
+}
+
+func qemuBaseSections(architecture string) []cfgSection {
+	machine_type := ""
+	gic_version := ""
+	cap_large_decr := ""
+
+	switch architecture {
+	case "x86_64":
+		machine_type = "q35"
+	case "aarch64":
+		machine_type = "virt"
+		gic_version = "max"
+	case "ppc64le":
+		machine_type = "pseries"
+		cap_large_decr = "off"
+	case "s390x":
+		machine_type = "s390-ccw-virtio"
+	}
+
+	sections := []cfgSection{{
+		name:    "machine",
+		comment: "Machine",
+		entries: []cfgEntry{
+			{key: "graphics", value: "off"},
+			{key: "type", value: machine_type},
+			{key: "gic-version", value: gic_version},
+			{key: "cap-large-decr", value: cap_large_decr},
+			{key: "accel", value: "kvm"},
+			{key: "usb", value: "off"},
+		},
+	}}
+
+	if architecture == "x86_64" {
+		sections = append(sections, []cfgSection{{
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s3"},
+				{key: "value", value: "1"},
+			},
+		}, {
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s4"},
+				{key: "value", value: "1"},
+			},
+		}}...)
+	}
+
+	return append(
+		sections,
+		cfgSection{
+			name:    "boot-opts",
+			entries: []cfgEntry{{key: "strict", value: "on"}},
+		})
+}
 
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
 # Memory
