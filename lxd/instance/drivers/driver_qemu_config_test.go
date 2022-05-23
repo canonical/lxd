@@ -121,4 +121,62 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_serial", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuSerialOpts
+			expected string
+		}{{
+			qemuSerialOpts{qemuDevOpts{"pci", "qemu_pcie0", "00.5", false}, "qemu_serial-chardev", 32},
+			`# Virtual serial bus
+			[device "dev-qemu_serial"]
+			driver = "virtio-serial-pci"
+			bus = "qemu_pcie0"
+			addr = "00.5"
+
+			# LXD serial identifier
+			[chardev "qemu_serial-chardev"]
+			backend = "ringbuf"
+			size = "32B"
+
+			[device "qemu_serial"]
+			driver = "virtserialport"
+			name = "org.linuxcontainers.lxd"
+			chardev = "qemu_serial-chardev"
+			bus = "dev-qemu_serial.0"
+
+			# Spice agent
+			[chardev "qemu_spice-chardev"]
+			backend = "spicevmc"
+			name = "vdagent"
+
+			[device "qemu_spice"]
+			driver = "virtserialport"
+			name = "com.redhat.spice.0"
+			chardev = "qemu_spice-chardev"
+			bus = "dev-qemu_serial.0"
+
+			# Spice folder
+			[chardev "qemu_spicedir-chardev"]
+			backend = "spiceport"
+			name = "org.spice-space.webdav.0"
+
+			[device "qemu_spicedir"]
+			driver = "virtserialport"
+			name = "org.spice-space.webdav.0"
+			chardev = "qemu_spicedir-chardev"
+			bus = "dev-qemu_serial.0"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuSerialSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
