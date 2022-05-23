@@ -90,7 +90,7 @@ func (d *mock) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
-func (d *mock) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
+func (d *mock) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
 	return nil
 }
 
