@@ -93,6 +93,18 @@ func qemuBaseSections(architecture string) []cfgSection {
 		})
 }
 
+type qemuMemoryOpts struct {
+	memSizeMB int64
+}
+
+func qemuMemorySections(opts *qemuMemoryOpts) []cfgSection {
+	return []cfgSection{{
+		name:    "memory",
+		comment: "Memory",
+		entries: []cfgEntry{{key: "size", value: fmt.Sprintf("%dM", opts.memSizeMB)}},
+	}}
+}
+
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
 # Memory
 [memory]
