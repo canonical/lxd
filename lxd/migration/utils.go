@@ -1,6 +1,9 @@
 package migration
 
-// BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel first.
+// IndexHeaderVersion version of the index header to be sent/recv.
+const IndexHeaderVersion uint32 = 1
+
+// BTRFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const BTRFSFeatureMigrationHeader = "migration_header"
 
 // BTRFSFeatureSubvolumes indicates migration can send/recv subvolumes.
@@ -9,7 +12,7 @@ const BTRFSFeatureSubvolumes = "header_subvolumes"
 // BTRFSFeatureSubvolumeUUIDs indicates that the header will include subvolume UUIDs.
 const BTRFSFeatureSubvolumeUUIDs = "header_subvolume_uuids"
 
-// ZFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel first.
+// ZFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const ZFSFeatureMigrationHeader = "migration_header"
 
 // GetRsyncFeaturesSlice returns a slice of strings representing the supported RSYNC features

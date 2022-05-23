@@ -59,7 +59,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	config, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, !s.volumeOnly, migrateOp)
+	srcConfig, err := pool.GenerateCustomVolumeBackupConfig(projectName, volName, !s.volumeOnly, migrateOp)
 	if err != nil {
 		return fmt.Errorf("Failed generating volume migration config: %w", err)
 	}
@@ -68,7 +68,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(config.Volume.ContentType), false)
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), false)
 	if len(poolMigrationTypes) < 0 {
 		return fmt.Errorf("No source migration types available")
 	}
@@ -76,17 +76,21 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Convert the pool's migration type options to an offer header to target.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
+
 	var snapshots []*migration.Snapshot
 	var snapshotNames []string
 
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
-		snapshots = make([]*migration.Snapshot, 0, len(config.VolumeSnapshots))
-		snapshotNames = make([]string, 0, len(config.VolumeSnapshots))
+		snapshots = make([]*migration.Snapshot, 0, len(srcConfig.VolumeSnapshots))
+		snapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
 
-		for i := range config.VolumeSnapshots {
-			snapshotNames = append(snapshotNames, config.VolumeSnapshots[i].Name)
-			snapshots = append(snapshots, volumeSnapshotToProtobuf(config.VolumeSnapshots[i]))
+		for i := range srcConfig.VolumeSnapshots {
+			snapshotNames = append(snapshotNames, srcConfig.VolumeSnapshots[i].Name)
+			snapshots = append(snapshots, volumeSnapshotToProtobuf(srcConfig.VolumeSnapshots[i]))
 		}
 	}
 
@@ -111,7 +115,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(config.Volume.ContentType)), poolMigrationTypes)
+	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(storageDrivers.ContentType(srcConfig.Volume.ContentType)), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
 		s.sendControl(err)
@@ -119,15 +123,27 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	}
 
 	volSourceArgs := &migration.VolumeSourceArgs{
-		Name:          volName,
-		MigrationType: migrationTypes[0],
-		Snapshots:     snapshotNames,
-		TrackProgress: true,
-		ContentType:   config.Volume.ContentType,
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               volName,
+		MigrationType:      migrationTypes[0],
+		Snapshots:          snapshotNames,
+		TrackProgress:      true,
+		ContentType:        srcConfig.Volume.ContentType,
+		Info:               &migration.Info{Config: srcConfig},
 	}
 
+	// Only send the snapshots that the target requests when refreshing.
 	if respHeader.GetRefresh() {
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+
+		// Ensure that only the requested snapshots are included in the migration index header.
+		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+			}
+		}
 	}
 
 	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
@@ -285,6 +301,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
 	respHeader := migration.TypesToHeader(respTypes...)
+	respHeader.IndexHeaderVersion = offerHeader.IndexHeaderVersion // Enable index header frame if requested.
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &c.refresh
@@ -293,13 +310,14 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// with the new storage layer.
 	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
-			Name:          req.Name,
-			Config:        req.Config,
-			Description:   req.Description,
-			MigrationType: respTypes[0],
-			TrackProgress: true,
-			ContentType:   req.ContentType,
-			Refresh:       args.Refresh,
+			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
+			Name:               req.Name,
+			Config:             req.Config,
+			Description:        req.Description,
+			MigrationType:      respTypes[0],
+			TrackProgress:      true,
+			ContentType:        req.ContentType,
+			Refresh:            args.Refresh,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
