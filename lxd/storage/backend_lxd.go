@@ -1279,7 +1279,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			srcSnapVols = append(srcSnapVols, srcSnapVol)
 		}
 
-		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, op)
+		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, false, op)
 		if err != nil {
 			return err
 		}
@@ -1486,7 +1486,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
 		}
 
-		err = b.driver.RefreshVolume(*vol, srcVol, srcSnapVols, op)
+		err = b.driver.RefreshVolume(*vol, srcVol, srcSnapVols, allowInconsistent, op)
 		if err != nil {
 			return err
 		}
