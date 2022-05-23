@@ -202,6 +202,31 @@ func qemuSerialSections(opts *qemuSerialOpts) []cfgSection {
 	}}
 }
 
+type qemuPCIeOpts struct {
+	portName      string
+	index         int
+	devAddr       string
+	multifunction bool
+}
+
+func qemuPCIeSections(opts *qemuPCIeOpts) []cfgSection {
+	entries := []cfgEntry{
+		{key: "driver", value: "pcie-root-port"},
+		{key: "bus", value: "pcie.0"},
+		{key: "addr", value: opts.devAddr},
+		{key: "chassis", value: fmt.Sprintf("%d", opts.index)},
+	}
+
+	if opts.multifunction {
+		entries = append(entries, cfgEntry{key: "multifunction", value: "on"})
+	}
+
+	return []cfgSection{{
+		name:    fmt.Sprintf(`device "%s"`, opts.portName),
+		entries: entries,
+	}}
+}
+
 var qemuPCIe = template.Must(template.New("qemuPCIe").Parse(`
 [device "{{.portName}}"]
 driver = "pcie-root-port"
