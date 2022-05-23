@@ -3,12 +3,38 @@ package migration
 import (
 	"fmt"
 	"io"
+	"net/http"
 
+	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
 )
+
+// Info represents the index frame sent if supported.
+type Info struct {
+	Config *backupConfig.Config `json:"config,omitempty" yaml:"config,omitempty"` // Equivalent of backup.yaml but embedded in index.
+}
+
+// InfoResponse represents the response to the index frame sent if supported.
+// Right now this doesn't contain anything useful, its just used to indicate receipt of the index header.
+// But in the future the itention is to use it allow the target to send back additional information to the source
+// about which frames (such as snapshots) it needs for the migration after having inspected the Info index header.
+type InfoResponse struct {
+	StatusCode int
+	Error      string
+}
+
+// Err returns the error of the response.
+func (r *InfoResponse) Err() error {
+	if r.StatusCode != http.StatusOK {
+		return api.StatusErrorf(r.StatusCode, r.Error)
+	}
+
+	return nil
+}
 
 // Type represents the migration transport type. It indicates the method by which the migration can
 // take place and what optional features are available.
@@ -19,30 +45,33 @@ type Type struct {
 
 // VolumeSourceArgs represents the arguments needed to setup a volume migration source.
 type VolumeSourceArgs struct {
-	Name              string
-	Snapshots         []string
-	MigrationType     Type
-	TrackProgress     bool
-	MultiSync         bool
-	FinalSync         bool
-	Data              any // Optional store to persist storage driver state between MultiSync phases.
-	ContentType       string
-	AllowInconsistent bool
-	Refresh           bool
+	IndexHeaderVersion uint32
+	Name               string
+	Snapshots          []string
+	MigrationType      Type
+	TrackProgress      bool
+	MultiSync          bool
+	FinalSync          bool
+	Data               any // Optional store to persist storage driver state between MultiSync phases.
+	ContentType        string
+	AllowInconsistent  bool
+	Refresh            bool
+	Info               *Info
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
 type VolumeTargetArgs struct {
-	Name          string
-	Description   string
-	Config        map[string]string
-	Snapshots     []string
-	MigrationType Type
-	TrackProgress bool
-	Refresh       bool
-	Live          bool
-	VolumeSize    int64
-	ContentType   string
+	IndexHeaderVersion uint32
+	Name               string
+	Description        string
+	Config             map[string]string
+	Snapshots          []string
+	MigrationType      Type
+	TrackProgress      bool
+	Refresh            bool
+	Live               bool
+	VolumeSize         int64
+	ContentType        string
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument

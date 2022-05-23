@@ -308,7 +308,11 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// Check if the instance exists.
 		inst, err = instance.LoadByProjectAndName(d.State(), projectName, req.Name)
 		if err != nil {
-			req.Source.Refresh = false
+			if response.IsNotFoundError(err) {
+				req.Source.Refresh = false
+			} else {
+				return response.InternalError(err)
+			}
 		} else if inst.IsRunning() {
 			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
 		}
