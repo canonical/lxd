@@ -179,4 +179,38 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_pcie", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuPCIeOpts
+			expected string
+		}{{
+			qemuPCIeOpts{"qemu_pcie0", 0, "1.0", true},
+			`[device "qemu_pcie0"]
+			driver = "pcie-root-port"
+			bus = "pcie.0"
+			addr = "1.0"
+			chassis = "0"
+			multifunction = "on"
+			`,
+		}, {
+			qemuPCIeOpts{"qemu_pcie2", 3, "2.0", false},
+			`[device "qemu_pcie2"]
+			driver = "pcie-root-port"
+			bus = "pcie.0"
+			addr = "2.0"
+			chassis = "3"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuPCIeSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
