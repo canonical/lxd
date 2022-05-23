@@ -2938,20 +2938,13 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	}
 
 	// Determine per-node memory limit.
-	memSizeBytes = memSizeBytes / 1024 / 1024
-	nodeMemory := int64(memSizeBytes / int64(len(hostNodes)))
-	memSizeBytes = nodeMemory * int64(len(hostNodes))
+	memSizeMB := memSizeBytes / 1024 / 1024
+	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
+	memSizeMB = nodeMemory * int64(len(hostNodes))
 	ctx["memory"] = nodeMemory
 
 	if sb != nil {
-		err = qemuMemory.Execute(sb, map[string]any{
-			"architecture": d.architectureName,
-			"memSizeBytes": memSizeBytes,
-		})
-
-		if err != nil {
-			return -1, err
-		}
+		qemuAppendSections(sb, qemuMemorySections(&qemuMemoryOpts{memSizeMB})...)
 
 		err = qemuCPU.Execute(sb, ctx)
 		if err != nil {
