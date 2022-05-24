@@ -227,17 +227,6 @@ func qemuPCIeSections(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
-var qemuPCIe = template.Must(template.New("qemuPCIe").Parse(`
-[device "{{.portName}}"]
-driver = "pcie-root-port"
-bus = "pcie.0"
-addr = "{{.addr}}"
-chassis = "{{.index}}"
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuSCSI = template.Must(template.New("qemuSCSI").Parse(`
 # SCSI controller
 [device "qemu_scsi"]
