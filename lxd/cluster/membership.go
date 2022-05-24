@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
 
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
@@ -232,7 +233,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// Insert the new node into the nodes table.
 	var id int64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := ConfigLoad(tx)
+		config, err := clusterConfig.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Load cluster configuration: %w", err)
 		}
@@ -998,7 +999,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	var domains map[string]uint64
 
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := ConfigLoad(tx)
+		config, err := clusterConfig.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Load cluster configuration: %w", err)
 		}

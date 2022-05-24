@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -667,12 +668,12 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		revert.Add(func() { d.stopClusterTasks() })
 
 		// Handle optional service integration on cluster join
-		var clusterConfig *cluster.Config
+		var config *clusterConfig.Config
 
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
-			clusterConfig, err = cluster.ConfigLoad(tx)
+			config, err = clusterConfig.ConfigLoad(tx)
 			if err != nil {
 				return err
 			}
@@ -700,7 +701,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Connect to MAAS
-		url, key := clusterConfig.MAASController()
+		url, key := config.MAASController()
 		machine := nodeConfig.MAASMachine()
 		err = d.setupMAASController(url, key, machine)
 		if err != nil {
@@ -708,8 +709,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Handle external authentication/RBAC
-		candidAPIURL, candidAPIKey, candidExpiry, candidDomains := clusterConfig.CandidServer()
-		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey := clusterConfig.RBACServer()
+		candidAPIURL, candidAPIKey, candidExpiry, candidDomains := config.CandidServer()
+		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey := config.RBACServer()
 
 		if rbacAPIURL != "" {
 			err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
@@ -1195,7 +1196,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the offline threshold.
-		config, err := cluster.ConfigLoad(tx)
+		config, err := clusterConfig.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load LXD config: %w", err)
 		}

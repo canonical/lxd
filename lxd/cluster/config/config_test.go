@@ -1,4 +1,4 @@
-package cluster_test
+package config_test
 
 import (
 	"testing"
