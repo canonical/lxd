@@ -2588,15 +2588,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	qemuAppendSections(sb, qemuKeyboardSections(&keyboardOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuTablet.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	tabletOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuTabletSections(&tabletOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	vsockOpts := qemuVsockOpts{
