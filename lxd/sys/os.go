@@ -99,6 +99,7 @@ type OS struct {
 	// OS info
 	ReleaseInfo   map[string]string
 	KernelVersion version.DottedVersion
+	Uname         *shared.Utsname
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -196,12 +197,15 @@ func (s *OS) Init() ([]db.Warning, error) {
 
 	s.ReleaseInfo = osInfo
 
-	uname, _ := shared.Uname()
-	if uname != nil {
-		kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
-		if err == nil {
-			s.KernelVersion = *kernelVersion
-		}
+	uname, err := shared.Uname()
+	if err != nil {
+		return nil, err
+	}
+	s.Uname = uname
+
+	kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
+	if err == nil {
+		s.KernelVersion = *kernelVersion
 	}
 
 	return dbWarnings, nil
