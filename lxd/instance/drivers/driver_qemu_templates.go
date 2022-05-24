@@ -323,6 +323,20 @@ func qemuGPUSections(opts *qemuGpuOpts) []cfgSection {
 	}}
 }
 
+func qemuKeyboardSections(opts *qemuDevOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     *opts,
+		pciName: "virtio-keyboard-pci",
+		ccwName: "virtio-keyboard-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_keyboard"`,
+		comment: "Input",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}}
+}
+
 var qemuKeyboard = template.Must(template.New("qemuKeyboard").Parse(`
 # Input
 [device "qemu_keyboard"]
