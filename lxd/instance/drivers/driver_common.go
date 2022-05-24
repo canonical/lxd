@@ -678,7 +678,7 @@ func (d *common) startupSnapshot(inst instance.Instance) error {
 // Internal MAAS handling.
 func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[string]string) error {
 	// Check if MAAS is configured
-	maasURL, err := clusterConfig.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
+	maasURL, err := clusterConfig.GetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}
@@ -777,7 +777,7 @@ func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[s
 }
 
 func (d *common) maasRename(inst instance.Instance, newName string) error {
-	maasURL, err := clusterConfig.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
+	maasURL, err := clusterConfig.GetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}
@@ -812,7 +812,7 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 }
 
 func (d *common) maasDelete(inst instance.Instance) error {
-	maasURL, err := clusterConfig.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
+	maasURL, err := clusterConfig.GetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}

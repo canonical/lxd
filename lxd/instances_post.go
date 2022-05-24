@@ -91,7 +91,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
-				autoUpdate, err = clusterConfig.ConfigGetBool(d.db.Cluster, "images.auto_update_cached")
+				autoUpdate, err = clusterConfig.GetBool(d.db.Cluster, "images.auto_update_cached")
 				if err != nil {
 					return err
 				}
@@ -956,7 +956,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
 			} else {
-				config, err := clusterConfig.ConfigLoad(tx)
+				config, err := clusterConfig.Load(tx)
 				if err != nil {
 					return err
 				}

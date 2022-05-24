@@ -375,7 +375,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	// Validate normal TLS access.
-	trustCACertificates, err := clusterConfig.ConfigGetBool(d.db.Cluster, "core.trust_ca_certificates")
+	trustCACertificates, err := clusterConfig.GetBool(d.db.Cluster, "core.trust_ca_certificates")
 	if err != nil {
 		return false, "", "", err
 	}
@@ -1278,7 +1278,7 @@ func (d *Daemon) init() error {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.ConfigLoad(tx)
+		config, err := clusterConfig.Load(tx)
 		if err != nil {
 			return err
 		}
@@ -1615,7 +1615,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := clusterConfig.ConfigLoad(tx)
+			config, err := clusterConfig.Load(tx)
 			if err != nil {
 				return err
 			}
@@ -2157,7 +2157,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		var maxVoters int64
 		var maxStandBy int64
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := clusterConfig.ConfigLoad(tx)
+			config, err := clusterConfig.Load(tx)
 			if err != nil {
 				return err
 			}

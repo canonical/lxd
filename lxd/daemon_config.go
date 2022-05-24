@@ -15,7 +15,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 
 	// Turn the config into a JSON-compatible map
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		clusterConfig, err := clusterConfig.ConfigLoad(tx)
+		clusterConfig, err := clusterConfig.Load(tx)
 		if err != nil {
 			return err
 		}

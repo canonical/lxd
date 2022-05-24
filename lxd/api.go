@@ -136,7 +136,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
 		err := s.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := clusterConfig.ConfigLoad(tx)
+			config, err := clusterConfig.Load(tx)
 			if err != nil {
 				return err
 			}

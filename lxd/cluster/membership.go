@@ -233,7 +233,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// Insert the new node into the nodes table.
 	var id int64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.ConfigLoad(tx)
+		config, err := clusterConfig.Load(tx)
 		if err != nil {
 			return fmt.Errorf("Load cluster configuration: %w", err)
 		}
@@ -999,7 +999,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	var domains map[string]uint64
 
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.ConfigLoad(tx)
+		config, err := clusterConfig.Load(tx)
 		if err != nil {
 			return fmt.Errorf("Load cluster configuration: %w", err)
 		}
