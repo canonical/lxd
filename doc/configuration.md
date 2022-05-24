@@ -10,6 +10,5 @@ Preseed files <preseed>
 profiles
 Projects <projects>
 Server settings <server>
-Storage pools <storage>
 Virtual machines <virtual-machines>
 ```
