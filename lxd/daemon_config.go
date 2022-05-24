@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -15,7 +15,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 
 	// Turn the config into a JSON-compatible map
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		clusterConfig, err := cluster.ConfigLoad(tx)
+		clusterConfig, err := clusterConfig.ConfigLoad(tx)
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 	return config, nil
 }
 
-func daemonConfigSetProxy(d *Daemon, config *cluster.Config) {
+func daemonConfigSetProxy(d *Daemon, config *clusterConfig.Config) {
 	// Update the cached proxy function
 	d.proxy = shared.ProxyFromConfig(
 		config.ProxyHTTPS(),

@@ -8,7 +8,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
@@ -61,7 +61,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
 func (d *nicOVN) getIntegrationBridgeName() (string, error) {
-	integrationBridge, err := cluster.ConfigGetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
+	integrationBridge, err := clusterConfig.ConfigGetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN integration bridge name: %w", err)
 	}

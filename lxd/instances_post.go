@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -90,7 +91,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
-				autoUpdate, err = cluster.ConfigGetBool(d.db.Cluster, "images.auto_update_cached")
+				autoUpdate, err = clusterConfig.ConfigGetBool(d.db.Cluster, "images.auto_update_cached")
 				if err != nil {
 					return err
 				}
@@ -955,7 +956,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
 			} else {
-				config, err := cluster.ConfigLoad(tx)
+				config, err := clusterConfig.ConfigLoad(tx)
 				if err != nil {
 					return err
 				}

@@ -14,7 +14,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -1197,7 +1197,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			var onlineNodeIDs []int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get the offline threshold.
-				config, err := cluster.ConfigLoad(tx)
+				config, err := clusterConfig.ConfigLoad(tx)
 				if err != nil {
 					return fmt.Errorf("Failed to load LXD config: %w", err)
 				}
