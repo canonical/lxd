@@ -439,4 +439,37 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_tablet", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDevOpts
+			expected string
+		}{{
+			qemuDevOpts{"pci", "qemu_pcie0", "00.3", true},
+			`# Input
+			[device "qemu_tablet"]
+			driver = "virtio-tablet-pci"
+			bus = "qemu_pcie0"
+			addr = "00.3"
+			multifunction = "on"
+			`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie0", "00.3", true},
+			`# Input
+			[device "qemu_tablet"]
+			driver = "virtio-tablet-ccw"
+			multifunction = "on"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuTabletSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
