@@ -296,6 +296,33 @@ func qemuVsockSections(opts *qemuVsockOpts) []cfgSection {
 	}}
 }
 
+type qemuGpuOpts struct {
+	dev          qemuDevOpts
+	architecture string
+}
+
+func qemuGPUSections(opts *qemuGpuOpts) []cfgSection {
+	var pciName string
+
+	if opts.architecture == "x86_64" {
+		pciName = "virtio-vga"
+	} else {
+		pciName = "virtio-gpu-pci"
+	}
+
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     opts.dev,
+		pciName: pciName,
+		ccwName: "virtio-gpu-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_gpu"`,
+		comment: "GPU",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}}
+}
+
 var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
 # GPU
 [device "qemu_gpu"]

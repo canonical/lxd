@@ -353,4 +353,47 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_gpu", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuGpuOpts
+			expected string
+		}{{
+			qemuGpuOpts{qemuDevOpts{"pci", "qemu_pcie3", "00.0", true}, "x86_64"},
+			`# GPU
+			[device "qemu_gpu"]
+			driver = "virtio-vga"
+			bus = "qemu_pcie3"
+			addr = "00.0"
+			multifunction = "on"`,
+		}, {
+			qemuGpuOpts{qemuDevOpts{"pci", "qemu_pci3", "00.1", false}, "otherArch"},
+			`# GPU
+			[device "qemu_gpu"]
+			driver = "virtio-gpu-pci"
+			bus = "qemu_pci3"
+			addr = "00.1"`,
+		}, {
+			qemuGpuOpts{qemuDevOpts{"ccw", "devBus", "busAddr", true}, "arch"},
+			`# GPU
+			[device "qemu_gpu"]
+			driver = "virtio-gpu-ccw"
+			multifunction = "on"`,
+		}, {
+			qemuGpuOpts{qemuDevOpts{"ccw", "devBus", "busAddr", false}, "x86_64"},
+			`# GPU
+			[device "qemu_gpu"]
+			driver = "virtio-gpu-ccw"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuGPUSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
