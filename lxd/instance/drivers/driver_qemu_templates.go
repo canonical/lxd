@@ -337,6 +337,20 @@ func qemuKeyboardSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+func qemuTabletSections(opts *qemuDevOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     *opts,
+		pciName: "virtio-tablet-pci",
+		ccwName: "virtio-tablet-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_tablet"`,
+		comment: "Input",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}}
+}
+
 var qemuTablet = template.Must(template.New("qemuTablet").Parse(`
 # Input
 [device "qemu_tablet"]
