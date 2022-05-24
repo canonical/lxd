@@ -255,22 +255,6 @@ func qemuBalloonSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuBalloon = template.Must(template.New("qemuBalloon").Parse(`
-# Balloon driver
-[device "qemu_balloon"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-balloon-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-balloon-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
 # Random number generator
 [object "qemu_rng"]
