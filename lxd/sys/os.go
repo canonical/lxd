@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/mdlayher/vsock"
@@ -18,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // InotifyTargetInfo records the inotify information associated with a given
@@ -95,7 +97,8 @@ type OS struct {
 	VsockID uint32
 
 	// OS info
-	ReleaseInfo map[string]string
+	ReleaseInfo   map[string]string
+	KernelVersion version.DottedVersion
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -192,6 +195,14 @@ func (s *OS) Init() ([]db.Warning, error) {
 	}
 
 	s.ReleaseInfo = osInfo
+
+	uname, _ := shared.Uname()
+	if uname != nil {
+		kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
+		if err == nil {
+			s.KernelVersion = *kernelVersion
+		}
+	}
 
 	return dbWarnings, nil
 }
