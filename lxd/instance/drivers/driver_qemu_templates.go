@@ -276,27 +276,6 @@ func qemuRNGSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
-# Random number generator
-[object "qemu_rng"]
-qom-type = "rng-random"
-filename = "/dev/urandom"
-
-[device "dev-qemu_rng"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-rng-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-rng-ccw"
-{{- end}}
-rng = "qemu_rng"
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
 # Vsock
 [device "qemu_vsock"]
