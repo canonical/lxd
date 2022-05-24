@@ -9,6 +9,9 @@ discourse: 11567
 The BGP server feature is available for the {ref}`network-bridge` and the {ref}`network-physical`.
 ```
 
+```{youtube} https://www.youtube.com/watch?v=C9zU-FEqtTw
+```
+
 {abbr}`BGP (Border Gateway Protocol)` is a protocol that allows exchanging routing information between autonomous systems.
 
 If you want to directly route external addresses to specific LXD servers or instances, you can configure LXD as a BGP server.
