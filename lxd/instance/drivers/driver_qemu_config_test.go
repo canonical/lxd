@@ -245,4 +245,37 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_balloon", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDevOpts
+			expected string
+		}{{
+			qemuDevOpts{"pcie", "qemu_pcie0", "00.0", true},
+			`# Balloon driver
+			[device "qemu_balloon"]
+			driver = "virtio-balloon-pci"
+			bus = "qemu_pcie0"
+			addr = "00.0"
+			multifunction = "on"
+			`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+			`# Balloon driver
+			[device "qemu_balloon"]
+			driver = "virtio-balloon-ccw"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuBalloonSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
 }
