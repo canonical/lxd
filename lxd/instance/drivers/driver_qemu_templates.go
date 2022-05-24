@@ -1,46 +1,97 @@
 package drivers
 
 import (
+	"fmt"
+	"strings"
 	"text/template"
 )
 
-// Base config. This is common for all VMs and has no variables in it.
-var qemuBase = template.Must(template.New("qemuBase").Parse(`
-# Machine
-[machine]
-graphics = "off"
-{{if eq .architecture "x86_64" -}}
-type = "q35"
-{{end -}}
-{{if eq .architecture "aarch64" -}}
-type = "virt"
-gic-version = "max"
-{{end -}}
-{{if eq .architecture "ppc64le" -}}
-type = "pseries"
-cap-large-decr = "off"
-{{end -}}
-{{if eq .architecture "s390x" -}}
-type = "s390-ccw-virtio"
-{{end -}}
-accel = "kvm"
-usb = "off"
+type cfgEntry struct {
+	key   string
+	value string
+}
 
-{{if eq .architecture "x86_64" -}}
-[global]
-driver = "ICH9-LPC"
-property = "disable_s3"
-value = "1"
+type cfgSection struct {
+	name    string
+	comment string
+	entries []cfgEntry
+}
 
-[global]
-driver = "ICH9-LPC"
-property = "disable_s4"
-value = "1"
-{{end -}}
+func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
+	for _, section := range sections {
+		if section.comment != "" {
+			sb.WriteString(fmt.Sprintf("# %s\n", section.comment))
+		}
 
-[boot-opts]
-strict = "on"
-`))
+		sb.WriteString(fmt.Sprintf("[%s]\n", section.name))
+
+		for _, entry := range section.entries {
+			value := entry.value
+			if value != "" {
+				sb.WriteString(fmt.Sprintf("%s = \"%s\"\n", entry.key, value))
+			}
+		}
+
+		sb.WriteString("\n")
+	}
+}
+
+func qemuBaseSections(architecture string) []cfgSection {
+	machine_type := ""
+	gic_version := ""
+	cap_large_decr := ""
+
+	switch architecture {
+	case "x86_64":
+		machine_type = "q35"
+	case "aarch64":
+		machine_type = "virt"
+		gic_version = "max"
+	case "ppc64le":
+		machine_type = "pseries"
+		cap_large_decr = "off"
+	case "s390x":
+		machine_type = "s390-ccw-virtio"
+	}
+
+	sections := []cfgSection{{
+		name:    "machine",
+		comment: "Machine",
+		entries: []cfgEntry{
+			{key: "graphics", value: "off"},
+			{key: "type", value: machine_type},
+			{key: "gic-version", value: gic_version},
+			{key: "cap-large-decr", value: cap_large_decr},
+			{key: "accel", value: "kvm"},
+			{key: "usb", value: "off"},
+		},
+	}}
+
+	if architecture == "x86_64" {
+		sections = append(sections, []cfgSection{{
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s3"},
+				{key: "value", value: "1"},
+			},
+		}, {
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s4"},
+				{key: "value", value: "1"},
+			},
+		}}...)
+	}
+
+	return append(
+		sections,
+		cfgSection{
+			name:    "boot-opts",
+			entries: []cfgEntry{{key: "strict", value: "on"}},
+		})
+}
 
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
 # Memory
