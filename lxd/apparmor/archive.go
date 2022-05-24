@@ -28,11 +28,12 @@ profile "{{.name}}" {
   signal (receive) set=("term") peer=unconfined,
 
   # Capabilities
-  capability dac_read_search,
-  capability dac_override,
   capability chown,
-  capability fsetid,
+  capability dac_override,
+  capability dac_read_search,
   capability fowner,
+  capability fsetid,
+  capability mknod,
   capability setfcap,
 
 {{- if .snap }}
