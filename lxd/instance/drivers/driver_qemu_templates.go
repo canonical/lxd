@@ -241,22 +241,6 @@ func qemuSCSISections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuSCSI = template.Must(template.New("qemuSCSI").Parse(`
-# SCSI controller
-[device "qemu_scsi"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-scsi-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-scsi-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuBalloon = template.Must(template.New("qemuBalloon").Parse(`
 # Balloon driver
 [device "qemu_balloon"]
