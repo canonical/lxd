@@ -240,11 +240,6 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	srv.Auth = "trusted"
 
-	uname, err := shared.Uname()
-	if err != nil {
-		return response.InternalError(err)
-	}
-
 	address, err := node.HTTPSAddress(d.db.Node)
 	if err != nil {
 		return response.InternalError(err)
@@ -301,9 +296,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Architectures:          architectures,
 		Certificate:            certificate,
 		CertificateFingerprint: certificateFingerprint,
-		Kernel:                 uname.Sysname,
-		KernelArchitecture:     uname.Machine,
-		KernelVersion:          uname.Release,
+		Kernel:                 d.os.Uname.Sysname,
+		KernelArchitecture:     d.os.Uname.Machine,
+		KernelVersion:          d.os.Uname.Release,
 		OSName:                 d.os.ReleaseInfo["NAME"],
 		OSVersion:              d.os.ReleaseInfo["VERSION_ID"],
 		Project:                projectName,
