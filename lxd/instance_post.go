@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -114,7 +115,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		//       running?
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Load cluster configuration.
-			config, err := cluster.ConfigLoad(tx)
+			config, err := clusterConfig.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load LXD config: %w", err)
 			}

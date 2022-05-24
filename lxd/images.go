@@ -30,6 +30,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/filter"
@@ -287,7 +288,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		if p.Config["images.compression_algorithm"] != "" {
 			compress = p.Config["images.compression_algorithm"]
 		} else {
-			compress, err = cluster.ConfigGetString(d.db.Cluster, "images.compression_algorithm")
+			compress, err = clusterConfig.ConfigGetString(d.db.Cluster, "images.compression_algorithm")
 			if err != nil {
 				return nil, err
 			}
@@ -1825,7 +1826,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 				return nil, fmt.Errorf("Unable to fetch project configuration: %w", err)
 			}
 		} else {
-			interval, err = cluster.ConfigGetInt64(d.db.Cluster, "images.auto_update_interval")
+			interval, err = clusterConfig.ConfigGetInt64(d.db.Cluster, "images.auto_update_interval")
 			if err != nil {
 				return nil, fmt.Errorf("Unable to fetch cluster configuration: %w", err)
 			}
@@ -2169,7 +2170,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 			return fmt.Errorf("Unable to fetch project configuration: %w", err)
 		}
 	} else {
-		expiry, err = cluster.ConfigGetInt64(d.db.Cluster, "images.remote_cache_expiry")
+		expiry, err = clusterConfig.ConfigGetInt64(d.db.Cluster, "images.remote_cache_expiry")
 		if err != nil {
 			return fmt.Errorf("Unable to fetch cluster configuration: %w", err)
 		}
@@ -3928,7 +3929,7 @@ func imageSyncBetweenNodes(d *Daemon, r *http.Request, project string, fingerpri
 	var desiredSyncNodeCount int64
 
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := cluster.ConfigLoad(tx)
+		config, err := clusterConfig.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load cluster configuration: %w", err)
 		}

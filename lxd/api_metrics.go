@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -33,7 +33,7 @@ var metricsCmd = APIEndpoint{
 
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
 	// Check if API is wide open.
-	isAuthenticated, err := cluster.ConfigGetBool(d.db.Cluster, "core.metrics_authentication")
+	isAuthenticated, err := clusterConfig.ConfigGetBool(d.db.Cluster, "core.metrics_authentication")
 	if err != nil {
 		return response.InternalError(err)
 	}
