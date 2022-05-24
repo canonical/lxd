@@ -337,22 +337,6 @@ func qemuKeyboardSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuKeyboard = template.Must(template.New("qemuKeyboard").Parse(`
-# Input
-[device "qemu_keyboard"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-keyboard-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-keyboard-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuTablet = template.Must(template.New("qemuTablet").Parse(`
 # Input
 [device "qemu_tablet"]
