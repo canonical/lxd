@@ -428,6 +428,12 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
 			Enabled:     true,
 			RestartTime: 120,
 		},
+
+		// Always allow for the maximum multihop.
+		EbgpMultihop: &bgpAPI.EbgpMultihop{
+			Enabled:     true,
+			MultihopTtl: 255,
+		},
 	}
 
 	// Setup peer for dual-stack.
