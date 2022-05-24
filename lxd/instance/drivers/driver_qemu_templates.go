@@ -296,23 +296,6 @@ func qemuVsockSections(opts *qemuVsockOpts) []cfgSection {
 	}}
 }
 
-var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
-# Vsock
-[device "qemu_vsock"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "vhost-vsock-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "vhost-vsock-ccw"
-{{- end}}
-guest-cid = "{{.vsockID}}"
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
 # GPU
 [device "qemu_gpu"]
