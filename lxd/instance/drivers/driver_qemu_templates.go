@@ -255,6 +255,27 @@ func qemuBalloonSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+func qemuRNGSections(opts *qemuDevOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     *opts,
+		pciName: "virtio-rng-pci",
+		ccwName: "virtio-rng-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `object "qemu_rng"`,
+		comment: "Random number generator",
+		entries: []cfgEntry{
+			{key: "qom-type", value: "rng-random"},
+			{key: "filename", value: "/dev/urandom"},
+		},
+	}, {
+		name: `device "dev-qemu_rng"`,
+		entries: append(qemuDeviceEntries(&entriesOpts),
+			cfgEntry{key: "rng", value: "qemu_rng"}),
+	}}
+}
+
 var qemuRNG = template.Must(template.New("qemuRNG").Parse(`
 # Random number generator
 [object "qemu_rng"]

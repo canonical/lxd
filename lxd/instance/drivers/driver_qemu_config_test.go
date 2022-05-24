@@ -278,4 +278,46 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}
 	})
 
+	t.Run("qemu_rng", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDevOpts
+			expected string
+		}{{
+			qemuDevOpts{"pci", "qemu_pcie0", "00.1", false},
+			`# Random number generator
+			[object "qemu_rng"]
+			qom-type = "rng-random"
+			filename = "/dev/urandom"
+
+			[device "dev-qemu_rng"]
+			driver = "virtio-rng-pci"
+			bus = "qemu_pcie0"
+			addr = "00.1"
+			rng = "qemu_rng"
+			`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie0", "00.1", true},
+			`# Random number generator
+			[object "qemu_rng"]
+			qom-type = "rng-random"
+			filename = "/dev/urandom"
+
+			[device "dev-qemu_rng"]
+			driver = "virtio-rng-ccw"
+			multifunction = "on"
+			rng = "qemu_rng"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuRNGSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
 }
