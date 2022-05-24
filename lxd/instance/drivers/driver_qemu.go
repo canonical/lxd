@@ -2497,12 +2497,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	var sb *strings.Builder = &strings.Builder{}
 	var monHooks []monitorHook
 
-	err := qemuBase.Execute(sb, map[string]any{
-		"architecture": d.architectureName,
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	qemuAppendSections(sb, qemuBaseSections(d.architectureName)...)
 
 	cpuCount, err := d.addCPUMemoryConfig(sb)
 	if err != nil {
