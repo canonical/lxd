@@ -351,22 +351,6 @@ func qemuTabletSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuTablet = template.Must(template.New("qemuTablet").Parse(`
-# Input
-[device "qemu_tablet"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "virtio-tablet-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-tablet-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
 # CPU
 [smp-opts]
