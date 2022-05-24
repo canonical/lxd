@@ -213,4 +213,36 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_scsi", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDevOpts
+			expected string
+		}{{
+			qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+			`# SCSI controller
+			[device "qemu_scsi"]
+			driver = "virtio-scsi-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
+			`# SCSI controller
+			[device "qemu_scsi"]
+			driver = "virtio-scsi-ccw"
+			multifunction = "on"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuSCSISections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }

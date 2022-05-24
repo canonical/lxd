@@ -227,6 +227,20 @@ func qemuPCIeSections(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
+func qemuSCSISections(opts *qemuDevOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     *opts,
+		pciName: "virtio-scsi-pci",
+		ccwName: "virtio-scsi-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_scsi"`,
+		comment: "SCSI controller",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}}
+}
+
 var qemuSCSI = template.Must(template.New("qemuSCSI").Parse(`
 # SCSI controller
 [device "qemu_scsi"]
