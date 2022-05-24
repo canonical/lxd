@@ -2561,15 +2561,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
 	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
-	err = qemuBalloon.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	balloonOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuBalloonSections(&balloonOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	err = qemuRNG.Execute(sb, map[string]any{
