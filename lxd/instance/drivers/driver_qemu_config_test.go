@@ -320,4 +320,37 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}
 	})
 
+	t.Run("qemu_vsock", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuVsockOpts
+			expected string
+		}{{
+			qemuVsockOpts{qemuDevOpts{"pcie", "qemu_pcie0", "00.4", true}, 14},
+			`# Vsock
+			[device "qemu_vsock"]
+			driver = "vhost-vsock-pci"
+			bus = "qemu_pcie0"
+			addr = "00.4"
+			multifunction = "on"
+			guest-cid = "14"
+			`,
+		}, {
+			qemuVsockOpts{qemuDevOpts{"ccw", "qemu_pcie0", "00.4", false}, 3},
+			`# Vsock
+			[device "qemu_vsock"]
+			driver = "vhost-vsock-ccw"
+			guest-cid = "3"
+			`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuVsockSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }

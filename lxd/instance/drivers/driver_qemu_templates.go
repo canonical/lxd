@@ -276,6 +276,26 @@ func qemuRNGSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+type qemuVsockOpts struct {
+	dev     qemuDevOpts
+	vsockID int
+}
+
+func qemuVsockSections(opts *qemuVsockOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     opts.dev,
+		pciName: "vhost-vsock-pci",
+		ccwName: "vhost-vsock-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_vsock"`,
+		comment: "Vsock",
+		entries: append(qemuDeviceEntries(&entriesOpts),
+			cfgEntry{key: "guest-cid", value: fmt.Sprintf("%d", opts.vsockID)}),
+	}}
+}
+
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
 # Vsock
 [device "qemu_vsock"]
