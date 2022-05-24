@@ -396,4 +396,47 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_keyboard", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDevOpts
+			expected string
+		}{{
+			qemuDevOpts{"pci", "qemu_pcie3", "00.0", false},
+			`# Input
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-pci"
+			bus = "qemu_pcie3"
+			addr = "00.0"`,
+		}, {
+			qemuDevOpts{"pcie", "qemu_pcie3", "00.0", true},
+			`# Input
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-pci"
+			bus = "qemu_pcie3"
+			addr = "00.0"
+			multifunction = "on"`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie3", "00.0", false},
+			`# Input
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-ccw"`,
+		}, {
+			qemuDevOpts{"ccw", "qemu_pcie3", "00.0", true},
+			`# Input
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-ccw"
+			multifunction = "on"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuKeyboardSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
