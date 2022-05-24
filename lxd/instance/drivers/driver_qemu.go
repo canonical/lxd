@@ -2601,17 +2601,16 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuVsock.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"vsockID": d.vsockID(),
-	})
-	if err != nil {
-		return "", nil, err
+	vsockOpts := qemuVsockOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		vsockID: d.vsockID(),
 	}
+	qemuAppendSections(sb, qemuVsockSections(&vsockOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	serialOpts := qemuSerialOpts{
