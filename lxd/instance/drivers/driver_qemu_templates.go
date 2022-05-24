@@ -37,21 +37,21 @@ func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
 }
 
 func qemuBaseSections(architecture string) []cfgSection {
-	machine_type := ""
-	gic_version := ""
-	cap_large_decr := ""
+	machineType := ""
+	gicVersion := ""
+	capLargeDecr := ""
 
 	switch architecture {
 	case "x86_64":
-		machine_type = "q35"
+		machineType = "q35"
 	case "aarch64":
-		machine_type = "virt"
-		gic_version = "max"
+		machineType = "virt"
+		gicVersion = "max"
 	case "ppc64le":
-		machine_type = "pseries"
-		cap_large_decr = "off"
+		machineType = "pseries"
+		capLargeDecr = "off"
 	case "s390x":
-		machine_type = "s390-ccw-virtio"
+		machineType = "s390-ccw-virtio"
 	}
 
 	sections := []cfgSection{{
@@ -59,9 +59,9 @@ func qemuBaseSections(architecture string) []cfgSection {
 		comment: "Machine",
 		entries: []cfgEntry{
 			{key: "graphics", value: "off"},
-			{key: "type", value: machine_type},
-			{key: "gic-version", value: gic_version},
-			{key: "cap-large-decr", value: cap_large_decr},
+			{key: "type", value: machineType},
+			{key: "gic-version", value: gicVersion},
+			{key: "cap-large-decr", value: capLargeDecr},
 			{key: "accel", value: "kvm"},
 			{key: "usb", value: "off"},
 		},
