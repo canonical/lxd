@@ -197,7 +197,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	var localNodeName string
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the cluster config.
-		config, err := clusterConfig.ConfigLoad(tx)
+		config, err := clusterConfig.Load(tx)
 		if err != nil {
 			return err
 		}
@@ -439,7 +439,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		var config *clusterConfig.Config
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			config, err = clusterConfig.ConfigLoad(tx)
+			config, err = clusterConfig.Load(tx)
 			return err
 		})
 		if err != nil {
@@ -629,7 +629,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newClusterConfig *clusterConfig.Config
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		newClusterConfig, err = clusterConfig.ConfigLoad(tx)
+		newClusterConfig, err = clusterConfig.Load(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load cluster config: %w", err)
 		}

@@ -503,7 +503,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Access check.
-	secret, err := clusterConfig.ConfigGetString(d.db.Cluster, "core.trust_password")
+	secret, err := clusterConfig.GetString(d.db.Cluster, "core.trust_password")
 	if err != nil {
 		return response.SmartError(err)
 	}

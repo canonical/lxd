@@ -1197,7 +1197,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			var onlineNodeIDs []int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get the offline threshold.
-				config, err := clusterConfig.ConfigLoad(tx)
+				config, err := clusterConfig.Load(tx)
 				if err != nil {
 					return fmt.Errorf("Failed to load LXD config: %w", err)
 				}

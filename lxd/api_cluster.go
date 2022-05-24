@@ -673,7 +673,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
-			config, err = clusterConfig.ConfigLoad(tx)
+			config, err = clusterConfig.Load(tx)
 			if err != nil {
 				return err
 			}
@@ -1196,7 +1196,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the offline threshold.
-		config, err := clusterConfig.ConfigLoad(tx)
+		config, err := clusterConfig.Load(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load LXD config: %w", err)
 		}

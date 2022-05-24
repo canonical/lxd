@@ -115,7 +115,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		//       running?
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Load cluster configuration.
-			config, err := clusterConfig.ConfigLoad(tx)
+			config, err := clusterConfig.Load(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load LXD config: %w", err)
 			}
