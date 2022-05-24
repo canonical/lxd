@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/lxc/lxd/lxd/bgp"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dns"
 	"github.com/lxc/lxd/lxd/endpoints"
@@ -62,4 +63,7 @@ type State struct {
 
 	// Filesystem monitor
 	DevMonitor fsmonitor.FSMonitor
+
+	// Global configuration
+	GlobalConfig *clusterConfig.Config
 }
