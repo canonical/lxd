@@ -323,26 +323,6 @@ func qemuGPUSections(opts *qemuGpuOpts) []cfgSection {
 	}}
 }
 
-var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
-# GPU
-[device "qemu_gpu"]
-{{- if eq .bus "pci" "pcie"}}
-{{if eq .architecture "x86_64" -}}
-driver = "virtio-vga"
-{{- else}}
-driver = "virtio-gpu-pci"
-{{- end}}
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-gpu-ccw"
-{{- end}}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuKeyboard = template.Must(template.New("qemuKeyboard").Parse(`
 # Input
 [device "qemu_keyboard"]
