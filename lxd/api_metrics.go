@@ -33,7 +33,7 @@ var metricsCmd = APIEndpoint{
 
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
 	// Check if API is wide open.
-	isAuthenticated, err := clusterConfig.ConfigGetBool(d.db.Cluster, "core.metrics_authentication")
+	isAuthenticated, err := clusterConfig.GetBool(d.db.Cluster, "core.metrics_authentication")
 	if err != nil {
 		return response.InternalError(err)
 	}

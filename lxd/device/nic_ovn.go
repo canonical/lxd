@@ -61,7 +61,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
 func (d *nicOVN) getIntegrationBridgeName() (string, error) {
-	integrationBridge, err := clusterConfig.ConfigGetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
+	integrationBridge, err := clusterConfig.GetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN integration bridge name: %w", err)
 	}

@@ -128,7 +128,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval, err := clusterConfig.ConfigGetInt64(d.db.Cluster, "images.auto_update_interval")
+	interval, err := clusterConfig.GetInt64(d.db.Cluster, "images.auto_update_interval")
 	if err != nil {
 		return nil, err
 	}
