@@ -54,3 +54,18 @@ jobs:
           # Cause the check to fail on any broke rules
           fail-on-error: true
           woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Golint
+        run: |
+          go install -v -x golang.org/x/lint/golint@latest
+          PATH="$PATH:$(go env GOPATH) ./scripts/lint.sh
