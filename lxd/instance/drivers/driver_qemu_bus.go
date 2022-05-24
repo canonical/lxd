@@ -118,14 +118,14 @@ func (a *qemuBus) allocate(multiFunctionGroup string) (string, string, bool) {
 	if a.name == "pcie" {
 		if p.fn == 0 {
 			portName := fmt.Sprintf("%s%d", busDevicePortPrefix, a.portNum)
-			_ = qemuPCIe.Execute(a.sb, map[string]any{
-				"portName": portName,
-				"index":    a.portNum,
-				"addr":     fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
-
+			pcieOpts := qemuPCIeOpts{
+				portName: portName,
+				index:    a.portNum,
+				devAddr:  fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
 				// First root port added on a bridge bus address needs multi-function enabled.
-				"multifunction": p.bridgeFn == 0,
-			})
+				multifunction: p.bridgeFn == 0,
+			}
+			qemuAppendSections(a.sb, qemuPCIeSections(&pcieOpts)...)
 			p.dev = portName
 			a.portNum++
 		}
