@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 // InotifyTargetInfo records the inotify information associated with a given
@@ -92,6 +93,9 @@ type OS struct {
 
 	// VM features
 	VsockID uint32
+
+	// OS info
+	ReleaseInfo map[string]string
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -103,6 +107,7 @@ func DefaultOS() *OS {
 	}
 	newOS.InotifyWatch.Fd = -1
 	newOS.InotifyWatch.Targets = make(map[string]*InotifyTargetInfo)
+	newOS.ReleaseInfo = make(map[string]string)
 	return newOS
 }
 
@@ -179,6 +184,14 @@ func (s *OS) Init() ([]db.Warning, error) {
 	}
 
 	s.VsockID = vsockID
+
+	// Fill in the OS release info.
+	osInfo, err := osarch.GetLSBRelease()
+	if err != nil {
+		return nil, err
+	}
+
+	s.ReleaseInfo = osInfo
 
 	return dbWarnings, nil
 }
