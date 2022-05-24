@@ -241,6 +241,20 @@ func qemuSCSISections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+func qemuBalloonSections(opts *qemuDevOpts) []cfgSection {
+	entriesOpts := qemuDevEntriesOpts{
+		dev:     *opts,
+		pciName: "virtio-balloon-pci",
+		ccwName: "virtio-balloon-ccw",
+	}
+
+	return []cfgSection{{
+		name:    `device "qemu_balloon"`,
+		comment: "Balloon driver",
+		entries: qemuDeviceEntries(&entriesOpts),
+	}}
+}
+
 var qemuBalloon = template.Must(template.New("qemuBalloon").Parse(`
 # Balloon driver
 [device "qemu_balloon"]
