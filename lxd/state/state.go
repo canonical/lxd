@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // State is a gateway to the two main stateful components of LXD, the database
@@ -63,7 +62,4 @@ type State struct {
 
 	// Filesystem monitor
 	DevMonitor fsmonitor.FSMonitor
-
-	// Kernel Version
-	KernelVersion version.DottedVersion
 }
