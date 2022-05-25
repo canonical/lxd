@@ -1083,8 +1083,6 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 		logger.Info("Done pruning expired custom volume snapshots")
 	}
 
-	f(context.Background())
-
 	first := true
 	schedule := func() (time.Duration, error) {
 		interval := time.Minute
