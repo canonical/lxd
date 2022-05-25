@@ -193,32 +193,16 @@ var api10 = []APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func api10Get(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
+	// Get the authentication methods.
 	authMethods := []string{"tls"}
-	var localNodeName string
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get the cluster config.
-		config, err := clusterConfig.Load(tx)
-		if err != nil {
-			return err
-		}
-
-		candidURL, _, _, _ := config.CandidServer()
-		rbacURL, _, _, _, _, _, _ := config.RBACServer()
-		if candidURL != "" || rbacURL != "" {
-			authMethods = append(authMethods, "candid")
-		}
-
-		// Get the local node (will be used if clustered).
-		localNodeName, err = tx.GetLocalNodeName()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
+	candidURL, _, _, _ := s.GlobalConfig.CandidServer()
+	rbacURL, _, _, _, _, _, _ := s.GlobalConfig.RBACServer()
+	if candidURL != "" || rbacURL != "" {
+		authMethods = append(authMethods, "candid")
 	}
+
 	srv := api.ServerUntrusted{
 		APIExtensions: version.APIExtensions,
 		APIStatus:     "stable",
@@ -259,12 +243,13 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// When clustered, use the node name, otherwise use the hostname.
 	var serverName string
 	if clustered {
-		serverName = localNodeName
+		serverName = s.ServerName
 	} else {
 		hostname, err := os.Hostname()
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		serverName = hostname
 	}
 
