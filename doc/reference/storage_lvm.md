@@ -35,8 +35,8 @@ Key                     | Type      | Condition                 | Default       
 :--                     | :---      | :--------                 | :------                               | :----------
 block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
 block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
-lvm.stripes             | string    | lvm driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume)
-lvm.stripes.size        | string    | lvm driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes)
+lvm.stripes             | string    | LVM driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume)
+lvm.stripes.size        | string    | LVM driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes)
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
 security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
 size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume

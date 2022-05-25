@@ -1,5 +1,5 @@
 (storage-ceph)=
-# CEPH
+# Ceph
 
 - Uses RBD images for images, then snapshots and clones to create instances
   and snapshots.
@@ -16,12 +16,12 @@
   `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
   property to be set to true. If not set, LXD will refuse to reuse an osd
   storage pool it detected as being in use by another LXD instance.
-- When setting up a ceph cluster that LXD is going to use we recommend using
+- When setting up a Ceph cluster that LXD is going to use we recommend using
   `xfs` as the underlying filesystem for the storage entities that are used to
   hold OSD storage pools. Using `ext4` as the underlying filesystem for the
   storage entities is not recommended by Ceph upstream. You may see unexpected
   and erratic failures which are unrelated to LXD itself.
-- To use ceph osd pool of type "erasure" you __must__ have the osd pool created
+- To use Ceph osd pool of type "erasure" you __must__ have the osd pool created
   beforehand, as well as a separate osd pool of type "replicated" that will be used for
   storing metadata. This is required as RBD & CephFS do not support omap.
   To specify which pool is "earasure coded" you need to use the
@@ -31,7 +31,7 @@
 ## Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+ceph.cluster\_name            | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
 ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the osd data pool
 ceph.osd.force\_reuse         | bool                          | false                                   | Force using an osd storage pool that is already in use by another LXD instance
 ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool
@@ -39,7 +39,7 @@ ceph.osd.pool\_name           | string                        | name of the pool
 ceph.rbd.clone\_copy          | bool                          | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
 ceph.rbd.du                   | bool                          | true                                    | Whether to use rbd du to obtain disk usage data for stopped instances.
 ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
-ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+ceph.user.name                | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 ## Storage volume configuration
@@ -56,13 +56,13 @@ snapshots.schedule      | string    | custom volume             | -             
 
 ## The following commands can be used to create Ceph storage pools
 
-- Create a osd storage pool named "pool1" in the CEPH cluster "ceph".
+- Create a osd storage pool named "pool1" in the Ceph cluster "ceph".
 
 ```bash
 lxc storage create pool1 ceph
 ```
 
-- Create a osd storage pool named "pool1" in the CEPH cluster "my-cluster".
+- Create a osd storage pool named "pool1" in the Ceph cluster "my-cluster".
 
 ```bash
 lxc storage create pool1 ceph ceph.cluster_name=my-cluster
