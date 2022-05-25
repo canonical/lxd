@@ -332,6 +332,9 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	logger.Info("Bootstrapping cluster", logger.Ctx{"serverName": req.ServerName})
 
 	run := func(op *operations.Operation) error {
+		// Update server name.
+		d.serverName = req.ServerName
+
 		// Start clustering tasks
 		d.startClusterTasks()
 
@@ -529,6 +532,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		revert := revert.New()
 		defer revert.Fail()
+
+		// Update server name.
+		d.serverName = req.ServerName
+		revert.Add(func() { d.serverName = "" })
 
 		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
