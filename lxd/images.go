@@ -3985,17 +3985,15 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 }
 
 func imageSyncBetweenNodes(d *Daemon, r *http.Request, project string, fingerprint string) error {
+	s := d.State()
+
 	logger.Info("Syncing image to members started", logger.Ctx{"fingerprint": fingerprint, "project": project})
 	defer logger.Info("Syncing image to members finished", logger.Ctx{"fingerprint": fingerprint, "project": project})
 
 	var desiredSyncNodeCount int64
 
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(tx)
-		if err != nil {
-			return fmt.Errorf("Failed to load cluster configuration: %w", err)
-		}
-		desiredSyncNodeCount = config.ImagesMinimalReplica()
+		desiredSyncNodeCount = s.GlobalConfig.ImagesMinimalReplica()
 
 		// -1 means that we want to replicate the image on all nodes
 		if desiredSyncNodeCount == -1 {
