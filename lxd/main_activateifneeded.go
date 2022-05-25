@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -137,7 +138,15 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check for scheduled volume snapshots
-	volumes, err := d.db.Cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+	var volumes []db.StorageVolumeArgs
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		volumes, err = tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
