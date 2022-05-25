@@ -17,6 +17,7 @@ import (
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-ID
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot id
@@ -48,6 +49,7 @@ type InstanceSnapshot struct {
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
+	ID       *int
 	Project  *string
 	Instance *string
 	Name     *string
@@ -104,6 +106,61 @@ func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDat
 	}
 
 	return nil
+}
+
+// GetLocalExpiredInstanceSnapshots returns a list of expired snapshots.
+func (c *ClusterTx) GetLocalExpiredInstanceSnapshots() ([]InstanceSnapshot, error) {
+	q := `
+	SELECT
+		instances_snapshots.id,
+		instances_snapshots.expiry_date
+	FROM instances_snapshots
+	JOIN instances ON instances.id=instances_snapshots.instance_id
+	WHERE instances.node_id=? AND instances_snapshots.expiry_date != '0001-01-01T00:00:00Z'
+	`
+
+	snapshotIDs := []int{}
+	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+		var id int
+		var expiry sql.NullTime
+
+		// Read the row.
+		err := scan(&id, &expiry)
+		if err != nil {
+			return err
+		}
+
+		// Skip if not expired.
+		if !expiry.Valid || expiry.Time.Unix() <= 0 {
+			return nil
+		}
+
+		if time.Now().Unix()-expiry.Time.Unix() < 0 {
+			return nil
+		}
+
+		// Add the snapshot.
+		snapshotIDs = append(snapshotIDs, id)
+
+		return nil
+	}, c.nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch all the expired snapshot details.
+	snapshots := make([]InstanceSnapshot, len(snapshotIDs))
+
+	for i, id := range snapshotIDs {
+		snap, err := c.GetInstanceSnapshots(InstanceSnapshotFilter{ID: &id})
+		if err != nil {
+			return nil, err
+		}
+
+		snapshots[i] = snap[0]
+	}
+
+	return snapshots, nil
 }
 
 // GetInstanceSnapshotID returns the ID of the snapshot with the given name.
