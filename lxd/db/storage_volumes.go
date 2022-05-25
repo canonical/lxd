@@ -39,14 +39,7 @@ func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 }
 
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
-func (c *Cluster) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
-	var id int64
-	var nodeID int64
-	var name string
-	var description string
-	var poolName string
-	var projectName string
-
+func (c *ClusterTx) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
 	stmt := `
 SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name, IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
@@ -55,35 +48,30 @@ JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ?
 `
 
-	inargs := []any{volumeType}
-	outargs := []any{id, name, description, poolName, projectName, nodeID}
+	result := []StorageVolumeArgs{}
+	err := c.QueryScan(stmt, func(scan func(dest ...any) error) error {
+		entry := StorageVolumeArgs{}
 
-	result, err := queryScan(c, stmt, inargs, outargs)
+		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
+		if err != nil {
+			return err
+		}
+
+		result = append(result, entry)
+		return nil
+	}, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	var response []StorageVolumeArgs
-
-	for _, r := range result {
-		args := StorageVolumeArgs{
-			ID:          r[0].(int64),
-			Name:        r[1].(string),
-			Description: r[2].(string),
-			PoolName:    r[3].(string),
-			ProjectName: r[4].(string),
-			NodeID:      r[5].(int64),
-		}
-
-		args.Config, err = c.storageVolumeConfigGet(args.ID, false)
+	for i := range result {
+		result[i].Config, err = c.storageVolumeConfigGet(result[i].ID, false)
 		if err != nil {
 			return nil, err
 		}
-
-		response = append(response, args)
 	}
 
-	return response, nil
+	return result, nil
 }
 
 // GetStoragePoolVolumeWithID returns the volume with the given ID.
@@ -824,28 +812,45 @@ SELECT nodes.name FROM storage_volumes_all
 
 // Get the config of a storage volume.
 func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
-	var key, value string
+	var err error
+	var result map[string]string
+
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		result, err = tx.storageVolumeConfigGet(volumeID, isSnapshot)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// Get the config of a storage volume.
+func (c *ClusterTx) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var query string
 	if isSnapshot {
 		query = "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
 	} else {
 		query = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
 	}
-	inargs := []any{volumeID}
-	outargs := []any{key, value}
-
-	results, err := queryScan(c, query, inargs, outargs)
-	if err != nil {
-		return nil, err
-	}
 
 	config := map[string]string{}
+	err := c.QueryScan(query, func(scan func(dest ...any) error) error {
+		var key string
+		var value string
 
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
+		err := scan(&key, &value)
+		if err != nil {
+			return err
+		}
 
 		config[key] = value
+
+		return nil
+	}, volumeID)
+	if err != nil {
+		return nil, err
 	}
 
 	return config, nil
