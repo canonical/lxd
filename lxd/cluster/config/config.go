@@ -39,6 +39,11 @@ func Load(tx *db.ClusterTx) (*Config, error) {
 	return &Config{tx: tx, m: m}, nil
 }
 
+// MetricsAuthentication checks whether metrics API requires authentication.
+func (c *Config) MetricsAuthentication() bool {
+	return c.m.GetBool("core.metrics_authentication")
+}
+
 // BGPASN returns the BGP ASN setting.
 func (c *Config) BGPASN() int64 {
 	return c.m.GetInt64("core.bgp_asn")
