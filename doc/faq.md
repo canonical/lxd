@@ -45,7 +45,7 @@ lxc config trust add client.crt
 See {doc}`authentication` for detailed information.
 
 ### How do I configure LXD storage?
-LXD supports btrfs, ceph, directory, lvm and zfs based storage.
+LXD supports Btrfs, Ceph, directory, LVM and ZFS based storage.
 
 First make sure you have the relevant tools for your file system of
 choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).

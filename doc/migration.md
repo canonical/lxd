@@ -21,7 +21,7 @@ control channel.
 
 In particular, the protocol that is spoken over the criu channel and filesystem
 channel can vary, depending on what is negotiated over the control socket. For
-example, both the source and the sink's LXD directory is on btrfs, the
+example, both the source and the sink's LXD directory is on Btrfs, the
 filesystem socket can speak btrfs-send/receive. Additionally, although we do a
 "stop the world" type migration right now, support for criu's p.haul protocol
 will happen over the criu socket at some later time.
@@ -33,13 +33,13 @@ source sends a MigrationHeader (protobuf description found in
 configuration which will be added to the new instance.
 
 There are also two fields indicating the filesystem and criu protocol to speak.
-For example, if a server is hosted on a btrfs filesystem, it can indicate that it
+For example, if a server is hosted on a Btrfs filesystem, it can indicate that it
 wants to do a `btrfs send` instead of a simple rsync (similarly, it could
 indicate that it wants to speak the p.haul protocol, instead of just rsyncing
 the images over slowly).
 
 The sink then examines this message and responds with whatever it
-supports. Continuing our example, if the sink is not on a btrfs
+supports. Continuing our example, if the sink is not on a Btrfs
 filesystem, it responds with the lowest common denominator (rsync, in
 this case), and the source is to send the root filesystem using rsync.
 Similarly with the criu connection; if the sink doesn't have support for
