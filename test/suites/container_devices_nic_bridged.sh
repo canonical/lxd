@@ -562,6 +562,68 @@ test_container_devices_nic_bridged() {
   lxc config unset instances.nic.host_name
   lxc delete -f test-naming
 
+  # Test new container with conflicting addresses can be created as a copy.
+  lxc config device set "${ctName}" eth0 \
+    ipv4.address=192.0.2.232 \
+    hwaddr="" # Remove static MAC so that copies use new MAC (as changing MAC triggers device remove/add on snapshot restore).
+  grep -F "192.0.2.232" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0"
+  lxc copy "${ctName}" foo # Gets new MAC address but IPs still conflict.
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
+  lxc snapshot foo
+  lxc export foo foo.tar.gz
+  ! lxc start foo || false
+  lxc config device set foo eth0 \
+    ipv4.address=192.0.2.233 \
+    ipv6.address=2001:db8::3
+  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
+  lxc start foo
+  lxc stop -f foo
+
+  # Test container snapshot with conflicting addresses can be restored.
+  lxc restore foo snap0 # Test restore, IPs conflict on config device update (due to only IPs changing).
+  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" # Check lease file not changed (due to only IPs changing).
+  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  ! lxc start foo || false
+  lxc config device set foo eth0 \
+    hwaddr="0a:92:a7:0d:b7:c9" \
+    ipv4.address=192.0.2.233 \
+    ipv6.address=2001:db8::3
+  lxc start foo
+  lxc stop -f foo
+
+  lxc restore foo snap0 # Test restore, IPs conflict on config device remove/add (due to MAC change).
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check IP file removed (due to MAC change).
+  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  ! lxc start foo || false
+  lxc config device set foo eth0 \
+    hwaddr="0a:92:a7:0d:b7:c9" \
+    ipv4.address=192.0.2.233 \
+    ipv6.address=2001:db8::3
+  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
+  lxc start foo
+  lxc delete -f foo
+
+  # Test container with conflicting addresses can be restored from backup.
+  lxc import foo.tar.gz
+  rm foo.tar.gz
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
+  ! lxc start foo || false
+  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
+  lxc config show foo/snap0 | grep -F 'ipv4.address: 192.0.2.232'
+  lxc config device set foo eth0 \
+    hwaddr="0a:92:a7:0d:b7:c9" \
+    ipv4.address=192.0.2.233 \
+    ipv6.address=2001:db8::3
+  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
+  lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.233'
+  lxc start foo
+
+  # Check MAC conflict detection:
+  ! lxc config device set "${ctName}" eth0 hwaddr="0a:92:a7:0d:b7:c9" || false
+
+  lxc delete -f foo
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
