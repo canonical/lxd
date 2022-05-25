@@ -333,7 +333,9 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	run := func(op *operations.Operation) error {
 		// Update server name.
+		d.globalConfigMu.Lock()
 		d.serverName = req.ServerName
+		d.globalConfigMu.Unlock()
 
 		// Start clustering tasks
 		d.startClusterTasks()
@@ -534,8 +536,14 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		defer revert.Fail()
 
 		// Update server name.
+		d.globalConfigMu.Lock()
 		d.serverName = req.ServerName
-		revert.Add(func() { d.serverName = "" })
+		d.globalConfigMu.Unlock()
+		revert.Add(func() {
+			d.globalConfigMu.Lock()
+			d.serverName = ""
+			d.globalConfigMu.Unlock()
+		})
 
 		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
