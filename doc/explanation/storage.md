@@ -63,7 +63,7 @@ The device entry looks like:
     pool: default
 ```
 
-And it can be directly set on an instance ("-s" option to "lxc launch" and "lxc init")
+And it can be directly set on an instance (`--storage` option to "lxc launch" and "lxc init")
 or it can be set through LXD profiles.
 
 That latter option is what the default LXD setup (through "lxd init") will do for you.
