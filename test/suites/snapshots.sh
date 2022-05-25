@@ -197,6 +197,27 @@ snap_restore() {
 
   ##########################################################
 
+  # test restore with static IP
+  lxc launch testimage baz
+  lxc launch testimage qux
+
+  lxc config device override baz eth0 ipv4.address=192.0.2.101
+  lxc snapshot baz snap3
+  lxc config device set baz eth0 ipv4.address=192.0.2.102
+  lxc restore baz snap3
+  lxc info test001 | grep -q '192.0.2.101'
+
+  # test restore snapshot that has a static IP assigned to a NIC that conflicts with another instance
+  lxc config device set baz eth0 ipv4.address=192.0.2.102
+  lxc config device override qux eth0 ipv4.address=192.0.2.101
+  ! lxc restore baz snap3 || false
+
+  lxc stop baz
+  lxc restore baz snap3
+
+  lxc delete baz
+  lxc delete qux
+
   # test restore using full snapshot name
   restore_and_compare_fs snap1
 

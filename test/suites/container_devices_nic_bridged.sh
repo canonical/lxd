@@ -562,6 +562,15 @@ test_container_devices_nic_bridged() {
   lxc config unset instances.nic.host_name
   lxc delete -f test-naming
 
+  # Test container copy
+  lxc copy "${ctName}" bar
+  lxc config device set bar eth0 ipv4.address=192.0.2.232
+  # Test container with static IP copy
+  lxc copy bar foo
+  lxc delete foo
+  lxc delete bar
+
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
