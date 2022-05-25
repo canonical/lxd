@@ -22,6 +22,12 @@ SELECT instances_snapshots.id, projects.name AS project, instances.name AS insta
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
+var instanceSnapshotObjectsByID = cluster.RegisterStmt(`
+SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
+  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE instances_snapshots.id = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+`)
+
 var instanceSnapshotObjectsByProjectAndInstance = cluster.RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
@@ -64,20 +70,25 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 	var stmt *sql.Stmt
 	var args []any
 
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
+	if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstanceAndName)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
+	} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstance)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 		}
-	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+	} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+		stmt = c.stmt(instanceSnapshotObjectsByID)
+		args = []any{
+			filter.ID,
+		}
+	} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjects)
 		args = []any{}
 	} else {
