@@ -1294,12 +1294,15 @@ func (d *Daemon) init() error {
 		}
 
 		// Get the local node (will be used if clustered).
-		d.serverName, err = tx.GetLocalNodeName()
+		serverName, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}
 
+		d.globalConfigMu.Lock()
+		d.serverName = serverName
 		d.globalConfig = config
+		d.globalConfigMu.Unlock()
 		return nil
 	})
 	if err != nil {
@@ -1307,6 +1310,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Get specific config keys.
+	d.globalConfigMu.Lock()
 	bgpASN = d.globalConfig.BGPASN()
 
 	d.proxy = shared.ProxyFromConfig(
@@ -1319,6 +1323,7 @@ func (d *Daemon) init() error {
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
+	d.globalConfigMu.Unlock()
 
 	// Setup RBAC authentication.
 	if rbacAPIURL != "" {
