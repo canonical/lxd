@@ -436,6 +436,8 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		for key, value := range req.Config {
 			changed[key] = value.(string)
 		}
+
+		// Get the current (updated) config.
 		var config *clusterConfig.Config
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
@@ -445,10 +447,18 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		// Update the daemon config.
+		d.globalConfigMu.Lock()
+		d.globalConfig = config
+		d.globalConfigMu.Unlock()
+
+		// Run any update triggers.
 		err = doApi10UpdateTriggers(d, nil, changed, nil, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return response.EmptySyncResponse
 	}
 
@@ -456,6 +466,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	err = util.EtagCheck(r, render)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -673,6 +684,12 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.SmartError(err)
 	}
 
+	// Update the daemon config.
+	d.globalConfigMu.Lock()
+	d.globalConfig = newClusterConfig
+	d.globalConfigMu.Unlock()
+
+	// Run any update triggers.
 	err = doApi10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return response.SmartError(err)
