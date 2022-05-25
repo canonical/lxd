@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/sys"
@@ -33,6 +34,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 		OS:                     os,
 		Firewall:               firewall.New(),
 		UpdateCertificateCache: func() {},
+		GlobalConfig:           &clusterConfig.Config{},
 	}
 
 	return state, cleanup
