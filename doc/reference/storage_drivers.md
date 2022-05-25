@@ -12,10 +12,10 @@ storage_zfs
 ```
 
 ## Feature comparison
-LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images, instances and custom volumes.
+LXD supports using ZFS, Btrfs, LVM or just plain directories for storage of images, instances and custom volumes.
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS  | CEPH | CEPHFS
+Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph | CephFS
 :---                                        | :---      | :---  | :---  | :--- | :--- | :---
 Optimized image storage                     | no        | yes   | yes   | yes  | yes  | n/a
 Optimized instance creation                 | no        | yes   | yes   | yes  | yes  | n/a
@@ -30,7 +30,7 @@ Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   |
 Storage quotas                              | yes(\*)   | yes   | yes   | yes  | yes  | yes
 
 ## Recommended setup
-The two best options for use with LXD are ZFS and btrfs.
+The two best options for use with LXD are ZFS and Btrfs.
 They have about similar functionalities but ZFS is more reliable if available on your particular platform.
 
 Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.
@@ -62,7 +62,7 @@ As it would be wasteful to prepare such a volume on a storage pool that may neve
 the volume is generated on demand, causing the first instance to take longer to create than subsequent ones.
 
 ## Optimized instance transfer
-ZFS, btrfs and CEPH RBD have an internal send/receive mechanisms which allow for optimized volume transfer.
+ZFS, Btrfs and Ceph RBD have an internal send/receive mechanisms which allow for optimized volume transfer.
 LXD uses those features to transfer instances and snapshots between servers.
 
 When such capabilities aren't available, either because the storage driver doesn't support it

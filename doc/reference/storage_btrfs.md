@@ -1,19 +1,19 @@
 (storage-btrfs)=
 # Btrfs
 
- - Uses a subvolume per instance, image and snapshot, creating btrfs snapshots when creating a new object.
- - btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on btrfs. (But see notes about btrfs quota via qgroups.)
- - btrfs supports storage quotas via qgroups. While btrfs qgroups are
+ - Uses a subvolume per instance, image and snapshot, creating Btrfs snapshots when creating a new object.
+ - Btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on Btrfs. (But see notes about Btrfs quota via qgroups.)
+ - Btrfs supports storage quotas via qgroups. While Btrfs qgroups are
    hierarchical, new subvolumes will not automatically be added to the qgroups
    of their parent subvolumes. This means that users can trivially escape any
    quotas that are set. If adherence to strict quotas is a necessity users
    should be mindful of this and maybe consider using a zfs storage pool with
    refquotas.
- - When using quotas it is critical to take into account that btrfs extents are immutable so when blocks are
+ - When using quotas it is critical to take into account that Btrfs extents are immutable so when blocks are
    written they end up in new extents and the old ones remain until all of its data is dereferenced or rewritten.
    This means that a quota can be reached even if the total amount of space used by the current files in the
-   subvolume is smaller than the quota. This is seen most often when using VMs on BTRFS due to the random I/O
-   nature of using raw disk image files on top of a btrfs subvolume. Our recommendation is to not use VMs with btrfs
+   subvolume is smaller than the quota. This is seen most often when using VMs on Btrfs due to the random I/O
+   nature of using raw disk image files on top of a Btrfs subvolume. Our recommendation is to not use VMs with Btrfs
    storage pools, but if you insist then please ensure that the instance root disk's `size.state` property is set
    to 2x the size of the root disk's size to allow all blocks in the disk image file to be rewritten without
    reaching the qgroup quota. You may also find that using the `btrfs.mount_options=compress-force` storage pool
@@ -24,7 +24,7 @@
 ## Storage pool configuration
 Key                             | Type      | Condition                         | Default                    | Description
 :--                             | :---      | :--------                         | :------                    | :----------
-btrfs.mount\_options            | string    | btrfs driver                      | user\_subvol\_rm\_allowed  | Mount options for block devices
+btrfs.mount\_options            | string    | Btrfs driver                      | user\_subvol\_rm\_allowed  | Mount options for block devices
 
 ## Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
@@ -36,7 +36,7 @@ snapshots.expiry        | string    | custom volume             | -             
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 
-## The following commands can be used to create BTRFS storage pools
+## The following commands can be used to create Btrfs storage pools
 
  - Create loop-backed pool named "pool1".
 
@@ -44,7 +44,7 @@ snapshots.schedule      | string    | custom volume             | -             
 lxc storage create pool1 btrfs
 ```
 
- - Create a new pool called "pool1" using an existing btrfs filesystem at `/some/path`.
+ - Create a new pool called "pool1" using an existing Btrfs filesystem at `/some/path`.
 
 ```bash
 lxc storage create pool1 btrfs source=/some/path
@@ -56,8 +56,8 @@ lxc storage create pool1 btrfs source=/some/path
 lxc storage create pool1 btrfs source=/dev/sdX
 ```
 
-## Growing a loop backed btrfs pool
-LXD doesn't let you directly grow a loop backed btrfs pool, but you can do so with:
+## Growing a loop backed Btrfs pool
+LXD doesn't let you directly grow a loop backed Btrfs pool, but you can do so with:
 
 ```bash
 sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
