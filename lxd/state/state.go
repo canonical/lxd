@@ -66,4 +66,7 @@ type State struct {
 
 	// Global configuration
 	GlobalConfig *clusterConfig.Config
+
+	// Local server name.
+	ServerName string
 }
