@@ -32,8 +32,8 @@ This is usually the most space efficient way to run LXD and possibly the easiest
 It can be done with:
 
  - `dir` backend on any backing filesystem
- - `btrfs` backend if the host is btrfs and you point LXD to a dedicated subvolume
- - `zfs` backend if the host is zfs and you point LXD to a dedicated dataset on your zpool
+ - `btrfs` backend if the host is Btrfs and you point LXD to a dedicated subvolume
+ - `zfs` backend if the host is ZFS and you point LXD to a dedicated dataset on your zpool
 
 ### Dedicated disk/partition
 In this mode, LXD's storage will be completely independent from the host.

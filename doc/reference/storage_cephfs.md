@@ -1,5 +1,5 @@
 (storage-cephfs)=
-# CEPHFS
+# CephFS
 
  - Can only be used for custom storage volumes
  - Supports snapshots if enabled on the server side
@@ -7,9 +7,9 @@
 ## Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-cephfs.cluster\_name          | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
-cephfs.path                   | string                        | /                                       | The base path for the CEPHFS mount
-cephfs.user.name              | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
+cephfs.path                   | string                        | /                                       | The base path for the CephFS mount
+cephfs.user.name              | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 ## Storage volume configuration

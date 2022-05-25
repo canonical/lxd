@@ -762,12 +762,12 @@ if the source is a block device, a regular mount.
 
 LXD supports the following additional source types:
 
-- Ceph-rbd: Mount from existing ceph RBD device that is externally managed. LXD can use ceph to manage an internal file system for the instance, but in the event that a user has a previously existing ceph RBD that they would like use for this instance, they can use this command.
+- Ceph-rbd: Mount from existing Ceph RBD device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph RBD that they would like use for this instance, they can use this command.
 Example command
 ```
 lxc config device add <instance> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username> path=/ceph
 ```
-- Ceph-fs: Mount from existing ceph FS device that is externally managed. LXD can use ceph to manage an internal file system for the instance, but in the event that a user has a previously existing ceph file sys that they would like use for this instancer, they can use this command.
+- Ceph-fs: Mount from existing CephFS device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph file sys that they would like use for this instancer, they can use this command.
 Example command.
 ```
 lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username> path=/cephfs
@@ -799,8 +799,8 @@ pool                | string    | -         | no        | The storage pool the d
 propagation         | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation) <!-- wokeignore:rule=slave -->
 shift               | boolean   | false     | no        | Setup a shifting overlay to translate the source uid/gid to match the instance (only for containers)
 raw.mount.options   | string    | -         | no        | Filesystem specific mount options
-ceph.user\_name     | string    | admin     | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
-ceph.cluster\_name  | string    | ceph      | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
+ceph.user\_name     | string    | admin     | no        | If source is Ceph or CephFS then Ceph user\_name must be specified by user for proper mount
+ceph.cluster\_name  | string    | ceph      | no        | If source is Ceph or CephFS then Ceph cluster\_name must be specified by user for proper mount
 boot.priority       | integer   | -         | no        | Boot priority for VMs (higher boots first)
 
 #### Type: unix-char

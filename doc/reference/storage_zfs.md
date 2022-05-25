@@ -28,7 +28,7 @@
 
  - Note that LXD will assume it has full control over the ZFS pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
-   a LXD zfs pool or dataset since LXD might delete them.
+   a LXD ZFS pool or dataset since LXD might delete them.
  - When quotas are used on a ZFS dataset LXD will set the ZFS "quota" property.
    In order to have LXD set the ZFS "refquota" property, either set
    "zfs.use\_refquota" to "true" for the given dataset or set
@@ -46,7 +46,7 @@
 ## Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
+size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and ZFS.)
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
@@ -61,10 +61,10 @@ size                    | string    | appropriate driver        | same as volume
 snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
-zfs.blocksize           | string    | zfs driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16MiB (must be power of 2). For block volume maximum value of 128KiB will be used even though higher value is set
-zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
-zfs.reserve\_space      | string    | zfs driver                | false                                 | Use reservation/refreservation along with qouta/refquota
+zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16MiB (must be power of 2). For block volume maximum value of 128KiB will be used even though higher value is set
+zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
+zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
+zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use reservation/refreservation along with qouta/refquota
 
 ## The following commands can be used to create ZFS storage pools
 
