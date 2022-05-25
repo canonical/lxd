@@ -837,6 +837,8 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancesPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	targetProjectName := projectParam(r)
 	logger.Debugf("Responding to instance create")
 
@@ -946,7 +948,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(d.State(), targetProjectName, req)
+		architectures, err := instance.SuitableArchitectures(s, targetProjectName, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -956,12 +958,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
 			} else {
-				config, err := clusterConfig.Load(tx)
-				if err != nil {
-					return err
-				}
-
-				defaultArch = config.ImagesDefaultArchitecture()
+				defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
 			}
 
 			defaultArchID := -1
