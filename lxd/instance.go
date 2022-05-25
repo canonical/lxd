@@ -517,42 +517,54 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 
 func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Load all local instances
-		allInstances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
+		s := d.State()
+
+		// Load local expired snapshots.
+		expiredSnapshots := []db.Instance{}
+
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+			snapshots, err := tx.GetLocalExpiredInstanceSnapshots()
+			if err != nil {
+				return err
+			}
+
+			instances := map[string]*db.Instance{}
+			for _, snapshot := range snapshots {
+				instanceKey := snapshot.Project + "/" + snapshot.Instance
+				instance, ok := instances[instanceKey]
+				if !ok {
+					instance, err = tx.GetInstance(snapshot.Project, snapshot.Instance)
+					if err != nil {
+						return err
+					}
+
+					instances[instanceKey] = instance
+				}
+
+				expiredSnapshots = append(expiredSnapshots, db.InstanceSnapshotToInstance(instance, &snapshot))
+			}
+
+			return nil
+		})
 		if err != nil {
-			logger.Error("Failed to load instances for snapshot expiry", logger.Ctx{"err": err})
+			logger.Error("Failed to get expired instance snapshots", logger.Ctx{"err": err})
 			return
 		}
 
-		// Figure out which need snapshotting (if any)
-		expiredSnapshots := []instance.Instance{}
-		for _, c := range allInstances {
-			snapshots, err := c.Snapshots()
-			if err != nil {
-				logger.Error("Failed to list instance snapshots", logger.Ctx{"err": err, "instance": c.Name(), "project": c.Project()})
-				continue
-			}
-
-			for _, snapshot := range snapshots {
-				// Since zero time causes some issues due to timezones, we check the
-				// unix timestamp instead of IsZero().
-				if snapshot.ExpiryDate().Unix() <= 0 {
-					// Snapshot doesn't expire
-					continue
-				}
-
-				if time.Now().Unix()-snapshot.ExpiryDate().Unix() >= 0 {
-					expiredSnapshots = append(expiredSnapshots, snapshot)
-				}
-			}
-		}
-
+		// Skip if no expired snapshots.
 		if len(expiredSnapshots) == 0 {
 			return
 		}
 
+		// Load all the instance snapshot structs.
+		snapshots, err := instance.LoadAllInternal(s, expiredSnapshots)
+		if err != nil {
+			logger.Error("Failed to load expired instance snapshots", logger.Ctx{"err": err})
+			return
+		}
+
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshots)
+			return pruneExpiredInstanceSnapshots(ctx, d, snapshots)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
