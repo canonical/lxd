@@ -13,7 +13,6 @@ import (
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
@@ -218,9 +217,6 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 // Return an updated list raft database nodes (possibly including the newly
 // accepted node).
 func Accept(state *state.State, gateway *Gateway, name, address string, schema, api, arch int) ([]db.RaftNode, error) {
-	var maxVoters int64
-	var maxStandBy int64
-
 	// Check parameters
 	if name == "" {
 		return nil, fmt.Errorf("Member name must not be empty")
@@ -233,15 +229,8 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// Insert the new node into the nodes table.
 	var id int64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(tx)
-		if err != nil {
-			return fmt.Errorf("Load cluster configuration: %w", err)
-		}
-		maxVoters = config.MaxVoters()
-		maxStandBy = config.MaxStandBy()
-
 		// Check that the node can be accepted with these parameters.
-		err = membershipCheckClusterStateForAccept(tx, name, address, schema, api)
+		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
 		if err != nil {
 			return err
 		}
@@ -293,9 +282,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		Name: name,
 	}
 
-	if count > 1 && voters < int(maxVoters) {
+	if count > 1 && voters < int(state.GlobalConfig.MaxVoters()) {
 		node.Role = db.RaftVoter
-	} else if standbys < int(maxStandBy) {
+	} else if standbys < int(state.GlobalConfig.MaxStandBy()) {
 		node.Role = db.RaftStandBy
 	}
 	nodes = append(nodes, node)
@@ -994,17 +983,9 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 
 // Build an app.RolesChanges object feeded with the current cluster state.
 func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, error) {
-	var maxVoters int
-	var maxStandBy int
 	var domains map[string]uint64
-
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(tx)
-		if err != nil {
-			return fmt.Errorf("Load cluster configuration: %w", err)
-		}
-		maxVoters = int(config.MaxVoters())
-		maxStandBy = int(config.MaxStandBy())
+		var err error
 
 		domains, err = tx.GetNodesFailureDomains()
 		if err != nil {
@@ -1031,8 +1012,8 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 
 	roles := &app.RolesChanges{
 		Config: app.RolesConfig{
-			Voters:   maxVoters,
-			StandBys: maxStandBy,
+			Voters:   int(state.GlobalConfig.MaxVoters()),
+			StandBys: int(state.GlobalConfig.MaxStandBy()),
 		},
 		State: cluster,
 	}
