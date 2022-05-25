@@ -425,6 +425,9 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv4.address none
   lxc network set "${brName}" ipv6.address none
 
+  # Confirm IPv6 is disabled.
+  [ "$(cat /proc/sys/net/ipv6/conf/${brName}/disable_ipv6)" = "1" ]
+
   if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ] ; then
     echo "dnsmasq.leases file still present after disabling DHCP"
     false
@@ -435,6 +438,7 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  lxc profile device unset "${ctName}" eth0 ipv6.routes
   lxc config device remove "${ctName}" eth0
   lxc stop -f "${ctName}"
   if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ] ; then
@@ -445,6 +449,10 @@ test_container_devices_nic_bridged() {
   # Re-enable DHCP on network.
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
+  lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
+
+  # Confirm IPv6 is re-enabled.
+  [ "$(cat /proc/sys/net/ipv6/conf/${brName}/disable_ipv6)" = "0" ]
 
   # Check dnsmasq host file is created on add.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
