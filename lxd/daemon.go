@@ -135,6 +135,9 @@ type Daemon struct {
 	// Configuration.
 	globalConfig   *clusterConfig.Config
 	globalConfigMu sync.Mutex
+
+	// Cluster.
+	serverName string
 }
 
 type externalAuth struct {
@@ -461,6 +464,7 @@ func (d *Daemon) State() *state.State {
 		InstanceTypes:          instanceTypes,
 		DevMonitor:             d.devmonitor,
 		GlobalConfig:           globalConfig,
+		ServerName:             d.serverName,
 	}
 }
 
@@ -1285,6 +1289,12 @@ func (d *Daemon) init() error {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		d.serverName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}
