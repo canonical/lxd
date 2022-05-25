@@ -17,6 +17,7 @@ import (
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-ID
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot id
@@ -48,6 +49,7 @@ type InstanceSnapshot struct {
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
+	ID       *int
 	Project  *string
 	Instance *string
 	Name     *string
