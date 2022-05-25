@@ -131,6 +131,10 @@ type Daemon struct {
 
 	// Kernel version.
 	kernelVersion version.DottedVersion
+
+	// Configuration.
+	globalConfig   *clusterConfig.Config
+	globalConfigMu sync.Mutex
 }
 
 type externalAuth struct {
@@ -375,10 +379,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	// Validate normal TLS access.
-	trustCACertificates, err := clusterConfig.GetBool(d.db.Cluster, "core.trust_ca_certificates")
-	if err != nil {
-		return false, "", "", err
-	}
+	trustCACertificates := d.globalConfig.TrustCACertificates()
 
 	// Validate metrics certificates.
 	if r.URL.Path == "/1.0/metrics" {
@@ -439,6 +440,10 @@ func (d *Daemon) State() *state.State {
 		instanceTypes[driverType] = driver.Info.Error
 	}
 
+	d.globalConfigMu.Lock()
+	globalConfig := d.globalConfig
+	d.globalConfigMu.Unlock()
+
 	return &state.State{
 		ShutdownCtx:            d.shutdownCtx,
 		DB:                     d.db,
@@ -455,6 +460,7 @@ func (d *Daemon) State() *state.State {
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
 		InstanceTypes:          instanceTypes,
 		DevMonitor:             d.devmonitor,
+		GlobalConfig:           globalConfig,
 	}
 }
 
@@ -1283,24 +1289,26 @@ func (d *Daemon) init() error {
 			return err
 		}
 
-		bgpASN = config.BGPASN()
-
-		d.proxy = shared.ProxyFromConfig(
-			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
-		)
-
-		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
-		maasAPIURL, maasAPIKey = config.MAASController()
-		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
-		d.gateway.HeartbeatOfflineThreshold = config.OfflineThreshold()
-
-		d.endpoints.NetworkUpdateTrustedProxy(config.HTTPSTrustedProxy())
-
+		d.globalConfig = config
 		return nil
 	})
 	if err != nil {
 		return err
 	}
+
+	// Get specific config keys.
+	bgpASN = d.globalConfig.BGPASN()
+
+	d.proxy = shared.ProxyFromConfig(
+		d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts(),
+	)
+
+	candidAPIURL, candidAPIKey, candidExpiry, candidDomains = d.globalConfig.CandidServer()
+	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
+	rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = d.globalConfig.RBACServer()
+	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
+
+	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
 
 	// Setup RBAC authentication.
 	if rbacAPIURL != "" {
@@ -1596,8 +1604,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	s := d.State()
 
 	var err error
-	var instances []instance.Instance     // If this is left as nil this indicates an error loading instances.
-	var shutDownTimeout = 5 * time.Minute // Default time to wait for operations if not specified in DB.
+	var instances []instance.Instance // If this is left as nil this indicates an error loading instances.
 
 	if d.db.Cluster != nil {
 		instances, err = instance.LoadNodeAll(s, instancetype.Any)
@@ -1613,18 +1620,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.gateway.Kill()
 			_ = d.db.Cluster.Close()
 		}
-
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := clusterConfig.Load(tx)
-			if err != nil {
-				return err
-			}
-			shutDownTimeout = config.ShutdownTimeout()
-			return nil
-		})
-		if err != nil {
-			logger.Warn("Failed getting shutdown timeout", logger.Ctx{"err": err})
-		}
 	}
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
@@ -1634,7 +1629,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
 			// initiated using `lxd shutdown`.
 			logger.Info("Waiting for operations to finish")
-			waitForOperations(ctx, d.db.Cluster, shutDownTimeout)
+			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
 		}
 
 		// Unmount daemon image and backup volumes if set.
@@ -2066,6 +2061,8 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 // round (but may not be considered actually offline at this stage). These unavailable members will not be used for
 // role rebalancing.
 func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
+	s := d.State()
+
 	// Don't process the heartbeat until we're fully online.
 	if d.db.Cluster == nil || d.db.Cluster.GetNodeID() == 0 {
 		return
@@ -2080,7 +2077,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 	// If the max version of the cluster has changed, check whether we need to upgrade.
 	if d.lastNodeList == nil || d.lastNodeList.Version.APIExtensions != heartbeatData.Version.APIExtensions || d.lastNodeList.Version.Schema != heartbeatData.Version.Schema {
-		err := cluster.MaybeUpdate(d.State())
+		err := cluster.MaybeUpdate(s)
 		if err != nil {
 			logger.Error("Error updating", logger.Ctx{"err": err})
 			return
@@ -2090,7 +2087,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 
 	// Handle potential OVN chassis changes.
-	err := networkUpdateOVNChassis(d.State(), heartbeatData, localAddress)
+	err := networkUpdateOVNChassis(s, heartbeatData, localAddress)
 	if err != nil {
 		stateChangeTaskFailure = true
 		logger.Error("Error restarting OVN networks", logger.Ctx{"err": err})
@@ -2103,7 +2100,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		updateCertificateCache(d)
 
 		// Refresh forkdns peers.
-		err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
+		err := networkUpdateForkdnsServersTask(s, heartbeatData)
 		if err != nil {
 			stateChangeTaskFailure = true
 			logger.Error("Error refreshing forkdns", logger.Ctx{"err": err, "local": localAddress})
@@ -2154,21 +2151,8 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			}
 		}
 
-		var maxVoters int64
-		var maxStandBy int64
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := clusterConfig.Load(tx)
-			if err != nil {
-				return err
-			}
-			maxVoters = config.MaxVoters()
-			maxStandBy = config.MaxStandBy()
-			return nil
-		})
-		if err != nil {
-			logger.Error("Error loading cluster configuration", logger.Ctx{"err": err, "local": localAddress})
-			return
-		}
+		maxVoters := s.GlobalConfig.MaxVoters()
+		maxStandBy := s.GlobalConfig.MaxStandBy()
 
 		// If there are offline members that have voter or stand-by database roles, let's see if we can
 		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
