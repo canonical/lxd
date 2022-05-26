@@ -94,7 +94,6 @@ msgstr ""
 "### Any line starting with a '# will be ignored."
 
 #: lxc/config.go:105
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -6780,7 +6779,7 @@ msgstr "yes"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
@@ -6820,16 +6819,18 @@ msgstr "yes"
 #~ "lxc launch ubuntu:20.04 v1 --vm\n"
 #~ "    仮想マシンを作成し、起動します"
 
+#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
+#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -6846,7 +6847,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -8946,7 +8947,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -8954,6 +8955,7 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -9011,6 +9013,7 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
+#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 
@@ -9030,3 +9033,92 @@ msgstr "yes"
 
 #~ msgid "Format (csv|json|table|yaml)"
 #~ msgstr "フォーマット (csv|json|table|yaml)"
+
+#, fuzzy
+#~ msgid ""
+#~ "### This is a YAML representation of the configuration.\n"
+#~ "### Any line starting with a '# will be ignored.\n"
+#~ "###\n"
+#~ "### A sample configuration looks like:\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false"
+#~ msgstr ""
+#~ "### This is a YAML representation of the configuration.\n"
+#~ "### Any line starting with a '# will be ignored.\n"
+#~ "###\n"
+#~ "### A sample configuration looks like:\n"
+#~ "### name: instance1\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false\n"
+#~ "###\n"
+#~ "### Note that the name is shown but cannot be changed"
+
+#, fuzzy
+#~ msgid ""
+#~ "lxc config device add [<remote>:]instance1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    Will mount the host's /share/c1 onto /opt in the instance.\n"
+#~ "\n"
+#~ "lxc config device add [<remote>:]instance1 <device-name> disk pool=some-"
+#~ "pool source=some-volume path=opt\n"
+#~ "    Will mount the some-volume volume on some-pool onto /opt in the "
+#~ "instance."
+#~ msgstr ""
+#~ "lxc config device add [<remote>:]instance1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+
+#, fuzzy
+#~ msgid ""
+#~ "lxc profile device add [<remote>:]profile1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    Will mount the host's /share/c1 onto /opt in the instance.\n"
+#~ "\n"
+#~ "lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-"
+#~ "pool source=some-volume path=opt\n"
+#~ "    Will mount the some-volume volume on some-pool onto /opt in the "
+#~ "instance."
+#~ msgstr ""
+#~ "lxc profile device add [<remote>:]profile1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+
+#~ msgid ""
+#~ "lxc config device add [<remote>:]instance1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    Will mount the host's /share/c1 onto /opt in the instance."
+#~ msgstr ""
+#~ "lxc config device add [<remote>:]instance1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+
+#~ msgid ""
+#~ "lxc profile device add [<remote>:]profile1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    Will mount the host's /share/c1 onto /opt in the instance."
+#~ msgstr ""
+#~ "lxc profile device add [<remote>:]profile1 <device-name> disk source=/"
+#~ "share/c1 path=opt\n"
+#~ "    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+
+#~ msgid "Add new trusted clients"
+#~ msgstr "新たに信頼済みのクライアントを追加します"
+
+#~ msgid "Remove trusted clients"
+#~ msgstr "信頼済みクライアントを削除します"

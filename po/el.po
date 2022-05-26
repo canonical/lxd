@@ -6110,7 +6110,7 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "  Χρήση δικτύου:"
 
@@ -6118,6 +6118,6 @@ msgstr ""
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "  Χρήση δικτύου:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "  Χρήση δικτύου:"

@@ -6978,19 +6978,19 @@ msgstr "да"
 #~ "\n"
 #~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Принять сертификат"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Имя контейнера: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Принять сертификат"
 
@@ -7216,6 +7216,7 @@ msgstr "да"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Сертификат клиента хранится на сервере: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Невозможно прочитать из стандартного ввода: %s"
 
@@ -7223,6 +7224,41 @@ msgstr "да"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Копирование образа: %s"
+
+#, fuzzy
+#~ msgid ""
+#~ "### This is a YAML representation of the configuration.\n"
+#~ "### Any line starting with a '# will be ignored.\n"
+#~ "###\n"
+#~ "### A sample configuration looks like:\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false"
+#~ msgstr ""
+#~ "### Это представление конфигурации в формате YAML. \n"
+#~ "### Любая строка начинающаяся с '#' будет игнорироваться.\n"
+#~ "###\n"
+#~ "### Пример конфигурации:\n"
+#~ "### name: container1\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false\n"
+#~ "###\n"
+#~ "### Обратите внимание, что имя отображается, но не может быть изменено"
