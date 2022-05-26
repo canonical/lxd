@@ -1128,6 +1128,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		// Get projects.
 		var projects map[string]*dbCluster.Project
+		var volumes, remoteVolumes []db.StorageVolumeArgs
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			projs, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
@@ -1141,22 +1142,12 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				projects[p.Name] = &p
 			}
 
-			return err
-		})
-		if err != nil {
-			return
-		}
+			allVolumes, err := tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				return fmt.Errorf("Failed getting volumes for auto custom volume snapshot task: %w", err)
+			}
 
-		allVolumes, err := d.db.Cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
-		if err != nil {
-			logger.Error("Failed getting volumes for auto custom volume snapshot task", logger.Ctx{"err": err})
-			return
-		}
-
-		localNodeID := d.db.Cluster.GetNodeID()
-
-		var volumes, remoteVolumes []db.StorageVolumeArgs
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			localNodeID := d.db.Cluster.GetNodeID()
 			for _, v := range allVolumes {
 				schedule, ok := v.Config["snapshots.schedule"]
 				if !ok || schedule == "" {
