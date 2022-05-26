@@ -25,6 +25,7 @@ import (
 
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.
+// TODO: Remove this struct once Instances has fully moved to the cluster package.
 type InstanceProfile struct {
 	InstanceID int `db:"primary=yes&order=yes"`
 	ProfileID  int
@@ -32,6 +33,7 @@ type InstanceProfile struct {
 }
 
 // InstanceProfileFilter specifies potential query parameter fields.
+// TODO: Remove this struct once Instances has fully moved to the cluster package.
 type InstanceProfileFilter struct {
 	InstanceID *int
 	ProfileID  *int
