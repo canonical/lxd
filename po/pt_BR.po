@@ -6529,19 +6529,19 @@ msgstr "sim"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Criar perfis"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Aceitar certificado"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "par de chave=valor inválido %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Aceitar certificado"
 
@@ -6557,7 +6557,7 @@ msgstr "sim"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Criar novas redes"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Versão do cliente: %s\n"
 
@@ -6583,6 +6583,7 @@ msgstr "sim"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado do cliente armazenado no servidor: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Não é possível ler stdin: %s"
 
@@ -6590,6 +6591,44 @@ msgstr "sim"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nome de membro do cluster"
+
+#, fuzzy
+#~ msgid ""
+#~ "### This is a YAML representation of the configuration.\n"
+#~ "### Any line starting with a '# will be ignored.\n"
+#~ "###\n"
+#~ "### A sample configuration looks like:\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false"
+#~ msgstr ""
+#~ "### Esta é uma representação em yaml da configuração.\n"
+#~ "### Qualquer linha que inicie com '#' será ignorada.\n"
+#~ "###\n"
+#~ "### Um exemplo de configuração se parece com:\n"
+#~ "### name: container1\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false\n"
+#~ "###\n"
+#~ "### Observe que o nome é exibido mas não pode ser modificado"
+
+#~ msgid "Add new trusted clients"
+#~ msgstr "Adicionar novos clientes confiáveis"

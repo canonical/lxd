@@ -6515,19 +6515,19 @@ msgstr "si"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Creazione del container in corso"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Accetta certificato"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Proprietà errata: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Accetta certificato"
 
@@ -6628,6 +6628,7 @@ msgstr "si"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificato del client salvato dal server: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Impossible leggere da stdin: %s"
 
@@ -6635,6 +6636,38 @@ msgstr "si"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Il nome del container è: %s"
+
+#, fuzzy
+#~ msgid ""
+#~ "### This is a YAML representation of the configuration.\n"
+#~ "### Any line starting with a '# will be ignored.\n"
+#~ "###\n"
+#~ "### A sample configuration looks like:\n"
+#~ "### profiles:\n"
+#~ "### - default\n"
+#~ "### config:\n"
+#~ "###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+#~ "### devices:\n"
+#~ "###   homedir:\n"
+#~ "###     path: /extra\n"
+#~ "###     source: /home/user\n"
+#~ "###     type: disk\n"
+#~ "### ephemeral: false"
+#~ msgstr ""
+#~ "### Questa è una rappresentazione yaml di un pool di storage.\n"
+#~ "### Le linee che iniziano con '# saranno ignorate.\n"
+#~ "###\n"
+#~ "### Un pool di storage consiste di un insieme di elementi di\n"
+#~ "### configurazione.\n"
+#~ "###\n"
+#~ "### Un esempio è il seguente:\n"
+#~ "### name: default\n"
+#~ "### driver: zfs\n"
+#~ "### used_by: []\n"
+#~ "### config:\n"
+#~ "###   size: \"61203283968\"\n"
+#~ "###   source: /home/chb/mnt/lxd_test/default.img\n"
+#~ "###   zfs.pool_name: default"
