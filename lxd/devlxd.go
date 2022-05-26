@@ -17,6 +17,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
@@ -118,21 +119,48 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		typeStr = "config,device"
 	}
 
-	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	var listenerConnection events.EventListenerConnection
+	var response devLxdResponse
+
+	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
+	if r.Header.Get("Upgrade") == "websocket" {
+		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+		defer func() { _ = conn.Close() }() // This ensures the go routine below is ended when this function ends.
+
+		listenerConnection = events.NewWebsocketListenerConnection(conn)
+
+		response = devLxdResponse{"websocket", http.StatusOK, "websocket"}
+	} else {
+		h, ok := w.(http.Hijacker)
+		if !ok {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+
+		conn, _, err := h.Hijack()
+		if err != nil {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+
+		listenerConnection, err = events.NewStreamListenerConnection(conn)
+		if err != nil {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+
+		response = devLxdResponse{"", http.StatusOK, "raw"}
+	}
+
+	listener, err := d.devlxdEvents.AddListener(c.ID(), listenerConnection, strings.Split(typeStr, ","))
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
-	defer func() { _ = conn.Close() }() // This ensures the go routine below is ended when this function ends.
 
-	listener, err := d.devlxdEvents.AddListener(c.ID(), conn, strings.Split(typeStr, ","))
-	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
-	}
-
-	logger.Debugf("New container event listener for '%s': %s", project.Instance(c.Project(), c.Name()), listener.ID())
+	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project(), "listener_id": listener.ID})
 	listener.Wait(r.Context())
 
-	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
+	return &response
 }}
 
 var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
