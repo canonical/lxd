@@ -1030,7 +1030,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 			project = "default"
 		}
 
-		defaultProfileID, _, err := tx.getProfile(profileProject, "default")
+		dbProfile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), profileProject, "default")
 		if err != nil {
 			return err
 		}
@@ -1080,7 +1080,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 
 		}
 
-		_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, defaultProfileID)
+		_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, dbProfile.ID)
 		if err != nil {
 			return err
 		}
