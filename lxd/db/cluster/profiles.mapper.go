@@ -28,6 +28,12 @@ SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name
   WHERE profiles.id = ? ORDER BY projects.id, profiles.name
 `)
 
+var profileObjectsByName = RegisterStmt(`
+SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  WHERE profiles.name = ? ORDER BY projects.id, profiles.name
+`)
+
 var profileObjectsByProject = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
@@ -132,6 +138,11 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 		sqlStmt = stmt(tx, profileObjectsByProject)
 		args = []any{
 			filter.Project,
+		}
+	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil {
+		sqlStmt = stmt(tx, profileObjectsByName)
+		args = []any{
+			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
 		sqlStmt = stmt(tx, profileObjectsByID)

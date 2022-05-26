@@ -16,6 +16,7 @@ import (
 //
 //go:generate mapper stmt -e profile objects version=2
 //go:generate mapper stmt -e profile objects-by-ID version=2
+//go:generate mapper stmt -e profile objects-by-Name version=2
 //go:generate mapper stmt -e profile objects-by-Project version=2
 //go:generate mapper stmt -e profile objects-by-Project-and-Name version=2
 //go:generate mapper stmt -e profile id version=2
