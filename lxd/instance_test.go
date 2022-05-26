@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
@@ -51,20 +52,28 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
 	err := suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile := db.Profile{
+		profile := cluster.Profile{
 			Name:        "unprivileged",
 			Description: "unprivileged",
-			Config:      map[string]string{"security.privileged": "true"},
 			Project:     "default",
 		}
-		_, err := tx.CreateProfile(profile)
+		id, err := cluster.CreateProfile(ctx, tx.Tx(), profile)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateProfileConfig(ctx, tx.Tx(), id, map[string]string{"security.privileged": "true"})
+		if err != nil {
+			return err
+		}
+
 		return err
 	})
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
 		_ = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.DeleteProfile("default", "unprivileged")
+			return cluster.DeleteProfile(ctx, tx.Tx(), "default", "unprivileged")
 		})
 	}()
 
