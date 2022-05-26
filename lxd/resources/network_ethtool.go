@@ -181,6 +181,11 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
 	if errno != 0 {
+		if unix.Errno(errno) == unix.EOPNOTSUPP {
+			// Driver doesn't support it, skip.
+			return nil
+		}
+
 		return fmt.Errorf("Failed to ETHTOOL_GSET: %w", unix.Errno(errno))
 	}
 
