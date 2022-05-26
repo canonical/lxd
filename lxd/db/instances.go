@@ -58,6 +58,7 @@ import (
 //go:generate mapper method -i -d cluster -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
+// TODO: Remove this struct and move to cluster package.
 type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
@@ -78,6 +79,7 @@ type Instance struct {
 }
 
 // InstanceFilter specifies potential query parameter fields.
+// TODO: Remove this struct and move to cluster package.
 type InstanceFilter struct {
 	ID      *int
 	Project *string
