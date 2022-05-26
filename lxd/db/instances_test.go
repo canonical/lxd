@@ -121,11 +121,11 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, project2Config)
 	require.NoError(t, err)
 
-	profile := db.Profile{
+	profile := cluster.Profile{
 		Project: "test",
 		Name:    "intranet",
 	}
-	_, err = tx.CreateProfile(profile)
+	_, err = cluster.CreateProfile(ctx, tx.Tx(), profile)
 	require.NoError(t, err)
 
 	// Create a container in project1 using the default profile from the
@@ -171,24 +171,35 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 }
 
 func TestInstanceList(t *testing.T) {
-	cluster, clusterCleanup := db.NewTestCluster(t)
+	c, clusterCleanup := db.NewTestCluster(t)
 	defer clusterCleanup()
 
-	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile := db.Profile{
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		profile := cluster.Profile{
 			Project: "default",
 			Name:    "profile1",
-			Config:  map[string]string{"a": "1"},
-			Devices: map[string]db.Device{
-				"root": {
-					Name:   "root",
-					Type:   db.TypeDisk,
-					Config: map[string]string{"b": "2"},
-				},
+		}
+
+		profileConfig := map[string]string{"a": "1"}
+		profileDevices := map[string]cluster.Device{
+			"root": {
+				Name:   "root",
+				Type:   cluster.TypeDisk,
+				Config: map[string]string{"b": "2"},
 			},
 		}
 
-		_, err := tx.CreateProfile(profile)
+		id, err := cluster.CreateProfile(ctx, tx.Tx(), profile)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateProfileConfig(ctx, tx.Tx(), id, profileConfig)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateProfileDevice(ctx, tx.Tx(), id, profileDevices["root"])
 		if err != nil {
 			return err
 		}
@@ -222,7 +233,7 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.Instance
-	err = cluster.InstanceList(nil, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = c.InstanceList(nil, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
 		// converting back and forth between API and db Device types.
