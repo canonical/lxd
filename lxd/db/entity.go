@@ -56,10 +56,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", ErrUnknownEntityID
 		}
 	case cluster.TypeProfile:
-		var profiles []Profile
+		var profiles []cluster.Profile
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			profiles, err = tx.GetProfiles(ProfileFilter{})
+			profiles, err = cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
 			if err != nil {
 				return err
 			}

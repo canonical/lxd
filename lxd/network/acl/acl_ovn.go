@@ -866,8 +866,8 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 					delete(removeACLPortGroups, OVNACLNetworkPortGroupName(aclNameIDs[matchedACLName], netID))
 				}
 			}
-		case db.Profile:
-			ignoreProfile, isIgnoreProfile := ignoreUsageType.(db.Profile)
+		case cluster.Profile:
+			ignoreProfile, isIgnoreProfile := ignoreUsageType.(cluster.Profile)
 
 			if isIgnoreProfile && ignoreUsageNicName == "" {
 				return fmt.Errorf("ignoreUsageNicName should be specified when providing a profile in ignoreUsageType")
