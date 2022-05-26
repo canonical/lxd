@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -79,19 +80,18 @@ func (suite *lxdTestSuite) SetupTest() {
 	rootDev := map[string]string{}
 	rootDev["path"] = "/"
 	rootDev["pool"] = lxdTestSuiteDefaultStoragePool
-	device := db.Device{
+	device := cluster.Device{
 		Name:   "root",
-		Type:   db.TypeDisk,
+		Type:   cluster.TypeDisk,
 		Config: rootDev,
 	}
 
 	err = suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile("default", "default")
+		profile, err := cluster.GetProfile(ctx, tx.Tx(), "default", "default")
 		if err != nil {
 			return err
 		}
-		profile.Devices["root"] = device
-		return tx.UpdateProfile("default", "default", *profile)
+		return cluster.UpdateProfileDevices(ctx, tx.Tx(), int64(profile.ID), map[string]cluster.Device{"root": device})
 	})
 	if err != nil {
 		suite.T().Errorf("failed to update default profile: %v", err)
