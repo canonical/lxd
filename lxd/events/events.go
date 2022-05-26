@@ -8,7 +8,6 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -65,7 +64,7 @@ func (s *Server) SetLocalLocation(location string) {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection EventListenerConnection, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -74,12 +73,12 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 
 	listener := &Listener{
 		listenerCommon: listenerCommon{
-			Conn:         connection,
-			messageTypes: messageTypes,
-			ctx:          ctx,
-			ctxCancel:    ctxCancel,
-			id:           uuid.New(),
-			recvFunc:     recvFunc,
+			EventListenerConnection: connection,
+			messageTypes:            messageTypes,
+			ctx:                     ctx,
+			ctxCancel:               ctxCancel,
+			id:                      uuid.New(),
+			recvFunc:                recvFunc,
 		},
 
 		allProjects:      allProjects,
@@ -97,7 +96,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 
 	s.listeners[listener.id] = listener
 
-	go listener.heartbeat()
+	go listener.start()
 
 	return listener, nil
 }
@@ -205,7 +204,6 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 				return
 			}
 
-			_ = listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			err := listener.WriteJSON(event)
 			if err != nil {
 				// Remove the listener from the list
