@@ -2,6 +2,13 @@
 
 package cluster
 
+import (
+	"context"
+	"database/sql"
+
+	"github.com/lxc/lxd/shared/api"
+)
+
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
@@ -40,4 +47,43 @@ type ProfileFilter struct {
 	ID      *int
 	Project *string
 	Name    *string
+}
+
+// ToAPI returns a cluster Profile as an API struct.
+func (p *Profile) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Profile, error) {
+	config, err := GetProfileConfig(ctx, tx, p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err := GetProfileDevices(ctx, tx, p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	profile := &api.Profile{
+		Name: p.Name,
+		ProfilePut: api.ProfilePut{
+			Description: p.Description,
+			Config:      config,
+			Devices:     DevicesToAPI(devices),
+		},
+	}
+
+	return profile, nil
+}
+
+// GetProfileIfEnabled returns the profile from the given project, or the
+// default project if "features.profiles" is not set.
+func GetProfileIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, name string) (*Profile, error) {
+	enabled, err := ProjectHasProfiles(ctx, tx, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !enabled {
+		projectName = "default"
+	}
+
+	return GetProfile(ctx, tx, projectName, name)
 }
