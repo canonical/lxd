@@ -71,6 +71,8 @@ var internalClusterInstanceMovedCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -113,12 +115,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		//       if we can't know for sure that it's indeed not
 		//       running?
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			// Load cluster configuration.
-			config, err := cluster.ConfigLoad(tx)
-			if err != nil {
-				return fmt.Errorf("Failed to load LXD config: %w", err)
-			}
-
 			p, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return fmt.Errorf("Failed loading project: %w", err)
@@ -140,7 +136,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed to get target node: %w", err)
 			}
-			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
+			targetNodeOffline = node.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 			// Load source node.
 			address, err := tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(instanceType))
@@ -156,7 +152,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed to get source member for %s: %w", address, err)
 			}
-			sourceNodeOffline = node.IsOffline(config.OfflineThreshold())
+			sourceNodeOffline = node.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 			return nil
 		})
@@ -227,7 +223,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		req.Live = true
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -242,7 +238,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			resources := map[string][]string{}
 			resources["instances"] = []string{name}
-			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -264,7 +260,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 			resources := map[string][]string{}
 			resources["instances"] = []string{name}
-			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -294,7 +290,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				resources["containers"] = resources["instances"]
 			}
 
-			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -316,7 +312,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		run := func(op *operations.Operation) error {
-			return ws.Do(d.State(), op)
+			return ws.Do(s, op)
 		}
 
 		cancel := func(op *operations.Operation) error {
@@ -331,7 +327,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -340,7 +336,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode.
-		op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect, r)
+		op, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, db.OperationInstanceMigrate, resources, ws.Metadata(), run, cancel, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -365,7 +361,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, db.OperationInstanceRename, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

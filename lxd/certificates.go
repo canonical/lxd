@@ -18,6 +18,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -502,7 +503,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Access check.
-	secret, err := cluster.ConfigGetString(d.db.Cluster, "core.trust_password")
+	secret, err := clusterConfig.GetString(d.db.Cluster, "core.trust_password")
 	if err != nil {
 		return response.SmartError(err)
 	}

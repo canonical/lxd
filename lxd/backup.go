@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -95,7 +95,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		if p.Config["backups.compression_algorithm"] != "" {
 			compress = p.Config["backups.compression_algorithm"]
 		} else {
-			compress, err = cluster.ConfigGetString(s.DB.Cluster, "backups.compression_algorithm")
+			compress, err = clusterConfig.GetString(s.DB.Cluster, "backups.compression_algorithm")
 			if err != nil {
 				return err
 			}
@@ -385,7 +385,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if backupRow.CompressionAlgorithm != "" {
 		compress = backupRow.CompressionAlgorithm
 	} else {
-		compress, err = cluster.ConfigGetString(s.DB.Cluster, "backups.compression_algorithm")
+		compress, err = clusterConfig.GetString(s.DB.Cluster, "backups.compression_algorithm")
 		if err != nil {
 			return err
 		}

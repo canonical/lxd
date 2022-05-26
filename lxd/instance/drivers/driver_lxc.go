@@ -7094,12 +7094,6 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		realDev := ""
 
 		if dev["pool"] != "" {
-			// Storage pool volume.
-			pool, err := storagePools.LoadByName(d.state, dev["pool"])
-			if err != nil {
-				return nil, fmt.Errorf("Failed to get pool: %w", err)
-			}
-
 			// Expected volume name.
 			var volName string
 			var volType storageDrivers.VolumeType
@@ -7111,15 +7105,9 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 				volType = storageDrivers.VolumeTypeContainer
 			}
 
-			// Get the volume.
-			vol := pool.GetVolume(volType, storageDrivers.ContentTypeFS, volName, nil)
-			if !pool.Driver().HasVolume(vol) {
-				continue
-			}
-
 			// Check that we have a mountpoint.
-			mountpoint := vol.MountPath()
-			if mountpoint == "" {
+			mountpoint := storageDrivers.GetVolumeMountPath(dev["pool"], volType, volName)
+			if mountpoint == "" || !shared.PathExists(mountpoint) {
 				continue
 			}
 

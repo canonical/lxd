@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/lxc/lxd/lxd/bgp"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/dns"
 	"github.com/lxc/lxd/lxd/endpoints"
@@ -18,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // State is a gateway to the two main stateful components of LXD, the database
@@ -64,6 +64,9 @@ type State struct {
 	// Filesystem monitor
 	DevMonitor fsmonitor.FSMonitor
 
-	// Kernel Version
-	KernelVersion version.DottedVersion
+	// Global configuration
+	GlobalConfig *clusterConfig.Config
+
+	// Local server name.
+	ServerName string
 }

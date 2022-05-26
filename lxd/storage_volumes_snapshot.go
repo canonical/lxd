@@ -14,7 +14,6 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -1125,9 +1124,11 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 
 func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		s := d.State()
+
 		// Get projects.
 		var projects map[string]*dbCluster.Project
-		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			projs, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
@@ -1155,7 +1156,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		localNodeID := d.db.Cluster.GetNodeID()
 
 		var volumes, remoteVolumes []db.StorageVolumeArgs
-		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for _, v := range allVolumes {
 				schedule, ok := v.Config["snapshots.schedule"]
 				if !ok || schedule == "" {
@@ -1194,12 +1195,6 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			var nodeCount int
 			var onlineNodeIDs []int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				// Get the offline threshold.
-				config, err := cluster.ConfigLoad(tx)
-				if err != nil {
-					return fmt.Errorf("Failed to load LXD config: %w", err)
-				}
-
 				// Get all the members.
 				nodes, err := tx.GetNodes()
 				if err != nil {
@@ -1210,7 +1205,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 				// Filter to online members.
 				for _, node := range nodes {
-					if node.IsOffline(config.OfflineThreshold()) {
+					if node.IsOffline(s.GlobalConfig.OfflineThreshold()) {
 						continue
 					}
 
@@ -1263,7 +1258,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return nil
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create volume snapshot operation", logger.Ctx{"err": err})
 			return

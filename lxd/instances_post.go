@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -90,7 +91,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
-				autoUpdate, err = cluster.ConfigGetBool(d.db.Cluster, "images.auto_update_cached")
+				autoUpdate, err = clusterConfig.GetBool(d.db.Cluster, "images.auto_update_cached")
 				if err != nil {
 					return err
 				}
@@ -836,6 +837,8 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancesPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	targetProjectName := projectParam(r)
 	logger.Debugf("Responding to instance create")
 
@@ -945,7 +948,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(d.State(), targetProjectName, req)
+		architectures, err := instance.SuitableArchitectures(s, targetProjectName, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -955,12 +958,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
 			} else {
-				config, err := cluster.ConfigLoad(tx)
-				if err != nil {
-					return err
-				}
-
-				defaultArch = config.ImagesDefaultArchitecture()
+				defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
 			}
 
 			defaultArchID := -1

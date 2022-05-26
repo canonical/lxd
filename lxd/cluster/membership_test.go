@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/project"
@@ -234,6 +235,24 @@ func TestAccept(t *testing.T) {
 	f.RaftNode("1.2.3.4:666")
 	f.ClusterNode("1.2.3.4:666")
 
+	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+
+		state.GlobalConfig, err = clusterConfig.Load(tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		state.ServerName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
 	nodes, err := cluster.Accept(
 		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	assert.NoError(t, err)
@@ -283,6 +302,23 @@ func TestJoin(t *testing.T) {
 	targetState.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, driver.WithDialFunc(targetDialFunc))
 	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
 	require.NoError(t, err)
+
+	err = targetState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		targetState.GlobalConfig, err = clusterConfig.Load(tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		targetState.ServerName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
 	// PreparedStmts is a global variable and will be overwritten by the OpenCluster call below, so save it here.
 	targetStmts := clusterDB.PreparedStmts
 
@@ -319,6 +355,23 @@ func TestJoin(t *testing.T) {
 
 	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
+
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		state.GlobalConfig, err = clusterConfig.Load(tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		state.ServerName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
 	// Save the other instance of PreparedStmts here.
 	sourceStmts := clusterDB.PreparedStmts
 
