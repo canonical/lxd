@@ -383,23 +383,34 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Get projects.
-		var projects []dbCluster.Project
-		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
+		s := d.State()
+		dbInstances := []db.Instance{}
+
+		// Get instances.
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get all projects.
 			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
-			projects = make([]dbCluster.Project, 0, len(allProjects))
+			// Filter projects that aren't allowed to have snapshots.
 			for _, p := range allProjects {
 				err = project.AllowSnapshotCreation(tx, &p)
 				if err != nil {
 					continue
 				}
 
-				projects = append(projects, p)
+				// Get instances.
+				filter := db.InstanceTypeFilter(instancetype.Any)
+				filter.Project = &p.Name
+
+				entries, err := tx.GetLocalInstancesInProject(filter)
+				if err != nil {
+					return err
+				}
+
+				dbInstances = append(dbInstances, entries...)
 			}
 
 			return nil
@@ -408,15 +419,10 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		// Load local instances by project
-		allInstances := []instance.Instance{}
-		for _, p := range projects {
-			projectInstances, err := instanceLoadNodeProjectAll(d.State(), p.Name, instancetype.Any)
-			if err != nil {
-				continue
-			}
-
-			allInstances = append(allInstances, projectInstances...)
+		// Load the instances.
+		allInstances, err := instance.LoadAllInternal(s, dbInstances)
+		if err != nil {
+			return
 		}
 
 		// Figure out which need snapshotting (if any)
@@ -448,7 +454,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoCreateContainerSnapshots(ctx, d, instances)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create snapshot operation", logger.Ctx{"err": err})
 			return
