@@ -9,124 +9,46 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -d cluster -p db -e profile objects
-//go:generate mapper stmt -d cluster -p db -e profile objects-by-ID
-//go:generate mapper stmt -d cluster -p db -e profile objects-by-Project
-//go:generate mapper stmt -d cluster -p db -e profile objects-by-Project-and-Name
-//go:generate mapper stmt -d cluster -p db -e profile id
-//go:generate mapper stmt -d cluster -p db -e profile create struct=Profile
-//go:generate mapper stmt -d cluster -p db -e profile rename
-//go:generate mapper stmt -d cluster -p db -e profile delete-by-Project-and-Name
-//go:generate mapper stmt -d cluster -p db -e profile update struct=Profile
-//
-//go:generate mapper method -i -d cluster -p db -e profile URIs
-//go:generate mapper method -i -d cluster -p db -e profile GetMany
-//go:generate mapper method -i -d cluster -p db -e profile GetOne
-//go:generate mapper method -i -d cluster -p db -e profile Exists struct=Profile
-//go:generate mapper method -i -d cluster -p db -e profile ID struct=Profile
-//go:generate mapper method -i -d cluster -p db -e profile Create struct=Profile
-//go:generate mapper method -i -d cluster -p db -e profile Rename
-//go:generate mapper method -i -d cluster -p db -e profile DeleteOne-by-Project-and-Name
-//go:generate mapper method -i -d cluster -p db -e profile Update struct=Profile
-
 // Profile is a value object holding db-related details about a profile.
+// TODO: Remove this once Instances have been moved to the v2 generator.
 type Profile struct {
 	ID          int
 	ProjectID   int    `db:"omit=create,update"`
 	Project     string `db:"primary=yes&join=projects.name"`
 	Name        string `db:"primary=yes"`
 	Description string `db:"coalesce=''"`
-	Config      map[string]string
-	Devices     map[string]Device
-	UsedBy      []string
-}
-
-// ProfileToAPI is a convenience to convert a Profile db struct into
-// an API profile struct.
-func ProfileToAPI(profile *Profile) *api.Profile {
-	p := &api.Profile{
-		Name:   profile.Name,
-		UsedBy: profile.UsedBy,
-	}
-	p.Description = profile.Description
-	p.Config = profile.Config
-	p.Devices = DevicesToAPI(profile.Devices)
-
-	return p
 }
 
 // ProfileFilter specifies potential query parameter fields.
+// TODO: Remove this once Instances have been moved to the v2 generator.
 type ProfileFilter struct {
 	ID      *int
 	Project *string
 	Name    *string
 }
 
-// GetProfileUsedBy returns all the instances that use the given profile.
-func (c *ClusterTx) GetProfileUsedBy(profile Profile) ([]string, error) {
-	usedBy := []string{}
+// GetProfileURIs returns the URIs for all profiles matching the ProfileFilter.
+// TODO: Remove this once Instances have been moved to the v2 generator.
+func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
+	clusterFilter := cluster.ProfileFilter{ID: filter.ID, Name: filter.Name, Project: filter.Project}
 
-	profileInstances, err := c.GetProfileInstances()
+	profiles, err := cluster.GetProfiles(context.TODO(), c.tx, clusterFilter)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, instanceID := range profileInstances[profile.ID] {
-		instanceURIs, err := c.GetInstanceURIs(InstanceFilter{ID: &instanceID})
-		if err != nil {
-			return nil, err
-		}
+	uris := make([]string, len(profiles))
+	for i := range profiles {
+		uri := api.NewURL().Path(version.APIVersion, "profiles", profiles[i].Name)
+		uri.Project(profiles[i].Project)
 
-		usedBy = append(usedBy, instanceURIs...)
+		uris[i] = uri.String()
 	}
 
-	return usedBy, nil
-}
-
-// GetProjectProfileNames returns slice of profile names keyed on the project they belong to.
-func (c *ClusterTx) GetProjectProfileNames() (map[string][]string, error) {
-	query := `
-	SELECT projects.name, profiles.name
-	FROM profiles
-	JOIN projects ON projects.id = profiles.project_id
-	`
-
-	rows, err := c.tx.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	res := make(map[string][]string)
-
-	for rows.Next() {
-		var projectName, profileName string
-
-		err = rows.Scan(&projectName, &profileName)
-		if err != nil {
-			return nil, err
-		}
-
-		if res[projectName] == nil {
-			res[projectName] = []string{profileName}
-		} else {
-			res[projectName] = append(res[projectName], profileName)
-		}
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return uris, nil
 }
 
 // GetProfileNames returns the names of all profiles in the given project.
@@ -174,36 +96,19 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		id, result, err = tx.getProfile(project, name)
+		profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), project, name)
+		if err != nil {
+			return err
+		}
+
+		id = int64(profile.ID)
+		result, err = profile.ToAPI(ctx, tx.Tx())
+
 		return err
 	})
 	if err != nil {
 		return -1, nil, err
 	}
-
-	return id, result, nil
-}
-
-// Returns the profile with the given name.
-func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error) {
-	var result *api.Profile
-	var id int64
-
-	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
-	if err != nil {
-		return -1, nil, fmt.Errorf("Check if project has profiles: %w", err)
-	}
-	if !enabled {
-		project = "default"
-	}
-
-	profile, err := c.GetProfile(project, name)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	result = ProfileToAPI(profile)
-	id = int64(profile.ID)
 
 	return id, result, nil
 }
@@ -223,12 +128,17 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 		}
 
 		for i, profileName := range profileNames {
-			profile, err := tx.GetProfile(projectName, profileName)
+			profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), projectName, profileName)
 			if err != nil {
 				return fmt.Errorf("Failed loading profile %q: %w", profileName, err)
 			}
 
-			profiles[i] = *ProfileToAPI(profile)
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			profiles[i] = *apiProfile
 		}
 
 		return nil
