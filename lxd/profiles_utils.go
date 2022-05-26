@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -78,18 +79,36 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 	// Update the database.
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		devices, err := db.APIToDevices(req.Devices)
+		devices, err := cluster.APIToDevices(req.Devices)
 		if err != nil {
 			return err
 		}
 
-		return tx.UpdateProfile(projectName, name, db.Profile{
+		err = cluster.UpdateProfile(ctx, tx.Tx(), projectName, name, cluster.Profile{
 			Project:     projectName,
 			Name:        name,
 			Description: req.Description,
-			Config:      req.Config,
-			Devices:     devices,
 		})
+		if err != nil {
+			return err
+		}
+
+		id, err := cluster.GetProfileID(ctx, tx.Tx(), projectName, name)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpdateProfileConfig(ctx, tx.Tx(), id, req.Config)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpdateProfileDevices(ctx, tx.Tx(), id, devices)
+		if err != nil {
+			return nil
+		}
+
+		return nil
 	})
 	if err != nil {
 		return err

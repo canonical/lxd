@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -137,7 +138,7 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 			}
 
 			usedBy = append(usedBy, uri)
-		case db.Profile:
+		case dbCluster.Profile:
 			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, u.Name)
 			if u.Project != project.Default {
 				uri += fmt.Sprintf("?project=%s", u.Project)

@@ -58,7 +58,7 @@ func (c *ClusterTx) UpdateInstanceProfiles(instance Instance) error {
 	stmt := c.stmt(instanceProfileCreate)
 
 	for _, name := range instance.Profiles {
-		profileID, err := c.GetProfileID(project, name)
+		profileID, err := cluster.GetProfileID(context.TODO(), c.tx, project, name)
 		if err != nil {
 			return err
 		}

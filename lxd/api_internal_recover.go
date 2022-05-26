@@ -96,7 +96,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		}
 
 		// Load list of project/profile names for validation.
-		profiles, err := tx.GetProfiles(db.ProfileFilter{})
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{})
 		if err != nil {
 			return err
 		}
@@ -105,10 +105,16 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		projectProfiles = make(map[string][]*api.Profile)
 		for _, profile := range profiles {
 			if projectProfiles[profile.Project] == nil {
-				projectProfiles[profile.Project] = []*api.Profile{db.ProfileToAPI(&profile)}
-			} else {
-				projectProfiles[profile.Project] = append(projectProfiles[profile.Project], db.ProfileToAPI(&profile))
+				projectProfiles[profile.Project] = []*api.Profile{}
 			}
+
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			projectProfiles[profile.Project] = append(projectProfiles[profile.Project], apiProfile)
+
 		}
 
 		// Load list of project/network names for validation.
