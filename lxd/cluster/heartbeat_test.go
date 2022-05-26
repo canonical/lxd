@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/state"
@@ -223,6 +224,22 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
 	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
+	require.NoError(f.t, err)
+
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		state.GlobalConfig, err = clusterConfig.Load(tx)
+		if err != nil {
+			return err
+		}
+
+		// Get the local node (will be used if clustered).
+		state.ServerName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway

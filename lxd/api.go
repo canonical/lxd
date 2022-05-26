@@ -1,15 +1,13 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/cluster"
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	lxdRequest "github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
@@ -132,22 +130,11 @@ type lxdHttpServer struct {
 }
 
 func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// Set CORS headers, unless this is an internal request.
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
-		err := s.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			config, err := cluster.ConfigLoad(tx)
-			if err != nil {
-				return err
-			}
-			setCORSHeaders(rw, req, config)
-			return nil
-		})
-		if err != nil {
-			resp := response.SmartError(err)
-			_ = resp.Render(rw)
-			return
-		}
+
+		// Set CORS headers, unless this is an internal request.
+		setCORSHeaders(rw, req, s.d.State().GlobalConfig)
 	}
 
 	// OPTIONS request don't need any further processing
@@ -159,7 +146,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	s.r.ServeHTTP(rw, req)
 }
 
-func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *cluster.Config) {
+func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *clusterConfig.Config) {
 	allowedOrigin := config.HTTPSAllowedOrigin()
 	origin := req.Header.Get("Origin")
 	if allowedOrigin != "" && origin != "" {

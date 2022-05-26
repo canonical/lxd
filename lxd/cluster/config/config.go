@@ -1,4 +1,4 @@
-package cluster
+package config
 
 import (
 	"context"
@@ -22,9 +22,9 @@ type Config struct {
 	m  config.Map    // Low-level map holding the config values.
 }
 
-// ConfigLoad loads a new Config object with the current cluster configuration
+// Load loads a new Config object with the current cluster configuration
 // values fetched from the database.
-func ConfigLoad(tx *db.ClusterTx) (*Config, error) {
+func Load(tx *db.ClusterTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {
@@ -37,6 +37,11 @@ func ConfigLoad(tx *db.ClusterTx) (*Config, error) {
 	}
 
 	return &Config{tx: tx, m: m}, nil
+}
+
+// MetricsAuthentication checks whether metrics API requires authentication.
+func (c *Config) MetricsAuthentication() bool {
+	return c.m.GetBool("core.metrics_authentication")
 }
 
 // BGPASN returns the BGP ASN setting.
@@ -196,12 +201,12 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	return changed, nil
 }
 
-// ConfigGetString is a convenience for loading the cluster configuration and
+// GetString is a convenience for loading the cluster configuration and
 // returning the value of a particular key.
 //
 // It's a deprecated API meant to be used by call sites that are not
 // interacting with the database in a transactional way.
-func ConfigGetString(cluster *db.Cluster, key string) (string, error) {
+func GetString(cluster *db.Cluster, key string) (string, error) {
 	config, err := configGet(cluster)
 	if err != nil {
 		return "", err
@@ -209,12 +214,12 @@ func ConfigGetString(cluster *db.Cluster, key string) (string, error) {
 	return config.m.GetString(key), nil
 }
 
-// ConfigGetBool is a convenience for loading the cluster configuration and
+// GetBool is a convenience for loading the cluster configuration and
 // returning the value of a particular boolean key.
 //
 // It's a deprecated API meant to be used by call sites that are not
 // interacting with the database in a transactional way.
-func ConfigGetBool(cluster *db.Cluster, key string) (bool, error) {
+func GetBool(cluster *db.Cluster, key string) (bool, error) {
 	config, err := configGet(cluster)
 	if err != nil {
 		return false, err
@@ -222,12 +227,12 @@ func ConfigGetBool(cluster *db.Cluster, key string) (bool, error) {
 	return config.m.GetBool(key), nil
 }
 
-// ConfigGetInt64 is a convenience for loading the cluster configuration and
+// GetInt64 is a convenience for loading the cluster configuration and
 // returning the value of a particular key.
 //
 // It's a deprecated API meant to be used by call sites that are not
 // interacting with the database in a transactional way.
-func ConfigGetInt64(cluster *db.Cluster, key string) (int64, error) {
+func GetInt64(cluster *db.Cluster, key string) (int64, error) {
 	config, err := configGet(cluster)
 	if err != nil {
 		return 0, err
@@ -239,7 +244,7 @@ func configGet(cluster *db.Cluster) (*Config, error) {
 	var config *Config
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		config, err = ConfigLoad(tx)
+		config, err = Load(tx)
 		return err
 	})
 	return config, err
