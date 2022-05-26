@@ -165,6 +165,11 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			apiProfiles[i].UsedBy, err = profileUsedBy(ctx, tx, profile)
+			if err != nil {
+				return err
+			}
+
 			apiProfiles[i].UsedBy = project.FilterUsedBy(r, apiProfiles[i].UsedBy)
 		}
 
@@ -188,14 +193,14 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // profileUsedBy returns all the instance URLs that are using the given profile.
-func profileUsedBy(tx *db.ClusterTx, profile dbCluster.Profile) ([]string, error) {
-	instanceIDs, err := tx.GetProfileInstances(profile)
+func profileUsedBy(ctx context.Context, tx *db.ClusterTx, profile dbCluster.Profile) ([]string, error) {
+	instances, err := dbCluster.GetProfileInstances(ctx, tx.Tx(), profile.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	usedBy := make([]string, len(instanceIDs))
-	for i, inst := range instanceIDs {
+	usedBy := make([]string, len(instances))
+	for i, inst := range instances {
 		apiInst := &api.Instance{Name: inst.Name}
 		usedBy[i] = apiInst.URL(version.APIVersion, inst.Project).String()
 	}
@@ -377,6 +382,11 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		resp, err = profile.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		resp.UsedBy, err = profileUsedBy(ctx, tx, *profile)
 		if err != nil {
 			return err
 		}
@@ -764,7 +774,13 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
-		if len(profile.UsedBy) > 0 {
+
+		usedBy, err := profileUsedBy(ctx, tx, *profile)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
