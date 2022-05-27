@@ -291,7 +291,7 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagTargetProject != "" {
-		dest.server.UseTarget(c.flagTargetProject)
+		dest.server = dest.server.UseProject(c.flagTargetProject)
 	}
 
 	return dest.server.CreateProfile(newProfile)
