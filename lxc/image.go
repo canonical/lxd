@@ -245,13 +245,12 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		imgInfo.Fingerprint = name
 	}
 
-	imgInfo.Profiles = c.flagProfile
-
 	copyArgs := lxd.ImageCopyArgs{
 		AutoUpdate: c.flagAutoUpdate,
 		Public:     c.flagPublic,
 		Type:       imageType,
 		Mode:       c.flagMode,
+		Profiles:   c.flagProfile,
 	}
 
 	// Do the copy
