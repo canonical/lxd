@@ -659,10 +659,17 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, fmt.Errorf("The source and target servers must be different")
 	}
 
-	if image.Profiles != nil {
+	// Handle profile list overrides.
+	if args.Profiles != nil {
 		if !r.HasExtension("image_copy_profile") {
 			return nil, fmt.Errorf("The server is missing the required \"image_copy_profile\" API extension")
 		}
+
+		image.Profiles = args.Profiles
+	} else {
+		// If profiles aren't provided, clear the list on the source to
+		// avoid requiring the destination to have them all.
+		image.Profiles = nil
 	}
 
 	// Get source server connection information
