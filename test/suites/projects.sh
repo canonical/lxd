@@ -319,8 +319,10 @@ test_projects_profiles() {
   lxc profile delete p1
 
   # Try project copy
+  lxc project create foo
   lxc profile copy --project default --target-project foo default bar
-  lxc profile delete bar
+  lxc profile delete bar --project foo
+  lxc project delete foo
 }
 
 # Use global profiles in a project.
