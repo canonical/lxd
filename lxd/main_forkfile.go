@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -124,7 +125,8 @@ func (c *cmdForkfile) Command() *cobra.Command {
 }
 
 func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
-	var connections int64
+	var transactions uint64
+	var wg sync.WaitGroup
 
 	// Convert the listener FD number.
 	listenFD, err := strconv.Atoi(args[0])
@@ -151,8 +153,14 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 		for {
 			time.Sleep(10 * time.Second)
 
-			if atomic.CompareAndSwapInt64(&connections, 0, -1) {
-				// Exit if no more connections.
+			// Wait for 5s of inactivity.
+			wg.Wait()
+			oldCount := transactions
+			time.Sleep(5 * time.Second)
+			wg.Wait()
+
+			if oldCount == transactions {
+				// Daemon has been inactive for 10s, exit.
 				os.Exit(0)
 			}
 		}
@@ -169,14 +177,8 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 		_ = listener.Close()
 
 		// Wait for connections to be gone and exit.
-		for {
-			if atomic.CompareAndSwapInt64(&connections, 0, -1) {
-				// Exit if no more connections.
-				os.Exit(0)
-			}
-
-			time.Sleep(time.Second)
-		}
+		wg.Wait()
+		os.Exit(0)
 	}()
 
 	// Connection handler.
@@ -190,27 +192,10 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 		go func(conn net.Conn) {
 			defer func() { _ = conn.Close() }()
 
-			// Setup connection counter.
-			for {
-				count := atomic.LoadInt64(&connections)
+			// Increase transaction count.
+			atomic.AddUint64(&transactions, 1)
 
-				// Check if we're currently exiting.
-				if count == -1 {
-					return
-				}
-
-				// Ideally we'd loop here but we can't because go's cmpxchg
-				// strangely doesn't return the old value it rather returns a
-				// bool preventing such patterns as the one we use here.
-				if atomic.CompareAndSwapInt64(&connections, count, count+1) {
-					break
-				}
-			}
-
-			defer func() {
-				atomic.AddInt64(&connections, -1)
-			}()
-
+			// Spawn the server.
 			server, err := sftp.NewServer(conn)
 			if err != nil {
 				return
