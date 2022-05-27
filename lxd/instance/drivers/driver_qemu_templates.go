@@ -36,12 +36,16 @@ func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
 	}
 }
 
-func qemuBaseSections(architecture string) []cfgSection {
+type qemuBaseOpts struct {
+	architecture string
+}
+
+func qemuBaseSections(opts *qemuBaseOpts) []cfgSection {
 	machineType := ""
 	gicVersion := ""
 	capLargeDecr := ""
 
-	switch architecture {
+	switch opts.architecture {
 	case "x86_64":
 		machineType = "q35"
 	case "aarch64":
@@ -67,7 +71,7 @@ func qemuBaseSections(architecture string) []cfgSection {
 		},
 	}}
 
-	if architecture == "x86_64" {
+	if opts.architecture == "x86_64" {
 		sections = append(sections, []cfgSection{{
 			name: "global",
 			entries: []cfgEntry{

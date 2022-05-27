@@ -21,12 +21,11 @@ func TestQemuConfigTemplates(t *testing.T) {
 	}
 
 	t.Run("qemu_base", func(t *testing.T) {
-		type args struct{ architecture string }
 		testCases := []struct {
-			args     args
+			opts     qemuBaseOpts
 			expected string
 		}{{
-			args{"x86_64"},
+			qemuBaseOpts{"x86_64"},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -47,7 +46,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			args{"aarch64"},
+			qemuBaseOpts{"aarch64"},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -59,7 +58,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			args{"ppc64le"},
+			qemuBaseOpts{"ppc64le"},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -71,7 +70,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			args{"s390x"},
+			qemuBaseOpts{"s390x"},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -85,7 +84,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuBaseSections(tc.args.architecture)
+				sections := qemuBaseSections(&tc.opts)
 				actual := normalize(stringifySections(sections...))
 				expected := normalize(tc.expected)
 				if actual != expected {
