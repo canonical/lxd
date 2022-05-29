@@ -493,6 +493,23 @@ func qemuControlSocketSections(opts *qemuControlSocketOpts) []cfgSection {
 	}}
 }
 
+type qemuConsoleOpts struct {
+	path string
+}
+
+func qemuConsoleSections(opts *qemuConsoleOpts) []cfgSection {
+	return []cfgSection{{
+		name:    `chardev "console"`,
+		comment: "Console",
+		entries: []cfgEntry{
+			{key: "backend", value: "socket"},
+			{key: "path", value: opts.path},
+			{key: "server", value: "on"},
+			{key: "wait", value: "off"},
+		},
+	}}
+}
+
 var qemuConsole = template.Must(template.New("qemuConsole").Parse(`
 # Console
 [chardev "console"]
