@@ -538,23 +538,6 @@ func qemuDriveFirmwareSections(opts *qemuDriveFirmwareOpts) []cfgSection {
 	}}
 }
 
-var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
-# Firmware (read only)
-[drive]
-file = "{{.roPath}}"
-if = "pflash"
-format = "raw"
-unit = "0"
-readonly = "on"
-
-# Firmware settings (writable)
-[drive]
-file = "{{.nvramPath}}"
-if = "pflash"
-format = "raw"
-unit = "1"
-`))
-
 // Devices use "qemu_" prefix indicating that this is a internally named device.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`
 # Config drive ({{.protocol}})

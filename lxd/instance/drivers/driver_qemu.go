@@ -2524,14 +2524,11 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			return "", nil, fmt.Errorf("Failed opening NVRAM file: %w", err)
 		}
 
-		err = qemuDriveFirmware.Execute(sb, map[string]any{
-			"architecture": d.architectureName,
-			"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
-			"nvramPath":    fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
-		})
-		if err != nil {
-			return "", nil, err
+		driveFirmwareOpts := qemuDriveFirmwareOpts{
+			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
+		qemuAppendSections(sb, qemuDriveFirmwareSections(&driveFirmwareOpts)...)
 	}
 
 	// QMP socket.
