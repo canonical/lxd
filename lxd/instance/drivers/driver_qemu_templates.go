@@ -538,6 +538,106 @@ func qemuDriveFirmwareSections(opts *qemuDriveFirmwareOpts) []cfgSection {
 	}}
 }
 
+type qemuHostDriveOpts struct {
+	dev           qemuDevOpts
+	name          string
+	nameSuffix    string
+	comment       string
+	fsdriver      string
+	mountTag      string
+	securityModel string
+	path          string
+	sockFd        string
+	readonly      bool
+	protocol      string
+}
+
+func qemuHostDriveSections(opts *qemuHostDriveOpts) []cfgSection {
+	var extraDeviceEntries []cfgEntry
+	var driveSection cfgSection
+	deviceOpts := qemuDevEntriesOpts{dev: opts.dev}
+
+	if opts.protocol == "9p" {
+		var readonly string
+		if opts.readonly {
+			readonly = "on"
+		} else {
+			readonly = "off"
+		}
+
+		driveSection = cfgSection{
+			name:    fmt.Sprintf(`fsdev "%s"`, opts.name),
+			comment: opts.comment,
+			entries: []cfgEntry{
+				{key: "fsdriver", value: opts.fsdriver},
+				{key: "sock_fd", value: opts.sockFd},
+				{key: "security_model", value: opts.securityModel},
+				{key: "readonly", value: readonly},
+				{key: "path", value: opts.path},
+			},
+		}
+
+		deviceOpts.pciName = "virtio-9p-pci"
+		deviceOpts.ccwName = "virtio-9p-ccw"
+
+		extraDeviceEntries = []cfgEntry{
+			{key: "mount_tag", value: opts.mountTag},
+			{key: "fsdev", value: opts.name},
+		}
+
+	} else if opts.protocol == "virtio-fs" {
+
+		driveSection = cfgSection{
+			name:    fmt.Sprintf(`chardev "%s"`, opts.name),
+			comment: opts.comment,
+			entries: []cfgEntry{
+				{key: "backend", value: "socket"},
+				{key: "path", value: opts.path},
+			},
+		}
+
+		deviceOpts.pciName = "vhost-user-fs-pci"
+		deviceOpts.ccwName = "vhost-user-fs-ccw"
+
+		extraDeviceEntries = []cfgEntry{
+			{key: "tag", value: opts.mountTag},
+			{key: "chardev", value: opts.name},
+		}
+	} else {
+		return []cfgSection{}
+	}
+
+	return []cfgSection{
+		driveSection,
+		{
+			name:    fmt.Sprintf(`device "dev-%s%s-%s"`, opts.name, opts.nameSuffix, opts.protocol),
+			entries: append(qemuDeviceEntries(&deviceOpts), extraDeviceEntries...),
+		},
+	}
+}
+
+type qemuDriveConfigOpts struct {
+	dev      qemuDevOpts
+	protocol string
+	path     string
+}
+
+func qemuDriveConfigSections(opts *qemuDriveConfigOpts) []cfgSection {
+	return qemuHostDriveSections(&qemuHostDriveOpts{
+		dev: opts.dev,
+		// Devices use "qemu_" prefix indicating that this is a internally named device.
+		name:          "qemu_config",
+		nameSuffix:    "-drive",
+		comment:       fmt.Sprintf("Config drive (%s)", opts.protocol),
+		mountTag:      "config",
+		protocol:      opts.protocol,
+		fsdriver:      "local",
+		readonly:      true,
+		securityModel: "none",
+		path:          opts.path,
+	})
+}
+
 // Devices use "qemu_" prefix indicating that this is a internally named device.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`
 # Config drive ({{.protocol}})
