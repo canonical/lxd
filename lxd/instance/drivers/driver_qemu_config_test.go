@@ -830,4 +830,98 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_drive_config", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDriveConfigOpts
+			expected string
+		}{{
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"pci", "qemu_pcie0", "00.5", false},
+				path:     "/var/9p",
+				protocol: "9p",
+			},
+			`# Config drive (9p)
+			[fsdev "qemu_config"]
+			fsdriver = "local"
+			security_model = "none"
+			readonly = "on"
+			path = "/var/9p"
+
+			[device "dev-qemu_config-drive-9p"]
+			driver = "virtio-9p-pci"
+			bus = "qemu_pcie0"
+			addr = "00.5"
+			mount_tag = "config"
+			fsdev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"pcie", "qemu_pcie1", "10.2", true},
+				path:     "/dev/virtio-fs",
+				protocol: "virtio-fs",
+			},
+			`# Config drive (virtio-fs)
+			[chardev "qemu_config"]
+			backend = "socket"
+			path = "/dev/virtio-fs"
+
+			[device "dev-qemu_config-drive-virtio-fs"]
+			driver = "vhost-user-fs-pci"
+			bus = "qemu_pcie1"
+			addr = "10.2"
+			multifunction = "on"
+			tag = "config"
+			chardev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+				path:     "/var/virtio-fs",
+				protocol: "virtio-fs",
+			},
+			`# Config drive (virtio-fs)
+			[chardev "qemu_config"]
+			backend = "socket"
+			path = "/var/virtio-fs"
+
+			[device "dev-qemu_config-drive-virtio-fs"]
+			driver = "vhost-user-fs-ccw"
+			tag = "config"
+			chardev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/9p",
+				protocol: "9p",
+			},
+			`# Config drive (9p)
+			[fsdev "qemu_config"]
+			fsdriver = "local"
+			security_model = "none"
+			readonly = "on"
+			path = "/dev/9p"
+
+			[device "dev-qemu_config-drive-9p"]
+			driver = "virtio-9p-ccw"
+			multifunction = "on"
+			mount_tag = "config"
+			fsdev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/9p",
+				protocol: "invalid",
+			},
+			``,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuDriveConfigSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
