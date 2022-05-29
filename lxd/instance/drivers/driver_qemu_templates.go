@@ -493,19 +493,6 @@ func qemuControlSocketSections(opts *qemuControlSocketOpts) []cfgSection {
 	}}
 }
 
-var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
-# Qemu control
-[chardev "monitor"]
-backend = "socket"
-path = "{{.path}}"
-server = "on"
-wait = "off"
-
-[mon]
-chardev = "monitor"
-mode = "control"
-`))
-
 var qemuConsole = template.Must(template.New("qemuConsole").Parse(`
 # Console
 [chardev "console"]
