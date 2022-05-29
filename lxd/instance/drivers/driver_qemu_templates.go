@@ -510,15 +510,6 @@ func qemuConsoleSections(opts *qemuConsoleOpts) []cfgSection {
 	}}
 }
 
-var qemuConsole = template.Must(template.New("qemuConsole").Parse(`
-# Console
-[chardev "console"]
-backend = "socket"
-path = "{{.path}}"
-server = "on"
-wait = "off"
-`))
-
 var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
 # Firmware (read only)
 [drive]

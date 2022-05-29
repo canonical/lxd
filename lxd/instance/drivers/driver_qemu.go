@@ -2538,12 +2538,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	qemuAppendSections(sb, qemuControlSocketSections(&qemuControlSocketOpts{d.monitorPath()})...)
 
 	// Console output.
-	err = qemuConsole.Execute(sb, map[string]any{
-		"path": d.consolePath(),
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	qemuAppendSections(sb, qemuConsoleSections(&qemuConsoleOpts{d.consolePath()})...)
 
 	// Setup the bus allocator.
 	bus := qemuNewBus(busName, sb)
