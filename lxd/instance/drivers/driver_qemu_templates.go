@@ -470,6 +470,29 @@ func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
 	return sections
 }
 
+type qemuControlSocketOpts struct {
+	path string
+}
+
+func qemuControlSocketSections(opts *qemuControlSocketOpts) []cfgSection {
+	return []cfgSection{{
+		name:    `chardev "monitor"`,
+		comment: "Qemu control",
+		entries: []cfgEntry{
+			{key: "backend", value: "socket"},
+			{key: "path", value: opts.path},
+			{key: "server", value: "on"},
+			{key: "wait", value: "off"},
+		},
+	}, {
+		name: "mon",
+		entries: []cfgEntry{
+			{key: "chardev", value: "monitor"},
+			{key: "mode", value: "control"},
+		},
+	}}
+}
+
 var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
 # Qemu control
 [chardev "monitor"]

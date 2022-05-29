@@ -743,4 +743,33 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_control_socket", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuControlSocketOpts
+			expected string
+		}{{
+			qemuControlSocketOpts{"/dev/shm/control-socket"},
+			`# Qemu control
+			[chardev "monitor"]
+			backend = "socket"
+			path = "/dev/shm/control-socket"
+			server = "on"
+			wait = "off"
+
+			[mon]
+			chardev = "monitor"
+			mode = "control"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuControlSocketSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
