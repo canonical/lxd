@@ -2535,12 +2535,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	// QMP socket.
-	err = qemuControlSocket.Execute(sb, map[string]any{
-		"path": d.monitorPath(),
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	qemuAppendSections(sb, qemuControlSocketSections(&qemuControlSocketOpts{d.monitorPath()})...)
 
 	// Console output.
 	err = qemuConsole.Execute(sb, map[string]any{
