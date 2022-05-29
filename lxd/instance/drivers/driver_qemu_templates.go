@@ -355,6 +355,121 @@ func qemuTabletSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+type qemuNumaEntry struct {
+	node   uint64
+	socket uint64
+	core   uint64
+	thread uint64
+}
+
+type qemuCPUOpts struct {
+	architecture        string
+	cpuCount            int
+	cpuSockets          int
+	cpuCores            int
+	cpuThreads          int
+	cpuNumaNodes        []uint64
+	cpuNumaMapping      []qemuNumaEntry
+	cpuNumaHostNodes    []uint64
+	hugepages           string
+	memory              int64
+	qemuMemObjectFormat string
+}
+
+func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
+	entries := []cfgEntry{}
+
+	if opts.hugepages != "" {
+		entries = append(entries, []cfgEntry{
+			{key: "qom-type", value: "memory-backend-file"},
+			{key: "mem-path", value: opts.hugepages},
+			{key: "prealloc", value: "on"},
+			{key: "discard-data", value: "on"},
+		}...)
+	} else {
+		entries = append(entries, cfgEntry{key: "qom-type", value: "memory-backend-memfd"})
+	}
+
+	entries = append(entries, cfgEntry{key: "size", value: fmt.Sprintf("%dM", opts.memory)})
+
+	return []cfgSection{{
+		name:    fmt.Sprintf("object \"mem%d\"", index),
+		entries: entries,
+	}, {
+		name: "numa",
+		entries: []cfgEntry{
+			{key: "type", value: "node"},
+			{key: "nodeid", value: fmt.Sprintf("%d", index)},
+			{key: "memdev", value: fmt.Sprintf("mem%d", index)},
+		},
+	}}
+}
+
+func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
+	sections := []cfgSection{{
+		name:    "smp-opts",
+		comment: "CPU",
+		entries: []cfgEntry{
+			{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
+			{key: "sockets", value: fmt.Sprintf("%d", opts.cpuSockets)},
+			{key: "cores", value: fmt.Sprintf("%d", opts.cpuCores)},
+			{key: "threads", value: fmt.Sprintf("%d", opts.cpuThreads)},
+		},
+	}}
+
+	if opts.architecture != "x86_64" {
+		return sections
+	}
+
+	share := cfgEntry{key: "share", value: "on"}
+
+	if len(opts.cpuNumaHostNodes) == 0 {
+		// add one mem and one numa sections with index 0
+		numaHostNodeSections := qemuCPUNumaHostNode(opts, 0)
+		// unconditionally append "share = "on" to the [object "mem0"] section
+		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, share)
+		return append(sections, numaHostNodeSections...)
+	}
+
+	for index, element := range opts.cpuNumaHostNodes {
+		numaHostNodeSections := qemuCPUNumaHostNode(opts, index)
+
+		extraMemEntries := []cfgEntry{{key: "policy", value: "bind"}}
+
+		if opts.hugepages != "" {
+			// append share = "on" only if hugepages is set
+			extraMemEntries = append(extraMemEntries, share)
+		}
+
+		var hostNodesKey string
+		if opts.qemuMemObjectFormat == "indexed" {
+			hostNodesKey = "host-nodes.0"
+		} else {
+			hostNodesKey = "host-nodes"
+		}
+
+		hostNode := cfgEntry{key: hostNodesKey, value: fmt.Sprintf("%d", element)}
+		extraMemEntries = append(extraMemEntries, hostNode)
+		// append the extra entries to the [object "mem{{idx}}"] section
+		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, extraMemEntries...)
+		sections = append(sections, numaHostNodeSections...)
+	}
+
+	for _, numa := range opts.cpuNumaMapping {
+		sections = append(sections, cfgSection{
+			name: "numa",
+			entries: []cfgEntry{
+				{key: "type", value: "cpu"},
+				{key: "node-id", value: fmt.Sprintf("%d", numa.socket)},
+				{key: "core-id", value: fmt.Sprintf("%d", numa.core)},
+				{key: "thread-id", value: fmt.Sprintf("%d", numa.thread)},
+			},
+		})
+	}
+
+	return sections
+}
+
 var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
 # CPU
 [smp-opts]
