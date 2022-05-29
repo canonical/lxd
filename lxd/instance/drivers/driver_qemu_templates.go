@@ -510,6 +510,34 @@ func qemuConsoleSections(opts *qemuConsoleOpts) []cfgSection {
 	}}
 }
 
+type qemuDriveFirmwareOpts struct {
+	roPath    string
+	nvramPath string
+}
+
+func qemuDriveFirmwareSections(opts *qemuDriveFirmwareOpts) []cfgSection {
+	return []cfgSection{{
+		name:    "drive",
+		comment: "Firmware (read only)",
+		entries: []cfgEntry{
+			{key: "file", value: opts.roPath},
+			{key: "if", value: "pflash"},
+			{key: "format", value: "raw"},
+			{key: "unit", value: "0"},
+			{key: "readonly", value: "on"},
+		},
+	}, {
+		name:    "drive",
+		comment: "Firmware settings (writable)",
+		entries: []cfgEntry{
+			{key: "file", value: opts.nvramPath},
+			{key: "if", value: "pflash"},
+			{key: "format", value: "raw"},
+			{key: "unit", value: "1"},
+		},
+	}}
+}
+
 var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
 # Firmware (read only)
 [drive]

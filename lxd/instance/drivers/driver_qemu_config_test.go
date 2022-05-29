@@ -797,4 +797,37 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_drive_firmware", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDriveFirmwareOpts
+			expected string
+		}{{
+			qemuDriveFirmwareOpts{"/tmp/ovmf.fd", "/tmp/settings.fd"},
+			`# Firmware (read only)
+			[drive]
+			file = "/tmp/ovmf.fd"
+			if = "pflash"
+			format = "raw"
+			unit = "0"
+			readonly = "on"
+
+			# Firmware settings (writable)
+			[drive]
+			file = "/tmp/settings.fd"
+			if = "pflash"
+			format = "raw"
+			unit = "1"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuDriveFirmwareSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
