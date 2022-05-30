@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -69,14 +70,11 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection Ev
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
 
-	ctx, ctxCancel := context.WithCancel(context.Background())
-
 	listener := &Listener{
 		listenerCommon: listenerCommon{
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
-			ctx:                     ctx,
-			ctxCancel:               ctxCancel,
+			done:                    cancel.New(context.Background()),
 			id:                      uuid.New(),
 			recvFunc:                recvFunc,
 		},
