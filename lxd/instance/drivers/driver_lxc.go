@@ -3495,6 +3495,10 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Info("Restoring container", ctxMap)
 
+	// Wait for any file operations to complete.
+	// This is required so we can actually unmount the container and restore its rootfs.
+	d.stopForkfile()
+
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
@@ -3649,7 +3653,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	// Wait for any file operations to complete.
-	// This is to required so we can actually unmount the container and delete it.
+	// This is required so we can actually unmount the container and delete it.
 	if !d.IsSnapshot() {
 		d.stopForkfile()
 	}
