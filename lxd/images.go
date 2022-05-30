@@ -3649,8 +3649,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		if opWaitAPI.Status != "success" {
-			return fmt.Errorf(opWaitAPI.Err)
+		if opWaitAPI.StatusCode != api.Success {
+			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
 		d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
