@@ -1461,7 +1461,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Info("Updating images")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to update images", logger.Ctx{"err": err})
 		}
@@ -2013,7 +2013,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Infof("Pruning expired images")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire images", logger.Ctx{"err": err})
 		}
@@ -2118,7 +2118,7 @@ func pruneLeftoverImages(d *Daemon) {
 	}
 
 	logger.Infof("Pruning leftover image files")
-	_, err = op.Run()
+	err = op.Start()
 	if err != nil {
 		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
 		return
@@ -3883,7 +3883,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Infof("Synchronizing images across the cluster")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to synchronize images", logger.Ctx{"err": err})
 			return

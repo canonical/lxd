@@ -1089,7 +1089,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to remove orphaned operations", logger.Ctx{"err": err})
 			return

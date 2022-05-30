@@ -647,7 +647,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				logger.Debugf("The other side does not support pre-copy")
 			}
 
-			_, err = actionScriptOp.Run()
+			err = actionScriptOp.Start()
 			if err != nil {
 				_ = os.RemoveAll(checkpointDir)
 				return abort(err)
