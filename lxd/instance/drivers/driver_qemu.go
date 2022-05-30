@@ -2497,7 +2497,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	var sb *strings.Builder = &strings.Builder{}
 	var monHooks []monitorHook
 
-	qemuAppendSections(sb, qemuBaseSections(d.architectureName)...)
+	qemuAppendSections(sb, qemuBaseSections(&qemuBaseOpts{d.architectureName})...)
 
 	cpuCount, err := d.addCPUMemoryConfig(sb)
 	if err != nil {
@@ -2561,75 +2561,65 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
 	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
-	err = qemuBalloon.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	balloonOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuBalloonSections(&balloonOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuRNG.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	rngOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuRNGSections(&rngOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuKeyboard.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	keyboardOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuKeyboardSections(&keyboardOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuTablet.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	tabletOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuTabletSections(&tabletOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuVsock.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"vsockID": d.vsockID(),
-	})
-	if err != nil {
-		return "", nil, err
+	vsockOpts := qemuVsockOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		vsockID: d.vsockID(),
 	}
+	qemuAppendSections(sb, qemuVsockSections(&vsockOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuSerial.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"chardevName":      qemuSerialChardevName,
-		"ringbufSizeBytes": qmp.RingbufSize,
-	})
-	if err != nil {
-		return "", nil, err
+	serialOpts := qemuSerialOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		charDevName:      qemuSerialChardevName,
+		ringbufSizeBytes: qmp.RingbufSize,
 	}
+	qemuAppendSections(sb, qemuSerialSections(&serialOpts)...)
 
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
@@ -2647,15 +2637,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	err = qemuSCSI.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-	})
-	if err != nil {
-		return "", nil, err
+	scsiOpts := qemuDevOpts{
+		busName:       bus.name,
+		devBus:        devBus,
+		devAddr:       devAddr,
+		multifunction: multi,
 	}
+	qemuAppendSections(sb, qemuSCSISections(&scsiOpts)...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
@@ -2694,17 +2682,16 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	err = qemuGPU.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"architecture": d.architectureName,
-	})
-	if err != nil {
-		return "", nil, err
+	gpuOpts := qemuGpuOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		architecture: d.architectureName,
 	}
+	qemuAppendSections(sb, qemuGPUSections(&gpuOpts)...)
 
 	// Dynamic devices.
 	bootIndexes, err := d.deviceBootPriorities()
@@ -2938,20 +2925,13 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	}
 
 	// Determine per-node memory limit.
-	memSizeBytes = memSizeBytes / 1024 / 1024
-	nodeMemory := int64(memSizeBytes / int64(len(hostNodes)))
-	memSizeBytes = nodeMemory * int64(len(hostNodes))
+	memSizeMB := memSizeBytes / 1024 / 1024
+	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
+	memSizeMB = nodeMemory * int64(len(hostNodes))
 	ctx["memory"] = nodeMemory
 
 	if sb != nil {
-		err = qemuMemory.Execute(sb, map[string]any{
-			"architecture": d.architectureName,
-			"memSizeBytes": memSizeBytes,
-		})
-
-		if err != nil {
-			return -1, err
-		}
+		qemuAppendSections(sb, qemuMemorySections(&qemuMemoryOpts{memSizeMB})...)
 
 		err = qemuCPU.Execute(sb, ctx)
 		if err != nil {
