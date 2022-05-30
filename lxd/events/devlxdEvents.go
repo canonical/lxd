@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 )
 
 // DevLXDServer represents an instance of an devlxd event server.
@@ -34,14 +35,11 @@ func NewDevLXDServer(debug bool, verbose bool) *DevLXDServer {
 
 // AddListener creates and returns a new event listener.
 func (s *DevLXDServer) AddListener(instanceID int, connection EventListenerConnection, messageTypes []string) (*DevLXDListener, error) {
-	ctx, ctxCancel := context.WithCancel(context.Background())
-
 	listener := &DevLXDListener{
 		listenerCommon: listenerCommon{
 			EventListenerConnection: connection,
 			messageTypes:            messageTypes,
-			ctx:                     ctx,
-			ctxCancel:               ctxCancel,
+			done:                    cancel.New(context.Background()),
 			id:                      uuid.New(),
 		},
 		instanceID: instanceID,

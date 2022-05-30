@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -23,8 +24,7 @@ type listenerCommon struct {
 	EventListenerConnection
 
 	messageTypes []string
-	ctx          context.Context
-	ctxCancel    func()
+	done         *cancel.Canceller
 	id           string
 	lock         sync.Mutex
 	pongsPending uint
@@ -34,13 +34,13 @@ type listenerCommon struct {
 func (e *listenerCommon) start() {
 	logger.Debug("Event listener server handler started", logger.Ctx{"id": e.id, "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
-	e.Reader(e.ctx, e.recvFunc)
+	e.Reader(e.done.Context, e.recvFunc)
 	e.Close()
 }
 
 // IsClosed returns true if the listener is closed.
 func (e *listenerCommon) IsClosed() bool {
-	return e.ctx.Err() != nil
+	return e.done.Err() != nil
 }
 
 // ID returns the listener ID.
@@ -52,7 +52,7 @@ func (e *listenerCommon) ID() string {
 func (e *listenerCommon) Wait(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-	case <-e.ctx.Done():
+	case <-e.done.Done():
 	}
 }
 
@@ -68,5 +68,5 @@ func (e *listenerCommon) Close() {
 	logger.Debug("Event listener server handler stopped", logger.Ctx{"listener": e.ID(), "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
 	_ = e.EventListenerConnection.Close()
-	e.ctxCancel()
+	e.done.Cancel()
 }
