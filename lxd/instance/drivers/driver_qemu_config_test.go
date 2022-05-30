@@ -1026,4 +1026,48 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_pci_physical", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuPCIPhysicalOpts
+			expected string
+		}{{
+			qemuPCIPhysicalOpts{
+				dev:         qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+				devName:     "physical-pci-name",
+				pciSlotName: "host-slot",
+				bootIndex:   3,
+			},
+			`# PCI card ("physical-pci-name" device)
+			[device "dev-lxd_physical-pci-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			host = "host-slot"
+			bootIndex = "3"`,
+		}, {
+			qemuPCIPhysicalOpts{
+				dev:         qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
+				devName:     "physical-ccw-name",
+				pciSlotName: "host-slot-ccw",
+				bootIndex:   2,
+			},
+			`# PCI card ("physical-ccw-name" device)
+			[device "dev-lxd_physical-ccw-name"]
+			driver = "vfio-ccw"
+			multifunction = "on"
+			host = "host-slot-ccw"
+			bootIndex = "2"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuPCIPhysicalSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
