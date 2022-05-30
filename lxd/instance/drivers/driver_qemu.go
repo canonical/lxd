@@ -3016,20 +3016,19 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
-		err := qemuDriveDir.Execute(sb, map[string]any{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-
-			"devName":  driveConf.DevName,
-			"mountTag": mountTag,
-			"path":     virtiofsdSockPath,
-			"protocol": "virtio-fs",
-		})
-		if err != nil {
-			return err
+		driveDirVirtioOpts := qemuDriveDirOpts{
+			dev: qemuDevOpts{
+				busName:       bus.name,
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			},
+			devName:  driveConf.DevName,
+			mountTag: mountTag,
+			path:     virtiofsdSockPath,
+			protocol: "virtio-fs",
 		}
+		qemuAppendSections(sb, qemuDriveDirSections(&driveDirVirtioOpts)...)
 	}
 
 	// Add 9p share config.
@@ -3042,18 +3041,22 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 
 	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
-	return qemuDriveDir.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
+	driveDir9pOpts := qemuDriveDirOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:  driveConf.DevName,
+		mountTag: mountTag,
+		proxyFD:  proxyFD, // Pass by file descriptor
+		readonly: readonly,
+		protocol: "9p",
+	}
+	qemuAppendSections(sb, qemuDriveDirSections(&driveDir9pOpts)...)
 
-		"devName":  driveConf.DevName,
-		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor
-		"readonly": readonly,
-		"protocol": "9p",
-	})
+	return nil
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
