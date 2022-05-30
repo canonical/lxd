@@ -67,9 +67,6 @@ func (e *listenerCommon) Close() {
 
 	logger.Debug("Event listener server handler stopped", logger.Ctx{"listener": e.ID(), "local": e.LocalAddr(), "remote": e.RemoteAddr()})
 
-	err := e.EventListenerConnection.Close()
-	if err != nil {
-		logger.Error("Failed closing listener connection", logger.Ctx{"listener": e.ID(), "err": err})
-	}
+	_ = e.EventListenerConnection.Close()
 	e.ctxCancel()
 }
