@@ -22,7 +22,7 @@ func OperationResponse(op *Operation) response.Response {
 }
 
 func (r *operationResponse) Render(w http.ResponseWriter) error {
-	_, err := r.op.Run()
+	err := r.op.Start()
 	if err != nil {
 		return err
 	}

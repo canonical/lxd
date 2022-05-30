@@ -450,38 +450,27 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 	sql := "SELECT node_id, role FROM nodes_roles"
 
 	nodeRoles := map[int64][]ClusterRole{}
-	rows, err := c.tx.Query(sql)
-	if err != nil {
-		// Don't fail on a missing table, we need to handle updates
-		if err.Error() != "no such table: nodes_roles" {
-			return nil, err
-		}
-	} else {
-		defer func() { _ = rows.Close() }()
+	err := c.QueryScan(sql, func(scan func(dest ...any) error) error {
+		var nodeID int64
+		var role int
 
-		for i := 0; rows.Next(); i++ {
-			var nodeID int64
-			var role int
-			err := rows.Scan(&nodeID, &role)
-			if err != nil {
-				return nil, err
-			}
-
-			if nodeRoles[nodeID] == nil {
-				nodeRoles[nodeID] = []ClusterRole{}
-			}
-
-			roleName := string(ClusterRoles[role])
-
-			nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
-		}
-
-		err = rows.Err()
+		err := scan(&nodeID, &role)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		_ = rows.Close()
+		if nodeRoles[nodeID] == nil {
+			nodeRoles[nodeID] = []ClusterRole{}
+		}
+
+		roleName := string(ClusterRoles[role])
+		nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
+
+		return nil
+	})
+	if err != nil && err.Error() != "no such table: nodes_roles" {
+		// Don't fail on a missing table, we need to handle updates
+		return nil, err
 	}
 
 	// Get node groups
@@ -489,35 +478,26 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	nodeGroups := map[int64][]string{}
 
-	rows, err = c.tx.Query(sql)
-	if err != nil {
-		// Don't fail on a missing table, we need to handle updates
-		if err.Error() != "no such table: nodes_cluster_groups" {
-			return nil, err
-		}
-	} else {
-		defer func() { _ = rows.Close() }()
+	err = c.QueryScan(sql, func(scan func(dest ...any) error) error {
+		var nodeID int64
+		var group string
 
-		for i := 0; rows.Next(); i++ {
-			var nodeID int64
-			var group string
-
-			err := rows.Scan(&nodeID, &group)
-			if err != nil {
-				return nil, err
-			}
-
-			if nodeGroups[nodeID] == nil {
-				nodeGroups[nodeID] = []string{}
-			}
-
-			nodeGroups[nodeID] = append(nodeGroups[nodeID], group)
-		}
-
-		err = rows.Err()
+		err := scan(&nodeID, &group)
 		if err != nil {
-			return nil, err
+			return err
 		}
+
+		if nodeGroups[nodeID] == nil {
+			nodeGroups[nodeID] = []string{}
+		}
+
+		nodeGroups[nodeID] = append(nodeGroups[nodeID], group)
+
+		return nil
+	})
+	if err != nil && err.Error() != "no such table: nodes_cluster_groups" {
+		// Don't fail on a missing table, we need to handle updates
+		return nil, err
 	}
 
 	// Process node entries

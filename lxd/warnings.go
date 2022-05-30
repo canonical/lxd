@@ -428,7 +428,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Info("Pruning resolved warnings")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to prune resolved warnings", logger.Ctx{"err": err})
 		}
