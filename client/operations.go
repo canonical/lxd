@@ -214,7 +214,7 @@ func (op *operation) setupListener() error {
 		case <-listener.ctx.Done():
 			op.handlerLock.Lock()
 			if op.listener != nil {
-				op.Err = fmt.Sprintf("%v", listener.err)
+				op.Err = listener.err.Error()
 				close(op.chActive)
 			}
 			op.handlerLock.Unlock()

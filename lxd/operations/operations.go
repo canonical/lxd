@@ -99,21 +99,22 @@ type Operation struct {
 	url         string
 	resources   map[string][]string
 	metadata    map[string]any
-	err         string
+	err         error
 	readonly    bool
 	canceler    *cancel.HTTPRequestCanceller
 	description string
 	permission  string
 	dbOpType    db.OperationType
 	requestor   *api.EventLifecycleRequestor
+	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(*Operation) error
 	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
-	// Channels used for error reporting and state tracking of background actions
-	chanDone chan error
+	// Indicates if operation has finished.
+	finished *cancel.Canceller
 
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
@@ -143,8 +144,9 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.status = api.Pending
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
-	op.chanDone = make(chan error)
+	op.finished = cancel.New(context.Background())
 	op.state = s
+	op.logger = logger.AddContext(logger.Log, logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -192,7 +194,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		return nil, err
 	}
 
-	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("New operation")
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
@@ -227,7 +229,7 @@ func (op *Operation) done() {
 	op.onRun = nil
 	op.onCancel = nil
 	op.onConnect = nil
-	close(op.chanDone)
+	op.finished.Cancel()
 	op.lock.Unlock()
 
 	go func() {
@@ -258,35 +260,32 @@ func (op *Operation) done() {
 
 		err := removeDBOperation(op)
 		if err != nil {
-			logger.Warn("Failed to delete operation", logger.Ctx{"operation": op.id, "description": op.description, "status": op.status, "project": op.projectName, "err": err})
+			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
 		}
 	}()
 }
 
-// Run runs a pending operation. It returns an error if the operation cannot
-// be started.
-func (op *Operation) Run() (chan error, error) {
+// Start a pending operation. It returns an error if the operation cannot be started.
+func (op *Operation) Start() error {
+	op.lock.Lock()
 	if op.status != api.Pending {
-		return nil, fmt.Errorf("Only pending operations can be started")
+		op.lock.Unlock()
+		return fmt.Errorf("Only pending operations can be started")
 	}
 
-	chanRun := make(chan error, 1)
-
-	op.lock.Lock()
 	op.status = api.Running
 
 	if op.onRun != nil {
-		go func(op *Operation, chanRun chan error) {
+		go func(op *Operation) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
 				op.status = api.Failure
-				op.err = response.SmartError(err).String()
+				op.err = err
 				op.lock.Unlock()
 				op.done()
-				chanRun <- err
 
-				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
+				op.logger.Debug("Failure for operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -300,43 +299,44 @@ func (op *Operation) Run() (chan error, error) {
 			op.status = api.Success
 			op.lock.Unlock()
 			op.done()
-			chanRun <- nil
 
-			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
+			op.logger.Debug("Success for operation")
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op, chanRun)
+		}(op)
 	}
 
 	op.lock.Unlock()
 
-	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Started operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	return chanRun, nil
+	return nil
 }
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
 func (op *Operation) Cancel() (chan error, error) {
+	op.lock.Lock()
 	if op.status != api.Running {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only running operations can be cancelled")
 	}
 
 	if !op.mayCancel() {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("This operation can't be cancelled")
 	}
 
 	chanCancel := make(chan error, 1)
 
-	op.lock.Lock()
 	oldStatus := op.status
 	op.status = api.Cancelling
 	op.lock.Unlock()
@@ -352,7 +352,7 @@ func (op *Operation) Cancel() (chan error, error) {
 				op.lock.Unlock()
 				chanCancel <- err
 
-				logger.Debug("Failed to cancel operation", logger.Ctx{"operation": op.id, "class": op.class.String(), "err": err})
+				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -368,7 +368,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.done()
 			chanCancel <- nil
 
-			logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+			op.logger.Debug("Cancelled operation")
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
@@ -378,7 +378,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}(op, oldStatus, chanCancel)
 	}
 
-	logger.Debug("Cancelling operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+	op.logger.Debug("Cancelling operation")
 	_, md, _ := op.Render()
 	op.sendEvent(md)
 
@@ -397,7 +397,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		chanCancel <- nil
 	}
 
-	logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+	op.logger.Debug("Cancelled operation")
 	_, md, _ = op.Render()
 
 	op.lock.Lock()
@@ -410,34 +410,35 @@ func (op *Operation) Cancel() (chan error, error) {
 // Connect connects a websocket operation. If the operation is not a websocket
 // operation or the operation is not running, it returns an error.
 func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
+	op.lock.Lock()
 	if op.class != OperationClassWebsocket {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only websocket operations can be connected")
 	}
 
 	if op.status != api.Running {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only running operations can be connected")
 	}
 
 	chanConnect := make(chan error, 1)
-
-	op.lock.Lock()
 
 	go func(op *Operation, chanConnect chan error) {
 		err := op.onConnect(op, r, w)
 		if err != nil {
 			chanConnect <- err
 
-			logger.Debugf("Failed to handle %s Operation: %s: %s", op.class.String(), op.id, err)
+			op.logger.Debug("Failed to connect to operation", logger.Ctx{"err": err})
 			return
 		}
 
 		chanConnect <- nil
 
-		logger.Debugf("Handled %s Operation: %s", op.class.String(), op.id)
+		op.logger.Debug("Connected to operation")
 	}(op, chanConnect)
 	op.lock.Unlock()
 
-	logger.Debugf("Connected %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Connecting to operation")
 
 	return chanConnect, nil
 }
@@ -476,11 +477,6 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 	}
 
 	// Local server name
-	var err error
-	serverName, err := getServerName(op)
-	if err != nil {
-		return "", nil, err
-	}
 
 	op.lock.Lock()
 	retOp := &api.Operation{
@@ -494,63 +490,47 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Resources:   resources,
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
-		Err:         op.err,
-		Location:    serverName,
+		Location:    op.state.ServerName,
 	}
+
+	if op.err != nil {
+		retOp.Err = response.SmartError(op.err).String()
+	}
+
 	op.lock.Unlock()
 
 	return op.url, retOp, nil
 }
 
-// WaitFinal waits for the operation to be done. If timeout is -1, it will wait
-// indefinitely otherwise it will timeout after {timeout} seconds.
-func (op *Operation) WaitFinal(timeout int) (bool, error) {
-	// Check current state
-	op.lock.Lock()
-	if op.status.IsFinal() {
-		op.lock.Unlock()
+// Wait for the operation to be done.
+func (op *Operation) Wait(ctx context.Context) (bool, error) {
+	select {
+	case <-op.finished.Done():
 		return true, nil
+	case <-ctx.Done():
+		return false, nil
 	}
-	op.lock.Unlock()
-
-	// Wait indefinitely
-	if timeout == -1 {
-		<-op.chanDone
-		return true, nil
-	}
-
-	// Wait until timeout
-	if timeout > 0 {
-		timer := time.NewTimer(time.Duration(timeout) * time.Second)
-		select {
-		case <-op.chanDone:
-			return true, nil
-
-		case <-timer.C:
-			return false, nil
-		}
-	}
-
-	return false, nil
 }
 
 // UpdateResources updates the resources of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateResources(opResources map[string][]string) error {
+	op.lock.Lock()
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
-	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.resources = opResources
 	op.lock.Unlock()
 
-	logger.Debugf("Updated resources for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated resources for oeration")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
@@ -563,11 +543,14 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata any) error {
+	op.lock.Lock()
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
@@ -576,12 +559,11 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 		return err
 	}
 
-	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.metadata = newMetadata
 	op.lock.Unlock()
 
-	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated metadata for operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
@@ -594,12 +576,16 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) ExtendMetadata(metadata any) error {
+	op.lock.Lock()
+
 	// Quick checks.
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
@@ -610,7 +596,6 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	}
 
 	// Get current metadata.
-	op.lock.Lock()
 	newMetadata := op.metadata
 	op.lock.Unlock()
 
@@ -629,7 +614,7 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	op.metadata = newMetadata
 	op.lock.Unlock()
 
-	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated metadata for operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()

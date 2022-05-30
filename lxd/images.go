@@ -1520,7 +1520,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Info("Updating images")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to update images", logger.Ctx{"err": err})
 		}
@@ -2072,7 +2072,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Infof("Pruning expired images")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire images", logger.Ctx{"err": err})
 		}
@@ -2177,7 +2177,7 @@ func pruneLeftoverImages(d *Daemon) {
 	}
 
 	logger.Infof("Pruning leftover image files")
-	_, err = op.Run()
+	err = op.Start()
 	if err != nil {
 		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
 		return
@@ -3711,8 +3711,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		if opWaitAPI.Status != "success" {
-			return fmt.Errorf(opWaitAPI.Err)
+		if opWaitAPI.StatusCode != api.Success {
+			return fmt.Errorf("Failed operation %q: %q", opWaitAPI.Status, opWaitAPI.Err)
 		}
 
 		d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), logger.Ctx{"target": req.Target}))
@@ -3945,7 +3945,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Infof("Synchronizing images across the cluster")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to synchronize images", logger.Ctx{"err": err})
 			return

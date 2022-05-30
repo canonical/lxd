@@ -867,7 +867,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(nil)
 	}
 
-	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
+	timeoutSecs, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -879,7 +879,18 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			return response.Forbidden(nil)
 		}
 
-		_, err = op.WaitFinal(timeout)
+		var ctx context.Context
+		var cancel context.CancelFunc
+
+		// If timeout is -1, it will wait indefinitely otherwise it will timeout after timeoutSecs.
+		if timeoutSecs > -1 {
+			ctx, cancel = context.WithDeadline(r.Context(), time.Now().Add(time.Second*time.Duration(timeoutSecs)))
+		} else {
+			ctx, cancel = context.WithCancel(r.Context())
+		}
+		defer cancel()
+
+		_, err = op.Wait(ctx)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1089,7 +1100,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to remove orphaned operations", logger.Ctx{"err": err})
 			return

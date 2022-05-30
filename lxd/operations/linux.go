@@ -52,24 +52,6 @@ func removeDBOperation(op *Operation) error {
 	return err
 }
 
-func getServerName(op *Operation) (string, error) {
-	if op.state == nil {
-		return "", nil
-	}
-
-	var serverName string
-	var err error
-	err = op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName()
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return serverName, nil
-}
-
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
