@@ -690,6 +690,42 @@ func qemuPCIPhysicalSections(opts *qemuPCIPhysicalOpts) []cfgSection {
 	}}
 }
 
+type qemuGPUDevPhysicalOpts struct {
+	dev         qemuDevOpts
+	devName     string
+	pciSlotName string
+	vgpu        string
+	vga         bool
+}
+
+func qemuGPUDevPhysicalSections(opts *qemuGPUDevPhysicalOpts) []cfgSection {
+	deviceOpts := qemuDevEntriesOpts{
+		dev:     opts.dev,
+		pciName: "vfio-pci",
+		ccwName: "vfio-ccw",
+	}
+
+	entries := qemuDeviceEntries(&deviceOpts)
+
+	if opts.vgpu != "" {
+		sysfsdev := fmt.Sprintf("/sys/bus/mdev/devices/%s", opts.vgpu)
+		entries = append(entries, cfgEntry{key: "sysfsdev", value: sysfsdev})
+	} else {
+		entries = append(entries, cfgEntry{key: "host", value: opts.pciSlotName})
+	}
+
+	if opts.vga {
+		entries = append(entries, cfgEntry{key: "x-vga", value: "on"})
+	}
+
+	return []cfgSection{{
+		// Devices use "lxd_" prefix indicating that this is a user named device.
+		name:    fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		comment: fmt.Sprintf(`GPU card ("%s" device)`, opts.devName),
+		entries: entries,
+	}}
+}
+
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuGPUDevPhysical = template.Must(template.New("qemuGPUDevPhysical").Parse(`
 # GPU card ("{{.devName}}" device)
