@@ -638,7 +638,31 @@ func qemuDriveConfigSections(opts *qemuDriveConfigOpts) []cfgSection {
 	})
 }
 
-// Devices use "lxd_" prefix indicating that this is a user named device.
+type qemuDriveDirOpts struct {
+	dev      qemuDevOpts
+	devName  string
+	mountTag string
+	path     string
+	protocol string
+	proxyFD  int
+	readonly bool
+}
+
+func qemuDriveDirSections(opts *qemuDriveDirOpts) []cfgSection {
+	return qemuHostDriveSections(&qemuHostDriveOpts{
+		dev: opts.dev,
+		// Devices use "lxd_" prefix indicating that this is a user named device.
+		name:     fmt.Sprintf("lxd_%s", opts.devName),
+		comment:  fmt.Sprintf("%s drive (%s)", opts.devName, opts.protocol),
+		mountTag: opts.mountTag,
+		protocol: opts.protocol,
+		fsdriver: "proxy",
+		readonly: opts.readonly,
+		path:     opts.path,
+		sockFd:   fmt.Sprintf("%d", opts.proxyFD),
+	})
+}
+
 var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
 # {{.devName}} drive ({{.protocol}})
 {{- if eq .protocol "9p" }}
