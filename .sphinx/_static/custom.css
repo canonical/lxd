@@ -26,6 +26,11 @@ table.docutils td, table.docutils th, table.docutils td:last-child, table.docuti
     border-left: none;
 }
 
+/* center align table cells with ":-:" */
+td.text-center {
+    text-align: center;
+}
+
 /** No rounded corners **/
 
 .admonition, code.literal, .sphinx-tabs-tab, .sphinx-tabs-panel, .highlight {
