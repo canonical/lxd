@@ -3603,23 +3603,21 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	}()
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"devName":     devName,
-		"pciSlotName": pciSlotName,
-		"vga":         vgaMode,
-		"vgpu":        vgpu,
+	gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:     devName,
+		pciSlotName: pciSlotName,
+		vga:         vgaMode,
+		vgpu:        vgpu,
 	}
 
 	// Add main GPU device in VGA mode to qemu config.
-	err := qemuGPUDevPhysical.Execute(sb, tplFields)
-	if err != nil {
-		return err
-	}
+	qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 
 	var iommuGroupPath string
 
@@ -3647,23 +3645,21 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
 				devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-				tplFields := map[string]any{
-					"bus":           bus.name,
-					"devBus":        devBus,
-					"devAddr":       devAddr,
-					"multifunction": multi,
-
+				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+					dev: qemuDevOpts{
+						busName:       bus.name,
+						devBus:        devBus,
+						devAddr:       devAddr,
+						multifunction: multi,
+					},
 					// Generate associated device name by combining main device name and VF ID.
-					"devName":     fmt.Sprintf("%s_%s", devName, devAddr),
-					"pciSlotName": iommuSlotName,
-					"vga":         false,
-					"vgpu":        "",
+					devName:     fmt.Sprintf("%s_%s", devName, devAddr),
+					pciSlotName: iommuSlotName,
+					vga:         false,
+					vgpu:        "",
 				}
 
-				err := qemuGPUDevPhysical.Execute(sb, tplFields)
-				if err != nil {
-					return err
-				}
+				qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 			}
 
 			return nil
