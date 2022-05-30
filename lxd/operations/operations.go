@@ -106,6 +106,7 @@ type Operation struct {
 	permission  string
 	dbOpType    db.OperationType
 	requestor   *api.EventLifecycleRequestor
+	logger      logger.Logger
 
 	// Those functions are called at various points in the Operation lifecycle
 	onRun     func(*Operation) error
@@ -145,6 +146,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.resources = opResources
 	op.finished = cancel.New(context.Background())
 	op.state = s
+	op.logger = logger.AddContext(logger.Log, logger.Ctx{"operation": op.id, "project": op.projectName, "class": op.class.String(), "description": op.description})
 
 	if s != nil {
 		op.SetEventServer(s.Events)
@@ -192,7 +194,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		return nil, err
 	}
 
-	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("New operation")
 	_, md, _ := op.Render()
 
 	operationsLock.Lock()
@@ -258,7 +260,7 @@ func (op *Operation) done() {
 
 		err := removeDBOperation(op)
 		if err != nil {
-			logger.Warn("Failed to delete operation", logger.Ctx{"operation": op.id, "description": op.description, "status": op.status, "project": op.projectName, "err": err})
+			op.logger.Warn("Failed to delete operation", logger.Ctx{"status": op.status, "err": err})
 		}
 	}()
 }
@@ -283,7 +285,7 @@ func (op *Operation) Start() error {
 				op.lock.Unlock()
 				op.done()
 
-				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
+				op.logger.Debug("Failure for operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -298,7 +300,7 @@ func (op *Operation) Start() error {
 			op.lock.Unlock()
 			op.done()
 
-			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
+			op.logger.Debug("Success for operation")
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
@@ -309,7 +311,7 @@ func (op *Operation) Start() error {
 
 	op.lock.Unlock()
 
-	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Started operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
@@ -350,7 +352,7 @@ func (op *Operation) Cancel() (chan error, error) {
 				op.lock.Unlock()
 				chanCancel <- err
 
-				logger.Debug("Failed to cancel operation", logger.Ctx{"operation": op.id, "class": op.class.String(), "err": err})
+				op.logger.Debug("Failed to cancel operation", logger.Ctx{"err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -366,7 +368,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.done()
 			chanCancel <- nil
 
-			logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+			op.logger.Debug("Cancelled operation")
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
@@ -376,7 +378,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}(op, oldStatus, chanCancel)
 	}
 
-	logger.Debug("Cancelling operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+	op.logger.Debug("Cancelling operation")
 	_, md, _ := op.Render()
 	op.sendEvent(md)
 
@@ -395,7 +397,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		chanCancel <- nil
 	}
 
-	logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
+	op.logger.Debug("Cancelled operation")
 	_, md, _ = op.Render()
 
 	op.lock.Lock()
@@ -426,17 +428,17 @@ func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		if err != nil {
 			chanConnect <- err
 
-			logger.Debugf("Failed to handle %s Operation: %s: %s", op.class.String(), op.id, err)
+			op.logger.Debug("Failed to connect to operation", logger.Ctx{"err": err})
 			return
 		}
 
 		chanConnect <- nil
 
-		logger.Debugf("Handled %s Operation: %s", op.class.String(), op.id)
+		op.logger.Debug("Connected to operation")
 	}(op, chanConnect)
 	op.lock.Unlock()
 
-	logger.Debugf("Connected %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Connecting to operation")
 
 	return chanConnect, nil
 }
@@ -533,7 +535,7 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 	op.resources = opResources
 	op.lock.Unlock()
 
-	logger.Debugf("Updated resources for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated resources for oeration")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
@@ -566,7 +568,7 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 	op.metadata = newMetadata
 	op.lock.Unlock()
 
-	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated metadata for operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
@@ -617,7 +619,7 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	op.metadata = newMetadata
 	op.lock.Unlock()
 
-	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
+	op.logger.Debug("Updated metadata for operation")
 	_, md, _ := op.Render()
 
 	op.lock.Lock()
