@@ -265,11 +265,12 @@ func (op *Operation) done() {
 
 // Start a pending operation. It returns an error if the operation cannot be started.
 func (op *Operation) Start() error {
+	op.lock.Lock()
 	if op.status != api.Pending {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending operations can be started")
 	}
 
-	op.lock.Lock()
 	op.status = api.Running
 
 	if op.onRun != nil {
@@ -321,17 +322,19 @@ func (op *Operation) Start() error {
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
 // returns an error.
 func (op *Operation) Cancel() (chan error, error) {
+	op.lock.Lock()
 	if op.status != api.Running {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only running operations can be cancelled")
 	}
 
 	if !op.mayCancel() {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("This operation can't be cancelled")
 	}
 
 	chanCancel := make(chan error, 1)
 
-	op.lock.Lock()
 	oldStatus := op.status
 	op.status = api.Cancelling
 	op.lock.Unlock()
@@ -405,17 +408,18 @@ func (op *Operation) Cancel() (chan error, error) {
 // Connect connects a websocket operation. If the operation is not a websocket
 // operation or the operation is not running, it returns an error.
 func (op *Operation) Connect(r *http.Request, w http.ResponseWriter) (chan error, error) {
+	op.lock.Lock()
 	if op.class != OperationClassWebsocket {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only websocket operations can be connected")
 	}
 
 	if op.status != api.Running {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("Only running operations can be connected")
 	}
 
 	chanConnect := make(chan error, 1)
-
-	op.lock.Lock()
 
 	go func(op *Operation, chanConnect chan error) {
 		err := op.onConnect(op, r, w)
@@ -510,15 +514,17 @@ func (op *Operation) Wait(ctx context.Context) (bool, error) {
 // UpdateResources updates the resources of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateResources(opResources map[string][]string) error {
+	op.lock.Lock()
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
-	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.resources = opResources
 	op.lock.Unlock()
@@ -536,11 +542,14 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) UpdateMetadata(opMetadata any) error {
+	op.lock.Lock()
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
@@ -549,7 +558,6 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 		return err
 	}
 
-	op.lock.Lock()
 	op.updatedAt = time.Now()
 	op.metadata = newMetadata
 	op.lock.Unlock()
@@ -567,12 +575,16 @@ func (op *Operation) UpdateMetadata(opMetadata any) error {
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
 func (op *Operation) ExtendMetadata(metadata any) error {
+	op.lock.Lock()
+
 	// Quick checks.
 	if op.status != api.Pending && op.status != api.Running {
+		op.lock.Unlock()
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
 
 	if op.readonly {
+		op.lock.Unlock()
 		return fmt.Errorf("Read-only operations can't be updated")
 	}
 
@@ -583,7 +595,6 @@ func (op *Operation) ExtendMetadata(metadata any) error {
 	}
 
 	// Get current metadata.
-	op.lock.Lock()
 	newMetadata := op.metadata
 	op.lock.Unlock()
 
