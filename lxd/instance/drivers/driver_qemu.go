@@ -3555,17 +3555,19 @@ func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []de
 	}
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"devName":     devName,
-		"pciSlotName": pciSlotName,
+	pciPhysicalOpts := qemuPCIPhysicalOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:     devName,
+		pciSlotName: pciSlotName,
 	}
+	qemuAppendSections(sb, qemuPCIPhysicalSections(&pciPhysicalOpts)...)
 
-	return qemuPCIPhysical.Execute(sb, tplFields)
+	return nil
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
