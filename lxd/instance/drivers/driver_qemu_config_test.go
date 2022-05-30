@@ -1070,4 +1070,59 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_gpu_dev_physical", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuGPUDevPhysicalOpts
+			expected string
+		}{{
+			qemuGPUDevPhysicalOpts{
+				dev:         qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+				devName:     "gpu-name",
+				pciSlotName: "gpu-slot",
+			},
+			`# GPU card ("gpu-name" device)
+			[device "dev-lxd_gpu-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			host = "gpu-slot"`,
+		}, {
+			qemuGPUDevPhysicalOpts{
+				dev:         qemuDevOpts{"ccw", "qemu_pcie1", "00.0", true},
+				devName:     "gpu-name",
+				pciSlotName: "gpu-slot",
+				vga:         true,
+			},
+			`# GPU card ("gpu-name" device)
+			[device "dev-lxd_gpu-name"]
+			driver = "vfio-ccw"
+			multifunction = "on"
+			host = "gpu-slot"
+			x-vga = "on"`,
+		}, {
+			qemuGPUDevPhysicalOpts{
+				dev:     qemuDevOpts{"pci", "qemu_pcie1", "00.0", true},
+				devName: "vgpu-name",
+				vgpu:    "vgpu-dev",
+			},
+			`# GPU card ("vgpu-name" device)
+			[device "dev-lxd_vgpu-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			multifunction = "on"
+			sysfsdev = "/sys/bus/mdev/devices/vgpu-dev"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuGPUDevPhysicalSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
