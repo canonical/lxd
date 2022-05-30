@@ -294,7 +294,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		logger.Info("Pruning expired instance backups")
-		_, err = op.Run()
+		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire instance backups", logger.Ctx{"err": err})
 		}
