@@ -663,52 +663,6 @@ func qemuDriveDirSections(opts *qemuDriveDirOpts) []cfgSection {
 	})
 }
 
-var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
-# {{.devName}} drive ({{.protocol}})
-{{- if eq .protocol "9p" }}
-[fsdev "lxd_{{.devName}}"]
-fsdriver = "proxy"
-sock_fd = "{{.proxyFD}}"
-{{- if .readonly}}
-readonly = "on"
-{{- else}}
-readonly = "off"
-{{- end}}
-{{- else if eq .protocol "virtio-fs" }}
-[chardev "lxd_{{.devName}}"]
-backend = "socket"
-path = "{{.path}}"
-{{- end }}
-
-[device "dev-lxd_{{.devName}}-{{.protocol}}"]
-{{- if eq .bus "pci" "pcie"}}
-{{- if eq .protocol "9p" }}
-driver = "virtio-9p-pci"
-{{- else if eq .protocol "virtio-fs" }}
-driver = "vhost-user-fs-pci"
-{{- end }}
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end -}}
-{{if eq .bus "ccw" -}}
-{{- if eq .protocol "9p" }}
-driver = "virtio-9p-ccw"
-{{- else if eq .protocol "virtio-fs" }}
-driver = "vhost-user-fs-ccw"
-{{- end }}
-{{- end}}
-{{- if eq .protocol "9p" }}
-fsdev = "lxd_{{.devName}}"
-mount_tag = "{{.mountTag}}"
-{{- else if eq .protocol "virtio-fs" }}
-chardev = "lxd_{{.devName}}"
-tag = "{{.mountTag}}"
-{{- end }}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuPCIPhysical = template.Must(template.New("qemuPCIPhysical").Parse(`
 # PCI card ("{{.devName}}" device)
