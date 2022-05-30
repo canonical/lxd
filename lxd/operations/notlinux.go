@@ -24,14 +24,6 @@ func removeDBOperation(op *Operation) error {
 	return nil
 }
 
-func getServerName(op *Operation) (string, error) {
-	if op.state != nil {
-		return "", fmt.Errorf("registerDBOperation not supported on this platform")
-	}
-
-	return "", nil
-}
-
 func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
