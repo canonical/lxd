@@ -263,20 +263,17 @@ func (op *Operation) done() {
 	}()
 }
 
-// Run runs a pending operation. It returns an error if the operation cannot
-// be started.
-func (op *Operation) Run() (chan error, error) {
+// Start a pending operation. It returns an error if the operation cannot be started.
+func (op *Operation) Start() error {
 	if op.status != api.Pending {
-		return nil, fmt.Errorf("Only pending operations can be started")
+		return fmt.Errorf("Only pending operations can be started")
 	}
-
-	chanRun := make(chan error, 1)
 
 	op.lock.Lock()
 	op.status = api.Running
 
 	if op.onRun != nil {
-		go func(op *Operation, chanRun chan error) {
+		go func(op *Operation) {
 			err := op.onRun(op)
 			if err != nil {
 				op.lock.Lock()
@@ -284,7 +281,6 @@ func (op *Operation) Run() (chan error, error) {
 				op.err = response.SmartError(err).String()
 				op.lock.Unlock()
 				op.done()
-				chanRun <- err
 
 				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
@@ -300,7 +296,6 @@ func (op *Operation) Run() (chan error, error) {
 			op.status = api.Success
 			op.lock.Unlock()
 			op.done()
-			chanRun <- nil
 
 			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
@@ -308,7 +303,7 @@ func (op *Operation) Run() (chan error, error) {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-		}(op, chanRun)
+		}(op)
 	}
 
 	op.lock.Unlock()
@@ -320,7 +315,7 @@ func (op *Operation) Run() (chan error, error) {
 	op.sendEvent(md)
 	op.lock.Unlock()
 
-	return chanRun, nil
+	return nil
 }
 
 // Cancel cancels a running operation. If the operation cannot be cancelled, it
