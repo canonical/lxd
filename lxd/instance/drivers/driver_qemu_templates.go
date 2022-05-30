@@ -663,6 +663,33 @@ func qemuDriveDirSections(opts *qemuDriveDirOpts) []cfgSection {
 	})
 }
 
+type qemuPCIPhysicalOpts struct {
+	dev         qemuDevOpts
+	devName     string
+	pciSlotName string
+	bootIndex   int
+}
+
+func qemuPCIPhysicalSections(opts *qemuPCIPhysicalOpts) []cfgSection {
+	deviceOpts := qemuDevEntriesOpts{
+		dev:     opts.dev,
+		pciName: "vfio-pci",
+		ccwName: "vfio-ccw",
+	}
+
+	entries := append(qemuDeviceEntries(&deviceOpts), []cfgEntry{
+		{key: "host", value: opts.pciSlotName},
+		{key: "bootIndex", value: fmt.Sprintf("%d", opts.bootIndex)},
+	}...)
+
+	return []cfgSection{{
+		// Devices use "lxd_" prefix indicating that this is a user named device.
+		name:    fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		comment: fmt.Sprintf(`PCI card ("%s" device)`, opts.devName),
+		entries: entries,
+	}}
+}
+
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuPCIPhysical = template.Must(template.New("qemuPCIPhysical").Parse(`
 # PCI card ("{{.devName}}" device)
