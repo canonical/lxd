@@ -112,8 +112,8 @@ type Operation struct {
 	onCancel  func(*Operation) error
 	onConnect func(*Operation, *http.Request, http.ResponseWriter) error
 
-	// Channels used for error reporting and state tracking of background actions
-	chanDone chan error
+	// Indicates if operation has finished.
+	finished *cancel.Canceller
 
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
@@ -143,7 +143,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	op.status = api.Pending
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
-	op.chanDone = make(chan error)
+	op.finished = cancel.New(context.Background())
 	op.state = s
 
 	if s != nil {
@@ -227,7 +227,7 @@ func (op *Operation) done() {
 	op.onRun = nil
 	op.onCancel = nil
 	op.onConnect = nil
-	close(op.chanDone)
+	op.finished.Cancel()
 	op.lock.Unlock()
 
 	go func() {
@@ -497,36 +497,14 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 	return op.url, retOp, nil
 }
 
-// WaitFinal waits for the operation to be done. If timeout is -1, it will wait
-// indefinitely otherwise it will timeout after {timeout} seconds.
-func (op *Operation) WaitFinal(timeout int) (bool, error) {
-	// Check current state
-	op.lock.Lock()
-	if op.status.IsFinal() {
-		op.lock.Unlock()
+// Wait for the operation to be done.
+func (op *Operation) Wait(ctx context.Context) (bool, error) {
+	select {
+	case <-op.finished.Done():
 		return true, nil
+	case <-ctx.Done():
+		return false, nil
 	}
-	op.lock.Unlock()
-
-	// Wait indefinitely
-	if timeout == -1 {
-		<-op.chanDone
-		return true, nil
-	}
-
-	// Wait until timeout
-	if timeout > 0 {
-		timer := time.NewTimer(time.Duration(timeout) * time.Second)
-		select {
-		case <-op.chanDone:
-			return true, nil
-
-		case <-timer.C:
-			return false, nil
-		}
-	}
-
-	return false, nil
 }
 
 // UpdateResources updates the resources of the operation. It returns an error
