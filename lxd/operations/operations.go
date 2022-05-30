@@ -99,7 +99,7 @@ type Operation struct {
 	url         string
 	resources   map[string][]string
 	metadata    map[string]any
-	err         string
+	err         error
 	readonly    bool
 	canceler    *cancel.HTTPRequestCanceller
 	description string
@@ -279,7 +279,7 @@ func (op *Operation) Start() error {
 			if err != nil {
 				op.lock.Lock()
 				op.status = api.Failure
-				op.err = response.SmartError(err).String()
+				op.err = err
 				op.lock.Unlock()
 				op.done()
 
@@ -493,9 +493,13 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Resources:   resources,
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
-		Err:         op.err,
 		Location:    serverName,
 	}
+
+	if op.err != nil {
+		retOp.Err = response.SmartError(op.err).String()
+	}
+
 	op.lock.Unlock()
 
 	return op.url, retOp, nil
