@@ -726,31 +726,6 @@ func qemuGPUDevPhysicalSections(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 	}}
 }
 
-// Devices use "lxd_" prefix indicating that this is a user named device.
-var qemuGPUDevPhysical = template.Must(template.New("qemuGPUDevPhysical").Parse(`
-# GPU card ("{{.devName}}" device)
-[device "dev-lxd_{{.devName}}"]
-{{- if eq .bus "pci" "pcie"}}
-driver = "vfio-pci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "vfio-ccw"
-{{- end}}
-{{- if ne .vgpu "" -}}
-sysfsdev = "/sys/bus/mdev/devices/{{.vgpu}}"
-{{- else}}
-host = "{{.pciSlotName}}"
-{{if .vga -}}
-x-vga = "on"
-{{- end }}
-{{- end }}
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
 var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
 # USB controller
 [device "qemu_usb"]
