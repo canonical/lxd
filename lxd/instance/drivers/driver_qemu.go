@@ -723,6 +723,10 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		timeoutCh = time.After(timeout)
 	}
 
+	// Setup ticker that is half the timeout of operationlock.TimeoutDefault.
+	ticker := time.NewTicker(operationlock.TimeoutDefault / 2)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-chDisconnect:
@@ -731,11 +735,12 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 			// User specified timeout has elapsed without VM stopping.
 			err = fmt.Errorf("Instance was not shutdown after timeout")
 			op.Done(err)
-		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
-			// Keep the operation alive so its around for onStop() if the VM takes
-			// longer than the default 30s that the operation is kept alive for.
-			_ = op.Reset()
-			continue
+		case <-ticker.C:
+			// Keep the operation alive so its around for onStop() if the instance takes longer than
+			// the default operationlock.TimeoutDefault that the operation is kept alive for.
+			if op.Reset() == nil {
+				continue
+			}
 		}
 
 		break
