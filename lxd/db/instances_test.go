@@ -199,7 +199,7 @@ func TestInstanceList(t *testing.T) {
 			return err
 		}
 
-		err = cluster.CreateProfileDevice(ctx, tx.Tx(), id, profileDevices["root"])
+		err = cluster.CreateProfileDevices(ctx, tx.Tx(), id, profileDevices)
 		if err != nil {
 			return err
 		}
