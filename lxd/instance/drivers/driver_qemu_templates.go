@@ -726,6 +726,53 @@ func qemuGPUDevPhysicalSections(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 	}}
 }
 
+type qemuUSBOpts struct {
+	devBus        string
+	devAddr       string
+	multifunction bool
+	ports         int
+}
+
+func qemuUSBSections(opts *qemuUSBOpts) []cfgSection {
+	deviceOpts := qemuDevEntriesOpts{
+		dev: qemuDevOpts{
+			busName:       "pci",
+			devAddr:       opts.devAddr,
+			devBus:        opts.devBus,
+			multifunction: opts.multifunction,
+		},
+		pciName: "qemu-xhci",
+	}
+
+	sections := []cfgSection{{
+		name:    `device "qemu_usb"`,
+		comment: "USB controller",
+		entries: append(qemuDeviceEntries(&deviceOpts), []cfgEntry{
+			{key: "p2", value: fmt.Sprintf("%d", opts.ports)},
+			{key: "p3", value: fmt.Sprintf("%d", opts.ports)},
+		}...),
+	}}
+
+	for i := 1; i <= 3; i++ {
+		chardev := fmt.Sprintf("qemu_spice-usb-chardev%d", i)
+		sections = append(sections, []cfgSection{{
+			name: fmt.Sprintf(`chardev "%s"`, chardev),
+			entries: []cfgEntry{
+				{key: "backend", value: "spicevmc"},
+				{key: "name", value: "usbredir"},
+			},
+		}, {
+			name: fmt.Sprintf(fmt.Sprintf(`device "qemu_spice-usb%d"`, i)),
+			entries: []cfgEntry{
+				{key: "driver", value: "usb-redir"},
+				{key: "chardev", value: chardev},
+			},
+		}}...)
+	}
+
+	return sections
+}
+
 var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
 # USB controller
 [device "qemu_usb"]
