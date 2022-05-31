@@ -6737,6 +6737,29 @@ func (d *lxc) CanMigrate() (bool, bool) {
 	return d.canMigrate(d)
 }
 
+// LockExclusive attempts to get exlusive access to the instance's root volume.
+func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
+	if d.IsRunning() {
+		return nil, fmt.Errorf("Instance is running")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Prevent concurrent operations the instance.
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionCreate, false, false)
+	if err != nil {
+		return nil, err
+	}
+	revert.Add(func() { op.Done(err) })
+
+	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
+	d.stopForkfile()
+
+	revert.Success()
+	return op, err
+}
+
 // InitPID returns PID of init process.
 func (d *lxc) InitPID() int {
 	// Load the go-lxc struct
