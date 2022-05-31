@@ -206,10 +206,6 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			opts.refresh = false // Instance doesn't exist, so switch to copy mode.
 		}
-
-		if inst.IsRunning() {
-			return nil, fmt.Errorf("Cannot refresh a running instance")
-		}
 	}
 
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
@@ -219,8 +215,14 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
-		defer instOp.Done(err)
+	} else {
+		instOp, err = inst.LockExclusive()
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting exclusive access to instance: %w", err)
+		}
 	}
+
+	defer instOp.Done(err)
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
 	// from the expanded devices.
