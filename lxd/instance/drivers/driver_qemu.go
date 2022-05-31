@@ -5865,6 +5865,21 @@ func (d *qemu) CanMigrate() (bool, bool) {
 	return d.canMigrate(d)
 }
 
+// LockExclusive attempts to get exlusive access to the instance's root volume.
+func (d *qemu) LockExclusive() (*operationlock.InstanceOperation, error) {
+	if d.IsRunning() {
+		return nil, fmt.Errorf("Instance is running")
+	}
+
+	// Prevent concurrent operations the instance.
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionCreate, false, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, err
+}
+
 // DeviceEventHandler handles events occurring on the instance's devices.
 func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	if !d.IsRunning() {
