@@ -192,7 +192,7 @@ func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, erro
 	return id, nil
 }
 
-// CreateProjectConfig adds a new project Config to the database.
+// CreateProjectConfig adds new project Config to the database.
 // generator: project Create
 func CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, config map[string]string) error {
 	referenceID := int(projectID)

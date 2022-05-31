@@ -33,13 +33,13 @@ type ProfileGenerated interface {
 	// generator: profile GetOne
 	GetProfile(ctx context.Context, tx *sql.Tx, project string, name string) (*Profile, error)
 
-	// CreateProfileConfig adds a new profile Config to the database.
+	// CreateProfileConfig adds new profile Config to the database.
 	// generator: profile Create
 	CreateProfileConfig(ctx context.Context, tx *sql.Tx, profileID int64, config map[string]string) error
 
-	// CreateProfileDevice adds a new profile Device to the database.
+	// CreateProfileDevices adds new profile Devices to the database.
 	// generator: profile Create
-	CreateProfileDevice(ctx context.Context, tx *sql.Tx, profileID int64, device Device) error
+	CreateProfileDevices(ctx context.Context, tx *sql.Tx, profileID int64, devices map[string]Device) error
 
 	// CreateProfile adds a new profile to the database.
 	// generator: profile Create
