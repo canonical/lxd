@@ -18,139 +18,97 @@ See the following examples for how to create a storage pool using different stor
 
 ```{group-tab} Directory
 
- - Create a new directory pool called "pool1".
+Create a directory pool named `pool1`:
 
-```bash
-lxc storage create pool1 dir
-```
+     lxc storage create pool1 dir
 
- - Use an existing directory for "pool2".
+Use the existing directory `/data/lxd` for `pool2`:
 
-```bash
-lxc storage create pool2 dir source=/data/lxd
-```
+     lxc storage create pool2 dir source=/data/lxd
 ```
 ```{group-tab} Btrfs
 
- - Create loop-backed pool named "pool1".
+Create a loop-backed pool named `pool1`:
 
-```bash
-lxc storage create pool1 btrfs
-```
+     lxc storage create pool1 btrfs
 
- - Create a new pool called "pool1" using an existing Btrfs filesystem at `/some/path`.
+Use the existing Btrfs file system at `/some/path` for `pool2`:
 
-```bash
-lxc storage create pool1 btrfs source=/some/path
-```
+     lxc storage create pool2 btrfs source=/some/path
 
- - Create a new pool called "pool1" on `/dev/sdX`.
+Create a pool named `pool3` on `/dev/sdX`:
 
-```bash
-lxc storage create pool1 btrfs source=/dev/sdX
-```
+     lxc storage create pool3 btrfs source=/dev/sdX
 ```
 ```{group-tab} LVM
 
- - Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
+Create a loop-backed pool named `pool1` (the LVM volume group will also be called `pool1`):
 
-```bash
-lxc storage create pool1 lvm
-```
+     lxc storage create pool1 lvm
 
- - Use the existing LVM Volume Group called "my-pool"
+Use the existing LVM volume group called `my-pool` for `pool2`:
 
-```bash
-lxc storage create pool1 lvm source=my-pool
-```
+     lxc storage create pool2 lvm source=my-pool
 
- - Use the existing LVM Thinpool called "my-pool" in Volume Group "my-vg".
+Use the existing LVM thin pool called `my-pool` in volume group `my-vg` for `pool3`:
 
-```bash
-lxc storage create pool1 lvm source=my-vg lvm.thinpool_name=my-pool
-```
+     lxc storage create pool3 lvm source=my-vg lvm.thinpool_name=my-pool
 
- - Create a new pool named "pool1" on `/dev/sdX`. The LVM Volume Group will also be called "pool1".
+Create a pool named `pool4` on `/dev/sdX` (the LVM volume group will also be called `pool4`):
 
-```bash
-lxc storage create pool1 lvm source=/dev/sdX
-```
+     lxc storage create pool4 lvm source=/dev/sdX
 
- - Create a new pool called "pool1" using `/dev/sdX` with the LVM Volume Group called "my-pool".
+Create a pool named `pool5` on `/dev/sdX` with the LVM volume group name `my-pool`:
 
-```bash
-lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
-```
+     lxc storage create pool5 lvm source=/dev/sdX lvm.vg_name=my-pool
 ```
 ```{group-tab} ZFS
 
- - Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
+Create a loop-backed pool named `pool1` (the ZFS zpool will also be called `pool1`):
 
-```bash
-lxc storage create pool1 zfs
-```
+     lxc storage create pool1 zfs
 
- - Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
+Create a loop-backed pool named `pool2` with the ZFS zpool name `my-tank`:
 
-```bash
-lxc storage create pool1 zfs zfs.pool_name=my-tank
-```
+     lxc storage create pool2 zfs zfs.pool_name=my-tank
 
- - Use the existing ZFS Zpool "my-tank".
+Use the existing ZFS zpool `my-tank` for `pool3`:
 
-```bash
-lxc storage create pool1 zfs source=my-tank
-```
+     lxc storage create pool3 zfs source=my-tank
 
- - Use the existing ZFS dataset "my-tank/slice".
+Use the existing ZFS data set `my-tank/slice` for `pool4`:
 
-```bash
-lxc storage create pool1 zfs source=my-tank/slice
-```
+     lxc storage create pool4 zfs source=my-tank/slice
 
- - Create a new pool called "pool1" on `/dev/sdX`. The ZFS Zpool will also be called "pool1".
+Create a pool named `pool5` on `/dev/sdX` (the ZFS zpool will also be called `pool5`):
 
-```bash
-lxc storage create pool1 zfs source=/dev/sdX
-```
+     lxc storage create pool1 zfs source=/dev/sdX
 
- - Create a new pool on `/dev/sdX` with the ZFS Zpool called "my-tank".
+Create a pool named `pool6` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
-```bash
-lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
-```
+     lxc storage create pool6 zfs source=/dev/sdX zfs.pool_name=my-tank
 ```
 ```{group-tab} Ceph
 
-- Create a osd storage pool named "pool1" in the Ceph cluster "ceph".
+Create an OSD storage pool named `pool1` in the default Ceph cluster (named `ceph`):
 
-```bash
-lxc storage create pool1 ceph
-```
+     lxc storage create pool1 ceph
 
-- Create a osd storage pool named "pool1" in the Ceph cluster "my-cluster".
+Create an OSD storage pool named `pool2` in the Ceph cluster `my-cluster`:
 
-```bash
-lxc storage create pool1 ceph ceph.cluster_name=my-cluster
-```
+     lxc storage create pool2 ceph ceph.cluster_name=my-cluster
 
-- Create a osd storage pool named "pool1" with the on-disk name "my-osd".
+Create an OSD storage pool named `pool3` with the on-disk name `my-osd` in the default Ceph cluster:
 
-```bash
-lxc storage create pool1 ceph ceph.osd.pool_name=my-osd
-```
+     lxc storage create pool3 ceph ceph.osd.pool_name=my-osd
 
-- Use the existing osd storage pool "my-already-existing-osd".
+Use the existing OSD storage pool `my-already-existing-osd` for `pool4`:
 
-```bash
-lxc storage create pool1 ceph source=my-already-existing-osd
-```
+     lxc storage create pool4 ceph source=my-already-existing-osd
 
-- Use the existing osd erasure coded pool "ecpool" and osd replicated pool "rpl-pool".
+Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rpl-pool` for `pool5`:
 
-```bash
-lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
-```
+     lxc storage create pool5 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
 ```
 ```{group-tab} CephFS
 
