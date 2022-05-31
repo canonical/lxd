@@ -5493,7 +5493,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return forkfileConn, nil
 	}
 
-	// Check for ongoing operations (that may involve shifting).
+	// Check for ongoing operations (that may involve shifting or replacing the root volume).
 	_ = operationlock.Get(d.Project(), d.Name()).Wait()
 
 	// Setup reverter.
