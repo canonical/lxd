@@ -66,43 +66,6 @@ zfs.remove\_snapshots   | string    | ZFS driver                | same as volume
 zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
 zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use reservation/refreservation along with qouta/refquota
 
-## The following commands can be used to create ZFS storage pools
-
- - Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
-
-```bash
-lxc storage create pool1 zfs
-```
-
- - Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
-
-```bash
-lxc storage create pool1 zfs zfs.pool_name=my-tank
-```
-
- - Use the existing ZFS Zpool "my-tank".
-
-```bash
-lxc storage create pool1 zfs source=my-tank
-```
-
- - Use the existing ZFS dataset "my-tank/slice".
-
-```bash
-lxc storage create pool1 zfs source=my-tank/slice
-```
-
- - Create a new pool called "pool1" on `/dev/sdX`. The ZFS Zpool will also be called "pool1".
-
-```bash
-lxc storage create pool1 zfs source=/dev/sdX
-```
-
- - Create a new pool on `/dev/sdX` with the ZFS Zpool called "my-tank".
-
-```bash
-lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
-```
 ## Growing a loop backed ZFS pool
 LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
 
