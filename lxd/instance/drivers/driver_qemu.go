@@ -554,7 +554,7 @@ func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperatio
 		}
 
 		if op != nil {
-			_ = op.Reset() // Reset timeout to 30s.
+			_ = op.Reset() // Reset timeout to default.
 		}
 
 		time.Sleep(time.Millisecond * time.Duration(250))
@@ -588,8 +588,7 @@ func (d *qemu) onStop(target string) error {
 		d.logger.Error("VM process failed to stop", logger.Ctx{"timeout": waitTimeout})
 	}
 
-	// Reset timeout to 30s.
-	_ = op.Reset()
+	_ = op.Reset() // Reset timeout to default.
 
 	// Record power state.
 	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
@@ -626,8 +625,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Reboot the instance.
 	if target == "reboot" {
-		// Reset timeout to 30s.
-		_ = op.Reset()
+		_ = op.Reset() // Reset timeout to default.
 
 		err = d.Start(false)
 		if err != nil {
@@ -637,8 +635,7 @@ func (d *qemu) onStop(target string) error {
 
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
-		// Reset timeout to 30s.
-		_ = op.Reset()
+		_ = op.Reset() // Reset timeout to default.
 
 		// Destroy ephemeral virtual machines.
 		err = d.Delete(true)
@@ -1420,8 +1417,7 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Reset timeout to 30s.
-	_ = op.Reset()
+	_ = op.Reset() // Reset timeout to default.
 
 	err = p.StartWithFiles(fdFiles)
 	if err != nil {
@@ -1518,8 +1514,7 @@ func (d *qemu) Start(stateful bool) error {
 	// the process from a guest initiated reset using the event handler returned from getMonitorEventHandler().
 	_ = monitor.Reset()
 
-	// Reset timeout to 30s.
-	_ = op.Reset()
+	_ = op.Reset() // Reset timeout to default.
 
 	// Restore the state.
 	if stateful {
