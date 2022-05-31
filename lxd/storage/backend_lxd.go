@@ -1859,7 +1859,6 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	err = b.driver.CreateVolumeFromMigration(*vol, conn, args, &preFiller, op)
 	if err != nil {
-		_ = conn.Close()
 		return err
 	}
 	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
@@ -3665,7 +3664,6 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, nil, op)
 	if err != nil {
-		_ = conn.Close()
 		return err
 	}
 
