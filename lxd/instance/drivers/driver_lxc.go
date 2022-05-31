@@ -1301,7 +1301,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	err := unix.Statfs(path, buf)
 	if err != nil {
 		// Log error but fallback to shiftfs
-		d.logger.Error("Failed to statfs", logger.Ctx{"err": err})
+		d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
 		return mode
 	}
 
