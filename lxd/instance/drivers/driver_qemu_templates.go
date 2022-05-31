@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"strings"
-	"text/template"
 )
 
 type cfgEntry struct {
@@ -802,17 +801,3 @@ func qemuTPMSections(opts *qemuTPMOpts) []cfgSection {
 		},
 	}}
 }
-
-var qemuTPM = template.Must(template.New("qemuTPM").Parse(`
-[chardev "qemu_tpm-chardev_{{.devName}}"]
-backend = "socket"
-path = "{{.path}}"
-
-[tpmdev "qemu_tpm-tpmdev_{{.devName}}"]
-type = "emulator"
-chardev = "qemu_tpm-chardev_{{.devName}}"
-
-[device "dev-lxd_{{.devName}}"]
-driver = "tpm-crb"
-tpmdev = "qemu_tpm-tpmdev_{{.devName}}"
-`))
