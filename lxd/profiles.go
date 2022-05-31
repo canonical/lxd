@@ -302,12 +302,9 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		for _, device := range devices {
-			err = dbCluster.CreateProfileDevice(ctx, tx.Tx(), id, device)
-			if err != nil {
-				return err
-			}
-
+		err = dbCluster.CreateProfileDevices(ctx, tx.Tx(), id, devices)
+		if err != nil {
+			return err
 		}
 
 		return err
