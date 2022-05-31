@@ -622,6 +622,10 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 		m.ifErrNotNil(buf, "err")
 		createParams := ""
 		columnFields := mapping.ColumnFields("ID")
+		if mapping.Type == ReferenceTable {
+			buf.L("for _, object := range objects {")
+		}
+
 		for i, field := range columnFields {
 			createParams += fmt.Sprintf("object.%s", field.Name)
 			if i < len(columnFields) {
@@ -661,6 +665,10 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 			}
 		}
 
+		if mapping.Type == AssociationTable {
+			buf.L("for _, object := range objects {")
+		}
+
 		fields := mapping.ColumnFields("ID")
 		buf.L("args := make([]any, %d)", len(fields))
 		buf.N()
@@ -676,13 +684,20 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 		buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, kind))
 		buf.N()
 		buf.L("// Execute the statement. ")
-		buf.L("result, err := stmt.Exec(args...)")
-		m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
-		buf.L("id, err := result.LastInsertId()")
-		m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity)))
+
+		if mapping.Type == AssociationTable {
+			buf.L("_, err := stmt.Exec(args...)")
+			m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
+		} else {
+			buf.L("result, err := stmt.Exec(args...)")
+			m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
+			buf.L("id, err := result.LastInsertId()")
+			m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity)))
+		}
 	}
 
 	for _, field := range mapping.RefFields() {
+		// TODO: Remove all references to UsedBy.
 		if field.Name == "UsedBy" {
 			continue
 		}
@@ -725,7 +740,11 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 		buf.L("}")
 	}
 
-	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+	if mapping.Type == ReferenceTable || mapping.Type == AssociationTable {
+		buf.L("}")
+		buf.N()
+		buf.L("return nil")
+	} else if mapping.Type == MapTable {
 		buf.L("return nil")
 	} else {
 		buf.L("return id, nil")
@@ -750,8 +769,12 @@ func (m *MethodV2) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 
 	switch refMapping.Type {
 	case ReferenceTable:
+		buf.L("for key, %s := range %s {", refVar, lex.Plural(refVar))
 		buf.L("%s.ReferenceID = int(%sID)", refVar, refParent)
-		buf.L("err := %sCreate%s(ctx, tx, \"%s\", %s)", m.db, refStruct, m.entity, refVar)
+		buf.L("%s[key] = %s", lex.Plural(refVar), refVar)
+		buf.L("}")
+		buf.N()
+		buf.L("err := %sCreate%s(ctx, tx, \"%s\", %s)", m.db, lex.Plural(refStruct), m.entity, lex.Plural(refVar))
 		m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", refStruct, lex.Camel(m.entity)))
 	case MapTable:
 		buf.L("referenceID := int(%sID)", refParent)
@@ -840,27 +863,32 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 			return fmt.Errorf("Parse entity struct: %w", err)
 		}
 
+		refSlice := lex.Minuscule(lex.Plural(mapping.Name))
 		buf.L("// Delete current entry.")
 		buf.L("err := %sDelete%s%s(ctx, tx, %sID)", m.db, m.config["struct"], lex.Plural(ref), lex.Minuscule(m.config["struct"]))
 		m.ifErrNotNil(buf, "err")
-		buf.L("// Insert new entries.")
+		buf.L("// Get new entry IDs.")
+		buf.L("%s := make([]%s, 0, len(%s%s))", refSlice, mapping.Name, lex.Minuscule(ref), lex.Plural(refMapping.Identifier().Name))
 		buf.L("for _, entry := range %s%s {", lex.Minuscule(ref), lex.Plural(refMapping.Identifier().Name))
 		buf.L("refID, err := %sGet%sID(ctx, tx, entry)", m.db, ref)
 		m.ifErrNotNil(buf, "err")
 		fields := fmt.Sprintf("%sID: %sID, %sID: int(refID)", m.config["struct"], lex.Minuscule(m.config["struct"]), ref)
-		buf.L("%s := %s{%s}", lex.Minuscule(mapping.Name), mapping.Name, fields)
-		buf.L("_, err = %sCreate%s%s(ctx, tx, %s)", m.db, m.config["struct"], ref, lex.Minuscule(mapping.Name))
-		m.ifErrNotNil(buf, "err")
+		buf.L("%s = append(%s, %s{%s})", refSlice, refSlice, mapping.Name, fields)
 		buf.L("}")
+		buf.N()
+		buf.L("err = %sCreate%s%s(ctx, tx, %s)", m.db, m.config["struct"], lex.Plural(ref), refSlice)
+		m.ifErrNotNil(buf, "err")
 	case ReferenceTable:
 		buf.L("// Delete current entry.")
 		buf.L("err := %sDelete%s(ctx, tx, parent, referenceID)", m.db, lex.Camel(lex.Plural(m.entity)))
 		m.ifErrNotNil(buf, "err")
 		buf.L("// Insert new entries.")
-		buf.L("for _, object := range %s {", lex.Plural(m.entity))
+		buf.L("for key, object := range %s {", lex.Plural(m.entity))
 		buf.L("object.ReferenceID = referenceID")
-		buf.L("err = %sCreate%s(ctx, tx, parent, object)", m.db, lex.Camel(m.entity))
+		buf.L("%s[key] = object", lex.Plural(m.entity))
 		buf.L("}")
+		buf.N()
+		buf.L("err = %sCreate%s(ctx, tx, parent, %s)", m.db, lex.Camel(lex.Plural(m.entity)), lex.Plural(m.entity))
 		m.ifErrNotNil(buf, "err")
 	case MapTable:
 		buf.L("// Delete current entry.")
@@ -1042,8 +1070,8 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 			rets = fmt.Sprintf("([]%s, error)", ref)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("object %s", mapping.Name)
-			rets = "(int64, error)"
+			args += fmt.Sprintf("objects []%s", mapping.Name)
+			rets = "error"
 		case "Update":
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
 			args += fmt.Sprintf("%sID int, %s%s []%s", lex.Minuscule(m.config["struct"]), lex.Minuscule(ref), lex.Plural(refMapping.Identifier().Name), refMapping.Identifier().Type.Name)
@@ -1063,7 +1091,7 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 			rets = fmt.Sprintf("(map[int][]%s, error)", mapping.Name)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args += fmt.Sprintf("parent string, object %s", mapping.Name)
+			args += fmt.Sprintf("parent string, objects map[string]%s", mapping.Name)
 			rets = "error"
 		case "Update":
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
@@ -1148,7 +1176,7 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 				args += fmt.Sprintf("object %s", lex.Camel(entityCreate))
 				rets = "(int64, error)"
 			} else {
-				comment = fmt.Sprintf("adds a new %s %s to the database.", m.entity, m.ref)
+				comment = fmt.Sprintf("adds new %s %s to the database.", m.entity, lex.Plural(m.ref))
 				rets = "error"
 
 				refMapping, err := Parse(m.pkg, m.ref, "")
@@ -1158,7 +1186,7 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 
 				switch refMapping.Type {
 				case ReferenceTable:
-					args += fmt.Sprintf("%sID int64, %s %s", lex.Minuscule(lex.Camel(m.entity)), lex.Minuscule(m.ref), m.ref)
+					args += fmt.Sprintf("%sID int64, %s map[%s]%s", lex.Minuscule(lex.Camel(m.entity)), lex.Plural(lex.Minuscule(m.ref)), refMapping.Identifier().Type.Name, m.ref)
 				case MapTable:
 					args += fmt.Sprintf("%sID int64, %s map[string]string", lex.Minuscule(lex.Camel(m.entity)), lex.Minuscule(m.ref))
 				}
@@ -1231,7 +1259,7 @@ func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets str
 		case "GetMany":
 			name = fmt.Sprintf("Get%s%s", parent, lex.Plural(ref))
 		case "Create":
-			name = fmt.Sprintf("Create%s%s", parent, ref)
+			name = fmt.Sprintf("Create%s%s", parent, lex.Plural(ref))
 		case "Update":
 			name = fmt.Sprintf("Update%s%s", parent, lex.Plural(ref))
 		case "DeleteMany":
@@ -1251,8 +1279,16 @@ func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets str
 		case "Exists":
 			name = fmt.Sprintf("%sExists", entity)
 		case "Create":
+			if mapping.Type == ReferenceTable || m.ref != "" {
+				entity = lex.Plural(entity)
+			}
+
 			name = fmt.Sprintf("Create%s", entity)
 		case "CreateOrReplace":
+			if mapping.Type == ReferenceTable || m.ref != "" {
+				entity = lex.Plural(entity)
+			}
+
 			name = fmt.Sprintf("CreateOrReplace%s", entity)
 		case "Rename":
 			name = fmt.Sprintf("Rename%s", entity)
