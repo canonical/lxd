@@ -2611,16 +2611,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-		err = qemuUSB.Execute(sb, map[string]any{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-			"ports":         qemuSparseUSBPorts,
-		})
-		if err != nil {
-			return "", nil, err
+		usbOpts := qemuUSBOpts{
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+			ports:         qemuSparseUSBPorts,
 		}
+		qemuAppendSections(sb, qemuUSBSections(&usbOpts)...)
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
