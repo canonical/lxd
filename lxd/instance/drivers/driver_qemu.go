@@ -4046,7 +4046,6 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 		defer op.Done(nil)
-
 	}
 
 	ctxMap = logger.Ctx{
