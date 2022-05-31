@@ -2611,16 +2611,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-		err = qemuUSB.Execute(sb, map[string]any{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-			"ports":         qemuSparseUSBPorts,
-		})
-		if err != nil {
-			return "", nil, err
+		usbOpts := qemuUSBOpts{
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+			ports:         qemuSparseUSBPorts,
 		}
+		qemuAppendSections(sb, qemuUSBSections(&usbOpts)...)
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
@@ -2635,18 +2632,17 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
 	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-	err = qemuDriveConfig.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-		"protocol":      "9p",
-
-		"path": d.configDriveMountPath(),
-	})
-	if err != nil {
-		return "", nil, err
+	driveConfig9pOpts := qemuDriveConfigOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		protocol: "9p",
+		path:     d.configDriveMountPath(),
 	}
+	qemuAppendSections(sb, qemuDriveConfigSections(&driveConfig9pOpts)...)
 
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
@@ -2654,18 +2650,17 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-		err = qemuDriveConfig.Execute(sb, map[string]any{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-			"protocol":      "virtio-fs",
-
-			"path": configSockPath,
-		})
-		if err != nil {
-			return "", nil, err
+		driveConfigVirtioOpts := qemuDriveConfigOpts{
+			dev: qemuDevOpts{
+				busName:       bus.name,
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			},
+			protocol: "virtio-fs",
+			path:     configSockPath,
 		}
+		qemuAppendSections(sb, qemuDriveConfigSections(&driveConfigVirtioOpts)...)
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
@@ -3018,20 +3013,19 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
-		err := qemuDriveDir.Execute(sb, map[string]any{
-			"bus":           bus.name,
-			"devBus":        devBus,
-			"devAddr":       devAddr,
-			"multifunction": multi,
-
-			"devName":  driveConf.DevName,
-			"mountTag": mountTag,
-			"path":     virtiofsdSockPath,
-			"protocol": "virtio-fs",
-		})
-		if err != nil {
-			return err
+		driveDirVirtioOpts := qemuDriveDirOpts{
+			dev: qemuDevOpts{
+				busName:       bus.name,
+				devBus:        devBus,
+				devAddr:       devAddr,
+				multifunction: multi,
+			},
+			devName:  driveConf.DevName,
+			mountTag: mountTag,
+			path:     virtiofsdSockPath,
+			protocol: "virtio-fs",
 		}
+		qemuAppendSections(sb, qemuDriveDirSections(&driveDirVirtioOpts)...)
 	}
 
 	// Add 9p share config.
@@ -3044,18 +3038,22 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 
 	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
-	return qemuDriveDir.Execute(sb, map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
+	driveDir9pOpts := qemuDriveDirOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:  driveConf.DevName,
+		mountTag: mountTag,
+		proxyFD:  proxyFD, // Pass by file descriptor
+		readonly: readonly,
+		protocol: "9p",
+	}
+	qemuAppendSections(sb, qemuDriveDirSections(&driveDir9pOpts)...)
 
-		"devName":  driveConf.DevName,
-		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor
-		"readonly": readonly,
-		"protocol": "9p",
-	})
+	return nil
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
@@ -3554,17 +3552,19 @@ func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []de
 	}
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"devName":     devName,
-		"pciSlotName": pciSlotName,
+	pciPhysicalOpts := qemuPCIPhysicalOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:     devName,
+		pciSlotName: pciSlotName,
 	}
+	qemuAppendSections(sb, qemuPCIPhysicalSections(&pciPhysicalOpts)...)
 
-	return qemuPCIPhysical.Execute(sb, tplFields)
+	return nil
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
@@ -3600,23 +3600,21 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	}()
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]any{
-		"bus":           bus.name,
-		"devBus":        devBus,
-		"devAddr":       devAddr,
-		"multifunction": multi,
-
-		"devName":     devName,
-		"pciSlotName": pciSlotName,
-		"vga":         vgaMode,
-		"vgpu":        vgpu,
+	gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+		dev: qemuDevOpts{
+			busName:       bus.name,
+			devBus:        devBus,
+			devAddr:       devAddr,
+			multifunction: multi,
+		},
+		devName:     devName,
+		pciSlotName: pciSlotName,
+		vga:         vgaMode,
+		vgpu:        vgpu,
 	}
 
 	// Add main GPU device in VGA mode to qemu config.
-	err := qemuGPUDevPhysical.Execute(sb, tplFields)
-	if err != nil {
-		return err
-	}
+	qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 
 	var iommuGroupPath string
 
@@ -3644,23 +3642,21 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
 				devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-				tplFields := map[string]any{
-					"bus":           bus.name,
-					"devBus":        devBus,
-					"devAddr":       devAddr,
-					"multifunction": multi,
-
+				gpuDevPhysicalOpts := qemuGPUDevPhysicalOpts{
+					dev: qemuDevOpts{
+						busName:       bus.name,
+						devBus:        devBus,
+						devAddr:       devAddr,
+						multifunction: multi,
+					},
 					// Generate associated device name by combining main device name and VF ID.
-					"devName":     fmt.Sprintf("%s_%s", devName, devAddr),
-					"pciSlotName": iommuSlotName,
-					"vga":         false,
-					"vgpu":        "",
+					devName:     fmt.Sprintf("%s_%s", devName, devAddr),
+					pciSlotName: iommuSlotName,
+					vga:         false,
+					vgpu:        "",
 				}
 
-				err := qemuGPUDevPhysical.Execute(sb, tplFields)
-				if err != nil {
-					return err
-				}
+				qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 			}
 
 			return nil
@@ -3723,15 +3719,11 @@ func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.
 		}
 	}
 
-	tplFields := map[string]any{
-		"devName": devName,
-		"path":    socketPath,
+	tpmOpts := qemuTPMOpts{
+		devName: devName,
+		path:    socketPath,
 	}
-
-	err := qemuTPM.Execute(sb, tplFields)
-	if err != nil {
-		return err
-	}
+	qemuAppendSections(sb, qemuTPMSections(&tpmOpts)...)
 
 	return nil
 }

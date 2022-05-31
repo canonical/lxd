@@ -830,4 +830,388 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_drive_config", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDriveConfigOpts
+			expected string
+		}{{
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"pci", "qemu_pcie0", "00.5", false},
+				path:     "/var/9p",
+				protocol: "9p",
+			},
+			`# Config drive (9p)
+			[fsdev "qemu_config"]
+			fsdriver = "local"
+			security_model = "none"
+			readonly = "on"
+			path = "/var/9p"
+
+			[device "dev-qemu_config-drive-9p"]
+			driver = "virtio-9p-pci"
+			bus = "qemu_pcie0"
+			addr = "00.5"
+			mount_tag = "config"
+			fsdev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"pcie", "qemu_pcie1", "10.2", true},
+				path:     "/dev/virtio-fs",
+				protocol: "virtio-fs",
+			},
+			`# Config drive (virtio-fs)
+			[chardev "qemu_config"]
+			backend = "socket"
+			path = "/dev/virtio-fs"
+
+			[device "dev-qemu_config-drive-virtio-fs"]
+			driver = "vhost-user-fs-pci"
+			bus = "qemu_pcie1"
+			addr = "10.2"
+			multifunction = "on"
+			tag = "config"
+			chardev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+				path:     "/var/virtio-fs",
+				protocol: "virtio-fs",
+			},
+			`# Config drive (virtio-fs)
+			[chardev "qemu_config"]
+			backend = "socket"
+			path = "/var/virtio-fs"
+
+			[device "dev-qemu_config-drive-virtio-fs"]
+			driver = "vhost-user-fs-ccw"
+			tag = "config"
+			chardev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/9p",
+				protocol: "9p",
+			},
+			`# Config drive (9p)
+			[fsdev "qemu_config"]
+			fsdriver = "local"
+			security_model = "none"
+			readonly = "on"
+			path = "/dev/9p"
+
+			[device "dev-qemu_config-drive-9p"]
+			driver = "virtio-9p-ccw"
+			multifunction = "on"
+			mount_tag = "config"
+			fsdev = "qemu_config"`,
+		}, {
+			qemuDriveConfigOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/9p",
+				protocol: "invalid",
+			},
+			``,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuDriveConfigSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_drive_dir", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDriveDirOpts
+			expected string
+		}{{
+			qemuDriveDirOpts{
+				dev:      qemuDevOpts{"pci", "qemu_pcie0", "00.5", true},
+				devName:  "stub",
+				mountTag: "mtag",
+				protocol: "9p",
+				readonly: false,
+				proxyFD:  5,
+			},
+			`# stub drive (9p)
+			[fsdev "lxd_stub"]
+			fsdriver = "proxy"
+			sock_fd = "5"
+			readonly = "off"
+
+			[device "dev-lxd_stub-9p"]
+			driver = "virtio-9p-pci"
+			bus = "qemu_pcie0"
+			addr = "00.5"
+			multifunction = "on"
+			mount_tag = "mtag"
+			fsdev = "lxd_stub"`,
+		}, {
+			qemuDriveDirOpts{
+				dev:      qemuDevOpts{"pcie", "qemu_pcie1", "10.2", false},
+				path:     "/dev/virtio",
+				devName:  "vfs",
+				mountTag: "vtag",
+				protocol: "virtio-fs",
+			},
+			`# vfs drive (virtio-fs)
+			[chardev "lxd_vfs"]
+			backend = "socket"
+			path = "/dev/virtio"
+
+			[device "dev-lxd_vfs-virtio-fs"]
+			driver = "vhost-user-fs-pci"
+			bus = "qemu_pcie1"
+			addr = "10.2"
+			tag = "vtag"
+			chardev = "lxd_vfs"`,
+		}, {
+			qemuDriveDirOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/vio",
+				devName:  "vfs",
+				mountTag: "vtag",
+				protocol: "virtio-fs",
+			},
+			`# vfs drive (virtio-fs)
+			[chardev "lxd_vfs"]
+			backend = "socket"
+			path = "/dev/vio"
+
+			[device "dev-lxd_vfs-virtio-fs"]
+			driver = "vhost-user-fs-ccw"
+			multifunction = "on"
+			tag = "vtag"
+			chardev = "lxd_vfs"`,
+		}, {
+			qemuDriveDirOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", false},
+				devName:  "stub2",
+				mountTag: "mtag2",
+				protocol: "9p",
+				readonly: true,
+				proxyFD:  3,
+			},
+			`# stub2 drive (9p)
+			[fsdev "lxd_stub2"]
+			fsdriver = "proxy"
+			sock_fd = "3"
+			readonly = "on"
+
+			[device "dev-lxd_stub2-9p"]
+			driver = "virtio-9p-ccw"
+			mount_tag = "mtag2"
+			fsdev = "lxd_stub2"`,
+		}, {
+			qemuDriveDirOpts{
+				dev:      qemuDevOpts{"ccw", "qemu_pcie0", "00.0", true},
+				path:     "/dev/9p",
+				protocol: "invalid",
+			},
+			``,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuDriveDirSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_pci_physical", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuPCIPhysicalOpts
+			expected string
+		}{{
+			qemuPCIPhysicalOpts{
+				dev:         qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+				devName:     "physical-pci-name",
+				pciSlotName: "host-slot",
+				bootIndex:   3,
+			},
+			`# PCI card ("physical-pci-name" device)
+			[device "dev-lxd_physical-pci-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			host = "host-slot"
+			bootIndex = "3"`,
+		}, {
+			qemuPCIPhysicalOpts{
+				dev:         qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
+				devName:     "physical-ccw-name",
+				pciSlotName: "host-slot-ccw",
+				bootIndex:   2,
+			},
+			`# PCI card ("physical-ccw-name" device)
+			[device "dev-lxd_physical-ccw-name"]
+			driver = "vfio-ccw"
+			multifunction = "on"
+			host = "host-slot-ccw"
+			bootIndex = "2"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuPCIPhysicalSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_gpu_dev_physical", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuGPUDevPhysicalOpts
+			expected string
+		}{{
+			qemuGPUDevPhysicalOpts{
+				dev:         qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
+				devName:     "gpu-name",
+				pciSlotName: "gpu-slot",
+			},
+			`# GPU card ("gpu-name" device)
+			[device "dev-lxd_gpu-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			host = "gpu-slot"`,
+		}, {
+			qemuGPUDevPhysicalOpts{
+				dev:         qemuDevOpts{"ccw", "qemu_pcie1", "00.0", true},
+				devName:     "gpu-name",
+				pciSlotName: "gpu-slot",
+				vga:         true,
+			},
+			`# GPU card ("gpu-name" device)
+			[device "dev-lxd_gpu-name"]
+			driver = "vfio-ccw"
+			multifunction = "on"
+			host = "gpu-slot"
+			x-vga = "on"`,
+		}, {
+			qemuGPUDevPhysicalOpts{
+				dev:     qemuDevOpts{"pci", "qemu_pcie1", "00.0", true},
+				devName: "vgpu-name",
+				vgpu:    "vgpu-dev",
+			},
+			`# GPU card ("vgpu-name" device)
+			[device "dev-lxd_vgpu-name"]
+			driver = "vfio-pci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			multifunction = "on"
+			sysfsdev = "/sys/bus/mdev/devices/vgpu-dev"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuGPUDevPhysicalSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_usb", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuUSBOpts
+			expected string
+		}{{
+			qemuUSBOpts{
+				devBus:        "qemu_pcie1",
+				devAddr:       "00.0",
+				multifunction: true,
+				ports:         3,
+			},
+			`# USB controller
+			[device "qemu_usb"]
+			driver = "qemu-xhci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			multifunction = "on"
+			p2 = "3"
+			p3 = "3"
+
+			[chardev "qemu_spice-usb-chardev1"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb1"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev1"
+
+			[chardev "qemu_spice-usb-chardev2"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb2"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev2"
+
+			[chardev "qemu_spice-usb-chardev3"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb3"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev3"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuUSBSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_tpm", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuTPMOpts
+			expected string
+		}{{
+			qemuTPMOpts{
+				devName: "myTpm",
+				path:    "/dev/my/tpm",
+			},
+			`[chardev "qemu_tpm-chardev_myTpm"]
+			backend = "socket"
+			path = "/dev/my/tpm"
+
+			[tpmdev "qemu_tpm-tpmdev_myTpm"]
+			type = "emulator"
+			chardev = "qemu_tpm-chardev_myTpm"
+
+			[device "dev-lxd_myTpm"]
+			driver = "tpm-crb"
+			tpmdev = "qemu_tpm-tpmdev_myTpm"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuTPMSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
