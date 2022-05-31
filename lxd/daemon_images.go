@@ -47,8 +47,9 @@ type ImageDownloadArgs struct {
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
 func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
-	logger.Debugf("Acquiring lock for image %q", fingerprint)
-	defer logger.Debugf("Lock acquired for image %q", fingerprint)
+	l := logger.AddContext(logger.Log, logger.Ctx{"fingerprint": fingerprint})
+	l.Debug("Acquiring lock for image")
+	defer l.Debug("Lock acquired for image")
 
 	return locking.Lock(fmt.Sprintf("ImageOperation_%s", fingerprint))
 }
