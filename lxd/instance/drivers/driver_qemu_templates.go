@@ -355,110 +355,188 @@ func qemuTabletSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
-# CPU
-[smp-opts]
-cpus = "{{.cpuCount}}"
-sockets = "{{.cpuSockets}}"
-cores = "{{.cpuCores}}"
-threads = "{{.cpuThreads}}"
+type qemuNumaEntry struct {
+	node   uint64
+	socket uint64
+	core   uint64
+	thread uint64
+}
 
-{{if eq .architecture "x86_64" -}}
-{{$memory := .memory -}}
-{{$hugepages := .hugepages -}}
-{{if .cpuNumaHostNodes -}}
-{{range $index, $element := .cpuNumaHostNodes}}
-[object "mem{{$index}}"]
-{{if ne $hugepages "" -}}
-qom-type = "memory-backend-file"
-mem-path = "{{$hugepages}}"
-prealloc = "on"
-discard-data = "on"
-share = "on"
-{{- else}}
-qom-type = "memory-backend-memfd"
-{{- end }}
-size = "{{$memory}}M"
-policy = "bind"
-{{- if eq $.qemuMemObjectFormat "indexed"}}
-host-nodes.0 = "{{$element}}"
-{{- else}}
-host-nodes = "{{$element}}"
-{{- end}}
+type qemuCPUOpts struct {
+	architecture        string
+	cpuCount            int
+	cpuSockets          int
+	cpuCores            int
+	cpuThreads          int
+	cpuNumaNodes        []uint64
+	cpuNumaMapping      []qemuNumaEntry
+	cpuNumaHostNodes    []uint64
+	hugepages           string
+	memory              int64
+	qemuMemObjectFormat string
+}
 
-[numa]
-type = "node"
-nodeid = "{{$index}}"
-memdev = "mem{{$index}}"
-{{end}}
-{{else}}
-[object "mem0"]
-{{if ne $hugepages "" -}}
-qom-type = "memory-backend-file"
-mem-path = "{{$hugepages}}"
-prealloc = "on"
-discard-data = "on"
-{{- else}}
-qom-type = "memory-backend-memfd"
-{{- end }}
-size = "{{$memory}}M"
-share = "on"
+func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
+	entries := []cfgEntry{}
 
-[numa]
-type = "node"
-nodeid = "0"
-memdev = "mem0"
-{{end}}
+	if opts.hugepages != "" {
+		entries = append(entries, []cfgEntry{
+			{key: "qom-type", value: "memory-backend-file"},
+			{key: "mem-path", value: opts.hugepages},
+			{key: "prealloc", value: "on"},
+			{key: "discard-data", value: "on"},
+		}...)
+	} else {
+		entries = append(entries, cfgEntry{key: "qom-type", value: "memory-backend-memfd"})
+	}
 
-{{range .cpuNumaMapping}}
-[numa]
-type = "cpu"
-node-id = "{{.node}}"
-socket-id = "{{.socket}}"
-core-id = "{{.core}}"
-thread-id = "{{.thread}}"
-{{end}}
-{{end}}
-`))
+	entries = append(entries, cfgEntry{key: "size", value: fmt.Sprintf("%dM", opts.memory)})
 
-var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
-# Qemu control
-[chardev "monitor"]
-backend = "socket"
-path = "{{.path}}"
-server = "on"
-wait = "off"
+	return []cfgSection{{
+		name:    fmt.Sprintf("object \"mem%d\"", index),
+		entries: entries,
+	}, {
+		name: "numa",
+		entries: []cfgEntry{
+			{key: "type", value: "node"},
+			{key: "nodeid", value: fmt.Sprintf("%d", index)},
+			{key: "memdev", value: fmt.Sprintf("mem%d", index)},
+		},
+	}}
+}
 
-[mon]
-chardev = "monitor"
-mode = "control"
-`))
+func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
+	sections := []cfgSection{{
+		name:    "smp-opts",
+		comment: "CPU",
+		entries: []cfgEntry{
+			{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
+			{key: "sockets", value: fmt.Sprintf("%d", opts.cpuSockets)},
+			{key: "cores", value: fmt.Sprintf("%d", opts.cpuCores)},
+			{key: "threads", value: fmt.Sprintf("%d", opts.cpuThreads)},
+		},
+	}}
 
-var qemuConsole = template.Must(template.New("qemuConsole").Parse(`
-# Console
-[chardev "console"]
-backend = "socket"
-path = "{{.path}}"
-server = "on"
-wait = "off"
-`))
+	if opts.architecture != "x86_64" {
+		return sections
+	}
 
-var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
-# Firmware (read only)
-[drive]
-file = "{{.roPath}}"
-if = "pflash"
-format = "raw"
-unit = "0"
-readonly = "on"
+	share := cfgEntry{key: "share", value: "on"}
 
-# Firmware settings (writable)
-[drive]
-file = "{{.nvramPath}}"
-if = "pflash"
-format = "raw"
-unit = "1"
-`))
+	if len(opts.cpuNumaHostNodes) == 0 {
+		// add one mem and one numa sections with index 0
+		numaHostNodeSections := qemuCPUNumaHostNode(opts, 0)
+		// unconditionally append "share = "on" to the [object "mem0"] section
+		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, share)
+		return append(sections, numaHostNodeSections...)
+	}
+
+	for index, element := range opts.cpuNumaHostNodes {
+		numaHostNodeSections := qemuCPUNumaHostNode(opts, index)
+
+		extraMemEntries := []cfgEntry{{key: "policy", value: "bind"}}
+
+		if opts.hugepages != "" {
+			// append share = "on" only if hugepages is set
+			extraMemEntries = append(extraMemEntries, share)
+		}
+
+		var hostNodesKey string
+		if opts.qemuMemObjectFormat == "indexed" {
+			hostNodesKey = "host-nodes.0"
+		} else {
+			hostNodesKey = "host-nodes"
+		}
+
+		hostNode := cfgEntry{key: hostNodesKey, value: fmt.Sprintf("%d", element)}
+		extraMemEntries = append(extraMemEntries, hostNode)
+		// append the extra entries to the [object "mem{{idx}}"] section
+		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, extraMemEntries...)
+		sections = append(sections, numaHostNodeSections...)
+	}
+
+	for _, numa := range opts.cpuNumaMapping {
+		sections = append(sections, cfgSection{
+			name: "numa",
+			entries: []cfgEntry{
+				{key: "type", value: "cpu"},
+				{key: "node-id", value: fmt.Sprintf("%d", numa.socket)},
+				{key: "core-id", value: fmt.Sprintf("%d", numa.core)},
+				{key: "thread-id", value: fmt.Sprintf("%d", numa.thread)},
+			},
+		})
+	}
+
+	return sections
+}
+
+type qemuControlSocketOpts struct {
+	path string
+}
+
+func qemuControlSocketSections(opts *qemuControlSocketOpts) []cfgSection {
+	return []cfgSection{{
+		name:    `chardev "monitor"`,
+		comment: "Qemu control",
+		entries: []cfgEntry{
+			{key: "backend", value: "socket"},
+			{key: "path", value: opts.path},
+			{key: "server", value: "on"},
+			{key: "wait", value: "off"},
+		},
+	}, {
+		name: "mon",
+		entries: []cfgEntry{
+			{key: "chardev", value: "monitor"},
+			{key: "mode", value: "control"},
+		},
+	}}
+}
+
+type qemuConsoleOpts struct {
+	path string
+}
+
+func qemuConsoleSections(opts *qemuConsoleOpts) []cfgSection {
+	return []cfgSection{{
+		name:    `chardev "console"`,
+		comment: "Console",
+		entries: []cfgEntry{
+			{key: "backend", value: "socket"},
+			{key: "path", value: opts.path},
+			{key: "server", value: "on"},
+			{key: "wait", value: "off"},
+		},
+	}}
+}
+
+type qemuDriveFirmwareOpts struct {
+	roPath    string
+	nvramPath string
+}
+
+func qemuDriveFirmwareSections(opts *qemuDriveFirmwareOpts) []cfgSection {
+	return []cfgSection{{
+		name:    "drive",
+		comment: "Firmware (read only)",
+		entries: []cfgEntry{
+			{key: "file", value: opts.roPath},
+			{key: "if", value: "pflash"},
+			{key: "format", value: "raw"},
+			{key: "unit", value: "0"},
+			{key: "readonly", value: "on"},
+		},
+	}, {
+		name:    "drive",
+		comment: "Firmware settings (writable)",
+		entries: []cfgEntry{
+			{key: "file", value: opts.nvramPath},
+			{key: "if", value: "pflash"},
+			{key: "format", value: "raw"},
+			{key: "unit", value: "1"},
+		},
+	}}
+}
 
 // Devices use "qemu_" prefix indicating that this is a internally named device.
 var qemuDriveConfig = template.Must(template.New("qemuDriveConfig").Parse(`

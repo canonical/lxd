@@ -471,4 +471,363 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_cpu", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuCPUOpts
+			expected string
+		}{{
+			qemuCPUOpts{
+				architecture:        "x86_64",
+				cpuCount:            8,
+				cpuSockets:          1,
+				cpuCores:            4,
+				cpuThreads:          2,
+				cpuNumaNodes:        []uint64{},
+				cpuNumaMapping:      []qemuNumaEntry{},
+				cpuNumaHostNodes:    []uint64{},
+				hugepages:           "",
+				memory:              7629,
+				qemuMemObjectFormat: "repeated",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "8"
+			sockets = "1"
+			cores = "4"
+			threads = "2"
+
+			[object "mem0"]
+			qom-type = "memory-backend-memfd"
+			size = "7629M"
+			share = "on"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"`,
+		}, {
+			qemuCPUOpts{
+				architecture: "x86_64",
+				cpuCount:     2,
+				cpuSockets:   1,
+				cpuCores:     2,
+				cpuThreads:   1,
+				cpuNumaNodes: []uint64{4, 5},
+				cpuNumaMapping: []qemuNumaEntry{
+					{node: 20, socket: 21, core: 22, thread: 23},
+				},
+				cpuNumaHostNodes:    []uint64{8, 9, 10},
+				hugepages:           "/hugepages/path",
+				memory:              12000,
+				qemuMemObjectFormat: "indexed",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "2"
+			sockets = "1"
+			cores = "2"
+			threads = "1"
+
+			[object "mem0"]
+			qom-type = "memory-backend-file"
+			mem-path = "/hugepages/path"
+			prealloc = "on"
+			discard-data = "on"
+			size = "12000M"
+			policy = "bind"
+			share = "on"
+			host-nodes.0 = "8"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"
+
+			[object "mem1"]
+			qom-type = "memory-backend-file"
+			mem-path = "/hugepages/path"
+			prealloc = "on"
+			discard-data = "on"
+			size = "12000M"
+			policy = "bind"
+			share = "on"
+			host-nodes.0 = "9"
+
+			[numa]
+			type = "node"
+			nodeid = "1"
+			memdev = "mem1"
+
+			[object "mem2"]
+			qom-type = "memory-backend-file"
+			mem-path = "/hugepages/path"
+			prealloc = "on"
+			discard-data = "on"
+			size = "12000M"
+			policy = "bind"
+			share = "on"
+			host-nodes.0 = "10"
+
+			[numa]
+			type = "node"
+			nodeid = "2"
+			memdev = "mem2"
+
+			[numa]
+			type = "cpu"
+			node-id = "21"
+			core-id = "22"
+			thread-id = "23"`,
+		}, {
+			qemuCPUOpts{
+				architecture: "x86_64",
+				cpuCount:     2,
+				cpuSockets:   1,
+				cpuCores:     2,
+				cpuThreads:   1,
+				cpuNumaNodes: []uint64{4, 5},
+				cpuNumaMapping: []qemuNumaEntry{
+					{node: 20, socket: 21, core: 22, thread: 23},
+				},
+				cpuNumaHostNodes:    []uint64{8, 9, 10},
+				hugepages:           "",
+				memory:              12000,
+				qemuMemObjectFormat: "indexed",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "2"
+			sockets = "1"
+			cores = "2"
+			threads = "1"
+
+			[object "mem0"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes.0 = "8"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"
+
+			[object "mem1"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes.0 = "9"
+
+			[numa]
+			type = "node"
+			nodeid = "1"
+			memdev = "mem1"
+
+			[object "mem2"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes.0 = "10"
+
+			[numa]
+			type = "node"
+			nodeid = "2"
+			memdev = "mem2"
+
+			[numa]
+			type = "cpu"
+			node-id = "21"
+			core-id = "22"
+			thread-id = "23"`,
+		}, {
+			qemuCPUOpts{
+				architecture: "x86_64",
+				cpuCount:     4,
+				cpuSockets:   1,
+				cpuCores:     4,
+				cpuThreads:   1,
+				cpuNumaNodes: []uint64{4, 5, 6},
+				cpuNumaMapping: []qemuNumaEntry{
+					{node: 11, socket: 12, core: 13, thread: 14},
+					{node: 20, socket: 21, core: 22, thread: 23},
+				},
+				cpuNumaHostNodes:    []uint64{8, 9, 10},
+				hugepages:           "",
+				memory:              12000,
+				qemuMemObjectFormat: "repeated",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "4"
+			sockets = "1"
+			cores = "4"
+			threads = "1"
+
+			[object "mem0"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes = "8"
+
+			[numa]
+			type = "node"
+			nodeid = "0"
+			memdev = "mem0"
+
+			[object "mem1"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes = "9"
+
+			[numa]
+			type = "node"
+			nodeid = "1"
+			memdev = "mem1"
+
+			[object "mem2"]
+			qom-type = "memory-backend-memfd"
+			size = "12000M"
+			policy = "bind"
+			host-nodes = "10"
+
+			[numa]
+			type = "node"
+			nodeid = "2"
+			memdev = "mem2"
+
+			[numa]
+			type = "cpu"
+			node-id = "12"
+			core-id = "13"
+			thread-id = "14"
+
+			[numa]
+			type = "cpu"
+			node-id = "21"
+			core-id = "22"
+			thread-id = "23"`,
+		}, {
+			qemuCPUOpts{
+				architecture: "arm64",
+				cpuCount:     4,
+				cpuSockets:   1,
+				cpuCores:     4,
+				cpuThreads:   1,
+				cpuNumaNodes: []uint64{4, 5, 6},
+				cpuNumaMapping: []qemuNumaEntry{
+					{node: 11, socket: 12, core: 13, thread: 14},
+					{node: 20, socket: 21, core: 22, thread: 23},
+				},
+				cpuNumaHostNodes:    []uint64{8, 9, 10},
+				hugepages:           "/hugepages",
+				memory:              12000,
+				qemuMemObjectFormat: "indexed",
+			},
+			`# CPU
+			[smp-opts]
+			cpus = "4"
+			sockets = "1"
+			cores = "4"
+			threads = "1"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuCPUSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_control_socket", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuControlSocketOpts
+			expected string
+		}{{
+			qemuControlSocketOpts{"/dev/shm/control-socket"},
+			`# Qemu control
+			[chardev "monitor"]
+			backend = "socket"
+			path = "/dev/shm/control-socket"
+			server = "on"
+			wait = "off"
+
+			[mon]
+			chardev = "monitor"
+			mode = "control"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuControlSocketSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_console", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuConsoleOpts
+			expected string
+		}{{
+			qemuConsoleOpts{"/dev/shm/console-socket"},
+			`# Console
+			[chardev "console"]
+			backend = "socket"
+			path = "/dev/shm/console-socket"
+			server = "on"
+			wait = "off"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuConsoleSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
+
+	t.Run("qemu_drive_firmware", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuDriveFirmwareOpts
+			expected string
+		}{{
+			qemuDriveFirmwareOpts{"/tmp/ovmf.fd", "/tmp/settings.fd"},
+			`# Firmware (read only)
+			[drive]
+			file = "/tmp/ovmf.fd"
+			if = "pflash"
+			format = "raw"
+			unit = "0"
+			readonly = "on"
+
+			# Firmware settings (writable)
+			[drive]
+			file = "/tmp/settings.fd"
+			if = "pflash"
+			format = "raw"
+			unit = "1"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuDriveFirmwareSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
