@@ -15,6 +15,9 @@ const TimeoutSeconds = 30
 // Action indicates the operation action type.
 type Action string
 
+// ActionCreate for creating an instance.
+const ActionCreate Action = "create"
+
 // ActionStart for starting an instance.
 const ActionStart Action = "start"
 
