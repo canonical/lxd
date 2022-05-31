@@ -1125,4 +1125,60 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_usb", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuUSBOpts
+			expected string
+		}{{
+			qemuUSBOpts{
+				devBus:        "qemu_pcie1",
+				devAddr:       "00.0",
+				multifunction: true,
+				ports:         3,
+			},
+			`# USB controller
+			[device "qemu_usb"]
+			driver = "qemu-xhci"
+			bus = "qemu_pcie1"
+			addr = "00.0"
+			multifunction = "on"
+			p2 = "3"
+			p3 = "3"
+
+			[chardev "qemu_spice-usb-chardev1"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb1"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev1"
+
+			[chardev "qemu_spice-usb-chardev2"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb2"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev2"
+
+			[chardev "qemu_spice-usb-chardev3"]
+			backend = "spicevmc"
+			name = "usbredir"
+
+			[device "qemu_spice-usb3"]
+			driver = "usb-redir"
+			chardev = "qemu_spice-usb-chardev3"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuUSBSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
