@@ -5686,11 +5686,9 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 
 // stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
 func (d *lxc) stopForkfile() {
-	// Make sure that when the function exits, no forkfile is running.
-	defer func() {
-		unlock := locking.Lock(d.forkfileRunningLockName())
-		defer unlock()
-	}()
+	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
+	// that forkfile isn't running and holding the lock) and then releasing it.
+	defer func() { locking.Lock(d.forkfileRunningLockName())() }()
 
 	// Try to send SIGINT to forkfile to speed up shutdown.
 	content, err := ioutil.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
@@ -5703,6 +5701,7 @@ func (d *lxc) stopForkfile() {
 		return
 	}
 
+	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
 	_ = unix.Kill(int(pid), unix.SIGINT)
 	return
 }
