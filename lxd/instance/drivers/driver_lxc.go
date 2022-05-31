@@ -2832,6 +2832,10 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}()
 	d.logger.Debug("Shutdown request sent to instance")
 
+	// Setup ticker that is half the timeout of operationlock.TimeoutDefault.
+	ticker := time.NewTicker(operationlock.TimeoutDefault / 2)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case err = <-chResult:
@@ -2841,11 +2845,12 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 				// onStop() hook to cancel operation when done.
 				op.Done(err)
 			}
-		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
-			// Keep the operation alive so its around for onStop() if the instance takes
-			// longer than the default 30s that the operation is kept alive for.
-			_ = op.Reset()
-			continue
+		case <-ticker.C:
+			// Keep the operation alive so its around for onStop() if the instance takes longer than
+			// the default operationlock.TimeoutDefault that the operation is kept alive for.
+			if op.Reset() == nil {
+				continue
+			}
 		}
 
 		break
