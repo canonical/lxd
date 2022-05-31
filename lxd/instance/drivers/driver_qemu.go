@@ -2494,12 +2494,11 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
 func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
-	var sb *strings.Builder = &strings.Builder{}
 	var monHooks []monitorHook
 
-	qemuAppendSections(sb, qemuBaseSections(&qemuBaseOpts{d.architectureName})...)
+	cfg := qemuBaseSections(&qemuBaseOpts{d.architectureName})
 
-	cpuCount, err := d.addCPUMemoryConfig(sb)
+	cpuCount, err := d.addCPUMemoryConfig(&cfg)
 	if err != nil {
 		return "", nil, err
 	}
@@ -2528,17 +2527,17 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
-		qemuAppendSections(sb, qemuDriveFirmwareSections(&driveFirmwareOpts)...)
+		cfg = append(cfg, qemuDriveFirmwareSections(&driveFirmwareOpts)...)
 	}
 
 	// QMP socket.
-	qemuAppendSections(sb, qemuControlSocketSections(&qemuControlSocketOpts{d.monitorPath()})...)
+	cfg = append(cfg, qemuControlSocketSections(&qemuControlSocketOpts{d.monitorPath()})...)
 
 	// Console output.
-	qemuAppendSections(sb, qemuConsoleSections(&qemuConsoleOpts{d.consolePath()})...)
+	cfg = append(cfg, qemuConsoleSections(&qemuConsoleOpts{d.consolePath()})...)
 
 	// Setup the bus allocator.
-	bus := qemuNewBus(busName, sb)
+	bus := qemuNewBus(busName, &cfg)
 
 	// Now add the fixed set of devices. The multi-function groups used for these fixed internal devices are
 	// specifically chosen to ensure that we consume exactly 4 PCI bus ports (on PCIe bus). This ensures that
@@ -2554,7 +2553,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
-	qemuAppendSections(sb, qemuBalloonSections(&balloonOpts)...)
+	cfg = append(cfg, qemuBalloonSections(&balloonOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	rngOpts := qemuDevOpts{
@@ -2563,7 +2562,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
-	qemuAppendSections(sb, qemuRNGSections(&rngOpts)...)
+	cfg = append(cfg, qemuRNGSections(&rngOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	keyboardOpts := qemuDevOpts{
@@ -2572,7 +2571,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
-	qemuAppendSections(sb, qemuKeyboardSections(&keyboardOpts)...)
+	cfg = append(cfg, qemuKeyboardSections(&keyboardOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	tabletOpts := qemuDevOpts{
@@ -2581,7 +2580,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
-	qemuAppendSections(sb, qemuTabletSections(&tabletOpts)...)
+	cfg = append(cfg, qemuTabletSections(&tabletOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	vsockOpts := qemuVsockOpts{
@@ -2593,7 +2592,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		},
 		vsockID: d.vsockID(),
 	}
-	qemuAppendSections(sb, qemuVsockSections(&vsockOpts)...)
+	cfg = append(cfg, qemuVsockSections(&vsockOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 	serialOpts := qemuSerialOpts{
@@ -2606,7 +2605,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		charDevName:      qemuSerialChardevName,
 		ringbufSizeBytes: qmp.RingbufSize,
 	}
-	qemuAppendSections(sb, qemuSerialSections(&serialOpts)...)
+	cfg = append(cfg, qemuSerialSections(&serialOpts)...)
 
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
@@ -2617,7 +2616,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			multifunction: multi,
 			ports:         qemuSparseUSBPorts,
 		}
-		qemuAppendSections(sb, qemuUSBSections(&usbOpts)...)
+		cfg = append(cfg, qemuUSBSections(&usbOpts)...)
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
@@ -2627,7 +2626,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
-	qemuAppendSections(sb, qemuSCSISections(&scsiOpts)...)
+	cfg = append(cfg, qemuSCSISections(&scsiOpts)...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
@@ -2642,7 +2641,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		protocol: "9p",
 		path:     d.configDriveMountPath(),
 	}
-	qemuAppendSections(sb, qemuDriveConfigSections(&driveConfig9pOpts)...)
+	cfg = append(cfg, qemuDriveConfigSections(&driveConfig9pOpts)...)
 
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
@@ -2660,7 +2659,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			protocol: "virtio-fs",
 			path:     configSockPath,
 		}
-		qemuAppendSections(sb, qemuDriveConfigSections(&driveConfigVirtioOpts)...)
+		cfg = append(cfg, qemuDriveConfigSections(&driveConfigVirtioOpts)...)
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
@@ -2673,7 +2672,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		},
 		architecture: d.architectureName,
 	}
-	qemuAppendSections(sb, qemuGPUSections(&gpuOpts)...)
+	cfg = append(cfg, qemuGPUSections(&gpuOpts)...)
 
 	// Dynamic devices.
 	bootIndexes, err := d.deviceBootPriorities()
@@ -2697,7 +2696,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				if drive.TargetPath == "/" {
 					monHook, err = d.addRootDriveConfig(mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
-					err = d.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
+					err = d.addDriveDirConfig(&cfg, bus, fdFiles, &agentMounts, drive)
 				} else {
 					monHook, err = d.addDriveConfig(bootIndexes, drive)
 				}
@@ -2738,7 +2737,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add GPU device.
 		if len(runConf.GPUDevice) > 0 {
-			err = d.addGPUDevConfig(sb, bus, runConf.GPUDevice)
+			err = d.addGPUDevConfig(&cfg, bus, runConf.GPUDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -2746,7 +2745,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add PCI device.
 		if len(runConf.PCIDevice) > 0 {
-			err = d.addPCIDevConfig(sb, bus, runConf.PCIDevice)
+			err = d.addPCIDevConfig(&cfg, bus, runConf.PCIDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -2764,7 +2763,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add TPM device.
 		if len(runConf.TPMDevice) > 0 {
-			err = d.addTPMDeviceConfig(sb, runConf.TPMDevice)
+			err = d.addTPMDeviceConfig(&cfg, runConf.TPMDevice)
 			if err != nil {
 				return "", nil, err
 			}
@@ -2790,13 +2789,14 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	// Write the config file to disk.
+	sb := qemuStringifyCfg(cfg...)
 	configPath := filepath.Join(d.LogPath(), "qemu.conf")
 	return configPath, monHooks, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written and instead just the CPU count is returned.
-func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
+func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 	drivers := DriverStatuses()
 	info := drivers[instancetype.VM].Info
 	if info.Name == "" {
@@ -2912,9 +2912,9 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	memSizeMB = nodeMemory * int64(len(hostNodes))
 	cpuOpts.memory = nodeMemory
 
-	if sb != nil {
-		qemuAppendSections(sb, qemuMemorySections(&qemuMemoryOpts{memSizeMB})...)
-		qemuAppendSections(sb, qemuCPUSections(&cpuOpts)...)
+	if cfg != nil {
+		*cfg = append(*cfg, qemuMemorySections(&qemuMemoryOpts{memSizeMB})...)
+		*cfg = append(*cfg, qemuCPUSections(&cpuOpts)...)
 	}
 
 	// Configure the CPU limit.
@@ -2969,7 +2969,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(cfg *[]cfgSection, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
@@ -3025,7 +3025,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 			path:     virtiofsdSockPath,
 			protocol: "virtio-fs",
 		}
-		qemuAppendSections(sb, qemuDriveDirSections(&driveDirVirtioOpts)...)
+		*cfg = append(*cfg, qemuDriveDirSections(&driveDirVirtioOpts)...)
 	}
 
 	// Add 9p share config.
@@ -3051,7 +3051,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 		readonly: readonly,
 		protocol: "9p",
 	}
-	qemuAppendSections(sb, qemuDriveDirSections(&driveDir9pOpts)...)
+	*cfg = append(*cfg, qemuDriveDirSections(&driveDir9pOpts)...)
 
 	return nil
 }
@@ -3541,7 +3541,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
-func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addPCIDevConfig(cfg *[]cfgSection, bus *qemuBus, pciConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName string
 	for _, pciItem := range pciConfig {
 		if pciItem.Key == "devName" {
@@ -3562,13 +3562,13 @@ func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []de
 		devName:     devName,
 		pciSlotName: pciSlotName,
 	}
-	qemuAppendSections(sb, qemuPCIPhysicalSections(&pciPhysicalOpts)...)
+	*cfg = append(*cfg, qemuPCIPhysicalSections(&pciPhysicalOpts)...)
 
 	return nil
 }
 
 // addGPUDevConfig adds the qemu config required for adding a GPU device.
-func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addGPUDevConfig(cfg *[]cfgSection, bus *qemuBus, gpuConfig []deviceConfig.RunConfigItem) error {
 	var devName, pciSlotName, vgpu string
 	for _, gpuItem := range gpuConfig {
 		if gpuItem.Key == "devName" {
@@ -3614,7 +3614,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	}
 
 	// Add main GPU device in VGA mode to qemu config.
-	qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
+	*cfg = append(*cfg, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 
 	var iommuGroupPath string
 
@@ -3656,7 +3656,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 					vgpu:        "",
 				}
 
-				qemuAppendSections(sb, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
+				*cfg = append(*cfg, qemuGPUDevPhysicalSections(&gpuDevPhysicalOpts)...)
 			}
 
 			return nil
@@ -3708,7 +3708,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 	return monHook, nil
 }
 
-func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.RunConfigItem) error {
+func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.RunConfigItem) error {
 	var devName, socketPath string
 
 	for _, tpmItem := range tpmConfig {
@@ -3723,7 +3723,7 @@ func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.
 		devName: devName,
 		path:    socketPath,
 	}
-	qemuAppendSections(sb, qemuTPMSections(&tpmOpts)...)
+	*cfg = append(*cfg, qemuTPMSections(&tpmOpts)...)
 
 	return nil
 }

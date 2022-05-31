@@ -16,8 +16,10 @@ type cfgSection struct {
 	entries []cfgEntry
 }
 
-func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
-	for _, section := range sections {
+func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
+	sb := &strings.Builder{}
+
+	for _, section := range cfg {
 		if section.comment != "" {
 			sb.WriteString(fmt.Sprintf("# %s\n", section.comment))
 		}
@@ -33,6 +35,8 @@ func qemuAppendSections(sb *strings.Builder, sections ...cfgSection) {
 
 		sb.WriteString("\n")
 	}
+
+	return sb
 }
 
 type qemuBaseOpts struct {

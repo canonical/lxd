@@ -9,20 +9,13 @@ import (
 func TestQemuConfigTemplates(t *testing.T) {
 	indent := regexp.MustCompile(`(?m)^[ \t]+`)
 
-	stringifySections := func(sections ...cfgSection) string {
-		sb := &strings.Builder{}
-		qemuAppendSections(sb, sections...)
-
-		return sb.String()
-	}
-
 	normalize := func(s string) string {
 		return strings.TrimSpace(indent.ReplaceAllString(s, "$1"))
 	}
 
 	runTest := func(expected string, sections []cfgSection) {
 		t.Run(expected, func(t *testing.T) {
-			actual := normalize(stringifySections(sections...))
+			actual := normalize(qemuStringifyCfg(sections...).String())
 			expected = normalize(expected)
 			if actual != expected {
 				t.Errorf("Expected: %s. Got: %s", expected, actual)
