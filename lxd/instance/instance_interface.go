@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared/api"
@@ -110,6 +111,7 @@ type Instance interface {
 	IsEphemeral() bool
 	IsSnapshot() bool
 	IsStateful() bool
+	LockExclusive() (*operationlock.InstanceOperation, error)
 
 	// Hooks.
 	DeviceEventHandler(*deviceConfig.RunConfig) error
