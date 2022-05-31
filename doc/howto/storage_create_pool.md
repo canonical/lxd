@@ -112,5 +112,21 @@ Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rp
 ```
 ```{group-tab} CephFS
 
+Create a storage pool named `pool1` in the default Ceph cluster (named `ceph`):
+
+     lxc storage create pool1 cephfs
+
+Create a storage pool named `pool2` in the Ceph cluster `my-cluster`:
+
+     lxc storage create pool2 cephfs cephfs.cluster_name=my-cluster
+
+Use the existing storage pool `my-filesystem` for `pool3`:
+
+     lxc storage create pool3 cephfs source=my-filesystem
+
+Use the sub-directory `my-directory` from the `my-filesystem` pool for `pool4`:
+
+     lxc storage create pool4 cephfs source=my-filesystem/my-directory
+
 ```
 ````
