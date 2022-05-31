@@ -578,9 +578,9 @@ func (d *qemu) onStop(target string) error {
 	defer op.Done(nil)
 
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
-	// Wait up to 5 minutes to allow for flushing any pending data to disk.
+	// Wait up to operationlock.TimeoutShutdown to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
-	waitTimeout := time.Minute * time.Duration(5)
+	waitTimeout := operationlock.TimeoutShutdown
 	if d.pidWait(waitTimeout, op) {
 		d.logger.Debug("VM process finished")
 	} else {
@@ -603,7 +603,7 @@ func (d *qemu) onStop(target string) error {
 	_ = os.Remove(d.monitorPath())
 
 	// Stop the storage for the instance.
-	_ = op.Reset()
+	_ = op.ResetTimeout(waitTimeout)
 	err = d.unmount()
 	if err != nil {
 		err = fmt.Errorf("Failed unmounting instance: %w", err)
