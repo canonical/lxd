@@ -546,17 +546,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		}
 	}
 
-	// Early check for refresh
-	if req.Source.Refresh {
-		// Check if the container exists
-		c, err := instance.LoadByProjectAndName(d.State(), targetProject, req.Name)
-		if err != nil {
-			req.Source.Refresh = false
-		} else if c.IsRunning() {
-			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
-		}
-	}
-
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
