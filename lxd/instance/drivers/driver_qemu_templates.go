@@ -773,6 +773,36 @@ func qemuUSBSections(opts *qemuUSBOpts) []cfgSection {
 	return sections
 }
 
+type qemuTPMOpts struct {
+	devName string
+	path    string
+}
+
+func qemuTPMSections(opts *qemuTPMOpts) []cfgSection {
+	chardev := fmt.Sprintf("qemu_tpm-chardev_%s", opts.devName)
+	tpmdev := fmt.Sprintf("qemu_tpm-tpmdev_%s", opts.devName)
+
+	return []cfgSection{{
+		name: fmt.Sprintf(`chardev "%s"`, chardev),
+		entries: []cfgEntry{
+			{key: "backend", value: "socket"},
+			{key: "path", value: opts.path},
+		},
+	}, {
+		name: fmt.Sprintf(`tpmdev "%s"`, tpmdev),
+		entries: []cfgEntry{
+			{key: "type", value: "emulator"},
+			{key: "chardev", value: chardev},
+		},
+	}, {
+		name: fmt.Sprintf(`device "dev-lxd_%s"`, opts.devName),
+		entries: []cfgEntry{
+			{key: "driver", value: "tpm-crb"},
+			{key: "tpmdev", value: tpmdev},
+		},
+	}}
+}
+
 var qemuTPM = template.Must(template.New("qemuTPM").Parse(`
 [chardev "qemu_tpm-chardev_{{.devName}}"]
 backend = "socket"

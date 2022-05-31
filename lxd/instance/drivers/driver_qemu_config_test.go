@@ -1181,4 +1181,37 @@ func TestQemuConfigTemplates(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("qemu_tpm", func(t *testing.T) {
+		testCases := []struct {
+			opts     qemuTPMOpts
+			expected string
+		}{{
+			qemuTPMOpts{
+				devName: "myTpm",
+				path:    "/dev/my/tpm",
+			},
+			`[chardev "qemu_tpm-chardev_myTpm"]
+			backend = "socket"
+			path = "/dev/my/tpm"
+
+			[tpmdev "qemu_tpm-tpmdev_myTpm"]
+			type = "emulator"
+			chardev = "qemu_tpm-chardev_myTpm"
+
+			[device "dev-lxd_myTpm"]
+			driver = "tpm-crb"
+			tpmdev = "qemu_tpm-tpmdev_myTpm"`,
+		}}
+		for _, tc := range testCases {
+			t.Run(tc.expected, func(t *testing.T) {
+				sections := qemuTPMSections(&tc.opts)
+				actual := normalize(stringifySections(sections...))
+				expected := normalize(tc.expected)
+				if actual != expected {
+					t.Errorf("Expected: %s. Got: %s", expected, actual)
+				}
+			})
+		}
+	})
 }
