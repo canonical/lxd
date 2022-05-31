@@ -325,8 +325,8 @@ func DeviceTotalMemory() (int64, error) {
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
 func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
+	revert := revert.New()
+	defer revert.Fail()
 	var fd int
 	var ptx *os.File
 	var err error
@@ -341,7 +341,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		return nil, nil, err
 	}
 	ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
-	reverter.Add(func() { _ = ptx.Close() })
+	revert.Add(func() { _ = ptx.Close() })
 
 	// Unlock the ptx and pty.
 	val := 0
@@ -380,7 +380,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 			return nil, nil, err
 		}
 	}
-	reverter.Add(func() { _ = pty.Close() })
+	revert.Add(func() { _ = pty.Close() })
 
 	// Configure both sides
 	for _, entry := range []*os.File{ptx, pty} {
@@ -427,7 +427,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		return nil, nil, err
 	}
 
-	reverter.Success()
+	revert.Success()
 	return ptx, pty, nil
 }
 
