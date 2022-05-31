@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -149,23 +150,38 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.ProfileFilter{
+		filter := dbCluster.ProfileFilter{
 			Project: &projectName,
 		}
-		if recursion {
-			profiles, err := tx.GetProfiles(filter)
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)
+		if err != nil {
+			return err
+		}
+
+		apiProfiles := make([]*api.Profile, len(profiles))
+		for i, profile := range profiles {
+			apiProfiles[i], err = profile.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
-			apiProfiles := make([]*api.Profile, len(profiles))
-			for i, profile := range profiles {
-				apiProfiles[i] = db.ProfileToAPI(&profile)
-				apiProfiles[i].UsedBy = project.FilterUsedBy(r, apiProfiles[i].UsedBy)
+
+			apiProfiles[i].UsedBy, err = profileUsedBy(ctx, tx, profile)
+			if err != nil {
+				return err
 			}
 
+			apiProfiles[i].UsedBy = project.FilterUsedBy(r, apiProfiles[i].UsedBy)
+		}
+
+		if recursion {
 			result = apiProfiles
 		} else {
-			result, err = tx.GetProfileURIs(filter)
+			urls := make([]string, len(apiProfiles))
+			for i, p := range apiProfiles {
+				urls[i] = p.URL(version.APIVersion, projectName).String()
+			}
+
+			result = urls
 		}
 		return err
 	})
@@ -174,6 +190,22 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, result)
+}
+
+// profileUsedBy returns all the instance URLs that are using the given profile.
+func profileUsedBy(ctx context.Context, tx *db.ClusterTx, profile dbCluster.Profile) ([]string, error) {
+	instances, err := dbCluster.GetProfileInstances(ctx, tx.Tx(), profile.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := make([]string, len(instances))
+	for i, inst := range instances {
+		apiInst := &api.Instance{Name: inst.Name}
+		usedBy[i] = apiInst.URL(version.APIVersion, inst.Project).String()
+	}
+
+	return usedBy, nil
 }
 
 // swagger:operation POST /1.0/profiles profiles profiles_post
@@ -245,24 +277,39 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Update DB entry.
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		devices, err := db.APIToDevices(req.Devices)
+		devices, err := dbCluster.APIToDevices(req.Devices)
 		if err != nil {
 			return err
 		}
 
-		current, _ := tx.GetProfile(projectName, req.Name)
+		current, _ := dbCluster.GetProfile(ctx, tx.Tx(), projectName, req.Name)
 		if current != nil {
 			return fmt.Errorf("The profile already exists")
 		}
 
-		profile := db.Profile{
+		profile := dbCluster.Profile{
 			Project:     projectName,
 			Name:        req.Name,
 			Description: req.Description,
-			Config:      req.Config,
-			Devices:     devices,
 		}
-		_, err = tx.CreateProfile(profile)
+		id, err := dbCluster.CreateProfile(ctx, tx.Tx(), profile)
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.CreateProfileConfig(ctx, tx.Tx(), id, req.Config)
+		if err != nil {
+			return err
+		}
+
+		for _, device := range devices {
+			err = dbCluster.CreateProfileDevice(ctx, tx.Tx(), id, device)
+			if err != nil {
+				return err
+			}
+
+		}
+
 		return err
 	})
 	if err != nil {
@@ -329,12 +376,21 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	var resp *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile(projectName, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
 		if err != nil {
 			return fmt.Errorf("Fetch profile: %w", err)
 		}
 
-		resp = db.ProfileToAPI(profile)
+		resp, err = profile.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		resp.UsedBy, err = profileUsedBy(ctx, tx, *profile)
+		if err != nil {
+			return err
+		}
+
 		resp.UsedBy = project.FilterUsedBy(r, resp.UsedBy)
 
 		return nil
@@ -409,12 +465,16 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := tx.GetProfile(projectName, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile %q: %w", name, err)
 		}
 
-		profile = db.ProfileToAPI(current)
+		profile, err = current.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		id = int64(current.ID)
 
 		return nil
@@ -507,12 +567,16 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := tx.GetProfile(projectName, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile=%q: %w", name, err)
 		}
 
-		profile = db.ProfileToAPI(current)
+		profile, err = current.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		id = int64(current.ID)
 
 		return nil
@@ -649,12 +713,12 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		_, err = tx.GetProfile(projectName, req.Name)
+		_, err = dbCluster.GetProfile(ctx, tx.Tx(), projectName, req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
 
-		return tx.RenameProfile(projectName, name, req.Name)
+		return dbCluster.RenameProfile(ctx, tx.Tx(), projectName, name, req.Name)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -706,15 +770,21 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile(projectName, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
 		if err != nil {
 			return err
 		}
-		if len(profile.UsedBy) > 0 {
+
+		usedBy, err := profileUsedBy(ctx, tx, *profile)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		return tx.DeleteProfile(projectName, name)
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), projectName, name)
 	})
 	if err != nil {
 		return response.SmartError(err)

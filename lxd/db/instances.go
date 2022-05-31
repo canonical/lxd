@@ -58,6 +58,7 @@ import (
 //go:generate mapper method -i -d cluster -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
+// TODO: Remove this struct and move to cluster package.
 type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
@@ -78,6 +79,7 @@ type Instance struct {
 }
 
 // InstanceFilter specifies potential query parameter fields.
+// TODO: Remove this struct and move to cluster package.
 type InstanceFilter struct {
 	ID      *int
 	Project *string
@@ -324,7 +326,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	var instances []Instance
 	projectMap := map[string]api.Project{}
 	projectHasProfiles := map[string]bool{}
-	profilesByProjectAndName := map[string]map[string]Profile{}
+	profilesByProjectAndName := map[string]map[string]api.Profile{}
 
 	if filter == nil {
 		filter = &InstanceFilter{}
@@ -354,7 +356,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 			projectHasProfiles[project.Name] = shared.IsTrue(apiProject.Config["features.profiles"])
 		}
 
-		profiles, err := tx.GetProfiles(ProfileFilter{})
+		profiles, err := cluster.GetProfiles(ctx, tx.tx, cluster.ProfileFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles: %w", err)
 		}
@@ -363,10 +365,16 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 		for _, profile := range profiles {
 			profilesByName, ok := profilesByProjectAndName[profile.Project]
 			if !ok {
-				profilesByName = map[string]Profile{}
+				profilesByName = map[string]api.Profile{}
 				profilesByProjectAndName[profile.Project] = profilesByName
 			}
-			profilesByName[profile.Name] = profile
+
+			apiProfile, err := profile.ToAPI(ctx, tx.tx)
+			if err != nil {
+				return err
+			}
+
+			profilesByName[profile.Name] = *apiProfile
 		}
 
 		return nil
@@ -388,8 +396,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 		}
 
 		for j, name := range instance.Profiles {
-			profile := profilesByProjectAndName[profilesProject][name]
-			profiles[j] = *ProfileToAPI(&profile)
+			profiles[j] = profilesByProjectAndName[profilesProject][name]
 		}
 
 		err = instanceFunc(instance, projectMap[instance.Project], profiles)

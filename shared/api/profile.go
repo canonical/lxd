@@ -60,3 +60,8 @@ type Profile struct {
 func (profile *Profile) Writable() ProfilePut {
 	return profile.ProfilePut
 }
+
+// URL returns the URL for the profile.
+func (profile *Profile) URL(apiVersion string, projectName string) *URL {
+	return NewURL().Path(apiVersion, "profiles", profile.Name).Project(projectName)
+}

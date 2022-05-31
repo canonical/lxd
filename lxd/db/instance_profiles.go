@@ -25,6 +25,7 @@ import (
 
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.
+// TODO: Remove this struct once Instances has fully moved to the cluster package.
 type InstanceProfile struct {
 	InstanceID int `db:"primary=yes&order=yes"`
 	ProfileID  int
@@ -32,6 +33,7 @@ type InstanceProfile struct {
 }
 
 // InstanceProfileFilter specifies potential query parameter fields.
+// TODO: Remove this struct once Instances has fully moved to the cluster package.
 type InstanceProfileFilter struct {
 	InstanceID *int
 	ProfileID  *int
@@ -58,7 +60,7 @@ func (c *ClusterTx) UpdateInstanceProfiles(instance Instance) error {
 	stmt := c.stmt(instanceProfileCreate)
 
 	for _, name := range instance.Profiles {
-		profileID, err := c.GetProfileID(project, name)
+		profileID, err := cluster.GetProfileID(context.TODO(), c.tx, project, name)
 		if err != nil {
 			return err
 		}

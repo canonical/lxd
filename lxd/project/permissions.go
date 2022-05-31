@@ -437,7 +437,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(project api.Project, instances []db.Instance, profiles []db.Profile) error {
+func checkRestrictions(project api.Project, instances []db.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -711,7 +711,7 @@ func checkRestrictions(project api.Project, instances []db.Instance, profiles []
 			return err
 		}
 
-		err = entityDevicesChecker(instancetype.Any, profile.Name, db.DevicesToAPI(profile.Devices))
+		err = entityDevicesChecker(instancetype.Any, profile.Name, profile.Devices)
 		if err != nil {
 			return err
 		}
@@ -918,13 +918,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 			continue
 		}
 		info.Profiles[i].Config = req.Config
-
-		devices, err := db.APIToDevices(req.Devices)
-		if err != nil {
-			return err
-		}
-
-		info.Profiles[i].Devices = devices
+		info.Profiles[i].Devices = req.Devices
 	}
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
@@ -1110,7 +1104,7 @@ func projectHasLimitsOrRestrictions(project api.Project) bool {
 // instances.
 type projectInfo struct {
 	Project   api.Project
-	Profiles  []db.Profile
+	Profiles  []api.Profile
 	Instances []db.Instance
 	Volumes   []db.StorageVolumeArgs
 }
@@ -1137,7 +1131,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		return nil, nil
 	}
 
-	profilesFilter := db.ProfileFilter{}
+	profilesFilter := cluster.ProfileFilter{}
 
 	// If the project has the profiles feature enabled, we use its own
 	// profiles to expand the instances configs, otherwise we use the
@@ -1149,9 +1143,19 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		profilesFilter.Project = &defaultProject
 	}
 
-	profiles, err := tx.GetProfiles(profilesFilter)
+	dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), profilesFilter)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
+	}
+
+	profiles := make([]api.Profile, 0, len(dbProfiles))
+	for _, profile := range dbProfiles {
+		apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return nil, err
+		}
+
+		profiles = append(profiles, *apiProfile)
 	}
 
 	instances, err := tx.GetInstances(db.InstanceFilter{
@@ -1178,11 +1182,11 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 // Expand the configuration and devices of the given instances, taking the give
 // project profiles into account.
-func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Profile) ([]db.Instance, error) {
+func expandInstancesConfigAndDevices(instances []db.Instance, profiles []api.Profile) ([]db.Instance, error) {
 	expandedInstances := make([]db.Instance, len(instances))
 
 	// Index of all profiles by name.
-	profilesByName := map[string]db.Profile{}
+	profilesByName := map[string]api.Profile{}
 	for _, profile := range profiles {
 		profilesByName[profile.Name] = profile
 	}
@@ -1192,7 +1196,7 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 
 		for j, name := range instance.Profiles {
 			profile := profilesByName[name]
-			apiProfiles[j] = *db.ProfileToAPI(&profile)
+			apiProfiles[j] = profile
 		}
 
 		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without

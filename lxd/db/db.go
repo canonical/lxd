@@ -312,6 +312,7 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 		return nil, fmt.Errorf("Prepare database statements: %w", err)
 	}
 
+	cluster.PreparedStmts = stmts
 	c.stmts = stmts
 
 	return c, nil

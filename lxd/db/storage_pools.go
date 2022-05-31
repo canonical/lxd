@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -140,14 +141,19 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 	}
 
 	// Get all the profiles using the storage pool.
-	profiles, err := c.GetProfiles(ProfileFilter{})
+	profiles, err := cluster.GetProfiles(context.TODO(), c.tx, cluster.ProfileFilter{})
 	if err != nil {
 		return nil, err
 	}
 
 	for _, profile := range profiles {
-		for _, device := range profile.Devices {
-			if device.Type != TypeDisk {
+		profileDevices, err := cluster.GetProfileDevices(context.TODO(), c.tx, profile.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, device := range profileDevices {
+			if device.Type != cluster.TypeDisk {
 				continue
 			}
 

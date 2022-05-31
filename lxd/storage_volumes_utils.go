@@ -61,20 +61,19 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	}
 
 	// Update all profiles that are using the volume with a device.
-	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profile db.Profile, p cluster.Project, usedByDevices []string) error {
-		for _, dev := range profile.Devices {
-			if shared.StringInSlice(dev.Name, usedByDevices) {
-				dev.Config["pool"] = newPoolName
-				dev.Config["source"] = newVol.Name
+	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p cluster.Project, usedByDevices []string) error {
+		for name, dev := range profile.Devices {
+			if shared.StringInSlice(name, usedByDevices) {
+				dev["pool"] = newPoolName
+				dev["source"] = newVol.Name
 			}
 		}
 
 		pUpdate := api.ProfilePut{}
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
-		pUpdate.Devices = db.DevicesToAPI(profile.Devices)
-		apiProfile := db.ProfileToAPI(&profile)
-		err = doProfileUpdate(d, profile.Project, profile.Name, int64(profile.ID), apiProfile, pUpdate)
+		pUpdate.Devices = profile.Devices
+		err = doProfileUpdate(d, p.Name, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
 		}
@@ -145,11 +144,11 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profile db.Profile, p cluster.Project, usedByDevices []string) error {
-		if profile.Project == project.Default {
+	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profileID int64, profile api.Profile, p cluster.Project, usedByDevices []string) error {
+		if p.Name == project.Default {
 			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name))
 		} else {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, profile.Name, profile.Project))
+			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, profile.Name, p.Name))
 		}
 
 		return nil

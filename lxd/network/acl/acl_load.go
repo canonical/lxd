@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -113,11 +114,19 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Look for profiles. Next cheapest to do.
-	var profiles []db.Profile
+	var profiles []cluster.Profile
+	profileDevices := map[string]map[string]cluster.Device{}
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		profiles, err = cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
 		if err != nil {
 			return err
+		}
+
+		for _, profile := range profiles {
+			profileDevices[profile.Name], err = cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -139,7 +148,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		}
 
 		// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
-		for devName, devConfig := range deviceConfig.NewDevices(db.DevicesToAPI(profile.Devices)) {
+		for devName, devConfig := range deviceConfig.NewDevices(cluster.DevicesToAPI(profileDevices[profile.Name])) {
 			matchedACLNames := isInUseByDevice(devConfig, matchACLNames...)
 			if len(matchedACLNames) > 0 {
 				// Call usageFunc with a list of matched ACLs and info about the instance NIC.
@@ -262,7 +271,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
 	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
-		case db.Instance, db.Profile:
+		case db.Instance, cluster.Profile:
 			networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
