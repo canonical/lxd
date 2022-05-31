@@ -36,26 +36,6 @@ snapshots.expiry        | string    | custom volume             | -             
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 
-## The following commands can be used to create Btrfs storage pools
-
- - Create loop-backed pool named "pool1".
-
-```bash
-lxc storage create pool1 btrfs
-```
-
- - Create a new pool called "pool1" using an existing Btrfs filesystem at `/some/path`.
-
-```bash
-lxc storage create pool1 btrfs source=/some/path
-```
-
- - Create a new pool called "pool1" on `/dev/sdX`.
-
-```bash
-lxc storage create pool1 btrfs source=/dev/sdX
-```
-
 ## Growing a loop backed Btrfs pool
 LXD doesn't let you directly grow a loop backed Btrfs pool, but you can do so with:
 
