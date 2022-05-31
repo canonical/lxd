@@ -773,43 +773,6 @@ func qemuUSBSections(opts *qemuUSBOpts) []cfgSection {
 	return sections
 }
 
-var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
-# USB controller
-[device "qemu_usb"]
-driver = "qemu-xhci"
-bus = "{{.devBus}}"
-addr = "{{.devAddr}}"
-p2 = "{{.ports}}"
-p3 = "{{.ports}}"
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-
-[chardev "qemu_spice-usb-chardev1"]
-  backend = "spicevmc"
-  name = "usbredir"
-
-[chardev "qemu_spice-usb-chardev2"]
-  backend = "spicevmc"
-  name = "usbredir"
-
-[chardev "qemu_spice-usb-chardev3"]
-  backend = "spicevmc"
-  name = "usbredir"
-
-[device "qemu_spice-usb1"]
-  driver = "usb-redir"
-  chardev = "qemu_spice-usb-chardev1"
-
-[device "qemu_spice-usb2"]
-  driver = "usb-redir"
-  chardev = "qemu_spice-usb-chardev2"
-
-[device "qemu_spice-usb3"]
-  driver = "usb-redir"
-  chardev = "qemu_spice-usb-chardev3"
-`))
-
 var qemuTPM = template.Must(template.New("qemuTPM").Parse(`
 [chardev "qemu_tpm-chardev_{{.devName}}"]
 backend = "socket"
