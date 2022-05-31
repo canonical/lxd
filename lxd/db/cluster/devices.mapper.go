@@ -87,9 +87,9 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	return resultMap, nil
 }
 
-// CreateDevice adds a new device to the database.
+// CreateDevices adds a new device to the database.
 // generator: device Create
-func CreateDevice(ctx context.Context, tx *sql.Tx, parent string, object Device) error {
+func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[string]Device) error {
 	deviceCreateLocal := strings.Replace(deviceCreate, "%s_id", fmt.Sprintf("%s_id", parent), -1)
 	fillParent := make([]any, strings.Count(deviceCreateLocal, "%s"))
 	for i := range fillParent {
@@ -101,30 +101,32 @@ func CreateDevice(ctx context.Context, tx *sql.Tx, parent string, object Device)
 		return err
 	}
 
-	result, err := stmt.Exec(object.ReferenceID, object.Name, object.Type)
-	if err != nil {
-		return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("Failed to fetch ID: %w", err)
-	}
-
-	referenceID := int(id)
-	for key, value := range object.Config {
-		insert := Config{
-			ReferenceID: referenceID,
-			Key:         key,
-			Value:       value,
-		}
-
-		err = CreateConfig(ctx, tx, parent+"_device", insert)
+	for _, object := range objects {
+		result, err := stmt.Exec(object.ReferenceID, object.Name, object.Type)
 		if err != nil {
-			return fmt.Errorf("Insert Config failed for Device: %w", err)
+			return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
 		}
 
+		id, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("Failed to fetch ID: %w", err)
+		}
+
+		referenceID := int(id)
+		for key, value := range object.Config {
+			insert := Config{
+				ReferenceID: referenceID,
+				Key:         key,
+				Value:       value,
+			}
+
+			err = CreateConfig(ctx, tx, parent+"_device", insert)
+			if err != nil {
+				return fmt.Errorf("Insert Config failed for Device: %w", err)
+			}
+		}
 	}
+
 	return nil
 }
 
@@ -138,10 +140,12 @@ func UpdateDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 	}
 
 	// Insert new entries.
-	for _, object := range devices {
+	for key, object := range devices {
 		object.ReferenceID = referenceID
-		err = CreateDevice(ctx, tx, parent, object)
+		devices[key] = object
 	}
+
+	err = CreateDevices(ctx, tx, parent, devices)
 	if err != nil {
 		return err
 	}

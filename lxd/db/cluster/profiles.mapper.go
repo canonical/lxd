@@ -270,11 +270,15 @@ func CreateProfile(ctx context.Context, tx *sql.Tx, object Profile) (int64, erro
 	return id, nil
 }
 
-// CreateProfileDevice adds a new profile Device to the database.
+// CreateProfileDevices adds new profile Devices to the database.
 // generator: profile Create
-func CreateProfileDevice(ctx context.Context, tx *sql.Tx, profileID int64, device Device) error {
-	device.ReferenceID = int(profileID)
-	err := CreateDevice(ctx, tx, "profile", device)
+func CreateProfileDevices(ctx context.Context, tx *sql.Tx, profileID int64, devices map[string]Device) error {
+	for key, device := range devices {
+		device.ReferenceID = int(profileID)
+		devices[key] = device
+	}
+
+	err := CreateDevices(ctx, tx, "profile", devices)
 	if err != nil {
 		return fmt.Errorf("Insert Device failed for Profile: %w", err)
 	}
@@ -282,7 +286,7 @@ func CreateProfileDevice(ctx context.Context, tx *sql.Tx, profileID int64, devic
 	return nil
 }
 
-// CreateProfileConfig adds a new profile Config to the database.
+// CreateProfileConfig adds new profile Config to the database.
 // generator: profile Create
 func CreateProfileConfig(ctx context.Context, tx *sql.Tx, profileID int64, config map[string]string) error {
 	referenceID := int(profileID)
