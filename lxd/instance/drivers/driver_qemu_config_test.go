@@ -86,7 +86,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}}
 
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuBaseSections(&tc.opts))
+			runTest(tc.expected, qemuBase(&tc.opts))
 		}
 	})
 
@@ -106,7 +106,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			size = "8192M"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuMemorySections(&tc.opts))
+			runTest(tc.expected, qemuMemory(&tc.opts))
 		}
 	})
 
@@ -157,7 +157,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuSerialSections(&tc.opts))
+			runTest(tc.expected, qemuSerial(&tc.opts))
 		}
 	})
 
@@ -184,7 +184,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuPCIeSections(&tc.opts))
+			runTest(tc.expected, qemuPCIe(&tc.opts))
 		}
 	})
 
@@ -209,7 +209,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuSCSISections(&tc.opts))
+			runTest(tc.expected, qemuSCSI(&tc.opts))
 		}
 	})
 
@@ -234,7 +234,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuBalloonSections(&tc.opts))
+			runTest(tc.expected, qemuBalloon(&tc.opts))
 		}
 	})
 
@@ -269,7 +269,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuRNGSections(&tc.opts))
+			runTest(tc.expected, qemuRNG(&tc.opts))
 		}
 	})
 
@@ -296,7 +296,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuVsockSections(&tc.opts))
+			runTest(tc.expected, qemuVsock(&tc.opts))
 		}
 	})
 
@@ -332,7 +332,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			driver = "virtio-gpu-ccw"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuGPUSections(&tc.opts))
+			runTest(tc.expected, qemuGPU(&tc.opts))
 		}
 	})
 
@@ -368,7 +368,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			multifunction = "on"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuKeyboardSections(&tc.opts))
+			runTest(tc.expected, qemuKeyboard(&tc.opts))
 		}
 	})
 
@@ -394,7 +394,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuTabletSections(&tc.opts))
+			runTest(tc.expected, qemuTablet(&tc.opts))
 		}
 	})
 
@@ -659,7 +659,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			threads = "1"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuCPUSections(&tc.opts))
+			runTest(tc.expected, qemuCPU(&tc.opts))
 		}
 	})
 
@@ -681,7 +681,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			mode = "control"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuControlSocketSections(&tc.opts))
+			runTest(tc.expected, qemuControlSocket(&tc.opts))
 		}
 	})
 
@@ -699,7 +699,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			wait = "off"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuConsoleSections(&tc.opts))
+			runTest(tc.expected, qemuConsole(&tc.opts))
 		}
 	})
 
@@ -725,7 +725,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			unit = "1"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuDriveFirmwareSections(&tc.opts))
+			runTest(tc.expected, qemuDriveFirmware(&tc.opts))
 		}
 	})
 
@@ -812,7 +812,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			``,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuDriveConfigSections(&tc.opts))
+			runTest(tc.expected, qemuDriveConfig(&tc.opts))
 		}
 	})
 
@@ -907,7 +907,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			``,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuDriveDirSections(&tc.opts))
+			runTest(tc.expected, qemuDriveDir(&tc.opts))
 		}
 	})
 
@@ -944,7 +944,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			bootIndex = "2"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuPCIPhysicalSections(&tc.opts))
+			runTest(tc.expected, qemuPCIPhysical(&tc.opts))
 		}
 	})
 
@@ -992,7 +992,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			sysfsdev = "/sys/bus/mdev/devices/vgpu-dev"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuGPUDevPhysicalSections(&tc.opts))
+			runTest(tc.expected, qemuGPUDevPhysical(&tc.opts))
 		}
 	})
 
@@ -1041,7 +1041,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "qemu_spice-usb-chardev3"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuUSBSections(&tc.opts))
+			runTest(tc.expected, qemuUSB(&tc.opts))
 		}
 	})
 
@@ -1067,7 +1067,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			tpmdev = "qemu_tpm-tpmdev_myTpm"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuTPMSections(&tc.opts))
+			runTest(tc.expected, qemuTPM(&tc.opts))
 		}
 	})
 }

@@ -43,7 +43,7 @@ type qemuBaseOpts struct {
 	architecture string
 }
 
-func qemuBaseSections(opts *qemuBaseOpts) []cfgSection {
+func qemuBase(opts *qemuBaseOpts) []cfgSection {
 	machineType := ""
 	gicVersion := ""
 	capLargeDecr := ""
@@ -104,7 +104,7 @@ type qemuMemoryOpts struct {
 	memSizeMB int64
 }
 
-func qemuMemorySections(opts *qemuMemoryOpts) []cfgSection {
+func qemuMemory(opts *qemuMemoryOpts) []cfgSection {
 	return []cfgSection{{
 		name:    "memory",
 		comment: "Memory",
@@ -151,7 +151,7 @@ type qemuSerialOpts struct {
 	ringbufSizeBytes int
 }
 
-func qemuSerialSections(opts *qemuSerialOpts) []cfgSection {
+func qemuSerial(opts *qemuSerialOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
 		pciName: "virtio-serial-pci",
@@ -216,7 +216,7 @@ type qemuPCIeOpts struct {
 	multifunction bool
 }
 
-func qemuPCIeSections(opts *qemuPCIeOpts) []cfgSection {
+func qemuPCIe(opts *qemuPCIeOpts) []cfgSection {
 	entries := []cfgEntry{
 		{key: "driver", value: "pcie-root-port"},
 		{key: "bus", value: "pcie.0"},
@@ -234,7 +234,7 @@ func qemuPCIeSections(opts *qemuPCIeOpts) []cfgSection {
 	}}
 }
 
-func qemuSCSISections(opts *qemuDevOpts) []cfgSection {
+func qemuSCSI(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-scsi-pci",
@@ -248,7 +248,7 @@ func qemuSCSISections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-func qemuBalloonSections(opts *qemuDevOpts) []cfgSection {
+func qemuBalloon(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-balloon-pci",
@@ -262,7 +262,7 @@ func qemuBalloonSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-func qemuRNGSections(opts *qemuDevOpts) []cfgSection {
+func qemuRNG(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-rng-pci",
@@ -288,7 +288,7 @@ type qemuVsockOpts struct {
 	vsockID int
 }
 
-func qemuVsockSections(opts *qemuVsockOpts) []cfgSection {
+func qemuVsock(opts *qemuVsockOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
 		pciName: "vhost-vsock-pci",
@@ -308,7 +308,7 @@ type qemuGpuOpts struct {
 	architecture string
 }
 
-func qemuGPUSections(opts *qemuGpuOpts) []cfgSection {
+func qemuGPU(opts *qemuGpuOpts) []cfgSection {
 	var pciName string
 
 	if opts.architecture == "x86_64" {
@@ -330,7 +330,7 @@ func qemuGPUSections(opts *qemuGpuOpts) []cfgSection {
 	}}
 }
 
-func qemuKeyboardSections(opts *qemuDevOpts) []cfgSection {
+func qemuKeyboard(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-keyboard-pci",
@@ -344,7 +344,7 @@ func qemuKeyboardSections(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
-func qemuTabletSections(opts *qemuDevOpts) []cfgSection {
+func qemuTablet(opts *qemuDevOpts) []cfgSection {
 	entriesOpts := qemuDevEntriesOpts{
 		dev:     *opts,
 		pciName: "virtio-tablet-pci",
@@ -408,7 +408,7 @@ func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 	}}
 }
 
-func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
+func qemuCPU(opts *qemuCPUOpts) []cfgSection {
 	sections := []cfgSection{{
 		name:    "smp-opts",
 		comment: "CPU",
@@ -428,14 +428,14 @@ func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
 
 	if len(opts.cpuNumaHostNodes) == 0 {
 		// add one mem and one numa sections with index 0
-		numaHostNodeSections := qemuCPUNumaHostNode(opts, 0)
+		numaHostNode := qemuCPUNumaHostNode(opts, 0)
 		// unconditionally append "share = "on" to the [object "mem0"] section
-		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, share)
-		return append(sections, numaHostNodeSections...)
+		numaHostNode[0].entries = append(numaHostNode[0].entries, share)
+		return append(sections, numaHostNode...)
 	}
 
 	for index, element := range opts.cpuNumaHostNodes {
-		numaHostNodeSections := qemuCPUNumaHostNode(opts, index)
+		numaHostNode := qemuCPUNumaHostNode(opts, index)
 
 		extraMemEntries := []cfgEntry{{key: "policy", value: "bind"}}
 
@@ -454,8 +454,8 @@ func qemuCPUSections(opts *qemuCPUOpts) []cfgSection {
 		hostNode := cfgEntry{key: hostNodesKey, value: fmt.Sprintf("%d", element)}
 		extraMemEntries = append(extraMemEntries, hostNode)
 		// append the extra entries to the [object "mem{{idx}}"] section
-		numaHostNodeSections[0].entries = append(numaHostNodeSections[0].entries, extraMemEntries...)
-		sections = append(sections, numaHostNodeSections...)
+		numaHostNode[0].entries = append(numaHostNode[0].entries, extraMemEntries...)
+		sections = append(sections, numaHostNode...)
 	}
 
 	for _, numa := range opts.cpuNumaMapping {
@@ -477,7 +477,7 @@ type qemuControlSocketOpts struct {
 	path string
 }
 
-func qemuControlSocketSections(opts *qemuControlSocketOpts) []cfgSection {
+func qemuControlSocket(opts *qemuControlSocketOpts) []cfgSection {
 	return []cfgSection{{
 		name:    `chardev "monitor"`,
 		comment: "Qemu control",
@@ -500,7 +500,7 @@ type qemuConsoleOpts struct {
 	path string
 }
 
-func qemuConsoleSections(opts *qemuConsoleOpts) []cfgSection {
+func qemuConsole(opts *qemuConsoleOpts) []cfgSection {
 	return []cfgSection{{
 		name:    `chardev "console"`,
 		comment: "Console",
@@ -518,7 +518,7 @@ type qemuDriveFirmwareOpts struct {
 	nvramPath string
 }
 
-func qemuDriveFirmwareSections(opts *qemuDriveFirmwareOpts) []cfgSection {
+func qemuDriveFirmware(opts *qemuDriveFirmwareOpts) []cfgSection {
 	return []cfgSection{{
 		name:    "drive",
 		comment: "Firmware (read only)",
@@ -555,7 +555,7 @@ type qemuHostDriveOpts struct {
 	protocol      string
 }
 
-func qemuHostDriveSections(opts *qemuHostDriveOpts) []cfgSection {
+func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 	var extraDeviceEntries []cfgEntry
 	var driveSection cfgSection
 	deviceOpts := qemuDevEntriesOpts{dev: opts.dev}
@@ -625,8 +625,8 @@ type qemuDriveConfigOpts struct {
 	path     string
 }
 
-func qemuDriveConfigSections(opts *qemuDriveConfigOpts) []cfgSection {
-	return qemuHostDriveSections(&qemuHostDriveOpts{
+func qemuDriveConfig(opts *qemuDriveConfigOpts) []cfgSection {
+	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
 		// Devices use "qemu_" prefix indicating that this is a internally named device.
 		name:          "qemu_config",
@@ -651,8 +651,8 @@ type qemuDriveDirOpts struct {
 	readonly bool
 }
 
-func qemuDriveDirSections(opts *qemuDriveDirOpts) []cfgSection {
-	return qemuHostDriveSections(&qemuHostDriveOpts{
+func qemuDriveDir(opts *qemuDriveDirOpts) []cfgSection {
+	return qemuHostDrive(&qemuHostDriveOpts{
 		dev: opts.dev,
 		// Devices use "lxd_" prefix indicating that this is a user named device.
 		name:     fmt.Sprintf("lxd_%s", opts.devName),
@@ -673,7 +673,7 @@ type qemuPCIPhysicalOpts struct {
 	bootIndex   int
 }
 
-func qemuPCIPhysicalSections(opts *qemuPCIPhysicalOpts) []cfgSection {
+func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
 		pciName: "vfio-pci",
@@ -701,7 +701,7 @@ type qemuGPUDevPhysicalOpts struct {
 	vga         bool
 }
 
-func qemuGPUDevPhysicalSections(opts *qemuGPUDevPhysicalOpts) []cfgSection {
+func qemuGPUDevPhysical(opts *qemuGPUDevPhysicalOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev:     opts.dev,
 		pciName: "vfio-pci",
@@ -736,7 +736,7 @@ type qemuUSBOpts struct {
 	ports         int
 }
 
-func qemuUSBSections(opts *qemuUSBOpts) []cfgSection {
+func qemuUSB(opts *qemuUSBOpts) []cfgSection {
 	deviceOpts := qemuDevEntriesOpts{
 		dev: qemuDevOpts{
 			busName:       "pci",
@@ -781,7 +781,7 @@ type qemuTPMOpts struct {
 	path    string
 }
 
-func qemuTPMSections(opts *qemuTPMOpts) []cfgSection {
+func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 	chardev := fmt.Sprintf("qemu_tpm-chardev_%s", opts.devName)
 	tpmdev := fmt.Sprintf("qemu_tpm-tpmdev_%s", opts.devName)
 

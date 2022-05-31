@@ -124,7 +124,7 @@ func (a *qemuBus) allocate(multiFunctionGroup string) (string, string, bool) {
 				// First root port added on a bridge bus address needs multi-function enabled.
 				multifunction: p.bridgeFn == 0,
 			}
-			*a.cfg = append(*a.cfg, qemuPCIeSections(&pcieOpts)...)
+			*a.cfg = append(*a.cfg, qemuPCIe(&pcieOpts)...)
 			p.dev = portName
 			a.portNum++
 		}
