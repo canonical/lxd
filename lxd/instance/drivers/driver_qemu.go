@@ -3719,15 +3719,11 @@ func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.
 		}
 	}
 
-	tplFields := map[string]any{
-		"devName": devName,
-		"path":    socketPath,
+	tpmOpts := qemuTPMOpts{
+		devName: devName,
+		path:    socketPath,
 	}
-
-	err := qemuTPM.Execute(sb, tplFields)
-	if err != nil {
-		return err
-	}
+	qemuAppendSections(sb, qemuTPMSections(&tpmOpts)...)
 
 	return nil
 }
