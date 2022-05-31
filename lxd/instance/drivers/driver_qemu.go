@@ -2524,31 +2524,18 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			return "", nil, fmt.Errorf("Failed opening NVRAM file: %w", err)
 		}
 
-		err = qemuDriveFirmware.Execute(sb, map[string]any{
-			"architecture": d.architectureName,
-			"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
-			"nvramPath":    fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
-		})
-		if err != nil {
-			return "", nil, err
+		driveFirmwareOpts := qemuDriveFirmwareOpts{
+			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
+		qemuAppendSections(sb, qemuDriveFirmwareSections(&driveFirmwareOpts)...)
 	}
 
 	// QMP socket.
-	err = qemuControlSocket.Execute(sb, map[string]any{
-		"path": d.monitorPath(),
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	qemuAppendSections(sb, qemuControlSocketSections(&qemuControlSocketOpts{d.monitorPath()})...)
 
 	// Console output.
-	err = qemuConsole.Execute(sb, map[string]any{
-		"path": d.consolePath(),
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	qemuAppendSections(sb, qemuConsoleSections(&qemuConsoleOpts{d.consolePath()})...)
 
 	// Setup the bus allocator.
 	bus := qemuNewBus(busName, sb)
@@ -2836,19 +2823,19 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		cpus = "1"
 	}
 
-	ctx := map[string]any{
-		"architecture":        d.architectureName,
-		"qemuMemObjectFormat": qemuMemObjectFormat,
+	cpuOpts := qemuCPUOpts{
+		architecture:        d.architectureName,
+		qemuMemObjectFormat: qemuMemObjectFormat,
 	}
 
 	cpuCount, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
-		ctx["cpuCount"] = cpuCount
-		ctx["cpuSockets"] = 1
-		ctx["cpuCores"] = cpuCount
-		ctx["cpuThreads"] = 1
+		cpuOpts.cpuCount = cpuCount
+		cpuOpts.cpuSockets = 1
+		cpuOpts.cpuCores = cpuCount
+		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
 		// Expand to a set of CPU identifiers and get the pinning map.
@@ -2874,7 +2861,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		}
 
 		// Prepare the NUMA map.
-		numa := []map[string]uint64{}
+		numa := []qemuNumaEntry{}
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
 		for hostNode, entry := range numaNodes {
@@ -2882,11 +2869,11 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 
 			numaIDs = append(numaIDs, numaNode)
 			for _, vcpu := range entry {
-				numa = append(numa, map[string]uint64{
-					"node":   numaNode,
-					"socket": vcpuSocket[vcpu],
-					"core":   vcpuCore[vcpu],
-					"thread": vcpuThread[vcpu],
+				numa = append(numa, qemuNumaEntry{
+					node:   numaNode,
+					socket: vcpuSocket[vcpu],
+					core:   vcpuCore[vcpu],
+					thread: vcpuThread[vcpu],
 				})
 			}
 
@@ -2894,13 +2881,13 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		}
 
 		// Prepare context.
-		ctx["cpuCount"] = len(vcpus)
-		ctx["cpuSockets"] = nrSockets
-		ctx["cpuCores"] = nrCores
-		ctx["cpuThreads"] = nrThreads
-		ctx["cpuNumaNodes"] = numaIDs
-		ctx["cpuNumaMapping"] = numa
-		ctx["cpuNumaHostNodes"] = hostNodes
+		cpuOpts.cpuCount = len(vcpus)
+		cpuOpts.cpuSockets = nrSockets
+		cpuOpts.cpuCores = nrCores
+		cpuOpts.cpuThreads = nrThreads
+		cpuOpts.cpuNumaNodes = numaIDs
+		cpuOpts.cpuNumaMapping = numa
+		cpuOpts.cpuNumaHostNodes = hostNodes
 	}
 
 	// Configure memory limit.
@@ -2914,33 +2901,29 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		return -1, fmt.Errorf("limits.memory invalid: %w", err)
 	}
 
-	ctx["hugepages"] = ""
+	cpuOpts.hugepages = ""
 	if shared.IsTrue(d.expandedConfig["limits.memory.hugepages"]) {
 		hugetlb, err := util.HugepagesPath()
 		if err != nil {
 			return -1, err
 		}
 
-		ctx["hugepages"] = hugetlb
+		cpuOpts.hugepages = hugetlb
 	}
 
 	// Determine per-node memory limit.
 	memSizeMB := memSizeBytes / 1024 / 1024
 	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
 	memSizeMB = nodeMemory * int64(len(hostNodes))
-	ctx["memory"] = nodeMemory
+	cpuOpts.memory = nodeMemory
 
 	if sb != nil {
 		qemuAppendSections(sb, qemuMemorySections(&qemuMemoryOpts{memSizeMB})...)
-
-		err = qemuCPU.Execute(sb, ctx)
-		if err != nil {
-			return -1, err
-		}
+		qemuAppendSections(sb, qemuCPUSections(&cpuOpts)...)
 	}
 
 	// Configure the CPU limit.
-	return ctx["cpuCount"].(int), nil
+	return cpuOpts.cpuCount, nil
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
