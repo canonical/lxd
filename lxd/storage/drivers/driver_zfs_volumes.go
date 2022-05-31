@@ -1739,9 +1739,9 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					return false, fmt.Errorf("Failed locating zvol for deactivation: %w", err)
 				}
 
-				// We cannot wait longer than the operationlock.TimeoutSeconds to avoid continuing
+				// We cannot wait longer than the operationlock.TimeoutShutdown to avoid continuing
 				// the unmount process beyond the ongoing request.
-				waitDuration := time.Duration(operationlock.TimeoutSeconds * time.Second)
+				waitDuration := operationlock.TimeoutShutdown
 				waitUntil := time.Now().Add(waitDuration)
 				i := 0
 				for {
