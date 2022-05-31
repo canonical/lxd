@@ -594,7 +594,7 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
-func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profile db.Profile, project cluster.Project, usedByDevices []string) error) error {
+func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project cluster.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
@@ -602,9 +602,9 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 	}
 
 	projectMap := map[string]cluster.Project{}
-	var dbProfiles []db.Profile
+	var profiles []api.Profile
+	var profileIDs []int64
 	var profileProjects []*api.Project
-
 	// Retrieve required info from the database in single transaction for performance.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := cluster.GetProjects(ctx, tx.Tx(), cluster.ProjectFilter{})
@@ -617,9 +617,19 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 			projectMap[project.Name] = projects[i]
 		}
 
-		dbProfiles, err = tx.GetProfiles(db.ProfileFilter{})
+		dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles: %w", err)
+		}
+
+		for _, profile := range dbProfiles {
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return fmt.Errorf("Failed getting API Profile %q: %w", profile.Name, err)
+			}
+
+			profileIDs = append(profileIDs, int64(profile.ID))
+			profiles = append(profiles, *apiProfile)
 		}
 
 		profileProjects = make([]*api.Project, len(dbProfiles))
@@ -639,7 +649,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 	// Iterate all profiles, consider only those which belong to a project that has the same effective
 	// storage project as volume.
-	for i, profile := range dbProfiles {
+	for i, profile := range profiles {
 		profileStorageProject := project.StorageVolumeProjectFromRecord(profileProjects[i], volumeType)
 		if err != nil {
 			return err
@@ -656,22 +666,22 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
-		for _, dev := range profile.Devices {
-			if dev.Type != db.TypeDisk {
+		for name, dev := range profile.Devices {
+			if dev["type"] != cluster.TypeDisk.String() {
 				continue
 			}
 
-			if dev.Config["pool"] != poolName {
+			if dev["pool"] != poolName {
 				continue
 			}
 
-			if dev.Config["source"] == vol.Name {
-				usedByDevices = append(usedByDevices, dev.Name)
+			if dev["source"] == vol.Name {
+				usedByDevices = append(usedByDevices, name)
 			}
 		}
 
 		if len(usedByDevices) > 0 {
-			err = profileFunc(profile, projectMap[profileProjects[i].Name], usedByDevices)
+			err = profileFunc(profileIDs[i], profile, projectMap[profileProjects[i].Name], usedByDevices)
 			if err != nil {
 				return err
 			}
