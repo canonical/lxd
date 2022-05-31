@@ -149,15 +149,15 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instanceFileGet(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
-	reverter := revert.New()
-	defer reverter.Fail()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { _ = client.Close() })
+	revert.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)
@@ -189,11 +189,11 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		if err != nil {
 			return response.SmartError(err)
 		}
-		reverter.Add(func() { _ = file.Close() })
+		revert.Add(func() { _ = file.Close() })
 
 		// Setup cleanup logic.
-		cleanup := reverter.Clone()
-		reverter.Success()
+		cleanup := revert.Clone()
+		revert.Success()
 
 		// Make a file response struct.
 		files := make([]response.FileResponseEntry, 1)
@@ -310,15 +310,15 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instanceFileHead(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
-	reverter := revert.New()
-	defer reverter.Fail()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
 	if err != nil {
 		return response.InternalError(err)
 	}
-	reverter.Add(func() { _ = client.Close() })
+	revert.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
 	stat, err := client.Lstat(path)
