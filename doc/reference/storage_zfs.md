@@ -1,3 +1,7 @@
+---
+discourse: 1333
+---
+
 (storage-zfs)=
 # ZFS
 
@@ -108,9 +112,10 @@ LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with
 
 ```bash
 sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
-sudo zpool set autoexpand=on lxd
-sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
-sudo zpool set autoexpand=off lxd
+sudo zpool set autoexpand=on <POOL>
+sudo zpool status -vg <POOL> # note down the device ID
+sudo zpool online -e <POOL> <device_ID>
+sudo zpool set autoexpand=off <POOL>
 ```
 
 (NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
