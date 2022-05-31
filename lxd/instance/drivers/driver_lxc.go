@@ -5496,12 +5496,20 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Check for ongoing operations (that may involve shifting).
 	_ = operationlock.Get(d.Project(), d.Name()).Wait()
 
+	// Setup reverter.
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the listener.
 	_ = os.Remove(forkfilePath)
 	forkfileListener, err := net.ListenUnix("unix", forkfileAddr)
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() {
+		_ = forkfileListener.Close()
+		_ = os.Remove(forkfilePath)
+	})
 
 	// Spawn forkfile in a Go routine.
 	chReady := make(chan error)
@@ -5509,18 +5517,6 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Lock to avoid concurrent running forkfile.
 		runUnlock := locking.Lock(d.forkfileRunningLockName())
 		defer runUnlock()
-
-		// Setup reverter.
-		reverter := revert.New()
-		defer reverter.Fail()
-
-		// Always cleanup on failure.
-		// This isn't defered as we want those run immediately after
-		// forkfile exits and not after other defers are run.
-		reverter.Add(func() {
-			_ = forkfileListener.Close()
-			_ = os.Remove(forkfilePath)
-		})
 
 		// Mount the filesystem if needed.
 		if !d.IsRunning() {
@@ -5622,25 +5618,23 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 			return
 		}
 
-		// Indicate the process was spawned.
+		// Close the listener and delete the socket immediately after forkfile exits to avoid clients
+		// thinking a listener is available while other deferred calls are being processed.
+		defer func() {
+			_ = forkfileListener.Close()
+			_ = os.Remove(forkfilePath)
+			_ = os.Remove(pidFile)
+		}()
+
+		// Indicate the process was spawned without error.
 		close(chReady)
 
 		// Wait for completion.
 		err = forkfile.Wait()
 		if err != nil {
-			d.logger.Error("Failed to run SFTP server", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
 			return
 		}
-
-		// Close the listener and delete the socket to avoid clients
-		// thinking a listener is available while deferred calls are being
-		// processed.
-		_ = forkfileListener.Close()
-		_ = os.Remove(forkfilePath)
-		_ = os.Remove(pidFile)
-
-		// All done.
-		reverter.Success()
 	}()
 
 	// Wait for forkfile to have been spawned.
@@ -5655,6 +5649,8 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return nil, err
 	}
 
+	// All done.
+	revert.Success()
 	return forkfileConn, nil
 }
 
