@@ -2987,7 +2987,8 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Stop the storage for this container
-		_ = op.Reset()
+		waitTimeout := operationlock.TimeoutShutdown
+		_ = op.ResetTimeout(waitTimeout)
 		err = d.unmount()
 		if err != nil {
 			err = fmt.Errorf("Failed unmounting instance: %w", err)
