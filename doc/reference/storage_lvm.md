@@ -1,5 +1,5 @@
 (storage-lvm)=
-# LVM
+# LVM - `lvm`
 
  - Uses LVs for images, then LV snapshots for instances and instance snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
