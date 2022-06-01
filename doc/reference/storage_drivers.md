@@ -5,11 +5,11 @@
 :maxdepth: 1
 
 storage_dir
-storage_ceph
-storage_cephfs
 storage_btrfs
 storage_lvm
 storage_zfs
+storage_ceph
+storage_cephfs
 ```
 
 ## Feature comparison

@@ -12,11 +12,11 @@ Each storage pool uses a storage driver.
 The following storage drivers are supported:
 
 - {ref}`storage-dir`
-- {ref}`storage-ceph`
-- {ref}`storage-cephfs`
 - {ref}`storage-btrfs`
 - {ref}`storage-lvm`
 - {ref}`storage-zfs`
+- {ref}`storage-ceph`
+- {ref}`storage-cephfs`
 
 ### Data storage location
 
