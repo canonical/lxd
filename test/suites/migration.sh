@@ -335,8 +335,8 @@ migration() {
   lxc_remote storage volume set l1:"$remote_pool1" vol3 user.foo=postsnap1vol3
 
   # check snapshot volumes and snapshots are refreshed
-  # FIX ME: Have to skip these checks on ZFS due to optimized refresh bug (https://github.com/lxc/lxd/issues/10186).
-  # FIX ME: Due to a known issue (https://github.com/lxc/lxd/issues/10436) we are currently only diffing the
+  # FIXME: Have to skip these checks on ZFS due to optimized refresh bug (https://github.com/lxc/lxd/issues/10186).
+  # FIXME: Due to a known issue (https://github.com/lxc/lxd/issues/10436) we are currently only diffing the
   # snapshots by name, so infact existing snapshots of the same name won't be overwritten even if their config or
   # contents is different.
   if [ "$lxd2_backend" != "zfs" ]; then
