@@ -1,5 +1,5 @@
 (storage-ceph)=
-# Ceph
+# Ceph - `ceph`
 
 - Uses RBD images for images, then snapshots and clones to create instances
   and snapshots.
