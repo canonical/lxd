@@ -101,6 +101,8 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 		if err != nil {
 			logger.Error("Failed to update instance types", logger.Ctx{"err": err})
 		}
+
+		op.Wait(ctx)
 		logger.Infof("Done updating instance types")
 	}
 

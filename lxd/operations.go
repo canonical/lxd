@@ -1105,6 +1105,8 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to remove orphaned operations", logger.Ctx{"err": err})
 			return
 		}
+
+		op.Wait(ctx)
 	}
 
 	return f, task.Hourly()
