@@ -91,11 +91,11 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 
 	// Upgrade the connection to websocket
-	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = c.Close() }() // This ensures the go routine below is ended when this function ends.
+	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 	var excludeLocations []string
 	// Get the current local serverName and store it for the events.
@@ -146,7 +146,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 	}
 
-	listenerConnection := events.NewWebsocketListenerConnection(c)
+	listenerConnection := events.NewWebsocketListenerConnection(conn)
 
 	listener, err := d.events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
