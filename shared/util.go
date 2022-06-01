@@ -793,10 +793,12 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		if err != nil {
 			return []byte{}, err
 		}
-		reverter := revert.New()
-		defer reverter.Fail()
-		reverter.Add(func() { _ = f.Close() })
-		reverter.Add(func() { _ = os.Remove(f.Name()) })
+		revert := revert.New()
+		defer revert.Fail()
+		revert.Add(func() {
+			_ = f.Close()
+			_ = os.Remove(f.Name())
+		})
 
 		err = os.Chmod(f.Name(), 0600)
 		if err != nil {
@@ -819,8 +821,8 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
-		reverter.Success()
-		reverter.Add(func() { _ = os.Remove(path) })
+		revert.Success()
+		revert.Add(func() { _ = os.Remove(path) })
 	} else {
 		path = inPath
 	}

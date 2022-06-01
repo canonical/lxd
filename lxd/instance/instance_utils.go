@@ -975,8 +975,14 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
+	// Prevent concurrent create requests for same instance.
+	op, err := operationlock.Create(args.Project, args.Name, operationlock.ActionCreate, false, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	revert.Add(func() { op.Done(err) })
+
 	var dbInst db.Instance
-	var op *operationlock.InstanceOperation
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		node, err := tx.GetLocalNodeName()
@@ -1059,13 +1065,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		if dbInst.ID < 1 {
 			return fmt.Errorf("Unexpected instance database ID %d: %w", dbInst.ID, err)
 		}
-
-		op, err = operationlock.Create(dbInst.Project, dbInst.Name, "create", false, false)
-		if err != nil {
-			return err
-		}
-
-		revert.Add(func() { op.Done(err) })
 
 		return nil
 	})

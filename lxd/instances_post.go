@@ -314,8 +314,6 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			} else {
 				return response.InternalError(err)
 			}
-		} else if inst.IsRunning() {
-			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
 		}
 	}
 
@@ -338,8 +336,14 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 		}
-		defer instOp.Done(err)
+	} else {
+		instOp, err = inst.LockExclusive()
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed getting exclusive access to instance: %w", err))
+		}
 	}
+
+	defer instOp.Done(err)
 
 	var cert *x509.Certificate
 	if req.Source.Certificate != "" {
@@ -539,17 +543,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
 			return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, req.Name))
-		}
-	}
-
-	// Early check for refresh
-	if req.Source.Refresh {
-		// Check if the container exists
-		c, err := instance.LoadByProjectAndName(d.State(), targetProject, req.Name)
-		if err != nil {
-			req.Source.Refresh = false
-		} else if c.IsRunning() {
-			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
 		}
 	}
 
