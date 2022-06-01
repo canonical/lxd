@@ -881,14 +881,14 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 }
 
 type RunError struct {
-	msg    string
+	Msg    string
 	Err    error
 	Stdout string
 	Stderr string
 }
 
 func (e RunError) Error() string {
-	return e.msg
+	return e.Msg
 }
 
 // RunCommandSplit runs a command with a supplied environment and optional arguments and returns the
@@ -914,7 +914,7 @@ func RunCommandSplit(env []string, filesInherit []*os.File, name string, arg ...
 	err := cmd.Run()
 	if err != nil {
 		err := RunError{
-			msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(stderr.String())),
+			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(stderr.String())),
 			Stdout: stdout.String(),
 			Stderr: stderr.String(),
 			Err:    err,
@@ -966,7 +966,7 @@ func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...st
 	err := cmd.Run()
 	if err != nil {
 		err := RunError{
-			msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(buffer.String())),
+			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(buffer.String())),
 			Stderr: buffer.String(),
 			Err:    err,
 		}
