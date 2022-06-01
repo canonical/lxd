@@ -77,6 +77,7 @@ In a profile, the storage pool to use is defined by the pool for the root disk d
 
 In the default profile, this pool is set to the storage pool that was created during initialization.
 
+(storage-volumes)=
 ## Storage volumes
 
 When you create an instance, LXD automatically creates the required storage volumes for it.
@@ -106,6 +107,7 @@ Storage volumes can be of the following types:
 
   You must specify the storage pool for the custom volume when you create it.
 
+(storage-content-types)=
 ### Content types
 
 Each storage volume uses one of the following content types:
