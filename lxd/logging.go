@@ -32,12 +32,14 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Infof("Expiring log files")
+		logger.Info("Expiring log files")
 		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire logs", logger.Ctx{"err": err})
 		}
-		logger.Infof("Done expiring log files")
+
+		op.Wait(ctx)
+		logger.Info("Done expiring log files")
 	}
 
 	return f, task.Daily()
