@@ -140,12 +140,20 @@ migration() {
   lxc_remote list l2: | grep RUNNING | grep nonlive
   lxc_remote delete l2:nonlive --force
 
+  # Get container's pool.
+  pool=$(lxc config profile device get default root pool)
+  remote_pool=$(lxc_remote config profile device get l2:default root pool)
+
   # Test container only copies
   lxc init testimage cccp
+
+  lxc storage volume set "${pool}" container/cccp user.foo=snap0
   echo "before" | lxc file push - cccp/blah
   lxc snapshot cccp
+  lxc storage volume set "${pool}" container/cccp user.foo=snap1
   lxc snapshot cccp
   echo "after" | lxc file push - cccp/blah
+  lxc storage volume set "${pool}" container/cccp user.foo=postsnap1
 
   # Local container only copy.
   lxc copy cccp udssr --instance-only
@@ -157,6 +165,10 @@ migration() {
   lxc copy cccp udssr
   [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
   [ "$(lxc file pull udssr/blah -)" = "after" ]
+  lxc storage volume show "${pool}" container/udssr
+  lxc storage volume get "${pool}" container/udssr user.foo | grep -Fx "postsnap1"
+  lxc storage volume get "${pool}" container/udssr/snap0 user.foo | grep -Fx "snap0"
+  lxc storage volume get "${pool}" container/udssr/snap1 user.foo | grep -Fx "snap1"
   lxc delete udssr
 
   # Remote container only copy.
@@ -169,6 +181,10 @@ migration() {
   lxc_remote copy l1:cccp l2:udssr
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
   [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
+  lxc_remote storage volume show l2:"${remote_pool}" container/udssr
+  lxc_remote storage volume get l2:"${remote_pool}" container/udssr user.foo | grep -Fx "postsnap1"
+  lxc_remote storage volume get l2:"${remote_pool}" container/udssr/snap0 user.foo | grep -Fx "snap0"
+  lxc_remote storage volume get l2:"${remote_pool}" container/udssr/snap1 user.foo | grep -Fx "snap1"
   lxc_remote delete l2:udssr
 
   # Remote container only move.
