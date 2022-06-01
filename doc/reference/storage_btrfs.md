@@ -22,9 +22,10 @@
    it will affect all volumes on the pool.
 
 ## Storage pool configuration
-Key                             | Type      | Condition                         | Default                    | Description
-:--                             | :---      | :--------                         | :------                    | :----------
-btrfs.mount\_options            | string    | Btrfs driver                      | user\_subvol\_rm\_allowed  | Mount options for block devices
+Key                             | Type      | Default                    | Description
+:--                             | :---      | :------                    | :----------
+btrfs.mount\_options            | string    | user\_subvol\_rm\_allowed  | Mount options for block devices
+source                          | string    | -                          | Path to block device or loop file or filesystem entry
 
 ## Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
