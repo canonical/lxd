@@ -1,5 +1,5 @@
 (storage-dir)=
-# dir
+# Directory - `dir`
 
  - While this backend is fully functional, it's also much slower than
    all the others due to it having to unpack images or do instant copies of
