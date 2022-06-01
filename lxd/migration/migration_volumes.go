@@ -64,7 +64,7 @@ type VolumeTargetArgs struct {
 	IndexHeaderVersion uint32
 	Name               string
 	Description        string
-	Config             map[string]string
+	Config             map[string]string // Only used for custom volume migration.
 	Snapshots          []string
 	MigrationType      Type
 	TrackProgress      bool
