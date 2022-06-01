@@ -103,7 +103,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		op.Wait(ctx)
-		logger.Infof("Done updating instance types")
+		logger.Info("Done updating instance types")
 	}
 
 	return f, task.Daily()

@@ -2028,14 +2028,14 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		defer imageTaskMu.Unlock()
 		logger.Debug("Acquired image task lock")
 
-		logger.Infof("Pruning expired images")
+		logger.Info("Pruning expired images")
 		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire images", logger.Ctx{"err": err})
 		}
 
 		op.Wait(ctx)
-		logger.Infof("Done pruning expired images")
+		logger.Info("Done pruning expired images")
 	}
 
 	// Skip the first run, and instead run an initial pruning synchronously
@@ -2140,7 +2140,7 @@ func pruneLeftoverImages(d *Daemon) {
 	defer imageTaskMu.Unlock()
 	logger.Debug("Acquired image task lock")
 
-	logger.Infof("Pruning leftover image files")
+	logger.Info("Pruning leftover image files")
 	err = op.Start()
 	if err != nil {
 		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
@@ -3920,7 +3920,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		op.Wait(ctx)
-		logger.Infof("Done synchronizing images across the cluster")
+		logger.Info("Done synchronizing images across the cluster")
 	}
 
 	return f, task.Hourly()
