@@ -114,6 +114,10 @@ var imageAliasCmd = APIEndpoint{
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
 
+// imageTaskMu prevents image related tasks from being scheduled at the same time as each other to prevent them
+// stepping on each other's toes.
+var imageTaskMu sync.Mutex
+
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
@@ -1519,11 +1523,18 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
+		logger.Debug("Acquiring image task lock")
+		imageTaskMu.Lock()
+		defer imageTaskMu.Unlock()
+		logger.Debug("Acquired image task lock")
+
 		logger.Info("Updating images")
 		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to update images", logger.Ctx{"err": err})
 		}
+
+		op.Wait(ctx)
 		logger.Info("Done updating images")
 	}
 
@@ -2071,12 +2082,19 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Infof("Pruning expired images")
+		logger.Debug("Acquiring image task lock")
+		imageTaskMu.Lock()
+		defer imageTaskMu.Unlock()
+		logger.Debug("Acquired image task lock")
+
+		logger.Info("Pruning expired images")
 		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to expire images", logger.Ctx{"err": err})
 		}
-		logger.Infof("Done pruning expired images")
+
+		op.Wait(ctx)
+		logger.Info("Done pruning expired images")
 	}
 
 	// Skip the first run, and instead run an initial pruning synchronously
@@ -2176,12 +2194,19 @@ func pruneLeftoverImages(d *Daemon) {
 		return
 	}
 
-	logger.Infof("Pruning leftover image files")
+	logger.Debug("Acquiring image task lock")
+	imageTaskMu.Lock()
+	defer imageTaskMu.Unlock()
+	logger.Debug("Acquired image task lock")
+
+	logger.Info("Pruning leftover image files")
 	err = op.Start()
 	if err != nil {
 		logger.Error("Failed to prune leftover image files", logger.Ctx{"err": err})
 		return
 	}
+
+	op.Wait(d.shutdownCtx)
 	logger.Infof("Done pruning leftover image files")
 }
 
@@ -3944,14 +3969,20 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Infof("Synchronizing images across the cluster")
+		logger.Debug("Acquiring image task lock")
+		imageTaskMu.Lock()
+		defer imageTaskMu.Unlock()
+		logger.Debug("Acquired image task lock")
+
+		logger.Info("Synchronizing images across the cluster")
 		err = op.Start()
 		if err != nil {
 			logger.Error("Failed to synchronize images", logger.Ctx{"err": err})
 			return
 		}
 
-		logger.Infof("Done synchronizing images across the cluster")
+		op.Wait(ctx)
+		logger.Info("Done synchronizing images across the cluster")
 	}
 
 	return f, task.Hourly()
