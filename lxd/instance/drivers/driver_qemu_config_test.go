@@ -9,15 +9,18 @@ import (
 func TestQemuConfigTemplates(t *testing.T) {
 	indent := regexp.MustCompile(`(?m)^[ \t]+`)
 
-	stringifySections := func(sections ...cfgSection) string {
-		sb := &strings.Builder{}
-		qemuAppendSections(sb, sections...)
-
-		return sb.String()
-	}
-
 	normalize := func(s string) string {
 		return strings.TrimSpace(indent.ReplaceAllString(s, "$1"))
+	}
+
+	runTest := func(expected string, sections []cfgSection) {
+		t.Run(expected, func(t *testing.T) {
+			actual := normalize(qemuStringifyCfg(sections...).String())
+			expected = normalize(expected)
+			if actual != expected {
+				t.Errorf("Expected: %s. Got: %s", expected, actual)
+			}
+		})
 	}
 
 	t.Run("qemu_base", func(t *testing.T) {
@@ -83,14 +86,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}}
 
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuBaseSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuBase(&tc.opts))
 		}
 	})
 
@@ -110,14 +106,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			size = "8192M"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuMemorySections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuMemory(&tc.opts))
 		}
 	})
 
@@ -168,14 +157,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuSerialSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuSerial(&tc.opts))
 		}
 	})
 
@@ -202,14 +184,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuPCIeSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuPCIe(&tc.opts))
 		}
 	})
 
@@ -234,14 +209,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuSCSISections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuSCSI(&tc.opts))
 		}
 	})
 
@@ -266,14 +234,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuBalloonSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuBalloon(&tc.opts))
 		}
 	})
 
@@ -308,14 +269,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuRNGSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuRNG(&tc.opts))
 		}
 	})
 
@@ -342,14 +296,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuVsockSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuVsock(&tc.opts))
 		}
 	})
 
@@ -385,14 +332,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			driver = "virtio-gpu-ccw"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuGPUSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuGPU(&tc.opts))
 		}
 	})
 
@@ -428,14 +368,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			multifunction = "on"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuKeyboardSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuKeyboard(&tc.opts))
 		}
 	})
 
@@ -461,14 +394,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuTabletSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuTablet(&tc.opts))
 		}
 	})
 
@@ -733,14 +659,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			threads = "1"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuCPUSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuCPU(&tc.opts))
 		}
 	})
 
@@ -762,14 +681,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			mode = "control"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuControlSocketSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuControlSocket(&tc.opts))
 		}
 	})
 
@@ -787,14 +699,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			wait = "off"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuConsoleSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuConsole(&tc.opts))
 		}
 	})
 
@@ -820,14 +725,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			unit = "1"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuDriveFirmwareSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuDriveFirmware(&tc.opts))
 		}
 	})
 
@@ -914,14 +812,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			``,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuDriveConfigSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuDriveConfig(&tc.opts))
 		}
 	})
 
@@ -1016,14 +907,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			``,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuDriveDirSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuDriveDir(&tc.opts))
 		}
 	})
 
@@ -1060,14 +944,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			bootIndex = "2"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuPCIPhysicalSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuPCIPhysical(&tc.opts))
 		}
 	})
 
@@ -1115,14 +992,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			sysfsdev = "/sys/bus/mdev/devices/vgpu-dev"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuGPUDevPhysicalSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuGPUDevPhysical(&tc.opts))
 		}
 	})
 
@@ -1171,14 +1041,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			chardev = "qemu_spice-usb-chardev3"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuUSBSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuUSB(&tc.opts))
 		}
 	})
 
@@ -1204,14 +1067,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			tpmdev = "qemu_tpm-tpmdev_myTpm"`,
 		}}
 		for _, tc := range testCases {
-			t.Run(tc.expected, func(t *testing.T) {
-				sections := qemuTPMSections(&tc.opts)
-				actual := normalize(stringifySections(sections...))
-				expected := normalize(tc.expected)
-				if actual != expected {
-					t.Errorf("Expected: %s. Got: %s", expected, actual)
-				}
-			})
+			runTest(tc.expected, qemuTPM(&tc.opts))
 		}
 	})
 }
