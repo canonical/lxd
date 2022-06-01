@@ -503,6 +503,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 }
 
 // Wait for the operation to be done.
+// Returns true if operation completed or false if context was cancelled.
 func (op *Operation) Wait(ctx context.Context) (bool, error) {
 	select {
 	case <-op.finished.Done():
