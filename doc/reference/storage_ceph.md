@@ -40,6 +40,7 @@ ceph.rbd.clone\_copy          | bool                          | true            
 ceph.rbd.du                   | bool                          | true                                    | Whether to use rbd du to obtain disk usage data for stopped instances.
 ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
 ceph.user.name                | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
+source                        | string                        | -                                       | Existing OSD storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 ## Storage volume configuration
@@ -53,35 +54,3 @@ size                    | string    | appropriate driver        | same as volume
 snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
-
-## The following commands can be used to create Ceph storage pools
-
-- Create a osd storage pool named "pool1" in the Ceph cluster "ceph".
-
-```bash
-lxc storage create pool1 ceph
-```
-
-- Create a osd storage pool named "pool1" in the Ceph cluster "my-cluster".
-
-```bash
-lxc storage create pool1 ceph ceph.cluster_name=my-cluster
-```
-
-- Create a osd storage pool named "pool1" with the on-disk name "my-osd".
-
-```bash
-lxc storage create pool1 ceph ceph.osd.pool_name=my-osd
-```
-
-- Use the existing osd storage pool "my-already-existing-osd".
-
-```bash
-lxc storage create pool1 ceph source=my-already-existing-osd
-```
-
-- Use the existing osd erasure coded pool "ecpool" and osd replicated pool "rpl-pool".
-
-```bash
-lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
-```

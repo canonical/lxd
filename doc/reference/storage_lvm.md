@@ -43,35 +43,3 @@ size                    | string    | appropriate driver        | same as volume
 snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
-
-## The following commands can be used to create LVM storage pools
-
- - Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
-
-```bash
-lxc storage create pool1 lvm
-```
-
- - Use the existing LVM Volume Group called "my-pool"
-
-```bash
-lxc storage create pool1 lvm source=my-pool
-```
-
- - Use the existing LVM Thinpool called "my-pool" in Volume Group "my-vg".
-
-```bash
-lxc storage create pool1 lvm source=my-vg lvm.thinpool_name=my-pool
-```
-
- - Create a new pool named "pool1" on `/dev/sdX`. The LVM Volume Group will also be called "pool1".
-
-```bash
-lxc storage create pool1 lvm source=/dev/sdX
-```
-
- - Create a new pool called "pool1" using `/dev/sdX` with the LVM Volume Group called "my-pool".
-
-```bash
-lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
-```
