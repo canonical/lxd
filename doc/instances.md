@@ -232,6 +232,7 @@ guest scheduler can properly reason about sockets, cores and threads as
 well as consider NUMA topology when sharing memory or moving processes
 across NUMA nodes.
 
+(devices)=
 ## Devices configuration
 LXD will always provide the instance with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in instance or

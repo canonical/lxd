@@ -130,3 +130,28 @@ Use the sub-directory `my-directory` from the `my-filesystem` pool for `pool4`:
 
 ```
 ````
+
+## Create a storage pool in a cluster
+
+If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
+The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
+
+Therefore, you must first create a pending storage pool on each member with the `--target=<cluster_member>` flag and the appropriate configuration for the member.
+Make sure to use the same storage pool name for all members.
+Then create the storage pool without specifying the `--target` flag to actually set it up.
+
+For example, the following series of commands sets up a storage pool with the name `my-pool` at different locations and with different sizes on three cluster members:
+
+```bash
+lxc storage create my-pool zfs source=/dev/sdX size=10GB --target=vm01
+lxc storage create my-pool zfs source=/dev/sdX size=15GB --target=vm02
+lxc storage create my-pool zfs source=/dev/sdY size=10GB --target=vm03
+lxc storage create my-pool zfs
+```
+
+```{note}
+For most storage drivers, the storage pools exist locally on each cluster member.
+That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
+
+This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
+```
