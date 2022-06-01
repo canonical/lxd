@@ -3586,23 +3586,35 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
+	// Receive index header from source if applicable and respond confirming receipt.
+	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn)
+	if err != nil {
+		return err
+	}
+
+	var volumeConfig map[string]string
+
+	// Check if the volume exists in database
+	dbVol, err := VolumeDBGet(b, projectName, args.Name, drivers.VolumeTypeCustom)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
+	// Prefer using existing volume config (to allow mounting existing volume correctly).
+	if dbVol != nil {
+		volumeConfig = dbVol.Config
+	} else {
+		volumeConfig = args.Config
+	}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, args.Name)
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, args.Config)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
 
 	// Check if the volume exists on storage.
 	volExists := b.driver.HasVolume(vol)
-
-	// Check if the volume exists in database.
-	dbVol, err := VolumeDBGet(b, projectName, args.Name, drivers.VolumeTypeCustom)
-	if err != nil && !response.IsNotFoundError(err) {
-		return err
-	}
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
@@ -3632,11 +3644,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
-	// Receive index header from source if applicable and respond confirming receipt.
-	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn)
-	if err != nil {
-		return err
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
 	if !args.Refresh || !b.driver.HasVolume(vol) {
 		// Validate config and create database entry for new storage volume.
