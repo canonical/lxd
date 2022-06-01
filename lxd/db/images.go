@@ -455,6 +455,29 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
 func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
+	var image *api.Image
+	var id int
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		var err error
+		id, image, err = tx.GetImageByFingerprintPrefix(ctx, fingerprintPrefix, filter)
+
+		return err
+	})
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return id, image, nil
+}
+
+// GetImageByFingerprintPrefix gets an Image object from the database.
+//
+// The fingerprint argument will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint. However in case the
+// shortform matches more than one image, an error will be returned.
+// publicOnly, when true, will return the image only if it is public;
+// a false value will return any image matching the fingerprint prefix.
+func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
 	var image api.Image
 	var object Image
 	if fingerprintPrefix == "" {
@@ -465,55 +488,48 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 		return -1, nil, errors.New("No project specified for the image")
 	}
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		profileProject := *filter.Project
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, *filter.Project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
-		if !enabled {
-			project := "default"
-			filter.Project = &project
-		}
-
-		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
-		if err != nil {
-			return fmt.Errorf("Failed to fetch images: %w", err)
-		}
-
-		switch len(images) {
-		case 0:
-			return api.StatusErrorf(http.StatusNotFound, "Image not found")
-		case 1:
-			object = images[0]
-		default:
-			return fmt.Errorf("More than one image matches")
-		}
-
-		image.Fingerprint = object.Fingerprint
-		image.Filename = object.Filename
-		image.Size = object.Size
-		image.Cached = object.Cached
-		image.Public = object.Public
-		image.AutoUpdate = object.AutoUpdate
-
-		err = tx.imageFill(
-			object.ID, &image,
-			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
-			&object.UploadDate, object.Architecture, object.Type)
-		if err != nil {
-			return fmt.Errorf("Fill image details: %w", err)
-		}
-
-		err = tx.imageFillProfiles(object.ID, &image, profileProject)
-		if err != nil {
-			return fmt.Errorf("Fill image profiles: %w", err)
-		}
-
-		return nil
-	})
+	profileProject := *filter.Project
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, *filter.Project)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, fmt.Errorf("Check if project has images: %w", err)
+	}
+	if !enabled {
+		project := "default"
+		filter.Project = &project
+	}
+
+	images, err := c.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
+	}
+
+	switch len(images) {
+	case 0:
+		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Image not found")
+	case 1:
+		object = images[0]
+	default:
+		return -1, nil, fmt.Errorf("More than one image matches")
+	}
+
+	image.Fingerprint = object.Fingerprint
+	image.Filename = object.Filename
+	image.Size = object.Size
+	image.Cached = object.Cached
+	image.Public = object.Public
+	image.AutoUpdate = object.AutoUpdate
+
+	err = c.imageFill(
+		object.ID, &image,
+		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
+		&object.UploadDate, object.Architecture, object.Type)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image details: %w", err)
+	}
+
+	err = c.imageFillProfiles(object.ID, &image, profileProject)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image profiles: %w", err)
 	}
 
 	return object.ID, &image, nil
