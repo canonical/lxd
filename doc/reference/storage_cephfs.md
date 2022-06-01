@@ -1,5 +1,5 @@
 (storage-cephfs)=
-# CephFS
+# CephFS - `cephfs`
 
  - Can only be used for custom storage volumes
  - Supports snapshots if enabled on the server side
