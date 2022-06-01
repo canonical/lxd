@@ -44,13 +44,13 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
 	if r.Header.Get("Upgrade") == "websocket" {
 		// Upgrade the connection to websocket
-		c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = c.Close() }() // This ensures the go routine below is ended when this function ends.
+		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
-		listenerConnection = events.NewWebsocketListenerConnection(c)
+		listenerConnection = events.NewWebsocketListenerConnection(conn)
 	} else {
 		h, ok := w.(http.Hijacker)
 		if !ok {
@@ -61,6 +61,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection, err = events.NewStreamListenerConnection(conn)
 		if err != nil {

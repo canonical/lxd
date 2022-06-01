@@ -128,7 +128,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		if err != nil {
 			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 		}
-		defer func() { _ = conn.Close() }() // This ensures the go routine below is ended when this function ends.
+		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection = events.NewWebsocketListenerConnection(conn)
 
@@ -143,6 +143,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		if err != nil {
 			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 		}
+		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection, err = events.NewStreamListenerConnection(conn)
 		if err != nil {
