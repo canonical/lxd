@@ -1712,7 +1712,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
-		// For VMs, also mount the filesystem dataset.
+		// For VMs, also unmount the filesystem dataset.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
 			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
@@ -2051,15 +2051,15 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 }
 
 func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
-	reverter := revert.New()
-	defer reverter.Fail()
+	revert := revert.New()
+	defer revert.Fail()
 
 	poolPath := GetPoolMountPath(d.name)
 	tmpDir, err := ioutil.TempDir(poolPath, "backup.")
 	if err != nil {
 		return "", nil, err
 	}
-	reverter.Add(func() {
+	revert.Add(func() {
 		_ = os.RemoveAll(tmpDir)
 	})
 
@@ -2074,7 +2074,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	reverter.Add(func() {
+	revert.Add(func() {
 		_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
 	})
 	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
@@ -2089,7 +2089,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	}
 	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
 
-	reverter.Add(func() {
+	revert.Add(func() {
 		_, err := forceUnmount(tmpDir)
 		if err != nil {
 			return
@@ -2098,8 +2098,8 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
 	})
 
-	defer reverter.Success()
-	return tmpDir, reverter.Clone(), nil
+	defer revert.Success()
+	return tmpDir, revert.Clone(), nil
 }
 
 // BackupVolume creates an exported version of a volume.

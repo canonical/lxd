@@ -2716,8 +2716,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 	run := func(op *operations.Operation) error {
 		// Setup a reverter.
-		reverter := revert.New()
-		defer reverter.Fail()
+		revert := revert.New()
+		defer revert.Fail()
 
 		// Set node status to EVACUATED.
 		err := evacuateClusterSetState(d, nodeName, db.ClusterMemberStateEvacuated)
@@ -2726,7 +2726,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		}
 
 		// Ensure node is put into its previous state if anything fails.
-		reverter.Add(func() {
+		revert.Add(func() {
 			_ = evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
 		})
 
@@ -2859,7 +2859,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			}
 		}
 
-		reverter.Success()
+		revert.Success()
 		return nil
 	}
 
@@ -2923,8 +2923,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 	run := func(op *operations.Operation) error {
 		// Setup a reverter.
-		reverter := revert.New()
-		defer reverter.Fail()
+		revert := revert.New()
+		defer revert.Fail()
 
 		// Set node status to CREATED.
 		err := evacuateClusterSetState(d, originName, db.ClusterMemberStateCreated)
@@ -2933,7 +2933,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Ensure node is put into its previous state if anything fails.
-		reverter.Add(func() {
+		revert.Add(func() {
 			_ = evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
 		})
 
@@ -3087,7 +3087,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		reverter.Success()
+		revert.Success()
 		return nil
 	}
 

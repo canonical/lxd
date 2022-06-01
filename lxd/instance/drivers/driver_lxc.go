@@ -1301,7 +1301,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	err := unix.Statfs(path, buf)
 	if err != nil {
 		// Log error but fallback to shiftfs
-		d.logger.Error("Failed to statfs", logger.Ctx{"err": err})
+		d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
 		return mode
 	}
 
@@ -5499,8 +5499,12 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return forkfileConn, nil
 	}
 
-	// Check for ongoing operations (that may involve shifting).
+	// Check for ongoing operations (that may involve shifting or replacing the root volume).
 	_ = operationlock.Get(d.Project(), d.Name()).Wait()
+
+	// Setup reverter.
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Create the listener.
 	_ = os.Remove(forkfilePath)
@@ -5508,6 +5512,10 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(func() {
+		_ = forkfileListener.Close()
+		_ = os.Remove(forkfilePath)
+	})
 
 	// Spawn forkfile in a Go routine.
 	chReady := make(chan error)
@@ -5515,18 +5523,6 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Lock to avoid concurrent running forkfile.
 		runUnlock := locking.Lock(d.forkfileRunningLockName())
 		defer runUnlock()
-
-		// Setup reverter.
-		reverter := revert.New()
-		defer reverter.Fail()
-
-		// Always cleanup on failure.
-		// This isn't defered as we want those run immediately after
-		// forkfile exits and not after other defers are run.
-		reverter.Add(func() {
-			_ = forkfileListener.Close()
-			_ = os.Remove(forkfilePath)
-		})
 
 		// Mount the filesystem if needed.
 		if !d.IsRunning() {
@@ -5628,25 +5624,23 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 			return
 		}
 
-		// Indicate the process was spawned.
+		// Close the listener and delete the socket immediately after forkfile exits to avoid clients
+		// thinking a listener is available while other deferred calls are being processed.
+		defer func() {
+			_ = forkfileListener.Close()
+			_ = os.Remove(forkfilePath)
+			_ = os.Remove(pidFile)
+		}()
+
+		// Indicate the process was spawned without error.
 		close(chReady)
 
 		// Wait for completion.
 		err = forkfile.Wait()
 		if err != nil {
-			d.logger.Error("Failed to run SFTP server", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
 			return
 		}
-
-		// Close the listener and delete the socket to avoid clients
-		// thinking a listener is available while deferred calls are being
-		// processed.
-		_ = forkfileListener.Close()
-		_ = os.Remove(forkfilePath)
-		_ = os.Remove(pidFile)
-
-		// All done.
-		reverter.Success()
 	}()
 
 	// Wait for forkfile to have been spawned.
@@ -5661,6 +5655,8 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return nil, err
 	}
 
+	// All done.
+	revert.Success()
 	return forkfileConn, nil
 }
 
@@ -5690,11 +5686,9 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 
 // stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
 func (d *lxc) stopForkfile() {
-	// Make sure that when the function exits, no forkfile is running.
-	defer func() {
-		unlock := locking.Lock(d.forkfileRunningLockName())
-		defer unlock()
-	}()
+	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
+	// that forkfile isn't running and holding the lock) and then releasing it.
+	defer func() { locking.Lock(d.forkfileRunningLockName())() }()
 
 	// Try to send SIGINT to forkfile to speed up shutdown.
 	content, err := ioutil.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
@@ -5707,6 +5701,7 @@ func (d *lxc) stopForkfile() {
 		return
 	}
 
+	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
 	_ = unix.Kill(int(pid), unix.SIGINT)
 	return
 }
@@ -6740,6 +6735,29 @@ func (d *lxc) IsRunning() bool {
 // CanMigrate returns whether the instance can be migrated.
 func (d *lxc) CanMigrate() (bool, bool) {
 	return d.canMigrate(d)
+}
+
+// LockExclusive attempts to get exlusive access to the instance's root volume.
+func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
+	if d.IsRunning() {
+		return nil, fmt.Errorf("Instance is running")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Prevent concurrent operations the instance.
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionCreate, false, false)
+	if err != nil {
+		return nil, err
+	}
+	revert.Add(func() { op.Done(err) })
+
+	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
+	d.stopForkfile()
+
+	revert.Success()
+	return op, err
 }
 
 // InitPID returns PID of init process.

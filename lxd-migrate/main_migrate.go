@@ -558,8 +558,8 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 	config.InstanceArgs.Architecture = architectureName
 
-	reverter := revert.New()
-	defer reverter.Fail()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Create the instance
 	op, err := server.CreateInstance(config.InstanceArgs)
@@ -567,7 +567,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	reverter.Add(func() {
+	revert.Add(func() {
 		_, _ = server.DeleteInstance(config.InstanceArgs.Name)
 	})
 
@@ -584,7 +584,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress.Done(fmt.Sprintf("Instance %s successfully created", config.InstanceArgs.Name))
-	reverter.Success()
+	revert.Success()
 
 	return nil
 }
