@@ -1734,7 +1734,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	if args.Config != nil {
-		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set")
+		return fmt.Errorf("Migration VolumeTargetArgs.Config cannot be set for instances")
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
