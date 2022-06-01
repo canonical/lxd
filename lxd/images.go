@@ -114,6 +114,10 @@ var imageAliasCmd = APIEndpoint{
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
 
+// imageTaskMu prevents image related tasks from being scheduled at the same time as each other to prevent them
+// stepping on each other's toes.
+var imageTaskMu sync.Mutex
+
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 	var cmd *exec.Cmd
@@ -1519,6 +1523,11 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
+		logger.Debug("Acquiring image task lock")
+		imageTaskMu.Lock()
+		defer imageTaskMu.Unlock()
+		logger.Debug("Acquired image task lock")
+
 		logger.Info("Updating images")
 		err = op.Start()
 		if err != nil {
@@ -2184,6 +2193,11 @@ func pruneLeftoverImages(d *Daemon) {
 		logger.Error("Failed to start image leftover cleanup operation", logger.Ctx{"err": err})
 		return
 	}
+
+	logger.Debug("Acquiring image task lock")
+	imageTaskMu.Lock()
+	defer imageTaskMu.Unlock()
+	logger.Debug("Acquired image task lock")
 
 	logger.Infof("Pruning leftover image files")
 	err = op.Start()
