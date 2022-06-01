@@ -3,7 +3,7 @@ discourse: 1333
 ---
 
 (storage-zfs)=
-# ZFS
+# ZFS - `zfs`
 
  - When LXD creates a ZFS pool, compression is enabled by default.
  - Uses ZFS filesystems for images, then snapshots and clones to create instances and snapshots.
