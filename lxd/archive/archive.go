@@ -2,6 +2,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -19,6 +20,14 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 )
+
+type nullWriteCloser struct {
+	*bytes.Buffer
+}
+
+func (nwc *nullWriteCloser) Close() error {
+	return nil
+}
 
 // ExtractWithFds runs extractor process under specifc AppArmor profile.
 // The allowedCmds argument specify commands which are allowed to run by apparmor.
@@ -43,7 +52,8 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 	defer func() { _ = apparmor.ArchiveDelete(sysOS, outputPath) }()
 	defer func() { _ = apparmor.ArchiveUnload(sysOS, outputPath) }()
 
-	p, err := subprocess.NewProcessWithFds(cmd, args, stdin, output, nil)
+	var buffer bytes.Buffer
+	p, err := subprocess.NewProcessWithFds(cmd, args, stdin, output, &nullWriteCloser{&buffer})
 	if err != nil {
 		return fmt.Errorf("Failed to start extract: Failed to creating subprocess: %w", err)
 	}
@@ -56,7 +66,15 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 	}
 
 	_, err = p.Wait(context.Background())
-	return err
+	if err != nil {
+		return shared.RunError{
+			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", cmd, strings.Join(args, " "), strings.TrimSpace(buffer.String())),
+			Stderr: buffer.String(),
+			Err:    err,
+		}
+	}
+
+	return nil
 }
 
 // CompressedTarReader returns a tar reader from the supplied (optionally compressed) tarball stream.
