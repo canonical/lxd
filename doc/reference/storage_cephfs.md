@@ -10,6 +10,7 @@ Key                           | Type                          | Default         
 cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
 cephfs.path                   | string                        | /                                       | The base path for the CephFS mount
 cephfs.user.name              | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
+source                        | string                        | -                                       | Existing storage pool or path in storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 ## Storage volume configuration

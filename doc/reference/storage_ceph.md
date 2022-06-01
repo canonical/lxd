@@ -40,6 +40,7 @@ ceph.rbd.clone\_copy          | bool                          | true            
 ceph.rbd.du                   | bool                          | true                                    | Whether to use rbd du to obtain disk usage data for stopped instances.
 ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
 ceph.user.name                | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
+source                        | string                        | -                                       | Existing OSD storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 ## Storage volume configuration
