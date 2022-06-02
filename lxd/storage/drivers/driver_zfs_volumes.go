@@ -2097,7 +2097,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
 	})
 
-	defer revert.Success()
+	revert.Success()
 	return tmpDir, revert.Clone(), nil
 }
 
