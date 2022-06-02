@@ -758,10 +758,11 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	instDBArgs := backup.ConfigToInstanceDBArgs(backupConf, projectName)
 
-	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, revert)
+	_, instOp, cleanup, err := instance.CreateInternal(d.State(), *instDBArgs, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
+	revert.Add(cleanup)
 	defer instOp.Done(err)
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, false)
@@ -836,7 +837,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		internalImportRootDevicePopulate(instancePoolName, snap.Devices, snap.ExpandedDevices, profiles)
 
-		_, snapInstOp, err := instance.CreateInternal(d.State(), db.InstanceArgs{
+		_, snapInstOp, cleanup, err := instance.CreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
@@ -850,10 +851,11 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			Name:         snapInstName,
 			Profiles:     snap.Profiles,
 			Stateful:     snap.Stateful,
-		}, true, revert)
+		}, true)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 		}
+		revert.Add(cleanup)
 		defer snapInstOp.Done(err)
 
 		// Recreate missing mountpoints and symlinks.
