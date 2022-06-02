@@ -55,7 +55,7 @@ type RunConfig struct {
 	USBDevice        []USBDeviceItem  // USB device configuration settings.
 	TPMDevice        []RunConfigItem  // TPM device configuration settings.
 	PCIDevice        []RunConfigItem  // PCI device configuration settings.
-	Revert           *revert.Reverter // Revert setup of device on post-setup error.
+	Revert           revert.Hook      // Revert setup of device on post-setup error.
 }
 
 // NICConfigDir shared constant used to indicate where NIC config is stored.

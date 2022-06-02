@@ -1160,7 +1160,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if runConf.Revert != nil {
-			revert.Add(runConf.Revert.Fail)
+			revert.Add(runConf.Revert)
 		}
 
 		// Add post-start hooks
