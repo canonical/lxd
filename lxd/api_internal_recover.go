@@ -491,10 +491,11 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 		return nil, fmt.Errorf("Invalid instance type")
 	}
 
-	inst, instOp, err := instance.CreateInternal(s, *dbInst, false, revert)
+	inst, instOp, cleanup, err := instance.CreateInternal(s, *dbInst, false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+	revert.Add(cleanup)
 	defer instOp.Done(err)
 
 	return inst, err
@@ -527,7 +528,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		return err
 	}
 
-	_, snapInstOp, err := instance.CreateInternal(s, db.InstanceArgs{
+	_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    snap.Config["volatile.base_image"],
@@ -541,10 +542,11 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Name:         poolVol.Container.Name + shared.SnapshotDelimiter + snap.Name,
 		Profiles:     snap.Profiles,
 		Stateful:     snap.Stateful,
-	}, false, revert)
+	}, false)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 	}
+	revert.Add(cleanup)
 	defer snapInstOp.Done(err)
 
 	return nil
