@@ -45,9 +45,8 @@ var ValidDevices func(state *state.State, projectName string, instanceType insta
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
-// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
-// revert's Fail() or Success() function as needed.
-var Create func(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error)
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+var Create func(s *state.State, args db.InstanceArgs) (Instance, revert.Hook, error)
 
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
