@@ -501,9 +501,9 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, fmt.Errorf("Failed to save virtiofsd state: %w", err)
 	}
 
-	revertExternal := revert.Clone()
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return revertExternal.Fail, listener, err
+	return cleanup, listener, err
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.

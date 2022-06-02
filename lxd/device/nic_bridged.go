@@ -957,9 +957,9 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hoo
 		revert.Add(func() { d.removeFilters(d.config) })
 	}
 
-	revertExternal := revert.Clone()
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return revertExternal.Fail, nil
+	return cleanup, nil
 }
 
 // removeFilters removes any network level filters defined for the instance.
