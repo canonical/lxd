@@ -922,6 +922,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 }
 
 // setupHostFilters applies any host side network filters.
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
 func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
