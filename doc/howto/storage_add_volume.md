@@ -1,11 +1,11 @@
 (storage-add-volume)=
 # How to add a storage volume
 
-When you launch an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
+When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
 
 You can add custom storage volumes to your instances.
 Such custom storage volumes are independent of the instance, which means that they can be backed up separately and are retained until you delete them.
-You can also share custom storage volumes between different instances.
+Custom storage volumes with content type `filesystem` can also be shared between different instances.
 
 See {ref}`storage-volumes` for detailed information.
 
