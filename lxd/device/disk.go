@@ -1206,9 +1206,9 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 		}
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, srcPath, err
+	return cleanup, srcPath, err
 }
 
 // createDevice creates a disk device mount on host.
@@ -1340,9 +1340,9 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 	revert.Add(func() { _ = DiskMountClear(devPath) })
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, devPath, isFile, err
+	return cleanup, devPath, isFile, err
 }
 
 // localSourceOpen opens a local disk source path and returns a file handle to it.

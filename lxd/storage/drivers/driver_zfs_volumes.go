@@ -479,10 +479,9 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
-
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return postHook, revertExternal.Fail, nil
+	return postHook, cleanup, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.

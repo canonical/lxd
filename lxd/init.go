@@ -402,9 +402,9 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, nil
+	return cleanup, nil
 }
 
 // Helper to initialize LXD clustering.

@@ -868,7 +868,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 		return nil, nil, err
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
 
 	var postHook VolumePostHook
@@ -892,7 +892,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 		}
 	}
 
-	return postHook, revertExternal.Fail, nil
+	return postHook, cleanup, nil
 }
 
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
