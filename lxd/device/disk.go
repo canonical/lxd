@@ -656,9 +656,7 @@ func (d *disk) detectVMPoolMountOpts() []string {
 
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
-	runConf := deviceConfig.RunConfig{
-		Revert: revert.New(),
-	}
+	runConf := deviceConfig.RunConfig{}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -694,7 +692,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 		revert.Add(func() { _ = f.Close() })
 		runConf.PostHooks = append(runConf.PostHooks, f.Close)
-		runConf.Revert.Add(func() { _ = f.Close() }) // Close file on VM start failure.
+		runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
 
 		// Encode the file descriptor and original isoPath into the DevPath field.
 		runConf.Mounts = []deviceConfig.MountEntryItem{
@@ -868,7 +866,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}
 				revert.Add(func() { _ = f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
-				runConf.Revert.Add(func() { _ = f.Close() }) // Close file on VM start failure.
+				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
 
 				// Encode the file descriptor and original srcPath into the DevPath field.
 				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), mount.DevPath)
