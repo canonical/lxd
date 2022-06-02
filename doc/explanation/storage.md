@@ -116,10 +116,11 @@ Each storage volume uses one of the following content types:
 : This content type is used for containers and container images.
   It is the default content type for custom storage volumes.
 
-  Custom storage volumes of content type `filesystem` can be attached to both containers and virtual machines.
+  Custom storage volumes of content type `filesystem` can be attached to both containers and virtual machines, and they can be shared between instances.
 
 `block`
 : This content type is used for virtual machines and virtual machine images.
   You can create a custom storage volume of type `block` by using the `--type=block` flag.
 
   Custom storage volumes of content type `block` can only be attached to virtual machines.
+  They should not be shared between instances, because simultaneous access can lead to data corruption.
