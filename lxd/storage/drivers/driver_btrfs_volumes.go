@@ -1147,7 +1147,9 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 	return genericVFSRenameVolume(d, vol, newVolName, op)
 }
 
-func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
+// readonlySnapshot creates a readonly snapshot.
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -1185,8 +1187,9 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 
 	d.logger.Debug("Created read-only backup snapshot", logger.Ctx{"sourcePath": sourcePath, "path": mountPath})
 
+	cleanup := revert.Clone().Fail
 	defer revert.Success()
-	return mountPath, revert.Clone(), nil
+	return mountPath, cleanup, nil
 }
 
 // MigrateVolume sends a volume for migration.
@@ -1195,13 +1198,13 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// If volume is filesystem type and is not already a snapshot, create a fast snapshot to ensure migration is consistent.
 		if vol.contentType == ContentTypeFS && !vol.IsSnapshot() {
-			snapshotPath, reverter, err := d.readonlySnapshot(vol)
+			snapshotPath, cleanup, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
 			}
 
 			// Clean up the snapshot.
-			defer reverter.Fail()
+			defer cleanup()
 
 			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
 			vol.mountCustomPath = snapshotPath
@@ -1421,13 +1424,13 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		// as they are copied to the tarball, as BTRFS allows us to take a quick snapshot without impacting
 		// the parent volume we do so here to ensure the backup taken is consistent.
 		if vol.contentType == ContentTypeFS {
-			snapshotPath, reverter, err := d.readonlySnapshot(vol)
+			snapshotPath, cleanup, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
 			}
 
 			// Clean up the snapshot.
-			defer reverter.Fail()
+			defer cleanup()
 
 			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
 			vol.mountCustomPath = snapshotPath
