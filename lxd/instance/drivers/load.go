@@ -109,14 +109,14 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	return nil
 }
 
-func create(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
+func create(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
 	if args.Type == instancetype.Container {
-		return lxcCreate(s, args, revert)
+		return lxcCreate(s, args)
 	} else if args.Type == instancetype.VM {
-		return qemuCreate(s, args, revert)
+		return qemuCreate(s, args)
 	}
 
-	return nil, fmt.Errorf("Instance type invalid")
+	return nil, nil, fmt.Errorf("Instance type invalid")
 }
 
 // DriverStatuses returns a map of DriverStatus structs for all instance type drivers.
