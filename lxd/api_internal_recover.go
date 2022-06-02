@@ -423,10 +423,11 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					}
 				}
 
-				inst, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles, revert)
+				inst, cleanup, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed creating instance %q record in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
+				revert.Add(cleanup)
 
 				// Recover instance volume snapshots.
 				for _, poolInstSnap := range poolVol.Snapshots {
@@ -439,10 +440,11 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 						}
 					}
 
-					err = internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles, revert)
+					cleanup, err := internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles)
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed creating instance %q snapshot %q record in project %q: %w", poolVol.Container.Name, poolInstSnap.Name, projectName, err))
 					}
+					revert.Add(cleanup)
 				}
 
 				// Recreate instance mount path and symlinks (must come after snapshot recovery).
@@ -469,9 +471,10 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 }
 
 // internalRecoverImportInstance recreates the database records for an instance and returns the new instance.
-func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile, revert *revert.Reverter) (instance.Instance, error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, profiles []api.Profile) (instance.Instance, revert.Hook, error) {
 	if poolVol.Container == nil {
-		return nil, fmt.Errorf("Pool volume is not an instance volume")
+		return nil, nil, fmt.Errorf("Pool volume is not an instance volume")
 	}
 
 	// Add root device if needed.
@@ -488,23 +491,22 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 	dbInst := backup.ConfigToInstanceDBArgs(poolVol, projectName)
 
 	if dbInst.Type < 0 {
-		return nil, fmt.Errorf("Invalid instance type")
+		return nil, nil, fmt.Errorf("Invalid instance type")
 	}
 
 	inst, instOp, cleanup, err := instance.CreateInternal(s, *dbInst, false)
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating instance record: %w", err)
+		return nil, nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
-	revert.Add(cleanup)
 	defer instOp.Done(err)
 
-	return inst, err
+	return inst, cleanup, err
 }
 
 // internalRecoverImportInstance recreates the database records for an instance snapshot.
-func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile, revert *revert.Reverter) error {
+func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Pool, projectName string, poolVol *backupConfig.Config, snap *api.InstanceSnapshot, profiles []api.Profile) (revert.Hook, error) {
 	if poolVol.Container == nil || snap == nil {
-		return fmt.Errorf("Pool volume is not an instance volume")
+		return nil, fmt.Errorf("Pool volume is not an instance volume")
 	}
 
 	// Add root device if needed.
@@ -520,12 +522,12 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 
 	arch, err := osarch.ArchitectureId(snap.Architecture)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	instanceType, err := instancetype.New(poolVol.Container.Type)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
@@ -544,12 +546,11 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Stateful:     snap.Stateful,
 	}, false)
 	if err != nil {
-		return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
+		return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 	}
-	revert.Add(cleanup)
 	defer snapInstOp.Done(err)
 
-	return nil
+	return cleanup, err
 }
 
 // internalRecoverValidate validates the requested pools to be recovered.
