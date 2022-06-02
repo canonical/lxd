@@ -275,7 +275,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 // genericVFSCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Check migration transport type matches volume type.
 	if vol.contentType == ContentTypeBlock {
 		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
@@ -897,7 +897,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 // genericVFSCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, allowInconsistent bool, op *operations.Operation) error {
+func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, allowInconsistent bool, op *operations.Operation) error {
 	if vol.contentType != srcVol.contentType {
 		return fmt.Errorf("Content type of source and target must be the same")
 	}
