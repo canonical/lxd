@@ -649,11 +649,11 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		// apply those rules to each network affected by the ACL, so pass the full list of OVN networks
 		// affected by this ACL (either because the ACL is assigned directly or because it is assigned to
 		// an OVN NIC in an instance or profile).
-		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
+		cleanup, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
-		revert.Add(r.Fail)
+		revert.Add(cleanup)
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
 		// an ACL port group is now considered unused.
