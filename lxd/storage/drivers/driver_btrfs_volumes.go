@@ -1188,7 +1188,7 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	d.logger.Debug("Created read-only backup snapshot", logger.Ctx{"sourcePath": sourcePath, "path": mountPath})
 
 	cleanup := revert.Clone().Fail
-	defer revert.Success()
+	revert.Success()
 	return mountPath, cleanup, nil
 }
 
