@@ -550,10 +550,11 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	}
 
 	// Create the snapshot.
-	snap, snapInstOp, err := instance.CreateInternal(d.state, args, true, revert)
+	snap, snapInstOp, cleanup, err := instance.CreateInternal(d.state, args, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", name, err)
 	}
+	revert.Add(cleanup)
 	defer snapInstOp.Done(err)
 
 	pool, err := storagePools.LoadByInstance(d.state, snap)
