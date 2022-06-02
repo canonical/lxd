@@ -146,9 +146,11 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 }
 
 // lxcCreate creates the DB storage records and sets up instance devices.
-// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
-// revert's Fail() or Success() function as needed.
-func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the container struct
 	d := &lxc{
 		common: common{
@@ -192,38 +194,38 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	// Load the config.
 	err := d.init()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to expand config: %w", err)
+		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
 	// Validate expanded config (allows mixed instance types for profiles).
 	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid config: %w", err)
+		return nil, nil, fmt.Errorf("Invalid config: %w", err)
 	}
 
 	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid devices: %w", err)
+		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 	}
 
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if rootDiskDevice["pool"] == "" {
-		return nil, fmt.Errorf("The container's root device is missing the pool property")
+		return nil, nil, fmt.Errorf("The container's root device is missing the pool property")
 	}
 
 	// Initialize the storage pool.
 	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
+		return nil, nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
 
 	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	storagePoolSupported := false
@@ -235,7 +237,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	}
 
 	if !storagePoolSupported {
-		return nil, fmt.Errorf("Storage pool does not support instance type")
+		return nil, nil, fmt.Errorf("Storage pool does not support instance type")
 	}
 
 	// Setup initial idmap config
@@ -252,7 +254,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -260,7 +262,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	if idmap != nil {
 		idmapBytes, err := json.Marshal(idmap.Idmap)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		jsonIdmap = string(idmapBytes)
 	} else {
@@ -282,13 +284,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 
 	err = d.VolatileSet(v)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Re-run init to update the idmap.
 	err = d.init()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if !d.IsSnapshot() {
@@ -300,12 +302,12 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 					continue
 				}
 
-				return nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+				return nil, nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
 			}
 
 			err = d.deviceAdd(dev, false)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+				return nil, nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
 			revert.Add(func() { _ = d.deviceRemove(dev, false) })
@@ -314,7 +316,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 		// Update MAAS (must run after the MAC addresses have been generated).
 		err = d.maasUpdate(d, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		revert.Add(func() { _ = d.maasDelete(d) })
@@ -327,7 +329,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, nil))
 	}
 
-	return d, nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return d, cleanup, err
 }
 
 func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
