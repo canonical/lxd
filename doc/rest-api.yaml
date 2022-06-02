@@ -6641,6 +6641,10 @@ paths:
         in: query
         name: type
         type: string
+      - description: Retrieve instances from all projects
+        in: query
+        name: all-projects
+        type: boolean
       produces:
       - application/json
       responses:
