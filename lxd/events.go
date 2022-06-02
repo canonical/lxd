@@ -178,6 +178,10 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 //     description: Event type(s), comma separated (valid types are logging, operation or lifecycle)
 //     type: string
 //     example: logging,lifecycle
+//   - in: query
+//     name: all-projects
+//     description: Retrieve instances from all projects
+//     type: boolean
 // responses:
 //   "200":
 //     description: Websocket message (JSON)
