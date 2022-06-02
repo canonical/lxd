@@ -844,11 +844,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
 				// socket FD number so must come after starting virtiofsd).
 				err = func() error {
-					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
+					sockFile, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
 					if err != nil {
 						return err
 					}
-					revert.Add(revertFunc)
+					revert.Add(cleanup)
 
 					// Request the unix socket is closed after QEMU has connected on startup.
 					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
