@@ -361,10 +361,11 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
-	err = d.setupHostNIC(revert, saveData["host_name"], uplink)
+	cleanup, err := d.setupHostNIC(saveData["host_name"], uplink)
 	if err != nil {
 		return nil, err
 	}
+	revert.Add(cleanup)
 
 	err = d.volatileSet(saveData)
 	if err != nil {
@@ -751,18 +752,21 @@ func (d *nicOVN) Register() error {
 	return nil
 }
 
-func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *api.Network) error {
+func (d *nicOVN) setupHostNIC(hostName string, uplink *api.Network) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address and
 	// accepting router advertisements) as not needed because the host-side interface is connected to a bridge.
 	err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", hostName), "1")
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return nil, err
 	}
 
 	// Attempt to disable IPv4 forwarding.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/forwarding", hostName), "0")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Add new OVN logical switch port for instance.
@@ -774,7 +778,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 		UplinkConfig: uplink.Config,
 	}, nil)
 	if err != nil {
-		return fmt.Errorf("Failed setting up OVN port: %w", err)
+		return nil, fmt.Errorf("Failed setting up OVN port: %w", err)
 	}
 
 	revert.Add(func() {
@@ -788,13 +792,13 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 	// Attach host side veth interface to bridge.
 	integrationBridge, err := d.getIntegrationBridgeName()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ovs := openvswitch.NewOVS()
 	err = ovs.BridgePortAdd(integrationBridge, hostName, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	revert.Add(func() { _ = ovs.BridgePortDelete(integrationBridge, hostName) })
@@ -802,15 +806,17 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 	// Link OVS port to OVN logical port.
 	err = ovs.InterfaceAssociateOVNSwitchPort(hostName, logicalPortName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Make sure the port is up.
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return fmt.Errorf("Failed to bring up the host interface %s: %w", hostName, err)
+		return nil, fmt.Errorf("Failed to bring up the host interface %s: %w", hostName, err)
 	}
 
-	return nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, err
 }
