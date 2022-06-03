@@ -1384,7 +1384,11 @@ func (d *qemu) Start(stateful bool) error {
 	// Run the qemu command via forklimits so we can selectively increase ulimits.
 	forkLimitsCmd := []string{
 		"forklimits",
-		"limit=memlock:unlimited:unlimited", // Required for PCI passthrough.
+	}
+
+	if !d.state.OS.RunningInUserNS {
+		// Required for PCI passthrough.
+		forkLimitsCmd = append(forkLimitsCmd, "limit=memlock:unlimited:unlimited")
 	}
 
 	for i := range fdFiles {
