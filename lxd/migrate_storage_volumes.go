@@ -134,6 +134,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	// Only send the snapshots that the target requests when refreshing.
 	if respHeader.GetRefresh() {
+		volSourceArgs.Refresh = true
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
 		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
 
