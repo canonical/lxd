@@ -25,6 +25,7 @@ type Info struct {
 type InfoResponse struct {
 	StatusCode int
 	Error      string
+	Refresh    *bool // This is used to let the source know whether to actually refresh a volume.
 }
 
 // Err returns the error of the response.
