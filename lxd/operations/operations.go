@@ -490,7 +490,10 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 		Resources:   resources,
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
-		Location:    op.state.ServerName,
+	}
+
+	if op.state != nil {
+		retOp.Location = op.state.ServerName
 	}
 
 	if op.err != nil {
