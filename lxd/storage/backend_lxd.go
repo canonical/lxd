@@ -3485,7 +3485,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 
 // migrationIndexHeaderReceive receives migration index header from source and sends confirmation of receipt.
 // Returns the received source index header info.
-func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser) (*migration.Info, error) {
+func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, refresh bool) (*migration.Info, error) {
 	info := migration.Info{}
 
 	// Receive index header from source if applicable and respond confirming receipt.
@@ -3502,7 +3502,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 
 		l.Info("Received migration index header, sending response", logger.Ctx{"version": indexHeaderVersion})
 
-		infoResp := migration.InfoResponse{StatusCode: http.StatusOK}
+		infoResp := migration.InfoResponse{StatusCode: http.StatusOK, Refresh: &refresh}
 		headerJSON, err := json.Marshal(infoResp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed encoding migration index header response: %w", err)
@@ -3597,12 +3597,6 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
-	// Receive index header from source if applicable and respond confirming receipt.
-	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn)
-	if err != nil {
-		return err
-	}
-
 	var volumeConfig map[string]string
 
 	// Check if the volume exists in database
@@ -3651,6 +3645,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	err = b.driver.ValidateVolume(vol, true)
+	if err != nil {
+		return err
+	}
+
+	// Receive index header from source if applicable and respond confirming receipt.
+	// This will also let the source know whether to actually perform a refresh, as the target
+	// will set Refresh to false if the volume doesn't exist.
+	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
 	if err != nil {
 		return err
 	}
