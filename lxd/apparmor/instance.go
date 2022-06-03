@@ -208,6 +208,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"raw":         rawContent,
 			"rootPath":    rootPath,
 			"snap":        shared.InSnap(),
+			"userns":      sysOS.RunningInUserNS,
 			"ovmfPath":    ovmfPath,
 		})
 		if err != nil {

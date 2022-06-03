@@ -45,6 +45,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/etc/group                 r,
   @{PROC}/version                           r,
 
+  # Used by qemu when inside a container
+{{- if .userns }}
+  unix (send, receive) type=stream,
+{{- end }}
+
   # Instance specific paths
   {{ .logPath }}/** rwk,
   {{ .path }}/** rwk,
