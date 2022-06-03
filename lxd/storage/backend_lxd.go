@@ -3556,9 +3556,13 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	}
 
 	// Send migration index header frame with volume info and wait for receipt.
-	_, err = b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
+	resp, err := b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
 	if err != nil {
 		return err
+	}
+
+	if resp.Refresh != nil {
+		args.Refresh = *resp.Refresh
 	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, args.Info.Config.Volume.Config)
