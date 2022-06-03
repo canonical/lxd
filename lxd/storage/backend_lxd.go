@@ -3441,45 +3441,46 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 }
 
 // migrationIndexHeaderSend sends the migration index header to target and waits for confirmation of receipt.
-func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) error {
+func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) (*migration.InfoResponse, error) {
+	infoResp := migration.InfoResponse{}
+
 	// Send migration index header frame to target if applicable and wait for receipt.
 	if indexHeaderVersion > 0 {
 		headerJSON, err := json.Marshal(info)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration index header: %w", err)
+			return nil, fmt.Errorf("Failed encoding migration index header: %w", err)
 		}
 
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration index header: %w", err)
+			return nil, fmt.Errorf("Failed sending migration index header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration index header frame: %w", err)
+			return nil, fmt.Errorf("Failed closing migration index header frame: %w", err)
 		}
 
 		l.Debug("Sent migration index header, waiting for response", logger.Ctx{"version": indexHeaderVersion})
 
 		respBuf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration index header: %w", err)
+			return nil, fmt.Errorf("Failed reading migration index header: %w", err)
 		}
 
-		infoResp := migration.InfoResponse{}
 		err = json.Unmarshal(respBuf, &infoResp)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration index header: %w", err)
+			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
 		}
 
 		if infoResp.Err() != nil {
-			return fmt.Errorf("Failed negotiating migration options: %w", err)
+			return nil, fmt.Errorf("Failed negotiating migration options: %w", err)
 		}
 
 		l.Info("Received migration index header response", logger.Ctx{"response": infoResp, "version": indexHeaderVersion})
 	}
 
-	return nil
+	return &infoResp, nil
 }
 
 // migrationIndexHeaderReceive receives migration index header from source and sends confirmation of receipt.
@@ -3555,7 +3556,7 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	}
 
 	// Send migration index header frame with volume info and wait for receipt.
-	err = b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
+	_, err = b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
 	if err != nil {
 		return err
 	}
