@@ -2,8 +2,13 @@ name: Commits
 on:
   - pull_request
 
+permissions:
+  contents: read
+
 jobs:
   dco-check:
+    permissions:
+      pull-requests: read  # for tim-actions/get-pr-commits to get list of commits from the PR
     name: Signed-off-by (DCO)
     runs-on: ubuntu-20.04
     steps:
@@ -19,6 +24,8 @@ jobs:
         commits: ${{ steps.get-pr-commits.outputs.commits }}
 
   target-branch:
+    permissions:
+      contents: none
     name: Branch target
     runs-on: ubuntu-20.04
     steps:
