@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
-	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -169,15 +168,18 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	c2.IsRunning()
 	suite.Req.Nil(err)
 
-	// This causes the mock storage pool to be loaded internally, allowing it to match the created container.
-	err = c2.UpdateBackupFile()
+	apiC1, etagC1, err := c.RenderFull()
 	suite.Req.Nil(err)
 
-	instanceDrivers.PrepareEqualTest(c, c2)
+	apiC2, etagC2, err := c2.RenderFull()
+	suite.Req.Nil(err)
+
+	suite.Equal(etagC1, etagC2)
 	suite.Exactly(
-		c,
-		c2,
-		"The loaded container isn't excactly the same as the created one.")
+		apiC1,
+		apiC2,
+		"The loaded container isn't excactly the same as the created one.",
+	)
 }
 
 func (suite *containerTestSuite) TestContainer_Path_Regular() {
