@@ -301,3 +301,29 @@ test_snap_schedule() {
 
   lxc rm -f c1 c2 c3 c4 c5
 }
+
+test_snap_volume_db_recovery() {
+  # shellcheck disable=2039
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  poolName=$(lxc profile device get default root pool)
+
+  lxc init testimage c1
+  lxc snapshot c1
+  lxc snapshot c1
+  lxc start c1
+  lxc stop -f c1
+  lxd sql global 'DELETE FROM storage_volumes_snapshots' # Remove volume snapshot DB records.
+  lxd sql local 'DELETE FROM  patches WHERE name = "storage_missing_snapshot_records"' # Clear patch indicator.
+  ! lxc start c1 || false # Shouldn't be able to start as backup.yaml generation checks for DB consistency.
+  lxd shutdown
+  respawn_lxd "${LXD_DIR}" true
+  lxc storage volume show "${poolName}" container/c1/snap0 | grep "Auto repaired"
+  lxc storage volume show "${poolName}" container/c1/snap1 | grep "Auto repaired"
+  lxc start c1
+  lxc delete -f c1
+}
