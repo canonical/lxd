@@ -251,14 +251,12 @@ func Patch(s *state.State, patchName string) error {
 	for _, poolName := range pools {
 		pool, err := LoadByName(s, poolName)
 		if err != nil {
-			if err == drivers.ErrUnknownDriver {
-				continue
-			}
+			return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
+		}
 
-			err = pool.ApplyPatch(patchName)
-			if err != nil {
-				return fmt.Errorf("Failed applying patch to pool %q: %w", poolName, err)
-			}
+		err = pool.ApplyPatch(patchName)
+		if err != nil {
+			return fmt.Errorf("Failed applying patch to pool %q: %w", poolName, err)
 		}
 	}
 
