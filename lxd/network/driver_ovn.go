@@ -2243,11 +2243,11 @@ func (n *ovn) setup(update bool) error {
 			n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 		}
 
-		r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
+		cleanup, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, securityACLS, false)
 		if err != nil {
 			return fmt.Errorf("Failed ensuring security ACLs are configured in OVN for network: %w", err)
 		}
-		revert.Add(r.Fail)
+		revert.Add(cleanup)
 	}
 
 	revert.Success()
@@ -3489,11 +3489,11 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 				n.Name(): {Name: n.Name(), Type: n.Type(), ID: n.ID(), Config: n.Config()},
 			}
 
-			r, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
+			cleanup, err := acl.OVNEnsureACLs(n.state, n.logger, client, n.Project(), aclNameIDs, aclNets, nicACLNames, false)
 			if err != nil {
 				return "", fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
 			}
-			revert.Add(r.Fail)
+			revert.Add(cleanup)
 
 			for _, aclName := range nicACLNames {
 				aclID, found := aclNameIDs[aclName]

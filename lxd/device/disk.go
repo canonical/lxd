@@ -656,9 +656,7 @@ func (d *disk) detectVMPoolMountOpts() []string {
 
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
-	runConf := deviceConfig.RunConfig{
-		Revert: revert.New(),
-	}
+	runConf := deviceConfig.RunConfig{}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -694,7 +692,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 		revert.Add(func() { _ = f.Close() })
 		runConf.PostHooks = append(runConf.PostHooks, f.Close)
-		runConf.Revert.Add(func() { _ = f.Close() }) // Close file on VM start failure.
+		runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
 
 		// Encode the file descriptor and original isoPath into the DevPath field.
 		runConf.Mounts = []deviceConfig.MountEntryItem{
@@ -844,11 +842,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
 				// socket FD number so must come after starting virtiofsd).
 				err = func() error {
-					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
+					sockFile, cleanup, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
 					if err != nil {
 						return err
 					}
-					revert.Add(revertFunc)
+					revert.Add(cleanup)
 
 					// Request the unix socket is closed after QEMU has connected on startup.
 					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
@@ -868,7 +866,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}
 				revert.Add(func() { _ = f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
-				runConf.Revert.Add(func() { _ = f.Close() }) // Close file on VM start failure.
+				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
 
 				// Encode the file descriptor and original srcPath into the DevPath field.
 				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), mount.DevPath)
@@ -1206,9 +1204,9 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 		}
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, srcPath, err
+	return cleanup, srcPath, err
 }
 
 // createDevice creates a disk device mount on host.
@@ -1340,9 +1338,9 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	}
 	revert.Add(func() { _ = DiskMountClear(devPath) })
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return revertExternal.Fail, devPath, isFile, err
+	return cleanup, devPath, isFile, err
 }
 
 // localSourceOpen opens a local disk source path and returns a file handle to it.

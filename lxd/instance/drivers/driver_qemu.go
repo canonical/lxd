@@ -167,9 +167,11 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 }
 
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
-// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
-// revert's Fail() or Success() function as needed.
-func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the instance struct.
 	d := &qemu{
 		common: common{
@@ -219,39 +221,39 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 	// Load the config.
 	err = d.init()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to expand config: %w", err)
+		return nil, nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
 	// Validate expanded config (allows mixed instance types for profiles).
 	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid config: %w", err)
+		return nil, nil, fmt.Errorf("Invalid config: %w", err)
 	}
 
 	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid devices: %w", err)
+		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 	}
 
 	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if rootDiskDevice["pool"] == "" {
-		return nil, fmt.Errorf("The instances's root device is missing the pool property")
+		return nil, nil, fmt.Errorf("The instances's root device is missing the pool property")
 	}
 
 	// Initialize the storage pool.
 	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
+		return nil, nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
 
 	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	storagePoolSupported := false
@@ -263,7 +265,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 	}
 
 	if !storagePoolSupported {
-		return nil, fmt.Errorf("Storage pool does not support instance type")
+		return nil, nil, fmt.Errorf("Storage pool does not support instance type")
 	}
 
 	if !d.IsSnapshot() {
@@ -275,12 +277,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 					continue
 				}
 
-				return nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+				return nil, nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
 			}
 
 			err = d.deviceAdd(dev, false)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+				return nil, nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
 			revert.Add(func() { _ = d.deviceRemove(dev, false) })
@@ -289,7 +291,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		// Update MAAS (must run after the MAC addresses have been generated).
 		err = d.maasUpdate(d, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		revert.Add(func() { _ = d.maasDelete(d) })
@@ -303,7 +305,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, nil))
 	}
 
-	return d, nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return d, cleanup, err
 }
 
 // qemu is the QEMU virtual machine driver.
@@ -1156,7 +1160,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		if runConf.Revert != nil {
-			revert.Add(runConf.Revert.Fail)
+			revert.Add(runConf.Revert)
 		}
 
 		// Add post-start hooks
