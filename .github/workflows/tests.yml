@@ -3,6 +3,9 @@ on:
   - push
   - pull_request
 
+permissions:
+  contents: read
+
 jobs:
   client:
     name: Unit tests (client)
@@ -41,9 +44,19 @@ jobs:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
 
+  dependencies:
+    name: Vulnerable dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v1
+
   woke:
     name: Inclusive naming (documentation)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
