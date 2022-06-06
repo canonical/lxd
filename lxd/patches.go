@@ -68,6 +68,7 @@ var patches = []patch{
 	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
 	{name: "warnings_remove_empty_node", stage: patchPostDaemonStorage, run: patchRemoveWarningsWithEmptyNode},
 	{name: "dnsmasq_entries_include_device_name", stage: patchPostDaemonStorage, run: patchDnsmasqEntriesIncludeDeviceName},
+	{name: "storage_missing_snapshot_records", stage: patchPostDaemonStorage, run: patchGenericStorage},
 }
 
 type patch struct {
@@ -77,7 +78,7 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	logger.Infof("Applying patch %q", p.name)
+	logger.Info("Applying patch", logger.Ctx{"name": p.name})
 
 	err := p.run(p.name, d)
 	if err != nil {

@@ -463,6 +463,8 @@ func (b *lxdBackend) Unmount() (bool, error) {
 
 // ApplyPatch runs the requested patch at both backend and driver level.
 func (b *lxdBackend) ApplyPatch(name string) error {
+	b.logger.Info("Applying patch", logger.Ctx{"name": name})
+
 	// Run early backend patches.
 	patch, ok := lxdEarlyPatches[name]
 	if ok {
