@@ -298,8 +298,9 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
-// Returns a revert function, and a file handle to the proxy process.
-func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), *os.File, error) {
+// Returns a file handle to the proxy process and a revert fail function that can be used to undo this function if
+// a subsequent step fails,
+func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (*os.File, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -383,9 +384,9 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 		return nil, nil, fmt.Errorf("Failed to save virtfs-proxy-helper state: %w", err)
 	}
 
-	revertExternal := revert.Clone()
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return revertExternal.Fail, cDialUnixFile, err
+	return cDialUnixFile, cleanup, err
 }
 
 // DiskVMVirtfsProxyStop stops the virtfs-proxy-helper process.
@@ -500,9 +501,9 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, fmt.Errorf("Failed to save virtiofsd state: %w", err)
 	}
 
-	revertExternal := revert.Clone()
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return revertExternal.Fail, listener, err
+	return cleanup, listener, err
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.

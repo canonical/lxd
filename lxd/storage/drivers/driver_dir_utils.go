@@ -20,8 +20,8 @@ func (d *dir) withoutGetVolID() Driver {
 }
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
-// Returns a revert function that can be used to remove the quota if there is a subsequent error.
-func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func (d *dir) setupInitialQuota(vol Volume) (revert.Hook, error) {
 	if vol.IsVMBlock() {
 		return nil, nil
 	}

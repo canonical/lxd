@@ -45,9 +45,8 @@ var ValidDevices func(state *state.State, projectName string, instanceType insta
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
-// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
-// revert's Fail() or Success() function as needed.
-var Create func(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error)
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+var Create func(s *state.State, args db.InstanceArgs) (Instance, revert.Hook, error)
 
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
@@ -873,12 +872,16 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to
 // call the revert's Fail() or Success() function as needed.
 // Returns the created instance, along with a "create" operation lock that needs to be marked as Done once the
-// instance is fully completed.
-func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, revert *revert.Reverter) (Instance, *operationlock.InstanceOperation, error) {
+// instance is fully completed, and a revert fail function that can be used to undo this function if a subsequent
+// step fails.
+func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Instance, *operationlock.InstanceOperation, revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check instance type requested is supported by this machine.
 	err := s.InstanceTypes[args.Type]
 	if err != nil {
-		return nil, nil, fmt.Errorf("Instance type %q is not supported on this server: %w", args.Type, err)
+		return nil, nil, nil, fmt.Errorf("Instance type %q is not supported on this server: %w", args.Type, err)
 	}
 
 	// Set default values.
@@ -912,7 +915,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 
 	err = ValidName(args.Name, args.Snapshot)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if !args.Snapshot {
@@ -933,7 +936,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	// Validate instance config.
 	err = ValidConfig(s.OS, args.Config, false, args.Type)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Leave validating devices to Create function call below.
@@ -941,27 +944,27 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	// Validate architecture.
 	_, err = osarch.ArchitectureName(args.Architecture)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if !shared.IntInSlice(args.Architecture, s.OS.Architectures) {
-		return nil, nil, fmt.Errorf("Requested architecture isn't supported by this host")
+		return nil, nil, nil, fmt.Errorf("Requested architecture isn't supported by this host")
 	}
 
 	// Validate profiles.
 	profiles, err := s.DB.Cluster.GetProfileNames(args.Project)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
-			return nil, nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
+			return nil, nil, nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
 		}
 
 		if shared.StringInSlice(profile, checkedProfiles) {
-			return nil, nil, fmt.Errorf("Duplicate profile found in request")
+			return nil, nil, nil, fmt.Errorf("Duplicate profile found in request")
 		}
 
 		checkedProfiles = append(checkedProfiles, profile)
@@ -978,7 +981,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	// Prevent concurrent create requests for same instance.
 	op, err := operationlock.Create(args.Project, args.Name, operationlock.ActionCreate, false, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	revert.Add(func() { op.Done(err) })
 
@@ -1075,27 +1078,30 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 				thing = "Snapshot"
 			}
 
-			return nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+			return nil, nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
 		}
 
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	revert.Add(func() { _ = s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
-	inst, err := Create(s, args, revert)
+	inst, cleanup, err := Create(s, args)
 	if err != nil {
 		logger.Error("Failed initialising instance", logger.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
-		return nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
+		return nil, nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
 	}
+	revert.Add(cleanup)
 
 	// Wipe any existing log for this instance name.
 	if clearLogDir {
 		_ = os.RemoveAll(inst.LogPath())
 	}
 
-	return inst, op, nil
+	cleanup = revert.Clone().Fail
+	revert.Success()
+	return inst, op, cleanup, err
 }
 
 // NextSnapshotName finds the next snapshot for an instance.

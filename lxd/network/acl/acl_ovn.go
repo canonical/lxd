@@ -80,7 +80,8 @@ func OVNIntSwitchRouterPortName(networkID int64) openvswitch.OVNSwitchPort {
 // groups if needed. If a requested ACL exists, but has no ACL rules applied, then the current rules are loaded out
 // of the database and applied. For each network provided in aclNets, the network specific port group for each ACL
 // is checked for existence (it is created & applies network specific ACL rules if not).
-func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (*revert.Reverter, error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, aclProjectName string, aclNameIDs map[string]int64, aclNets map[string]NetworkACLUsage, aclNames []string, reapplyRules bool) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -95,12 +96,12 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 		return err
 	})
 	if err != nil {
-		return revert, err
+		return nil, err
 	}
 
 	peerTargetNetIDs, err := s.DB.Cluster.GetNetworkPeersTargetNetworkIDs(aclProjectName, db.NetworkTypeOVN)
 	if err != nil {
-		return revert, fmt.Errorf("Failed getting peer connection mappings: %w", err)
+		return nil, fmt.Errorf("Failed getting peer connection mappings: %w", err)
 	}
 
 	// First check all ACL Names map to IDs in supplied aclNameIDs.
@@ -281,9 +282,9 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 		}
 	}
 
-	r := revert.Clone()
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return r, nil
+	return cleanup, nil
 }
 
 // ovnAddReferencedACLs adds to the referencedACLNames any ACLs referenced by the rules in the supplied ACL.

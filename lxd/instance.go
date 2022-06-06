@@ -34,10 +34,11 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, instOp, err := instance.CreateInternal(d.State(), args, true, revert)
+	inst, instOp, cleanup, err := instance.CreateInternal(d.State(), args, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+	revert.Add(cleanup)
 	defer instOp.Done(err)
 
 	pool, err := storagePools.LoadByInstance(d.State(), inst)
@@ -149,10 +150,11 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, instOp, err := instance.CreateInternal(s, args, true, revert)
+	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
 	err = s.DB.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
@@ -196,6 +198,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	var inst instance.Instance
 	var instOp *operationlock.InstanceOperation
 	var err error
+	var cleanup revert.Hook
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -211,10 +214,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, instOp, err = instance.CreateInternal(s, opts.targetInstance, true, revert)
+		inst, instOp, cleanup, err = instance.CreateInternal(s, opts.targetInstance, true)
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
+		revert.Add(cleanup)
 	} else {
 		instOp, err = inst.LockExclusive()
 		if err != nil {
@@ -314,10 +318,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, snapInstOp, err := instance.CreateInternal(s, snapInstArgs, true, revert)
+			snapInst, snapInstOp, cleanup, err := instance.CreateInternal(s, snapInstArgs, true)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
+			revert.Add(cleanup)
 			defer snapInstOp.Done(err)
 
 			snapList = append(snapList, &snapInst)

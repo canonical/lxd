@@ -479,10 +479,9 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
-
+	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return postHook, revertExternal.Fail, nil
+	return postHook, cleanup, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
@@ -1843,13 +1842,13 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// If volume is filesystem type, create a fast snapshot to ensure migration is consistent.
 		if vol.contentType == ContentTypeFS && !vol.IsSnapshot() {
-			snapshotPath, reverter, err := d.readonlySnapshot(vol)
+			snapshotPath, cleanup, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
 			}
 
 			// Clean up the snapshot.
-			defer reverter.Fail()
+			defer cleanup()
 
 			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
 			vol.mountCustomPath = snapshotPath
@@ -2050,7 +2049,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 	return nil
 }
 
-func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
+func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2098,8 +2097,9 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
 	})
 
-	defer revert.Success()
-	return tmpDir, revert.Clone(), nil
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return tmpDir, cleanup, nil
 }
 
 // BackupVolume creates an exported version of a volume.
@@ -2110,13 +2110,13 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		// as they are copied to the tarball, as ZFS allows us to take a quick snapshot without impacting
 		// the parent volume we do so here to ensure the backup taken is consistent.
 		if vol.contentType == ContentTypeFS {
-			snapshotPath, reverter, err := d.readonlySnapshot(vol)
+			snapshotPath, cleanup, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
 			}
 
 			// Clean up the snapshot.
-			defer reverter.Fail()
+			defer cleanup()
 
 			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
 			vol.mountCustomPath = snapshotPath

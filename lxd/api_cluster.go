@@ -868,8 +868,8 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 
 // clusterInitMember initialises storage pools and networks on this member. We pass two LXD client instances, one
 // connected to ourselves (the joining member) and one connected to the target cluster member to join.
-// Returns a revert function that can be used to undo the setup if a subsequent step fails.
-func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (func(), error) {
+// Returns a revert fail function that can be used to undo this function if a subsequent step fails.
+func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (revert.Hook, error) {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
