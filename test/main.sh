@@ -248,6 +248,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_snap_restore "snapshot restores"
     run_test test_snap_expiry "snapshot expiry"
     run_test test_snap_schedule "snapshot scheduling"
+    run_test test_snap_volume_db_recovery "snapshot volume database record recovery"
     run_test test_config_profiles "profiles and configuration"
     run_test test_config_edit "container configuration edit"
     run_test test_config_edit_container_snapshot_pool_config "container and snapshot volume configuration edit"
