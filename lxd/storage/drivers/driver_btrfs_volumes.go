@@ -1783,7 +1783,7 @@ func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]s
 
 	var snapshotNames []string
 
-	snapshotPrefix := fmt.Sprintf("%s-snapshots/%s", vol.volType, vol.name)
+	snapshotPrefix := fmt.Sprintf("%s-snapshots/%s/", vol.volType, vol.name)
 	scanner := bufio.NewScanner(&stdout)
 
 	for scanner.Scan() {
