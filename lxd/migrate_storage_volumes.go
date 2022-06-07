@@ -130,6 +130,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		TrackProgress:      true,
 		ContentType:        srcConfig.Volume.ContentType,
 		Info:               &migration.Info{Config: srcConfig},
+		VolumeOnly:         s.volumeOnly,
 	}
 
 	// Only send the snapshots that the target requests when refreshing.
@@ -327,6 +328,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			TrackProgress:      true,
 			ContentType:        req.ContentType,
 			Refresh:            args.Refresh,
+			VolumeOnly:         args.VolumeOnly,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
