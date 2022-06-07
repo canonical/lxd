@@ -238,7 +238,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Failed getting root disk: %w", err)
 	}
 
 	if rootDiskDevice["pool"] == "" {
