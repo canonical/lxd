@@ -654,7 +654,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	}
 
 	// Handle btrfs send/receive migration.
-	if len(volTargetArgs.Snapshots) > 0 {
+	if !volTargetArgs.VolumeOnly && len(volTargetArgs.Snapshots) > 0 {
 		// Create the parent directory.
 		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
 		if err != nil {
@@ -1221,10 +1221,15 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 		return nil
 	}
 
-	// Generate restoration header, containing info on the subvolumes and how they should be restored.
-	snapshots, err := d.volumeSnapshotsSorted(vol, op)
-	if err != nil {
-		return err
+	var snapshots []string
+	var err error
+
+	if !volSrcArgs.VolumeOnly {
+		// Generate restoration header, containing info on the subvolumes and how they should be restored.
+		snapshots, err = d.volumeSnapshotsSorted(vol, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	migrationHeader, err := d.restorationHeader(vol, snapshots)
@@ -1363,7 +1368,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 	// Transfer the snapshots (and any subvolumes if supported) to target first.
 	lastVolPath := "" // Used as parent for differential transfers.
 
-	if volSrcArgs.Refresh {
+	if volSrcArgs.Refresh && !volSrcArgs.VolumeOnly {
 		snapshots, err := vol.Snapshots(op)
 		if err != nil {
 			return err
@@ -1383,14 +1388,16 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		}
 	}
 
-	for _, snapName := range volSrcArgs.Snapshots {
-		snapVol, _ := vol.NewSnapshot(snapName)
-		err := sendVolume(snapVol, snapVol.MountPath(), lastVolPath)
-		if err != nil {
-			return err
-		}
+	if !volSrcArgs.VolumeOnly {
+		for _, snapName := range volSrcArgs.Snapshots {
+			snapVol, _ := vol.NewSnapshot(snapName)
+			err := sendVolume(snapVol, snapVol.MountPath(), lastVolPath)
+			if err != nil {
+				return err
+			}
 
-		lastVolPath = snapVol.MountPath()
+			lastVolPath = snapVol.MountPath()
+		}
 	}
 
 	// Get instances directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers).
