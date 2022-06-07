@@ -3542,7 +3542,11 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 		return err
 	}
 
-	if args.Info != nil && args.Info.Config == nil || args.Info.Config.Volume == nil || args.Info.Config.Volume.Config == nil {
+	if args.Info == nil {
+		return fmt.Errorf("Migration info required")
+	}
+
+	if args.Info.Config == nil || args.Info.Config.Volume == nil || args.Info.Config.Volume.Config == nil {
 		return fmt.Errorf("Volume config is required")
 	}
 
