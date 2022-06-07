@@ -490,15 +490,15 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 	if shared.StringInSlice(migration.BTRFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration header: %w", err)
+			return fmt.Errorf("Failed reading BTRFS migration header: %w", err)
 		}
 
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration header: %w", err)
+			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
 		}
 
-		d.logger.Debug("Received migration meta data header", logger.Ctx{"name": vol.name})
+		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
 		for _, snapName := range volTargetArgs.Snapshots {
@@ -558,20 +558,20 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 		headerJSON, err := json.Marshal(migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration header: %w", err)
+			return fmt.Errorf("Failed encoding BTRFS migration header: %w", err)
 		}
 
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration header: %w", err)
+			return fmt.Errorf("Failed sending BTRFS migration header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration header frame: %w", err)
+			return fmt.Errorf("Failed closing BTRFS migration header frame: %w", err)
 		}
 
-		d.logger.Debug("Sent migration meta data header", logger.Ctx{"name": vol.name, "header": migrationHeader})
+		d.logger.Debug("Sent BTRFS migration meta data header", logger.Ctx{"name": vol.name, "header": migrationHeader})
 	} else {
 		syncSubvolumes = migrationHeader.Subvolumes
 	}
@@ -1241,17 +1241,17 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	if shared.StringInSlice(migration.BTRFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
 		headerJSON, err := json.Marshal(migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration header: %w", err)
+			return fmt.Errorf("Failed encoding BTRFS migration header: %w", err)
 		}
 
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration header: %w", err)
+			return fmt.Errorf("Failed sending BTRFS migration header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration header frame: %w", err)
+			return fmt.Errorf("Failed closing BTRFS migration header frame: %w", err)
 		}
 
 		d.logger.Debug("Sent migration meta data header", logger.Ctx{"name": vol.name})
@@ -1262,15 +1262,15 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration header: %w", err)
+			return fmt.Errorf("Failed reading BTRFS migration header: %w", err)
 		}
 
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration header: %w", err)
+			return fmt.Errorf("Failed decoding BTRFS migration header: %w", err)
 		}
 
-		d.logger.Debug("Received migration meta data header", logger.Ctx{"name": vol.name})
+		d.logger.Debug("Received BTRFS migration meta data header", logger.Ctx{"name": vol.name})
 
 		volSrcArgs.Snapshots = []string{}
 
