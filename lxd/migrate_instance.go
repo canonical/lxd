@@ -524,6 +524,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	volSourceArgs.TrackProgress = true
 	volSourceArgs.Refresh = respHeader.GetRefresh()
 	volSourceArgs.AllowInconsistent = s.migrationFields.allowInconsistent
+	volSourceArgs.VolumeOnly = s.instanceOnly
 
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
@@ -917,6 +918,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			TrackProgress: true,            // Use a progress tracker on receiver to get in-cluster progress information.
 			Live:          args.Live,       // Indicates we will get a final rootfs sync.
 			VolumeSize:    args.VolumeSize, // Block size setting override.
+			VolumeOnly:    args.VolumeOnly,
 		}
 
 		// At this point we have already figured out the parent container's root
