@@ -1117,8 +1117,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			profileNames = append(profileNames, profile.Name)
 		}
 
-		dbInst.ID = int(instanceID)
-		err = cluster.UpdateInstanceProfiles(ctx, tx.Tx(), dbInst, profileNames)
+		err = cluster.UpdateInstanceProfiles(ctx, tx.Tx(), int(instanceID), dbInst.Project, profileNames)
 		if err != nil {
 			return err
 		}

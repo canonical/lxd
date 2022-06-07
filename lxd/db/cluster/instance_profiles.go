@@ -36,13 +36,13 @@ type InstanceProfileFilter struct {
 }
 
 // UpdateInstanceProfiles updates the profiles of an instance in the order they are given.
-func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instance Instance, profiles []string) error {
-	err := DeleteInstanceProfiles(ctx, tx, instance.ID)
+func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, projectName string, profiles []string) error {
+	err := DeleteInstanceProfiles(ctx, tx, instanceID)
 	if err != nil {
 		return err
 	}
 
-	project := instance.Project
+	project := projectName
 	enabled, err := ProjectHasProfiles(ctx, tx, project)
 	if err != nil {
 		return fmt.Errorf("Check if project has profiles: %w", err)
@@ -61,7 +61,7 @@ func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instance Instance, 
 			return err
 		}
 
-		_, err = stmt.Exec(instance.ID, profileID, applyOrder)
+		_, err = stmt.Exec(instanceID, profileID, applyOrder)
 		if err != nil {
 			return err
 		}
