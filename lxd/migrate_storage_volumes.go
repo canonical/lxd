@@ -301,7 +301,15 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
 	respHeader := migration.TypesToHeader(respTypes...)
-	respHeader.IndexHeaderVersion = offerHeader.IndexHeaderVersion // Enable index header frame if requested.
+
+	// Respond with our maximum supported header version if the requested version is higher than ours.
+	// Otherwise just return the requested header version to the source.
+	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
+	if indexHeaderVersion > migration.IndexHeaderVersion {
+		indexHeaderVersion = migration.IndexHeaderVersion
+	}
+
+	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &c.refresh
