@@ -690,7 +690,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 			args = append(args, srcPrefix)
 
 			// Extract filesystem volume.
-			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
+			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": fmt.Sprintf("%+v", args)})
 			_, err := srcData.Seek(0, 0)
 			if err != nil {
 				return err

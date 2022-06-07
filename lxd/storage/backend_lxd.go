@@ -1726,7 +1726,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 // CreateInstanceFromMigration receives an instance being migrated.
 // The args.Name and args.Config fields are ignored and, instance properties are used instead.
 func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateInstanceFromMigration started")
 	defer l.Debug("CreateInstanceFromMigration finished")
 
@@ -2181,7 +2181,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("MigrateInstance started")
 	defer l.Debug("MigrateInstance finished")
 
@@ -3443,8 +3443,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 // migrationIndexHeaderSend sends the migration index header to target and waits for confirmation of receipt.
 func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) error {
 	// Send migration index header frame to target if applicable and wait for receipt.
-	if indexHeaderVersion == migration.IndexHeaderVersion {
-		headerJSON, err := json.Marshal(info.Config) // FIXME this should have been the top-level info!
+	if indexHeaderVersion > 0 {
+		headerJSON, err := json.Marshal(info)
 		if err != nil {
 			return fmt.Errorf("Failed encoding migration index header: %w", err)
 		}
@@ -3459,7 +3459,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return fmt.Errorf("Failed closing migration index header frame: %w", err)
 		}
 
-		l.Debug("Sent migration index header, waiting for response")
+		l.Debug("Sent migration index header, waiting for response", logger.Ctx{"version": indexHeaderVersion})
 
 		respBuf, err := ioutil.ReadAll(conn)
 		if err != nil {
@@ -3476,7 +3476,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return fmt.Errorf("Failed negotiating migration options: %w", err)
 		}
 
-		l.Info("Received migration index header response", logger.Ctx{"response": infoResp})
+		l.Info("Received migration index header response", logger.Ctx{"response": infoResp, "version": indexHeaderVersion})
 	}
 
 	return nil
@@ -3488,18 +3488,18 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 	info := migration.Info{}
 
 	// Receive index header from source if applicable and respond confirming receipt.
-	if indexHeaderVersion == migration.IndexHeaderVersion {
+	if indexHeaderVersion > 0 {
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
 			return nil, fmt.Errorf("Failed reading migration index header: %w", err)
 		}
 
-		err = json.Unmarshal(buf, &info.Config) // FIXME this should be unmarshalled into info directly.
+		err = json.Unmarshal(buf, &info)
 		if err != nil {
 			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
 		}
 
-		l.Info("Received migration index header, sending response")
+		l.Info("Received migration index header, sending response", logger.Ctx{"version": indexHeaderVersion})
 
 		infoResp := migration.InfoResponse{StatusCode: http.StatusOK}
 		headerJSON, err := json.Marshal(infoResp)
@@ -3517,7 +3517,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 			return nil, fmt.Errorf("Failed closing migration index header response frame: %w", err)
 		}
 
-		l.Debug("Sent migration index header response")
+		l.Debug("Sent migration index header response", logger.Ctx{"version": indexHeaderVersion})
 	}
 
 	return &info, nil
@@ -3542,7 +3542,11 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 		return err
 	}
 
-	if args.Info != nil && args.Info.Config == nil || args.Info.Config.Volume == nil || args.Info.Config.Volume.Config == nil {
+	if args.Info == nil {
+		return fmt.Errorf("Migration info required")
+	}
+
+	if args.Info.Config == nil || args.Info.Config.Volume == nil || args.Info.Config.Volume.Config == nil {
 		return fmt.Errorf("Volume config is required")
 	}
 

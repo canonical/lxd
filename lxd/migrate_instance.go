@@ -484,7 +484,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// the purpose of using defer. An abort function reduces the odds of mishandling errors
 	// without introducing the fragility of closing on err.
 	abort := func(err error) error {
-		go s.sendControl(err)
+		s.sendControl(err)
 		return err
 	}
 
