@@ -1222,7 +1222,12 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	}
 
 	// Generate restoration header, containing info on the subvolumes and how they should be restored.
-	migrationHeader, err := d.restorationHeader(vol, volSrcArgs.Snapshots)
+	snapshots, err := d.volumeSnapshotsSorted(vol, op)
+	if err != nil {
+		return err
+	}
+
+	migrationHeader, err := d.restorationHeader(vol, snapshots)
 	if err != nil {
 		return err
 	}
