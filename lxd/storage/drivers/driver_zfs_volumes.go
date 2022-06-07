@@ -1858,6 +1858,12 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		return ErrNotSupported
 	}
 
+	// Handle zfs send/receive migration.
+	if volSrcArgs.FinalSync {
+		// This is not needed if the migration is performed using zfs send/receive.
+		return nil
+	}
+
 	// If no snapshots have been provided it can mean two things:
 	// 1) The source has no snapshots
 	// 2) Snapshots shouldn't be copied (--instance-only flag)
