@@ -3459,7 +3459,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return fmt.Errorf("Failed closing migration index header frame: %w", err)
 		}
 
-		l.Debug("Sent migration index header, waiting for response")
+		l.Debug("Sent migration index header, waiting for response", logger.Ctx{"version": indexHeaderVersion})
 
 		respBuf, err := ioutil.ReadAll(conn)
 		if err != nil {
@@ -3476,7 +3476,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 			return fmt.Errorf("Failed negotiating migration options: %w", err)
 		}
 
-		l.Info("Received migration index header response", logger.Ctx{"response": infoResp})
+		l.Info("Received migration index header response", logger.Ctx{"response": infoResp, "version": indexHeaderVersion})
 	}
 
 	return nil
@@ -3499,7 +3499,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
 		}
 
-		l.Info("Received migration index header, sending response")
+		l.Info("Received migration index header, sending response", logger.Ctx{"version": indexHeaderVersion})
 
 		infoResp := migration.InfoResponse{StatusCode: http.StatusOK}
 		headerJSON, err := json.Marshal(infoResp)
@@ -3517,7 +3517,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 			return nil, fmt.Errorf("Failed closing migration index header response frame: %w", err)
 		}
 
-		l.Debug("Sent migration index header response")
+		l.Debug("Sent migration index header response", logger.Ctx{"version": indexHeaderVersion})
 	}
 
 	return &info, nil
