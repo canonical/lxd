@@ -189,7 +189,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 		d.lastUsedDate = time.Time{}
 	}
 
-	d.logger.Info("Creating container", logger.Ctx{"ephemeral": d.ephemeral})
+	d.logger.Info("Creating instance", logger.Ctx{"ephemeral": d.ephemeral})
 
 	// Load the config.
 	err := d.init()
@@ -210,11 +210,11 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Failed getting root disk: %w", err)
 	}
 
 	if rootDiskDevice["pool"] == "" {
-		return nil, nil, fmt.Errorf("The container's root device is missing the pool property")
+		return nil, nil, fmt.Errorf("The instance's root device is missing the pool property")
 	}
 
 	// Initialize the storage pool.
