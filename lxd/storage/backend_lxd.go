@@ -3443,8 +3443,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 // migrationIndexHeaderSend sends the migration index header to target and waits for confirmation of receipt.
 func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) error {
 	// Send migration index header frame to target if applicable and wait for receipt.
-	if indexHeaderVersion == migration.IndexHeaderVersion {
-		headerJSON, err := json.Marshal(info.Config) // FIXME this should have been the top-level info!
+	if indexHeaderVersion > 0 {
+		headerJSON, err := json.Marshal(info)
 		if err != nil {
 			return fmt.Errorf("Failed encoding migration index header: %w", err)
 		}
@@ -3488,13 +3488,13 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 	info := migration.Info{}
 
 	// Receive index header from source if applicable and respond confirming receipt.
-	if indexHeaderVersion == migration.IndexHeaderVersion {
+	if indexHeaderVersion > 0 {
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
 			return nil, fmt.Errorf("Failed reading migration index header: %w", err)
 		}
 
-		err = json.Unmarshal(buf, &info.Config) // FIXME this should be unmarshalled into info directly.
+		err = json.Unmarshal(buf, &info)
 		if err != nil {
 			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
 		}
