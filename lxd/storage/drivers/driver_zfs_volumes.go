@@ -734,12 +734,12 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		// The source will send all of its snapshots with their respective GUID.
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration header: %w", err)
+			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
 		}
 
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration header: %w", err)
+			return fmt.Errorf("Failed decoding ZFS migration header: %w", err)
 		}
 	}
 
@@ -849,17 +849,17 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		// Send back all target snapshots with their GUIDs.
 		headerJSON, err := json.Marshal(migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration header: %w", err)
+			return fmt.Errorf("Failed encoding ZFS migration header: %w", err)
 		}
 
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration header: %w", err)
+			return fmt.Errorf("Failed sending ZFS migration header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration header frame: %w", err)
+			return fmt.Errorf("Failed closing ZFS migration header frame: %w", err)
 		}
 
 		// Don't pass the snapshots if it's volume only.
@@ -1880,18 +1880,18 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 
 		headerJSON, err := json.Marshal(srcMigrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration header: %w", err)
+			return fmt.Errorf("Failed encoding ZFS migration header: %w", err)
 		}
 
 		// Send the migration header to the target.
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration header: %w", err)
+			return fmt.Errorf("Failed sending ZFS migration header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration header frame: %w", err)
+			return fmt.Errorf("Failed closing ZFS migration header frame: %w", err)
 		}
 	}
 
@@ -1901,12 +1901,12 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	if volSrcArgs.Refresh && shared.StringInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration header: %w", err)
+			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
 		}
 
 		err = json.Unmarshal(buf, &migrationHeader)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration header: %w", err)
+			return fmt.Errorf("Failed decoding ZFS migration header: %w", err)
 		}
 
 		// If the target has no snapshots we cannot use incremental streams and will do a normal copy operation instead.
