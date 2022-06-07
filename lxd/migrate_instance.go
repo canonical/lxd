@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool) (*migrationSourceWs, error) {
@@ -96,16 +96,16 @@ fi
 	return f.Close()
 }
 
-func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
+func snapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
 	config := []*migration.Config{}
-	for k, v := range c.LocalConfig() {
+	for k, v := range snap.Config {
 		kCopy := string(k)
 		vCopy := string(v)
 		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
 	}
 
 	devices := []*migration.Device{}
-	for name, d := range c.LocalDevices() {
+	for name, d := range snap.Devices {
 		props := []*migration.Config{}
 		for k, v := range d {
 			// Local loop vars.
@@ -118,19 +118,18 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 		devices = append(devices, &migration.Device{Name: &nameCopy, Config: props})
 	}
 
-	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
-	isEphemeral := c.IsEphemeral()
-	arch := int32(c.Architecture())
-	stateful := c.IsStateful()
-
-	creationDate := c.CreationDate().UTC().Unix()
-	lastUsedDate := c.LastUsedDate().UTC().Unix()
-	expiryDate := c.ExpiryDate().UTC().Unix()
+	isEphemeral := snap.Ephemeral
+	archID, _ := osarch.ArchitectureId(snap.Architecture)
+	arch := int32(archID)
+	stateful := snap.Stateful
+	creationDate := snap.CreatedAt.UTC().Unix()
+	lastUsedDate := snap.LastUsedAt.UTC().Unix()
+	expiryDate := snap.ExpiresAt.UTC().Unix()
 
 	return &migration.Snapshot{
-		Name:         &parts[len(parts)-1],
+		Name:         &snap.Name,
 		LocalConfig:  config,
-		Profiles:     c.Profiles(),
+		Profiles:     snap.Profiles,
 		Ephemeral:    &isEphemeral,
 		LocalDevices: devices,
 		Architecture: &arch,
