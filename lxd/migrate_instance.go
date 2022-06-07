@@ -427,7 +427,12 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		fullSnaps, err := s.instance.Snapshots()
 		if err == nil {
 			for _, snap := range fullSnaps {
-				snapshots = append(snapshots, snapshotToProtobuf(snap))
+				si, _, err := snap.Render()
+				if err != nil {
+					return err
+				}
+
+				snapshots = append(snapshots, snapshotToProtobuf(si.(*api.InstanceSnapshot)))
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 				snapshotNames = append(snapshotNames, snapName)
 			}
