@@ -1055,8 +1055,24 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			// Legacy: we only sent the snapshot names, so we just copy the container's
 			// config over, same as we used to do.
 			if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+				// Convert the instance to an api.InstanceSnapshot.
+				architectureName, _ := osarch.ArchitectureName(c.src.instance.Architecture())
+				apiInstSnap := &api.InstanceSnapshot{
+					InstanceSnapshotPut: api.InstanceSnapshotPut{
+						ExpiresAt: time.Time{},
+					},
+					Architecture: architectureName,
+					CreatedAt:    c.src.instance.CreationDate(),
+					LastUsedAt:   c.src.instance.LastUsedDate(),
+					Config:       c.src.instance.LocalConfig(),
+					Devices:      c.src.instance.LocalDevices().CloneNative(),
+					Ephemeral:    c.src.instance.IsEphemeral(),
+					Stateful:     c.src.instance.IsStateful(),
+					Profiles:     c.src.instance.Profiles(),
+				}
+
 				for _, name := range offerHeader.SnapshotNames {
-					base := snapshotToProtobuf(c.src.instance)
+					base := snapshotToProtobuf(apiInstSnap)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
