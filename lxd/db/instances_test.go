@@ -40,32 +40,45 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
 	filter := db.InstanceTypeFilter(instancetype.Container)
-	containers, err := tx.GetInstances(filter)
+	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
 	c1 := containers[0]
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID)
+	require.NoError(t, err)
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID)
+	require.NoError(t, err)
+
 	assert.Equal(t, "c1", c1.Name)
 	assert.Equal(t, "node2", c1.Node)
-	assert.Equal(t, map[string]string{}, c1.Config)
-	assert.Len(t, c1.Devices, 0)
+	assert.Equal(t, map[string]string{}, c1Config)
+	assert.Len(t, c1Devices, 0)
 
 	c2 := containers[1]
+	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c2.ID)
+	require.NoError(t, err)
+	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c2.ID)
+	require.NoError(t, err)
 	assert.Equal(t, "c2", c2.Name)
-	assert.Equal(t, map[string]string{"x": "y"}, c2.Config)
+	assert.Equal(t, map[string]string{"x": "y"}, c2Config)
 	assert.Equal(t, "none", c2.Node)
-	assert.Len(t, c2.Devices, 1)
-	assert.Equal(t, "eth0", c2.Devices["eth0"].Name)
-	assert.Equal(t, "nic", c2.Devices["eth0"].Type.String())
+	assert.Len(t, c2Devices, 1)
+	assert.Equal(t, "eth0", c2Devices["eth0"].Name)
+	assert.Equal(t, "nic", c2Devices["eth0"].Type.String())
 
 	c3 := containers[2]
+	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c3.ID)
+	require.NoError(t, err)
+	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c3.ID)
+	require.NoError(t, err)
 	assert.Equal(t, "c3", c3.Name)
-	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c3.Config)
+	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c3Config)
 	assert.Equal(t, "node2", c3.Node)
-	assert.Len(t, c3.Devices, 1)
-	assert.Equal(t, "root", c3.Devices["root"].Name)
-	assert.Equal(t, "disk", c3.Devices["root"].Type.String())
-	assert.Equal(t, map[string]string{"x": "y"}, c3.Devices["root"].Config)
+	assert.Len(t, c3Devices, 1)
+	assert.Equal(t, "root", c3Devices["root"].Name)
+	assert.Equal(t, "disk", c3Devices["root"].Type.String())
+	assert.Equal(t, map[string]string{"x": "y"}, c3Devices["root"].Config)
 }
 
 func TestContainerList_FilterByNode(t *testing.T) {
@@ -87,7 +100,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	filter.Project = &project
 	filter.Node = &node
 
-	containers, err := tx.GetInstances(filter)
+	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 2)
 
@@ -130,7 +143,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 
 	// Create a container in project1 using the default profile from the
 	// default project.
-	c1p1 := db.Instance{
+	c1p1 := cluster.Instance{
 		Project:      "blah",
 		Name:         "c1",
 		Node:         "none",
@@ -138,14 +151,16 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
-		Profiles:     []string{"default"},
 	}
-	_, err = tx.CreateInstance(c1p1)
+	id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), c1p1)
+	require.NoError(t, err)
+
+	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), c1p1.Project, []string{"default"})
 	require.NoError(t, err)
 
 	// Create a container in project2 using the custom profile from the
 	// project.
-	c1p2 := db.Instance{
+	c1p2 := cluster.Instance{
 		Project:      "test",
 		Name:         "c1",
 		Node:         "none",
@@ -153,21 +168,31 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
-		Profiles:     []string{"intranet"},
 	}
-	_, err = tx.CreateInstance(c1p2)
+	id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), c1p2)
 	require.NoError(t, err)
 
-	containers, err := tx.GetInstances(db.InstanceFilter{})
+	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), c1p2.Project, []string{"intranet"})
+	require.NoError(t, err)
+
+	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), cluster.InstanceFilter{})
+	require.NoError(t, err)
+
+	c1Profiles, err := cluster.GetInstanceProfiles(context.TODO(), tx.Tx(), containers[0].ID)
+	require.NoError(t, err)
+
+	c2Profiles, err := cluster.GetInstanceProfiles(context.TODO(), tx.Tx(), containers[1].ID)
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 2)
 
 	assert.Equal(t, "blah", containers[0].Project)
-	assert.Equal(t, []string{"default"}, containers[0].Profiles)
+	assert.Len(t, c1Profiles, 1)
+	assert.Equal(t, "default", c1Profiles[0].Name)
 
 	assert.Equal(t, "test", containers[1].Project)
-	assert.Equal(t, []string{"intranet"}, containers[1].Profiles)
+	assert.Len(t, c2Profiles, 1)
+	assert.Equal(t, "intranet", c2Profiles[0].Name)
 }
 
 func TestInstanceList(t *testing.T) {
@@ -204,7 +229,7 @@ func TestInstanceList(t *testing.T) {
 			return err
 		}
 
-		container := db.Instance{
+		container := cluster.Instance{
 			Project:      "default",
 			Name:         "c1",
 			Node:         "none",
@@ -212,18 +237,24 @@ func TestInstanceList(t *testing.T) {
 			Architecture: 1,
 			Ephemeral:    false,
 			Stateful:     true,
-			Config:       map[string]string{"c": "3"},
-			Devices: map[string]db.Device{
-				"eth0": {
-					Name:   "eth0",
-					Type:   db.TypeNIC,
-					Config: map[string]string{"d": "4"},
-				},
-			},
-			Profiles: []string{"default", "profile1"},
 		}
 
-		_, err = tx.CreateInstance(container)
+		id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), container)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateInstanceConfig(context.TODO(), tx.Tx(), id, map[string]string{"c": "3"})
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), id, map[string]cluster.Device{"eth0": {Name: "eth0", Type: cluster.TypeNIC, Config: map[string]string{"d": "4"}}})
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), container.Project, []string{"default", "profile1"})
 		if err != nil {
 			return err
 		}
@@ -232,19 +263,13 @@ func TestInstanceList(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	var instances []db.Instance
-	err = c.InstanceList(nil, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
+	var instances []db.InstanceArgs
+	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
-		// converting back and forth between API and db Device types.
-		for _, p := range profiles {
-			devices, err := db.APIToDevices(p.Devices)
-			require.NoError(t, err)
-			for _, d := range devices {
-				dbInst.Devices[d.Name] = d
-			}
-		}
+		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, profiles)
+
 		instances = append(instances, dbInst)
+
 		return nil
 	})
 	require.NoError(t, err)
@@ -252,7 +277,7 @@ func TestInstanceList(t *testing.T) {
 	assert.Len(t, instances, 1)
 
 	assert.Equal(t, instances[0].Config, map[string]string{"a": "1", "c": "3"})
-	assert.Equal(t, db.DevicesToAPI(instances[0].Devices), map[string]map[string]string{
+	assert.Equal(t, instances[0].Devices.CloneNative(), map[string]map[string]string{
 		"root": {"type": "disk", "b": "2"},
 		"eth0": {"type": "nic", "d": "4"},
 	})
@@ -262,7 +287,7 @@ func TestCreateInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	object := db.Instance{
+	object := cluster.Instance{
 		Project:      "default",
 		Name:         "c1",
 		Type:         0,
@@ -272,37 +297,48 @@ func TestCreateInstance(t *testing.T) {
 		Stateful:     true,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config:       map[string]string{"x": "y"},
-		Devices: map[string]db.Device{
-			"root": {
-				Name:   "root",
-				Config: map[string]string{"type": "disk", "x": "y"},
-			},
-		},
-		Profiles: []string{"default"},
 	}
 
-	id, err := tx.CreateInstance(object)
+	id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), object)
+	require.NoError(t, err)
+
+	err = cluster.CreateInstanceConfig(context.TODO(), tx.Tx(), id, map[string]string{"x": "y"})
+	require.NoError(t, err)
+
+	err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), id, map[string]cluster.Device{"root": {Name: "root", Config: map[string]string{"type": "disk", "x": "y"}}})
+	require.NoError(t, err)
+
+	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), object.Project, []string{"default"})
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), id)
 
-	c1, err := tx.GetInstance("default", "c1")
+	c1, err := cluster.GetInstance(context.TODO(), tx.Tx(), "default", "c1")
+	require.NoError(t, err)
+
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID)
+	require.NoError(t, err)
+
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID)
+	require.NoError(t, err)
+
+	c1Profiles, err := cluster.GetInstanceProfiles(context.TODO(), tx.Tx(), c1.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, "c1", c1.Name)
-	assert.Equal(t, map[string]string{"x": "y"}, c1.Config)
-	assert.Len(t, c1.Devices, 1)
-	assert.Equal(t, "root", c1.Devices["root"].Name)
-	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c1.Devices["root"].Config)
-	assert.Equal(t, []string{"default"}, c1.Profiles)
+	assert.Equal(t, map[string]string{"x": "y"}, c1Config)
+	assert.Len(t, c1Devices, 1)
+	assert.Equal(t, "root", c1Devices["root"].Name)
+	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c1Devices["root"].Config)
+	assert.Len(t, c1Profiles, 1)
+	assert.Equal(t, "default", c1Profiles[0].Name)
 }
 
 func TestCreateInstance_Snapshot(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	instance := db.Instance{
+	instance := cluster.Instance{
 		Project:      "default",
 		Name:         "foo",
 		Type:         0,
@@ -312,23 +348,26 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Stateful:     false,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config: map[string]string{
-			"image.architecture":  "x86_64",
-			"image.description":   "BusyBox x86_64",
-			"image.name":          "busybox-x86_64",
-			"image.os":            "BusyBox",
-			"volatile.base_image": "1f7f054e6ccb",
-		},
-		Devices:  map[string]db.Device{},
-		Profiles: []string{"default"},
 	}
 
-	id, err := tx.CreateInstance(instance)
+	id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), instance)
+	require.NoError(t, err)
+
+	err = cluster.CreateInstanceConfig(context.TODO(), tx.Tx(), id, map[string]string{
+		"image.architecture":  "x86_64",
+		"image.description":   "BusyBox x86_64",
+		"image.name":          "busybox-x86_64",
+		"image.os":            "BusyBox",
+		"volatile.base_image": "1f7f054e6ccb",
+	})
+	require.NoError(t, err)
+
+	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), instance.Project, []string{"default"})
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), id)
 
-	snapshot := db.Instance{
+	snapshot := cluster.Instance{
 		Project:      "default",
 		Name:         "foo/snap0",
 		Type:         1,
@@ -338,26 +377,29 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Stateful:     false,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config: map[string]string{
-			"image.architecture":      "x86_64",
-			"image.description":       "BusyBox x86_64",
-			"image.name":              "busybox-x86_64",
-			"image.os":                "BusyBox",
-			"volatile.apply_template": "create",
-			"volatile.base_image":     "1f7f054e6ccb",
-			"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
-			"volatile.idmap.base":     "0",
-		},
-		Devices:  map[string]db.Device{},
-		Profiles: []string{"default"},
 	}
 
-	id, err = tx.CreateInstance(snapshot)
+	id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), snapshot)
+	require.NoError(t, err)
+
+	err = cluster.CreateInstanceConfig(context.TODO(), tx.Tx(), id, map[string]string{
+		"image.architecture":      "x86_64",
+		"image.description":       "BusyBox x86_64",
+		"image.name":              "busybox-x86_64",
+		"image.os":                "BusyBox",
+		"volatile.apply_template": "create",
+		"volatile.base_image":     "1f7f054e6ccb",
+		"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
+		"volatile.idmap.base":     "0",
+	})
+	require.NoError(t, err)
+
+	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), instance.Project, []string{"default"})
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(2), id)
 
-	_, err = tx.GetInstance("default", "foo/snap0")
+	_, err = cluster.GetInstance(context.TODO(), tx.Tx(), "default", "foo/snap0")
 	require.NoError(t, err)
 }
 
@@ -415,36 +457,39 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 }
 
 func TestGetInstancePool(t *testing.T) {
-	cluster, cleanup := db.NewTestCluster(t)
+	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	poolID, err := cluster.CreateStoragePool("default", "", "dir", nil)
+	poolID, err := dbCluster.CreateStoragePool("default", "", "dir", nil)
 	require.NoError(t, err)
-	_, err = cluster.CreateStoragePoolVolume("default", "c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil, db.StoragePoolVolumeContentTypeFS)
+	_, err = dbCluster.CreateStoragePoolVolume("default", "c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil, db.StoragePoolVolumeContentTypeFS)
 	require.NoError(t, err)
 
-	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		container := db.Instance{
+	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		container := cluster.Instance{
 			Project: "default",
 			Name:    "c1",
 			Node:    "none",
-			Devices: map[string]db.Device{
-				"root": {
-					Name: "root",
-					Config: map[string]string{
-						"path": "/",
-						"pool": "default",
-						"type": "disk",
-					},
+		}
+		id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), container)
+		if err != nil {
+			return err
+		}
+
+		err = cluster.CreateInstanceDevices(context.TODO(), tx.Tx(), id, map[string]cluster.Device{
+			"root": {
+				Name: "root",
+				Config: map[string]string{"path": "/",
+					"pool": "default",
+					"type": "disk",
 				},
 			},
-		}
-		_, err := tx.CreateInstance(container)
+		})
 		return err
 	})
 	require.NoError(t, err)
 
-	poolName, err := cluster.GetInstancePool("default", "c1")
+	poolName, err := dbCluster.GetInstancePool("default", "c1")
 	require.NoError(t, err)
 	assert.Equal(t, "default", poolName)
 }
@@ -471,7 +516,7 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
 
-	containers, err := tx.GetLocalInstancesInProject(db.InstanceTypeFilter(instancetype.Container))
+	containers, err := tx.GetLocalInstancesInProject(context.TODO(), db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
@@ -483,13 +528,27 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	assert.Equal(t, "none", containers[1].Node)
 	assert.Equal(t, "none", containers[2].Node)
 
-	assert.Equal(t, map[string]string{"x": "y"}, containers[0].Config)
-	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, containers[1].Config)
-	assert.Len(t, containers[2].Config, 0)
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[0].ID)
+	require.NoError(t, err)
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"x": "y"}, c1Config)
+	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, cluster.DevicesToAPI(c1Devices))
 
-	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, db.DevicesToAPI(containers[0].Devices))
-	assert.Len(t, containers[1].Devices, 0)
-	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, db.DevicesToAPI(containers[2].Devices))
+	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[1].ID)
+	require.NoError(t, err)
+	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[1].ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c2Config)
+	assert.Len(t, c2Devices, 0)
+
+	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[2].ID)
+	require.NoError(t, err)
+	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[2].ID)
+	require.NoError(t, err)
+	assert.Len(t, c3Config, 0)
+	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, cluster.DevicesToAPI(c3Devices))
 }
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
