@@ -148,7 +148,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
-		go s.sendControl(err)
+		s.sendControl(err)
 		return err
 	}
 
