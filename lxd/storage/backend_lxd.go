@@ -1726,7 +1726,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 // CreateInstanceFromMigration receives an instance being migrated.
 // The args.Name and args.Config fields are ignored and, instance properties are used instead.
 func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("CreateInstanceFromMigration started")
 	defer l.Debug("CreateInstanceFromMigration finished")
 
@@ -2181,7 +2181,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": fmt.Sprintf("%+v", args)})
 	l.Debug("MigrateInstance started")
 	defer l.Debug("MigrateInstance finished")
 
