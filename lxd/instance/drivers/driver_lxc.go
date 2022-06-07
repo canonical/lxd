@@ -4668,7 +4668,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			profileNames = append(profileNames, profile.Name)
 		}
 
-		return cluster.UpdateInstanceProfiles(ctx, tx.Tx(), *object, profileNames)
+		return cluster.UpdateInstanceProfiles(ctx, tx.Tx(), object.ID, object.Project, profileNames)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update database: %w", err)
