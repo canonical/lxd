@@ -43,7 +43,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 
 	suite.Equal(
 		"default",
-		profiles[0],
+		profiles[0].Name,
 		"First profile should be the default profile.")
 }
 
@@ -75,10 +75,13 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 		})
 	}()
 
+	testProfiles, err := suite.d.db.Cluster.GetProfiles("default", []string{"default", "unprivileged"})
+	suite.Req.Nil(err)
+
 	args := db.InstanceArgs{
 		Type:      instancetype.Container,
 		Ephemeral: false,
-		Profiles:  []string{"default", "unprivileged"},
+		Profiles:  testProfiles,
 		Name:      "testFoo",
 	}
 
@@ -237,9 +240,12 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 		"ipv6.gateway": "none", "nictype": "routed", "parent": "unknownbr0"}
 	eth2 := deviceConfig.Device{"name": "eth2", "type": "nic", "nictype": "bridged", "parent": "unknownbr0"}
 
+	testProfiles, err := suite.d.db.Cluster.GetProfiles("default", []string{"default"})
+	suite.Req.Nil(err)
+
 	args := db.InstanceArgs{
 		Type:     instancetype.Container,
-		Profiles: []string{"default"},
+		Profiles: testProfiles,
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
 		},
@@ -251,7 +257,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	op.Done(nil)
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
-		Profiles: []string{"default"},
+		Profiles: testProfiles,
 		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
@@ -265,7 +271,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	eth1["ipv6.gateway"] = ""
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
-		Profiles: []string{"default"},
+		Profiles: testProfiles,
 		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
@@ -278,7 +284,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
-		Profiles: []string{"default"},
+		Profiles: testProfiles,
 		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
