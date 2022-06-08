@@ -922,6 +922,15 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
 	respHeader := migration.TypesToHeader(respTypes...)
+
+	// Respond with our maximum supported header version if the requested version is higher than ours.
+	// Otherwise just return the requested header version to the source.
+	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
+	if indexHeaderVersion > migration.IndexHeaderVersion {
+		indexHeaderVersion = migration.IndexHeaderVersion
+	}
+
+	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &c.refresh
@@ -930,13 +939,14 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// with the new storage layer.
 	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
-			Name:          args.Instance.Name(),
-			MigrationType: respTypes[0],
-			Refresh:       args.Refresh,    // Indicate to receiver volume should exist.
-			TrackProgress: true,            // Use a progress tracker on receiver to get in-cluster progress information.
-			Live:          args.Live,       // Indicates we will get a final rootfs sync.
-			VolumeSize:    args.VolumeSize, // Block size setting override.
-			VolumeOnly:    args.VolumeOnly,
+			IndexHeaderVersion: migration.IndexHeaderVersion,
+			Name:               args.Instance.Name(),
+			MigrationType:      respTypes[0],
+			Refresh:            args.Refresh,    // Indicate to receiver volume should exist.
+			TrackProgress:      true,            // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:               args.Live,       // Indicates we will get a final rootfs sync.
+			VolumeSize:         args.VolumeSize, // Block size setting override.
+			VolumeOnly:         args.VolumeOnly,
 		}
 
 		// At this point we have already figured out the parent container's root
