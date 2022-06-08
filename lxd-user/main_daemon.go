@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -15,7 +15,9 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 )
 
-var connections int64
+var mu sync.RWMutex
+var connections uint64
+var transactions uint64
 
 type cmdDaemon struct {
 	global *cmdGlobal
@@ -82,11 +84,27 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 			for {
 				time.Sleep(30 * time.Second)
 
-				if atomic.CompareAndSwapInt64(&connections, 0, -1) {
-					// Exit if no more connections.
-					log.Info("Shutting down for inactivity")
+				// Check for active connections.
+				mu.RLock()
+				if connections > 0 {
+					mu.RUnlock()
+					continue
+				}
+
+				// Look for recent activity
+				oldCount := transactions
+				mu.RUnlock()
+
+				time.Sleep(5 * time.Second)
+
+				mu.RLock()
+				if oldCount == transactions {
+					mu.RUnlock()
+
+					// Daemon has been inactive for 10s, exit.
 					os.Exit(0)
 				}
+				mu.RUnlock()
 			}
 		}()
 	} else {
