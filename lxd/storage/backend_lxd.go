@@ -1061,6 +1061,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				MigrationType:     migrationTypes[0],
 				TrackProgress:     true, // Do use a progress tracker on sender.
 				AllowInconsistent: allowInconsistent,
+				VolumeOnly:        !snapshots,
 			}, op)
 
 			if err != nil {
@@ -1076,6 +1077,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				MigrationType: migrationTypes[0],
 				VolumeSize:    srcVolumeSize, // Block size setting override.
 				TrackProgress: false,         // Do not use a progress tracker on receiver.
+				VolumeOnly:    !snapshots,
 			}, op)
 
 			if err != nil {
@@ -3390,6 +3392,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			TrackProgress:      true, // Do use a progress tracker on sender.
 			ContentType:        string(contentType),
 			Info:               &migration.Info{Config: srcConfig},
+			VolumeOnly:         !snapshots,
 		}, op)
 
 		if err != nil {
@@ -3409,6 +3412,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			TrackProgress:      false, // Do not use a progress tracker on receiver.
 			ContentType:        string(contentType),
 			VolumeSize:         volSize, // Block size setting override.
+			VolumeOnly:         !snapshots,
 		}, op)
 
 		if err != nil {
