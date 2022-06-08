@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"path/filepath"
-	"sync/atomic"
 
 	log "github.com/sirupsen/logrus"
 
@@ -41,27 +40,19 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 }
 
 func proxyConnection(conn *net.UnixConn) {
-	// Setup connection counter.
-	for {
-		count := atomic.LoadInt64(&connections)
-		if count == -1 {
-			return
-		}
-
-		// Ideally we'd loop here but we can't because go's cmpxchg
-		// strangely doesn't return the old value it rather returns a
-		// bool preventing such patterns as the one we use here.
-		if atomic.CompareAndSwapInt64(&connections, count, count+1) {
-			break
-		}
-	}
-
 	defer func() {
-		atomic.AddInt64(&connections, -1)
+		_ = conn.Close()
+
+		mu.Lock()
+		connections -= 1
+		mu.Unlock()
 	}()
 
-	// Close on exit.
-	defer func() { _ = conn.Close() }()
+	// Increase counters.
+	mu.Lock()
+	transactions += 1
+	connections += 1
+	mu.Unlock()
 
 	// Get credentials.
 	creds, err := ucred.GetCred(conn)
