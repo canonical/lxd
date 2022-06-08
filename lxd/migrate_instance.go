@@ -393,6 +393,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
+
 	maxDumpIterations := 0
 
 	// Add idmap info to source header for containers.
@@ -439,7 +443,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	srcConfig, err := pool.GenerateInstanceBackupConfig(s.instance, !s.instanceOnly, migrateOp)
 	if err != nil {
-		return abort(fmt.Errorf("Failed generating instance copy config: %w", err))
+		return abort(fmt.Errorf("Failed generating instance migration config: %w", err))
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
@@ -495,21 +499,30 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return abort(fmt.Errorf("Failed to negotiate migration type: %w", err))
 	}
 
-	sendSnapshotNames := offerHeader.SnapshotNames
-
-	// If we are in refresh mode, only send the snapshots the target has asked for.
-	if respHeader.GetRefresh() {
-		sendSnapshotNames = respHeader.GetSnapshotNames()
+	volSourceArgs := &migration.VolumeSourceArgs{
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               s.instance.Name(),
+		MigrationType:      migrationTypes[0],
+		Snapshots:          offerHeader.SnapshotNames,
+		TrackProgress:      true,
+		Refresh:            respHeader.GetRefresh(),
+		AllowInconsistent:  s.migrationFields.allowInconsistent,
+		VolumeOnly:         s.instanceOnly,
+		Info:               &migration.Info{Config: srcConfig},
 	}
 
-	volSourceArgs := &migration.VolumeSourceArgs{
-		Name:              s.instance.Name(),
-		MigrationType:     migrationTypes[0],
-		Snapshots:         sendSnapshotNames,
-		TrackProgress:     true,
-		Refresh:           respHeader.GetRefresh(),
-		AllowInconsistent: s.migrationFields.allowInconsistent,
-		VolumeOnly:        s.instanceOnly,
+	// Only send the snapshots that the target requests when refreshing.
+	if respHeader.GetRefresh() {
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+
+		// Ensure that only the requested snapshots are included in the migration index header.
+		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+			}
+		}
 	}
 
 	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
@@ -716,6 +729,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// snapshots as they don't need to have a final sync as not being modified.
 		volSourceArgs.FinalSync = true
 		volSourceArgs.Snapshots = nil
+		volSourceArgs.Info.Config.VolumeSnapshots = nil
 
 		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 		if err != nil {
