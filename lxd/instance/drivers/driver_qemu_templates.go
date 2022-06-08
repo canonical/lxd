@@ -670,7 +670,6 @@ type qemuPCIPhysicalOpts struct {
 	dev         qemuDevOpts
 	devName     string
 	pciSlotName string
-	bootIndex   int
 }
 
 func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
@@ -682,7 +681,6 @@ func qemuPCIPhysical(opts *qemuPCIPhysicalOpts) []cfgSection {
 
 	entries := append(qemuDeviceEntries(&deviceOpts), []cfgEntry{
 		{key: "host", value: opts.pciSlotName},
-		{key: "bootIndex", value: fmt.Sprintf("%d", opts.bootIndex)},
 	}...)
 
 	return []cfgSection{{
