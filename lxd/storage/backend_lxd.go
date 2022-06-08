@@ -3474,7 +3474,7 @@ func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersio
 
 		err = json.Unmarshal(respBuf, &infoResp)
 		if err != nil {
-			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
+			return nil, fmt.Errorf("Failed decoding migration index header response: %w", err)
 		}
 
 		if infoResp.Err() != nil {
