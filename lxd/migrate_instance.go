@@ -437,27 +437,20 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		offerHeader.Predump = proto.Bool(offerUsePreDumps)
 	}
 
-	// Add snapshot info to source header if needed.
-	snapshots := []*migration.Snapshot{}
-	snapshotNames := []string{}
-	if !s.instanceOnly {
-		fullSnaps, err := s.instance.Snapshots()
-		if err == nil {
-			for _, snap := range fullSnaps {
-				si, _, err := snap.Render()
-				if err != nil {
-					return abort(err)
-				}
-
-				snapshots = append(snapshots, snapshotToProtobuf(si.(*api.InstanceSnapshot)))
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-				snapshotNames = append(snapshotNames, snapName)
-			}
-		}
+	srcConfig, err := pool.GenerateInstanceBackupConfig(s.instance, !s.instanceOnly, migrateOp)
+	if err != nil {
+		return abort(fmt.Errorf("Failed generating instance copy config: %w", err))
 	}
 
-	offerHeader.SnapshotNames = snapshotNames
-	offerHeader.Snapshots = snapshots
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	if !s.instanceOnly {
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.Snapshots))
+		for _, snapshot := range srcConfig.Snapshots {
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, snapshot.Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, snapshotToProtobuf(snapshot))
+		}
+	}
 
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
 	if s.instance.Type() == instancetype.VM {
@@ -502,7 +495,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return abort(err)
 	}
 
-	sendSnapshotNames := snapshotNames
+	sendSnapshotNames := offerHeader.SnapshotNames
 
 	// If we are in refresh mode, only send the snapshots the target has asked for.
 	if respHeader.GetRefresh() {
