@@ -498,8 +498,19 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
 	}
 
-	if req.Token && req.Type != "client" {
-		return response.BadRequest(fmt.Errorf("Tokens can only be issued for client certificates"))
+	if req.Token {
+		if req.Type != "client" {
+			return response.BadRequest(fmt.Errorf("Tokens can only be issued for client certificates"))
+		}
+
+		address, err := node.HTTPSAddress(d.db.Node)
+		if err != nil {
+			return response.InternalError(fmt.Errorf("Failed to fetch node address: %w", err))
+		}
+
+		if address == "" {
+			return response.BadRequest(fmt.Errorf("Can't issue token when server isn't listening on network"))
+		}
 	}
 
 	// Access check.
