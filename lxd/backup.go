@@ -236,6 +236,16 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		return fmt.Errorf("Unrecognised instance type for backup type conversion")
 	}
 
+	// We only write backup files out for actual instances.
+	if sourceInst.IsSnapshot() {
+		return fmt.Errorf("Cannot generate backup config for snapshots")
+	}
+
+	// Immediately return if the instance directory doesn't exist yet.
+	if !shared.PathExists(sourceInst.Path()) {
+		return os.ErrNotExist
+	}
+
 	config, err := pool.GenerateInstanceBackupConfig(sourceInst, snapshots, nil)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance backup config: %w", err)
