@@ -812,26 +812,27 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project(), "instance": c.src.instance.Name()})
+
 	var err error
 
+	l.Info("Waiting for migration channel connections on target")
+
 	if c.push {
-		logger.Info("Waiting for migration channel connections")
 		select {
 		case <-time.After(time.Second * 10):
-			return fmt.Errorf("Timed out waiting for connections")
+			return fmt.Errorf("Timed out waiting for migration connections")
 		case <-c.allConnected:
 		}
-		logger.Info("Migration channels connected")
 	}
 
-	disconnector := c.src.disconnect
+	var disconnector func()
+
 	if c.push {
 		disconnector = c.dest.disconnect
-	}
-
-	if c.push {
 		defer disconnector()
 	} else {
+		disconnector = c.src.disconnect
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
 			return err
@@ -853,6 +854,9 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		}
 	}
 
+	l.Info("Migration channels connected on target")
+	defer l.Info("Migration channels disconnected on target")
+
 	receiver := c.src.recv
 	if c.push {
 		receiver = c.dest.recv
@@ -871,6 +875,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	offerHeader := &migration.MigrationHeader{}
 	err = receiver(offerHeader)
 	if err != nil {
+		err = fmt.Errorf("Failed receiving migration offer header: %w", err)
 		controller(err)
 		return err
 	}
@@ -970,7 +975,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 		err = pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
 		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
@@ -1164,16 +1169,16 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 			if respHeader.GetPredump() {
 				for !sync.GetFinalPreDump() {
-					logger.Debugf("About to receive rsync")
+					l.Debug("About to receive rsync")
 					// Transfer a CRIU pre-dump.
 					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
 						return
 					}
-					logger.Debugf("Done receiving from rsync")
+					l.Debug("Done receiving from rsync")
 
-					logger.Debugf("About to receive header")
+					l.Debug("About to receive header")
 					// Check if this was the last pre-dump.
 					// Only the FinalPreDump element if of interest.
 					mtype, data, err := criuConn.ReadMessage()
@@ -1254,6 +1259,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				disconnector()
 				return err
 			}
+
 			controller(err)
 			return err
 		case msg := <-source:
