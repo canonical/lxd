@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:46-0500\n"
+"POT-Creation-Date: 2022-06-20 19:27-0500\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -245,6 +245,7 @@ msgstr ""
 "configuration keys can be changed."
 
 #: lxc/network_forward.go:496
+#, fuzzy
 msgid ""
 "### This is a YAML representation of the network forward.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -254,7 +255,8 @@ msgid ""
 "###\n"
 "### An example would look like:\n"
 "### listen_address: 192.0.2.1\n"
-"### target_address: 198.51.100.2\n"
+"### config:\n"
+"###   target_address: 198.51.100.2\n"
 "### description: test desc\n"
 "### port:\n"
 "### - description: port forward\n"
@@ -706,7 +708,7 @@ msgid ""
 "restricted to one or more projects.\n"
 msgstr ""
 
-#: lxc/network_forward.go:704 lxc/network_forward.go:705
+#: lxc/network_forward.go:705 lxc/network_forward.go:706
 msgid "Add ports to a forward"
 msgstr "フォワードにポートを追加します"
 
@@ -1122,8 +1124,8 @@ msgstr "クラスターメンバー %s がグループ %s から削除されま�
 #: lxc/network.go:764 lxc/network.go:1101 lxc/network.go:1168
 #: lxc/network.go:1230 lxc/network_forward.go:170 lxc/network_forward.go:234
 #: lxc/network_forward.go:389 lxc/network_forward.go:490
-#: lxc/network_forward.go:631 lxc/network_forward.go:708
-#: lxc/network_forward.go:774 lxc/storage.go:96 lxc/storage.go:340
+#: lxc/network_forward.go:632 lxc/network_forward.go:709
+#: lxc/network_forward.go:775 lxc/storage.go:96 lxc/storage.go:340
 #: lxc/storage.go:401 lxc/storage.go:604 lxc/storage.go:676 lxc/storage.go:759
 #: lxc/storage_volume.go:335 lxc/storage_volume.go:521
 #: lxc/storage_volume.go:600 lxc/storage_volume.go:842
@@ -1184,7 +1186,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 #: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:263
 #: lxc/config.go:336 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:454 lxc/network.go:674 lxc/network_acl.go:582
-#: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
+#: lxc/network_forward.go:596 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:508 lxc/project.go:312
 #: lxc/storage.go:307 lxc/storage_volume.go:975 lxc/storage_volume.go:1005
 #, c-format
@@ -1524,7 +1526,7 @@ msgstr "インスタンスとスナップショットを削除します"
 msgid "Delete network ACLs"
 msgstr "ネットワーク ACL を削除します"
 
-#: lxc/network_forward.go:627 lxc/network_forward.go:628
+#: lxc/network_forward.go:628 lxc/network_forward.go:629
 msgid "Delete network forwards"
 msgstr "ネットワークフォワードを削除します"
 
@@ -1608,9 +1610,9 @@ msgstr "警告を削除します"
 #: lxc/network_forward.go:87 lxc/network_forward.go:167
 #: lxc/network_forward.go:231 lxc/network_forward.go:327
 #: lxc/network_forward.go:382 lxc/network_forward.go:460
-#: lxc/network_forward.go:487 lxc/network_forward.go:628
-#: lxc/network_forward.go:690 lxc/network_forward.go:705
-#: lxc/network_forward.go:770 lxc/network_peer.go:30 lxc/network_peer.go:83
+#: lxc/network_forward.go:487 lxc/network_forward.go:629
+#: lxc/network_forward.go:691 lxc/network_forward.go:706
+#: lxc/network_forward.go:771 lxc/network_peer.go:30 lxc/network_peer.go:83
 #: lxc/network_peer.go:159 lxc/network_peer.go:216 lxc/network_peer.go:330
 #: lxc/network_peer.go:385 lxc/network_peer.go:454 lxc/network_peer.go:481
 #: lxc/network_peer.go:606 lxc/network_zone.go:29 lxc/network_zone.go:86
@@ -3385,7 +3387,7 @@ msgstr "ネットワーク ACL ルールを管理します"
 msgid "Manage network ACLs"
 msgstr "ネットワーク ACL を管理します"
 
-#: lxc/network_forward.go:689 lxc/network_forward.go:690
+#: lxc/network_forward.go:690 lxc/network_forward.go:691
 msgid "Manage network forward ports"
 msgstr "ネットワークフォワードのポートを管理します"
 
@@ -3537,8 +3539,8 @@ msgstr "インスタンス名を指定する必要があります"
 
 #: lxc/network_forward.go:195 lxc/network_forward.go:259
 #: lxc/network_forward.go:354 lxc/network_forward.go:414
-#: lxc/network_forward.go:537 lxc/network_forward.go:656
-#: lxc/network_forward.go:733 lxc/network_forward.go:799
+#: lxc/network_forward.go:538 lxc/network_forward.go:657
+#: lxc/network_forward.go:734 lxc/network_forward.go:800
 msgid "Missing listen address"
 msgstr "リッスンアドレスを指定する必要があります"
 
@@ -3560,9 +3562,9 @@ msgstr "ネットワーク ACL 名を指定する必要があります"
 #: lxc/network.go:1001 lxc/network.go:1069 lxc/network.go:1124
 #: lxc/network.go:1191 lxc/network_forward.go:116 lxc/network_forward.go:191
 #: lxc/network_forward.go:255 lxc/network_forward.go:350
-#: lxc/network_forward.go:410 lxc/network_forward.go:533
-#: lxc/network_forward.go:652 lxc/network_forward.go:729
-#: lxc/network_forward.go:795 lxc/network_peer.go:112 lxc/network_peer.go:181
+#: lxc/network_forward.go:410 lxc/network_forward.go:534
+#: lxc/network_forward.go:653 lxc/network_forward.go:730
+#: lxc/network_forward.go:796 lxc/network_peer.go:112 lxc/network_peer.go:181
 #: lxc/network_peer.go:238 lxc/network_peer.go:353 lxc/network_peer.go:411
 #: lxc/network_peer.go:519 lxc/network_peer.go:628
 msgid "Missing network name"
@@ -3707,7 +3709,7 @@ msgstr "コピー／移動元とは異なるプロジェクトに移動します
 msgid "Moving the storage volume: %s"
 msgstr "ストレージボリュームの移動中: %s"
 
-#: lxc/network_forward.go:843
+#: lxc/network_forward.go:844
 msgid "Multiple ports match. Use --force to remove them all"
 msgstr ""
 "複数のポートにマッチしました。すべて削除するには --force を指定してください"
@@ -3839,7 +3841,7 @@ msgstr "ネットワークゾーン %s を削除しました"
 msgid "Network forward %s created"
 msgstr "ネットワークフォワード %s を作成しました"
 
-#: lxc/network_forward.go:673
+#: lxc/network_forward.go:674
 #, c-format
 msgid "Network forward %s deleted"
 msgstr "ネットワークフォワード %s を削除しました"
@@ -3920,7 +3922,7 @@ msgstr "このネットワークに対するデバイスがありません"
 msgid "No device found for this storage volume"
 msgstr "このストレージボリュームに対するデバイスがありません"
 
-#: lxc/network_forward.go:854
+#: lxc/network_forward.go:855
 msgid "No matching port(s) found"
 msgstr "マッチするポートが見つかりません"
 
@@ -4094,7 +4096,7 @@ msgstr "終了するには ctrl+c を押してください"
 #: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:264
 #: lxc/config.go:337 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:308 lxc/image.go:455 lxc/network.go:675
-#: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
+#: lxc/network_acl.go:583 lxc/network_forward.go:597 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:509
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:976
 #: lxc/storage_volume.go:1006
@@ -4355,7 +4357,7 @@ msgstr "ネットワークゾーンレコードエントリを削除します"
 msgid "Remove aliases"
 msgstr "エイリアスを削除します"
 
-#: lxc/network_forward.go:771
+#: lxc/network_forward.go:772
 msgid "Remove all ports that match"
 msgstr "マッチするポートをすべて削除します"
 
@@ -4375,7 +4377,7 @@ msgstr "インスタンスのデバイスを削除します"
 msgid "Remove member from group"
 msgstr "グループからメンバーを削除します"
 
-#: lxc/network_forward.go:769 lxc/network_forward.go:770
+#: lxc/network_forward.go:770 lxc/network_forward.go:771
 msgid "Remove ports from a forward"
 msgstr "フォワードからポートを削除します"
 
@@ -6009,7 +6011,7 @@ msgid "[<remote>:]<network> <key>=<value>..."
 msgstr "[<remote>:]<network> <key>=<value>..."
 
 #: lxc/network_forward.go:165 lxc/network_forward.go:485
-#: lxc/network_forward.go:625
+#: lxc/network_forward.go:626
 msgid "[<remote>:]<network> <listen_address>"
 msgstr "[<remote>:]<network> <listen_address>"
 
@@ -6021,7 +6023,7 @@ msgstr "[<remote>:]<network> <listen_address> <key>"
 msgid "[<remote>:]<network> <listen_address> <key>=<value>..."
 msgstr "[<remote>:]<network> <listen_address> <key>=<value>..."
 
-#: lxc/network_forward.go:703
+#: lxc/network_forward.go:704
 msgid ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<target_address> [<target_port(s)>]"
@@ -6029,7 +6031,7 @@ msgstr ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<target_address> [<target_port(s)>]"
 
-#: lxc/network_forward.go:768
+#: lxc/network_forward.go:769
 msgid "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 msgstr "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 
