@@ -3618,13 +3618,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		volumeConfig = args.Config
 	}
 
-	// Get the volume name on storage.
-	volStorageName := project.StorageVolume(projectName, args.Name)
-
-	// Check the supplied config and remove any fields not relevant for destination pool type.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
-
 	// Check if the volume exists on storage.
+	volStorageName := project.StorageVolume(projectName, args.Name)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
 	volExists := b.driver.HasVolume(vol)
 
 	// Check for inconsistencies between database and storage before continuing.
@@ -3650,11 +3646,6 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
 	}
 
-	err = b.driver.ValidateVolume(vol, true)
-	if err != nil {
-		return err
-	}
-
 	// Receive index header from source if applicable and respond confirming receipt.
 	// This will also let the source know whether to actually perform a refresh, as the target
 	// will set Refresh to false if the volume doesn't exist.
@@ -3666,7 +3657,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	revert := revert.New()
 	defer revert.Fail()
 
-	if !args.Refresh || !b.driver.HasVolume(vol) {
+	if !args.Refresh {
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
 		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
