@@ -80,23 +80,16 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	indexHeaderVersion := migration.IndexHeaderVersion
 	offerHeader.IndexHeaderVersion = &indexHeaderVersion
 
-	var snapshots []*migration.Snapshot
-	var snapshotNames []string
-
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
-		snapshots = make([]*migration.Snapshot, 0, len(srcConfig.VolumeSnapshots))
-		snapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.VolumeSnapshots))
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
 
 		for i := range srcConfig.VolumeSnapshots {
-			snapshotNames = append(snapshotNames, srcConfig.VolumeSnapshots[i].Name)
-			snapshots = append(snapshots, volumeSnapshotToProtobuf(srcConfig.VolumeSnapshots[i]))
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.VolumeSnapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, volumeSnapshotToProtobuf(srcConfig.VolumeSnapshots[i]))
 		}
 	}
-
-	// Add snapshot info to source header.
-	offerHeader.SnapshotNames = snapshotNames
-	offerHeader.Snapshots = snapshots
 
 	// Send offer to target.
 	err = s.send(offerHeader)
@@ -126,7 +119,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
 		Name:               volName,
 		MigrationType:      migrationTypes[0],
-		Snapshots:          snapshotNames,
+		Snapshots:          offerHeader.SnapshotNames,
 		TrackProgress:      true,
 		ContentType:        srcConfig.Volume.ContentType,
 		Info:               &migration.Info{Config: srcConfig},
