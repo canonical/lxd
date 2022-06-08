@@ -21,14 +21,26 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
 
-      # Autobuild attempts to build any compiled languages (C/C++, C#, or Java).
-      # If this step fails, then you should remove it and run the build manually (see below).
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.x
 
-      #- run: |
-      #     make bootstrap
-      #     make release
+      - name: Create build directory
+        run: |
+          mkdir bin
+
+      - name: Build static lxc
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxc
+
+      - name: Build static lxd-migrate
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bin ./lxd-migrate
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
