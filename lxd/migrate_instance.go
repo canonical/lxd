@@ -502,7 +502,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		sendSnapshotNames = respHeader.GetSnapshotNames()
 	}
 
-	volSourceArgs := &migration.VolumeSourceArgs{}
+	volSourceArgs := &migration.VolumeSourceArgs{
+		Name:              s.instance.Name(),
+		MigrationType:     migrationTypes[0],
+		Snapshots:         sendSnapshotNames,
+		TrackProgress:     true,
+		Refresh:           respHeader.GetRefresh(),
+		AllowInconsistent: s.migrationFields.allowInconsistent,
+	}
 
 	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
 	// source instance is running and that we should do a two stage transfer to minimize downtime.
@@ -517,13 +524,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(fmt.Errorf("Failed statefully stopping instance: %w", err))
 		}
 	}
-
-	volSourceArgs.Name = s.instance.Name()
-	volSourceArgs.MigrationType = migrationTypes[0]
-	volSourceArgs.Snapshots = sendSnapshotNames
-	volSourceArgs.TrackProgress = true
-	volSourceArgs.Refresh = respHeader.GetRefresh()
-	volSourceArgs.AllowInconsistent = s.migrationFields.allowInconsistent
 
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
