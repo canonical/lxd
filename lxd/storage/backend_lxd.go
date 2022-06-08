@@ -4550,17 +4550,8 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 }
 
 // GenerateInstanceBackupConfig returns the backup config entry for this instance.
+// The Container field is only populated for non-snapshot instances.
 func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapshots bool, op *operations.Operation) (*backupConfig.Config, error) {
-	// We only write backup files out for actual instances.
-	if inst.IsSnapshot() {
-		return nil, fmt.Errorf("Cannot generate backup config for snapshots")
-	}
-
-	// Immediately return if the instance directory doesn't exist yet.
-	if !shared.PathExists(inst.Path()) {
-		return nil, os.ErrNotExist
-	}
-
 	// Generate the YAML.
 	ci, _, err := inst.Render()
 	if err != nil {
@@ -4578,61 +4569,65 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 	}
 
 	config := &backupConfig.Config{
-		Container: ci.(*api.Instance),
-		Pool:      &b.db,
-		Volume:    volume,
+		Pool:   &b.db,
+		Volume: volume,
 	}
 
-	if snapshots {
-		snapshots, err := inst.Snapshots()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get snapshots: %w", err)
-		}
+	// Only populate Container field for non-snapshot instances.
+	if !inst.IsSnapshot() {
+		config.Container = ci.(*api.Instance)
 
-		config.Snapshots = make([]*api.InstanceSnapshot, 0, len(snapshots))
-		for _, s := range snapshots {
-			si, _, err := s.Render()
+		if snapshots {
+			snapshots, err := inst.Snapshots()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get snapshots: %w", err)
+			}
+
+			config.Snapshots = make([]*api.InstanceSnapshot, 0, len(snapshots))
+			for _, s := range snapshots {
+				si, _, err := s.Render()
+				if err != nil {
+					return nil, err
+				}
+
+				config.Snapshots = append(config.Snapshots, si.(*api.InstanceSnapshot))
+			}
+
+			dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project(), inst.Name(), volType)
 			if err != nil {
 				return nil, err
 			}
 
-			config.Snapshots = append(config.Snapshots, si.(*api.InstanceSnapshot))
-		}
+			if len(snapshots) != len(dbVolSnaps) {
+				return nil, fmt.Errorf("Instance snapshot record count doesn't match instance snapshot volume record count")
+			}
 
-		dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project(), inst.Name(), volType)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(snapshots) != len(dbVolSnaps) {
-			return nil, fmt.Errorf("Instance snapshot record count doesn't match instance snapshot volume record count")
-		}
-
-		config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
-		for i := range dbVolSnaps {
-			foundInstanceSnapshot := false
-			for _, snap := range snapshots {
-				if snap.Name() == dbVolSnaps[i].Name {
-					foundInstanceSnapshot = true
-					break
+			config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+			for i := range dbVolSnaps {
+				foundInstanceSnapshot := false
+				for _, snap := range snapshots {
+					if snap.Name() == dbVolSnaps[i].Name {
+						foundInstanceSnapshot = true
+						break
+					}
 				}
+
+				if !foundInstanceSnapshot {
+					return nil, fmt.Errorf("Instance snapshot record missing for %q", dbVolSnaps[i].Name)
+				}
+
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+
+				config.VolumeSnapshots = append(config.VolumeSnapshots, &api.StorageVolumeSnapshot{
+					StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+						Description: dbVolSnaps[i].Description,
+						ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
+					},
+					Name:        snapName,
+					Config:      dbVolSnaps[i].Config,
+					ContentType: dbVolSnaps[i].ContentType,
+				})
 			}
-
-			if !foundInstanceSnapshot {
-				return nil, fmt.Errorf("Instance snapshot record missing for %q", dbVolSnaps[i].Name)
-			}
-
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
-
-			config.VolumeSnapshots = append(config.VolumeSnapshots, &api.StorageVolumeSnapshot{
-				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
-					Description: dbVolSnaps[i].Description,
-					ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
-				},
-				Name:        snapName,
-				Config:      dbVolSnaps[i].Config,
-				ContentType: dbVolSnaps[i].ContentType,
-			})
 		}
 	}
 
