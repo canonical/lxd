@@ -1,8 +1,9 @@
 ---
 orphan: true
-substitutions:
-  reuse_key: "This is **included** text."
-  advanced_reuse_key: "This is a substitution that includes a code block:
+myst:
+  substitutions:
+    reuse_key: "This is **included** text."
+    advanced_reuse_key: "This is a substitution that includes a code block:
                        ```
                        code block
                        ```"
@@ -480,9 +481,10 @@ Substitutions can be defined in the following locations:
 
   ````
   ---
-  substitutions:
-    reuse_key: "This is **included** text."
-    advanced_reuse_key: "This is a substitution that includes a code block:
+  myst:
+    substitutions:
+      reuse_key: "This is **included** text."
+      advanced_reuse_key: "This is a substitution that includes a code block:
                          ```
                          code block
                          ```"
