@@ -3494,6 +3494,8 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 
 	// Receive index header from source if applicable and respond confirming receipt.
 	if indexHeaderVersion > 0 {
+		l.Debug("Waiting for migration index header", logger.Ctx{"version": indexHeaderVersion})
+
 		buf, err := ioutil.ReadAll(conn)
 		if err != nil {
 			return nil, fmt.Errorf("Failed reading migration index header: %w", err)
