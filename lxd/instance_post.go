@@ -798,10 +798,18 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			return err
 		}
 
+		// Check source volume exists, and get its config.
+		srcConfig, err := pool.GenerateInstanceBackupConfig(inst, false, op)
+		if err != nil {
+			return fmt.Errorf("Failed generating instance migration config: %w", err)
+		}
+
 		// Trigger a rename in the Ceph driver.
 		args := migration.VolumeSourceArgs{
 			Data: project.Instance(inst.Project(), newName), // Indicate new storage volume name.
+			Info: &migration.Info{Config: srcConfig},
 		}
+
 		err = pool.MigrateInstance(inst, nil, &args, op)
 		if err != nil {
 			return fmt.Errorf("Failed to migrate ceph RBD volume: %w", err)
