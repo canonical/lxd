@@ -345,22 +345,39 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	logger.Info("Waiting for migration channel connections")
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name()})
+
+	l.Info("Waiting for migration channel connections on source")
+
 	select {
 	case <-time.After(time.Second * 10):
-		return fmt.Errorf("Timed out waiting for connections")
+		return fmt.Errorf("Timed out waiting for migration connections")
 	case <-s.allConnected:
 	}
 
-	logger.Info("Migration channels connected")
+	l.Info("Migration channels connected on source")
 
+	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
+
+	// All failure paths need to do a few things to correctly handle errors before returning.
+	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
+	// status of driver and the error value. The error value is especially tricky due to the
+	// common case of creating a new err variable (intentional or not) due to scoping and use
+	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
+	// the purpose of using defer. An abort function reduces the odds of mishandling errors
+	// without introducing the fragility of closing on err.
+	abort := func(err error) error {
+		l.Error("Migration failed on source", logger.Ctx{"err": err})
+		s.sendControl(err)
+		return err
+	}
 
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.LoadByInstance(state, s.instance)
 	if err != nil {
-		return err
+		return abort(fmt.Errorf("Failed loading instance: %w", err))
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
@@ -369,7 +386,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
 	if len(poolMigrationTypes) < 0 {
-		return fmt.Errorf("No source migration types available")
+		return abort(fmt.Errorf("No source migration types available"))
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
@@ -394,7 +411,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		idmaps := make([]*migration.IDMapType, 0)
 		idmapset, err := ct.DiskIdmap()
 		if err != nil {
-			return err
+			return abort(err)
 		} else if idmapset != nil {
 			for _, ctnIdmap := range idmapset.Idmap {
 				idmap := migration.IDMapType{
@@ -429,7 +446,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			for _, snap := range fullSnaps {
 				si, _, err := snap.Render()
 				if err != nil {
-					return err
+					return abort(err)
 				}
 
 				snapshots = append(snapshots, snapshotToProtobuf(si.(*api.InstanceSnapshot)))
@@ -446,26 +463,24 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	if s.instance.Type() == instancetype.VM {
 		blockSize, err := storagePools.InstanceDiskBlockSize(pool, s.instance, migrateOp)
 		if err != nil {
-			return fmt.Errorf("Failed getting source disk size: %w", err)
+			return abort(fmt.Errorf("Failed getting source disk size: %w", err))
 		}
 
-		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
+		l.Debug("Set migration offer volume size for %q: %d", logger.Ctx{"blockSize": blockSize})
 		offerHeader.VolumeSize = &blockSize
 	}
 
 	// Send offer to target.
 	err = s.send(offerHeader)
 	if err != nil {
-		s.sendControl(err)
-		return err
+		return abort(fmt.Errorf("Failed sending migration offer header: %w", err))
 	}
 
 	// Receive response from target.
 	respHeader := &migration.MigrationHeader{}
 	err = s.recv(respHeader)
 	if err != nil {
-		s.sendControl(err)
-		return err
+		return abort(err)
 	}
 
 	var migrationTypes []migration.Type // Negotiated migration types.
@@ -480,22 +495,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
-	// All failure paths need to do a few things to correctly handle errors before returning.
-	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
-	// status of driver and the error value. The error value is especially tricky due to the
-	// common case of creating a new err variable (intentional or not) due to scoping and use
-	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
-	// the purpose of using defer. An abort function reduces the odds of mishandling errors
-	// without introducing the fragility of closing on err.
-	abort := func(err error) error {
-		s.sendControl(err)
-		return err
-	}
-
 	rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 	migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		logger.Errorf("Failed to negotiate migration type: %v", err)
+		l.Error("Failed to negotiate migration type", logger.Ctx{"err": err})
 		return abort(err)
 	}
 
@@ -621,7 +624,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			// Check if the other side knows about pre-dumping and the associated
 			// rsync protocol.
 			if respHeader.GetPredump() {
-				logger.Debugf("The other side does support pre-copy")
+				l.Debug("The other side does support pre-copy")
 				final := false
 				for !final {
 					preDumpCounter++
@@ -648,7 +651,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					preDumpCounter++
 				}
 			} else {
-				logger.Debugf("The other side does not support pre-copy")
+				l.Debug("The other side does not support pre-copy")
 			}
 
 			err = actionScriptOp.Start()
@@ -680,10 +683,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				return abort(err)
 			// The dump finished, let's continue on to the restore.
 			case <-dumpDone:
-				logger.Debugf("Dump finished, continuing with restore...")
+				l.Debug("Dump finished, continuing with restore...")
 			}
 		} else {
-			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
+			l.Debug("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer func() { _ = os.RemoveAll(checkpointDir) }()
 			criuMigrationArgs := instance.CriuMigrationArgs{
 				Cmd:          liblxc.MIGRATE_DUMP,
@@ -729,20 +732,19 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
 	if err != nil {
-		s.disconnect()
-		return err
+		return abort(err)
 	}
 
 	if s.live && s.instance.Type() == instancetype.Container {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
-			logger.Errorf("Dump failed after successful restore?: %q", err)
+			l.Error("Dump failed after successful restore", logger.Ctx{"err": err})
 		}
 	}
 
 	if !*msg.Success {
-		return fmt.Errorf(*msg.Message)
+		return abort(fmt.Errorf(*msg.Message))
 	}
 
 	return nil
