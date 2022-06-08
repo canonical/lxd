@@ -920,28 +920,24 @@ func TestQemuConfigTemplates(t *testing.T) {
 				dev:         qemuDevOpts{"pci", "qemu_pcie1", "00.0", false},
 				devName:     "physical-pci-name",
 				pciSlotName: "host-slot",
-				bootIndex:   3,
 			},
 			`# PCI card ("physical-pci-name" device)
 			[device "dev-lxd_physical-pci-name"]
 			driver = "vfio-pci"
 			bus = "qemu_pcie1"
 			addr = "00.0"
-			host = "host-slot"
-			bootIndex = "3"`,
+			host = "host-slot"`,
 		}, {
 			qemuPCIPhysicalOpts{
 				dev:         qemuDevOpts{"ccw", "qemu_pcie2", "00.2", true},
 				devName:     "physical-ccw-name",
 				pciSlotName: "host-slot-ccw",
-				bootIndex:   2,
 			},
 			`# PCI card ("physical-ccw-name" device)
 			[device "dev-lxd_physical-ccw-name"]
 			driver = "vfio-ccw"
 			multifunction = "on"
-			host = "host-slot-ccw"
-			bootIndex = "2"`,
+			host = "host-slot-ccw"`,
 		}}
 		for _, tc := range testCases {
 			runTest(tc.expected, qemuPCIPhysical(&tc.opts))
