@@ -1416,71 +1416,74 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
-	// Get the source storage pool.
-	srcPool, err := LoadByInstance(b.state, src)
-	if err != nil {
-		return err
-	}
-
 	// Generate the effective root device volume for instance.
 	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
 
+	// Get the source storage pool.
+	srcPool, err := LoadByInstance(b.state, src)
+	if err != nil {
+		return err
+	}
+
+	// Check source volume exists, and get its config.
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, len(srcSnapshots) > 0, op)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance refresh config: %w", err)
+	}
+
+	// Ensure that only the requested snapshots are included in the source config.
+	allSnapshots := srcConfig.VolumeSnapshots
+	srcConfig.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(srcSnapshots))
+	for i := range allSnapshots {
+		found := false
+		for _, srcSnapshot := range srcSnapshots {
+			_, srcSnapshotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name())
+			if srcSnapshotName == allSnapshots[i].Name {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			srcConfig.VolumeSnapshots = append(srcConfig.VolumeSnapshots, allSnapshots[i])
+		}
+	}
+
+	// Get source volume construct.
+	srcVolStorageName := project.Instance(src.Project(), src.Name())
+	srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
+
+	// Get source snapshot volume constructs.
+	srcSnapVols := make([]drivers.Volume, 0, len(srcConfig.VolumeSnapshots))
+	snapshotNames := make([]string, 0, len(srcConfig.VolumeSnapshots))
+	for i := range srcConfig.VolumeSnapshots {
+		newSnapshotName := drivers.GetSnapshotVolumeName(src.Name(), srcConfig.VolumeSnapshots[i].Name)
+		snapVolStorageName := project.Instance(src.Project(), newSnapshotName)
+		srcSnapVol := srcPool.GetVolume(volType, contentType, snapVolStorageName, srcConfig.VolumeSnapshots[i].Config)
+		srcSnapVols = append(srcSnapVols, srcSnapVol)
+		snapshotNames = append(snapshotNames, srcConfig.VolumeSnapshots[i].Name)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
-
-	// Get the src volume name on storage.
-	srcVolStorageName := project.Instance(src.Project(), src.Name())
-
-	// We don't need to use the source instance's root disk config, so set to nil.
-	srcVol := b.GetVolume(volType, contentType, srcVolStorageName, nil)
-
-	srcSnapVols := []drivers.Volume{}
-	for _, snapInst := range srcSnapshots {
-		// Initialise a new volume containing the root disk config supplied in the
-		// new instance. We don't need to use the source instance's snapshot root
-		// disk config, so set to nil. This is because snapshots are immutable yet
-		// the instance and its snapshots can be transferred between pools, so using
-		// the data from the snapshot is incorrect.
-
-		// Get the snap volume name on storage.
-		snapVolStorageName := project.Instance(snapInst.Project(), snapInst.Name())
-		srcSnapVol := b.GetVolume(volType, contentType, snapVolStorageName, nil)
-		srcSnapVols = append(srcSnapVols, srcSnapVol)
-	}
 
 	if b.Name() == srcPool.Name() {
 		l.Debug("RefreshInstance same-pool mode detected")
 
-		// If we are copying snapshots, retrieve a list of all snapshots from source volume.
-		var srcSnapshotVolRows map[string]db.StorageVolumeArgs
-		if len(srcSnapshots) > 0 {
-			allSrcSnapshotVolRows, err := VolumeDBSnapshotsGet(srcPool, src.Project(), src.Name(), volType)
-			if err != nil {
-				return err
-			}
-
-			// Convert the snapshot list to a map keyed on snapshot name.
-			srcSnapshotVolRows = make(map[string]db.StorageVolumeArgs, len(allSrcSnapshotVolRows))
-			for _, srcSnapshotVolRow := range allSrcSnapshotVolRows {
-				srcSnapshotVolRows[srcSnapshotVolRow.Name] = srcSnapshotVolRow
-			}
-		}
-
 		// Create database entries for new storage volume snapshots.
-		for _, srcSnapshot := range srcSnapshots {
-			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name())
-			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapShotName)
+		for i := range srcConfig.VolumeSnapshots {
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), srcConfig.VolumeSnapshots[i].Name)
 
-			srcSnapshotVolRow, found := srcSnapshotVolRows[srcSnapshot.Name()]
-			if !found {
-				return fmt.Errorf("Source snapshot record not found for %q", srcSnapshot.Name())
+			var volumeSnapExpiryDate time.Time
+			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
+				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
 			}
 
-			// Validate config and create database entry for new storage volume from source volume config.
-			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, srcSnapshotVolRow.Config, time.Time{}, contentType, false)
+			// Validate config and create database entry for new storage volume.
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, contentType, false)
 			if err != nil {
 				return err
 			}
@@ -1496,13 +1499,6 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// We are copying volumes between storage pools so use migration system as it will
 		// be able to negotiate a common transfer method between pool types.
 		l.Debug("RefreshInstance cross-pool mode detected")
-
-		// Retrieve a list of snapshots we are copying.
-		snapshotNames := []string{}
-		for _, srcSnapVol := range srcSnapVols {
-			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapVol.Name())
-			snapshotNames = append(snapshotNames, snapShotName)
-		}
 
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, true)
@@ -1522,12 +1518,14 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		bEndErrCh := make(chan error, 1)
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
-				Name:              src.Name(),
-				Snapshots:         snapshotNames,
-				MigrationType:     migrationTypes[0],
-				TrackProgress:     true, // Do use a progress tracker on sender.
-				AllowInconsistent: allowInconsistent,
-				Refresh:           true, // Indicate to sender to use incremental streams.
+				IndexHeaderVersion: migration.IndexHeaderVersion,
+				Name:               src.Name(),
+				Snapshots:          snapshotNames,
+				MigrationType:      migrationTypes[0],
+				TrackProgress:      true, // Do use a progress tracker on sender.
+				AllowInconsistent:  allowInconsistent,
+				Refresh:            true, // Indicate to sender to use incremental streams.
+				Info:               &migration.Info{Config: srcConfig},
 			}, op)
 
 			if err != nil {
@@ -1538,11 +1536,12 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 
 		go func() {
 			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
-				Name:          inst.Name(),
-				Snapshots:     snapshotNames,
-				MigrationType: migrationTypes[0],
-				Refresh:       true,  // Indicate to receiver volume should exist.
-				TrackProgress: false, // Do not use a progress tracker on receiver.
+				IndexHeaderVersion: migration.IndexHeaderVersion,
+				Name:               inst.Name(),
+				Snapshots:          snapshotNames,
+				MigrationType:      migrationTypes[0],
+				Refresh:            true,  // Indicate to receiver volume should exist.
+				TrackProgress:      false, // Do not use a progress tracker on receiver.
 			}, op)
 
 			if err != nil {
