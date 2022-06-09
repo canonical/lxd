@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool) (*migrationSourceWs, error) {
@@ -96,16 +96,16 @@ fi
 	return f.Close()
 }
 
-func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
+func snapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
 	config := []*migration.Config{}
-	for k, v := range c.LocalConfig() {
+	for k, v := range snap.Config {
 		kCopy := string(k)
 		vCopy := string(v)
 		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
 	}
 
 	devices := []*migration.Device{}
-	for name, d := range c.LocalDevices() {
+	for name, d := range snap.Devices {
 		props := []*migration.Config{}
 		for k, v := range d {
 			// Local loop vars.
@@ -118,19 +118,18 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 		devices = append(devices, &migration.Device{Name: &nameCopy, Config: props})
 	}
 
-	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
-	isEphemeral := c.IsEphemeral()
-	arch := int32(c.Architecture())
-	stateful := c.IsStateful()
-
-	creationDate := c.CreationDate().UTC().Unix()
-	lastUsedDate := c.LastUsedDate().UTC().Unix()
-	expiryDate := c.ExpiryDate().UTC().Unix()
+	isEphemeral := snap.Ephemeral
+	archID, _ := osarch.ArchitectureId(snap.Architecture)
+	arch := int32(archID)
+	stateful := snap.Stateful
+	creationDate := snap.CreatedAt.UTC().Unix()
+	lastUsedDate := snap.LastUsedAt.UTC().Unix()
+	expiryDate := snap.ExpiresAt.UTC().Unix()
 
 	return &migration.Snapshot{
-		Name:         &parts[len(parts)-1],
+		Name:         &snap.Name,
 		LocalConfig:  config,
-		Profiles:     c.Profiles(),
+		Profiles:     snap.Profiles,
 		Ephemeral:    &isEphemeral,
 		LocalDevices: devices,
 		Architecture: &arch,
@@ -346,22 +345,39 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	logger.Info("Waiting for migration channel connections")
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name()})
+
+	l.Info("Waiting for migration channel connections on source")
+
 	select {
 	case <-time.After(time.Second * 10):
-		return fmt.Errorf("Timed out waiting for connections")
+		return fmt.Errorf("Timed out waiting for migration connections")
 	case <-s.allConnected:
 	}
 
-	logger.Info("Migration channels connected")
+	l.Info("Migration channels connected on source")
 
+	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
+
+	// All failure paths need to do a few things to correctly handle errors before returning.
+	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
+	// status of driver and the error value. The error value is especially tricky due to the
+	// common case of creating a new err variable (intentional or not) due to scoping and use
+	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
+	// the purpose of using defer. An abort function reduces the odds of mishandling errors
+	// without introducing the fragility of closing on err.
+	abort := func(err error) error {
+		l.Error("Migration failed on source", logger.Ctx{"err": err})
+		s.sendControl(err)
+		return err
+	}
 
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.LoadByInstance(state, s.instance)
 	if err != nil {
-		return err
+		return abort(fmt.Errorf("Failed loading instance: %w", err))
 	}
 
 	// The refresh argument passed to MigrationTypes() is always set
@@ -370,12 +386,16 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
 	if len(poolMigrationTypes) < 0 {
-		return fmt.Errorf("No source migration types available")
+		return abort(fmt.Errorf("No source migration types available"))
 	}
 
 	// Convert the pool's migration type options to an offer header to target.
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
 
 	maxDumpIterations := 0
 
@@ -395,7 +415,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		idmaps := make([]*migration.IDMapType, 0)
 		idmapset, err := ct.DiskIdmap()
 		if err != nil {
-			return err
+			return abort(err)
 		} else if idmapset != nil {
 			for _, ctnIdmap := range idmapset.Idmap {
 				idmap := migration.IDMapType{
@@ -421,47 +441,44 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		offerHeader.Predump = proto.Bool(offerUsePreDumps)
 	}
 
-	// Add snapshot info to source header if needed.
-	snapshots := []*migration.Snapshot{}
-	snapshotNames := []string{}
-	if !s.instanceOnly {
-		fullSnaps, err := s.instance.Snapshots()
-		if err == nil {
-			for _, snap := range fullSnaps {
-				snapshots = append(snapshots, snapshotToProtobuf(snap))
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-				snapshotNames = append(snapshotNames, snapName)
-			}
-		}
+	srcConfig, err := pool.GenerateInstanceBackupConfig(s.instance, !s.instanceOnly, migrateOp)
+	if err != nil {
+		return abort(fmt.Errorf("Failed generating instance migration config: %w", err))
 	}
 
-	offerHeader.SnapshotNames = snapshotNames
-	offerHeader.Snapshots = snapshots
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	if !s.instanceOnly {
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.Snapshots))
+
+		for i := range srcConfig.Snapshots {
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.Snapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, snapshotToProtobuf(srcConfig.Snapshots[i]))
+		}
+	}
 
 	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
 	if s.instance.Type() == instancetype.VM {
 		blockSize, err := storagePools.InstanceDiskBlockSize(pool, s.instance, migrateOp)
 		if err != nil {
-			return fmt.Errorf("Failed getting source disk size: %w", err)
+			return abort(fmt.Errorf("Failed getting source disk size: %w", err))
 		}
 
-		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
+		l.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
 		offerHeader.VolumeSize = &blockSize
 	}
 
 	// Send offer to target.
 	err = s.send(offerHeader)
 	if err != nil {
-		s.sendControl(err)
-		return err
+		return abort(fmt.Errorf("Failed sending migration offer header: %w", err))
 	}
 
 	// Receive response from target.
 	respHeader := &migration.MigrationHeader{}
 	err = s.recv(respHeader)
 	if err != nil {
-		s.sendControl(err)
-		return err
+		return abort(err)
 	}
 
 	var migrationTypes []migration.Type // Negotiated migration types.
@@ -476,33 +493,37 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
-	// All failure paths need to do a few things to correctly handle errors before returning.
-	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
-	// status of driver and the error value. The error value is especially tricky due to the
-	// common case of creating a new err variable (intentional or not) due to scoping and use
-	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
-	// the purpose of using defer. An abort function reduces the odds of mishandling errors
-	// without introducing the fragility of closing on err.
-	abort := func(err error) error {
-		s.sendControl(err)
-		return err
-	}
-
 	rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 	migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
-		logger.Errorf("Failed to negotiate migration type: %v", err)
-		return abort(err)
+		return abort(fmt.Errorf("Failed to negotiate migration type: %w", err))
 	}
 
-	sendSnapshotNames := snapshotNames
+	volSourceArgs := &migration.VolumeSourceArgs{
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               s.instance.Name(),
+		MigrationType:      migrationTypes[0],
+		Snapshots:          offerHeader.SnapshotNames,
+		TrackProgress:      true,
+		Refresh:            respHeader.GetRefresh(),
+		AllowInconsistent:  s.migrationFields.allowInconsistent,
+		VolumeOnly:         s.instanceOnly,
+		Info:               &migration.Info{Config: srcConfig},
+	}
 
-	// If we are in refresh mode, only send the snapshots the target has asked for.
+	// Only send the snapshots that the target requests when refreshing.
 	if respHeader.GetRefresh() {
-		sendSnapshotNames = respHeader.GetSnapshotNames()
-	}
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
 
-	volSourceArgs := &migration.VolumeSourceArgs{}
+		// Ensure that only the requested snapshots are included in the migration index header.
+		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+			}
+		}
+	}
 
 	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
 	// source instance is running and that we should do a two stage transfer to minimize downtime.
@@ -517,14 +538,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(fmt.Errorf("Failed statefully stopping instance: %w", err))
 		}
 	}
-
-	volSourceArgs.Name = s.instance.Name()
-	volSourceArgs.MigrationType = migrationTypes[0]
-	volSourceArgs.Snapshots = sendSnapshotNames
-	volSourceArgs.TrackProgress = true
-	volSourceArgs.Refresh = respHeader.GetRefresh()
-	volSourceArgs.AllowInconsistent = s.migrationFields.allowInconsistent
-	volSourceArgs.VolumeOnly = s.instanceOnly
 
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
@@ -618,7 +631,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			// Check if the other side knows about pre-dumping and the associated
 			// rsync protocol.
 			if respHeader.GetPredump() {
-				logger.Debugf("The other side does support pre-copy")
+				l.Debug("The other side does support pre-copy")
 				final := false
 				for !final {
 					preDumpCounter++
@@ -645,7 +658,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					preDumpCounter++
 				}
 			} else {
-				logger.Debugf("The other side does not support pre-copy")
+				l.Debug("The other side does not support pre-copy")
 			}
 
 			err = actionScriptOp.Start()
@@ -677,10 +690,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				return abort(err)
 			// The dump finished, let's continue on to the restore.
 			case <-dumpDone:
-				logger.Debugf("Dump finished, continuing with restore...")
+				l.Debug("Dump finished, continuing with restore...")
 			}
 		} else {
-			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
+			l.Debug("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer func() { _ = os.RemoveAll(checkpointDir) }()
 			criuMigrationArgs := instance.CriuMigrationArgs{
 				Cmd:          liblxc.MIGRATE_DUMP,
@@ -716,6 +729,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// snapshots as they don't need to have a final sync as not being modified.
 		volSourceArgs.FinalSync = true
 		volSourceArgs.Snapshots = nil
+		volSourceArgs.Info.Config.VolumeSnapshots = nil
 
 		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 		if err != nil {
@@ -726,20 +740,19 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
 	if err != nil {
-		s.disconnect()
-		return err
+		return abort(err)
 	}
 
 	if s.live && s.instance.Type() == instancetype.Container {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
-			logger.Errorf("Dump failed after successful restore?: %q", err)
+			l.Error("Dump failed after successful restore", logger.Ctx{"err": err})
 		}
 	}
 
 	if !*msg.Success {
-		return fmt.Errorf(*msg.Message)
+		return abort(fmt.Errorf(*msg.Message))
 	}
 
 	return nil
@@ -807,26 +820,27 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project(), "instance": c.src.instance.Name()})
+
 	var err error
 
+	l.Info("Waiting for migration channel connections on target")
+
 	if c.push {
-		logger.Info("Waiting for migration channel connections")
 		select {
 		case <-time.After(time.Second * 10):
-			return fmt.Errorf("Timed out waiting for connections")
+			return fmt.Errorf("Timed out waiting for migration connections")
 		case <-c.allConnected:
 		}
-		logger.Info("Migration channels connected")
 	}
 
-	disconnector := c.src.disconnect
+	var disconnector func()
+
 	if c.push {
 		disconnector = c.dest.disconnect
-	}
-
-	if c.push {
 		defer disconnector()
 	} else {
+		disconnector = c.src.disconnect
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
 			return err
@@ -848,6 +862,9 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		}
 	}
 
+	l.Info("Migration channels connected on target")
+	defer l.Info("Migration channels disconnected on target")
+
 	receiver := c.src.recv
 	if c.push {
 		receiver = c.dest.recv
@@ -866,6 +883,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	offerHeader := &migration.MigrationHeader{}
 	err = receiver(offerHeader)
 	if err != nil {
+		err = fmt.Errorf("Failed receiving migration offer header: %w", err)
 		controller(err)
 		return err
 	}
@@ -904,6 +922,15 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// The migration header to be sent back to source with our target options.
 	// Convert response type to response header and copy snapshot info into it.
 	respHeader := migration.TypesToHeader(respTypes...)
+
+	// Respond with our maximum supported header version if the requested version is higher than ours.
+	// Otherwise just return the requested header version to the source.
+	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
+	if indexHeaderVersion > migration.IndexHeaderVersion {
+		indexHeaderVersion = migration.IndexHeaderVersion
+	}
+
+	respHeader.IndexHeaderVersion = &indexHeaderVersion
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
 	respHeader.Refresh = &c.refresh
@@ -912,13 +939,14 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// with the new storage layer.
 	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
-			Name:          args.Instance.Name(),
-			MigrationType: respTypes[0],
-			Refresh:       args.Refresh,    // Indicate to receiver volume should exist.
-			TrackProgress: true,            // Use a progress tracker on receiver to get in-cluster progress information.
-			Live:          args.Live,       // Indicates we will get a final rootfs sync.
-			VolumeSize:    args.VolumeSize, // Block size setting override.
-			VolumeOnly:    args.VolumeOnly,
+			IndexHeaderVersion: migration.IndexHeaderVersion,
+			Name:               args.Instance.Name(),
+			MigrationType:      respTypes[0],
+			Refresh:            args.Refresh,    // Indicate to receiver volume should exist.
+			TrackProgress:      true,            // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:               args.Live,       // Indicates we will get a final rootfs sync.
+			VolumeSize:         args.VolumeSize, // Block size setting override.
+			VolumeOnly:         args.VolumeOnly,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -965,7 +993,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 		err = pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
 		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
@@ -1058,8 +1086,24 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			// Legacy: we only sent the snapshot names, so we just copy the container's
 			// config over, same as we used to do.
 			if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+				// Convert the instance to an api.InstanceSnapshot.
+				architectureName, _ := osarch.ArchitectureName(c.src.instance.Architecture())
+				apiInstSnap := &api.InstanceSnapshot{
+					InstanceSnapshotPut: api.InstanceSnapshotPut{
+						ExpiresAt: time.Time{},
+					},
+					Architecture: architectureName,
+					CreatedAt:    c.src.instance.CreationDate(),
+					LastUsedAt:   c.src.instance.LastUsedDate(),
+					Config:       c.src.instance.LocalConfig(),
+					Devices:      c.src.instance.LocalDevices().CloneNative(),
+					Ephemeral:    c.src.instance.IsEphemeral(),
+					Stateful:     c.src.instance.IsStateful(),
+					Profiles:     c.src.instance.Profiles(),
+				}
+
 				for _, name := range offerHeader.SnapshotNames {
-					base := snapshotToProtobuf(c.src.instance)
+					base := snapshotToProtobuf(apiInstSnap)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
@@ -1143,16 +1187,16 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 			if respHeader.GetPredump() {
 				for !sync.GetFinalPreDump() {
-					logger.Debugf("About to receive rsync")
+					l.Debug("About to receive rsync")
 					// Transfer a CRIU pre-dump.
 					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
 						return
 					}
-					logger.Debugf("Done receiving from rsync")
+					l.Debug("Done receiving from rsync")
 
-					logger.Debugf("About to receive header")
+					l.Debug("About to receive header")
 					// Check if this was the last pre-dump.
 					// Only the FinalPreDump element if of interest.
 					mtype, data, err := criuConn.ReadMessage()
@@ -1233,6 +1277,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				disconnector()
 				return err
 			}
+
 			controller(err)
 			return err
 		case msg := <-source:

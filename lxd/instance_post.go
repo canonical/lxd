@@ -725,7 +725,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 	return run, nil
 }
 
-// Special case migrating a container backed response.Responseby ceph across two cluster nodes.
+// Special case migrating a container backed by ceph across two cluster nodes.
 func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, pool storagePools.Pool, newName string, sourceNodeOffline bool, newNode string, stateful bool) (func(op *operations.Operation) error, error) {
 	if pool.Driver().Info().Name != "ceph" {
 		return nil, fmt.Errorf("Source instance's storage pool is not of type ceph")
@@ -798,10 +798,18 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			return err
 		}
 
+		// Check source volume exists, and get its config.
+		srcConfig, err := pool.GenerateInstanceBackupConfig(inst, false, op)
+		if err != nil {
+			return fmt.Errorf("Failed generating instance migration config: %w", err)
+		}
+
 		// Trigger a rename in the Ceph driver.
 		args := migration.VolumeSourceArgs{
 			Data: project.Instance(inst.Project(), newName), // Indicate new storage volume name.
+			Info: &migration.Info{Config: srcConfig},
 		}
+
 		err = pool.MigrateInstance(inst, nil, &args, op)
 		if err != nil {
 			return fmt.Errorf("Failed to migrate ceph RBD volume: %w", err)
