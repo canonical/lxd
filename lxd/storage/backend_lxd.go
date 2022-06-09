@@ -3680,16 +3680,18 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			// If the source snapshot config is available, use that.
 			if srcInfo != nil && srcInfo.Config != nil {
 				for _, srcSnap := range srcInfo.Config.VolumeSnapshots {
-					if srcSnap.Name == snapName {
-						snapConfig = srcSnap.Config
-						snapDescription = srcSnap.Description
-
-						if srcSnap.ExpiresAt != nil {
-							snapExpiryDate = *srcSnap.ExpiresAt
-						}
-
-						break
+					if srcSnap.Name != snapName {
+						continue
 					}
+
+					snapConfig = srcSnap.Config
+					snapDescription = srcSnap.Description
+
+					if srcSnap.ExpiresAt != nil {
+						snapExpiryDate = *srcSnap.ExpiresAt
+					}
+
+					break
 				}
 			}
 
