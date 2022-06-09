@@ -1061,6 +1061,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				MigrationType:     migrationTypes[0],
 				TrackProgress:     true, // Do use a progress tracker on sender.
 				AllowInconsistent: allowInconsistent,
+				VolumeOnly:        !snapshots,
 			}, op)
 
 			if err != nil {
@@ -1076,6 +1077,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				MigrationType: migrationTypes[0],
 				VolumeSize:    srcVolumeSize, // Block size setting override.
 				TrackProgress: false,         // Do not use a progress tracker on receiver.
+				VolumeOnly:    !snapshots,
 			}, op)
 
 			if err != nil {
@@ -3390,6 +3392,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			TrackProgress:      true, // Do use a progress tracker on sender.
 			ContentType:        string(contentType),
 			Info:               &migration.Info{Config: srcConfig},
+			VolumeOnly:         !snapshots,
 		}, op)
 
 		if err != nil {
@@ -3409,6 +3412,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			TrackProgress:      false, // Do not use a progress tracker on receiver.
 			ContentType:        string(contentType),
 			VolumeSize:         volSize, // Block size setting override.
+			VolumeOnly:         !snapshots,
 		}, op)
 
 		if err != nil {
@@ -3441,50 +3445,51 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 }
 
 // migrationIndexHeaderSend sends the migration index header to target and waits for confirmation of receipt.
-func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) error {
+func (b *lxdBackend) migrationIndexHeaderSend(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, info *migration.Info) (*migration.InfoResponse, error) {
+	infoResp := migration.InfoResponse{}
+
 	// Send migration index header frame to target if applicable and wait for receipt.
 	if indexHeaderVersion > 0 {
 		headerJSON, err := json.Marshal(info)
 		if err != nil {
-			return fmt.Errorf("Failed encoding migration index header: %w", err)
+			return nil, fmt.Errorf("Failed encoding migration index header: %w", err)
 		}
 
 		_, err = conn.Write(headerJSON)
 		if err != nil {
-			return fmt.Errorf("Failed sending migration index header: %w", err)
+			return nil, fmt.Errorf("Failed sending migration index header: %w", err)
 		}
 
 		err = conn.Close() //End the frame.
 		if err != nil {
-			return fmt.Errorf("Failed closing migration index header frame: %w", err)
+			return nil, fmt.Errorf("Failed closing migration index header frame: %w", err)
 		}
 
 		l.Debug("Sent migration index header, waiting for response", logger.Ctx{"version": indexHeaderVersion})
 
 		respBuf, err := ioutil.ReadAll(conn)
 		if err != nil {
-			return fmt.Errorf("Failed reading migration index header: %w", err)
+			return nil, fmt.Errorf("Failed reading migration index header: %w", err)
 		}
 
-		infoResp := migration.InfoResponse{}
 		err = json.Unmarshal(respBuf, &infoResp)
 		if err != nil {
-			return fmt.Errorf("Failed decoding migration index header: %w", err)
+			return nil, fmt.Errorf("Failed decoding migration index header: %w", err)
 		}
 
 		if infoResp.Err() != nil {
-			return fmt.Errorf("Failed negotiating migration options: %w", err)
+			return nil, fmt.Errorf("Failed negotiating migration options: %w", err)
 		}
 
 		l.Info("Received migration index header response", logger.Ctx{"response": infoResp, "version": indexHeaderVersion})
 	}
 
-	return nil
+	return &infoResp, nil
 }
 
 // migrationIndexHeaderReceive receives migration index header from source and sends confirmation of receipt.
 // Returns the received source index header info.
-func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser) (*migration.Info, error) {
+func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVersion uint32, conn io.ReadWriteCloser, refresh bool) (*migration.Info, error) {
 	info := migration.Info{}
 
 	// Receive index header from source if applicable and respond confirming receipt.
@@ -3501,7 +3506,7 @@ func (b *lxdBackend) migrationIndexHeaderReceive(l logger.Logger, indexHeaderVer
 
 		l.Info("Received migration index header, sending response", logger.Ctx{"version": indexHeaderVersion})
 
-		infoResp := migration.InfoResponse{StatusCode: http.StatusOK}
+		infoResp := migration.InfoResponse{StatusCode: http.StatusOK, Refresh: &refresh}
 		headerJSON, err := json.Marshal(infoResp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed encoding migration index header response: %w", err)
@@ -3555,9 +3560,13 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 	}
 
 	// Send migration index header frame with volume info and wait for receipt.
-	err = b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
+	resp, err := b.migrationIndexHeaderSend(l, args.IndexHeaderVersion, conn, args.Info)
 	if err != nil {
 		return err
+	}
+
+	if resp.Refresh != nil {
+		args.Refresh = *resp.Refresh
 	}
 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, args.Info.Config.Volume.Config)
@@ -3590,12 +3599,6 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	if !storagePoolSupported {
 		return fmt.Errorf("Storage pool does not support custom volume type")
-	}
-
-	// Receive index header from source if applicable and respond confirming receipt.
-	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn)
-	if err != nil {
-		return err
 	}
 
 	var volumeConfig map[string]string
@@ -3646,6 +3649,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	err = b.driver.ValidateVolume(vol, true)
+	if err != nil {
+		return err
+	}
+
+	// Receive index header from source if applicable and respond confirming receipt.
+	// This will also let the source know whether to actually perform a refresh, as the target
+	// will set Refresh to false if the volume doesn't exist.
+	srcInfo, err := b.migrationIndexHeaderReceive(l, args.IndexHeaderVersion, conn, args.Refresh)
 	if err != nil {
 		return err
 	}

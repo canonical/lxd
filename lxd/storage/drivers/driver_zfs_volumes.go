@@ -1858,10 +1858,11 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		return ErrNotSupported
 	}
 
-	// If no snapshots have been provided it can mean two things:
-	// 1) The source has no snapshots
-	// 2) Snapshots shouldn't be copied (--instance-only flag)
-	volumeOnly := len(volSrcArgs.Snapshots) == 0
+	// Handle zfs send/receive migration.
+	if volSrcArgs.FinalSync {
+		// This is not needed if the migration is performed using zfs send/receive.
+		return nil
+	}
 
 	var srcMigrationHeader *ZFSMetaDataHeader
 
@@ -1918,7 +1919,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		volSrcArgs.Snapshots = []string{}
 
 		// Override volSrcArgs.Snapshots to only include snapshots which need to be sent.
-		if !volumeOnly {
+		if !volSrcArgs.VolumeOnly {
 			for _, srcDataset := range srcMigrationHeader.SnapshotDatasets {
 				found := false
 
