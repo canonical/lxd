@@ -294,25 +294,6 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 	}
 
 	if !d.IsSnapshot() {
-		// Add devices to container.
-		for _, entry := range d.expandedDevices.Sorted() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
-			if err != nil {
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
-
-				return nil, nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
-			}
-
-			err = d.deviceAdd(dev, false)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
-			}
-
-			revert.Add(func() { _ = d.deviceRemove(dev, false) })
-		}
-
 		// Update MAAS (must run after the MAC addresses have been generated).
 		err = d.maasUpdate(d, nil)
 		if err != nil {
@@ -1378,18 +1359,6 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 
 	// Return device even if error occurs as caller may still use device.
 	return dev, err
-}
-
-// deviceAdd loads a new device and calls its Add() function.
-func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Adding device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be added when instance is running")
-	}
-
-	return dev.Add()
 }
 
 // deviceStart loads a new device and calls its Start() function.
@@ -4795,19 +4764,6 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 			continue
 		}
-
-		err = d.deviceAdd(dev, instanceRunning)
-		if err != nil {
-			if userRequested {
-				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
-			}
-
-			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
-			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
-		}
-
-		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
 
 		if instanceRunning {
 			err = dev.PreStartCheck()
