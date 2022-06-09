@@ -938,34 +938,23 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	// Check source volume exists.
-	srcVolRow, err := VolumeDBGet(srcPool, src.Project(), src.Name(), volType)
+	// Check source volume exists, and get its config.
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, snapshots, op)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed generating instance copy config: %w", err)
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
-	var srcSnapshotVolRows []db.StorageVolumeArgs
-	var srcSnapshotNames []string
+	var snapshotNames []string
 	if snapshots {
-		srcSnapshotVolRows, err = VolumeDBSnapshotsGet(srcPool, src.Project(), src.Name(), volType)
-		if err != nil {
-			return err
-		}
-
-		srcSnapshotNames = make([]string, 0, len(srcSnapshotVolRows))
-		for _, srcSnapshotVolRow := range srcSnapshotVolRows {
-			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshotVolRow.Name)
-			srcSnapshotNames = append(srcSnapshotNames, snapShotName)
+		snapshotNames = make([]string, 0, len(srcConfig.VolumeSnapshots))
+		for _, snapshot := range srcConfig.VolumeSnapshots {
+			snapshotNames = append(snapshotNames, snapshot.Name)
 		}
 	}
 
-	// Setup reverter.
-	revert := revert.New()
-	defer revert.Fail()
-
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, srcVolRow.Config)
+	vol, err := b.instanceEffectiveRootVolume(inst, srcConfig.Volume.Config)
 	if err != nil {
 		return err
 	}
@@ -973,6 +962,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	if b.driver.HasVolume(*vol) {
 		return fmt.Errorf("Cannot create volume, already exists on target storage")
 	}
+
+	// Setup reverter.
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Some driver backing stores require that running instances be frozen during copy.
 	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
@@ -994,12 +987,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		// Get the src volume name on storage.
 		srcVolStorageName := project.Instance(src.Project(), src.Name())
+		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
-		// We don't need to use the source instance's root disk config, so set to nil.
-		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, nil)
-
-		// Validate config and create database entry for new storage volume from source volume config.
-		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, srcVolRow.Config, time.Time{}, contentType, false)
+		// Validate config and create database entry for new storage volume.
+		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", vol.Type(), false, vol.Config(), time.Time{}, contentType, false)
 		if err != nil {
 			return err
 		}
@@ -1007,16 +998,20 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
 
 		// Create database entries for new storage volume snapshots.
-		for i, srcSnapshotVolRow := range srcSnapshotVolRows {
-			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), srcSnapshotNames[i])
+		for i, snapName := range snapshotNames {
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
+			var volumeSnapExpiryDate time.Time
+			if srcConfig.VolumeSnapshots[i].ExpiresAt != nil {
+				volumeSnapExpiryDate = *srcConfig.VolumeSnapshots[i].ExpiresAt
+			}
 
-			// Validate config and create database entry for new storage volume from source volume config.
-			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, srcSnapshotVolRow.Config, time.Time{}, contentType, false)
+			// Validate config and create database entry for new storage volume.
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
+			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, vol.Type()) })
 		}
 
 		err = b.driver.CreateVolumeFromCopy(*vol, srcVol, snapshots, allowInconsistent, op)
@@ -1056,12 +1051,14 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		bEndErrCh := make(chan error, 1)
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
-				Name:              src.Name(),
-				Snapshots:         srcSnapshotNames,
-				MigrationType:     migrationTypes[0],
-				TrackProgress:     true, // Do use a progress tracker on sender.
-				AllowInconsistent: allowInconsistent,
-				VolumeOnly:        !snapshots,
+				IndexHeaderVersion: migration.IndexHeaderVersion,
+				Name:               src.Name(),
+				Snapshots:          snapshotNames,
+				MigrationType:      migrationTypes[0],
+				TrackProgress:      true, // Do use a progress tracker on sender.
+				AllowInconsistent:  allowInconsistent,
+				VolumeOnly:         !snapshots,
+				Info:               &migration.Info{Config: srcConfig},
 			}, op)
 
 			if err != nil {
@@ -1072,12 +1069,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		go func() {
 			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
-				Name:          inst.Name(),
-				Snapshots:     srcSnapshotNames,
-				MigrationType: migrationTypes[0],
-				VolumeSize:    srcVolumeSize, // Block size setting override.
-				TrackProgress: false,         // Do not use a progress tracker on receiver.
-				VolumeOnly:    !snapshots,
+				IndexHeaderVersion: migration.IndexHeaderVersion,
+				Name:               inst.Name(),
+				Snapshots:          snapshotNames,
+				MigrationType:      migrationTypes[0],
+				VolumeSize:         srcVolumeSize, // Block size setting override.
+				TrackProgress:      false,         // Do not use a progress tracker on receiver.
+				VolumeOnly:         !snapshots,
 			}, op)
 
 			if err != nil {
@@ -1111,7 +1109,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	if len(srcSnapshotNames) > 0 {
+	if len(snapshotNames) > 0 {
 		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
 		if err != nil {
 			return err
