@@ -3605,7 +3605,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	var volumeConfig map[string]string
 
-	// Check if the volume exists in database
+	// Check if the volume exists in database.
 	dbVol, err := VolumeDBGet(b, projectName, args.Name, drivers.VolumeTypeCustom)
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
@@ -3633,6 +3633,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Disable refresh mode if volume doesn't exist yet.
+	// Unlike in CreateInstanceFromMigration there is no existing check for if the volume exists, so we must do
+	// it here and disable refresh mode if the volume doesn't exist.
 	if args.Refresh && !volExists {
 		args.Refresh = false
 	} else if !args.Refresh && volExists {
