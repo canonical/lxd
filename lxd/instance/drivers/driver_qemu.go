@@ -242,7 +242,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 	}
 
 	if rootDiskDevice["pool"] == "" {
-		return nil, nil, fmt.Errorf("The instances's root device is missing the pool property")
+		return nil, nil, fmt.Errorf("The instance's root device is missing the pool property")
 	}
 
 	// Initialize the storage pool.
