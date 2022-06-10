@@ -87,6 +87,7 @@ raw.apparmor                                    | blob      | -                 
 raw.idmap                                       | blob      | -                 | no            | unprivileged container    | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                         | blob      | -                 | no            | container                 | Raw LXC configuration to be appended to the generated one
 raw.qemu                                        | blob      | -                 | no            | virtual-machine           | Raw Qemu configuration to be appended to the generated command line
+raw.qemu.conf                                   | blob      | -                 | no            | virtual-machine           | Addition/override to the generated qemu.conf file
 raw.seccomp                                     | blob      | -                 | no            | container                 | Raw Seccomp configuration
 security.devlxd                                 | boolean   | true              | no            | -                         | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                          | boolean   | false             | no            | container                 | Controls the availability of the /1.0/images API over devlxd
