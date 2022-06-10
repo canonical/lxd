@@ -330,6 +330,7 @@ var APIExtensions = []string{
 	"storage_volume_state_total",
 	"instance_file_head",
 	"resources_pci_vpd",
+	"qemu_raw_conf",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
