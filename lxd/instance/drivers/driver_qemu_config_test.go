@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -1064,6 +1065,505 @@ func TestQemuConfigTemplates(t *testing.T) {
 		}}
 		for _, tc := range testCases {
 			runTest(tc.expected, qemuTPM(&tc.opts))
+		}
+	})
+
+	t.Run("qemu_raw_cfg_override", func(t *testing.T) {
+		cfg := []cfgSection{{
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s3"},
+				{key: "value", value: "1"},
+			},
+		}, {
+			name: "global",
+			entries: []cfgEntry{
+				{key: "driver", value: "ICH9-LPC"},
+				{key: "property", value: "disable_s4"},
+				{key: "value", value: "1"},
+			},
+		}, {
+			name: "memory",
+			entries: []cfgEntry{
+				{key: "size", value: "1024M"},
+			},
+		}, {
+			name: `device "qemu_gpu"`,
+			entries: []cfgEntry{
+				{key: "driver", value: "virtio-gpu-pci"},
+				{key: "bus", value: "qemu_pci3"},
+				{key: "addr", value: "00.0"},
+			},
+		}, {
+			name: `device "qemu_keyboard"`,
+			entries: []cfgEntry{
+				{key: "driver", value: "virtio-keyboard-pci"},
+				{key: "bus", value: "qemu_pci2"},
+				{key: "addr", value: "00.1"},
+			},
+		}}
+		testCases := []struct {
+			cfg       []cfgSection
+			overrides map[string]string
+			expected  string
+		}{{
+			// unmodified
+			cfg,
+			map[string]string{},
+			`[global]
+			driver = "ICH9-LPC"
+			property = "disable_s3"
+			value = "1"
+
+			[global]
+			driver = "ICH9-LPC"
+			property = "disable_s4"
+			value = "1"
+
+			[memory]
+			size = "1024M"
+
+			[device "qemu_gpu"]
+			driver = "virtio-gpu-pci"
+			bus = "qemu_pci3"
+			addr = "00.0"
+
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-pci"
+			bus = "qemu_pci2"
+			addr = "00.1"`,
+		}, {
+			// override some keys
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[memory]
+						size = "4096M"
+
+						[device "qemu_gpu"]
+						driver = "qxl-vga"`,
+			},
+			`[global]
+			driver = "ICH9-LPC"
+			property = "disable_s3"
+			value = "1"
+
+			[global]
+			driver = "ICH9-LPC"
+			property = "disable_s4"
+			value = "1"
+
+			[memory]
+			size = "4096M"
+
+			[device "qemu_gpu"]
+			driver = "qxl-vga"
+			bus = "qemu_pci3"
+			addr = "00.0"
+
+			[device "qemu_keyboard"]
+			driver = "virtio-keyboard-pci"
+			bus = "qemu_pci2"
+			addr = "00.1"`,
+		}, {
+			// delete some keys
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[device "qemu_keyboard"]
+						driver = ""
+
+						[device "qemu_gpu"]
+						addr = ""`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "1024M"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+
+				[device "qemu_keyboard"]
+				bus = "qemu_pci2"
+				addr = "00.1"`,
+		}, {
+			// add some keys to existing sections
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[memory]
+						somekey = "somevalue"
+						somekey2 =             "somevalue2"
+						somekey3 =   "somevalue3"
+						somekey4="somevalue4"
+
+						[device "qemu_keyboard"]
+						multifunction="off"
+
+						[device "qemu_gpu"]
+						multifunction=      "on"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "1024M"
+				somekey = "somevalue"
+				somekey2 = "somevalue2"
+				somekey3 = "somevalue3"
+				somekey4 = "somevalue4"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"
+				multifunction = "on"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				bus = "qemu_pci2"
+				addr = "00.1"
+				multifunction = "off"`,
+		}, {
+			// edit/add/remove
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[memory]
+						size = "2048M"
+						[device "qemu_gpu"]
+						multifunction = "on"
+						[device "qemu_keyboard"]
+						addr = ""
+						bus = ""`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "2048M"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"
+				multifunction = "on"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"`,
+		}, {
+			// delete sections
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[memory]
+						[device "qemu_keyboard"]
+						[global][1]`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"`,
+		}, {
+			// add sections
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[object1]
+						key1     = "value1"
+						key2     = "value2"
+
+						[object "2"]
+						key3  = "value3"
+						[object "3"]
+						key4  = "value4"
+
+						[object "2"]
+						key5  = "value5"
+
+						[object1]
+						key6     = "value6"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "1024M"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				bus = "qemu_pci2"
+				addr = "00.1"
+
+				[object "2"]
+				key3 = "value3"
+				key5 = "value5"
+
+				[object "3"]
+				key4 = "value4"
+
+				[object1]
+				key1 = "value1"
+				key2 = "value2"
+				key6 = "value6"`,
+		}, {
+			// add/remove sections
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[device "qemu_gpu"]
+						[object "2"]
+						key3  = "value3"
+						[object "3"]
+						key4  = "value4"
+						[object "2"]
+						key5  = "value5"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "1024M"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				bus = "qemu_pci2"
+				addr = "00.1"
+
+				[object "2"]
+				key3 = "value3"
+				key5 = "value5"
+
+				[object "3"]
+				key4 = "value4"`,
+		}, {
+			// edit keys of repeated sections
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[global][1]
+						property ="disable_s1"
+						[global]
+						property ="disable_s5"
+						[global][1]
+						value = ""
+						[global][0]
+						somekey ="somevalue"
+						[global][1]
+						anotherkey = "anothervalue"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s5"
+				value = "1"
+				somekey = "somevalue"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s1"
+				anotherkey = "anothervalue"
+
+				[memory]
+				size = "1024M"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				bus = "qemu_pci2"
+				addr = "00.1"`,
+		}, {
+			// create multiple sections with same name
+			cfg,
+			// note that for appending new sections, all that matters is that
+			// the index is higher than the existing indexes
+			map[string]string{
+				"raw.qemu.conf": `
+						[global][2]
+						property =  "new section"
+						[global][2]
+						value =     "new value"
+						[object][3]
+						k1 =        "v1"
+						[object][3]
+						k2 =        "v2"
+						[object][4]
+						k3 =        "v1"
+						[object][4]
+						k2 =        "v2"
+						[object][11]
+						k11 =  "v11"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "1024M"
+
+				[device "qemu_gpu"]
+				driver = "virtio-gpu-pci"
+				bus = "qemu_pci3"
+				addr = "00.0"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				bus = "qemu_pci2"
+				addr = "00.1"
+
+				[global]
+				property = "new section"
+				value = "new value"
+
+				[object]
+				k1 = "v1"
+				k2 = "v2"
+
+				[object]
+				k2 = "v2"
+				k3 = "v1"
+
+				[object]
+				k11 = "v11"`,
+		}, {
+			// mix all operations
+			cfg,
+			map[string]string{
+				"raw.qemu.conf": `
+						[memory]
+						size = "8192M"
+						[device "qemu_keyboard"]
+						multifunction=on
+						bus =
+						[device "qemu_gpu"]
+						[object "3"]
+						key4 = " value4 "
+						[object "2"]
+						key3 =   value3  
+						[object "3"]
+						key5 = "value5"`,
+			},
+			`[global]
+				driver = "ICH9-LPC"
+				property = "disable_s3"
+				value = "1"
+
+				[global]
+				driver = "ICH9-LPC"
+				property = "disable_s4"
+				value = "1"
+
+				[memory]
+				size = "8192M"
+
+				[device "qemu_keyboard"]
+				driver = "virtio-keyboard-pci"
+				addr = "00.1"
+				multifunction = "on"
+
+				[object "2"]
+				key3 = "value3"
+
+				[object "3"]
+				key4 = " value4 "
+				key5 = "value5"`,
+		}}
+		for _, tc := range testCases {
+			runTest(tc.expected, qemuRawCfgOverride(tc.cfg, tc.overrides))
+		}
+	})
+
+	t.Run("parse_conf_override", func(t *testing.T) {
+		input := `
+		[global]
+		key1 = "val1"
+		key3 = "val3"
+
+		[global][0]
+		key2 = "val2"
+
+		[global][1]
+		key1 = "val3"
+
+		[global][4]
+		key2 = "val4"
+
+		[global] 
+
+		[global][4]
+		[global][5]
+		`
+		expected := configMap{
+			{"global", 0, "key1"}: "val1",
+			{"global", 0, "key3"}: "val3",
+			{"global", 0, "key2"}: "val2",
+			{"global", 1, "key1"}: "val3",
+			{"global", 4, "key2"}: "val4",
+			{"global", 0, ""}:     "",
+			{"global", 4, ""}:     "",
+			{"global", 5, ""}:     "",
+		}
+		actual := parseConfOverride(input)
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("Expected: %v. Got: %v", expected, actual)
 		}
 	})
 }
