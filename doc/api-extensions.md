@@ -1677,3 +1677,6 @@ for overriding the evacuation mode traditionally set through
 ## resources\_pci\_vpd
 Adds a new VPD struct to the PCI resource entries.
 This struct extracts vendor provided data including the full product name and additional key/value configuration pairs.
+
+## qemu\_raw\_conf
+Introdues a `raw.qemu.conf` configuration key to override select sections of the generated qemu.conf.
