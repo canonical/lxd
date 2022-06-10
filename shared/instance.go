@@ -275,7 +275,8 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"migration.stateful": validate.Optional(validate.IsBool),
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.qemu": validate.IsAny,
+	"raw.qemu":      validate.IsAny,
+	"raw.qemu.conf": validate.IsAny,
 
 	"security.agent.metrics": validate.Optional(validate.IsBool),
 	"security.secureboot":    validate.Optional(validate.IsBool),
