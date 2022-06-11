@@ -1270,7 +1270,7 @@ property = "disable_s4"
 value = "1"
 ```
 
-To specify which section will be overriden, a bracket enclosed index can be used:
+To specify which section will be overridden, a bracket enclosed index can be used:
 
 ```
 raw.qemu.conf: |-
