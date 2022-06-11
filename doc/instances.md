@@ -1209,8 +1209,8 @@ This results in snapshots named `{date/time of creation}` down to the precision 
 
 ### Overriding qemu configuration
 For VM instances, LXD configures qemu via a somewhat undocumented configuration
-file format passed to qemu with the `-readconfig` command-line option, where
-each instance has a configuration file generated before boot. The generated
+file format passed to qemu with the `-readconfig` command-line option, with
+each instance having a configuration file generated before boot. The generated
 configuration file can be found at `/var/log/lxd/[instance-name]/qemu.conf`.
 
 The default configuration works fine for LXD most common use case: Modern UEFI
@@ -1224,7 +1224,7 @@ override the generated configuration:
 
 This level of customization can be achieved through the `raw.qemu.conf` config
 option, which supports a format similar to `qemu.conf` with some additions.
-For example, here's how to override the default "virtio-gpu-pci" GPU driver:
+Here's how to override the default "virtio-gpu-pci" GPU driver:
 
 ```
 raw.qemu.conf: |-
@@ -1236,17 +1236,15 @@ The above would replace the corresponding section/key in the generated config
 file. Since `raw.qemu.conf` is a multi-line config option, multiple
 sections/keys can be modified.
 
-It is also possible to entirely remove sections/keys. Here's of how to
-remove the virtual GPU:
+It is also possible to entirely remove sections/keys by specifying a section
+without any keys:
 
 ```
 raw.qemu.conf: |-
     [device "qemu_gpu"]
 ```
 
-In other words, creating a section without any keys will delete the section. To
-remove a key, simply specify an empty string as the value. Here's how to remove
-the "driver" key from the gpu section:
+To remove a key, specify an empty string as the value:
 
 ```
 raw.qemu.conf: |-
@@ -1269,7 +1267,7 @@ property = "disable_s4"
 value = "1"
 ```
 
-To specify which section will be overridden, a bracket enclosed index can be used:
+To specify which section will be overridden, an index can be specified like this:
 
 ```
 raw.qemu.conf: |-
@@ -1278,7 +1276,7 @@ raw.qemu.conf: |-
 ```
 
 Section indexes start at 0 (which is the default value when not specified), so
-the above example would generate this:
+the `raw.qemu.conf` above example would generate this:
 
 ```
 [global]
@@ -1294,4 +1292,3 @@ value = "0"
 
 To add new sections, simply specify section names that are not present in the
 config file.
-
