@@ -2686,10 +2686,10 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 	}
 
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
-	var dbInstances []db.Instance
+	var dbInstances []dbCluster.Instance
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
-		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
+		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Node: &nodeName})
 		if err != nil {
 			return fmt.Errorf("Failed to get instances: %w", err)
 		}
@@ -2880,9 +2880,9 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// List the instances.
-	var dbInstances []db.Instance
+	var dbInstances []dbCluster.Instance
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
+		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed to get instances: %w", err)
 		}
@@ -2897,25 +2897,20 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	localInstances := make([]instance.Instance, 0)
 
 	for _, dbInst := range dbInstances {
-		if dbInst.Node == originName {
-			inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
-			if err != nil {
-				return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
-			}
+		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
+		}
 
+		if dbInst.Node == originName {
 			localInstances = append(localInstances, inst)
 			continue
 		}
 
 		// Only consider instances where volatile.evacuate.origin is set to the node which needs to be restored.
-		val, ok := dbInst.Config["volatile.evacuate.origin"]
+		val, ok := inst.LocalConfig()["volatile.evacuate.origin"]
 		if !ok || val != originName {
 			continue
-		}
-
-		inst, err := instance.LoadByProjectAndName(s, dbInst.Project, dbInst.Name)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
 		}
 
 		instances = append(instances, inst)

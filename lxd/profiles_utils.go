@@ -56,7 +56,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 			// Check what profile the device comes from by working backwards along the profiles list.
 			for i := len(inst.Profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.db.Cluster.GetProfile(projectName, inst.Profiles[i])
+				_, profile, err := d.db.Cluster.GetProfile(projectName, inst.Profiles[i].Name)
 				if err != nil {
 					return err
 				}
@@ -65,7 +65,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 				_, ok := profile.Devices[oldProfileRootDiskDeviceKey]
 				if ok {
 					// Found the profile.
-					if inst.Profiles[i] == name {
+					if inst.Profiles[i].Name == name {
 						// If it's the current profile, then we can't modify that root device.
 						return fmt.Errorf("At least one instance relies on this profile's root disk device")
 					}
@@ -106,6 +106,26 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		err = cluster.UpdateProfileDevices(ctx, tx.Tx(), id, devices)
 		if err != nil {
 			return nil
+		}
+
+		newProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, []string{name})
+		if err != nil {
+			return err
+		}
+
+		apiProfile, err := newProfiles[0].ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		// Update the profile on our current list of instances.
+		for i := range insts {
+			for j, profile := range insts[i].Profiles {
+				if profile.Name == apiProfile.Name {
+					insts[i].Profiles[j] = *apiProfile
+					break
+				}
+			}
 		}
 
 		return nil
@@ -192,13 +212,18 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 		return nil
 	}
 
-	profiles, err := d.db.Cluster.GetProfiles(args.Project, args.Profiles)
+	profileNames := make([]string, 0, len(args.Profiles))
+	for _, profile := range args.Profiles {
+		profileNames = append(profileNames, profile.Name)
+	}
+
+	profiles, err := d.db.Cluster.GetProfiles(args.Project, profileNames)
 	if err != nil {
 		return err
 	}
 
-	for i, profileName := range args.Profiles {
-		if profileName == name {
+	for i, profile := range args.Profiles {
+		if profile.Name == name {
 			// Overwrite the new config from the database with the old config and devices.
 			profiles[i].Config = old.Config
 			profiles[i].Devices = old.Devices
@@ -227,23 +252,28 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 }
 
 // Query the db for information about instances associated with the given profile.
-func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileName string) ([]db.InstanceArgs, error) {
+func getProfileInstancesInfo(dbCluster *db.Cluster, projectName string, profileName string) ([]db.InstanceArgs, error) {
 	// Query the db for information about instances associated with the given profile.
-	projectInstNames, err := cluster.GetInstancesWithProfile(projectName, profileName)
+	projectInstNames, err := dbCluster.GetInstancesWithProfile(projectName, profileName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query instances with profile %q: %w", profileName, err)
 	}
 
 	instances := []db.InstanceArgs{}
-	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for instProject, instNames := range projectInstNames {
 			for _, instName := range instNames {
-				inst, err := tx.GetInstance(instProject, instName)
+				inst, err := cluster.GetInstance(ctx, tx.Tx(), instProject, instName)
 				if err != nil {
 					return err
 				}
 
-				instances = append(instances, db.InstanceToArgs(inst))
+				args, err := db.InstanceToArgs(ctx, tx.Tx(), inst)
+				if err != nil {
+					return err
+				}
+
+				instances = append(instances, *args)
 			}
 		}
 

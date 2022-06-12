@@ -133,10 +133,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeContainer:
 		fallthrough
 	case cluster.TypeInstance:
-		var instances []Instance
+		var instances []cluster.Instance
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			instances, err = tx.GetInstances(InstanceFilter{})
+			instances, err = cluster.GetInstances(ctx, tx.tx, cluster.InstanceFilter{})
 			if err != nil {
 				return err
 			}
@@ -165,10 +165,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", fmt.Errorf("Failed to get instance backup: %w", err)
 		}
 
-		var instances []Instance
+		var instances []cluster.Instance
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			instances, err = tx.GetInstances(InstanceFilter{})
+			instances, err = cluster.GetInstances(ctx, tx.tx, cluster.InstanceFilter{})
 			if err != nil {
 				return err
 			}
