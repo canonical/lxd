@@ -122,9 +122,9 @@ type InstanceArgs struct {
 // or an empty filter if instance type is 'Any'.
 func InstanceTypeFilter(instanceType instancetype.Type) cluster.InstanceFilter {
 	if instanceType != instancetype.Any {
-		return InstanceFilter{Type: &instanceType}
+		return cluster.InstanceFilter{Type: &instanceType}
 	}
-	return InstanceFilter{}
+	return cluster.InstanceFilter{}
 }
 
 // GetInstanceNames returns the names of all containers the given project.
@@ -141,7 +141,7 @@ SELECT instances.name FROM instances
 // instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter InstanceFilter) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter cluster.InstanceFilter) (string, error) {
 	var stmt string
 
 	args := make([]any, 0, 4) // Expect up to 4 filters.
@@ -231,7 +231,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
-func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, filter InstanceFilter) (map[string][][2]string, error) {
+func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, filter cluster.InstanceFilter) (map[string][][2]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -377,7 +377,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 
 // GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
 // instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter InstanceFilter) (map[[2]string]string, error) {
+func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter cluster.InstanceFilter) (map[[2]string]string, error) {
 	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -429,7 +429,7 @@ SELECT instances.name, nodes.name, projects.name
 
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
 // It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
-func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, newNode string, volumeType int) error {
+func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName string, newName string, newNode string, volumeType int) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
 	poolName, err := c.GetInstancePool(project, oldName)
@@ -453,7 +453,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.GetInstanceID(project, oldName)
+	containerID, err := cluster.GetInstanceID(ctx, c.tx, project, oldName)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's ID: %w", err)
 	}
@@ -503,7 +503,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 
 // GetLocalInstancesInProject retuurns all instances of the given type on the local member in the given project.
 // If projectName is empty then all instances in all projects are returned.
-func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instance, error) {
+func (c *ClusterTx) GetLocalInstancesInProject(ctx context.Context, filter cluster.InstanceFilter) ([]cluster.Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, fmt.Errorf("Local node name: %w", err)
@@ -513,7 +513,7 @@ func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instanc
 		filter.Node = &node
 	}
 
-	return c.GetInstances(filter)
+	return cluster.GetInstances(ctx, c.tx, filter)
 }
 
 // CreateInstanceConfig inserts a new config for the container with the given ID.
@@ -621,8 +621,8 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 }
 
 // GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
-func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
-	instance, err := c.GetInstance(project, name)
+func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project string, name string) ([]cluster.Instance, error) {
+	instance, err := cluster.GetInstance(ctx, c.tx, project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -638,9 +638,9 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 
 	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
 
-	instances := make([]Instance, len(snapshots))
+	instances := make([]cluster.Instance, len(snapshots))
 	for i, snapshot := range snapshots {
-		instances[i] = InstanceSnapshotToInstance(instance, &snapshot)
+		instances[i] = snapshot.ToInstance(instance)
 	}
 
 	return instances, nil
@@ -696,7 +696,7 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 		})
 	}
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.DeleteInstance(project, name)
+		return cluster.DeleteInstance(ctx, tx.tx, project, name)
 	})
 }
 
@@ -728,7 +728,7 @@ func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 	var id int64
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		id, err = tx.GetInstanceID(project, name)
+		id, err = cluster.GetInstanceID(ctx, tx.tx, project, name)
 		return err
 	})
 	return int(id), err
