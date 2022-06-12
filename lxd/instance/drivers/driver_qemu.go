@@ -4304,7 +4304,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if args.Profiles == nil {
-		args.Profiles = []string{}
+		args.Profiles = []api.Profile{}
 	}
 
 	if userRequested {
@@ -4329,15 +4329,15 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile, profiles) {
-			return fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+		if !shared.StringInSlice(profile.Name, profiles) {
+			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.StringInSlice(profile, checkedProfiles) {
+		if shared.StringInSlice(profile.Name, checkedProfiles) {
 			return fmt.Errorf("Duplicate profile found in request")
 		}
 
-		checkedProfiles = append(checkedProfiles, profile)
+		checkedProfiles = append(checkedProfiles, profile.Name)
 	}
 
 	// Validate the new architecture.
@@ -4386,7 +4386,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	oldProfiles := []string{}
+	oldProfiles := []api.Profile{}
 	err = shared.DeepCopy(&d.profiles, &oldProfiles)
 	if err != nil {
 		return err
@@ -5615,6 +5615,11 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 // Render returns info about the instance.
 func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
+	profileNames := make([]string, 0, len(d.profiles))
+	for _, profile := range d.profiles {
+		profileNames = append(profileNames, profile.Name)
+	}
+
 	if d.IsSnapshot() {
 		// Prepare the ETag
 		etag := []any{d.expiryDate}
@@ -5628,11 +5633,12 @@ func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 			Stateful:        d.stateful,
 			Size:            -1, // Default to uninitialised/error state (0 means no CoW usage).
 		}
+
 		snapState.Architecture = d.architectureName
 		snapState.Config = d.localConfig
 		snapState.Devices = d.localDevices.CloneNative()
 		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = d.profiles
+		snapState.Profiles = profileNames
 		snapState.ExpiresAt = d.expiryDate
 
 		for _, option := range options {
@@ -5666,7 +5672,7 @@ func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 	instState.Devices = d.localDevices.CloneNative()
 	instState.Ephemeral = d.ephemeral
 	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = d.profiles
+	instState.Profiles = profileNames
 	instState.Stateful = d.stateful
 	instState.Project = d.project
 
