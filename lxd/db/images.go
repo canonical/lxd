@@ -225,11 +225,11 @@ SELECT fingerprint
 
 // GetExpiredImagesInProject returns the names of all images that have expired since the given time.
 func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
-	var images []Image
+	var images []cluster.Image
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		cached := true
-		images, err = tx.GetImages(ImageFilter{Cached: &cached, Project: &project})
+		images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{Cached: &cached, Project: &project})
 		return err
 	})
 	if err != nil {
@@ -410,7 +410,7 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // shortform matches more than one image, an error will be returned.
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
-func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
+func (c *Cluster) GetImage(fingerprintPrefix string, filter cluster.ImageFilter) (int, *api.Image, error) {
 	var image *api.Image
 	var id int
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
@@ -433,9 +433,9 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 // shortform matches more than one image, an error will be returned.
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
-func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
+func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprintPrefix string, filter cluster.ImageFilter) (int, *api.Image, error) {
 	var image api.Image
-	var object Image
+	var object cluster.Image
 	if fingerprintPrefix == "" {
 		return -1, nil, errors.New("No fingerprint prefix specified for the image")
 	}
@@ -496,10 +496,10 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, error) {
 	// The object we'll actually return
 	var image api.Image
-	var object Image
+	var object cluster.Image
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
+		images, err := tx.getImagesByFingerprintPrefix(fingerprint, cluster.ImageFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed to fetch images: %w", err)
 		}
@@ -536,7 +536,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 
 // getImagesByFingerprintPrefix returns the images with fingerprints matching the prefix.
 // Optional filters 'project' and 'public' will be included if not nil.
-func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter ImageFilter) ([]Image, error) {
+func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter cluster.ImageFilter) ([]cluster.Image, error) {
 	sql := `
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
 FROM images
@@ -557,10 +557,10 @@ WHERE images.fingerprint LIKE ?
 	sql += `ORDER BY projects.id, images.fingerprint
 `
 
-	objects := []Image{}
+	objects := []cluster.Image{}
 	// Dest function for scanning a row.
 	dest := func(i int) []any {
-		objects = append(objects, Image{})
+		objects = append(objects, cluster.Image{})
 		return []any{
 			&objects[i].ID,
 			&objects[i].Project,
@@ -653,7 +653,7 @@ WHERE images.fingerprint = ?
 // AddImageToLocalNode creates a new entry in the images_nodes table for
 // tracking that the local member has the given image.
 func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
-	imageID, _, err := c.GetImage(fingerprint, ImageFilter{Project: &project})
+	imageID, _, err := c.GetImage(fingerprint, cluster.ImageFilter{Project: &project})
 	if err != nil {
 		return err
 	}

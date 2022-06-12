@@ -21,7 +21,7 @@ import (
 	backupConfig "github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -322,7 +322,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 // warningsDelete deletes any persistent warnings for the pool.
 func (b *lxdBackend) warningsDelete() error {
 	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.DeleteWarnings(dbCluster.TypeStoragePool, int(b.ID()))
+		return tx.DeleteWarnings(cluster.TypeStoragePool, int(b.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
@@ -1880,7 +1880,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 			if fingerprint != "" {
 				// Confirm that the image is present in the project.
-				_, _, err = b.state.DB.Cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
+				_, _, err = b.state.DB.Cluster.GetImage(fingerprint, cluster.ImageFilter{Project: &projectName})
 				if err != nil && !response.IsNotFoundError(err) {
 					return err
 				}
