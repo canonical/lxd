@@ -391,7 +391,7 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 			return nil, fmt.Errorf("Failed to fetch instance %q in project %q: %w", name, project, err)
 		}
 
-		snapshot, err := tx.GetInstanceSnapshot(project, instanceName, snapshotName)
+		snapshot, err := cluster.GetInstanceSnapshot(ctx, tx.Tx(), project, instanceName, snapshotName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to fetch snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
 		}
@@ -1041,30 +1041,32 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
 			}
 
-			// TODO: Remove references to db.Device once InstanceSnapshot is moved to v2 generator.
-			dbDevices, err := db.APIToDevices(args.Devices.CloneNative())
-			if err != nil {
-				return err
-			}
-
-			snapshot := db.InstanceSnapshot{
+			snapshot := cluster.InstanceSnapshot{
 				Project:      args.Project,
 				Instance:     instanceName,
 				Name:         snapshotName,
 				CreationDate: args.CreationDate,
 				Stateful:     args.Stateful,
 				Description:  args.Description,
-				Config:       args.Config,
-				Devices:      dbDevices,
 				ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 			}
-			_, err = tx.CreateInstanceSnapshot(snapshot)
+			id, err := cluster.CreateInstanceSnapshot(ctx, tx.Tx(), snapshot)
 			if err != nil {
 				return fmt.Errorf("Add snapshot info to the database: %w", err)
 			}
 
+			err = cluster.CreateInstanceSnapshotConfig(ctx, tx.Tx(), id, args.Config)
+			if err != nil {
+				return err
+			}
+
+			err = cluster.CreateInstanceSnapshotDevices(ctx, tx.Tx(), id, devices)
+			if err != nil {
+				return err
+			}
+
 			// Read back the snapshot, to get ID and creation time.
-			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
+			s, err := cluster.GetInstanceSnapshot(ctx, tx.Tx(), args.Project, instanceName, snapshotName)
 			if err != nil {
 				return fmt.Errorf("Fetch created snapshot from the database: %w", err)
 			}

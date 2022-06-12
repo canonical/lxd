@@ -192,10 +192,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return "", ErrUnknownEntityID
 		}
 	case cluster.TypeInstanceSnapshot:
-		var snapshots []InstanceSnapshot
+		var snapshots []cluster.InstanceSnapshot
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			snapshots, err = tx.GetInstanceSnapshots(InstanceSnapshotFilter{})
+			snapshots, err = cluster.GetInstanceSnapshots(ctx, tx.Tx(), cluster.InstanceSnapshotFilter{})
 			if err != nil {
 				return err
 			}

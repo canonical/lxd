@@ -41,7 +41,7 @@ func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDat
 }
 
 // GetLocalExpiredInstanceSnapshots returns a list of expired snapshots.
-func (c *ClusterTx) GetLocalExpiredInstanceSnapshots() ([]InstanceSnapshot, error) {
+func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]cluster.InstanceSnapshot, error) {
 	q := `
 	SELECT
 		instances_snapshots.id,
@@ -81,10 +81,10 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots() ([]InstanceSnapshot, erro
 	}
 
 	// Fetch all the expired snapshot details.
-	snapshots := make([]InstanceSnapshot, len(snapshotIDs))
+	snapshots := make([]cluster.InstanceSnapshot, len(snapshotIDs))
 
 	for i, id := range snapshotIDs {
-		snap, err := c.GetInstanceSnapshots(InstanceSnapshotFilter{ID: &id})
+		snap, err := cluster.GetInstanceSnapshots(ctx, c.tx, cluster.InstanceSnapshotFilter{ID: &id})
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (c *Cluster) GetInstanceSnapshotID(project, instance, name string) (int, er
 	var id int64
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		id, err = tx.GetInstanceSnapshotID(project, instance, name)
+		id, err = cluster.GetInstanceSnapshotID(ctx, tx.tx, project, instance, name)
 		return err
 	})
 	return int(id), err
