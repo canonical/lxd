@@ -4188,7 +4188,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			return tx.RenameInstanceSnapshot(d.project, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return tx.RenameInstance(d.project, oldName, newName)
+		return dbCluster.RenameInstance(ctx, tx.Tx(), d.project, oldName, newName)
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming instance", ctxMap)
@@ -4605,7 +4605,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
 		}
 
-		object, err := tx.GetInstance(d.project, d.name)
+		object, err := dbCluster.GetInstance(ctx, tx.Tx(), d.project, d.name)
 		if err != nil {
 			return err
 		}
@@ -4614,17 +4614,33 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Architecture = d.architecture
 		object.Ephemeral = d.ephemeral
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
-		object.Config = d.localConfig
-		object.Profiles = d.profiles
 
-		devices, err := db.APIToDevices(d.localDevices.CloneNative())
+		err = dbCluster.UpdateInstance(ctx, tx.Tx(), d.project, d.name, *object)
 		if err != nil {
 			return err
 		}
 
-		object.Devices = devices
+		err = dbCluster.UpdateInstanceConfig(ctx, tx.Tx(), int64(object.ID), d.localConfig)
+		if err != nil {
+			return err
+		}
 
-		return tx.UpdateInstance(d.project, d.name, *object)
+		devices, err := dbCluster.APIToDevices(d.localDevices.CloneNative())
+		if err != nil {
+			return err
+		}
+
+		err = dbCluster.UpdateInstanceDevices(ctx, tx.Tx(), int64(object.ID), devices)
+		if err != nil {
+			return err
+		}
+
+		profileNames := make([]string, 0, len(d.profiles))
+		for _, profile := range d.profiles {
+			profileNames = append(profileNames, profile.Name)
+		}
+
+		return dbCluster.UpdateInstanceProfiles(ctx, tx.Tx(), *object, profileNames)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update database: %w", err)

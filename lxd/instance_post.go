@@ -677,7 +677,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// Restore the original value of "volatile.apply_template"
 		project := inst.Project()
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			id, err := tx.GetInstanceID(project, destName)
+			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), project, destName)
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
 			}
@@ -817,7 +817,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 
 		// Re-link the database entries against the new node name.
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(inst.Project(), inst.Name(), newName, newNode, volDBType)
+			err := tx.UpdateInstanceNode(ctx, inst.Project(), inst.Name(), newName, newNode, volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newName, inst.Name(), err)
 			}
