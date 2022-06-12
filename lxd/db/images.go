@@ -18,50 +18,6 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t images.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -d cluster -p db -e image objects
-//go:generate mapper stmt -d cluster -p db -e image objects-by-Project
-//go:generate mapper stmt -d cluster -p db -e image objects-by-Project-and-Cached
-//go:generate mapper stmt -d cluster -p db -e image objects-by-Project-and-Public
-//go:generate mapper stmt -d cluster -p db -e image objects-by-Fingerprint
-//go:generate mapper stmt -d cluster -p db -e image objects-by-Cached
-//go:generate mapper stmt -d cluster -p db -e image objects-by-AutoUpdate
-//
-//go:generate mapper method -i -d cluster -p db -e image GetMany
-//go:generate mapper method -i -d cluster -p db -e image GetOne
-//go:generate mapper method -i -d cluster -p db -e image URIs
-
-// Image is a value object holding db-related details about an image.
-type Image struct {
-	ID           int
-	Project      string `db:"primary=yes&join=projects.name"`
-	Fingerprint  string `db:"primary=yes"`
-	Type         int
-	Filename     string
-	Size         int64
-	Public       bool
-	Architecture int
-	CreationDate sql.NullTime
-	ExpiryDate   sql.NullTime
-	UploadDate   time.Time
-	Cached       bool
-	LastUseDate  sql.NullTime
-	AutoUpdate   bool
-}
-
-// ImageFilter can be used to filter results yielded by GetImages.
-type ImageFilter struct {
-	Project     *string
-	Fingerprint *string
-	Public      *bool
-	Cached      *bool
-	AutoUpdate  *bool
-}
-
 // ImageSourceProtocol maps image source protocol codes to human-readable names.
 var ImageSourceProtocol = map[int]string{
 	0: "lxd",
