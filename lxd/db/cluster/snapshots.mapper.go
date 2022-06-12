@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -19,6 +20,12 @@ var instanceSnapshotObjects = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
   ORDER BY projects.id, instances.id, instances_snapshots.name
+`)
+
+var instanceSnapshotObjectsByID = RegisterStmt(`
+SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
+  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE instances_snapshots.id = ? ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstance = RegisterStmt(`
@@ -33,6 +40,24 @@ SELECT instances_snapshots.id, projects.name AS project, instances.name AS insta
   WHERE project = ? AND instance = ? AND instances_snapshots.name = ? ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
+var instanceSnapshotID = RegisterStmt(`
+SELECT instances_snapshots.id FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE projects.name = ? AND instances.name = ? AND instances_snapshots.name = ?
+`)
+
+var instanceSnapshotCreate = RegisterStmt(`
+INSERT INTO instances_snapshots (instance_id, name, creation_date, stateful, description, expiry_date)
+  VALUES ((SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?), ?, ?, ?, ?, ?)
+`)
+
+var instanceSnapshotRename = RegisterStmt(`
+UPDATE instances_snapshots SET name = ? WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+`)
+
+var instanceSnapshotDeleteByProjectAndInstanceAndName = RegisterStmt(`
+DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+`)
+
 // GetInstanceSnapshots returns all available instance_snapshots.
 // generator: instance_snapshot GetMany
 func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
@@ -45,20 +70,25 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 	var sqlStmt *sql.Stmt
 	var args []any
 
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
+	if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
 		sqlStmt = stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
+	} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
 		sqlStmt = stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 		}
-	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+	} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+		sqlStmt = stmt(tx, instanceSnapshotObjectsByID)
+		args = []any{
+			filter.ID,
+		}
+	} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		sqlStmt = stmt(tx, instanceSnapshotObjects)
 		args = []any{}
 	} else {
@@ -121,4 +151,193 @@ func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshot
 		config = map[string]string{}
 	}
 	return config, nil
+}
+
+// GetInstanceSnapshot returns the instance_snapshot with the given key.
+// generator: instance_snapshot GetOne
+func GetInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (*InstanceSnapshot, error) {
+	filter := InstanceSnapshotFilter{}
+	filter.Project = &project
+	filter.Instance = &instance
+	filter.Name = &name
+
+	objects, err := GetInstanceSnapshots(ctx, tx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
+	}
+
+	switch len(objects) {
+	case 0:
+		return nil, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
+	case 1:
+		return &objects[0], nil
+	default:
+		return nil, fmt.Errorf("More than one \"instances_snapshots\" entry matches")
+	}
+}
+
+// GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.
+// generator: instance_snapshot ID
+func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (int64, error) {
+	stmt := stmt(tx, instanceSnapshotID)
+	rows, err := stmt.Query(project, instance, name)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	// Ensure we read one and only one row.
+	if !rows.Next() {
+		return -1, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
+	}
+	var id int64
+	err = rows.Scan(&id)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
+	}
+
+	if rows.Next() {
+		return -1, fmt.Errorf("More than one row returned")
+	}
+	err = rows.Err()
+	if err != nil {
+		return -1, fmt.Errorf("Result set failure: %w", err)
+	}
+
+	return id, nil
+}
+
+// InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
+// generator: instance_snapshot Exists
+func InstanceSnapshotExists(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (bool, error) {
+	_, err := GetInstanceSnapshotID(ctx, tx, project, instance, name)
+	if err != nil {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+// CreateInstanceSnapshot adds a new instance_snapshot to the database.
+// generator: instance_snapshot Create
+func CreateInstanceSnapshot(ctx context.Context, tx *sql.Tx, object InstanceSnapshot) (int64, error) {
+	// Check if a instance_snapshot with the same key exists.
+	exists, err := InstanceSnapshotExists(ctx, tx, object.Project, object.Instance, object.Name)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
+	}
+
+	if exists {
+		return -1, api.StatusErrorf(http.StatusConflict, "This \"instances_snapshots\" entry already exists")
+	}
+
+	args := make([]any, 7)
+
+	// Populate the statement arguments.
+	args[0] = object.Project
+	args[1] = object.Instance
+	args[2] = object.Name
+	args[3] = object.CreationDate
+	args[4] = object.Stateful
+	args[5] = object.Description
+	args[6] = object.ExpiryDate
+
+	// Prepared statement to use.
+	stmt := stmt(tx, instanceSnapshotCreate)
+
+	// Execute the statement.
+	result, err := stmt.Exec(args...)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to create \"instances_snapshots\" entry: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Failed to fetch \"instances_snapshots\" entry ID: %w", err)
+	}
+
+	return id, nil
+}
+
+// CreateInstanceSnapshotDevices adds new instance_snapshot Devices to the database.
+// generator: instance_snapshot Create
+func CreateInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int64, devices map[string]Device) error {
+	for key, device := range devices {
+		device.ReferenceID = int(instanceSnapshotID)
+		devices[key] = device
+	}
+
+	err := CreateDevices(ctx, tx, "instance_snapshot", devices)
+	if err != nil {
+		return fmt.Errorf("Insert Device failed for InstanceSnapshot: %w", err)
+	}
+
+	return nil
+}
+
+// CreateInstanceSnapshotConfig adds new instance_snapshot Config to the database.
+// generator: instance_snapshot Create
+func CreateInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int64, config map[string]string) error {
+	referenceID := int(instanceSnapshotID)
+	for key, value := range config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err := CreateConfig(ctx, tx, "instance_snapshot", insert)
+		if err != nil {
+			return fmt.Errorf("Insert Config failed for InstanceSnapshot: %w", err)
+		}
+
+	}
+	return nil
+}
+
+// RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
+// generator: instance_snapshot Rename
+func RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string, to string) error {
+	stmt := stmt(tx, instanceSnapshotRename)
+	result, err := stmt.Exec(to, project, instance, name)
+	if err != nil {
+		return fmt.Errorf("Rename InstanceSnapshot failed: %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Query affected %d rows instead of 1", n)
+	}
+	return nil
+}
+
+// DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
+// generator: instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
+func DeleteInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) error {
+	stmt := stmt(tx, instanceSnapshotDeleteByProjectAndInstanceAndName)
+	result, err := stmt.Exec(project, instance, name)
+	if err != nil {
+		return fmt.Errorf("Delete \"instances_snapshots\": %w", err)
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Fetch affected rows: %w", err)
+	}
+
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
+	} else if n > 1 {
+		return fmt.Errorf("Query deleted %d InstanceSnapshot rows instead of 1", n)
+	}
+
+	return nil
 }
