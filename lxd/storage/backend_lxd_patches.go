@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
@@ -43,11 +44,11 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 
 	// Get instances on this local server (as the DB helper functions return volumes on local server), also
 	// avoids running the same queries on every cluster member for instances on shared storage.
-	filter := db.InstanceFilter{
+	filter := cluster.InstanceFilter{
 		Node: &localNode,
 	}
 
-	err = b.state.DB.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = b.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		// Check we can convert the instance to the volume type needed.
 		volType, err := InstanceTypeToVolumeType(inst.Type)
 		if err != nil {
@@ -61,7 +62,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 
 		// Get all the instance snapshot DB records.
 		var instPoolName string
-		var snapshots []db.Instance
+		var snapshots []cluster.Instance
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			instPoolName, err = tx.GetInstancePool(p.Name, inst.Name)
 			if err != nil {
@@ -74,7 +75,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 				return fmt.Errorf("Failed finding pool for instance %q in project %q: %w", inst.Name, p.Name, err)
 			}
 
-			snapshots, err = tx.GetInstanceSnapshotsWithName(p.Name, inst.Name)
+			snapshots, err = tx.GetInstanceSnapshotsWithName(ctx, p.Name, inst.Name)
 			if err != nil {
 				return err
 			}
