@@ -299,22 +299,36 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
-	var instances []Instance
-	projectMap := map[string]api.Project{}
-	projectHasProfiles := map[string]bool{}
-	profilesByProjectAndName := map[string]map[string]api.Profile{}
+func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project, profiles []api.Profile) error) error {
+	var instances []InstanceArgs
+	projectsByName := map[string]api.Project{}
 
 	if filter == nil {
-		filter = &InstanceFilter{}
+		filter = &cluster.InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var err error
-		instances, err = tx.GetInstances(*filter)
+		dbInstances, err := cluster.GetInstances(ctx, tx.tx, *filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading instances: %w", err)
+		}
+
+		instances = make([]InstanceArgs, 0, len(dbInstances))
+		for _, instance := range dbInstances {
+			// Get expanded instance information.
+			instanceArgs, err := InstanceToArgs(ctx, tx.tx, &instance)
+			if err != nil {
+				return err
+			}
+
+			// Add an empty api.Project so we know this is an instance project.
+			_, ok := projectsByName[instance.Project]
+			if !ok {
+				projectsByName[instance.Project] = api.Project{}
+			}
+
+			instances = append(instances, *instanceArgs)
 		}
 
 		projects, err := cluster.GetProjects(ctx, tx.tx, cluster.ProjectFilter{})
@@ -324,34 +338,23 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 		// Index of all projects by name and record which projects have the profiles feature.
 		for _, project := range projects {
+			// Skip any projects not associated with an instance in this filtered list.
+			instanceProject, ok := projectsByName[project.Name]
+			if !ok {
+				continue
+			}
+
+			// Don't call ToAPI more than once per project.
+			if instanceProject.Name != "" {
+				continue
+			}
+
 			apiProject, err := project.ToAPI(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
 
-			projectMap[project.Name] = *apiProject
-			projectHasProfiles[project.Name] = shared.IsTrue(apiProject.Config["features.profiles"])
-		}
-
-		profiles, err := cluster.GetProfiles(ctx, tx.tx, cluster.ProfileFilter{})
-		if err != nil {
-			return fmt.Errorf("Failed loading profiles: %w", err)
-		}
-
-		// Index of all profiles by project and name.
-		for _, profile := range profiles {
-			profilesByName, ok := profilesByProjectAndName[profile.Project]
-			if !ok {
-				profilesByName = map[string]api.Profile{}
-				profilesByProjectAndName[profile.Project] = profilesByName
-			}
-
-			apiProfile, err := profile.ToAPI(ctx, tx.tx)
-			if err != nil {
-				return err
-			}
-
-			profilesByName[profile.Name] = *apiProfile
+			projectsByName[project.Name] = *apiProject
 		}
 
 		return nil
@@ -363,20 +366,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
 	// the instanceFunc will be slow or may need to make additional DB queries.
 	for _, instance := range instances {
-		profiles := make([]api.Profile, len(instance.Profiles))
-
-		// If the instance's project does not have the profiles feature enabled,
-		// we fall back to the default project.
-		profilesProject := instance.Project
-		if !projectHasProfiles[profilesProject] {
-			profilesProject = "default" // Equivalent to project.Default constant.
-		}
-
-		for j, name := range instance.Profiles {
-			profiles[j] = profilesByProjectAndName[profilesProject][name]
-		}
-
-		err = instanceFunc(instance, projectMap[instance.Project], profiles)
+		err = instanceFunc(instance, projectsByName[instance.Project], instance.Profiles)
 		if err != nil {
 			return err
 		}
