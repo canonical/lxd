@@ -18,6 +18,7 @@ import (
 	"github.com/mdlayher/netx/eui64"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
@@ -289,7 +290,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	// Can only validate this when the instance is supplied (and not doing profile validation).
 	if d.inst != nil {
 		node := d.inst.Location()
-		filter := db.InstanceFilter{
+		filter := cluster.InstanceFilter{
 			Node: &node, // Managed bridge networks have a per-server DHCP daemon.
 		}
 
@@ -303,7 +304,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			ourNICMAC, _ = net.ParseMAC(v["hwaddr"])
 		}
 
-		err := d.state.DB.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		err := d.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 			// Get the instance's effective network project name.
 			instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -311,7 +312,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				return nil // Managed bridge networks can only exist in default project.
 			}
 
-			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+			devices := db.ExpandInstanceDevices(inst.Devices.Clone(), profiles)
 			// Iterate through each of the instance's devices, looking for NICs that are linked to
 			// the same network, on the same cluster member as this NIC and have matching static IPs.
 			for devName, devConfig := range devices {
