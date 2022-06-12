@@ -271,7 +271,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
 	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
-		case db.Instance, cluster.Profile:
+		case cluster.Instance, cluster.Profile:
 			networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)

@@ -545,7 +545,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Ephemeral:    snap.Ephemeral,
 		LastUsedDate: snap.LastUsedAt,
 		Name:         poolVol.Container.Name + shared.SnapshotDelimiter + snap.Name,
-		Profiles:     snap.Profiles,
+		Profiles:     profiles,
 		Stateful:     snap.Stateful,
 	}, false)
 	if err != nil {
