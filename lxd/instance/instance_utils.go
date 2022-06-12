@@ -697,7 +697,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 
 		var image *api.Image
 		for _, imageHash := range hashes {
-			_, img, err := s.DB.Cluster.GetImage(imageHash, db.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(imageHash, cluster.ImageFilter{Project: &project})
 			if err != nil {
 				continue
 			}
@@ -781,7 +781,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.DB.Cluster.GetImage(hash, db.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(hash, cluster.ImageFilter{Project: &project})
 			if err != nil {
 				return nil, err
 			}
