@@ -968,7 +968,10 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
 			for _, snap := range args.Snapshots {
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-				snapArgs := snapshotProtobufToInstanceArgs(args.Instance, snap)
+				snapArgs, err := snapshotProtobufToInstanceArgs(state, args.Instance, snap)
+				if err != nil {
+					return err
+				}
 
 				// Ensure that snapshot and parent container have the same
 				// storage pool in their local root disk device. If the root
@@ -982,7 +985,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				}
 
 				// Create the snapshot instance.
-				_, snapInstOp, cleanup, err := instance.CreateInternal(state, snapArgs, true)
+				_, snapInstOp, cleanup, err := instance.CreateInternal(state, *snapArgs, true)
 				if err != nil {
 					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 				}
@@ -1087,6 +1090,12 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			// config over, same as we used to do.
 			if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
 				// Convert the instance to an api.InstanceSnapshot.
+
+				profileNames := make([]string, 0, len(c.src.instance.Profiles()))
+				for _, p := range c.src.instance.Profiles() {
+					profileNames = append(profileNames, p.Name)
+				}
+
 				architectureName, _ := osarch.ArchitectureName(c.src.instance.Architecture())
 				apiInstSnap := &api.InstanceSnapshot{
 					InstanceSnapshotPut: api.InstanceSnapshotPut{
@@ -1099,7 +1108,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 					Devices:      c.src.instance.LocalDevices().CloneNative(),
 					Ephemeral:    c.src.instance.IsEphemeral(),
 					Stateful:     c.src.instance.IsStateful(),
-					Profiles:     c.src.instance.Profiles(),
+					Profiles:     profileNames,
 				}
 
 				for _, name := range offerHeader.SnapshotNames {
