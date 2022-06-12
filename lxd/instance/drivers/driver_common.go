@@ -239,7 +239,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(d.project, d.name)
+		snaps, err = tx.GetInstanceSnapshotsWithName(ctx, d.project, d.name)
 		if err != nil {
 			return err
 		}

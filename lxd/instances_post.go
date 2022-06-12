@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustinkirkland/golang-petname"
+	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/archive"
@@ -53,6 +53,14 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 		return response.BadRequest(err)
 	}
 
+	var profiles []api.Profile
+	if req.Profiles != nil {
+		profiles, err = d.State().DB.Cluster.GetProfiles(projectName, req.Profiles)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
 	run := func(op *operations.Operation) error {
 		args := db.InstanceArgs{
 			Project:     projectName,
@@ -62,7 +70,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			Devices:     deviceConfig.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
 			Name:        req.Name,
-			Profiles:    req.Profiles,
+			Profiles:    profiles,
 		}
 
 		err := instance.ValidName(args.Name, args.Snapshot)
@@ -170,6 +178,14 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		return response.BadRequest(err)
 	}
 
+	var profiles []api.Profile
+	if req.Profiles != nil {
+		profiles, err = d.State().DB.Cluster.GetProfiles(projectName, req.Profiles)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
 	args := db.InstanceArgs{
 		Project:     projectName,
 		Config:      req.Config,
@@ -178,7 +194,7 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		Devices:     deviceConfig.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
 		Name:        req.Name,
-		Profiles:    req.Profiles,
+		Profiles:    profiles,
 	}
 
 	if req.Architecture != "" {
@@ -250,20 +266,49 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     req.Profiles,
+		Profiles:     make([]api.Profile, 0, len(req.Profiles)),
 		Stateful:     req.Stateful,
 	}
 
 	// Early profile validation.
-	profiles, err := d.db.Cluster.GetProfileNames(projectName)
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		profileProject := projectName
+		enabled, err := dbCluster.ProjectHasProfiles(context.Background(), tx.Tx(), profileProject)
+		if err != nil {
+			return fmt.Errorf("Check if project has profiles: %w", err)
+		}
+		if !enabled {
+			profileProject = "default"
+		}
+
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &profileProject})
+		if err != nil {
+			return err
+		}
+
+		profilesByName := map[string]dbCluster.Profile{}
+		for _, profile := range profiles {
+			profilesByName[profile.Name] = profile
+		}
+
+		for _, name := range req.Profiles {
+			profile, ok := profilesByName[name]
+			if !ok {
+				return fmt.Errorf("Requested profile '%q' doesn't exist", name)
+			}
+
+			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			args.Profiles = append(args.Profiles, *apiProfile)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.InternalError(err)
-	}
-
-	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile, profiles) {
-			return response.BadRequest(fmt.Errorf("Requested profile '%s' doesn't exist", profile))
-		}
 	}
 
 	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(d, projectName, req)
@@ -538,7 +583,12 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 	// Profiles override
 	if req.Profiles == nil {
-		req.Profiles = source.Profiles()
+		profileNames := make([]string, 0, len(source.Profiles()))
+		for _, profile := range source.Profiles() {
+			profileNames = append(profileNames, profile.Name)
+		}
+
+		req.Profiles = profileNames
 	}
 
 	if req.Stateful {
@@ -562,6 +612,11 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
+	apiProfiles, err := d.db.Cluster.GetProfiles(targetProject, req.Profiles)
+	if err != nil {
+		return response.BadRequest(fmt.Errorf("Failed to get profiles from database: %w", err))
+	}
+
 	args := db.InstanceArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
@@ -572,7 +627,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     req.Profiles,
+		Profiles:     apiProfiles,
 		Stateful:     req.Stateful,
 	}
 
@@ -1044,7 +1099,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					req.Source.Project = targetProjectName
 				}
 
-				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
+				source, err := instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
 				if err != nil {
 					return fmt.Errorf("Load source instance from database: %w", err)
 				}
