@@ -20,7 +20,7 @@ import (
 )
 
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
-func InstanceToArgs(inst *Instance) InstanceArgs {
+func InstanceToArgs(ctx context.Context, tx *sql.Tx, inst *cluster.Instance) (*InstanceArgs, error) {
 	args := InstanceArgs{
 		ID:           inst.ID,
 		Project:      inst.Project,
@@ -34,17 +34,63 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		Stateful:     inst.Stateful,
 		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
-		Config:       inst.Config,
-		Devices:      deviceConfig.NewDevices(DevicesToAPI(inst.Devices)),
-		Profiles:     inst.Profiles,
 		ExpiryDate:   inst.ExpiryDate.Time,
+	}
+
+	// Get the underlying instance ID if this is a snapshot.
+	instanceID := inst.ID
+	if inst.Snapshot {
+		instanceName := strings.Split(inst.Name, shared.SnapshotDelimiter)[0]
+		id, err := cluster.GetInstanceID(ctx, tx, inst.Project, instanceName)
+		if err != nil {
+			return nil, err
+		}
+
+		instanceID = int(id)
+
+		devices, err := cluster.GetInstanceSnapshotDevices(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
+		args.Config, err = cluster.GetInstanceSnapshotConfig(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		devices, err := cluster.GetInstanceDevices(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
+		args.Config, err = cluster.GetInstanceConfig(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if args.Devices == nil {
 		args.Devices = deviceConfig.Devices{}
 	}
 
-	return args
+	profiles, err := cluster.GetInstanceProfiles(ctx, tx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	args.Profiles = make([]api.Profile, 0, len(profiles))
+	for _, profile := range profiles {
+		apiProfile, err := profile.ToAPI(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Profiles = append(args.Profiles, *apiProfile)
+	}
+
+	return &args, nil
 }
 
 // InstanceArgs is a value object holding all db-related details about an instance.
@@ -67,14 +113,14 @@ type InstanceArgs struct {
 	Ephemeral    bool
 	LastUsedDate time.Time
 	Name         string
-	Profiles     []string
+	Profiles     []api.Profile
 	Stateful     bool
 	ExpiryDate   time.Time
 }
 
 // InstanceTypeFilter returns an InstanceFilter populated with a valid instance type,
 // or an empty filter if instance type is 'Any'.
-func InstanceTypeFilter(instanceType instancetype.Type) InstanceFilter {
+func InstanceTypeFilter(instanceType instancetype.Type) cluster.InstanceFilter {
 	if instanceType != instancetype.Any {
 		return InstanceFilter{Type: &instanceType}
 	}
