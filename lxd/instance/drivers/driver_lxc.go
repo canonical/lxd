@@ -35,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -3232,6 +3233,10 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(d.architecture)
+	profileNames := make([]string, 0, len(d.profiles))
+	for _, profile := range d.profiles {
+		profileNames = append(profileNames, profile.Name)
+	}
 
 	if d.IsSnapshot() {
 		// Prepare the ETag
@@ -3250,7 +3255,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 		snapState.Config = d.localConfig
 		snapState.Devices = d.localDevices.CloneNative()
 		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = d.profiles
+		snapState.Profiles = profileNames
 		snapState.ExpiresAt = d.expiryDate
 
 		for _, option := range options {
@@ -3284,7 +3289,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	instState.Devices = d.localDevices.CloneNative()
 	instState.Ephemeral = d.ephemeral
 	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = d.profiles
+	instState.Profiles = profileNames
 	instState.Stateful = d.stateful
 	instState.Project = d.project
 
@@ -4001,7 +4006,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if args.Profiles == nil {
-		args.Profiles = []string{}
+		args.Profiles = []api.Profile{}
 	}
 
 	if userRequested {
@@ -4026,15 +4031,15 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile, profiles) {
-			return fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+		if !shared.StringInSlice(profile.Name, profiles) {
+			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.StringInSlice(profile, checkedProfiles) {
+		if shared.StringInSlice(profile.Name, checkedProfiles) {
 			return fmt.Errorf("Duplicate profile found in request")
 		}
 
-		checkedProfiles = append(checkedProfiles, profile)
+		checkedProfiles = append(checkedProfiles, profile.Name)
 	}
 
 	// Validate the new architecture
@@ -4083,7 +4088,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	oldProfiles := []string{}
+	oldProfiles := []api.Profile{}
 	err = shared.DeepCopy(&d.profiles, &oldProfiles)
 	if err != nil {
 		return err
