@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -107,7 +108,22 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	var opType db.OperationType
 	if configRaw.Restore == "" {
 		// Check project limits.
+		apiProfiles := make([]api.Profile, 0, len(configRaw.Profiles))
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, configRaw.Profiles)
+			if err != nil {
+				return err
+			}
+
+			for _, profile := range profiles {
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				apiProfiles = append(apiProfiles, *apiProfile)
+			}
+
 			return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
 		})
 		if err != nil {
@@ -122,7 +138,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 				Description:  configRaw.Description,
 				Devices:      deviceConfig.NewDevices(configRaw.Devices),
 				Ephemeral:    configRaw.Ephemeral,
-				Profiles:     configRaw.Profiles,
+				Profiles:     apiProfiles,
 				Project:      projectName,
 			}
 
