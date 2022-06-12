@@ -852,7 +852,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			Ephemeral:    snap.Ephemeral,
 			LastUsedDate: snap.LastUsedAt,
 			Name:         snapInstName,
-			Profiles:     snap.Profiles,
+			Profiles:     profiles,
 			Stateful:     snap.Stateful,
 		}, true)
 		if err != nil {
