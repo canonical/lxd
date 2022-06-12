@@ -73,8 +73,8 @@ func MACDevName(mac net.HardwareAddr) string {
 }
 
 // usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
-func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
-	return s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error) error {
+	return s.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -84,7 +84,7 @@ func usedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		}
 
 		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), profiles)
 		for devName, devConfig := range devices {
 			if isInUseByDevice(networkName, devConfig) {
 				err := usageFunc(inst, devName, devConfig)
@@ -199,7 +199,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Check if any instance devices use this network.
-	err = usedByInstanceDevices(s, networkProjectName, networkName, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+	err = usedByInstanceDevices(s, networkProjectName, networkName, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
 		if firstOnly {

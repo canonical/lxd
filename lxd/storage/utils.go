@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
@@ -696,14 +695,14 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 // is returned immediately. The instanceFunc is executed during a DB transaction, so DB queries are not permitted.
 // The instanceFunc is provided with a instance config, project config, instance's profiles and a list of device
 // names that are using the volume.
-func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error) error {
+func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, expandDevices bool, instanceFunc func(inst db.InstanceArgs, project api.Project, profiles []api.Profile, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
 		return err
 	}
 
-	return s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	return s.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
 		if vol.Location != "" && inst.Node != vol.Location {
@@ -723,11 +722,11 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		}
 
 		// Use local devices for usage check by if expandDevices is false (but don't modify instance).
-		devices := db.DevicesToAPI(inst.Devices)
+		devices := inst.Devices
 
 		// Expand devices for usage check if expandDevices is true.
 		if expandDevices {
-			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles).CloneNative()
+			devices = db.ExpandInstanceDevices(devices.Clone(), profiles)
 		}
 
 		var usedByDevices []string
@@ -761,7 +760,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 
 // VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
 // instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
-func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.Instance, error) {
+func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.InstanceArgs, error) {
 	pool, err := LoadByName(s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
@@ -789,8 +788,8 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	}
 
 	// Find if volume is attached to a remote instance.
-	var remoteInstance *db.Instance
-	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+	var remoteInstance *db.InstanceArgs
+	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 		if dbInst.Node != localNode {
 			remoteInstance = &dbInst
 			return db.ErrInstanceListStop // Stop the search, this volume is attached to a remote instance.
