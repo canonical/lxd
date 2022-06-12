@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,34 +62,34 @@ func TestImageExists(t *testing.T) {
 }
 
 func TestGetImage(t *testing.T) {
-	cluster, cleanup := db.NewTestCluster(t)
+	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 	project := "default"
 
 	// public image with 'default' project
-	err := cluster.CreateImage(project, "abcd1", "x.gz", 16, true, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
+	err := dbCluster.CreateImage(project, "abcd1", "x.gz", 16, true, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	// 'public' is ignored if 'false'
-	id, img, err := cluster.GetImage("a", db.ImageFilter{Project: &project})
+	id, img, err := dbCluster.GetImage("a", cluster.ImageFilter{Project: &project})
 	require.NoError(t, err)
 	assert.Equal(t, img.Public, true)
 	assert.NotEqual(t, id, -1)
 
 	// non-public image with 'default' project
-	err = cluster.CreateImage(project, "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
+	err = dbCluster.CreateImage(project, "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	// empty project fails
-	_, _, err = cluster.GetImage("a", db.ImageFilter{})
+	_, _, err = dbCluster.GetImage("a", cluster.ImageFilter{})
 	require.Error(t, err)
 
 	// 'public' is ignored if 'false', returning both entries
-	_, _, err = cluster.GetImage("a", db.ImageFilter{Project: &project})
+	_, _, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: &project})
 	require.Error(t, err)
 
 	public := true
-	id, img, err = cluster.GetImage("a", db.ImageFilter{Project: &project, Public: &public})
+	id, img, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: &project, Public: &public})
 	require.NoError(t, err)
 	assert.Equal(t, img.Public, true)
 	assert.NotEqual(t, id, -1)
