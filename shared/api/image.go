@@ -186,6 +186,11 @@ func (img *Image) Writable() ImagePut {
 	return img.ImagePut
 }
 
+// URL returns the URL for the image.
+func (img *Image) URL(apiVersion string, project string) *URL {
+	return NewURL().Path(apiVersion, "images", img.Fingerprint).Project(project)
+}
+
 // ImageAlias represents an alias from the alias list of a LXD image
 //
 // swagger:model
