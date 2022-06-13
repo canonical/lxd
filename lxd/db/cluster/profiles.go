@@ -74,9 +74,9 @@ func (p *Profile) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Profile, error) {
 	return profile, nil
 }
 
-// GetProfileIfEnabled returns the profile from the given project, or the
+// GetProfilesIfEnabled returns the profiles from the given project, or the
 // default project if "features.profiles" is not set.
-func GetProfileIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, name string) (*Profile, error) {
+func GetProfilesIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, names []string) ([]Profile, error) {
 	enabled, err := ProjectHasProfiles(ctx, tx, projectName)
 	if err != nil {
 		return nil, err
@@ -86,5 +86,15 @@ func GetProfileIfEnabled(ctx context.Context, tx *sql.Tx, projectName string, na
 		projectName = "default"
 	}
 
-	return GetProfile(ctx, tx, projectName, name)
+	profiles := make([]Profile, 0, len(names))
+	for _, name := range names {
+		profile, err := GetProfile(ctx, tx, projectName, name)
+		if err != nil {
+			return nil, err
+		}
+
+		profiles = append(profiles, *profile)
+	}
+
+	return profiles, nil
 }
