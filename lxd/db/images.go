@@ -1021,18 +1021,13 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		profileProject := project
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
+		imageProject := project
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, imageProject)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
-			project = "default"
-		}
-
-		dbProfile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), profileProject, "default")
-		if err != nil {
-			return err
+			imageProject = "default"
 		}
 
 		publicInt := 0
@@ -1051,7 +1046,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		}
 		defer func() { _ = stmt.Close() }()
 
-		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
+		result, err := stmt.Exec(imageProject, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
 		if err != nil {
 			return err
 		}
@@ -1094,7 +1089,12 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 				}
 			}
 		} else {
-			_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, dbProfile.ID)
+			dbProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), project, []string{"default"})
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, dbProfiles[0].ID)
 			if err != nil {
 				return err
 			}

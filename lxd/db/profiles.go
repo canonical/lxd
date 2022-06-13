@@ -96,11 +96,16 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), project, name)
+		profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), project, []string{name})
 		if err != nil {
 			return err
 		}
 
+		if len(profiles) != 1 {
+			return fmt.Errorf("Expected one profile with name %q, got %d profiles", name, len(profiles))
+		}
+
+		profile := profiles[0]
 		id = int64(profile.ID)
 		result, err = profile.ToAPI(ctx, tx.Tx())
 
@@ -118,21 +123,12 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 	profiles := make([]api.Profile, len(profileNames))
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, projectName)
+		dbProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, profileNames)
 		if err != nil {
-			return fmt.Errorf("Failed checking if project %q has profiles: %w", projectName, err)
+			return err
 		}
 
-		if !enabled {
-			projectName = "default"
-		}
-
-		for i, profileName := range profileNames {
-			profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), projectName, profileName)
-			if err != nil {
-				return fmt.Errorf("Failed loading profile %q: %w", profileName, err)
-			}
-
+		for i, profile := range dbProfiles {
 			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
