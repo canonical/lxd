@@ -9,7 +9,7 @@ import (
 
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
@@ -104,7 +104,7 @@ type Operation struct {
 	canceler    *cancel.HTTPRequestCanceller
 	description string
 	permission  string
-	dbOpType    db.OperationType
+	dbOpType    operationtype.Type
 	requestor   *api.EventLifecycleRequestor
 	logger      logger.Logger
 
@@ -125,7 +125,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
+func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType operationtype.Type, opResources map[string][]string, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
@@ -674,6 +674,6 @@ func (op *Operation) Class() OperationClass {
 }
 
 // Type returns the db operation type.
-func (op *Operation) Type() db.OperationType {
+func (op *Operation) Type() operationtype.Type {
 	return op.dbOpType
 }
