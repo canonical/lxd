@@ -1730,7 +1730,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	f, err := os.Stat(fmt.Sprintf("/proc/%d", siov.msg.init_pid))
+	pidStat, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", siov.msg.init_pid))
 	if err != nil {
 		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1738,7 +1738,19 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	instMetrics.Uptime = int64(time.Now().Sub(f.ModTime()).Seconds())
+	fields := strings.Fields(string(pidStat))
+	tickValue, err := strconv.ParseInt(fields[21], 10, 64)
+	if err != nil {
+		l.Warn("Failed parsing init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	age := float64(tickValue / 100)
+	if age > 0 {
+		instMetrics.Uptime = int64(time.Now().Sub(s.s.OS.BootTime).Seconds() - age)
+	}
 
 	// Get instance process count.
 	pids, err := cg.GetTotalProcesses()
