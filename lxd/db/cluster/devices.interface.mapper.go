@@ -13,9 +13,9 @@ type DeviceGenerated interface {
 	// generator: device GetMany
 	GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Device, error)
 
-	// CreateDevice adds a new device to the database.
+	// CreateDevices adds a new device to the database.
 	// generator: device Create
-	CreateDevice(ctx context.Context, tx *sql.Tx, parent string, object Device) error
+	CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[string]Device) error
 
 	// UpdateDevices updates the device matching the given key parameters.
 	// generator: device Update
