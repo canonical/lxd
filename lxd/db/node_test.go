@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -356,7 +357,7 @@ func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 	// Add a pending container to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
 INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1, ?, 1)
-`, db.OperationInstanceCreate)
+`, operationtype.InstanceCreate)
 	require.NoError(t, err)
 
 	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
