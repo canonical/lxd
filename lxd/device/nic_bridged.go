@@ -355,6 +355,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 // checkAddressConflict checks for conflicting IP/MAC addresses on another NIC connected to same network on the
 // same cluster member. Can only validate this when the instance is supplied (and not doing profile validation).
+// Returns api.StatusError with status code set to http.StatusConflict if conflicting address found.
 func (d *nicBridged) checkAddressConflict() error {
 	node := d.inst.Location()
 	filter := cluster.InstanceFilter{
@@ -425,7 +426,7 @@ func (d *nicBridged) checkAddressConflict() error {
 			}
 
 			if ourNICMAC != nil && devNICMAC != nil && bytes.Equal(ourNICMAC, devNICMAC) {
-				return fmt.Errorf("MAC address %q already defined on another NIC", devNICMAC.String())
+				return api.StatusErrorf(http.StatusConflict, "MAC address %q already defined on another NIC", devNICMAC.String())
 			}
 
 			// Check NIC's static IPs don't match this NIC's static IPs.
@@ -438,7 +439,7 @@ func (d *nicBridged) checkAddressConflict() error {
 				devNICIP := net.ParseIP(devConfig[key])
 
 				if ourNICIPs[key] != nil && devNICIP != nil && ourNICIPs[key].Equal(devNICIP) {
-					return fmt.Errorf("IP address %q already defined on another NIC", devNICIP.String())
+					return api.StatusErrorf(http.StatusConflict, "IP address %q already defined on another NIC", devNICIP.String())
 				}
 			}
 		}
