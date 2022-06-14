@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/operationtype"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
@@ -349,13 +350,13 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Currently, we only allow changing the status to acknowledged or new.
-	status, ok := db.WarningStatusTypes[req.Status]
+	status, ok := warningtype.StatusTypes[req.Status]
 	if !ok {
 		// Invalid status
 		return response.BadRequest(fmt.Errorf("Invalid warning type %q", req.Status))
 	}
 
-	if status != db.WarningStatusAcknowledged && status != db.WarningStatusNew {
+	if status != warningtype.StatusAcknowledged && status != warningtype.StatusNew {
 		return response.Forbidden(fmt.Errorf(`Status may only be set to "acknowledge" or "new"`))
 	}
 
@@ -371,7 +372,7 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if status == db.WarningStatusAcknowledged {
+	if status == warningtype.StatusAcknowledged {
 		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
 	} else {
 		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
@@ -445,7 +446,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Retrieve warnings by resolved status.
-		statusResolved := db.WarningStatusResolved
+		statusResolved := warningtype.StatusResolved
 		filter := db.WarningFilter{
 			Status: &statusResolved,
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -46,8 +47,8 @@ type Warning struct {
 	EntityTypeCode int    `db:"coalesce=-1"`
 	EntityID       int    `db:"coalesce=-1"`
 	UUID           string `db:"primary=yes"`
-	TypeCode       WarningType
-	Status         WarningStatus
+	TypeCode       warningtype.Type
+	Status         warningtype.Status
 	FirstSeenDate  time.Time
 	LastSeenDate   time.Time
 	UpdatedDate    time.Time
@@ -61,10 +62,10 @@ type WarningFilter struct {
 	UUID           *string
 	Project        *string
 	Node           *string
-	TypeCode       *WarningType
+	TypeCode       *warningtype.Type
 	EntityTypeCode *int
 	EntityID       *int
-	Status         *WarningStatus
+	Status         *warningtype.Status
 }
 
 var warningCreate = cluster.RegisterStmt(`
@@ -73,7 +74,7 @@ INSERT INTO warnings (node_id, project_id, entity_type_code, entity_id, uuid, ty
 `)
 
 // UpsertWarningLocalNode creates or updates a warning for the local member. Returns error if no local member name.
-func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
+func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode warningtype.Type, message string) error {
 	var err error
 	var localName string
 
@@ -97,14 +98,14 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 }
 
 // UpsertWarning creates or updates a warning.
-func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
+func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeCode int, entityID int, typeCode warningtype.Type, message string) error {
 	// Validate
 	_, err := c.GetURIFromEntity(entityTypeCode, entityID)
 	if err != nil {
 		return fmt.Errorf("Failed to get URI for entity ID %d with entity type code %d: %w", entityID, entityTypeCode, err)
 	}
 
-	_, ok := WarningTypeNames[typeCode]
+	_, ok := warningtype.TypeNames[typeCode]
 	if !ok {
 		return fmt.Errorf("Unknown warning type code %d", typeCode)
 	}
@@ -130,11 +131,11 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 			return fmt.Errorf("More than one warnings (%d) match the criteria: typeCode: %d, nodeName: %q, projectName: %q, entityTypeCode: %d, entityID: %d", len(warnings), typeCode, nodeName, projectName, entityTypeCode, entityID)
 		} else if len(warnings) == 1 {
 			// If there is a historical warning that was previously automatically resolved and the same
-			// warning has now reoccurred then set the status back to WarningStatusNew so it shows as
+			// warning has now reoccurred then set the status back to warningtype.StatusNew so it shows as
 			// a current active warning.
 			newStatus := warnings[0].Status
-			if newStatus == WarningStatusResolved {
-				newStatus = WarningStatusNew
+			if newStatus == warningtype.StatusResolved {
+				newStatus = warningtype.StatusNew
 			}
 
 			err = tx.UpdateWarningState(warnings[0].UUID, message, newStatus)
@@ -146,7 +147,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 				EntityID:       entityID,
 				UUID:           uuid.New(),
 				TypeCode:       typeCode,
-				Status:         WarningStatusNew,
+				Status:         warningtype.StatusNew,
 				FirstSeenDate:  now,
 				LastSeenDate:   now,
 				UpdatedDate:    time.Time{},
@@ -171,7 +172,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 }
 
 // UpdateWarningStatus updates the status of the warning with the given UUID.
-func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error {
+func (c *ClusterTx) UpdateWarningStatus(UUID string, status warningtype.Status) error {
 	str := "UPDATE warnings SET status=?, updated_date=? WHERE uuid=?"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
@@ -189,7 +190,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 }
 
 // UpdateWarningState updates the warning message and status with the given ID.
-func (c *ClusterTx) UpdateWarningState(UUID string, message string, status WarningStatus) error {
+func (c *ClusterTx) UpdateWarningState(UUID string, message string, status warningtype.Status) error {
 	str := "UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
@@ -283,7 +284,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 
 // ToAPI returns a LXD API entry.
 func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
-	typeCode := WarningType(w.TypeCode)
+	typeCode := warningtype.Type(w.TypeCode)
 
 	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
 	if err != nil {
@@ -292,17 +293,17 @@ func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 
 	return api.Warning{
 		WarningPut: api.WarningPut{
-			Status: WarningStatuses[WarningStatus(w.Status)],
+			Status: warningtype.Statuses[warningtype.Status(w.Status)],
 		},
 		UUID:        w.UUID,
 		Location:    w.Node,
 		Project:     w.Project,
-		Type:        WarningTypeNames[typeCode],
+		Type:        warningtype.TypeNames[typeCode],
 		Count:       w.Count,
 		FirstSeenAt: w.FirstSeenDate,
 		LastSeenAt:  w.LastSeenDate,
 		LastMessage: w.LastMessage,
-		Severity:    WarningSeverities[typeCode.Severity()],
+		Severity:    warningtype.Severities[typeCode.Severity()],
 		EntityURL:   entity,
 	}, nil
 }
