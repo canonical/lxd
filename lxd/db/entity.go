@@ -249,12 +249,12 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], nodeInfo.Name)
 	case cluster.TypeOperation:
-		var op Operation
+		var op cluster.Operation
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			id := int64(entityID)
-			filter := OperationFilter{ID: &id}
-			ops, err := tx.GetOperations(filter)
+			filter := cluster.OperationFilter{ID: &id}
+			ops, err := cluster.GetOperations(ctx, tx.tx, filter)
 			if err != nil {
 				return err
 			}
