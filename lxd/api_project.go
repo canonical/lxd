@@ -830,7 +830,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.OperationProjectRename, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

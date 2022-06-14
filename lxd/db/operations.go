@@ -3,6 +3,8 @@
 package db
 
 import (
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/db/query"
 )
 
@@ -19,8 +21,8 @@ SELECT DISTINCT nodes.address
 }
 
 // GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
-func (c *ClusterTx) GetOperationsOfType(projectName string, opType OperationType) ([]Operation, error) {
-	var ops []Operation
+func (c *ClusterTx) GetOperationsOfType(projectName string, opType operationtype.Type) ([]cluster.Operation, error) {
+	var ops []cluster.Operation
 
 	stmt := `
 SELECT operations.id, operations.uuid, operations.type, nodes.address
@@ -36,7 +38,7 @@ WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type =
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
-		var op Operation
+		var op cluster.Operation
 		err := rows.Scan(&op.ID, &op.UUID, &op.Type, &op.NodeAddress)
 		if err != nil {
 			return nil, err
