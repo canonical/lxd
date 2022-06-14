@@ -35,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -3232,6 +3233,10 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(d.architecture)
+	profileNames := make([]string, 0, len(d.profiles))
+	for _, profile := range d.profiles {
+		profileNames = append(profileNames, profile.Name)
+	}
 
 	if d.IsSnapshot() {
 		// Prepare the ETag
@@ -3250,7 +3255,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 		snapState.Config = d.localConfig
 		snapState.Devices = d.localDevices.CloneNative()
 		snapState.Ephemeral = d.ephemeral
-		snapState.Profiles = d.profiles
+		snapState.Profiles = profileNames
 		snapState.ExpiresAt = d.expiryDate
 
 		for _, option := range options {
@@ -3284,7 +3289,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	instState.Devices = d.localDevices.CloneNative()
 	instState.Ephemeral = d.ephemeral
 	instState.LastUsedAt = d.lastUsedDate
-	instState.Profiles = d.profiles
+	instState.Profiles = profileNames
 	instState.Stateful = d.stateful
 	instState.Project = d.project
 
@@ -3864,7 +3869,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			return tx.RenameInstanceSnapshot(d.project, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return tx.RenameInstance(d.project, oldName, newName)
+		return cluster.RenameInstance(ctx, tx.Tx(), d.project, oldName, newName)
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming container", ctxMap)
@@ -4001,7 +4006,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if args.Profiles == nil {
-		args.Profiles = []string{}
+		args.Profiles = []api.Profile{}
 	}
 
 	if userRequested {
@@ -4026,15 +4031,15 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
-		if !shared.StringInSlice(profile, profiles) {
-			return fmt.Errorf("Requested profile '%s' doesn't exist", profile)
+		if !shared.StringInSlice(profile.Name, profiles) {
+			return fmt.Errorf("Requested profile '%s' doesn't exist", profile.Name)
 		}
 
-		if shared.StringInSlice(profile, checkedProfiles) {
+		if shared.StringInSlice(profile.Name, checkedProfiles) {
 			return fmt.Errorf("Duplicate profile found in request")
 		}
 
-		checkedProfiles = append(checkedProfiles, profile)
+		checkedProfiles = append(checkedProfiles, profile.Name)
 	}
 
 	// Validate the new architecture
@@ -4083,7 +4088,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	oldProfiles := []string{}
+	oldProfiles := []api.Profile{}
 	err = shared.DeepCopy(&d.profiles, &oldProfiles)
 	if err != nil {
 		return err
@@ -4628,7 +4633,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
 		}
 
-		object, err := tx.GetInstance(d.project, d.name)
+		object, err := cluster.GetInstance(ctx, tx.Tx(), d.project, d.name)
 		if err != nil {
 			return err
 		}
@@ -4637,17 +4642,33 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Architecture = d.architecture
 		object.Ephemeral = d.ephemeral
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
-		object.Config = d.localConfig
-		object.Profiles = d.profiles
 
-		devices, err := db.APIToDevices(d.localDevices.CloneNative())
+		err = cluster.UpdateInstance(ctx, tx.Tx(), d.project, d.name, *object)
 		if err != nil {
 			return err
 		}
 
-		object.Devices = devices
+		err = cluster.UpdateInstanceConfig(ctx, tx.Tx(), int64(object.ID), d.localConfig)
+		if err != nil {
+			return err
+		}
 
-		return tx.UpdateInstance(d.project, d.name, *object)
+		devices, err := cluster.APIToDevices(d.localDevices.CloneNative())
+		if err != nil {
+			return err
+		}
+
+		err = cluster.UpdateInstanceDevices(ctx, tx.Tx(), int64(object.ID), devices)
+		if err != nil {
+			return err
+		}
+
+		profileNames := make([]string, 0, len(d.profiles))
+		for _, profile := range d.profiles {
+			profileNames = append(profileNames, profile.Name)
+		}
+
+		return cluster.UpdateInstanceProfiles(ctx, tx.Tx(), object.ID, object.Project, profileNames)
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update database: %w", err)

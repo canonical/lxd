@@ -396,7 +396,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 	oldUUIDKey := "volatile.vm.uuid"
 	newUUIDKey := "volatile.uuid"
 
-	return d.State().DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	return d.State().DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		if inst.Type != instancetype.VM {
 			return nil
 		}
@@ -416,13 +416,18 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 				}
 			}
 
-			snaps, err := tx.GetInstanceSnapshotsWithName(inst.Project, inst.Name)
+			snaps, err := tx.GetInstanceSnapshotsWithName(ctx, inst.Project, inst.Name)
 			if err != nil {
 				return err
 			}
 
 			for _, snap := range snaps {
-				uuid := snap.Config[oldUUIDKey]
+				config, err := dbCluster.GetInstanceConfig(ctx, tx.Tx(), snap.ID)
+				if err != nil {
+					return err
+				}
+
+				uuid := config[oldUUIDKey]
 				if uuid != "" {
 					changes := map[string]string{
 						oldUUIDKey: "",

@@ -7,10 +7,11 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
-func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snapshot) db.InstanceArgs {
+func snapshotProtobufToInstanceArgs(s *state.State, inst instance.Instance, snap *migration.Snapshot) (*db.InstanceArgs, error) {
 	config := map[string]string{}
 
 	for _, ent := range snap.GetLocalConfig() {
@@ -27,6 +28,11 @@ func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snap
 		devices[ent.GetName()] = props
 	}
 
+	profiles, err := s.DB.Cluster.GetProfiles(inst.Project(), snap.Profiles)
+	if err != nil {
+		return nil, err
+	}
+
 	args := db.InstanceArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
@@ -35,7 +41,7 @@ func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snap
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
 		Name:         inst.Name() + shared.SnapshotDelimiter + snap.GetName(),
-		Profiles:     snap.Profiles,
+		Profiles:     profiles,
 		Stateful:     snap.GetStateful(),
 		Project:      inst.Project(),
 	}
@@ -52,5 +58,5 @@ func snapshotProtobufToInstanceArgs(inst instance.Instance, snap *migration.Snap
 		args.ExpiryDate = time.Unix(snap.GetExpiryDate(), 0)
 	}
 
-	return args
+	return &args, nil
 }

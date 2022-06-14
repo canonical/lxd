@@ -206,7 +206,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Find instances using the ACLs. Most expensive to do.
-	err = s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = s.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -215,7 +215,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 			return nil
 		}
 
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), profiles)
 
 		// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
 		for devName, devConfig := range devices {
@@ -271,7 +271,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
 	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
-		case db.Instance, cluster.Profile:
+		case cluster.Instance, cluster.Profile:
 			networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)

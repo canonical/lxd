@@ -488,7 +488,10 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 
 	internalImportRootDevicePopulate(pool.Name(), poolVol.Container.Devices, poolVol.Container.ExpandedDevices, profiles)
 
-	dbInst := backup.ConfigToInstanceDBArgs(poolVol, projectName)
+	dbInst, err := backup.ConfigToInstanceDBArgs(s, poolVol, projectName, true)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if dbInst.Type < 0 {
 		return nil, nil, fmt.Errorf("Invalid instance type")
@@ -542,7 +545,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Ephemeral:    snap.Ephemeral,
 		LastUsedDate: snap.LastUsedAt,
 		Name:         poolVol.Container.Name + shared.SnapshotDelimiter + snap.Name,
-		Profiles:     snap.Profiles,
+		Profiles:     profiles,
 		Stateful:     snap.Stateful,
 	}, false)
 	if err != nil {

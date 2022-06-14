@@ -23,6 +23,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -88,14 +89,36 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	s := d.State()
 
 	// Get the image properties.
-	_, img, err := s.DB.Cluster.GetImage(hash, db.ImageFilter{Project: &args.Project})
-	if err != nil {
-		return nil, fmt.Errorf("Fetch image %s from database: %w", hash, err)
-	}
+	var img *api.Image
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var err error
+		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, db.ImageFilter{Project: &args.Project})
+		if err != nil {
+			return fmt.Errorf("Fetch image %s from database: %w", hash, err)
+		}
 
-	// Set the default profiles if necessary.
-	if args.Profiles == nil {
-		args.Profiles = img.Profiles
+		// Set the default profiles if necessary.
+		if args.Profiles == nil {
+			args.Profiles = make([]api.Profile, 0, len(img.Profiles))
+			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), args.Project, img.Profiles)
+			if err != nil {
+				return err
+			}
+
+			for _, profile := range profiles {
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				args.Profiles = append(args.Profiles, *apiProfile)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// Validate the type of the image matches the type of the instance.
@@ -369,12 +392,12 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 // Load all instances of this nodes under the given project.
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
-	var cts []db.Instance
+	var cts []dbCluster.Instance
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		filter := db.InstanceTypeFilter(instanceType)
 		filter.Project = &project
-		cts, err = tx.GetLocalInstancesInProject(filter)
+		cts, err = tx.GetLocalInstancesInProject(ctx, filter)
 		if err != nil {
 			return err
 		}
@@ -391,7 +414,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
-		dbInstances := []db.Instance{}
+		dbInstances := []dbCluster.Instance{}
 
 		// Get instances.
 		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -412,7 +435,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				filter := db.InstanceTypeFilter(instancetype.Any)
 				filter.Project = &p.Name
 
-				entries, err := tx.GetLocalInstancesInProject(filter)
+				entries, err := tx.GetLocalInstancesInProject(ctx, filter)
 				if err != nil {
 					return err
 				}
@@ -534,7 +557,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		s := d.State()
 
 		// Load local expired snapshots.
-		expiredSnapshots := []db.Instance{}
+		expiredSnapshots := []dbCluster.Instance{}
 
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			snapshots, err := tx.GetLocalExpiredInstanceSnapshots()
@@ -542,12 +565,12 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return err
 			}
 
-			instances := map[string]*db.Instance{}
+			instances := map[string]*dbCluster.Instance{}
 			for _, snapshot := range snapshots {
 				instanceKey := snapshot.Project + "/" + snapshot.Instance
 				instance, ok := instances[instanceKey]
 				if !ok {
-					instance, err = tx.GetInstance(snapshot.Project, snapshot.Instance)
+					instance, err = dbCluster.GetInstance(ctx, tx.Tx(), snapshot.Project, snapshot.Instance)
 					if err != nil {
 						return err
 					}
@@ -555,7 +578,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 					instances[instanceKey] = instance
 				}
 
-				expiredSnapshots = append(expiredSnapshots, db.InstanceSnapshotToInstance(instance, &snapshot))
+				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance))
 			}
 
 			return nil

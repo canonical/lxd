@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -55,27 +56,22 @@ type InstanceSnapshotFilter struct {
 	Name     *string
 }
 
-// InstanceSnapshotToInstance is a temporary convenience function to merge
-// together an Instance struct and a SnapshotInstance struct into into a the
-// legacy Instance struct for a snapshot.
-func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) Instance {
-	return Instance{
-		ID:           snapshot.ID,
-		Project:      snapshot.Project,
-		Name:         instance.Name + shared.SnapshotDelimiter + snapshot.Name,
+// ToInstance converts an instance snapshot to a database Instance, filling in extra fields from the parent instance.
+func (s *InstanceSnapshot) ToInstance(instance *cluster.Instance) cluster.Instance {
+	return cluster.Instance{
+		ID:           s.ID,
+		Project:      s.Project,
+		Name:         instance.Name + shared.SnapshotDelimiter + s.Name,
 		Node:         instance.Node,
 		Type:         instance.Type,
 		Snapshot:     true,
 		Architecture: instance.Architecture,
 		Ephemeral:    false,
-		CreationDate: snapshot.CreationDate,
-		Stateful:     snapshot.Stateful,
+		CreationDate: s.CreationDate,
+		Stateful:     s.Stateful,
 		LastUseDate:  sql.NullTime{},
-		Description:  snapshot.Description,
-		Config:       snapshot.Config,
-		Devices:      snapshot.Devices,
-		Profiles:     instance.Profiles,
-		ExpiryDate:   snapshot.ExpiryDate,
+		Description:  s.Description,
+		ExpiryDate:   s.ExpiryDate,
 	}
 }
 

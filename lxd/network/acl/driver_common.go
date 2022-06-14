@@ -124,7 +124,7 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 	// Find all networks, profiles and instance NICs that use this Network ACL.
 	err := UsedBy(d.state, d.projectName, func(_ []string, usageType any, _ string, _ map[string]string) error {
 		switch u := usageType.(type) {
-		case db.Instance:
+		case dbCluster.Instance:
 			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
 			if u.Project != project.Default {
 				uri += fmt.Sprintf("?project=%s", u.Project)

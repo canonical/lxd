@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
@@ -56,7 +57,7 @@ type common struct {
 	logger          logger.Logger
 	name            string
 	node            string
-	profiles        []string
+	profiles        []api.Profile
 	project         string
 	snapshot        bool
 	stateful        bool
@@ -157,7 +158,7 @@ func (d *common) Location() string {
 }
 
 // Profiles returns the instance's profiles.
-func (d *common) Profiles() []string {
+func (d *common) Profiles() []api.Profile {
 	return d.profiles
 }
 
@@ -229,7 +230,7 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	var snaps []db.Instance
+	var snaps []cluster.Instance
 
 	if d.snapshot {
 		return []instance.Instance{}, nil
@@ -238,7 +239,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(d.project, d.name)
+		snaps, err = tx.GetInstanceSnapshotsWithName(ctx, d.project, d.name)
 		if err != nil {
 			return err
 		}
@@ -432,11 +433,7 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 // expandConfig applies the config of each profile in order, followed by the local config.
 func (d *common) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(d.profiles) > 0 {
-		var err error
-		profiles, err = d.state.DB.Cluster.GetProfiles(d.project, d.profiles)
-		if err != nil {
-			return err
-		}
+		profiles = d.profiles
 	}
 
 	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
