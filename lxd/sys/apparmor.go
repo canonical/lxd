@@ -12,6 +12,7 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -26,19 +27,19 @@ func (s *OS) initAppArmor() []db.Warning {
 	if os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
 		logger.Warnf("AppArmor support has been manually disabled")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    db.WarningAppArmorNotAvailable,
+			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Manually disabled",
 		})
 	} else if !shared.IsDir("/sys/kernel/security/apparmor") {
 		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    db.WarningAppArmorNotAvailable,
+			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Disabled because of lack of kernel support",
 		})
 	} else if err != nil {
 		logger.Warnf("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
 		dbWarnings = append(dbWarnings, db.Warning{
-			TypeCode:    db.WarningAppArmorNotAvailable,
+			TypeCode:    warningtype.AppArmorNotAvailable,
 			LastMessage: "Disabled because 'apparmor_parser' couldn't be found",
 		})
 	} else {

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -144,7 +145,7 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 
 			driverStatus.Supported = false
 			driverStatus.Warning = &db.Warning{
-				TypeCode:    db.WarningInstanceTypeNotOperational,
+				TypeCode:    warningtype.InstanceTypeNotOperational,
 				LastMessage: fmt.Sprintf("%v", driverInfo.Error),
 			}
 		}
