@@ -86,30 +86,28 @@ func DeleteCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 	return nil
 }
 
-// CreateCertificateProject adds a new certificate_project to the database.
+// CreateCertificateProjects adds a new certificate_project to the database.
 // generator: certificate_project Create
-func CreateCertificateProject(ctx context.Context, tx *sql.Tx, object CertificateProject) (int64, error) {
-	args := make([]any, 2)
+func CreateCertificateProjects(ctx context.Context, tx *sql.Tx, objects []CertificateProject) error {
+	for _, object := range objects {
+		args := make([]any, 2)
 
-	// Populate the statement arguments.
-	args[0] = object.CertificateID
-	args[1] = object.ProjectID
+		// Populate the statement arguments.
+		args[0] = object.CertificateID
+		args[1] = object.ProjectID
 
-	// Prepared statement to use.
-	stmt := stmt(tx, certificateProjectCreate)
+		// Prepared statement to use.
+		stmt := stmt(tx, certificateProjectCreate)
 
-	// Execute the statement.
-	result, err := stmt.Exec(args...)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to create \"certificates_projects\" entry: %w", err)
+		// Execute the statement.
+		_, err := stmt.Exec(args...)
+		if err != nil {
+			return fmt.Errorf("Failed to create \"certificates_projects\" entry: %w", err)
+		}
+
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch \"certificates_projects\" entry ID: %w", err)
-	}
-
-	return id, nil
+	return nil
 }
 
 // UpdateCertificateProjects updates the certificate_project matching the given key parameters.
@@ -121,19 +119,21 @@ func UpdateCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID in
 		return err
 	}
 
-	// Insert new entries.
+	// Get new entry IDs.
+	certificateProjects := make([]CertificateProject, 0, len(projectNames))
 	for _, entry := range projectNames {
 		refID, err := GetProjectID(ctx, tx, entry)
 		if err != nil {
 			return err
 		}
 
-		certificateProject := CertificateProject{CertificateID: certificateID, ProjectID: int(refID)}
-		_, err = CreateCertificateProject(ctx, tx, certificateProject)
-		if err != nil {
-			return err
-		}
-
+		certificateProjects = append(certificateProjects, CertificateProject{CertificateID: certificateID, ProjectID: int(refID)})
 	}
+
+	err = CreateCertificateProjects(ctx, tx, certificateProjects)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
