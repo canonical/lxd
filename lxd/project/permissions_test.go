@@ -40,7 +40,7 @@ func TestAllowInstanceCreation_Below(t *testing.T) {
 	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.containers": "5"})
 	require.NoError(t, err)
 
-	_, err = tx.CreateInstance(db.Instance{
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
 		Project:      "p1",
 		Name:         "c1",
 		Type:         instancetype.Container,
@@ -71,7 +71,7 @@ func TestAllowInstanceCreation_Above(t *testing.T) {
 	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.containers": "1"})
 	require.NoError(t, err)
 
-	_, err = tx.CreateInstance(db.Instance{
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
 		Project:      "p1",
 		Name:         "c1",
 		Type:         instancetype.Container,
@@ -102,7 +102,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.containers": "1"})
 	require.NoError(t, err)
 
-	_, err = tx.CreateInstance(db.Instance{
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
 		Project:      "p1",
 		Name:         "vm1",
 		Type:         instancetype.VM,
@@ -133,7 +133,7 @@ func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, map[string]string{"limits.containers": "5", "limits.instances": "1"})
 	require.NoError(t, err)
 
-	_, err = tx.CreateInstance(db.Instance{
+	_, err = cluster.CreateInstance(ctx, tx.Tx(), cluster.Instance{
 		Project:      "p1",
 		Name:         "c1",
 		Type:         instancetype.Container,

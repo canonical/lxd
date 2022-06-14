@@ -756,7 +756,10 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf("No instance config in backup config")
 	}
 
-	instDBArgs := backup.ConfigToInstanceDBArgs(backupConf, projectName)
+	instDBArgs, err := backup.ConfigToInstanceDBArgs(d.State(), backupConf, projectName, true)
+	if err != nil {
+		return err
+	}
 
 	_, instOp, cleanup, err := instance.CreateInternal(d.State(), *instDBArgs, true)
 	if err != nil {
@@ -849,7 +852,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			Ephemeral:    snap.Ephemeral,
 			LastUsedDate: snap.LastUsedAt,
 			Name:         snapInstName,
-			Profiles:     snap.Profiles,
+			Profiles:     profiles,
 			Stateful:     snap.Stateful,
 		}, true)
 		if err != nil {

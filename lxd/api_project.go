@@ -165,7 +165,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			apiProject.UsedBy, err = projectUsedBy(tx, &project)
+			apiProject.UsedBy, err = projectUsedBy(ctx, tx, &project)
 			if err != nil {
 				return err
 			}
@@ -195,18 +195,29 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
 // storage volumes, networks, and acls that use this project.
-func projectUsedBy(tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
-	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
+	usedBy := []string{}
+	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return nil, err
+	}
+
+	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, instance := range instances {
+		apiInstance := api.Instance{Name: instance.Name}
+		usedBy = append(usedBy, apiInstance.URL(version.Version, project.Name).String())
+	}
+
+	for _, profile := range profiles {
+		apiProfile := api.Profile{Name: profile.Name}
+		usedBy = append(usedBy, apiProfile.URL(version.APIVersion, project.Name).String())
 	}
 
 	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
 	if err != nil {
 		return nil, err
 	}
@@ -226,9 +237,7 @@ func projectUsedBy(tx *db.ClusterTx, project *cluster.Project) ([]string, error)
 		return nil, err
 	}
 
-	usedBy := instances
 	usedBy = append(usedBy, images...)
-	usedBy = append(usedBy, profiles...)
 	usedBy = append(usedBy, volumes...)
 	usedBy = append(usedBy, networks...)
 	usedBy = append(usedBy, acls...)
@@ -414,7 +423,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		project.UsedBy, err = projectUsedBy(ctx, tx, dbProject)
 		return err
 	})
 	if err != nil {
@@ -482,7 +491,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		project.UsedBy, err = projectUsedBy(ctx, tx, dbProject)
 		if err != nil {
 			return err
 		}
@@ -570,7 +579,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		project.UsedBy, err = projectUsedBy(ctx, tx, dbProject)
 		if err != nil {
 			return err
 		}
@@ -778,7 +787,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			empty, err := projectIsEmpty(project, tx)
+			empty, err := projectIsEmpty(ctx, project, tx)
 			if err != nil {
 				return err
 			}
@@ -860,7 +869,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		empty, err := projectIsEmpty(project, tx)
+		empty, err := projectIsEmpty(ctx, project, tx)
 		if err != nil {
 			return err
 		}
@@ -960,8 +969,8 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(project *cluster.Project, tx *db.ClusterTx) (bool, error) {
-	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
+	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}
@@ -979,14 +988,14 @@ func projectIsEmpty(project *cluster.Project, tx *db.ClusterTx) (bool, error) {
 		return false, nil
 	}
 
-	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
+	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}
 
 	if len(profiles) > 0 {
 		// Consider the project empty if it is only used by the default profile.
-		if len(profiles) == 1 && strings.Contains(profiles[0], "/profiles/default") {
+		if len(profiles) == 1 && profiles[0].Name == "default" {
 			return true, nil
 		}
 

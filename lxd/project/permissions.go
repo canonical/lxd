@@ -58,11 +58,10 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	}
 
 	// Add the instance being created.
-	info.Instances = append(info.Instances, db.Instance{
-		Name:     req.Name,
-		Profiles: req.Profiles,
-		Config:   req.Config,
-		Project:  projectName,
+	info.Instances = append(info.Instances, api.Instance{
+		Name:        req.Name,
+		Project:     projectName,
+		InstancePut: req.InstancePut,
 	})
 
 	// Special case restriction checks on volatile.* keys.
@@ -142,7 +141,7 @@ func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (i
 
 	instanceCount := 0
 	for _, inst := range info.Instances {
-		if inst.Type == instanceType {
+		if inst.Type == instanceType.String() {
 			instanceCount++
 		}
 	}
@@ -437,7 +436,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(project api.Project, instances []db.Instance, profiles []api.Profile) error {
+func checkRestrictions(project api.Project, instances []api.Instance, profiles []api.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -694,12 +693,17 @@ func checkRestrictions(project api.Project, instances []db.Instance, profiles []
 	}
 
 	for _, instance := range instances {
-		err := entityConfigChecker(instance.Type, instance.Name, instance.Config)
+		instType, err := instancetype.New(instance.Type)
 		if err != nil {
 			return err
 		}
 
-		err = entityDevicesChecker(instance.Type, instance.Name, db.DevicesToAPI(instance.Devices))
+		err = entityConfigChecker(instType, instance.Name, instance.Config)
+		if err != nil {
+			return err
+		}
+
+		err = entityDevicesChecker(instType, instance.Name, instance.Devices)
 		if err != nil {
 			return err
 		}
@@ -826,7 +830,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
 func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
-	var updatedInstance *db.Instance
+	var updatedInstance *api.Instance
 	info, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
@@ -843,19 +847,19 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		}
 		info.Instances[i].Profiles = req.Profiles
 		info.Instances[i].Config = req.Config
-		devices, err := db.APIToDevices(req.Devices)
-		if err != nil {
-			return err
-		}
-
-		info.Instances[i].Devices = devices
+		info.Instances[i].Devices = req.Devices
 		updatedInstance = &info.Instances[i]
+	}
+
+	instType, err := instancetype.New(updatedInstance.Type)
+	if err != nil {
+		return err
 	}
 
 	// Special case restriction checks on volatile.* keys, since we want to
 	// detect if they were changed or added.
 	err = checkRestrictionsOnVolatileConfig(
-		info.Project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig, false)
+		info.Project, instType, updatedInstance.Name, req.Config, currentConfig, false)
 	if err != nil {
 		return err
 	}
@@ -1006,7 +1010,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 
 // Check that limits.instances, i.e. the total limit of containers/virtual machines allocated
 // to the user is equal to or above the current count
-func validateTotalInstanceCountLimit(instances []db.Instance, value, project string) error {
+func validateTotalInstanceCountLimit(instances []api.Instance, value, project string) error {
 	if value == "" {
 		return nil
 	}
@@ -1026,7 +1030,7 @@ func validateTotalInstanceCountLimit(instances []db.Instance, value, project str
 
 // Check that limits.containers or limits.virtual-machines is equal or above
 // the current count.
-func validateInstanceCountLimit(instances []db.Instance, key, value, project string) error {
+func validateInstanceCountLimit(instances []api.Instance, key, value, project string) error {
 	if value == "" {
 		return nil
 	}
@@ -1044,7 +1048,7 @@ func validateInstanceCountLimit(instances []db.Instance, key, value, project str
 
 	count := 0
 	for _, instance := range instances {
-		if instance.Type == dbType {
+		if instance.Type == dbType.String() {
 			count++
 		}
 	}
@@ -1105,7 +1109,7 @@ func projectHasLimitsOrRestrictions(project api.Project) bool {
 type projectInfo struct {
 	Project   api.Project
 	Profiles  []api.Profile
-	Instances []db.Instance
+	Instances []api.Instance
 	Volumes   []db.StorageVolumeArgs
 }
 
@@ -1158,11 +1162,19 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		profiles = append(profiles, *apiProfile)
 	}
 
-	instances, err := tx.GetInstances(db.InstanceFilter{
-		Project: &projectName,
-	})
+	dbInstances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &projectName})
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project instances from database: %w", err)
+	}
+
+	instances := make([]api.Instance, 0, len(dbInstances))
+	for _, instance := range dbInstances {
+		apiInstance, err := instance.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get API data for instance %q in project %q: %w", instance.Name, instance.Project, err)
+		}
+
+		instances = append(instances, *apiInstance)
 	}
 
 	volumes, err := tx.GetCustomVolumesInProject(projectName)
@@ -1182,8 +1194,8 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 // Expand the configuration and devices of the given instances, taking the give
 // project profiles into account.
-func expandInstancesConfigAndDevices(instances []db.Instance, profiles []api.Profile) ([]db.Instance, error) {
-	expandedInstances := make([]db.Instance, len(instances))
+func expandInstancesConfigAndDevices(instances []api.Instance, profiles []api.Profile) ([]api.Instance, error) {
+	expandedInstances := make([]api.Instance, len(instances))
 
 	// Index of all profiles by name.
 	profilesByName := map[string]api.Profile{}
@@ -1199,18 +1211,9 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []api.Pro
 			apiProfiles[j] = profile
 		}
 
-		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
-		// converting back and forth between API and db Device types.
-		expandedDevices := db.ExpandInstanceDevices(deviceconfig.NewDevices(db.DevicesToAPI(instance.Devices)), apiProfiles)
-
 		expandedInstances[i] = instance
 		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, apiProfiles)
-
-		devices, err := db.APIToDevices(expandedDevices.CloneNative())
-		if err != nil {
-			return nil, err
-		}
-		expandedInstances[i].Devices = devices
+		expandedInstances[i].Devices = db.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), apiProfiles).CloneNative()
 	}
 
 	return expandedInstances, nil
@@ -1262,7 +1265,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 }
 
 // Return the effective instance-level values for the limits with the given keys.
-func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
+func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
 	var err error
 	limits := map[string]int64{}
 
@@ -1271,7 +1274,7 @@ func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map
 		parser := aggregateLimitConfigValueParsers[key]
 
 		if key == "limits.disk" {
-			_, device, err := shared.GetRootDiskDevice(db.DevicesToAPI(instance.Devices))
+			_, device, err := shared.GetRootDiskDevice(instance.Devices)
 			if err != nil {
 				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
 			}
@@ -1295,7 +1298,7 @@ func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map
 			}
 
 			// Add size.state accounting for VM root disks.
-			if instance.Type == instancetype.VM {
+			if instance.Type == instancetype.VM.String() {
 				sizeStateValue, ok := device["size.state"]
 				if !ok {
 					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize

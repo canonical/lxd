@@ -126,7 +126,7 @@ type Instance interface {
 	CreationDate() time.Time
 	LastUsedDate() time.Time
 
-	Profiles() []string
+	Profiles() []api.Profile
 	InitPID() int
 	State() string
 	ExpiryDate() time.Time

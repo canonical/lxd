@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,17 +11,19 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
 // ConfigToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
-func ConfigToInstanceDBArgs(c *config.Config, projectName string) *db.InstanceArgs {
+func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName string, applyProfiles bool) (*db.InstanceArgs, error) {
 	if c.Container == nil {
-		return nil
+		return nil, nil
 	}
 
 	arch, _ := osarch.ArchitectureId(c.Container.Architecture)
@@ -38,11 +41,34 @@ func ConfigToInstanceDBArgs(c *config.Config, projectName string) *db.InstanceAr
 		Ephemeral:    c.Container.Ephemeral,
 		LastUsedDate: c.Container.LastUsedAt,
 		Name:         c.Container.Name,
-		Profiles:     c.Container.Profiles,
 		Stateful:     c.Container.Stateful,
 	}
 
-	return inst
+	if applyProfiles {
+		err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			inst.Profiles = make([]api.Profile, 0, len(c.Container.Profiles))
+			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, c.Container.Profiles)
+			if err != nil {
+				return err
+			}
+
+			for _, profile := range profiles {
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				inst.Profiles = append(inst.Profiles, *apiProfile)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return inst, nil
 }
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.

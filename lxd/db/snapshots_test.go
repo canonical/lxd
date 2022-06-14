@@ -102,7 +102,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create an instance in the default project.
-	i1default := db.Instance{
+	i1default := cluster.Instance{
 		Project:      "default",
 		Name:         "i1",
 		Node:         "none",
@@ -111,11 +111,11 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
-	_, err = tx.CreateInstance(i1default)
+	_, err = cluster.CreateInstance(context.TODO(), tx.Tx(), i1default)
 	require.NoError(t, err)
 
 	// Create an instance in project p1 using the same name.
-	i1p1 := db.Instance{
+	i1p1 := cluster.Instance{
 		Project:      "p1",
 		Name:         "i1",
 		Node:         "none",
@@ -124,7 +124,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
-	_, err = tx.CreateInstance(i1p1)
+	_, err = cluster.CreateInstance(context.TODO(), tx.Tx(), i1p1)
 	require.NoError(t, err)
 
 	// Create two snapshots with the same names.

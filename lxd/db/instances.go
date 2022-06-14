@@ -19,77 +19,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -d cluster -p db -e instance objects
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-ID
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Node-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Name-and-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Name-and-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Node
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Node-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance objects-by-Name
-//go:generate mapper stmt -d cluster -p db -e instance id
-//go:generate mapper stmt -d cluster -p db -e instance create struct=Instance
-//go:generate mapper stmt -d cluster -p db -e instance rename
-//go:generate mapper stmt -d cluster -p db -e instance delete-by-Project-and-Name
-//go:generate mapper stmt -d cluster -p db -e instance update struct=Instance
-//
-//go:generate mapper method -i -d cluster -p db -e instance GetMany
-//go:generate mapper method -i -d cluster -p db -e instance GetOne
-//go:generate mapper method -i -d cluster -p db -e instance URIs
-//go:generate mapper method -i -d cluster -p db -e instance ID struct=Instance
-//go:generate mapper method -i -d cluster -p db -e instance Exists struct=Instance
-//go:generate mapper method -i -d cluster -p db -e instance Create struct=Instance
-//go:generate mapper method -i -d cluster -p db -e instance Rename
-//go:generate mapper method -i -d cluster -p db -e instance DeleteOne-by-Project-and-Name
-//go:generate mapper method -i -d cluster -p db -e instance Update struct=Instance
-
-// Instance is a value object holding db-related details about an instance.
-// TODO: Remove this struct and move to cluster package.
-type Instance struct {
-	ID           int
-	Project      string `db:"primary=yes&join=projects.name"`
-	Name         string `db:"primary=yes"`
-	Node         string `db:"join=nodes.name"`
-	Type         instancetype.Type
-	Snapshot     bool `db:"ignore"`
-	Architecture int
-	Ephemeral    bool
-	CreationDate time.Time
-	Stateful     bool
-	LastUseDate  sql.NullTime
-	Description  string `db:"coalesce=''"`
-	Config       map[string]string
-	Devices      map[string]Device
-	Profiles     []string
-	ExpiryDate   sql.NullTime
-}
-
-// InstanceFilter specifies potential query parameter fields.
-// TODO: Remove this struct and move to cluster package.
-type InstanceFilter struct {
-	ID      *int
-	Project *string
-	Name    *string
-	Node    *string
-	Type    *instancetype.Type
-}
-
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
-func InstanceToArgs(inst *Instance) InstanceArgs {
+func InstanceToArgs(ctx context.Context, tx *sql.Tx, inst *cluster.Instance) (*InstanceArgs, error) {
 	args := InstanceArgs{
 		ID:           inst.ID,
 		Project:      inst.Project,
@@ -103,17 +34,63 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		Stateful:     inst.Stateful,
 		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
-		Config:       inst.Config,
-		Devices:      deviceConfig.NewDevices(DevicesToAPI(inst.Devices)),
-		Profiles:     inst.Profiles,
 		ExpiryDate:   inst.ExpiryDate.Time,
+	}
+
+	// Get the underlying instance ID if this is a snapshot.
+	instanceID := inst.ID
+	if inst.Snapshot {
+		instanceName := strings.Split(inst.Name, shared.SnapshotDelimiter)[0]
+		id, err := cluster.GetInstanceID(ctx, tx, inst.Project, instanceName)
+		if err != nil {
+			return nil, err
+		}
+
+		instanceID = int(id)
+
+		devices, err := cluster.GetInstanceSnapshotDevices(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
+		args.Config, err = cluster.GetInstanceSnapshotConfig(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		devices, err := cluster.GetInstanceDevices(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
+		args.Config, err = cluster.GetInstanceConfig(ctx, tx, inst.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if args.Devices == nil {
 		args.Devices = deviceConfig.Devices{}
 	}
 
-	return args
+	profiles, err := cluster.GetInstanceProfiles(ctx, tx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	args.Profiles = make([]api.Profile, 0, len(profiles))
+	for _, profile := range profiles {
+		apiProfile, err := profile.ToAPI(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		args.Profiles = append(args.Profiles, *apiProfile)
+	}
+
+	return &args, nil
 }
 
 // InstanceArgs is a value object holding all db-related details about an instance.
@@ -136,18 +113,18 @@ type InstanceArgs struct {
 	Ephemeral    bool
 	LastUsedDate time.Time
 	Name         string
-	Profiles     []string
+	Profiles     []api.Profile
 	Stateful     bool
 	ExpiryDate   time.Time
 }
 
 // InstanceTypeFilter returns an InstanceFilter populated with a valid instance type,
 // or an empty filter if instance type is 'Any'.
-func InstanceTypeFilter(instanceType instancetype.Type) InstanceFilter {
+func InstanceTypeFilter(instanceType instancetype.Type) cluster.InstanceFilter {
 	if instanceType != instancetype.Any {
-		return InstanceFilter{Type: &instanceType}
+		return cluster.InstanceFilter{Type: &instanceType}
 	}
-	return InstanceFilter{}
+	return cluster.InstanceFilter{}
 }
 
 // GetInstanceNames returns the names of all containers the given project.
@@ -164,7 +141,7 @@ SELECT instances.name FROM instances
 // instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter InstanceFilter) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter cluster.InstanceFilter) (string, error) {
 	var stmt string
 
 	args := make([]any, 0, 4) // Expect up to 4 filters.
@@ -254,7 +231,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
-func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, filter InstanceFilter) (map[string][][2]string, error) {
+func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, filter cluster.InstanceFilter) (map[string][][2]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -322,22 +299,36 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
-	var instances []Instance
-	projectMap := map[string]api.Project{}
-	projectHasProfiles := map[string]bool{}
-	profilesByProjectAndName := map[string]map[string]api.Profile{}
+func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project, profiles []api.Profile) error) error {
+	var instances []InstanceArgs
+	projectsByName := map[string]api.Project{}
 
 	if filter == nil {
-		filter = &InstanceFilter{}
+		filter = &cluster.InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var err error
-		instances, err = tx.GetInstances(*filter)
+		dbInstances, err := cluster.GetInstances(ctx, tx.tx, *filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading instances: %w", err)
+		}
+
+		instances = make([]InstanceArgs, 0, len(dbInstances))
+		for _, instance := range dbInstances {
+			// Get expanded instance information.
+			instanceArgs, err := InstanceToArgs(ctx, tx.tx, &instance)
+			if err != nil {
+				return err
+			}
+
+			// Add an empty api.Project so we know this is an instance project.
+			_, ok := projectsByName[instance.Project]
+			if !ok {
+				projectsByName[instance.Project] = api.Project{}
+			}
+
+			instances = append(instances, *instanceArgs)
 		}
 
 		projects, err := cluster.GetProjects(ctx, tx.tx, cluster.ProjectFilter{})
@@ -347,34 +338,23 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 		// Index of all projects by name and record which projects have the profiles feature.
 		for _, project := range projects {
+			// Skip any projects not associated with an instance in this filtered list.
+			instanceProject, ok := projectsByName[project.Name]
+			if !ok {
+				continue
+			}
+
+			// Don't call ToAPI more than once per project.
+			if instanceProject.Name != "" {
+				continue
+			}
+
 			apiProject, err := project.ToAPI(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
 
-			projectMap[project.Name] = *apiProject
-			projectHasProfiles[project.Name] = shared.IsTrue(apiProject.Config["features.profiles"])
-		}
-
-		profiles, err := cluster.GetProfiles(ctx, tx.tx, cluster.ProfileFilter{})
-		if err != nil {
-			return fmt.Errorf("Failed loading profiles: %w", err)
-		}
-
-		// Index of all profiles by project and name.
-		for _, profile := range profiles {
-			profilesByName, ok := profilesByProjectAndName[profile.Project]
-			if !ok {
-				profilesByName = map[string]api.Profile{}
-				profilesByProjectAndName[profile.Project] = profilesByName
-			}
-
-			apiProfile, err := profile.ToAPI(ctx, tx.tx)
-			if err != nil {
-				return err
-			}
-
-			profilesByName[profile.Name] = *apiProfile
+			projectsByName[project.Name] = *apiProject
 		}
 
 		return nil
@@ -386,20 +366,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
 	// the instanceFunc will be slow or may need to make additional DB queries.
 	for _, instance := range instances {
-		profiles := make([]api.Profile, len(instance.Profiles))
-
-		// If the instance's project does not have the profiles feature enabled,
-		// we fall back to the default project.
-		profilesProject := instance.Project
-		if !projectHasProfiles[profilesProject] {
-			profilesProject = "default" // Equivalent to project.Default constant.
-		}
-
-		for j, name := range instance.Profiles {
-			profiles[j] = profilesByProjectAndName[profilesProject][name]
-		}
-
-		err = instanceFunc(instance, projectMap[instance.Project], profiles)
+		err = instanceFunc(instance, projectsByName[instance.Project], instance.Profiles)
 		if err != nil {
 			return err
 		}
@@ -410,7 +377,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 // GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
 // instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter InstanceFilter) (map[[2]string]string, error) {
+func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter cluster.InstanceFilter) (map[[2]string]string, error) {
 	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -462,7 +429,7 @@ SELECT instances.name, nodes.name, projects.name
 
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
 // It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
-func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, newNode string, volumeType int) error {
+func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName string, newName string, newNode string, volumeType int) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
 	poolName, err := c.GetInstancePool(project, oldName)
@@ -486,7 +453,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.GetInstanceID(project, oldName)
+	containerID, err := cluster.GetInstanceID(ctx, c.tx, project, oldName)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's ID: %w", err)
 	}
@@ -536,7 +503,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 
 // GetLocalInstancesInProject retuurns all instances of the given type on the local member in the given project.
 // If projectName is empty then all instances in all projects are returned.
-func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instance, error) {
+func (c *ClusterTx) GetLocalInstancesInProject(ctx context.Context, filter cluster.InstanceFilter) ([]cluster.Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, fmt.Errorf("Local node name: %w", err)
@@ -546,7 +513,7 @@ func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instanc
 		filter.Node = &node
 	}
 
-	return c.GetInstances(filter)
+	return cluster.GetInstances(ctx, c.tx, filter)
 }
 
 // CreateInstanceConfig inserts a new config for the container with the given ID.
@@ -654,8 +621,8 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 }
 
 // GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
-func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
-	instance, err := c.GetInstance(project, name)
+func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project string, name string) ([]cluster.Instance, error) {
+	instance, err := cluster.GetInstance(ctx, c.tx, project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -671,9 +638,9 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 
 	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
 
-	instances := make([]Instance, len(snapshots))
+	instances := make([]cluster.Instance, len(snapshots))
 	for i, snapshot := range snapshots {
-		instances[i] = InstanceSnapshotToInstance(instance, &snapshot)
+		instances[i] = snapshot.ToInstance(instance)
 	}
 
 	return instances, nil
@@ -729,7 +696,7 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 		})
 	}
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.DeleteInstance(project, name)
+		return cluster.DeleteInstance(ctx, tx.tx, project, name)
 	})
 }
 
@@ -761,7 +728,7 @@ func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 	var id int64
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		id, err = tx.GetInstanceID(project, name)
+		id, err = cluster.GetInstanceID(ctx, tx.tx, project, name)
 		return err
 	})
 	return int(id), err

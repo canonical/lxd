@@ -9,47 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
-
-// Profile is a value object holding db-related details about a profile.
-// TODO: Remove this once Instances have been moved to the v2 generator.
-type Profile struct {
-	ID          int
-	ProjectID   int    `db:"omit=create,update"`
-	Project     string `db:"primary=yes&join=projects.name"`
-	Name        string `db:"primary=yes"`
-	Description string `db:"coalesce=''"`
-}
-
-// ProfileFilter specifies potential query parameter fields.
-// TODO: Remove this once Instances have been moved to the v2 generator.
-type ProfileFilter struct {
-	ID      *int
-	Project *string
-	Name    *string
-}
-
-// GetProfileURIs returns the URIs for all profiles matching the ProfileFilter.
-// TODO: Remove this once Instances have been moved to the v2 generator.
-func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
-	clusterFilter := cluster.ProfileFilter{ID: filter.ID, Name: filter.Name, Project: filter.Project}
-
-	profiles, err := cluster.GetProfiles(context.TODO(), c.tx, clusterFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	uris := make([]string, len(profiles))
-	for i := range profiles {
-		uri := api.NewURL().Path(version.APIVersion, "profiles", profiles[i].Name)
-		uri.Project(profiles[i].Project)
-
-		uris[i] = uri.String()
-	}
-
-	return uris, nil
-}
 
 // GetProfileNames returns the names of all profiles in the given project.
 func (c *Cluster) GetProfileNames(project string) ([]string, error) {
@@ -96,11 +56,16 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), project, name)
+		profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), project, []string{name})
 		if err != nil {
 			return err
 		}
 
+		if len(profiles) != 1 {
+			return fmt.Errorf("Expected one profile with name %q, got %d profiles", name, len(profiles))
+		}
+
+		profile := profiles[0]
 		id = int64(profile.ID)
 		result, err = profile.ToAPI(ctx, tx.Tx())
 
@@ -118,21 +83,12 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 	profiles := make([]api.Profile, len(profileNames))
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, projectName)
+		dbProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, profileNames)
 		if err != nil {
-			return fmt.Errorf("Failed checking if project %q has profiles: %w", projectName, err)
+			return err
 		}
 
-		if !enabled {
-			projectName = "default"
-		}
-
-		for i, profileName := range profileNames {
-			profile, err := cluster.GetProfileIfEnabled(ctx, tx.Tx(), projectName, profileName)
-			if err != nil {
-				return fmt.Errorf("Failed loading profile %q: %w", profileName, err)
-			}
-
+		for i, profile := range dbProfiles {
 			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
