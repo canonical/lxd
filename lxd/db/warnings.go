@@ -16,58 +16,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// Code generation directives.
-//
-//go:generate -command mapper lxd-generate db mapper -t warnings.mapper.go
-//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
-//
-//go:generate mapper stmt -d cluster -p db -e warning objects
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-UUID
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-Project
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-Status
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project
-//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -d cluster -p db -e warning delete-by-UUID
-//go:generate mapper stmt -d cluster -p db -e warning delete-by-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -d cluster -p db -e warning id
-//
-//go:generate mapper method -i -d cluster -p db -e warning GetMany
-//go:generate mapper method -i -d cluster -p db -e warning GetOne-by-UUID
-//go:generate mapper method -i -d cluster -p db -e warning DeleteOne-by-UUID
-//go:generate mapper method -i -d cluster -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
-//go:generate mapper method -i -d cluster -p db -e warning ID struct=Warning
-//go:generate mapper method -i -d cluster -p db -e warning Exists struct=Warning
-
-// Warning is a value object holding db-related details about a warning.
-type Warning struct {
-	ID             int
-	Node           string `db:"coalesce=''&leftjoin=nodes.name"`
-	Project        string `db:"coalesce=''&leftjoin=projects.name"`
-	EntityTypeCode int    `db:"coalesce=-1"`
-	EntityID       int    `db:"coalesce=-1"`
-	UUID           string `db:"primary=yes"`
-	TypeCode       warningtype.Type
-	Status         warningtype.Status
-	FirstSeenDate  time.Time
-	LastSeenDate   time.Time
-	UpdatedDate    time.Time
-	LastMessage    string
-	Count          int
-}
-
-// WarningFilter specifies potential query parameter fields.
-type WarningFilter struct {
-	ID             *int
-	UUID           *string
-	Project        *string
-	Node           *string
-	TypeCode       *warningtype.Type
-	EntityTypeCode *int
-	EntityID       *int
-	Status         *warningtype.Status
-}
-
 var warningCreate = cluster.RegisterStmt(`
 INSERT INTO warnings (node_id, project_id, entity_type_code, entity_id, uuid, type_code, status, first_seen_date, last_seen_date, updated_date, last_message, count)
   VALUES ((SELECT nodes.id FROM nodes WHERE nodes.name = ?), (SELECT projects.id FROM projects WHERE projects.name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
