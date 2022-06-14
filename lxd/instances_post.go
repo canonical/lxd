@@ -22,6 +22,7 @@ import (
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -160,7 +161,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -217,7 +218,7 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -465,12 +466,12 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationInstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
+		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, operationtype.InstanceCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil, r)
+		op, err = operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -653,7 +654,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, db.OperationInstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -833,7 +834,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	resources["instances"] = []string{bInfo.Name}
 	resources["containers"] = resources["instances"]
 
-	op, err := operations.OperationCreate(d.State(), bInfo.Project, operations.OperationClassTask, db.OperationBackupRestore, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), bInfo.Project, operations.OperationClassTask, operationtype.BackupRestore, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

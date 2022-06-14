@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
@@ -101,7 +102,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 
 		for _, op := range ops {
 			opType := op.Type()
-			if opType == db.OperationCommandExec || opType == db.OperationConsoleShow {
+			if opType == operationtype.CommandExec || opType == operationtype.ConsoleShow {
 				execConsoleOps++
 			}
 
@@ -643,7 +644,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // operationsGetByType gets all operations for a project and type.
-func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType db.OperationType) ([]*api.Operation, error) {
+func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType operationtype.Type) ([]*api.Operation, error) {
 	ops := make([]*api.Operation, 0)
 
 	// Get local operations for project.
@@ -1094,7 +1095,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoRemoveOrphanedOperations(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationRemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start remove orphaned operations operation", logger.Ctx{"err": err})
 			return

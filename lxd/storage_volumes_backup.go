@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -417,7 +418,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	resources["storage_volumes"] = []string{volumeName}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, db.OperationCustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -653,7 +654,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, db.OperationCustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -764,7 +765,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, db.OperationCustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

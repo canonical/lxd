@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
@@ -643,7 +644,7 @@ func doCustomVolumeRefresh(d *Daemon, r *http.Request, requestProjectName string
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -691,7 +692,7 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 	}
 
 	// Volume copy operations potentially take a long time, so run as an async operation.
-	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -880,12 +881,12 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
+		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassWebsocket, operationtype.VolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil, r)
+		op, err = operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, operationtype.VolumeCopy, resources, nil, run, nil, nil, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1116,7 +1117,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 			return response.InternalError(err)
 		}
 
-		op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, run, nil, nil, r)
+		op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassTask, operationtype.VolumeMigrate, resources, nil, run, nil, nil, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1125,7 +1126,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 	}
 
 	// Pull mode
-	op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect, r)
+	op, err := operations.OperationCreate(state, requestProjectName, operations.OperationClassWebsocket, operationtype.VolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1207,7 +1208,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, operationtype.VolumeMove, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1914,7 +1915,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{bInfo.Name}
 
-	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationCustomVolumeBackupRestore, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, operationtype.CustomVolumeBackupRestore, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
