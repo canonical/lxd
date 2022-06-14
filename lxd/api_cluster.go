@@ -392,7 +392,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 		return response.SmartError(err)
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.OperationClusterBootstrap, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -775,7 +775,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.OperationClusterJoin, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterJoin, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1244,7 +1244,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
-	ops, err := operationsGetByType(d, r, project.Default, operationtype.OperationClusterJoinToken)
+	ops, err := operationsGetByType(d, r, project.Default, operationtype.ClusterJoinToken)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed getting cluster join token operations: %w", err))
 	}
@@ -1294,7 +1294,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operations.OperationCreate(s, project.Default, operations.OperationClassToken, operationtype.OperationClusterJoinToken, resources, meta, nil, nil, nil, r)
+	op, err := operations.OperationCreate(s, project.Default, operations.OperationClassToken, operationtype.ClusterJoinToken, resources, meta, nil, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2864,7 +2864,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.OperationClusterMemberEvacuate, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterMemberEvacuate, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3087,7 +3087,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.OperationClusterMemberRestore, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterMemberRestore, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

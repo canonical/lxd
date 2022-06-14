@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
@@ -63,7 +64,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 
 	defer func() {
 		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.DeleteOperations(cluster.GetNodeID())
+			err := dbCluster.DeleteOperations(ctx, tx.Tx(), cluster.GetNodeID())
 			if err != nil {
 				logger.Error("Failed cleaning up operations")
 			}
@@ -193,8 +194,8 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: &id}
-		ops, err := tx.GetOperations(filter)
+		filter := dbCluster.OperationFilter{UUID: &id}
+		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -273,8 +274,8 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: &id}
-		ops, err := tx.GetOperations(filter)
+		filter := dbCluster.OperationFilter{UUID: &id}
+		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -323,8 +324,8 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 	var memberAddress string
 	var err error
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: &op.ID}
-		ops, err := tx.GetOperations(filter)
+		filter := dbCluster.OperationFilter{UUID: &op.ID}
+		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
 		}
@@ -675,7 +676,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	// Get all operations of the specified type in project.
 	var offlineThreshold time.Duration
 	var nodes []db.NodeInfo
-	memberOps := make(map[string]map[string]db.Operation)
+	memberOps := make(map[string]map[string]dbCluster.Operation)
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
@@ -695,7 +696,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		// Group operations by member address and UUID.
 		for _, op := range ops {
 			if memberOps[op.NodeAddress] == nil {
-				memberOps[op.NodeAddress] = make(map[string]db.Operation)
+				memberOps[op.NodeAddress] = make(map[string]dbCluster.Operation)
 			}
 
 			memberOps[op.NodeAddress][op.UUID] = op
@@ -907,8 +908,8 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: &id}
-		ops, err := tx.GetOperations(filter)
+		filter := dbCluster.OperationFilter{UUID: &id}
+		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -1034,8 +1035,8 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: &id}
-		ops, err := tx.GetOperations(filter)
+		filter := dbCluster.OperationFilter{UUID: &id}
+		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -1138,7 +1139,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 				continue
 			}
 
-			err = tx.DeleteOperations(node.ID)
+			err = dbCluster.DeleteOperations(ctx, tx.Tx(), node.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to delete operations: %w", err)
 			}

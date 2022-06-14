@@ -239,13 +239,13 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	cluster.PreparedStmts = stmts
 
-	cluster := &Cluster{
+	clusterDB := &Cluster{
 		db:         db,
 		stmts:      stmts,
 		closingCtx: closingCtx,
 	}
 
-	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
 		nodes, err := tx.GetNodes()
 		if err != nil {
@@ -270,10 +270,10 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		}
 
 		// Set the local member ID
-		cluster.NodeID(nodeID)
+		clusterDB.NodeID(nodeID)
 
 		// Delete any operation tied to this member
-		err = tx.DeleteOperations(nodeID)
+		err = cluster.DeleteOperations(ctx, tx.tx, nodeID)
 		if err != nil {
 			return err
 		}
@@ -284,7 +284,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		return nil, err
 	}
 
-	return cluster, err
+	return clusterDB, err
 }
 
 // ErrSomeNodesAreBehind is returned by OpenCluster if some of the nodes in the
