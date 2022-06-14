@@ -33,6 +33,7 @@ import (
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -1069,7 +1070,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDownload, nil, metadata, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, metadata, run, nil, nil, r)
 	if err != nil {
 		cleanup(builddir, post)
 		return response.InternalError(err)
@@ -1458,7 +1459,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoUpdateImages(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesUpdate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ImagesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image update operation", logger.Ctx{"err": err})
 			return
@@ -2017,7 +2018,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return pruneExpiredImages(ctx, d, op)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ImagesExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired image operation", logger.Ctx{"err": err})
 			return
@@ -2129,7 +2130,7 @@ func pruneLeftoverImages(d *Daemon) {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesPruneLeftover, nil, nil, opRun, nil, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ImagesPruneLeftover, nil, nil, opRun, nil, nil, nil)
 	if err != nil {
 		logger.Error("Failed to start image leftover cleanup operation", logger.Ctx{"err": err})
 		return
@@ -2427,7 +2428,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{imgInfo.Fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDelete, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -2474,7 +2475,7 @@ func doImageGet(cluster *db.Cluster, project, fingerprint string, public bool) (
 // images resource matching the specified fingerprint and the metadata secret field matches the specified secret.
 // If an operation is found it is returned and the operation is cancelled. Otherwise nil is returned if not found.
 func imageValidSecret(d *Daemon, r *http.Request, projectName string, fingerprint string, secret string) (*api.Operation, error) {
-	ops, err := operationsGetByType(d, r, projectName, db.OperationImageToken)
+	ops, err := operationsGetByType(d, r, projectName, operationtype.ImageToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting image token operations: %w", err)
 	}
@@ -3683,7 +3684,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageDownload, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3864,7 +3865,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 		return err
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.ImageRefresh, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -3901,7 +3902,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoSyncImages(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesSynchronize, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ImagesSynchronize, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image synchronization operation", logger.Ctx{"err": err})
 			return
@@ -4077,7 +4078,7 @@ func createTokenResponse(d *Daemon, r *http.Request, projectName string, fingerp
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassToken, operationtype.ImageToken, resources, meta, nil, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -338,7 +339,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	resources["backups"] = []string{req.Name}
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
-		db.OperationBackupCreate, resources, nil, backup, nil, nil, r)
+		operationtype.BackupCreate, resources, nil, backup, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -520,7 +521,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
-		db.OperationBackupRename, resources, nil, rename, nil, nil, r)
+		operationtype.BackupRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -603,7 +604,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	resources["container"] = []string{name}
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
-		db.OperationBackupRemove, resources, nil, remove, nil, nil, r)
+		operationtype.BackupRemove, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

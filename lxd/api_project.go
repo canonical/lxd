@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
@@ -829,7 +830,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.OperationProjectRename, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
