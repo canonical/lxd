@@ -1066,6 +1066,10 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 				return err
 			}
 
+			if len(dbProfiles) != 1 {
+				return fmt.Errorf("Failed to find default profile in project %q", project)
+			}
+
 			_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, dbProfiles[0].ID)
 			if err != nil {
 				return err
