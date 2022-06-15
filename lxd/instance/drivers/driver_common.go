@@ -1176,7 +1176,7 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 				continue
 			}
 
-			return nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+			return nil, fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 		}
 
 		err = d.deviceAdd(dev, instanceRunning)
@@ -1209,7 +1209,7 @@ func (d *common) devicesRegister(inst instance.Instance) {
 		}
 
 		if err != nil {
-			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "device": entry.Name})
+			d.logger.Error("Failed register validation for device", logger.Ctx{"err": err, "device": entry.Name})
 			continue
 		}
 
@@ -1245,7 +1245,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			// removal, as in the scenario that a new version of LXD has additional validation
 			// restrictions than older versions we still need to allow previously valid devices
 			// to be removed.
-			d.logger.Error("Device remove validation failed", logger.Ctx{"device": entry.Name, "err": err})
+			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
 		}
 
 		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
@@ -1281,12 +1281,12 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			}
 
 			if userRequested {
-				return fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+				return fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to load device to add, skipping as non-user requested", logger.Ctx{"device": entry.Name, "err": err})
+			d.logger.Error("Failed add validation for device, skipping as non-user requested", logger.Ctx{"device": entry.Name, "err": err})
 
 			continue
 		}
@@ -1322,7 +1322,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 	for _, entry := range updateDevices.Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
 		}
 
 		err = dev.Update(oldExpandedDevices, instanceRunning)
