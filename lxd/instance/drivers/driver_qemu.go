@@ -1149,7 +1149,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		revert.Add(func() {
-			err := d.deviceStop(dev, false)
+			err := d.deviceStop(dev, false, "")
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
@@ -1895,7 +1895,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
+func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) error {
 	configCopy := dev.Config()
 	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	l.Debug("Stopping device")
@@ -4765,7 +4765,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		// If a device was returned from deviceLoad even if validation fails, then try and stop and remove.
 		if dev != nil {
 			if instanceRunning {
-				err = d.deviceStop(dev, instanceRunning)
+				err = d.deviceStop(dev, instanceRunning, "")
 				if err != nil {
 					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
 				}
@@ -4829,7 +4829,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { _ = d.deviceStop(dev, instanceRunning) })
+			revert.Add(func() { _ = d.deviceStop(dev, instanceRunning, "") })
 		}
 	}
 
@@ -4966,7 +4966,7 @@ func (d *qemu) cleanupDevices() {
 
 		// If a device was returned from deviceLoad even if validation fails, then try and stop.
 		if dev != nil {
-			err = d.deviceStop(dev, false)
+			err = d.deviceStop(dev, false, "")
 			if err != nil {
 				d.logger.Error("Failed to stop device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
