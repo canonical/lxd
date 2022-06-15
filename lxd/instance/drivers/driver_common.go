@@ -1130,3 +1130,15 @@ func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig
 	// Return device even if error occurs as caller may still use device.
 	return dev, err
 }
+
+// deviceAdd loads a new device and calls its Add() function.
+func (d *common) deviceAdd(dev device.Device, instanceRunning bool) error {
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	l.Debug("Adding device")
+
+	if instanceRunning && !dev.CanHotPlug() {
+		return fmt.Errorf("Device cannot be added when instance is running")
+	}
+
+	return dev.Add()
+}
