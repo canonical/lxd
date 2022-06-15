@@ -1108,3 +1108,25 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 
 	return d.storagePool, nil
 }
+
+// deviceLoad instantiates and validates a new device and returns it along with enriched config.
+func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
+	var configCopy deviceConfig.Device
+	var err error
+
+	// Create copy of config and load some fields from volatile if device is nic or infiniband.
+	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
+		configCopy, err = inst.FillNetworkDevice(deviceName, rawConfig)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Othewise copy the config so it cannot be modified by device.
+		configCopy = rawConfig.Clone()
+	}
+
+	dev, err := device.New(inst, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
+
+	// Return device even if error occurs as caller may still use device.
+	return dev, err
+}
