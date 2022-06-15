@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -36,6 +37,14 @@ import (
 
 // ErrInstanceIsStopped indicates that the instance is stopped.
 var ErrInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
+
+// deviceManager is an interface that allows managing device lifecycle.
+type deviceManager interface {
+	deviceAdd(dev device.Device, instanceRunning bool) error
+	deviceRemove(dev device.Device, instanceRunning bool) error
+	deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error)
+	deviceStop(dev device.Device, instanceRunning bool, stopHookNetnsPath string) error
+}
 
 // common provides structure common to all instance types.
 type common struct {
@@ -1153,4 +1162,117 @@ func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
 	}
 
 	return dev.Remove()
+}
+
+// updateDevices applies device changes to an instance.
+func (d *common) updateDevices(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	dm, ok := inst.(deviceManager)
+	if !ok {
+		return fmt.Errorf("Instance is not compatible with deviceManager interface")
+	}
+
+	// Remove devices in reverse order to how they were added.
+	for _, entry := range removeDevices.Reversed() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			// If deviceLoad fails with unsupported device type then skip stopping.
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue
+			}
+
+			// If deviceLoad fails for any other reason then just log the error and proceed with
+			// removal, as in the scenario that a new version of LXD has additional validation
+			// restrictions than older versions we still need to allow previously valid devices
+			// to be removed.
+			d.logger.Error("Device remove validation failed", logger.Ctx{"device": entry.Name, "err": err})
+		}
+
+		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
+		if dev != nil {
+			if instanceRunning {
+				err = dm.deviceStop(dev, instanceRunning, "")
+				if err != nil {
+					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+				}
+			}
+
+			err = d.deviceRemove(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
+			}
+		}
+
+		// Check whether we are about to add the same device back with updated config and
+		// if not, or if the device type has changed, then remove all volatile keys for
+		// this device (as its an actual removal or a device type change).
+		err = d.deviceVolatileReset(entry.Name, entry.Config, addDevices[entry.Name])
+		if err != nil {
+			return fmt.Errorf("Failed to reset volatile data for device %q: %w", entry.Name, err)
+		}
+	}
+
+	// Add devices in sorted order, this ensures that device mounts are added in path order.
+	for _, entry := range addDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // No point in trying to add or start device below.
+			}
+
+			if userRequested {
+				return fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed to load device to add, skipping as non-user requested", logger.Ctx{"device": entry.Name, "err": err})
+
+			continue
+		}
+
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			if userRequested {
+				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
+		}
+
+		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
+
+		if instanceRunning {
+			err = dev.PreStartCheck()
+			if err != nil {
+				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			}
+
+			_, err := dm.deviceStart(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			}
+
+			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
+		}
+	}
+
+	for _, entry := range updateDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			return err
+		}
+
+		err = dev.Update(oldExpandedDevices, instanceRunning)
+		if err != nil {
+			return fmt.Errorf("Failed to update device %q: %w", dev.Name(), err)
+		}
+	}
+
+	revert.Success()
+	return nil
 }
