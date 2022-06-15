@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,40 +23,40 @@ func TestOperation(t *testing.T) {
 	nodeID := tx.GetNodeID()
 	uuid := "abcd"
 
-	opInfo := db.Operation{
+	opInfo := cluster.Operation{
 		NodeID:    nodeID,
-		Type:      db.OperationInstanceCreate,
+		Type:      operationtype.InstanceCreate,
 		UUID:      uuid,
 		ProjectID: &projectID,
 	}
-	id, err := tx.CreateOrReplaceOperation(opInfo)
+	id, err := cluster.CreateOrReplaceOperation(context.TODO(), tx.Tx(), opInfo)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	filter := db.OperationFilter{NodeID: &nodeID}
-	operations, err := tx.GetOperations(filter)
+	filter := cluster.OperationFilter{NodeID: &nodeID}
+	operations, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	filter = db.OperationFilter{UUID: &uuid}
-	ops, err := tx.GetOperations(filter)
+	filter = cluster.OperationFilter{UUID: &uuid}
+	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 1)
 	operation := ops[0]
 	assert.Equal(t, id, operation.ID)
-	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
+	assert.Equal(t, operationtype.InstanceCreate, operation.Type)
 
-	filter = db.OperationFilter{NodeID: &nodeID}
-	ops, err = tx.GetOperations(filter)
+	filter = cluster.OperationFilter{NodeID: &nodeID}
+	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	err = tx.DeleteOperation("abcd")
+	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
 	require.NoError(t, err)
 
-	filter = db.OperationFilter{UUID: &uuid}
-	ops, err = tx.GetOperations(filter)
+	filter = cluster.OperationFilter{UUID: &uuid}
+	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 0)
 }
@@ -68,41 +69,41 @@ func TestOperationNoProject(t *testing.T) {
 	nodeID := tx.GetNodeID()
 	uuid := "abcd"
 
-	opInfo := db.Operation{
+	opInfo := cluster.Operation{
 		NodeID: nodeID,
-		Type:   db.OperationInstanceCreate,
+		Type:   operationtype.InstanceCreate,
 		UUID:   uuid,
 	}
 
-	id, err := tx.CreateOrReplaceOperation(opInfo)
+	id, err := cluster.CreateOrReplaceOperation(context.TODO(), tx.Tx(), opInfo)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	filter := db.OperationFilter{NodeID: &nodeID}
-	operations, err := tx.GetOperations(filter)
+	filter := cluster.OperationFilter{NodeID: &nodeID}
+	operations, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	filter = db.OperationFilter{UUID: &uuid}
-	ops, err := tx.GetOperations(filter)
+	filter = cluster.OperationFilter{UUID: &uuid}
+	ops, err := cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 1)
 	operation := ops[0]
 	require.NoError(t, err)
 	assert.Equal(t, id, operation.ID)
-	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
+	assert.Equal(t, operationtype.InstanceCreate, operation.Type)
 
-	filter = db.OperationFilter{NodeID: &nodeID}
-	ops, err = tx.GetOperations(filter)
+	filter = cluster.OperationFilter{NodeID: &nodeID}
+	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	err = tx.DeleteOperation("abcd")
+	err = cluster.DeleteOperation(context.TODO(), tx.Tx(), "abcd")
 	require.NoError(t, err)
 
-	filter = db.OperationFilter{UUID: &uuid}
-	ops, err = tx.GetOperations(filter)
+	filter = cluster.OperationFilter{UUID: &uuid}
+	ops, err = cluster.GetOperations(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 0)
 }

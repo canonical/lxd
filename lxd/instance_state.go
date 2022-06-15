@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -199,21 +199,21 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func instanceActionToOptype(action string) (db.OperationType, error) {
+func instanceActionToOptype(action string) (operationtype.Type, error) {
 	switch shared.InstanceAction(action) {
 	case shared.Start:
-		return db.OperationInstanceStart, nil
+		return operationtype.InstanceStart, nil
 	case shared.Stop:
-		return db.OperationInstanceStop, nil
+		return operationtype.InstanceStop, nil
 	case shared.Restart:
-		return db.OperationInstanceRestart, nil
+		return operationtype.InstanceRestart, nil
 	case shared.Freeze:
-		return db.OperationInstanceFreeze, nil
+		return operationtype.InstanceFreeze, nil
 	case shared.Unfreeze:
-		return db.OperationInstanceUnfreeze, nil
+		return operationtype.InstanceUnfreeze, nil
 	}
 
-	return db.OperationUnknown, fmt.Errorf("Unknown action: '%s'", action)
+	return operationtype.Unknown, fmt.Errorf("Unknown action: '%s'", action)
 }
 
 func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {

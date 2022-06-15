@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
@@ -581,7 +581,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				state,
 				s.instance.Project(),
 				operations.OperationClassWebsocket,
-				db.OperationInstanceLiveMigrate,
+				operationtype.InstanceLiveMigrate,
 				nil,
 				nil,
 				func(op *operations.Operation) error {

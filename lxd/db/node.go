@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -1140,7 +1141,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 
 		// Fetch the number of instances currently being created on this node.
 		pending, err := query.Count(
-			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationInstanceCreate)
+			c.tx, "operations", "node_id=? AND type=?", node.ID, operationtype.InstanceCreate)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
