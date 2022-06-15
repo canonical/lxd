@@ -83,6 +83,7 @@ In the default profile, this pool is set to the storage pool that was created du
 When you create an instance, LXD automatically creates the required storage volumes for it.
 You can create additional storage volumes.
 
+(storage-volume-types)=
 ### Storage volume types
 
 Storage volumes can be of the following types:

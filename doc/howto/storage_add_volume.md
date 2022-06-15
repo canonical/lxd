@@ -33,7 +33,12 @@ This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), w
 
 ## Attach a storage volume to an instance
 
-After creating a storage volume, you can add it to one or more instances.
+After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_nic>`.
+
+The following restrictions apply:
+
+- Storage volumes of {ref}`content type <storage-content-types>` `block` cannot be attached to containers, but only to virtual machines.
+- To avoid data corruption, storage volumes of {ref}`content type <storage-content-types>` `block` should never be attached to more than one virtual machine at a time.
 
 For storage volumes with the content type `filesystem`, use the following command, where `<location>` is the path for accessing the storage volume inside the instance (for example, `/data`):
 
