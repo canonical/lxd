@@ -1320,24 +1320,7 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]any) err
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *lxc) RegisterDevices() {
-	for _, entry := range d.ExpandedDevices().Sorted() {
-		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
-		if errors.Is(err, device.ErrUnsupportedDevType) {
-			continue
-		}
-
-		if err != nil {
-			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "device": entry.Name})
-			continue
-		}
-
-		// Check whether device wants to register for any events.
-		err = dev.Register()
-		if err != nil {
-			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "device": entry.Name})
-			continue
-		}
-	}
+	d.devicesRegister(d)
 }
 
 // deviceStart loads a new device and calls its Start() function.

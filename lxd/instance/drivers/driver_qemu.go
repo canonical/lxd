@@ -1648,24 +1648,7 @@ func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *qemu) RegisterDevices() {
-	for _, entry := range d.ExpandedDevices().Sorted() {
-		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
-		if err == device.ErrUnsupportedDevType {
-			continue
-		}
-
-		if err != nil {
-			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
-			continue
-		}
-
-		// Check whether device wants to register for any events.
-		err = dev.Register()
-		if err != nil {
-			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
-			continue
-		}
-	}
+	d.devicesRegister(d)
 }
 
 // SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed

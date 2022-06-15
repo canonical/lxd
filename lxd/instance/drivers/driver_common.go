@@ -1200,6 +1200,28 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 	return cleanup, nil
 }
 
+// devicesRegister calls the Register() function on all of the instance's devices.
+func (d *common) devicesRegister(inst instance.Instance) {
+	for _, entry := range d.ExpandedDevices().Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if errors.Is(err, device.ErrUnsupportedDevType) {
+			continue
+		}
+
+		if err != nil {
+			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "device": entry.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = dev.Register()
+		if err != nil {
+			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "device": entry.Name})
+			continue
+		}
+	}
+}
+
 // devicesUpdate applies device changes to an instance.
 func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
 	revert := revert.New()
