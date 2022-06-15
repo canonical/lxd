@@ -1142,3 +1142,15 @@ func (d *common) deviceAdd(dev device.Device, instanceRunning bool) error {
 
 	return dev.Add()
 }
+
+// deviceRemove loads a new device and calls its Remove() function.
+func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	l.Debug("Removing device")
+
+	if instanceRunning && !dev.CanHotPlug() {
+		return fmt.Errorf("Device cannot be removed when instance is running")
+	}
+
+	return dev.Remove()
+}
