@@ -350,6 +350,16 @@ func (d *common) TemplatesPath() string {
 	return filepath.Join(d.Path(), "templates")
 }
 
+// StoragePool returns the storage pool name.
+func (d *common) StoragePool() (string, error) {
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return "", err
+	}
+
+	return pool.Name(), nil
+}
+
 //
 // SECTION: internal functions
 //
@@ -1097,14 +1107,4 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 	d.storagePool = pool
 
 	return d.storagePool, nil
-}
-
-// StoragePool returns the storage pool name.
-func (d *common) StoragePool() (string, error) {
-	pool, err := d.getStoragePool()
-	if err != nil {
-		return "", err
-	}
-
-	return pool.Name(), nil
 }
