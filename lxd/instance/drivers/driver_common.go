@@ -1164,8 +1164,8 @@ func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
 	return dev.Remove()
 }
 
-// updateDevices applies device changes to an instance.
-func (d *common) updateDevices(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+// devicesUpdate applies device changes to an instance.
+func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 

@@ -4228,7 +4228,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = d.updateDevices(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	err = d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
