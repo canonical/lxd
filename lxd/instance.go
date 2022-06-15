@@ -560,7 +560,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		expiredSnapshots := []dbCluster.Instance{}
 
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-			snapshots, err := tx.GetLocalExpiredInstanceSnapshots()
+			snapshots, err := tx.GetLocalExpiredInstanceSnapshots(ctx)
 			if err != nil {
 				return err
 			}

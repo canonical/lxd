@@ -33,34 +33,49 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	addInstanceSnapshotDevice(t, tx, "c2", "snap2", "eth0", "nic", nil)
 	addInstanceSnapshotDevice(t, tx, "c2", "snap3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.InstanceSnapshotFilter{}
-	snapshots, err := tx.GetInstanceSnapshots(filter)
+	filter := cluster.InstanceSnapshotFilter{}
+	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 3)
+
+	s1Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[0].ID)
+	require.NoError(t, err)
+	s1Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[0].ID)
+	require.NoError(t, err)
 
 	s1 := snapshots[0]
 	assert.Equal(t, "snap1", s1.Name)
 	assert.Equal(t, "c1", s1.Instance)
-	assert.Equal(t, map[string]string{}, s1.Config)
-	assert.Len(t, s1.Devices, 0)
+	assert.Equal(t, map[string]string{}, s1Config)
+	assert.Len(t, s1Devices, 0)
+
+	s2Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[1].ID)
+	require.NoError(t, err)
+	s2Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[1].ID)
+	require.NoError(t, err)
 
 	s2 := snapshots[1]
 	assert.Equal(t, "snap2", s2.Name)
 	assert.Equal(t, "c2", s2.Instance)
-	assert.Equal(t, map[string]string{"x": "y"}, s2.Config)
-	assert.Len(t, s2.Devices, 1)
-	assert.Equal(t, "eth0", s2.Devices["eth0"].Name)
-	assert.Equal(t, "nic", s2.Devices["eth0"].Type.String())
-	assert.Equal(t, map[string]string{}, s2.Devices["eth0"].Config)
+	assert.Equal(t, map[string]string{"x": "y"}, s2Config)
+	assert.Len(t, s2Devices, 1)
+	assert.Equal(t, "eth0", s2Devices["eth0"].Name)
+	assert.Equal(t, "nic", s2Devices["eth0"].Type.String())
+	assert.Equal(t, map[string]string{}, s2Devices["eth0"].Config)
+
+	s3Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[2].ID)
+	require.NoError(t, err)
+	s3Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[2].ID)
+	require.NoError(t, err)
 
 	s3 := snapshots[2]
 	assert.Equal(t, "snap3", s3.Name)
 	assert.Equal(t, "c2", s3.Instance)
-	assert.Equal(t, map[string]string{}, s3.Config)
-	assert.Len(t, s3.Devices, 1)
-	assert.Equal(t, "root", s3.Devices["root"].Name)
-	assert.Equal(t, "disk", s3.Devices["root"].Type.String())
-	assert.Equal(t, map[string]string{"x": "y"}, s3.Devices["root"].Config)
+	assert.Equal(t, map[string]string{}, s3Config)
+	assert.Len(t, s3Devices, 1)
+	assert.Equal(t, "root", s3Devices["root"].Name)
+	assert.Equal(t, "disk", s3Devices["root"].Type.String())
+	assert.Equal(t, map[string]string{"x": "y"}, s3Devices["root"].Config)
 }
 
 func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
@@ -77,8 +92,8 @@ func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 
 	project := "default"
 	instance := "c2"
-	filter := db.InstanceSnapshotFilter{Project: &project, Instance: &instance}
-	snapshots, err := tx.GetInstanceSnapshots(filter)
+	filter := cluster.InstanceSnapshotFilter{Project: &project, Instance: &instance}
+	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 2)
 
@@ -128,26 +143,26 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create two snapshots with the same names.
-	s1default := db.InstanceSnapshot{
+	s1default := cluster.InstanceSnapshot{
 		Project:  "default",
 		Instance: "i1",
 		Name:     "s1",
 	}
-	_, err = tx.CreateInstanceSnapshot(s1default)
+	_, err = cluster.CreateInstanceSnapshot(context.TODO(), tx.Tx(), s1default)
 	require.NoError(t, err)
 
-	s1p1 := db.InstanceSnapshot{
+	s1p1 := cluster.InstanceSnapshot{
 		Project:  "p1",
 		Instance: "i1",
 		Name:     "s1",
 	}
-	_, err = tx.CreateInstanceSnapshot(s1p1)
+	_, err = cluster.CreateInstanceSnapshot(context.TODO(), tx.Tx(), s1p1)
 	require.NoError(t, err)
 
 	instance := "i1"
 	project := "p1"
-	filter := db.InstanceSnapshotFilter{Project: &project, Instance: &instance}
-	snapshots, err := tx.GetInstanceSnapshots(filter)
+	filter := cluster.InstanceSnapshotFilter{Project: &project, Instance: &instance}
+	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 
 	assert.Len(t, snapshots, 1)
@@ -156,7 +171,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "i1", snapshots[0].Instance)
 	assert.Equal(t, "s1", snapshots[0].Name)
 
-	snapshot, err := tx.GetInstanceSnapshot("default", "i1", "s1")
+	snapshot, err := cluster.GetInstanceSnapshot(context.TODO(), tx.Tx(), "default", "i1", "s1")
 	require.NoError(t, err)
 
 	assert.Equal(t, "default", snapshot.Project)
@@ -214,7 +229,7 @@ func getInstanceSnapshotDeviceID(t *testing.T, tx *db.ClusterTx, instanceSnapsho
 func addInstanceSnapshotDevice(t *testing.T, tx *db.ClusterTx, instance, snapshot, name, typ string, config map[string]string) {
 	id := getInstanceSnapshotID(t, tx, instance, snapshot)
 
-	code, err := db.NewDeviceType(typ)
+	code, err := cluster.NewDeviceType(typ)
 	require.NoError(t, err)
 
 	stmt := `

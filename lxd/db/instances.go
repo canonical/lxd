@@ -626,12 +626,12 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 	if err != nil {
 		return nil, err
 	}
-	filter := InstanceSnapshotFilter{
+	filter := cluster.InstanceSnapshotFilter{
 		Project:  &project,
 		Instance: &name,
 	}
 
-	snapshots, err := c.GetInstanceSnapshots(filter)
+	snapshots, err := cluster.GetInstanceSnapshots(ctx, c.tx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +692,7 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
 		return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
+			return cluster.DeleteInstanceSnapshot(ctx, tx.tx, project, parts[0], parts[1])
 		})
 	}
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {

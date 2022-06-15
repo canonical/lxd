@@ -3852,7 +3852,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return tx.RenameInstanceSnapshot(d.project, oldName, oldSnapName, baseSnapName)
+				return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
 				d.logger.Error("Failed renaming snapshot", ctxMap)
@@ -3866,7 +3866,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		if d.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return tx.RenameInstanceSnapshot(d.project, oldParts[0], oldParts[1], newParts[1])
+			return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldParts[0], oldParts[1], newParts[1])
 		}
 
 		return cluster.RenameInstance(ctx, tx.Tx(), d.project, oldName, newName)

@@ -1538,7 +1538,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		}
 
 		// Update node config.
-		err = tx.UpdateNodeConfig(nodeInfo.ID, req.Config)
+		err = tx.UpdateNodeConfig(ctx, nodeInfo.ID, req.Config)
 		if err != nil {
 			return fmt.Errorf("Failed to update cluster member config: %w", err)
 		}

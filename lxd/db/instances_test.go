@@ -572,7 +572,7 @@ INSERT INTO instances_config(instance_id, key, value) VALUES (?, ?, ?)
 func addContainerDevice(t *testing.T, tx *db.ClusterTx, container, name, typ string, config map[string]string) {
 	id := getContainerID(t, tx, container)
 
-	code, err := db.NewDeviceType(typ)
+	code, err := cluster.NewDeviceType(typ)
 	require.NoError(t, err)
 
 	stmt := `
