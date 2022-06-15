@@ -1105,7 +1105,7 @@ func (d *qemu) Start(stateful bool) error {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
+			return fmt.Errorf("Failed start validation for device %q: %w", dev.Name(), err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
@@ -4807,7 +4807,7 @@ func (d *qemu) cleanupDevices() {
 			// If deviceLoad fails for any other reason then just log the error and proceed with stop,
 			// as in the scenario that a new version of LXD has additional validation restrictions than
 			// older versions we still need to allow previously valid devices to be stopped.
-			d.logger.Error("Device stop validation failed", logger.Ctx{"device": dd.Name, "err": err})
+			d.logger.Error("Failed stop validation for device", logger.Ctx{"device": dd.Name, "err": err})
 		}
 
 		// If a device was returned from deviceLoad even if validation fails, then try and stop.
@@ -4913,7 +4913,7 @@ func (d *qemu) Delete(force bool) error {
 				// with removal, as in the scenario that a new version of LXD has additional
 				// validation restrictions than older versions we still need to allow previously
 				// valid devices to be remove.
-				d.logger.Error("Device remove validation failed", logger.Ctx{"device": entry.Name, "err": err})
+				d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
 			}
 
 			// If a device was returned from deviceLoad even if validation fails, then try and remove.
@@ -6272,7 +6272,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 
 		dev, err := d.deviceLoad(d, k, m)
 		if err != nil {
-			d.logger.Warn("Could not load device", logger.Ctx{"device": k, "err": err})
+			d.logger.Warn("Failed state validation for device", logger.Ctx{"device": k, "err": err})
 			continue
 		}
 
