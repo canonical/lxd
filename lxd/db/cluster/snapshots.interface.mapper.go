@@ -20,4 +20,36 @@ type InstanceSnapshotGenerated interface {
 	// GetInstanceSnapshots returns all available instance_snapshots.
 	// generator: instance_snapshot GetMany
 	GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapshotFilter) ([]InstanceSnapshot, error)
+
+	// GetInstanceSnapshot returns the instance_snapshot with the given key.
+	// generator: instance_snapshot GetOne
+	GetInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (*InstanceSnapshot, error)
+
+	// GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.
+	// generator: instance_snapshot ID
+	GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (int64, error)
+
+	// InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
+	// generator: instance_snapshot Exists
+	InstanceSnapshotExists(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (bool, error)
+
+	// CreateInstanceSnapshotConfig adds new instance_snapshot Config to the database.
+	// generator: instance_snapshot Create
+	CreateInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int64, config map[string]string) error
+
+	// CreateInstanceSnapshotDevices adds new instance_snapshot Devices to the database.
+	// generator: instance_snapshot Create
+	CreateInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int64, devices map[string]Device) error
+
+	// CreateInstanceSnapshot adds a new instance_snapshot to the database.
+	// generator: instance_snapshot Create
+	CreateInstanceSnapshot(ctx context.Context, tx *sql.Tx, object InstanceSnapshot) (int64, error)
+
+	// RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
+	// generator: instance_snapshot Rename
+	RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string, to string) error
+
+	// DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
+	// generator: instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
+	DeleteInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) error
 }
