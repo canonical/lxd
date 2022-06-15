@@ -1164,6 +1164,42 @@ func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
 	return dev.Remove()
 }
 
+// devicesAdd adds devices to instance and registers with MAAS.
+func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	for _, entry := range d.expandedDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue
+			}
+
+			return nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
+		}
+
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+		}
+
+		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
+	}
+
+	// Update MAAS (must run after the MAC addresses have been generated).
+	err := d.maasUpdate(inst, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Add(func() { _ = d.maasDelete(inst) })
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
+}
+
 // devicesUpdate applies device changes to an instance.
 func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
 	revert := revert.New()
