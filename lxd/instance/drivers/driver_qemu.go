@@ -271,7 +271,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 	if !d.IsSnapshot() {
 		// Add devices to instance.
 		for _, entry := range d.expandedDevices.Sorted() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
+			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 			if err != nil {
 				if errors.Is(err, device.ErrUnsupportedDevType) {
 					continue
@@ -1121,7 +1121,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Load devices in sorted order, this ensures that device mounts are added in path order.
 	// Loading all devices first means that validation of all devices occurs before starting any of them.
 	for i, entry := range sortedDevices {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
@@ -1668,7 +1668,7 @@ func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *qemu) RegisterDevices() {
 	for _, entry := range d.ExpandedDevices().Sorted() {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		}
@@ -1696,28 +1696,6 @@ func (d *qemu) SaveConfigFile() error {
 // OnHook is the top-level hook handler.
 func (d *qemu) OnHook(hookName string, args map[string]string) error {
 	return instance.ErrNotImplemented
-}
-
-// deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
-	var configCopy deviceConfig.Device
-	var err error
-
-	// Create copy of config and load some fields from volatile if device is nic or infiniband.
-	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Othewise copy the config so it cannot be modified by device.
-		configCopy = rawConfig.Clone()
-	}
-
-	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
-
-	// Return device and config copy even if error occurs as caller may still use device.
-	return dev, err
 }
 
 // deviceStart loads a new device and calls its Start() function.
@@ -4770,7 +4748,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 	// Remove devices in reverse order to how they were added.
 	for _, dd := range removeDevices.Reversed() {
 
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			// If deviceLoad fails with unsupported device type then skip stopping.
 			if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -4810,7 +4788,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dd := range addDevices.Sorted() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			if errors.Is(err, device.ErrUnsupportedDevType) {
 				continue // No point in trying to add or start device below.
@@ -4868,7 +4846,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (d *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(d, deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -4973,7 +4951,7 @@ func (d *qemu) cleanupDevices() {
 	}
 
 	for _, dd := range d.expandedDevices.Reversed() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			// If deviceLoad fails with unsupported device type then skip stopping.
 			if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -5078,7 +5056,7 @@ func (d *qemu) Delete(force bool) error {
 
 		// Run device removal function for each device.
 		for _, entry := range d.expandedDevices.Reversed() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
+			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 			if err != nil {
 				// If deviceLoad fails with unsupported device type then skip removal.
 				if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -6468,7 +6446,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 			continue
 		}
 
-		dev, err := d.deviceLoad(k, m)
+		dev, err := d.deviceLoad(d, k, m)
 		if err != nil {
 			d.logger.Warn("Could not load device", logger.Ctx{"device": k, "err": err})
 			continue

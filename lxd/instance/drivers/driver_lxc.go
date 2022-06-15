@@ -297,7 +297,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 	if !d.IsSnapshot() {
 		// Add devices to container.
 		for _, entry := range d.expandedDevices.Sorted() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
+			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 			if err != nil {
 				if errors.Is(err, device.ErrUnsupportedDevType) {
 					continue
@@ -1340,7 +1340,7 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]any) err
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *lxc) RegisterDevices() {
 	for _, entry := range d.ExpandedDevices().Sorted() {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if errors.Is(err, device.ErrUnsupportedDevType) {
 			continue
 		}
@@ -1357,28 +1357,6 @@ func (d *lxc) RegisterDevices() {
 			continue
 		}
 	}
-}
-
-// deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
-	var configCopy deviceConfig.Device
-	var err error
-
-	// Create copy of config and load some fields from volatile if device is nic or infiniband.
-	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Othewise copy the config so it cannot be modified by device.
-		configCopy = rawConfig.Clone()
-	}
-
-	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
-
-	// Return device even if error occurs as caller may still use device.
-	return dev, err
 }
 
 // deviceAdd loads a new device and calls its Add() function.
@@ -1550,7 +1528,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(d, deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -2031,7 +2009,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Load devices in sorted order, this ensures that device mounts are added in path order.
 	// Loading all devices first means that validation of all devices occurs before starting any of them.
 	for i, entry := range sortedDevices {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			return "", nil, fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
 		}
@@ -3076,7 +3054,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 			continue
 		}
 
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			// If deviceLoad fails with unsupported device type then skip stopping.
 			if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -3730,7 +3708,7 @@ func (d *lxc) Delete(force bool) error {
 
 		// Remove devices from container.
 		for _, entry := range d.expandedDevices.Reversed() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
+			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 			if err != nil {
 				// If deviceLoad fails with unsupported device type then skip removal.
 				if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -4760,7 +4738,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 	// Remove devices in reverse order to how they were added.
 	for _, dd := range removeDevices.Reversed() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			// If deviceLoad fails with unsupported device type then skip stopping.
 			if errors.Is(err, device.ErrUnsupportedDevType) {
@@ -4800,7 +4778,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dd := range addDevices.Sorted() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		dev, err := d.deviceLoad(d, dd.Name, dd.Config)
 		if err != nil {
 			if errors.Is(err, device.ErrUnsupportedDevType) {
 				continue // No point in trying to add or start device below.
