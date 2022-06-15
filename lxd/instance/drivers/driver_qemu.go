@@ -5117,17 +5117,6 @@ func (d *qemu) Delete(force bool) error {
 	return nil
 }
 
-func (d *qemu) deviceRemove(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Removing device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be removed when instance is running")
-	}
-
-	return dev.Remove()
-}
-
 // Export publishes the instance.
 func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error) {
 	ctxMap := logger.Ctx{

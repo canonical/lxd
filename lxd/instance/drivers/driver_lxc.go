@@ -1710,18 +1710,6 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	return nil
 }
 
-// deviceRemove loads a new device and calls its Remove() function.
-func (d *lxc) deviceRemove(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Removing device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be removed when instance is running")
-	}
-
-	return dev.Remove()
-}
-
 // DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
 func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Device events can only be processed when the container is running.
