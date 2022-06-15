@@ -20,6 +20,7 @@ type NetworkZone interface {
 	Etag() []any
 	UsedBy() ([]string, error)
 	Content() (*strings.Builder, error)
+	SOA() (*strings.Builder, error)
 
 	// Records.
 	AddRecord(req api.NetworkZoneRecordsPost) error
