@@ -270,31 +270,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 
 	if !d.IsSnapshot() {
 		// Add devices to instance.
-		for _, entry := range d.expandedDevices.Sorted() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
-			if err != nil {
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
-
-				return nil, nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
-			}
-
-			err = d.deviceAdd(dev, false)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
-			}
-
-			revert.Add(func() { _ = d.deviceRemove(dev, false) })
-		}
-
-		// Update MAAS (must run after the MAC addresses have been generated).
-		err = d.maasUpdate(d, nil)
+		cleanup, err := d.devicesAdd(d, false)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		revert.Add(func() { _ = d.maasDelete(d) })
+		revert.Add(cleanup)
 	}
 
 	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
@@ -1121,10 +1102,10 @@ func (d *qemu) Start(stateful bool) error {
 	// Load devices in sorted order, this ensures that device mounts are added in path order.
 	// Loading all devices first means that validation of all devices occurs before starting any of them.
 	for i, entry := range sortedDevices {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
+			return fmt.Errorf("Failed start validation for device %q: %w", dev.Name(), err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
@@ -1149,7 +1130,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		revert.Add(func() {
-			err := d.deviceStop(dev, false)
+			err := d.deviceStop(dev, false, "")
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
@@ -1667,24 +1648,7 @@ func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *qemu) RegisterDevices() {
-	for _, entry := range d.ExpandedDevices().Sorted() {
-		dev, err := d.deviceLoad(entry.Name, entry.Config)
-		if err == device.ErrUnsupportedDevType {
-			continue
-		}
-
-		if err != nil {
-			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
-			continue
-		}
-
-		// Check whether device wants to register for any events.
-		err = dev.Register()
-		if err != nil {
-			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
-			continue
-		}
-	}
+	d.devicesRegister(d)
 }
 
 // SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed
@@ -1696,28 +1660,6 @@ func (d *qemu) SaveConfigFile() error {
 // OnHook is the top-level hook handler.
 func (d *qemu) OnHook(hookName string, args map[string]string) error {
 	return instance.ErrNotImplemented
-}
-
-// deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
-	var configCopy deviceConfig.Device
-	var err error
-
-	// Create copy of config and load some fields from volatile if device is nic or infiniband.
-	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Othewise copy the config so it cannot be modified by device.
-		configCopy = rawConfig.Clone()
-	}
-
-	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
-
-	// Return device and config copy even if error occurs as caller may still use device.
-	return dev, err
 }
 
 // deviceStart loads a new device and calls its Start() function.
@@ -1917,7 +1859,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
+func (d *qemu) deviceStop(dev device.Device, instanceRunning bool, _ string) error {
 	configCopy := dev.Config()
 	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	l.Debug("Stopping device")
@@ -4491,7 +4433,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
-	err = d.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
+	err = d.devicesUpdate(d, removeDevices, addDevices, updateDevices, oldExpandedDevices, isRunning, userRequested)
 	if err != nil {
 		return err
 	}
@@ -4763,124 +4705,6 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	return fmt.Errorf("Failed setting memory to %dMiB (currently %dMiB) as it was taking too long", newSizeMB, curSizeMB)
 }
 
-func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
-	revert := revert.New()
-	defer revert.Fail()
-
-	// Remove devices in reverse order to how they were added.
-	for _, dd := range removeDevices.Reversed() {
-
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
-		if err != nil {
-			// If deviceLoad fails with unsupported device type then skip stopping.
-			if errors.Is(err, device.ErrUnsupportedDevType) {
-				continue
-			}
-
-			// If deviceLoad fails for any other reason then just log the error and proceed
-			// with stop, as in the scenario that a new version of LXD has additional
-			// validation restrictions than older versions we still need to allow previously
-			// valid devices to be stopped.
-			d.logger.Error("Device stop validation failed", logger.Ctx{"devName": dd.Name, "err": err})
-		}
-
-		// If a device was returned from deviceLoad even if validation fails, then try and stop and remove.
-		if dev != nil {
-			if instanceRunning {
-				err = d.deviceStop(dev, instanceRunning)
-				if err != nil {
-					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
-				}
-			}
-
-			err := d.deviceRemove(dev, instanceRunning)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
-			}
-		}
-
-		// Check whether we are about to add the same device back with updated config and
-		// if not, or if the device type has changed, then remove all volatile keys for
-		// this device (as its an actual removal or a device type change).
-		err = d.deviceVolatileReset(dd.Name, dd.Config, addDevices[dd.Name])
-		if err != nil {
-			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dd.Name, err)
-		}
-	}
-
-	// Add devices in sorted order, this ensures that device mounts are added in path order.
-	for _, dd := range addDevices.Sorted() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
-		if err != nil {
-			if errors.Is(err, device.ErrUnsupportedDevType) {
-				continue // No point in trying to add or start device below.
-			}
-
-			if userRequested {
-				return fmt.Errorf("Failed to load device to add %q: %w", dev.Name(), err)
-			}
-
-			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
-			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to load device to add, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
-
-			continue
-		}
-
-		err = d.deviceAdd(dev, instanceRunning)
-		if err != nil {
-			if userRequested {
-				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
-			}
-
-			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
-			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
-		}
-
-		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
-
-		if instanceRunning {
-			err = dev.PreStartCheck()
-			if err != nil {
-				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
-			}
-
-			_, err := d.deviceStart(dev, instanceRunning)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
-			}
-
-			revert.Add(func() { _ = d.deviceStop(dev, instanceRunning) })
-		}
-	}
-
-	for _, dev := range updateDevices.Sorted() {
-		err := d.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, instanceRunning)
-		if err != nil && err != device.ErrUnsupportedDevType {
-			return fmt.Errorf("Failed to update device %q: %w", dev.Name, err)
-		}
-	}
-
-	revert.Success()
-	return nil
-}
-
-// deviceUpdate loads a new device and calls its Update() function.
-func (d *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return err
-	}
-
-	err = dev.Update(oldDevices, instanceRunning)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (d *qemu) removeUnixDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(d.DevicesPath()) {
@@ -4972,23 +4796,19 @@ func (d *qemu) cleanupDevices() {
 		d.logger.Warn("Failed cleaning up config drive mount", logger.Ctx{"err": err})
 	}
 
-	for _, dd := range d.expandedDevices.Reversed() {
-		dev, err := d.deviceLoad(dd.Name, dd.Config)
+	for _, entry := range d.expandedDevices.Reversed() {
+		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
-			// If deviceLoad fails with unsupported device type then skip stopping.
-			if errors.Is(err, device.ErrUnsupportedDevType) {
-				continue
-			}
-
-			// If deviceLoad fails for any other reason then just log the error and proceed with stop,
-			// as in the scenario that a new version of LXD has additional validation restrictions than
-			// older versions we still need to allow previously valid devices to be stopped.
-			d.logger.Error("Device stop validation failed", logger.Ctx{"device": dd.Name, "err": err})
+			// Just log an error, but still allow the device to be stopped if usable device returned.
+			d.logger.Error("Failed stop validation for device", logger.Ctx{"device": entry.Name, "err": err})
 		}
 
-		// If a device was returned from deviceLoad even if validation fails, then try and stop.
+		// If a usable device was returned from deviceLoad try to stop anyway, even if validation fails.
+		// This allows for the scenario where a new version of LXD has additional validation restrictions
+		// than older versions and we still need to allow previously valid devices to be stopped even if
+		// they are no longer considered valid.
 		if dev != nil {
-			err = d.deviceStop(dev, false)
+			err = d.deviceStop(dev, false, "")
 			if err != nil {
 				d.logger.Error("Failed to stop device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
@@ -5077,29 +4897,7 @@ func (d *qemu) Delete(force bool) error {
 		}
 
 		// Run device removal function for each device.
-		for _, entry := range d.expandedDevices.Reversed() {
-			dev, err := d.deviceLoad(entry.Name, entry.Config)
-			if err != nil {
-				// If deviceLoad fails with unsupported device type then skip removal.
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
-
-				// If deviceLoad fails for any other reason then just log the error and proceed
-				// with removal, as in the scenario that a new version of LXD has additional
-				// validation restrictions than older versions we still need to allow previously
-				// valid devices to be remove.
-				d.logger.Error("Device remove validation failed", logger.Ctx{"device": entry.Name, "err": err})
-			}
-
-			// If a device was returned from deviceLoad even if validation fails, then try and remove.
-			if dev != nil {
-				err = d.deviceRemove(dev, false)
-				if err != nil {
-					d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
-				}
-			}
-		}
+		d.devicesRemove(d)
 
 		// Clean things up.
 		d.cleanup()
@@ -5137,28 +4935,6 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	return nil
-}
-
-func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Adding device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be added when instance is running")
-	}
-
-	return dev.Add()
-}
-
-func (d *qemu) deviceRemove(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Removing device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be removed when instance is running")
-	}
-
-	return dev.Remove()
 }
 
 // Export publishes the instance.
@@ -6468,9 +6244,9 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 			continue
 		}
 
-		dev, err := d.deviceLoad(k, m)
+		dev, err := d.deviceLoad(d, k, m)
 		if err != nil {
-			d.logger.Warn("Could not load device", logger.Ctx{"device": k, "err": err})
+			d.logger.Warn("Failed state validation for device", logger.Ctx{"device": k, "err": err})
 			continue
 		}
 
