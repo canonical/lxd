@@ -1205,10 +1205,6 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 func (d *common) devicesRegister(inst instance.Instance) {
 	for _, entry := range d.ExpandedDevices().Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
-		if errors.Is(err, device.ErrUnsupportedDevType) {
-			continue
-		}
-
 		if err != nil {
 			d.logger.Error("Failed register validation for device", logger.Ctx{"err": err, "device": entry.Name})
 			continue
