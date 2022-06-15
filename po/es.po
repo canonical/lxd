@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-08 16:21-0400\n"
+"POT-Creation-Date: 2022-06-15 11:18-0400\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -592,14 +592,6 @@ msgstr ""
 
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
-msgstr ""
-
-#: lxc/storage_volume.go:1527
-msgid "<pool>/<volume> <pool>/<volume>"
-msgstr ""
-
-#: lxc/storage_volume.go:328
-msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr ""
 
 #: lxc/remote.go:778 lxc/remote.go:833
@@ -6021,6 +6013,16 @@ msgstr "No se puede proveer el nombre del container a la lista"
 #: lxc/storage_volume.go:1334
 #, fuzzy
 msgid "[<remote>:]<pool> [<filter>...]"
+msgstr "No se puede proveer el nombre del container a la lista"
+
+#: lxc/storage_volume.go:1527
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
+msgstr "No se puede proveer el nombre del container a la lista"
+
+#: lxc/storage_volume.go:328
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308
