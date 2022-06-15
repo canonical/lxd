@@ -4901,29 +4901,7 @@ func (d *qemu) Delete(force bool) error {
 		}
 
 		// Run device removal function for each device.
-		for _, entry := range d.expandedDevices.Reversed() {
-			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
-			if err != nil {
-				// If deviceLoad fails with unsupported device type then skip removal.
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
-
-				// If deviceLoad fails for any other reason then just log the error and proceed
-				// with removal, as in the scenario that a new version of LXD has additional
-				// validation restrictions than older versions we still need to allow previously
-				// valid devices to be remove.
-				d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
-			}
-
-			// If a device was returned from deviceLoad even if validation fails, then try and remove.
-			if dev != nil {
-				err = d.deviceRemove(dev, false)
-				if err != nil {
-					d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
-				}
-			}
-		}
+		d.devicesRemove(d)
 
 		// Clean things up.
 		d.cleanup()
