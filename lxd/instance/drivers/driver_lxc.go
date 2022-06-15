@@ -296,31 +296,12 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 
 	if !d.IsSnapshot() {
 		// Add devices to container.
-		for _, entry := range d.expandedDevices.Sorted() {
-			dev, err := d.deviceLoad(d, entry.Name, entry.Config)
-			if err != nil {
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
-
-				return nil, nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
-			}
-
-			err = d.deviceAdd(dev, false)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
-			}
-
-			revert.Add(func() { _ = d.deviceRemove(dev, false) })
-		}
-
-		// Update MAAS (must run after the MAC addresses have been generated).
-		err = d.maasUpdate(d, nil)
+		cleanup, err := d.devicesAdd(d, false)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		revert.Add(func() { _ = d.maasDelete(d) })
+		revert.Add(cleanup)
 	}
 
 	d.logger.Info("Created container", logger.Ctx{"ephemeral": d.ephemeral})
