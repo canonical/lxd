@@ -1345,24 +1345,20 @@ func (d *common) devicesRemove(inst instance.Instance) {
 	for _, entry := range d.expandedDevices.Reversed() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
-			// If deviceLoad fails with unsupported device type then skip removal.
-			if errors.Is(err, device.ErrUnsupportedDevType) {
-				continue
-			}
-
-			// If deviceLoad fails for any other reason then just log the error and proceed
-			// with removal, as in the scenario that a new version of LXD has additional
-			// validation restrictions than older versions we still need to allow previously
-			// valid devices to be remove.
+			// Just log an error, but still allow the device to be removed if usable device returned.
 			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
 		}
 
-		// If a device was returned from deviceLoad even if validation fails, then try and remove.
+		// If a usable device was returned from deviceLoad try to remove anyway, even if validation fails.
+		// This allows for the scenario where a new version of LXD has additional validation restrictions
+		// than older versions and we still need to allow previously valid devices to be stopped even if
+		// they are no longer considered valid.
 		if dev != nil {
 			err = d.deviceRemove(dev, false)
 			if err != nil {
 				d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
+
 	}
 }
