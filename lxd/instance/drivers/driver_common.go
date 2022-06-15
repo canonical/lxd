@@ -1177,10 +1177,6 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 	for _, entry := range d.expandedDevices.Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
-			if errors.Is(err, device.ErrUnsupportedDevType) {
-				continue
-			}
-
 			return nil, fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 		}
 
