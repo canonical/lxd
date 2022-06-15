@@ -1352,7 +1352,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup DNS listener.
-	d.dns = dns.NewServer(d.db.Cluster, func(name string) (*dns.Zone, error) {
+	d.dns = dns.NewServer(d.db.Cluster, func(name string, full bool) (*dns.Zone, error) {
 		// Fetch the zone.
 		zone, err := networkZone.LoadByName(d.State(), name)
 		if err != nil {
@@ -1360,16 +1360,29 @@ func (d *Daemon) init() error {
 		}
 		zoneInfo := zone.Info()
 
-		zoneBuilder, err := zone.Content()
-		if err != nil {
-			logger.Errorf("Failed to render DNS zone %q: %v", name, err)
-			return nil, err
-		}
-
 		// Fill in the zone information.
 		resp := &dns.Zone{}
 		resp.Info = *zoneInfo
-		resp.Content = strings.TrimSpace(zoneBuilder.String())
+
+		if full {
+			// Full content was requested.
+			zoneBuilder, err := zone.Content()
+			if err != nil {
+				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
+				return nil, err
+			}
+
+			resp.Content = strings.TrimSpace(zoneBuilder.String())
+		} else {
+			// SOA only.
+			zoneBuilder, err := zone.SOA()
+			if err != nil {
+				logger.Errorf("Failed to render DNS zone %q: %v", name, err)
+				return nil, err
+			}
+
+			resp.Content = strings.TrimSpace(zoneBuilder.String())
+		}
 
 		return resp, nil
 	})
