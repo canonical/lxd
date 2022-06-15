@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -36,6 +37,14 @@ import (
 
 // ErrInstanceIsStopped indicates that the instance is stopped.
 var ErrInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
+
+// deviceManager is an interface that allows managing device lifecycle.
+type deviceManager interface {
+	deviceAdd(dev device.Device, instanceRunning bool) error
+	deviceRemove(dev device.Device, instanceRunning bool) error
+	deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error)
+	deviceStop(dev device.Device, instanceRunning bool, stopHookNetnsPath string) error
+}
 
 // common provides structure common to all instance types.
 type common struct {
@@ -348,6 +357,16 @@ func (d *common) StatePath() string {
 // TemplatesPath returns the instance's templates path.
 func (d *common) TemplatesPath() string {
 	return filepath.Join(d.Path(), "templates")
+}
+
+// StoragePool returns the storage pool name.
+func (d *common) StoragePool() (string, error) {
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return "", err
+	}
+
+	return pool.Name(), nil
 }
 
 //
@@ -1099,12 +1118,227 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 	return d.storagePool, nil
 }
 
-// StoragePool returns the storage pool name.
-func (d *common) StoragePool() (string, error) {
-	pool, err := d.getStoragePool()
-	if err != nil {
-		return "", err
+// deviceLoad instantiates and validates a new device and returns it along with enriched config.
+func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
+	var configCopy deviceConfig.Device
+	var err error
+
+	// Create copy of config and load some fields from volatile if device is nic or infiniband.
+	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
+		configCopy, err = inst.FillNetworkDevice(deviceName, rawConfig)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Othewise copy the config so it cannot be modified by device.
+		configCopy = rawConfig.Clone()
 	}
 
-	return pool.Name(), nil
+	dev, err := device.New(inst, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
+
+	// If validation fails with unsupported device type then don't return the device for use.
+	if errors.Is(err, device.ErrUnsupportedDevType) {
+		return nil, err
+	}
+
+	// Return device even if error occurs as caller may still attempt to use device for stop and remove.
+	return dev, err
+}
+
+// deviceAdd loads a new device and calls its Add() function.
+func (d *common) deviceAdd(dev device.Device, instanceRunning bool) error {
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	l.Debug("Adding device")
+
+	if instanceRunning && !dev.CanHotPlug() {
+		return fmt.Errorf("Device cannot be added when instance is running")
+	}
+
+	return dev.Add()
+}
+
+// deviceRemove loads a new device and calls its Remove() function.
+func (d *common) deviceRemove(dev device.Device, instanceRunning bool) error {
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	l.Debug("Removing device")
+
+	if instanceRunning && !dev.CanHotPlug() {
+		return fmt.Errorf("Device cannot be removed when instance is running")
+	}
+
+	return dev.Remove()
+}
+
+// devicesAdd adds devices to instance and registers with MAAS.
+func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	for _, entry := range d.expandedDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			return nil, fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
+		}
+
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+		}
+
+		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
+	}
+
+	// Update MAAS (must run after the MAC addresses have been generated).
+	err := d.maasUpdate(inst, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Add(func() { _ = d.maasDelete(inst) })
+
+	cleanup := revert.Clone().Fail
+	revert.Success()
+	return cleanup, nil
+}
+
+// devicesRegister calls the Register() function on all of the instance's devices.
+func (d *common) devicesRegister(inst instance.Instance) {
+	for _, entry := range d.ExpandedDevices().Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			d.logger.Error("Failed register validation for device", logger.Ctx{"err": err, "device": entry.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = dev.Register()
+		if err != nil {
+			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "device": entry.Name})
+			continue
+		}
+	}
+}
+
+// devicesUpdate applies device changes to an instance.
+func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices, instanceRunning bool, userRequested bool) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	dm, ok := inst.(deviceManager)
+	if !ok {
+		return fmt.Errorf("Instance is not compatible with deviceManager interface")
+	}
+
+	// Remove devices in reverse order to how they were added.
+	for _, entry := range removeDevices.Reversed() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			// Just log an error, but still allow the device to be removed if usable device returned.
+			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
+		}
+
+		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
+		if dev != nil {
+			if instanceRunning {
+				err = dm.deviceStop(dev, instanceRunning, "")
+				if err != nil {
+					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+				}
+			}
+
+			err = d.deviceRemove(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
+			}
+		}
+
+		// Check whether we are about to add the same device back with updated config and
+		// if not, or if the device type has changed, then remove all volatile keys for
+		// this device (as its an actual removal or a device type change).
+		err = d.deviceVolatileReset(entry.Name, entry.Config, addDevices[entry.Name])
+		if err != nil {
+			return fmt.Errorf("Failed to reset volatile data for device %q: %w", entry.Name, err)
+		}
+	}
+
+	// Add devices in sorted order, this ensures that device mounts are added in path order.
+	for _, entry := range addDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			if userRequested {
+				return fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed add validation for device, skipping as non-user requested", logger.Ctx{"device": entry.Name, "err": err})
+
+			continue
+		}
+
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			if userRequested {
+				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
+		}
+
+		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
+
+		if instanceRunning {
+			err = dev.PreStartCheck()
+			if err != nil {
+				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			}
+
+			_, err := dm.deviceStart(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			}
+
+			revert.Add(func() { _ = dm.deviceStop(dev, instanceRunning, "") })
+		}
+	}
+
+	for _, entry := range updateDevices.Sorted() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
+		}
+
+		err = dev.Update(oldExpandedDevices, instanceRunning)
+		if err != nil {
+			return fmt.Errorf("Failed to update device %q: %w", dev.Name(), err)
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// devicesRemove runs device removal function for each device.
+func (d *common) devicesRemove(inst instance.Instance) {
+	for _, entry := range d.expandedDevices.Reversed() {
+		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
+		if err != nil {
+			// Just log an error, but still allow the device to be removed if usable device returned.
+			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
+		}
+
+		// If a usable device was returned from deviceLoad try to remove anyway, even if validation fails.
+		// This allows for the scenario where a new version of LXD has additional validation restrictions
+		// than older versions and we still need to allow previously valid devices to be stopped even if
+		// they are no longer considered valid.
+		if dev != nil {
+			err = d.deviceRemove(dev, false)
+			if err != nil {
+				d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
+			}
+		}
+
+	}
 }
