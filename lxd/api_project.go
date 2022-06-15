@@ -207,6 +207,11 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		return nil, err
 	}
 
+	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
 	for _, instance := range instances {
 		apiInstance := api.Instance{Name: instance.Name}
 		usedBy = append(usedBy, apiInstance.URL(version.Version, project.Name).String())
@@ -217,9 +222,9 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		usedBy = append(usedBy, apiProfile.URL(version.APIVersion, project.Name).String())
 	}
 
-	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
+	for _, image := range images {
+		apiImage := api.Image{Fingerprint: image.Fingerprint}
+		usedBy = append(usedBy, apiImage.URL(version.APIVersion, project.Name).String())
 	}
 
 	volumes, err := tx.GetStorageVolumeURIs(project.Name)
@@ -237,7 +242,6 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		return nil, err
 	}
 
-	usedBy = append(usedBy, images...)
 	usedBy = append(usedBy, volumes...)
 	usedBy = append(usedBy, networks...)
 	usedBy = append(usedBy, acls...)
@@ -979,7 +983,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
+	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
 	}

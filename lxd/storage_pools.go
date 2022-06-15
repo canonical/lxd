@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
@@ -936,7 +937,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.db.Cluster.GetImage(volume, db.ImageFilter{Project: &projectName})
+			_, imgInfo, err := d.db.Cluster.GetImage(volume, dbCluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed getting image info for %q: %w", volume, err))
 			}

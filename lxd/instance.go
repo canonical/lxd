@@ -92,7 +92,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	var img *api.Image
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, db.ImageFilter{Project: &args.Project})
+		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, dbCluster.ImageFilter{Project: &args.Project})
 		if err != nil {
 			return fmt.Errorf("Fetch image %s from database: %w", hash, err)
 		}
