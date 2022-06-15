@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -1177,6 +1178,18 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 	for _, entry := range d.expandedDevices.Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			// If device conflicts with another device then do not call the deviceAdd function below
+			// as this could cause the original device to be disrupted (such as allowing conflicting
+			// static NIC DHCP leases to be created). Instead just log an error.
+			// This will allow instances to be created with conflicting devices (such as when copying
+			// or restoring a backup) and allows the user to manually fix the conflicts in order to
+			// allow the the instance to start.
+			if api.StatusErrorCheck(err, http.StatusConflict) {
+				d.logger.Error("Failed add validation for device, skipping add action", logger.Ctx{"device": entry.Name, "err": err})
+
+				continue
+			}
+
 			return nil, fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 		}
 
@@ -1307,7 +1320,18 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 	for _, entry := range updateDevices.Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
-			return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
+			if userRequested {
+				return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
+			}
+
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			// By not calling dev.Update on validation error we avoid potentially disrupting another
+			// existing device if this device conflicts with it (such as allowing conflicting static
+			// NIC DHCP leases to be created).
+			d.logger.Error("Failed update validation for device, skipping update action", logger.Ctx{"device": entry.Name, "userRequested": userRequested, "err": err})
+
+			continue
 		}
 
 		err = dev.Update(oldExpandedDevices, instanceRunning)
