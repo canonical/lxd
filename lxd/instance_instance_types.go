@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
@@ -90,7 +90,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start instance types update operation", logger.Ctx{"err": err})
 			return

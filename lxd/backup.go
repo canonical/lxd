@@ -15,6 +15,7 @@ import (
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -297,7 +298,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 			return pruneExpiredContainerBackups(ctx, d)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired instance backups operation", logger.Ctx{"err": err})
 			return

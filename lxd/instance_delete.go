@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
@@ -84,7 +84,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceDelete, resources, nil, rmct, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceDelete, resources, nil, rmct, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

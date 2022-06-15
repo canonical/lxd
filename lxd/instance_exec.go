@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
@@ -644,7 +644,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			resources["containers"] = resources["instances"]
 		}
 
-		op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
+		op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassWebsocket, operationtype.CommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -711,7 +711,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.CommandExec, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
