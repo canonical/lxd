@@ -330,14 +330,11 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 		Name: typeName,
 	}
 
-	if IsColumnType(typeName) {
-		typeObj.Code = TypeColumn
-	} else if strings.HasPrefix(typeName, "[]") {
+	typeObj.Code = TypeColumn
+	if strings.HasPrefix(typeName, "[]") {
 		typeObj.Code = TypeSlice
 	} else if strings.HasPrefix(typeName, "map[") {
 		typeObj.Code = TypeMap
-	} else {
-		return nil, fmt.Errorf("Unsupported type for field %q", name.Name)
 	}
 
 	var config url.Values
