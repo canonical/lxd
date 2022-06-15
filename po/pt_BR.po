@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 19:27-0500\n"
+"POT-Creation-Date: 2022-06-20 19:41-0500\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -600,14 +600,6 @@ msgstr ""
 
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
-msgstr ""
-
-#: lxc/storage_volume.go:1527
-msgid "<pool>/<volume> <pool>/<volume>"
-msgstr ""
-
-#: lxc/storage_volume.go:328
-msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr ""
 
 #: lxc/remote.go:778 lxc/remote.go:833
@@ -6038,6 +6030,16 @@ msgstr ""
 #: lxc/storage_volume.go:1334
 #, fuzzy
 msgid "[<remote>:]<pool> [<filter>...]"
+msgstr "Criar perfis"
+
+#: lxc/storage_volume.go:1527
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
+msgstr "Criar perfis"
+
+#: lxc/storage_volume.go:328
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 msgstr "Criar perfis"
 
 #: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308

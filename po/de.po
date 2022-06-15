@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 19:27-0500\n"
+"POT-Creation-Date: 2022-06-20 19:41-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -603,22 +603,6 @@ msgstr "Ungültiges Ziel %s"
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
 msgstr ""
-
-#: lxc/storage_volume.go:1527
-#, fuzzy
-msgid "<pool>/<volume> <pool>/<volume>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
-
-#: lxc/storage_volume.go:328
-#, fuzzy
-msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
-msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/remote.go:778 lxc/remote.go:833
 msgid "<remote>"
@@ -6586,6 +6570,22 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
+#: lxc/storage_volume.go:1527
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
+#: lxc/storage_volume.go:328
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
+msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
+
 #: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308
 #: lxc/profile.go:361 lxc/profile.go:412 lxc/profile.go:830
 #, fuzzy
@@ -7168,6 +7168,13 @@ msgstr ""
 #: lxc/image.go:1101
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "<pool>/<volume> <pool>/<volume>"
+#~ msgstr ""
+#~ "Ändert den Laufzustand eines Containers in %s.\n"
+#~ "\n"
+#~ "lxd %s <Name>\n"
 
 #, fuzzy
 #~ msgid "[<remote>:] <fingerprint>"
