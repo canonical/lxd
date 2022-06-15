@@ -1359,18 +1359,6 @@ func (d *lxc) RegisterDevices() {
 	}
 }
 
-// deviceAdd loads a new device and calls its Add() function.
-func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	l.Debug("Adding device")
-
-	if instanceRunning && !dev.CanHotPlug() {
-		return fmt.Errorf("Device cannot be added when instance is running")
-	}
-
-	return dev.Add()
-}
-
 // deviceStart loads a new device and calls its Start() function.
 func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	configCopy := dev.Config()
