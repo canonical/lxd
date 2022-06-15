@@ -12,7 +12,7 @@ import (
 )
 
 // ZoneRetriever is a function which fetches a DNS zone.
-type ZoneRetriever func(name string) (*Zone, error)
+type ZoneRetriever func(name string, full bool) (*Zone, error)
 
 // Server represents a DNS server instance.
 type Server struct {
