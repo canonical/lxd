@@ -29,10 +29,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 	switch entityType {
 	case cluster.TypeImage:
-		var images []Image
+		var images []cluster.Image
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			images, err = tx.GetImages(ImageFilter{})
+			images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{})
 			if err != nil {
 				return err
 			}

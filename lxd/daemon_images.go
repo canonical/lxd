@@ -11,7 +11,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
@@ -144,7 +144,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Check if the image already exists in this project (partial hash match).
-	_, imgInfo, err := d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+	_, imgInfo, err := d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 	if err == nil {
 		// Check if the image is available locally or it's on another node.
 		nodeAddress, err := d.State().DB.Cluster.LocateImage(imgInfo.Fingerprint)
@@ -183,7 +183,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			var id int
-			id, imgInfo, err = d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+			id, imgInfo, err = d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
 				return nil, err
 			}
@@ -507,7 +507,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+		id, _, err := d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 		if err != nil {
 			return nil, err
 		}
