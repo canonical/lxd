@@ -507,6 +507,10 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 			return -1, err
 		}
 
+		if val == "max" {
+			return shared.GetMeminfo("SwapTotal")
+		}
+
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)

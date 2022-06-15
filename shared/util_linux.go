@@ -290,6 +290,10 @@ func intArrayToString(arr any) string {
 }
 
 func DeviceTotalMemory() (int64, error) {
+	return GetMeminfo("MemTotal")
+}
+
+func GetMeminfo(field string) (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
@@ -303,7 +307,7 @@ func DeviceTotalMemory() (int64, error) {
 		line := scan.Text()
 
 		// We only care about MemTotal
-		if !strings.HasPrefix(line, "MemTotal:") {
+		if !strings.HasPrefix(line, field+":") {
 			continue
 		}
 
@@ -320,7 +324,7 @@ func DeviceTotalMemory() (int64, error) {
 		return valueBytes, nil
 	}
 
-	return -1, fmt.Errorf("Couldn't find MemTotal")
+	return -1, fmt.Errorf("Couldn't find %s", field)
 }
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.

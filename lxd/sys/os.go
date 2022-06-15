@@ -3,11 +3,13 @@
 package sys
 
 import (
+	"io/ioutil"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mdlayher/vsock"
 
@@ -100,6 +102,7 @@ type OS struct {
 	ReleaseInfo   map[string]string
 	KernelVersion version.DottedVersion
 	Uname         *shared.Utsname
+	BootTime      time.Time
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -206,6 +209,31 @@ func (s *OS) Init() ([]db.Warning, error) {
 	kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
 	if err == nil {
 		s.KernelVersion = *kernelVersion
+	}
+
+	// Fill in the boot time.
+	out, err := ioutil.ReadFile("/proc/stat")
+	if err != nil {
+		return nil, err
+	}
+
+	btime := int64(0)
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.HasPrefix(line, "btime ") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		btime, err = strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		break
+	}
+
+	if btime > 0 {
+		s.BootTime = time.Unix(btime, 0)
 	}
 
 	return dbWarnings, nil
