@@ -113,6 +113,10 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 			return err
 		}
 
+		if len(newProfiles) != 1 {
+			return fmt.Errorf("Failed to find profile %q in project %q", name, projectName)
+		}
+
 		apiProfile, err := newProfiles[0].ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
