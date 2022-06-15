@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-08 16:21-0400\n"
+"POT-Creation-Date: 2022-06-15 11:18-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -579,14 +579,6 @@ msgstr "<alias> <target>"
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
 msgstr "<old alias> <new alias>"
-
-#: lxc/storage_volume.go:1527
-msgid "<pool>/<volume> <pool>/<volume>"
-msgstr "<pool>/<volume> <pool>/<volume>"
-
-#: lxc/storage_volume.go:328
-msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
-msgstr "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 
 #: lxc/remote.go:778 lxc/remote.go:833
 msgid "<remote>"
@@ -6165,6 +6157,16 @@ msgstr "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgid "[<remote>:]<pool> [<filter>...]"
 msgstr "[<remote>:] [<filter>...]"
 
+#: lxc/storage_volume.go:1527
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
+msgstr "[<remote>:]<profile> [<remote>:]<profile>"
+
+#: lxc/storage_volume.go:328
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
+msgstr "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
+
 #: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308
 #: lxc/profile.go:361 lxc/profile.go:412 lxc/profile.go:830
 msgid "[<remote>:]<profile>"
@@ -6761,6 +6763,9 @@ msgstr "y"
 #: lxc/image.go:1104
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "<pool>/<volume> <pool>/<volume>"
+#~ msgstr "<pool>/<volume> <pool>/<volume>"
 
 #~ msgid "[<remote>:] <fingerprint>"
 #~ msgstr "[<remote>:] <fingerprint>"

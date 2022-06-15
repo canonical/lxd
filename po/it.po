@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-08 16:21-0400\n"
+"POT-Creation-Date: 2022-06-15 11:18-0400\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -586,14 +586,6 @@ msgstr ""
 
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
-msgstr ""
-
-#: lxc/storage_volume.go:1527
-msgid "<pool>/<volume> <pool>/<volume>"
-msgstr ""
-
-#: lxc/storage_volume.go:328
-msgid "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr ""
 
 #: lxc/remote.go:778 lxc/remote.go:833
@@ -6015,6 +6007,16 @@ msgstr "Creazione del container in corso"
 #: lxc/storage_volume.go:1334
 #, fuzzy
 msgid "[<remote>:]<pool> [<filter>...]"
+msgstr "Creazione del container in corso"
+
+#: lxc/storage_volume.go:1527
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
+msgstr "Creazione del container in corso"
+
+#: lxc/storage_volume.go:328
+#, fuzzy
+msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 msgstr "Creazione del container in corso"
 
 #: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308
