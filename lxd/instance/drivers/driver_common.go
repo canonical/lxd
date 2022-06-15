@@ -1136,7 +1136,12 @@ func (d *common) deviceLoad(inst instance.Instance, deviceName string, rawConfig
 
 	dev, err := device.New(inst, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
 
-	// Return device even if error occurs as caller may still use device.
+	// If validation fails with unsupported device type then don't return the device for use.
+	if errors.Is(err, device.ErrUnsupportedDevType) {
+		return nil, err
+	}
+
+	// Return device even if error occurs as caller may still attempt to use device for stop and remove.
 	return dev, err
 }
 
