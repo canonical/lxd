@@ -191,16 +191,11 @@ func (e *streamListenerConnection) Reader(ctx context.Context, recvFunc EventHan
 		}
 	}()
 
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		}
+	if ctx.Err() != nil {
+		return
 	}
+
+	<-ctx.Done()
 }
 
 func (e *streamListenerConnection) WriteJSON(event any) error {
