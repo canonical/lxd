@@ -87,11 +87,7 @@ func (r *ProtocolLXD) GetInstanceNamesAllProjects(instanceType api.InstanceType)
 
 	names := map[string][]string{}
 	for _, instance := range instances {
-		if _, ok := names[instance.Project]; ok {
-			names[instance.Project] = append(names[instance.Project], instance.Name)
-		} else {
-			names[instance.Project] = []string{instance.Name}
-		}
+		names[instance.Project] = append(names[instance.Project], instance.Name)
 	}
 	return names, nil
 }
