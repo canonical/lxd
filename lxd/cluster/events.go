@@ -106,8 +106,6 @@ func (lc *eventListenerClient) SetEventMode(eventMode EventMode, eventHubPushCh 
 		lc.hubPushCancel()
 		lc.hubPushCancel = nil
 	}
-
-	return
 }
 
 var eventMode EventMode = EventModeFullMesh

@@ -136,8 +136,6 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			return nil
 		})
 	}
-
-	return
 }
 
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
@@ -492,7 +490,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		g.HeartbeatNodeHook(hbState, true, unavailableMembers)
 	}
 
-	duration := time.Now().Sub(startTime)
+	duration := time.Since(startTime)
 	if duration > heartbeatInterval {
 		logger.Warn("Heartbeat round duration greater than heartbeat interval", logger.Ctx{"duration": duration, "interval": heartbeatInterval})
 	}
