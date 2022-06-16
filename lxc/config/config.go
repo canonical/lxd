@@ -64,7 +64,7 @@ func (c *Config) CookiesPath(remote string) string {
 
 // ServerCertPath returns the path for the remote's server certificate
 func (c *Config) ServerCertPath(remote string) string {
-	if c.Remotes[remote].Global == true {
+	if c.Remotes[remote].Global {
 		return c.GlobalConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
 	}
 	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))

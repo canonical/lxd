@@ -222,7 +222,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 		// Handle project.
 		remote := conf.Remotes[server]
-		project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
+		project, err := c.findProject(d, c.flagProject)
 		if err != nil {
 			return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
 		}
