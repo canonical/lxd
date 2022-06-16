@@ -739,7 +739,7 @@ func (d Xtables) aclRulePortToACLMatch(direction string, portCriteria ...string)
 		if len(criterionParts) > 1 {
 			fieldParts = append(fieldParts, fmt.Sprintf("%s:%s", criterionParts[0], criterionParts[1]))
 		} else {
-			fieldParts = append(fieldParts, fmt.Sprintf("%s", criterionParts[0]))
+			fieldParts = append(fieldParts, criterionParts[0])
 		}
 	}
 
