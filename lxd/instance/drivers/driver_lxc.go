@@ -1936,7 +1936,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	for i, entry := range sortedDevices {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed start validation for device %q: %w", dev.Name(), err)
+			return "", nil, fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
