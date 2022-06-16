@@ -418,7 +418,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 
 	// Update the host files.
 	for _, network := range networks {
-		entries, _ := entries[network]
+		entries := entries[network]
 
 		// Skip networks we don't manage (or don't have DHCP enabled).
 		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.pid")) {
@@ -657,12 +657,7 @@ func pingIP(ip net.IP) bool {
 	}
 
 	_, err := shared.RunCommand(cmd, "-n", "-q", ip.String(), "-c", "1", "-W", "1")
-	if err != nil {
-		// Remote didn't answer.
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func pingSubnet(subnet *net.IPNet) bool {
@@ -831,7 +826,7 @@ func GetMACSlice(hwaddr string) []string {
 
 	if !strings.Contains(hwaddr, ":") {
 		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
-			hwaddr = fmt.Sprintln(fmt.Sprintf("%x", s))
+			hwaddr = fmt.Sprintf("%x\n", s)
 			var tuple string
 			for i, r := range hwaddr {
 				tuple = tuple + string(r)
@@ -1110,11 +1105,7 @@ func SubnetContainsIP(outerSubnet *net.IPNet, ip net.IP) bool {
 
 	ipSubnet.IP = ip
 
-	if SubnetContains(outerSubnet, ipSubnet) {
-		return true
-	}
-
-	return false
+	return SubnetContains(outerSubnet, ipSubnet)
 }
 
 // SubnetIterate iterates through each IP in a subnet calling a function for each IP.

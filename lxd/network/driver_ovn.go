@@ -487,10 +487,10 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			// Skip overlap checks if external subnet's protocol has anycast mode enabled on uplink.
 			if externalSubnet.IP.To4() == nil {
-				if ipv6UplinkAnycast == true {
+				if ipv6UplinkAnycast {
 					continue
 				}
-			} else if ipv4UplinkAnycast == true {
+			} else if ipv4UplinkAnycast {
 				continue
 			}
 
@@ -519,10 +519,10 @@ func (n *ovn) Validate(config map[string]string) error {
 
 			// Skip overlap checks if external subnet's protocol has anycast mode enabled on uplink.
 			if externalSNATSubnet.IP.To4() == nil {
-				if ipv6UplinkAnycast == true {
+				if ipv6UplinkAnycast {
 					continue
 				}
-			} else if ipv4UplinkAnycast == true {
+			} else if ipv4UplinkAnycast {
 				continue
 			}
 
@@ -2290,8 +2290,7 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 	// Add rules to drop inbound traffic arriving on external uplink port from peer connection addresses.
 	// This prevents source address spoofing of peer connection routes from the external network, which in
 	// turn allows us to use the peer connection's address set for referencing traffic from the peer in ACL.
-	var err error
-	err = n.forPeers(func(targetOVNNet *ovn) error {
+	err := n.forPeers(func(targetOVNNet *ovn) error {
 		if shared.Int64InSlice(targetOVNNet.ID(), excludePeers) {
 			return nil // Don't setup rules for this peer network connection.
 		}
@@ -2391,7 +2390,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	}
 
 	// Sort the nodes based on ID for stable priority generation.
-	sort.Sort(sort.IntSlice(nodeIDs))
+	sort.Ints(nodeIDs)
 
 	// Generate a random priority from the seed for each node until we find a match for our node ID.
 	// In this way the chassis priority for this node will be set to a per-node stable random value.
@@ -3104,10 +3103,10 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 
 		// Skip overlap checks if the external route's protocol has anycast mode enabled on the uplink.
 		if portExternalRoute.IP.To4() == nil {
-			if ipv6UplinkAnycast == true {
+			if ipv6UplinkAnycast {
 				continue
 			}
-		} else if ipv4UplinkAnycast == true {
+		} else if ipv4UplinkAnycast {
 			continue
 		}
 
