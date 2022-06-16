@@ -204,6 +204,4 @@ func reconfigureNetworkInterfaces() {
 			logger.Error("Unable to reconfigure network interface", logger.Ctx{"interface": iface.Name, "err": err})
 		}
 	}
-
-	return
 }
