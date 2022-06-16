@@ -439,11 +439,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 // genericVFSHasVolume is a generic HasVolume implementation for VFS-only drivers.
 func genericVFSHasVolume(vol Volume) bool {
-	if shared.PathExists(vol.MountPath()) {
-		return true
-	}
-
-	return false
+	return shared.PathExists(vol.MountPath())
 }
 
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.

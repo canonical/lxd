@@ -721,7 +721,7 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	var err error
 	roSubvols := []string{}
 	subvols, _ := BTRFSSubVolumesGet(path)
-	sort.Sort(sort.StringSlice(subvols))
+	sort.Strings(subvols)
 	for _, subvol := range subvols {
 		subvol = filepath.Join(path, subvol)
 

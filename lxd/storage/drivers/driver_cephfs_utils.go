@@ -9,11 +9,7 @@ import (
 // fsExists checks that the Ceph FS instance indeed exists.
 func (d *cephfs) fsExists(clusterName string, userName string, fsName string) bool {
 	_, err := shared.RunCommand("ceph", "--name", fmt.Sprintf("client.%s", userName), "--cluster", clusterName, "fs", "get", fsName)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // getConfig parses the Ceph configuration file and returns the list of monitors and secret key.
