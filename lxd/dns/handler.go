@@ -39,8 +39,8 @@ func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	// Check that it's AXFR.
-	if r.Question[0].Qtype != dns.TypeAXFR {
+	// Check that it's a supported request type.
+	if r.Question[0].Qtype != dns.TypeAXFR && r.Question[0].Qtype != dns.TypeIXFR && r.Question[0].Qtype != dns.TypeSOA {
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeNotImplemented)
 		err := w.WriteMsg(m)
@@ -69,7 +69,7 @@ func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = true
 
 	// Load the zone.
-	zone, err := d.server.zoneRetriever(name)
+	zone, err := d.server.zoneRetriever(name, r.Question[0].Qtype != dns.TypeSOA)
 	if err != nil {
 		// On failure, return NXDOMAIN.
 		m := new(dns.Msg)
