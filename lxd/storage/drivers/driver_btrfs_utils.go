@@ -147,7 +147,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 		if err != nil {
 			return err
 		}
-		sort.Sort(sort.StringSlice(subSubVols))
+		sort.Strings(subSubVols)
 
 		for _, subSubVol := range subSubVols {
 			subSubVolSnapPath := filepath.Join(dest, subSubVol)
@@ -388,7 +388,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(sort.StringSlice(subVolPaths))
+	sort.Strings(subVolPaths)
 
 	// Add any subvolumes under the root subvolume with relative path to root.
 	for _, subVolPath := range subVolPaths {
