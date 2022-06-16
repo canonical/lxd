@@ -1108,7 +1108,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 	}
 
 	return f, task.Hourly()
