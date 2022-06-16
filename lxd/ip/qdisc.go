@@ -18,11 +18,11 @@ func (qdisc *Qdisc) mainCmd() []string {
 		cmd = append(cmd, "handle", qdisc.Handle)
 	}
 
-	if qdisc.Root == true {
+	if qdisc.Root {
 		cmd = append(cmd, "root")
 	}
 
-	if qdisc.Ingress == true {
+	if qdisc.Ingress {
 		cmd = append(cmd, "ingress")
 	}
 	return cmd
@@ -41,11 +41,11 @@ func (qdisc *Qdisc) Add() error {
 // Delete deletes qdisc from node
 func (qdisc *Qdisc) Delete() error {
 	cmd := []string{"qdisc", "del", "dev", qdisc.Dev}
-	if qdisc.Root == true {
+	if qdisc.Root {
 		cmd = append(cmd, "root")
 	}
 
-	if qdisc.Ingress == true {
+	if qdisc.Ingress {
 		cmd = append(cmd, "ingress")
 	}
 
