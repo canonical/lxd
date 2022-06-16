@@ -32,7 +32,7 @@ func (a *ActionPolice) AddAction() []string {
 		result = append(result, "mtu", a.Mtu)
 	}
 
-	if a.Drop == true {
+	if a.Drop {
 		result = append(result, "drop")
 	}
 	return result
