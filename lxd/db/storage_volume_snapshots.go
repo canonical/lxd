@@ -208,7 +208,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 
 // Updates the expiry date of a storage volume snapshot.
 func storageVolumeSnapshotExpiryDateUpdate(tx *sql.Tx, volumeID int64, expiryDate time.Time) error {
-	stmt := fmt.Sprintf("UPDATE storage_volumes_snapshots SET expiry_date=? WHERE id=?")
+	stmt := "UPDATE storage_volumes_snapshots SET expiry_date=? WHERE id=?"
 	_, err := tx.Exec(stmt, expiryDate, volumeID)
 	return err
 }

@@ -201,7 +201,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	}
 
 	if n.IsOffline(offlineThreshold) {
-		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Now().Sub(n.Heartbeat), n.Heartbeat)
+		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	}
 
 	return &result, nil
@@ -523,10 +523,10 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	if pending {
 		// Include only pending nodes
-		sql += fmt.Sprintf("WHERE state=? ")
+		sql += "WHERE state=? "
 	} else {
 		// Include created and evacuated nodes
-		sql += fmt.Sprintf("WHERE state!=? ")
+		sql += "WHERE state!=? "
 	}
 
 	args = append([]any{ClusterMemberStatePending}, args...)
@@ -1147,7 +1147,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 		}
 
 		count := created + pending
-		if containers == -1 || count < containers || (isDefaultArch == true && isDefaultArchChosen == false) {
+		if containers == -1 || count < containers || (isDefaultArch && !isDefaultArchChosen) {
 			containers = count
 			name = node.Name
 			if isDefaultArch {

@@ -523,7 +523,7 @@ func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error
 
 // UpdateInstanceConfig inserts/updates/deletes the provided keys
 func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error {
-	insertSQL := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
+	insertSQL := "INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES"
 	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
 	return c.configUpdate(id, values, insertSQL, deleteSQL)
 }
@@ -587,7 +587,7 @@ func (c *ClusterTx) DeleteInstanceConfigKey(id int64, key string) error {
 // UpdateInstancePowerState sets the the power state of the container with the given ID.
 func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	// Set the new value
-	str := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
+	str := "INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
@@ -878,7 +878,7 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 // the instance with the given ID.
 func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
 	expiryDate time.Time) error {
-	str := fmt.Sprintf("UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
+	str := "UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?"
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err

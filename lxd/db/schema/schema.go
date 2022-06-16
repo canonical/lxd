@@ -60,7 +60,7 @@ func NewFromMap(versionsToUpdates map[int]Update) *Schema {
 	}
 
 	// Sort the versions,
-	sort.Sort(sort.IntSlice(versions))
+	sort.Ints(versions)
 
 	// Build the updates slice.
 	updates := []Update{}
