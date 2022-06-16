@@ -331,11 +331,11 @@ func (m IdmapSet) Swap(i, j int) {
 
 func (m IdmapSet) Less(i, j int) bool {
 	if m.Idmap[i].Isuid != m.Idmap[j].Isuid {
-		return m.Idmap[i].Isuid == true
+		return m.Idmap[i].Isuid
 	}
 
 	if m.Idmap[i].Isgid != m.Idmap[j].Isgid {
-		return m.Idmap[i].Isgid == true
+		return m.Idmap[i].Isgid
 	}
 
 	return m.Idmap[i].Nsid < m.Idmap[j].Nsid
