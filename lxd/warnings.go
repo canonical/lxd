@@ -434,7 +434,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to prune resolved warnings", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done pruning resolved warnings")
 	}
 
