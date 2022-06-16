@@ -360,7 +360,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					devNICMAC, _ = net.ParseMAC(inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)])
 				}
 
-				if ourNICMAC != nil && devNICMAC != nil && bytes.Compare(ourNICMAC, devNICMAC) == 0 {
+				if ourNICMAC != nil && devNICMAC != nil && bytes.Equal(ourNICMAC, devNICMAC) {
 					return fmt.Errorf("MAC address %q already defined on another NIC", devNICMAC.String())
 				}
 
