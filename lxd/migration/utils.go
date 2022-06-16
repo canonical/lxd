@@ -22,19 +22,19 @@ func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 		return features
 	}
 	if m.RsyncFeatures != nil {
-		if m.RsyncFeatures.Xattrs != nil && *m.RsyncFeatures.Xattrs == true {
+		if m.RsyncFeatures.Xattrs != nil && *m.RsyncFeatures.Xattrs {
 			features = append(features, "xattrs")
 		}
 
-		if m.RsyncFeatures.Delete != nil && *m.RsyncFeatures.Delete == true {
+		if m.RsyncFeatures.Delete != nil && *m.RsyncFeatures.Delete {
 			features = append(features, "delete")
 		}
 
-		if m.RsyncFeatures.Compress != nil && *m.RsyncFeatures.Compress == true {
+		if m.RsyncFeatures.Compress != nil && *m.RsyncFeatures.Compress {
 			features = append(features, "compress")
 		}
 
-		if m.RsyncFeatures.Bidirectional != nil && *m.RsyncFeatures.Bidirectional == true {
+		if m.RsyncFeatures.Bidirectional != nil && *m.RsyncFeatures.Bidirectional {
 			features = append(features, "bidirectional")
 		}
 	}
@@ -50,11 +50,11 @@ func (m *MigrationHeader) GetZfsFeaturesSlice() []string {
 	}
 
 	if m.ZfsFeatures != nil {
-		if m.ZfsFeatures.Compress != nil && *m.ZfsFeatures.Compress == true {
+		if m.ZfsFeatures.Compress != nil && *m.ZfsFeatures.Compress {
 			features = append(features, "compress")
 		}
 
-		if m.ZfsFeatures.MigrationHeader != nil && *m.ZfsFeatures.MigrationHeader == true {
+		if m.ZfsFeatures.MigrationHeader != nil && *m.ZfsFeatures.MigrationHeader {
 			features = append(features, ZFSFeatureMigrationHeader)
 		}
 	}
@@ -70,15 +70,15 @@ func (m *MigrationHeader) GetBtrfsFeaturesSlice() []string {
 	}
 
 	if m.BtrfsFeatures != nil {
-		if m.BtrfsFeatures.MigrationHeader != nil && *m.BtrfsFeatures.MigrationHeader == true {
+		if m.BtrfsFeatures.MigrationHeader != nil && *m.BtrfsFeatures.MigrationHeader {
 			features = append(features, BTRFSFeatureMigrationHeader)
 		}
 
-		if m.BtrfsFeatures.HeaderSubvolumes != nil && *m.BtrfsFeatures.HeaderSubvolumes == true {
+		if m.BtrfsFeatures.HeaderSubvolumes != nil && *m.BtrfsFeatures.HeaderSubvolumes {
 			features = append(features, BTRFSFeatureSubvolumes)
 		}
 
-		if m.BtrfsFeatures.HeaderSubvolumeUuids != nil && *m.BtrfsFeatures.HeaderSubvolumeUuids == true {
+		if m.BtrfsFeatures.HeaderSubvolumeUuids != nil && *m.BtrfsFeatures.HeaderSubvolumeUuids {
 			features = append(features, BTRFSFeatureSubvolumeUUIDs)
 		}
 	}
