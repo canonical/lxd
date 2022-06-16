@@ -30,9 +30,9 @@ func GetArchitectures() ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, personality := range personalities {
-		architectures = append(architectures, personality)
-	}
+
+	architectures = append(architectures, personalities...)
+
 	return architectures, nil
 }
 
