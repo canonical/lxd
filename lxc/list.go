@@ -447,7 +447,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if c.global.flagProject != "" && c.flagAllProjects == true {
+	if c.global.flagProject != "" && c.flagAllProjects {
 		return fmt.Errorf(i18n.G("Can't specify --project with --all-projects"))
 	}
 

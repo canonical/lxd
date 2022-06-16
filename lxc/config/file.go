@@ -98,7 +98,7 @@ func (c *Config) SaveConfig(path string) error {
 
 	// Remove the global remotes
 	for k, v := range c.Remotes {
-		if v.Global == true {
+		if v.Global {
 			delete(conf.Remotes, k)
 		}
 	}

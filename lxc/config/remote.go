@@ -189,7 +189,7 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 }
 
 func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
-	remote, _ := c.Remotes[name]
+	remote := c.Remotes[name]
 	args := lxd.ConnectionArgs{
 		UserAgent: c.UserAgent,
 		AuthType:  remote.AuthType,
