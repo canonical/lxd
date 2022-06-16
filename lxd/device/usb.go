@@ -37,11 +37,7 @@ type usb struct {
 // isRequired indicates whether the device config requires this device to start OK.
 func (d *usb) isRequired() bool {
 	// Defaults to not required.
-	if shared.IsTrue(d.config["required"]) {
-		return true
-	}
-
-	return false
+	return shared.IsTrue(d.config["required"])
 }
 
 // validateConfig checks the supplied config for correctness.
