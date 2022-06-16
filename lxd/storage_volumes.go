@@ -221,9 +221,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	for _, volume := range custVolumes {
-		volumes = append(volumes, volume)
-	}
+	volumes = append(volumes, custVolumes...)
 
 	// We exclude volumes of type image, since those are special: they are stored using the storage_volumes
 	// table, but are effectively a cache which is not tied to projects, so we always link the to the default

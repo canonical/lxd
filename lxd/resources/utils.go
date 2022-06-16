@@ -69,11 +69,7 @@ func int64InSlice(key int64, list []int64) bool {
 
 func sysfsExists(path string) bool {
 	_, err := os.Lstat(path)
-	if err == nil {
-		return true
-	}
-
-	return false
+	return err == nil
 }
 
 func sysfsNumaNode(path string) (uint64, error) {

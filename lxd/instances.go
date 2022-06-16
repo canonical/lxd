@@ -299,8 +299,6 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			break
 		}
 	}
-
-	return
 }
 
 type instanceStopList []instance.Instance

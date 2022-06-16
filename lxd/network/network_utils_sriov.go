@@ -240,7 +240,7 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 
 			// Skip VFs if they do not relate to the same device and port as the parent PF.
 			// Some card vendors change the device ID for each port.
-			if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
+			if !bytes.Equal(pfDevPort, vfDevPort) || !bytes.Equal(pfDevID, vfDevID) {
 				continue
 			}
 

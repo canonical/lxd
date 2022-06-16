@@ -609,9 +609,7 @@ func (c *Cluster) storagePools(where string, args ...any) ([]string, error) {
 
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)
-		for _, arg := range args {
-			inargs = append(inargs, arg)
-		}
+		inargs = append(inargs, args...)
 	}
 
 	result, err := queryScan(c, stmt, inargs, outargs)

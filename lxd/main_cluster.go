@@ -91,13 +91,10 @@ func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
 	switch c.Role {
 	case "voter":
 		role = db.RaftVoter
-		break
 	case "stand-by":
 		role = db.RaftStandBy
-		break
 	case "spare":
 		role = db.RaftSpare
-		break
 	default:
 		return nil, fmt.Errorf("unknown raft role: %q", c.Role)
 	}

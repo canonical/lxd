@@ -1566,11 +1566,7 @@ func (d *qemu) Start(stateful bool) error {
 }
 
 func (d *qemu) architectureSupportsUEFI() bool {
-	if shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
-		return true
-	}
-
-	return false
+	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
 
 func (d *qemu) setupNvram() error {

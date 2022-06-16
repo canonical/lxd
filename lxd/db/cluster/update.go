@@ -3129,7 +3129,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	stmts = fmt.Sprintf(`
+	stmts = `
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -3440,7 +3440,7 @@ CREATE INDEX containers_project_id_and_node_id_and_name_idx ON containers (proje
 CREATE INDEX images_project_id_idx ON images (project_id);
 CREATE INDEX images_aliases_project_id_idx ON images_aliases (project_id);
 CREATE INDEX profiles_project_id_idx ON profiles (project_id);
-`)
+`
 	_, err = tx.ExecContext(ctx, stmts)
 	if err != nil {
 		return fmt.Errorf("Failed to add project_id column: %w", err)
@@ -3462,7 +3462,7 @@ CREATE VIEW projects_used_by_ref (name, value) AS
 	}
 
 	// Create a view to easily query all profiles used by a certain container
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW containers_profiles_ref (project, node, name, value) AS
    SELECT projects.name, nodes.name, containers.name, profiles.name
      FROM containers_profiles
@@ -3471,28 +3471,28 @@ CREATE VIEW containers_profiles_ref (project, node, name, value) AS
        JOIN projects ON projects.id=containers.project_id
        JOIN nodes ON nodes.id=containers.node_id
      ORDER BY containers_profiles.apply_order
-`)
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to containers_profiles_ref view: %w", err)
 	}
 
 	// Create a view to easily query the config of a certain container.
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW containers_config_ref (project, node, name, key, value) AS
    SELECT projects.name, nodes.name, containers.name, containers_config.key, containers_config.value
      FROM containers_config
        JOIN containers ON containers.id=containers_config.container_id
        JOIN projects ON projects.id=containers.project_id
        JOIN nodes ON nodes.id=containers.node_id
-`)
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to containers_config_ref view: %w", err)
 	}
 
 	// Create a view to easily query the devices of a certain container.
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW containers_devices_ref (project, node, name, device, type, key, value) AS
    SELECT projects.name, nodes.name, containers.name,
           containers_devices.name, containers_devices.type,
@@ -3502,27 +3502,27 @@ CREATE VIEW containers_devices_ref (project, node, name, device, type, key, valu
      JOIN containers ON containers.id=containers_devices.container_id
      JOIN projects ON projects.id=containers.project_id
      JOIN nodes ON nodes.id=containers.node_id
-`)
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to containers_devices_ref view: %w", err)
 	}
 
 	// Create a view to easily query the config of a certain profile.
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW profiles_config_ref (project, name, key, value) AS
    SELECT projects.name, profiles.name, profiles_config.key, profiles_config.value
      FROM profiles_config
      JOIN profiles ON profiles.id=profiles_config.profile_id
      JOIN projects ON projects.id=profiles.project_id
-`)
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to profiles_config_ref view: %w", err)
 	}
 
 	// Create a view to easily query the devices of a certain profile.
-	stmt = fmt.Sprintf(`
+	stmt = `
 CREATE VIEW profiles_devices_ref (project, name, device, type, key, value) AS
    SELECT projects.name, profiles.name,
           profiles_devices.name, profiles_devices.type,
@@ -3531,7 +3531,7 @@ CREATE VIEW profiles_devices_ref (project, name, device, type, key, value) AS
      LEFT OUTER JOIN profiles_devices_config ON profiles_devices_config.profile_device_id=profiles_devices.id
      JOIN profiles ON profiles.id=profiles_devices.profile_id
      JOIN projects ON projects.id=profiles.project_id
-`)
+`
 	_, err = tx.Exec(stmt)
 	if err != nil {
 		return fmt.Errorf("Failed to profiles_devices_ref view: %w", err)

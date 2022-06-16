@@ -190,9 +190,7 @@ func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
 		args = append(args, arg)
 	}
 
-	for _, arg := range extra {
-		args = append(args, arg)
-	}
+	args = append(args, extra...)
 
 	return strings.Join(args, ", ")
 }

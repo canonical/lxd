@@ -1045,7 +1045,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		offerHeader.SnapshotNames = snapshotNames
 	}
 
-	if offerHeader.GetPredump() == true {
+	if offerHeader.GetPredump() {
 		// If the other side wants pre-dump and if this side supports it, let's use it.
 		respHeader.Predump = proto.Bool(true)
 	} else {

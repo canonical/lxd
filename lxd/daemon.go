@@ -427,7 +427,6 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 		})
 	herr.(*httpbakery.Error).Info.CookieNameSuffix = "auth"
 	httpbakery.WriteError(ctx, w, herr)
-	return
 }
 
 // State creates a new State instance linked to our internal db and os.
@@ -2078,8 +2077,6 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 
 		logger.Info("Partial heartbeat received", logger.Ctx{"local": localAddress})
 	}
-
-	return
 }
 
 // nodeRefreshTask is run when a full state heartbeat is sent (on the leader) or received (by a non-leader member).

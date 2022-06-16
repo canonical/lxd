@@ -172,7 +172,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 // UpdateWarningStatus updates the status of the warning with the given UUID.
 func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error {
-	str := fmt.Sprintf("UPDATE warnings SET status=?, updated_date=? WHERE uuid=?")
+	str := "UPDATE warnings SET status=?, updated_date=? WHERE uuid=?"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err
@@ -189,7 +189,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 
 // UpdateWarningState updates the warning message and status with the given ID.
 func (c *ClusterTx) UpdateWarningState(UUID string, message string, status WarningStatus) error {
-	str := fmt.Sprintf("UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?")
+	str := "UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?"
 	stmt, err := c.tx.Prepare(str)
 	if err != nil {
 		return err

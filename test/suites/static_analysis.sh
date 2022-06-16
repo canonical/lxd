@@ -28,7 +28,7 @@ test_static_analysis() {
 
     # golangci-lint
     if command -v golangci-lint >/dev/null 2>&1; then
-      golangci-lint run --disable-all -E deadcode -E errcheck
+      golangci-lint run --disable-all -E deadcode -E errcheck -E gosimple
     else
       echo "golangci-lint not found, some go linters will not run"
     fi

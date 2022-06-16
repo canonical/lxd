@@ -1915,9 +1915,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 						return nil, err
 					}
 
-					for _, dev := range subDevices {
-						devices = append(devices, dev)
-					}
+					devices = append(devices, subDevices...)
 				}
 			} else {
 				continue

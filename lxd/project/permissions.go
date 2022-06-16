@@ -816,15 +816,12 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 
 // Return true if a low-level VM option is forbidden.
 func isVMLowLevelOptionForbidden(key string) bool {
-	if shared.StringInSlice(key, []string{
+	return shared.StringInSlice(key, []string{
 		"boot.host_shutdown_timeout",
 		"limits.memory.hugepages",
 		"raw.idmap",
 		"raw.qemu",
-	}) {
-		return true
-	}
-	return false
+	})
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or

@@ -68,11 +68,7 @@ func (d *deviceCommon) Register() error {
 // Returns true if instance type is container, as majority of devices can be started/stopped when
 // instance is running. If instance type is VM then returns false as this is not currently supported.
 func (d *deviceCommon) CanHotPlug() bool {
-	if d.inst.Type() == instancetype.Container {
-		return true
-	}
-
-	return false
+	return d.inst.Type() == instancetype.Container
 }
 
 // CanMigrate returns whether the device can be migrated to any other cluster member.
