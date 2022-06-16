@@ -761,12 +761,10 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		return nil, nil, fmt.Errorf("Error updating backup file: %w", err)
 	}
 
-	var postHook func(instance.Instance) error
-
 	// Create a post hook function that will use the instance (that will be created) to setup a new volume
 	// containing the instance's root disk device's config so that the driver's post hook function can access
 	// that config to perform any post instance creation setup.
-	postHook = func(inst instance.Instance) error {
+	postHook := func(inst instance.Instance) error {
 		l.Debug("CreateInstanceFromBackup post hook started")
 		defer l.Debug("CreateInstanceFromBackup post hook finished")
 
@@ -1272,7 +1270,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
+			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 
 			// Generate source snapshot volumes list.
 			srcSnapVolumeName := drivers.GetSnapshotVolumeName(srcVolName, srcSnap.Name)
