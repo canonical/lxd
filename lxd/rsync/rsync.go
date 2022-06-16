@@ -132,7 +132,7 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		args = append(args, "--bwlimit", bwlimit)
 	}
 
-	if features != nil && len(features) > 0 {
+	if len(features) > 0 {
 		args = append(args, rsyncFeatureArgs(features)...)
 	}
 
@@ -270,7 +270,7 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 		"--sparse",
 	}
 
-	if features != nil && len(features) > 0 {
+	if len(features) > 0 {
 		args = append(args, rsyncFeatureArgs(features)...)
 	}
 
