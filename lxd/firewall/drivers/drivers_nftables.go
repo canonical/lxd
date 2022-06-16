@@ -737,7 +737,7 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 			return "", true, nil // Rule is not appropriate for ipVersion.
 		}
 
-		if partial && isPartialRule == false {
+		if partial && !isPartialRule {
 			isPartialRule = true
 		}
 
@@ -754,7 +754,7 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 			return "", partial, nil // Rule is not appropriate for ipVersion.
 		}
 
-		if partial && isPartialRule == false {
+		if partial && !isPartialRule {
 			isPartialRule = true
 		}
 
@@ -906,7 +906,7 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 		if len(criterionParts) > 1 {
 			fieldParts = append(fieldParts, fmt.Sprintf("%s-%s", criterionParts[0], criterionParts[1]))
 		} else {
-			fieldParts = append(fieldParts, fmt.Sprintf("%s", criterionParts[0]))
+			fieldParts = append(fieldParts, criterionParts[0])
 		}
 	}
 
