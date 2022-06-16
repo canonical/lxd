@@ -227,9 +227,8 @@ func networkZoneConfig(tx *ClusterTx, id int64, zone *api.NetworkZone) error {
 // CreateNetworkZone creates a new Network zone.
 func (c *Cluster) CreateNetworkZone(projectName string, info *api.NetworkZonesPost) (int64, error) {
 	var id int64
-	var err error
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Insert a new Network zone record.
 		result, err := tx.tx.Exec(`
 			INSERT INTO networks_zones (project_id, name, description)

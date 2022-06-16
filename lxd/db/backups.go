@@ -171,7 +171,7 @@ func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 			optimizedStorageInt = 1
 		}
 
-		str := fmt.Sprintf("INSERT INTO instances_backups (instance_id, name, creation_date, expiry_date, container_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)")
+		str := "INSERT INTO instances_backups (instance_id, name, creation_date, expiry_date, container_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)"
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
 			return err
@@ -214,7 +214,7 @@ func (c *Cluster) DeleteInstanceBackup(name string) error {
 // to the new one.
 func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		str := fmt.Sprintf("UPDATE instances_backups SET name = ? WHERE name = ?")
+		str := "UPDATE instances_backups SET name = ? WHERE name = ?"
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
 			return err
@@ -364,7 +364,7 @@ func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) er
 			optimizedStorageInt = 1
 		}
 
-		str := fmt.Sprintf("INSERT INTO storage_volumes_backups (storage_volume_id, name, creation_date, expiry_date, volume_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)")
+		str := "INSERT INTO storage_volumes_backups (storage_volume_id, name, creation_date, expiry_date, volume_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)"
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
 			return err
@@ -483,7 +483,7 @@ WHERE backups.id=?
 // to the new one.
 func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		str := fmt.Sprintf("UPDATE storage_volumes_backups SET name = ? WHERE name = ?")
+		str := "UPDATE storage_volumes_backups SET name = ? WHERE name = ?"
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
 			return err

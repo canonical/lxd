@@ -507,9 +507,7 @@ func (c *Cluster) networks(project string, where string, args ...any) ([]string,
 
 	if where != "" {
 		q += fmt.Sprintf(" AND %s", where)
-		for _, arg := range args {
-			inargs = append(inargs, arg)
-		}
+		inargs = append(inargs, args...)
 	}
 
 	var name string
@@ -851,7 +849,7 @@ func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 }
 
 func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
-	str := fmt.Sprintf("INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)")
+	str := "INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err
