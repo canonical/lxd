@@ -189,7 +189,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if (deviceStaticFileName == DHCP.StaticFileName || bytes.Compare(mac, DHCP.MAC) == 0) && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if (deviceStaticFileName == DHCP.StaticFileName || bytes.Equal(mac, DHCP.MAC)) && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
@@ -376,9 +376,9 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 	}
 
 	// If MAC or either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
-	macChanged := bytes.Compare(opts.HostMAC, t.currentDHCPMAC) != 0
-	ipv4Changed := (t.allocatedIPv4 != nil && bytes.Compare(t.currentDHCPv4.IP, t.allocatedIPv4.To4()) != 0)
-	ipv6Changed := (t.allocatedIPv6 != nil && bytes.Compare(t.currentDHCPv6.IP, t.allocatedIPv6.To16()) != 0)
+	macChanged := !bytes.Equal(opts.HostMAC, t.currentDHCPMAC)
+	ipv4Changed := (t.allocatedIPv4 != nil && !bytes.Equal(t.currentDHCPv4.IP, t.allocatedIPv4.To4()))
+	ipv6Changed := (t.allocatedIPv6 != nil && !bytes.Equal(t.currentDHCPv6.IP, t.allocatedIPv6.To16()))
 
 	if macChanged || ipv4Changed || ipv6Changed {
 		var IPv4Str, IPv6Str string
