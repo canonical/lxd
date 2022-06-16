@@ -140,7 +140,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Remount bind mounts in readonly mode if requested
-	if readonly == true && flags&unix.MS_BIND == unix.MS_BIND {
+	if readonly && flags&unix.MS_BIND == unix.MS_BIND {
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
 		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
 		if err != nil {
@@ -183,7 +183,7 @@ func diskCephRbdMap(clusterName string, userName string, poolName string, volume
 		"--cluster", clusterName,
 		"--pool", poolName,
 		"map",
-		fmt.Sprintf("%s", volumeName))
+		volumeName)
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +198,7 @@ func diskCephRbdMap(clusterName string, userName string, poolName string, volume
 }
 
 func diskCephRbdUnmap(deviceName string) error {
-	unmapImageName := fmt.Sprintf("%s", deviceName)
+	unmapImageName := deviceName
 	busyCount := 0
 again:
 	_, err := shared.RunCommand(

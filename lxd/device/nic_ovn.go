@@ -181,7 +181,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// Apply network level config options to device config before validation.
-	d.config["mtu"] = fmt.Sprintf("%s", netConfig["bridge.mtu"])
+	d.config["mtu"] = netConfig["bridge.mtu"]
 
 	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 

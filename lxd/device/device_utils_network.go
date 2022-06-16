@@ -58,7 +58,7 @@ func NetworkGetDevMAC(devName string) (string, error) {
 		return "", err
 	}
 
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+	return strings.TrimSpace(string(content)), nil
 }
 
 // NetworkSetDevMAC sets the MAC setting for a named network device if different from current.
@@ -921,7 +921,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 
 	// Handle IPv4 address.
 	if address.To4() != nil {
-		timeout := deadline.Sub(time.Now())
+		timeout := time.Until(deadline)
 		arping.SetTimeout(timeout)
 		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
 		if err != nil {
