@@ -1105,7 +1105,7 @@ func (d *qemu) Start(stateful bool) error {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Failed start validation for device %q: %w", dev.Name(), err)
+			return fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
