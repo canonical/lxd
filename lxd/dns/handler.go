@@ -125,8 +125,6 @@ func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if err != nil {
 		logger.Error("Unable to write message", logger.Ctx{"err": err})
 	}
-
-	return
 }
 
 func (d *dnsHandler) isAllowed(zone api.NetworkZone, ip string, tsig *dns.TSIG, tsigStatus bool) bool {

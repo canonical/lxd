@@ -498,7 +498,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to create scheduled container snapshots", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done creating scheduled container snapshots")
 	}
 
@@ -618,7 +618,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to remove expired instance snapshots", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done pruning expired instance snapshots")
 	}
 

@@ -199,7 +199,7 @@ SELECT fingerprint
   JOIN projects ON projects.id = images.project_id
  WHERE projects.name = ?
 `
-	if public == true {
+	if public {
 		q += " AND public=1"
 	}
 

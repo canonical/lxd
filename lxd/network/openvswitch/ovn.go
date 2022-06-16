@@ -1693,8 +1693,8 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			)
 		} else {
 			args = append(args,
-				fmt.Sprintf("%s", ipToString(r.ListenAddress)),
-				fmt.Sprintf("%s", ipToString(r.TargetAddress)),
+				ipToString(r.ListenAddress),
+				ipToString(r.TargetAddress),
 			)
 		}
 	}

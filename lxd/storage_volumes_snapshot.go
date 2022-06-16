@@ -1082,7 +1082,7 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 			logger.Error("Failed to expire backups", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done pruning expired custom volume snapshots")
 	}
 
@@ -1265,7 +1265,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to create scheduled volume snapshots", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done creating scheduled volume snapshots")
 	}
 

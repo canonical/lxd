@@ -27,12 +27,12 @@ func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 		return nil, err
 	}
 
-	q := fmt.Sprintf(`
+	q := `
 SELECT profiles.name
  FROM profiles
  JOIN projects ON projects.id = profiles.project_id
 WHERE projects.name = ?
-`)
+`
 	inargs := []any{project}
 	var name string
 	outfmt := []any{name}

@@ -21,7 +21,7 @@ const (
 // Event creates the lifecycle event for an action on a cluster member.
 func (a ClusterMemberAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("cluster-member-%s", a)
-	u := fmt.Sprintf("/1.0/cluster/members")
+	u := "/1.0/cluster/members"
 	if name != "" {
 		u = fmt.Sprintf("%s/%s", u, url.PathEscape(name))
 	}

@@ -105,9 +105,5 @@ func (e *EventListener) Wait() error {
 
 // IsActive returns true if this listener is still connected, false otherwise.
 func (e *EventListener) IsActive() bool {
-	if e.ctx.Err() == nil {
-		return true
-	}
-
-	return false
+	return e.ctx.Err() == nil
 }

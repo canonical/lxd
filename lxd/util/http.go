@@ -182,7 +182,7 @@ func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certifi
 
 	// Check whether client certificate is in trust store.
 	for fingerprint, v := range trustedCerts {
-		if bytes.Compare(cert.Raw, v.Raw) == 0 {
+		if bytes.Equal(cert.Raw, v.Raw) {
 			logger.Debug("Matched trusted cert", logger.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
 			return true, fingerprint
 		}

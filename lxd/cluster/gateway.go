@@ -58,7 +58,7 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 		options:     o,
 		ctx:         ctx,
 		cancel:      cancel,
-		upgradeCh:   make(chan struct{}, 0),
+		upgradeCh:   make(chan struct{}),
 		acceptCh:    make(chan net.Conn),
 		store:       &dqliteNodeStore{},
 	}
@@ -733,7 +733,7 @@ func (g *Gateway) NetworkUpdateCert(cert *shared.CertInfo) {
 // the first (and leader) node of a new LXD cluster.
 func (g *Gateway) init(bootstrap bool) error {
 	logger.Debugf("Initializing database gateway")
-	g.stopCh = make(chan struct{}, 0)
+	g.stopCh = make(chan struct{})
 
 	info, err := loadInfo(g.db, g.networkCert)
 	if err != nil {
@@ -1114,8 +1114,8 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 		}
 	}
 
-	remoteToLocal := make(chan error, 0)
-	localToRemote := make(chan error, 0)
+	remoteToLocal := make(chan error)
+	localToRemote := make(chan error)
 
 	// Start copying data back and forth until either the client or the
 	// server get closed or hit an error.

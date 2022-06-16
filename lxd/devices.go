@@ -91,7 +91,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 	}
 
 	chCPU := make(chan []string, 1)
-	chNetwork := make(chan []string, 0)
+	chNetwork := make(chan []string)
 	chUSB := make(chan device.USBEvent)
 	chUnix := make(chan device.UnixHotplugEvent)
 
@@ -522,8 +522,6 @@ func deviceNetworkPriority(s *state.State, netif string) {
 
 		_ = cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif, networkInt))
 	}
-
-	return
 }
 
 func deviceEventListener(s *state.State) {

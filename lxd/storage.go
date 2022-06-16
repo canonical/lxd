@@ -230,6 +230,4 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	storagePoolUsedDriversCacheVal.Store(usedDrivers)
 	storagePoolSupportedDriversCacheVal.Store(supportedDrivers)
 	storagePoolDriversCacheLock.Unlock()
-
-	return
 }

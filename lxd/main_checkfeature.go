@@ -647,11 +647,7 @@ func canUseShiftfs() bool {
 	}
 
 	err = unix.Mount(shared.VarPath(), shared.VarPath(), "shiftfs", 0, "mark")
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // We're only using this during daemon startup to give an indication whether

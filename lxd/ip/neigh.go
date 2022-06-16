@@ -73,7 +73,7 @@ func (n *Neigh) Show() ([]Neigh, error) {
 
 		// Check neighbour matches desired MAC address if specified.
 		if n.MAC != nil {
-			if bytes.Compare(n.MAC, mac) != 0 {
+			if !bytes.Equal(n.MAC, mac) {
 				continue
 			}
 		}
