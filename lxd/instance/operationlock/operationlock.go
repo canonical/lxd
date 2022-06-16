@@ -86,8 +86,8 @@ func Create(projectName string, instanceName string, action Action, createReusua
 	op.instanceName = instanceName
 	op.action = action
 	op.reusable = createReusuable
-	op.chanDone = make(chan error, 0)
-	op.chanReset = make(chan time.Duration, 0)
+	op.chanDone = make(chan error)
+	op.chanReset = make(chan time.Duration)
 
 	instanceOperations[opKey] = op
 	logger.Debug("Instance operation lock created", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})

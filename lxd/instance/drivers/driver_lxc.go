@@ -3475,7 +3475,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	// If the container wasn't running but was stateful, should we restore it as running?
-	if stateful == true {
+	if stateful {
 		if !shared.PathExists(d.StatePath()) {
 			err = fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
 			op.Done(err)
@@ -5503,7 +5503,6 @@ func (d *lxc) stopForkfile() {
 
 	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
 	_ = unix.Kill(int(pid), unix.SIGINT)
-	return
 }
 
 // Console attaches to the instance console.
