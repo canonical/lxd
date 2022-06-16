@@ -203,7 +203,7 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 	// Wipe the container entry if anything fails
 	success := false
 	defer func() {
-		if success == true {
+		if success {
 			return
 		}
 
