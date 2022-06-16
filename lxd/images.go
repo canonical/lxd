@@ -1476,7 +1476,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to update images", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done updating images")
 	}
 
@@ -2035,7 +2035,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to expire images", logger.Ctx{"err": err})
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done pruning expired images")
 	}
 
@@ -2148,7 +2148,7 @@ func pruneLeftoverImages(d *Daemon) {
 		return
 	}
 
-	op.Wait(d.shutdownCtx)
+	_, _ = op.Wait(d.shutdownCtx)
 	logger.Infof("Done pruning leftover image files")
 }
 
@@ -3920,7 +3920,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		op.Wait(ctx)
+		_, _ = op.Wait(ctx)
 		logger.Info("Done synchronizing images across the cluster")
 	}
 

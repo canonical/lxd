@@ -294,7 +294,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ServerClustered:        clustered,
 		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
-		Firewall:               fmt.Sprintf("%s", d.firewall),
+		Firewall:               d.firewall.String(),
 	}
 
 	env.KernelFeatures = map[string]string{
