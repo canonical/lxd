@@ -17,7 +17,7 @@ func BridgeVLANFilteringStatus(interfaceName string) (string, error) {
 		return "", fmt.Errorf("Failed getting bridge VLAN status for %q: %w", interfaceName, err)
 	}
 
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+	return strings.TrimSpace(string(content)), nil
 }
 
 // BridgeVLANFilterSetStatus sets the status of VLAN filtering on a bridge interface.
@@ -37,7 +37,7 @@ func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
 		return "", fmt.Errorf("Failed getting bridge VLAN default PVID for %q: %w", interfaceName, err)
 	}
 
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+	return strings.TrimSpace(string(content)), nil
 }
 
 // BridgeVLANSetDefaultPVID sets the VLAN default port VLAN ID (PVID).

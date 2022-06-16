@@ -478,7 +478,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 
 	// Add protocol filters.
 	if shared.StringInSlice(rule.Protocol, []string{"tcp", "udp"}) {
-		matchParts = append(matchParts, fmt.Sprintf("%s", rule.Protocol))
+		matchParts = append(matchParts, rule.Protocol)
 
 		if rule.SourcePort != "" {
 			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "src", shared.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...))
@@ -488,7 +488,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "dst", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...))
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
-		matchParts = append(matchParts, fmt.Sprintf("%s", rule.Protocol))
+		matchParts = append(matchParts, rule.Protocol)
 
 		if rule.ICMPType != "" {
 			matchParts = append(matchParts, fmt.Sprintf("%s.type == %s", rule.Protocol, rule.ICMPType))
