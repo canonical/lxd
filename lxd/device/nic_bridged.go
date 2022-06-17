@@ -474,6 +474,8 @@ func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicBridged) Add() error {
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+
 	// Rebuild dnsmasq entry if needed and reload.
 	err := d.rebuildDnsmasqEntry()
 	if err != nil {
