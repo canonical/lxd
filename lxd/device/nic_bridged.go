@@ -474,6 +474,8 @@ func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
 func (d *nicBridged) Add() error {
+	networkVethFillFromVolatile(d.config, d.volatileGet())
+
 	// Rebuild dnsmasq entry if needed and reload.
 	err := d.rebuildDnsmasqEntry()
 	if err != nil {
@@ -542,6 +544,19 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
+
+	// Rebuild dnsmasq config if parent is a managed bridge network using dnsmasq and static lease file is
+	// missing.
+	bridgeNet, ok := d.network.(bridgeNetwork)
+	if ok && d.network.IsManaged() && bridgeNet.UsesDNSMasq() {
+		deviceStaticFileName := dnsmasq.DHCPStaticAllocationPath(d.network.Name(), dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name()))
+		if !shared.PathExists(deviceStaticFileName) {
+			err = d.rebuildDnsmasqEntry()
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating DHCP static allocation: %w", err)
+			}
+		}
+	}
 
 	// Apply host-side routes to bridge interface.
 	routes := []string{}
@@ -872,7 +887,7 @@ func (d *nicBridged) Remove() error {
 
 // rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to a LXD managed network and reloads dnsmasq.
 func (d *nicBridged) rebuildDnsmasqEntry() error {
-	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network using dnsmasq.
+	// Rebuild dnsmasq config if parent is a managed bridge network using dnsmasq.
 	bridgeNet, ok := d.network.(bridgeNetwork)
 	if !ok || !d.network.IsManaged() || !bridgeNet.UsesDNSMasq() {
 		return nil
@@ -881,13 +896,6 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	// Use project.Default here as bridge networks don't support projects.
-	_, dbInfo, _, err := d.state.DB.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
-	if err != nil {
-		return err
-	}
-
-	netConfig := dbInfo.Config
 	ipv4Address := d.config["ipv4.address"]
 	ipv6Address := d.config["ipv6.address"]
 
@@ -918,7 +926,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 		}
 	}
 
-	err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), netConfig, d.config["hwaddr"], ipv4Address, ipv6Address)
+	err := dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), d.network.Config(), d.config["hwaddr"], ipv4Address, ipv6Address)
 	if err != nil {
 		return err
 	}
