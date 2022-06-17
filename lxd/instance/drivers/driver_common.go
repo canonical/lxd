@@ -1244,10 +1244,11 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 	// Remove devices in reverse order to how they were added.
 	for _, entry := range removeDevices.Reversed() {
+		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
 			// Just log an error, but still allow the device to be removed if usable device returned.
-			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
+			l.Error("Failed remove validation for device", logger.Ctx{"err": err})
 		}
 
 		// If a device was returned from deviceLoad even if validation fails, then try to stop and remove.
@@ -1276,6 +1277,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, entry := range addDevices.Sorted() {
+		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
 			if userRequested {
@@ -1284,7 +1286,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed add validation for device, skipping as non-user requested", logger.Ctx{"device": entry.Name, "err": err})
+			l.Error("Failed add validation for device, skipping as non-user requested", logger.Ctx{"err": err})
 
 			continue
 		}
@@ -1297,7 +1299,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
+			l.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"err": err})
 		}
 
 		revert.Add(func() { _ = d.deviceRemove(dev, instanceRunning) })
@@ -1318,6 +1320,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 	}
 
 	for _, entry := range updateDevices.Sorted() {
+		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
 			if userRequested {
@@ -1329,7 +1332,7 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			// By not calling dev.Update on validation error we avoid potentially disrupting another
 			// existing device if this device conflicts with it (such as allowing conflicting static
 			// NIC DHCP leases to be created).
-			d.logger.Error("Failed update validation for device, skipping update action", logger.Ctx{"device": entry.Name, "userRequested": userRequested, "err": err})
+			l.Error("Failed update validation for device, removing device", logger.Ctx{"err": err})
 
 			continue
 		}
