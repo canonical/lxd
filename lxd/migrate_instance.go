@@ -939,7 +939,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// with the new storage layer.
 	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
-			IndexHeaderVersion: migration.IndexHeaderVersion,
+			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
 			Name:               args.Instance.Name(),
 			MigrationType:      respTypes[0],
 			Refresh:            args.Refresh,    // Indicate to receiver volume should exist.
