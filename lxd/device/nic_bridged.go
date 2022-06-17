@@ -539,6 +539,19 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
+	// Rebuild dnsmasq config if parent is a managed bridge network using dnsmasq and static lease file is
+	// missing.
+	bridgeNet, ok := d.network.(bridgeNetwork)
+	if ok && d.network.IsManaged() && bridgeNet.UsesDNSMasq() {
+		deviceStaticFileName := dnsmasq.DHCPStaticAllocationPath(d.network.Name(), dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name()))
+		if !shared.PathExists(deviceStaticFileName) {
+			err = d.rebuildDnsmasqEntry()
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating DHCP static allocation: %w", err)
+			}
+		}
+	}
+
 	// Apply host-side routes to bridge interface.
 	routes := []string{}
 	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
