@@ -116,13 +116,18 @@ func GetVersion() (*version.DottedVersion, error) {
 	return version.Parse(lines[2])
 }
 
+// DHCPStaticAllocationPath returns the path to the DHCP static allocation file.
+func DHCPStaticAllocationPath(network string, deviceStaticFileName string) string {
+	return shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName)
+}
+
 // DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance device static file.
 // Returns MAC, IPv4 and IPv6 DHCPAllocation structs respectively.
 func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
 	var mac net.HardwareAddr
 
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
+	file, err := os.Open(DHCPStaticAllocationPath(network, deviceStaticFileName))
 	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
