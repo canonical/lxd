@@ -581,7 +581,7 @@ test_container_devices_nic_bridged() {
 
   # Test container snapshot with conflicting addresses can be restored.
   lxc restore foo snap0 # Test restore, IPs conflict on config device update (due to only IPs changing).
-  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" # Check lease file not changed (due to only IPs changing).
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to non-user requested update failing).
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
   ! lxc start foo || false
   lxc config device set foo eth0 \
@@ -592,7 +592,7 @@ test_container_devices_nic_bridged() {
   lxc stop -f foo
 
   lxc restore foo snap0 # Test restore, IPs conflict on config device remove/add (due to MAC change).
-  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check IP file removed (due to MAC change).
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to MAC change).
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
   ! lxc start foo || false
   lxc config device set foo eth0 \
@@ -605,7 +605,6 @@ test_container_devices_nic_bridged() {
 
   # Test container with conflicting addresses can be restored from backup.
   lxc import foo.tar.gz
-  rm foo.tar.gz
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
   ! lxc start foo || false
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
@@ -621,8 +620,16 @@ test_container_devices_nic_bridged() {
   # Check MAC conflict detection:
   ! lxc config device set "${ctName}" eth0 hwaddr="0a:92:a7:0d:b7:c9" || false
 
+  # Test container with conflicting addresses rebuilds DHCP lease if original conflicting instance is removed.
   lxc delete -f foo
   ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false
+  lxc import foo.tar.gz
+  rm foo.tar.gz
+  ! lxc start foo || false
+  lxc delete "${ctName}" -f
+  lxc start foo
+  grep -F "192.0.2.232" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0"
+  lxc delete -f foo
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
@@ -632,7 +639,6 @@ test_container_devices_nic_bridged() {
   fi
 
   # Cleanup.
-  lxc delete "${ctName}" -f
   lxc profile delete "${ctName}"
   lxc network delete "${brName}"
 }
