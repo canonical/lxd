@@ -581,7 +581,7 @@ test_container_devices_nic_bridged() {
 
   # Test container snapshot with conflicting addresses can be restored.
   lxc restore foo snap0 # Test restore, IPs conflict on config device update (due to only IPs changing).
-  grep -F "192.0.2.233" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" # Check lease file not changed (due to only IPs changing).
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to non-user requested update failing).
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
   ! lxc start foo || false
   lxc config device set foo eth0 \
@@ -592,7 +592,7 @@ test_container_devices_nic_bridged() {
   lxc stop -f foo
 
   lxc restore foo snap0 # Test restore, IPs conflict on config device remove/add (due to MAC change).
-  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check IP file removed (due to MAC change).
+  ! stat "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/foo.eth0" || false # Check lease file removed (due to MAC change).
   lxc config device get foo eth0 ipv4.address | grep -Fx '192.0.2.232'
   ! lxc start foo || false
   lxc config device set foo eth0 \
