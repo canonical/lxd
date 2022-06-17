@@ -1334,6 +1334,24 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 			// NIC DHCP leases to be created).
 			l.Error("Failed update validation for device, removing device", logger.Ctx{"err": err})
 
+			// If a device was returned from deviceLoad when validation fails, then try to stop and
+			// remove it. This is to prevent devices being left in a state that is different to the
+			// invalid non-user requested config that has been applied to DB. The safest thing to do
+			// is to cleanup the device and wait for the config to be corrected.
+			if dev != nil {
+				if instanceRunning {
+					err = dm.deviceStop(dev, instanceRunning, "")
+					if err != nil {
+						l.Error("Failed to stop device after update validation failed", logger.Ctx{"err": err})
+					}
+				}
+
+				err = d.deviceRemove(dev, instanceRunning)
+				if err != nil && err != device.ErrUnsupportedDevType {
+					l.Error("Failed to remove device after update validation failed", logger.Ctx{"err": err})
+				}
+			}
+
 			continue
 		}
 
