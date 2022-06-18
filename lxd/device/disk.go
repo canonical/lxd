@@ -735,10 +735,22 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// If the pool is ceph backed, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
 				if d.pool.Driver().Info().Remote {
-					clusterName, userName := d.cephCreds()
+					config := d.pool.ToAPI().Config
+					poolName := config["ceph.osd.pool_name"]
+
+					userName := config["ceph.user.name"]
+					if userName == "" {
+						userName = storageDrivers.CephDefaultUser
+					}
+
+					clusterName := config["ceph.cluster_name"]
+					if clusterName == "" {
+						clusterName = storageDrivers.CephDefaultUser
+					}
+
 					runConf.Mounts = []deviceConfig.MountEntryItem{
 						{
-							DevPath: DiskGetRBDFormat(clusterName, userName, d.pool.ToAPI().Config["ceph.osd.pool_name"], d.config["source"]),
+							DevPath: DiskGetRBDFormat(clusterName, userName, poolName, d.config["source"]),
 							DevName: d.name,
 						},
 					}
