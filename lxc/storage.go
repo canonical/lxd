@@ -460,14 +460,25 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	poolusedby[usedbystring] = map[string][]string{}
 
 	/* Build up the usedby map
-	/1.0/{instances,images,profiles}/storagepoolname
+	/1.0/{instances,images,profiles}/storagepoolname and
+	/1.0/storage-pools/<poolname>/<type>/<volname>
 	remove the /1.0/ and build the map based on the resources name as key
 	and resources details as value */
 	for _, v := range pool.UsedBy {
-		bytype := string(strings.Split(v[5:], "/")[0])
-		bywhat := string(strings.Split(v[5:], "/")[1])
+		u, err := url.Parse(v)
+		if err != nil {
+			continue
+		}
 
-		u, _ := url.Parse(v)
+		fields := strings.Split(u.Path[5:], "/")
+		bytype := fields[0]
+		bywhat := fields[1]
+
+		if bytype == "storage-pools" {
+			bytype = "volumes"
+			bywhat = fields[4]
+		}
+
 		node, ok := u.Query()["target"]
 		if ok {
 			bywhat = fmt.Sprintf("%s (%s)", bywhat, node[0])
