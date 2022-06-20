@@ -1,6 +1,7 @@
 package endpoints_test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -56,10 +57,10 @@ func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()
 
 // Perform an HTTP GET "/" over the unix socket at the given path.
 func httpGetOverUnixSocket(path string) error {
-	dial := func(network, addr string) (net.Conn, error) {
+	dial := func(_ context.Context, network, addr string) (net.Conn, error) {
 		return net.Dial("unix", path)
 	}
-	client := &http.Client{Transport: &http.Transport{Dial: dial}}
+	client := &http.Client{Transport: &http.Transport{DialContext: dial}}
 	_, err := client.Get("http://unix.socket/")
 	return err
 }
