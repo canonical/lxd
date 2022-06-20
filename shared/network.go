@@ -376,39 +376,37 @@ type WebsocketIO struct {
 }
 
 func (w *WebsocketIO) Read(p []byte) (n int, err error) {
-	for {
-		// First read from this message
-		if w.reader == nil {
-			var mt int
+	// First read from this message
+	if w.reader == nil {
+		var mt int
 
-			mt, w.reader, err = w.Conn.NextReader()
-			if err != nil {
-				return 0, err
-			}
-
-			if mt == websocket.CloseMessage {
-				return 0, io.EOF
-			}
-
-			if mt == websocket.TextMessage {
-				return 0, io.EOF
-			}
-		}
-
-		// Perform the read itself
-		n, err := w.reader.Read(p)
-		if err == io.EOF {
-			// At the end of the message, reset reader
-			w.reader = nil
-			return n, nil
-		}
-
+		mt, w.reader, err = w.Conn.NextReader()
 		if err != nil {
 			return 0, err
 		}
 
+		if mt == websocket.CloseMessage {
+			return 0, io.EOF
+		}
+
+		if mt == websocket.TextMessage {
+			return 0, io.EOF
+		}
+	}
+
+	// Perform the read itself
+	n, err = w.reader.Read(p)
+	if err == io.EOF {
+		// At the end of the message, reset reader
+		w.reader = nil
 		return n, nil
 	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }
 
 func (w *WebsocketIO) Write(p []byte) (n int, err error) {
