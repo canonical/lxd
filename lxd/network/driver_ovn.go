@@ -4365,7 +4365,8 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 	// Check if there is an existing peer using the same name, or whether there is already a peering (in any
 	// state) to the target network.
 	peers, err := n.state.DB.Cluster.GetNetworkPeers(n.ID())
-	if err == nil {
+	if err != nil {
+		return err
 	}
 
 	for _, existingPeer := range peers {
