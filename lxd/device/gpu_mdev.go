@@ -122,7 +122,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 		if mdevUUID == "" || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/%s", pciAddress, mdevUUID)) {
 			mdevUUID = uuid.New()
 
-			err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", pciAddress, d.config["mdev"])), []byte(mdevUUID), 200)
+			err = ioutil.WriteFile(filepath.Join(fmt.Sprintf("/sys/bus/pci/devices/%s/mdev_supported_types/%s/create", pciAddress, d.config["mdev"])), []byte(mdevUUID), 0200)
 			if err != nil {
 				if os.IsNotExist(err) {
 					return nil, fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
