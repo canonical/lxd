@@ -155,7 +155,6 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 	var certificate *x509.Certificate
 	var err error
-	var d lxd.InstanceServer
 
 	if !conf.HasClientCertificate() {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
@@ -170,7 +169,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 		conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
 
-		d, err = conf.GetInstanceServer(server)
+		_, err = conf.GetInstanceServer(server)
 		if err != nil {
 			certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
 			if err != nil {
@@ -206,7 +205,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 			}
 		}
 
-		d, err = conf.GetInstanceServer(server)
+		d, err := conf.GetInstanceServer(server)
 		if err != nil {
 			continue
 		}
