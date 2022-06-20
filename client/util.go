@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -22,7 +23,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	// Define the http transport
 	transport := &http.Transport{
 		TLSClientConfig:       tlsConfig,
-		Dial:                  shared.RFC3493Dialer,
+		DialContext:           shared.RFC3493Dialer,
 		Proxy:                 shared.ProxyFromEnvironment,
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
@@ -41,7 +42,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 		tlsDial := func(network string, addr string, config *tls.Config, resetName bool) (net.Conn, error) {
 			// TCP connection
 			//lint:ignore SA1019 DialContext doesn't exist in Go 1.13
-			conn, err := transport.Dial(network, addr)
+			conn, err := transport.DialContext(context.Background(), network, addr)
 			if err != nil {
 				return nil, err
 			}
@@ -104,7 +105,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 
 func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 	// Setup a Unix socket dialer
-	unixDial := func(network, addr string) (net.Conn, error) {
+	unixDial := func(_ context.Context, network, addr string) (net.Conn, error) {
 		raddr, err := net.ResolveUnixAddr("unix", path)
 		if err != nil {
 			return nil, err
@@ -115,7 +116,7 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 
 	// Define the http transport
 	transport := &http.Transport{
-		Dial:                  unixDial,
+		DialContext:           unixDial,
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
 		ResponseHeaderTimeout: time.Second * 3600,
