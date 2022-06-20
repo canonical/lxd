@@ -582,7 +582,7 @@ func IsNetworkPort(value string) error {
 		return fmt.Errorf("Invalid port number %q", value)
 	}
 
-	if port < 0 || port > 65535 {
+	if port > 65535 {
 		return fmt.Errorf("Out of port number range (0-65535) %q", value)
 	}
 
