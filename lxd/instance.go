@@ -318,7 +318,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 					"path": "/",
 					"pool": instRootDiskDevice["pool"],
 				}
-			} else {
+			} else { //nolint:staticcheck // (keep the empty branch for the comment)
 				// Snapshot has multiple root disk devices, we can't automatically fix this so
 				// leave alone so we don't prevent copy.
 			}
