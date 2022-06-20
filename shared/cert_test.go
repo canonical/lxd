@@ -46,6 +46,7 @@ func TestKeyPairAndCA(t *testing.T) {
 	block, _ := pem.Decode(info.PublicKey())
 	if block == nil {
 		t.Errorf("expected PublicKey to be decodable")
+		return
 	}
 	_, err = x509.ParseCertificate(block.Bytes)
 	if err != nil {
