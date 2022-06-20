@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -195,7 +197,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		if len(res.UnknownVolumes) > 0 {
 			fmt.Print("The following unknown volumes have been found:\n")
 			for _, unknownVol := range res.UnknownVolumes {
-				fmt.Printf(" - %s %q on pool %q in project %q (includes %d snapshots)\n", strings.Title(unknownVol.Type), unknownVol.Name, unknownVol.Pool, unknownVol.Project, unknownVol.SnapshotCount)
+				fmt.Printf(" - %s %q on pool %q in project %q (includes %d snapshots)\n", cases.Title(language.English).String(unknownVol.Type), unknownVol.Name, unknownVol.Pool, unknownVol.Project, unknownVol.SnapshotCount)
 			}
 		}
 
