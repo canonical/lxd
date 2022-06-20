@@ -259,7 +259,6 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		return nil, err
 	}
 
-	snapList := []*instance.Instance{}
 	var snapshots []instance.Instance
 
 	if !opts.instanceOnly {
@@ -342,14 +341,12 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, snapInstOp, cleanup, err := instance.CreateInternal(s, snapInstArgs, true)
+			_, snapInstOp, cleanup, err := instance.CreateInternal(s, snapInstArgs, true)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
 			revert.Add(cleanup)
 			defer snapInstOp.Done(err)
-
-			snapList = append(snapList, &snapInst)
 		}
 	}
 
