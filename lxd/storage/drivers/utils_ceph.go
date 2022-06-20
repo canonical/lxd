@@ -110,7 +110,7 @@ func CephMonitors(cluster string) ([]string, error) {
 					server = strings.Split(server, "/")[0]
 
 					// Handle end of nested blocks.
-					server = strings.Replace(server, "]]", "]", 0)
+					server = strings.ReplaceAll(server, "]]", "]")
 					if !strings.HasPrefix(server, "[") {
 						server = strings.TrimSuffix(server, "]")
 					}
