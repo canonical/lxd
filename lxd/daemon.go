@@ -633,7 +633,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 
 		// Actually process the request
 		var resp response.Response
-		resp = response.NotImplemented(nil)
 
 		// Return Unavailable Error (503) if daemon is shutting down.
 		// There are some exceptions:
