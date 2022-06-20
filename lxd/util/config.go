@@ -32,8 +32,8 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 			for i := range delta {
 				if delta[i] == key {
 					present = true
+					break
 				}
-				break
 			}
 			if !present {
 				delta = append(delta, key)
