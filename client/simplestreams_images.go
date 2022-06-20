@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -91,7 +92,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 			return -1, err
 		}
 
-		size, err := shared.DownloadFileHash(nil, r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+		size, err := shared.DownloadFileHash(context.TODO(), r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 		if err != nil {
 			// Handle cancelation
 			if err.Error() == "net/http: request canceled" {
@@ -104,7 +105,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				return -1, err
 			}
 
-			size, err = shared.DownloadFileHash(nil, r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+			size, err = shared.DownloadFileHash(context.TODO(), r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 			if err != nil {
 				return -1, err
 			}
