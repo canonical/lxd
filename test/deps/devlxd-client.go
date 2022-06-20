@@ -24,7 +24,7 @@ type devLxdDialer struct {
 	Path string
 }
 
-func (d devLxdDialer) devLxdDial(network, path string) (net.Conn, error) {
+func (d devLxdDialer) devLxdDial(ctx context.Context, network, path string) (net.Conn, error) {
 	addr, err := net.ResolveUnixAddr("unix", d.Path)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (d devLxdDialer) devLxdDial(network, path string) (net.Conn, error) {
 }
 
 var devLxdTransport = &http.Transport{
-	Dial: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
+	DialContext: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
 }
 
 func devlxdMonitorStream() {
@@ -77,7 +77,7 @@ func devlxdMonitorStream() {
 
 func devlxdMonitorWebsocket(c http.Client) {
 	dialer := websocket.Dialer{
-		NetDial:          devLxdTransport.Dial,
+		NetDialContext:   devLxdTransport.DialContext,
 		HandshakeTimeout: time.Second * 5,
 	}
 
