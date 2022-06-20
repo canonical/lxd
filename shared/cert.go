@@ -418,7 +418,7 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 
 	tr := &http.Transport{
 		TLSClientConfig:       tlsConfig,
-		Dial:                  RFC3493Dialer,
+		DialContext:           RFC3493Dialer,
 		Proxy:                 ProxyFromEnvironment,
 		ExpectContinueTimeout: time.Second * 30,
 		ResponseHeaderTimeout: time.Second * 3600,

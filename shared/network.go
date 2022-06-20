@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -24,7 +25,7 @@ const connectErrorPrefix = "Unable to connect to"
 
 // RFC3493Dialer connects to the specified server and returns the connection.
 // If the connection cannot be established then an error with the connectErrorPrefix is returned.
-func RFC3493Dialer(network string, address string) (net.Conn, error) {
+func RFC3493Dialer(context context.Context, network string, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
