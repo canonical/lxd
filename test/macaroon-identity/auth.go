@@ -66,8 +66,7 @@ func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 		return nil, err
 	}
 
-	tokenString := string(token.Value)
-	username, ok := s.userTokens[tokenString]
+	username, ok := s.userTokens[string(token.Value)]
 	if token.Kind != "form" || !ok {
 		return nil, fmt.Errorf("invalid token %#v", token)
 	}
