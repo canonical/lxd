@@ -309,7 +309,7 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 	name := f.Names[0]
 
 	if !name.IsExported() {
-		//return nil, fmt.Errorf("Unexported field name %q", name.Name)
+		return nil, fmt.Errorf("Unexported field name %q", name.Name)
 	}
 
 	// Ignore fields that are marked with a tag of `db:"ingore"`
