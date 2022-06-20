@@ -191,7 +191,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 
 	// Make sure we don't have a conflict
 	fmt.Println("Checking for existing containers")
-	containers, err := d.GetContainerNames()
+	containers, err := d.GetInstanceNames(api.InstanceTypeContainer)
 	if err != nil {
 		return err
 	}
