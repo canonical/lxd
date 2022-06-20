@@ -250,9 +250,9 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		}
 
 		// Grab socket data if needed
-		resSocket, ok := cpuSockets[cpuSocket]
+		_, ok := cpuSockets[cpuSocket]
 		if !ok {
-			resSocket = &api.ResourcesCPUSocket{}
+			resSocket := &api.ResourcesCPUSocket{}
 
 			// Socket number
 			resSocket.Socket = uint64(cpuSocket)
