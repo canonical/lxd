@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1370,9 +1371,9 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	var err error
 
 	if httpTransport.TLSClientConfig != nil {
-		conn, err = httpTransport.DialTLS("tcp", apiURL.Host)
+		conn, err = httpTransport.DialTLSContext(context.Background(), "tcp", apiURL.Host)
 	} else {
-		conn, err = httpTransport.Dial("tcp", apiURL.Host)
+		conn, err = httpTransport.DialContext(context.Background(), "tcp", apiURL.Host)
 	}
 	if err != nil {
 		return nil, err
