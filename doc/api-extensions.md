@@ -1680,3 +1680,6 @@ This struct extracts vendor provided data including the full product name and ad
 
 ## qemu\_raw\_conf
 Introdues a `raw.qemu.conf` configuration key to override select sections of the generated qemu.conf.
+
+## storage\_cephfs\_fscache
+Add support for fscache/cachefilesd on cephfs pools through a new `cephfs.fscache` config option.
