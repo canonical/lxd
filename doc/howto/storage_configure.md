@@ -19,6 +19,7 @@ You can also edit the storage pool configuration by using the following command:
 
     lxc storage edit <pool_name>
 
+(storage-configure-volumes)=
 ## Configure storage volumes
 
 Use the following command to set configuration options for a storage volume:
