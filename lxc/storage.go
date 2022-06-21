@@ -479,9 +479,28 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 			bywhat = fields[4]
 		}
 
-		node, ok := u.Query()["target"]
-		if ok {
-			bywhat = fmt.Sprintf("%s (%s)", bywhat, node[0])
+		var info string
+
+		// Show info regarding the project and target if present.
+		values := u.Query()
+
+		proj := values.Get("project")
+		target := values.Get("target")
+
+		if proj != "" {
+			info = fmt.Sprintf("project %q", proj)
+		}
+
+		if target != "" {
+			if info == "" {
+				info = fmt.Sprintf("target %q", target)
+			} else {
+				info = fmt.Sprintf("%s, target %q", info, target)
+			}
+		}
+
+		if info != "" {
+			bywhat = fmt.Sprintf("%s (%s)", bywhat, info)
 		}
 
 		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
