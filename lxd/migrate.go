@@ -240,7 +240,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 
 	dialer := websocket.Dialer{
 		TLSClientConfig:  config,
-		NetDial:          shared.RFC3493Dialer,
+		NetDialContext:   shared.RFC3493Dialer,
 		HandshakeTimeout: time.Second * 5,
 	}
 
