@@ -67,7 +67,7 @@ snapshots.pattern       | string    | custom volume             | snap%d        
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16MiB (must be power of 2). For block volume maximum value of 128KiB will be used even though higher value is set
 zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
-zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
+zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota      | Use refquota instead of quota for space
 zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use reservation/refreservation along with qouta/refquota
 
 ## Growing a loop backed ZFS pool
