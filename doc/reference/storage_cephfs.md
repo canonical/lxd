@@ -8,6 +8,7 @@
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
+cephfs.fscache                | bool                          | false                                   | Enable use of kernel fscache and cachefilesd
 cephfs.path                   | string                        | /                                       | The base path for the CephFS mount
 cephfs.user.name              | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
 source                        | string                        | -                                       | Existing storage pool or path in storage pool to use
