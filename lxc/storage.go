@@ -460,17 +460,47 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	poolusedby[usedbystring] = map[string][]string{}
 
 	/* Build up the usedby map
-	/1.0/{instances,images,profiles}/storagepoolname
+	/1.0/{instances,images,profiles}/storagepoolname and
+	/1.0/storage-pools/<poolname>/<type>/<volname>
 	remove the /1.0/ and build the map based on the resources name as key
 	and resources details as value */
 	for _, v := range pool.UsedBy {
-		bytype := string(strings.Split(v[5:], "/")[0])
-		bywhat := string(strings.Split(v[5:], "/")[1])
+		u, err := url.Parse(v)
+		if err != nil {
+			continue
+		}
 
-		u, _ := url.Parse(v)
-		node, ok := u.Query()["target"]
-		if ok {
-			bywhat = fmt.Sprintf("%s (%s)", bywhat, node[0])
+		fields := strings.Split(u.Path[5:], "/")
+		bytype := fields[0]
+		bywhat := fields[1]
+
+		if bytype == "storage-pools" {
+			bytype = "volumes"
+			bywhat = fields[4]
+		}
+
+		var info string
+
+		// Show info regarding the project and target if present.
+		values := u.Query()
+
+		proj := values.Get("project")
+		target := values.Get("target")
+
+		if proj != "" {
+			info = fmt.Sprintf("project %q", proj)
+		}
+
+		if target != "" {
+			if info == "" {
+				info = fmt.Sprintf("target %q", target)
+			} else {
+				info = fmt.Sprintf("%s, target %q", info, target)
+			}
+		}
+
+		if info != "" {
+			bywhat = fmt.Sprintf("%s (%s)", bywhat, info)
 		}
 
 		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
