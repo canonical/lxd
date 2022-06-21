@@ -9,6 +9,9 @@ discourse: 12033,13128
 Network zones are available for the {ref}`network-ovn` and the {ref}`network-bridge`.
 ```
 
+```{youtube} https://www.youtube.com/watch?v=2MqpJOogNVQ
+```
+
 Network zones can be used to serve DNS records for LXD networks.
 
 You can use network zones to automatically maintain valid forward and reverse records for all your instances.
