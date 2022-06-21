@@ -232,7 +232,7 @@ func (o *OVN) nbctl(args ...string) (string, error) {
 }
 
 // xbctl optionally executes either ovn-nbctl or ovn-sbctl with arguments to connect to wrapper's northbound or southbound database.
-func (o *OVN) xbctl(southbound bool, args ...string) (string, error) {
+func (o *OVN) xbctl(southbound bool, extraArgs ...string) (string, error) {
 	dbAddr := o.getNorthboundDB()
 	cmd := "ovn-nbctl"
 	if southbound {
@@ -244,17 +244,19 @@ func (o *OVN) xbctl(southbound bool, args ...string) (string, error) {
 		dbAddr = fmt.Sprintf("unix:%s", shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:")))
 	}
 
+	// Figure out args.
+	args := []string{"--timeout=10", "--db", dbAddr}
+
 	if strings.Contains(dbAddr, "ssl:") {
-		sslArgs := []string{
+		args = append(args,
 			"-c", "/etc/ovn/cert_host",
 			"-p", "/etc/ovn/key_host",
 			"-C", "/etc/ovn/ovn-central.crt",
-		}
-
-		args = append(sslArgs, args...)
+		)
 	}
 
-	return shared.RunCommand(cmd, append([]string{"--db", dbAddr}, args...)...)
+	args = append(args, extraArgs...)
+	return shared.RunCommand(cmd, args...)
 }
 
 // LogicalRouterAdd adds a named logical router.
