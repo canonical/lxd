@@ -23,7 +23,7 @@ type DevLxdDialer struct {
 	Path string
 }
 
-func (d DevLxdDialer) DevLxdDial(network, path string) (net.Conn, error) {
+func (d DevLxdDialer) DevLxdDial(ctx context.Context, network, path string) (net.Conn, error) {
 	addr, err := net.ResolveUnixAddr("unix", d.Path)
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer func() { _ = d.Stop(context.Background(), unix.SIGQUIT) }()
 
-	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
+	c := http.Client{Transport: &http.Transport{DialContext: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
 
 	raw, err := c.Get("http://1.0")
 	if err != nil {
