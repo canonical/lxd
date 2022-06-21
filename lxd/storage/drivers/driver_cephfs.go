@@ -242,6 +242,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 func (d *cephfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"cephfs.cluster_name":    validate.IsAny,
+		"cephfs.fscache":         validate.Optional(validate.IsBool),
 		"cephfs.path":            validate.IsAny,
 		"cephfs.user.name":       validate.IsAny,
 		"volatile.pool.pristine": validate.IsAny,
@@ -276,9 +277,15 @@ func (d *cephfs) Mount() (bool, error) {
 		return false, err
 	}
 
+	// Mount options.
+	options := fmt.Sprintf("name=%s,secret=%s,mds_namespace=%s", d.config["cephfs.user.name"], userSecret, fsName)
+	if shared.IsTrue(d.config["cephfs.fscache"]) {
+		options += ",fsc"
+	}
+
 	// Mount the pool.
 	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
-	err = TryMount(srcPath, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(srcPath, GetPoolMountPath(d.name), "ceph", 0, options)
 	if err != nil {
 		return false, err
 	}
