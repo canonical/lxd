@@ -1,6 +1,6 @@
 // Package response contains helpers for rendering LXD HTTP responses.
 //
-//nolint:deadcode
+//nolint:deadcode,unused
 package response
 
 import (
