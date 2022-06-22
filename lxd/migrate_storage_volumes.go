@@ -285,6 +285,10 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		return err
 	}
 
+	// The source/sender will never set Refresh. However, to determine the correct migration type
+	// Refresh needs to be set.
+	offerHeader.Refresh = &c.refresh
+
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
