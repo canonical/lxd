@@ -61,12 +61,12 @@ limits.cpu                                      | string    | -                 
 limits.cpu.allowance                            | string    | 100%              | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
 limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
 limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                         | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
-limits.hugepages.64KB                           | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 64 KB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.1MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 MB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.2MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 2 MB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.1GB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 GB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.64KB                           | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 64 KB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.2MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 2 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1GB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 GB hugepages (Available hugepage sizes are architecture dependent.)
 limits.kernel.\*                                | string    | -                 | no            | container                 | This limits kernel resources per instance (e.g. number of open files)
-limits.memory                                   | string    | -                 | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below) (defaults to 1GiB for VMs)
+limits.memory                                   | string    | -                 | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) (defaults to 1GiB for VMs)
 limits.memory.enforce                           | string    | hard              | yes           | container                 | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
 limits.memory.hugepages                         | boolean   | false             | no            | virtual-machine           | Controls whether to back the instance using hugepages rather than regular system memory
 limits.memory.swap                              | boolean   | true              | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
@@ -364,8 +364,8 @@ name                     | string  | kernel assigned   | no       | no      | Th
 mtu                      | integer | parent MTU        | no       | yes     | The MTU of the new interface
 hwaddr                   | string  | randomly assigned | no       | no      | The MAC address of the new interface
 host\_name               | string  | randomly assigned | no       | no      | The name of the interface inside the host
-limits.ingress           | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress            | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.ingress           | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+limits.egress            | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 limits.max               | string  | -                 | no       | no      | Same as modifying both limits.ingress and limits.egress
 ipv4.address             | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP (Can be `none` to restrict all IPv4 traffic when security.ipv4\_filtering is set)
 ipv6.address             | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP (Can be `none` to restrict all IPv6 traffic when security.ipv6\_filtering is set)
@@ -578,8 +578,8 @@ name                    | string  | kernel assigned   | no       | The name of t
 mtu                     | integer | kernel assigned   | no       | The MTU of the new interface
 hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
 host\_name              | string  | randomly assigned | no       | The name of the interface inside the host
-limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
 ipv4.routes             | string  | -                 | no       | Comma delimited list of IPv4 static routes to add on host to NIC
 ipv6.routes             | string  | -                 | no       | Comma delimited list of IPv6 static routes to add on host to NIC
@@ -648,8 +648,8 @@ name                    | string  | kernel assigned   | no       | The name of t
 host\_name              | string  | randomly assigned | no       | The name of the interface inside the host
 mtu                     | integer | parent MTU        | no       | The MTU of the new interface
 hwaddr                  | string  | randomly assigned | no       | The MAC address of the new interface
-limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.ingress          | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
 limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
 ipv4.address            | string  | -                 | no       | Comma delimited list of IPv4 static addresses to add to the instance
 ipv4.routes             | string  | -                 | no       | Comma delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
@@ -787,14 +787,14 @@ The following properties exist:
 
 Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
-limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops")
+limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops")
 limits.max          | string    | -         | no        | Same as modifying both limits.read and limits.write
 path                | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
 source              | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
 required            | boolean   | true      | no        | Controls whether to fail if the source doesn't exist
 readonly            | boolean   | false     | no        | Controls whether to make the mount read-only
-size                | string    | -         | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
+size                | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the rootfs (/)
 size.state          | string    | -         | no        | Same as size above but applies to the filesystem volume used for saving runtime state in virtual machines.
 recursive           | boolean   | false     | no        | Whether or not to recursively mount the source path
 pool                | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
@@ -1062,7 +1062,7 @@ Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
 address             | string    | -         | yes       | PCI address of the device.
 
-
+(instances-limit-units)=
 ### Units for storage and network limits
 Any value representing bytes or bits can make use of a number of useful
 suffixes to make it easier to understand what a particular limit is.
