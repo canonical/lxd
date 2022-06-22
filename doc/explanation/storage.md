@@ -18,6 +18,7 @@ The following storage drivers are supported:
 - {ref}`storage-ceph`
 - {ref}`storage-cephfs`
 
+(storage-location)=
 ### Data storage location
 
 Where the LXD data is stored depends on the configuration and the selected storage driver.
