@@ -31,9 +31,10 @@ For most storage drivers, custom storage volumes are not replicated across the c
 This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), where volumes are available from any cluster member.
 ```
 
+(storage-attach-volume)=
 ## Attach a storage volume to an instance
 
-After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_nic>`.
+After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
 
 The following restrictions apply:
 
