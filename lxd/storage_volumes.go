@@ -849,7 +849,7 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
-			NetDial:          shared.RFC3493Dialer,
+			NetDialContext:   shared.RFC3493Dialer,
 			HandshakeTimeout: time.Second * 5,
 		},
 		Secrets:    req.Source.Websockets,

@@ -420,7 +420,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
-			NetDial:          shared.RFC3493Dialer,
+			NetDialContext:   shared.RFC3493Dialer,
 			HandshakeTimeout: time.Second * 5,
 		},
 		Instance:     inst,

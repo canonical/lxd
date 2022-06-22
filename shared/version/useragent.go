@@ -5,6 +5,9 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -23,8 +26,7 @@ func getUserAgent() string {
 	if err != nil {
 		panic(err)
 	}
-
-	osTokens := []string{strings.Title(runtime.GOOS), arch}
+	osTokens := []string{cases.Title(language.English).String(arch)}
 	osTokens = append(osTokens, getPlatformVersionStrings()...)
 
 	// Initial version string

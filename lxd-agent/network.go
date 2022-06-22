@@ -50,7 +50,7 @@ func (l *networkListener) Accept() (net.Conn, error) {
 			break
 		}
 
-		if err.(net.Error).Temporary() {
+		if err.(net.Error).Timeout() {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}

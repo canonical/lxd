@@ -385,7 +385,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
-	if len(poolMigrationTypes) < 0 {
+	if len(poolMigrationTypes) == 0 {
 		return abort(fmt.Errorf("No source migration types available"))
 	}
 

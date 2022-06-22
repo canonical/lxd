@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"strings"
 	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Capital capitalizes the given string ("foo" -> "Foo")
 func Capital(s string) string {
-	return strings.Title(s)
+	return cases.Title(language.English).String(s)
 }
 
 // Minuscule turns the first character to lower case ("Foo" -> "foo") or the whole word if it is all uppercase ("UUID" -> "uuid")

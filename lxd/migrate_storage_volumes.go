@@ -69,7 +69,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
 	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentType(srcConfig.Volume.ContentType), false)
-	if len(poolMigrationTypes) < 0 {
+	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
 	}
 

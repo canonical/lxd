@@ -1180,13 +1180,13 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 		matchIPMaskStr := strings.SplitN(match, "/", 2)
 		if len(matchIPMaskStr) == 2 && matchIPMaskStr[0] == strings.Split(active, "/")[0] {
 			// If the active subnet is a CIDR string we have a match if the masks are identical.
-			activeIP, activeIPNet, err := net.ParseCIDR(active)
+			_, activeIPNet, err := net.ParseCIDR(active)
 			if err == nil {
 				return subnetMask(activeIPNet) == matchIPMaskStr[1]
 			}
 
 			// If the active subnet is a single IP then we have a match if the generated mask is a full mask.
-			activeIP = net.ParseIP(active)
+			activeIP := net.ParseIP(active)
 			if activeIP != nil {
 				if activeIP.To4() != nil {
 					return matchIPMaskStr[1] == "255.255.255.255"

@@ -558,8 +558,9 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		heartbeatCancel()
 
 		// Wait for heartbeat to finish and then release.
+		// Ignore staticcheck "SA2001: empty critical section" because we want to wait for the lock.
 		gateway.HeartbeatLock.Lock()
-		gateway.HeartbeatLock.Unlock()
+		gateway.HeartbeatLock.Unlock() //nolint:staticcheck
 	}
 
 	hbState := NewAPIHearbeat(state.DB.Cluster)
