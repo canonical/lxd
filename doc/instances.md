@@ -754,6 +754,7 @@ To create a `sriov` `infiniband` device use:
 lxc config device add <instance> <device-name> infiniband nictype=sriov parent=<sriov-enabled-device>
 ```
 
+(instance_device_type_disk)=
 #### Type: disk
 
 Supported instance types: container, VM
@@ -761,6 +762,8 @@ Supported instance types: container, VM
 Disk entries are essentially mountpoints inside the instance. They can
 either be a bind-mount of an existing file or directory on the host, or
 if the source is a block device, a regular mount.
+
+They can also be created by {ref}`attaching a storage volume to an instance <storage-attach-volume>`.
 
 LXD supports the following additional source types:
 
@@ -787,8 +790,8 @@ The following properties exist:
 
 Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
-limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops")
-limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops")
+limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops") - see also {ref}`storage-configure-IO`
+limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in iops (must be suffixed with "iops") - see also {ref}`storage-configure-IO`
 limits.max          | string    | -         | no        | Same as modifying both limits.read and limits.write
 path                | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
 source              | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
