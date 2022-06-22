@@ -31,9 +31,10 @@ For most storage drivers, custom storage volumes are not replicated across the c
 This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), where volumes are available from any cluster member.
 ```
 
+(storage-attach-volume)=
 ## Attach a storage volume to an instance
 
-After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_nic>`.
+After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
 
 The following restrictions apply:
 
@@ -53,3 +54,24 @@ If you want to use a different device name, you can add it to the command:
 
     lxc storage volume attach <pool_name> <filesystem_volume_name> <instance_name> <device_name> <location>
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name> <device_name>
+
+(storage-configure-IO)=
+## Configure I/O limits
+
+When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.
+To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits (in IOp/s or MB/s).
+See the {ref}`instance_device_type_disk` reference for more information.
+
+The limits are applied through the Linux `blkio` cgroup controller, which makes it possible to restrict I/O at the disk level (but nothing finer grained than that).
+
+```{note}
+Because the limits apply to a whole physical disk rather than a partition or path, the following restrictions apply:
+
+- Limits will not apply to filesystems that are backed by virtual devices (for example, device mapper).
+- If a filesystem is backed by multiple block devices, each device will get the same limit.
+- If two disk devices that are backed by the same disk are attached to the same instance, the limits of the two devices will be averaged.
+```
+
+All I/O limits only apply to actual block device access.
+Therefore, consider the filesystem's own overhead when setting limits.
+Access to cached data is not affected by the limit.
