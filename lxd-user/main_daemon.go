@@ -19,9 +19,7 @@ var mu sync.RWMutex
 var connections uint64
 var transactions uint64
 
-type cmdDaemon struct {
-	global *cmdGlobal
-}
+type cmdDaemon struct{}
 
 func (c *cmdDaemon) Command() *cobra.Command {
 	cmd := &cobra.Command{}
