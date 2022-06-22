@@ -81,13 +81,20 @@ func (s *OS) initAppArmor() []db.Warning {
 }
 
 func haveMacAdmin() bool {
-	c, err := capability.NewPid(0)
+	c, err := capability.NewPid2(0)
 	if err != nil {
 		return false
 	}
+
+	err = c.Load()
+	if err != nil {
+		return false
+	}
+
 	if c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN) {
 		return true
 	}
+
 	return false
 }
 

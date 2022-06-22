@@ -5245,7 +5245,7 @@ func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	req.Header["Upgrade"] = []string{"sftp"}
 	req.Header["Connection"] = []string{"Upgrade"}
 
-	conn, err := httpTransport.Dial("tcp", "8443")
+	conn, err := httpTransport.DialContext(context.Background(), "tcp", "8443")
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -109,15 +109,15 @@ func AskString(question string, defaultAnswer string, validate func(string) erro
 // AskPassword asks the user to enter a password.
 func AskPassword(question string) string {
 	for {
-		fmt.Printf(question)
+		fmt.Print(question)
 
-		pwd, _ := terminal.ReadPassword(0)
+		pwd, _ := term.ReadPassword(0)
 		fmt.Println("")
 		inFirst := string(pwd)
 		inFirst = strings.TrimSuffix(inFirst, "\n")
 
 		fmt.Printf("Again: ")
-		pwd, _ = terminal.ReadPassword(0)
+		pwd, _ = term.ReadPassword(0)
 		fmt.Println("")
 		inSecond := string(pwd)
 		inSecond = strings.TrimSuffix(inSecond, "\n")
@@ -136,8 +136,8 @@ func AskPassword(question string) string {
 // It's the same as AskPassword, but it won't ask to enter it again.
 func AskPasswordOnce(question string) string {
 	for {
-		fmt.Printf(question)
-		pwd, _ := terminal.ReadPassword(0)
+		fmt.Print(question)
+		pwd, _ := term.ReadPassword(0)
 		fmt.Println("")
 
 		// refuse empty password
@@ -152,7 +152,7 @@ func AskPasswordOnce(question string) string {
 
 // Ask a question on the output stream and read the answer from the input stream
 func askQuestion(question, defaultAnswer string) (string, error) {
-	fmt.Printf(question)
+	fmt.Print(question)
 
 	return readAnswer(defaultAnswer)
 }

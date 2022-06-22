@@ -763,7 +763,7 @@ func qemuUSB(opts *qemuUSBOpts) []cfgSection {
 				{key: "name", value: "usbredir"},
 			},
 		}, {
-			name: fmt.Sprintf(fmt.Sprintf(`device "qemu_spice-usb%d"`, i)),
+			name: fmt.Sprintf(`device "qemu_spice-usb%d"`, i),
 			entries: []cfgEntry{
 				{key: "driver", value: "usb-redir"},
 				{key: "chardev", value: chardev},

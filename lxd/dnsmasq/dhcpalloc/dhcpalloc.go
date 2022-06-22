@@ -377,8 +377,8 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 
 	// If MAC or either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
 	macChanged := !bytes.Equal(opts.HostMAC, t.currentDHCPMAC)
-	ipv4Changed := (t.allocatedIPv4 != nil && !bytes.Equal(t.currentDHCPv4.IP, t.allocatedIPv4.To4()))
-	ipv6Changed := (t.allocatedIPv6 != nil && !bytes.Equal(t.currentDHCPv6.IP, t.allocatedIPv6.To16()))
+	ipv4Changed := t.allocatedIPv4 != nil && !t.currentDHCPv4.IP.Equal(t.allocatedIPv4.To4())
+	ipv6Changed := t.allocatedIPv6 != nil && !t.currentDHCPv6.IP.Equal(t.allocatedIPv6.To16())
 
 	if macChanged || ipv4Changed || ipv6Changed {
 		var IPv4Str, IPv6Str string

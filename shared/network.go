@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -24,7 +25,7 @@ const connectErrorPrefix = "Unable to connect to"
 
 // RFC3493Dialer connects to the specified server and returns the connection.
 // If the connection cannot be established then an error with the connectErrorPrefix is returned.
-func RFC3493Dialer(network string, address string) (net.Conn, error) {
+func RFC3493Dialer(context context.Context, network string, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -375,39 +376,37 @@ type WebsocketIO struct {
 }
 
 func (w *WebsocketIO) Read(p []byte) (n int, err error) {
-	for {
-		// First read from this message
-		if w.reader == nil {
-			var mt int
+	// First read from this message
+	if w.reader == nil {
+		var mt int
 
-			mt, w.reader, err = w.Conn.NextReader()
-			if err != nil {
-				return 0, err
-			}
-
-			if mt == websocket.CloseMessage {
-				return 0, io.EOF
-			}
-
-			if mt == websocket.TextMessage {
-				return 0, io.EOF
-			}
-		}
-
-		// Perform the read itself
-		n, err := w.reader.Read(p)
-		if err == io.EOF {
-			// At the end of the message, reset reader
-			w.reader = nil
-			return n, nil
-		}
-
+		mt, w.reader, err = w.Conn.NextReader()
 		if err != nil {
 			return 0, err
 		}
 
+		if mt == websocket.CloseMessage {
+			return 0, io.EOF
+		}
+
+		if mt == websocket.TextMessage {
+			return 0, io.EOF
+		}
+	}
+
+	// Perform the read itself
+	n, err = w.reader.Read(p)
+	if err == io.EOF {
+		// At the end of the message, reset reader
+		w.reader = nil
 		return n, nil
 	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }
 
 func (w *WebsocketIO) Write(p []byte) (n int, err error) {
