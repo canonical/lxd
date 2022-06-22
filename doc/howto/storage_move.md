@@ -4,6 +4,7 @@ You can copy or move storage volumes from one storage pool to another, or copy o
 
 When copying or moving a volume between storage pools that use different drivers, the volume is automatically converted.
 
+(storage-copy)=
 ## Copy storage volumes
 
 Use the following command to copy a storage volume:
@@ -11,6 +12,7 @@ Use the following command to copy a storage volume:
     lxc storage volume copy <source_pool_name>/<source_volume_name> <target_pool_name>/<target_volume_name>
 
 Add the `--volume-only` flag to copy only the volume and skip any snapshots that the volume might have.
+If the volume already exists in the target location, use the `--refresh` flag to update the copy.
 
 Specify the same pool as the source and target pool to copy the volume within the same storage pool.
 You must specify different volume names for source and target in this case.

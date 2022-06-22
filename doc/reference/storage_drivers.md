@@ -12,6 +12,7 @@ storage_ceph
 storage_cephfs
 ```
 
+(storage-drivers-features)=
 ## Feature comparison
 LXD supports using ZFS, Btrfs, LVM or just plain directories for storage of images, instances and custom volumes.
 Where possible, LXD tries to use the advanced features of each system to optimize operations.

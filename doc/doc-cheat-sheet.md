@@ -476,7 +476,7 @@ A big advantage of MyST in comparison to plain Markdown is that it allows to reu
 To reuse sentences or paragraphs without too much markup and special formatting, use substitutions.
 
 Substitutions can be defined in the following locations:
-- In the `reuse/substitutions.py` file. Substitutions defined in this file are available in all documentation pages.
+- In the `substitutions.yaml` file. Substitutions defined in this file are available in all documentation pages.
 - At the top of a single file in the following format:
 
   ````
