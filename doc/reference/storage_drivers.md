@@ -74,21 +74,3 @@ LXD will fallback to using rsync to transfer the individual files instead.
 When rsync has to be used LXD allows to specify an upper limit on the amount of
 socket I/O by setting the `rsync.bwlimit` storage pool property to a non-zero
 value.
-
-## I/O limits
-I/O limits in IOp/s or MB/s can be set on storage devices when attached to an
-instance (see [Instances](/instances.md)).
-
-Those are applied through the Linux `blkio` cgroup controller which makes it possible
-to restrict I/O at the disk level (but nothing finer grained than that).
-
-Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
-
- - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
- - If a filesystem is backed by multiple block devices, each device will get the same limit.
- - If the instance is passed two disk devices that are each backed by the same disk,
-   the limits of the two devices will be averaged.
-
-It's also worth noting that all I/O limits only apply to actual block device access,
-so you will need to consider the filesystem's own overhead when setting limits.
-This also means that access to cached data will not be affected by the limit.
