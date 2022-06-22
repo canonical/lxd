@@ -129,9 +129,6 @@ type Daemon struct {
 	// Keep track of skews.
 	timeSkew bool
 
-	// Kernel version.
-	kernelVersion version.DottedVersion
-
 	// Configuration.
 	globalConfig   *clusterConfig.Config
 	globalConfigMu sync.Mutex
