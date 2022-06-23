@@ -179,7 +179,6 @@ func (h *notifyFixtures) Down(i int) {
 	})
 	require.NoError(h.t, err)
 	h.servers[i].Close()
-
 }
 
 // Returns a minimal stub for the LXD RESTful API server, just realistic
