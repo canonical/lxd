@@ -82,7 +82,7 @@ func ArchiveUnload(sysOS *sys.OS, outputPath string) error {
 	return nil
 }
 
-// ArchiveDelete removes the profile from cache/disk
+// ArchiveDelete removes the profile from cache/disk.
 func ArchiveDelete(sysOS *sys.OS, outputPath string) error {
 	return deleteProfile(sysOS, ArchiveProfileName(outputPath), ArchiveProfileFilename(outputPath))
 }
