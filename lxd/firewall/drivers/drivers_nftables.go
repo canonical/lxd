@@ -994,7 +994,6 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 							"targetHost":  targetAddressStr,
 							"targetPorts": targetPort,
 						})
-
 					}
 				}
 			} else if rule.Protocol == "" {
