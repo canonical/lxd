@@ -126,7 +126,7 @@ func ArchitecturePersonalities(arch int) ([]int, error) {
 	return []int{}, fmt.Errorf("Architecture isn't supported: %d", arch)
 }
 
-// ArchitectureGetLocalID returns the local hardware architecture ID
+// ArchitectureGetLocalID returns the local hardware architecture ID.
 func ArchitectureGetLocalID() (int, error) {
 	name, err := ArchitectureGetLocal()
 	if err != nil {
@@ -139,7 +139,7 @@ func ArchitectureGetLocalID() (int, error) {
 	return id, nil
 }
 
-// SupportedArchitectures returns the list of all supported architectures
+// SupportedArchitectures returns the list of all supported architectures.
 func SupportedArchitectures() []string {
 	result := []string{}
 	for _, archName := range architectureNames {
