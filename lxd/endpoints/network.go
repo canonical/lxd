@@ -40,7 +40,7 @@ func (e *Endpoints) NetworkCert() *shared.CertInfo {
 }
 
 // NetworkAddress returns the network addresss of the network endpoint, or an
-// empty string if there's no network endpoint
+// empty string if there's no network endpoint.
 func (e *Endpoints) NetworkAddress() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
