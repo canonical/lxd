@@ -15,12 +15,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
-
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/netutils"
 )

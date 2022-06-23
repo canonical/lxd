@@ -18,13 +18,11 @@ import (
 	"time"
 
 	"github.com/canonical/candid/candidclient"
-	dqliteclient "github.com/canonical/go-dqlite/client"
+	dqliteClient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
-
-	client "github.com/canonical/go-dqlite/client"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
@@ -41,7 +39,6 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/fsmonitor"
-	devmonitor "github.com/lxc/lxd/lxd/fsmonitor"
 	"github.com/lxc/lxd/lxd/instance"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -124,7 +121,7 @@ type Daemon struct {
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Device monitor for watching filesystem events
-	devmonitor devmonitor.FSMonitor
+	devmonitor fsmonitor.FSMonitor
 
 	// Keep track of skews.
 	timeSkew bool
@@ -1138,7 +1135,7 @@ func (d *Daemon) init() error {
 		}
 
 		if shared.StringInSlice("database", trace) {
-			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
+			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
 		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
@@ -2022,7 +2019,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 	for _, node := range hbData.Members {
 		if node.RaftID > 0 {
 			raftNodes = append(raftNodes, db.RaftNode{
-				NodeInfo: client.NodeInfo{
+				NodeInfo: dqliteClient.NodeInfo{
 					ID:      node.RaftID,
 					Address: node.Address,
 					Role:    db.RaftRole(node.RaftRole),
