@@ -111,7 +111,7 @@ func NewDeviceType(t string) (DeviceType, error) {
 	}
 }
 
-// DevicesToAPI takes a map of devices and converts them to API format
+// DevicesToAPI takes a map of devices and converts them to API format.
 func DevicesToAPI(devices map[string]Device) map[string]map[string]string {
 	config := map[string]map[string]string{}
 	for _, d := range devices {

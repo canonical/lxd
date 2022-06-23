@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// CertificateProjectGenerated is an interface of generated methods for CertificateProject
+// CertificateProjectGenerated is an interface of generated methods for CertificateProject.
 type CertificateProjectGenerated interface {
 	// GetCertificateProjects returns all available Projects for the Certificate.
 	// generator: certificate_project GetMany

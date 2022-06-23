@@ -34,7 +34,7 @@ import (
 //go:generate mapper method -i -e project Rename version=2
 //go:generate mapper method -i -e project DeleteOne-by-Name version=2
 
-// Project represents a LXD project
+// Project represents a LXD project.
 type Project struct {
 	ID          int
 	Description string

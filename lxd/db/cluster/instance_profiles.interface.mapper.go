@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// InstanceProfileGenerated is an interface of generated methods for InstanceProfile
+// InstanceProfileGenerated is an interface of generated methods for InstanceProfile.
 type InstanceProfileGenerated interface {
 	// GetProfileInstances returns all available Instances for the Profile.
 	// generator: instance_profile GetMany
