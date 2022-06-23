@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// FormatSection properly indents a text section
+// FormatSection properly indents a text section.
 func FormatSection(header string, content string) string {
 	out := ""
 
