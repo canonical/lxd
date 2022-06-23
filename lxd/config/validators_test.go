@@ -3,8 +3,9 @@ package config_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/config"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lxc/lxd/lxd/config"
 )
 
 func TestAvailableExecutable(t *testing.T) {
