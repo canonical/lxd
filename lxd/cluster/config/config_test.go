@@ -3,10 +3,11 @@ package config_test
 import (
 	"testing"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
+	"github.com/lxc/lxd/lxd/db"
 )
 
 // The server configuration is initially empty.
