@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db/operationtype"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func registerDBOperation(op *Operation, opType operationtype.Type) error {
@@ -29,5 +30,5 @@ func (op *Operation) sendEvent(eventMessage any) {
 		return
 	}
 
-	op.events.Send(op.projectName, "operation", eventMessage)
+	op.events.Send(op.projectName, api.EventTypeOperation, eventMessage)
 }
