@@ -4,9 +4,9 @@ package drivers
 type Event int
 
 const (
-	// Add represents the add event
+	// Add represents the add event.
 	Add Event = iota
-	// Remove represents the remove event
+	// Remove represents the remove event.
 	Remove
 )
 
