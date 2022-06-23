@@ -17,8 +17,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-var eventTypes = []string{"logging", "operation", "lifecycle"}
-var privilegedEventTypes = []string{"logging"}
+var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.EventTypeLifecycle}
+var privilegedEventTypes = []string{api.EventTypeLogging}
 
 var eventsCmd = APIEndpoint{
 	Path: "events",
@@ -85,7 +85,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 	}
 
-	if shared.StringInSlice("logging", types) && !rbac.UserIsAdmin(r) {
+	if shared.StringInSlice(api.EventTypeLogging, types) && !rbac.UserIsAdmin(r) {
 		_ = response.Forbidden(nil).Render(w)
 		return nil
 	}

@@ -101,7 +101,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection Ev
 
 // SendLifecycle broadcasts a lifecycle event.
 func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
-	_ = s.Send(projectName, "lifecycle", event)
+	_ = s.Send(projectName, api.EventTypeLifecycle, event)
 }
 
 // Send broadcasts a custom event.
@@ -123,7 +123,7 @@ func (s *Server) Send(projectName string, eventType string, eventMessage any) er
 // Inject an event from another member into the local events dispatcher.
 // eventSource is used to indicate where this event was received from.
 func (s *Server) Inject(event api.Event, eventSource EventSource) {
-	if event.Type == "logging" {
+	if event.Type == api.EventTypeLogging {
 		// Parse the message
 		logEntry := api.EventLogging{}
 		err := json.Unmarshal(event.Metadata, &logEntry)

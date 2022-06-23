@@ -20,7 +20,7 @@ func (s *releaseTestSuite) TestGetLSBRelease() {
 ID="ubuntu"
 VERSION_ID="16.04"
 `
-	filename, cleanup := WriteTempFile(s.Suite, "", "os-release", content)
+	filename, cleanup := WriteTempFile(&s.Suite, "", "os-release", content)
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
@@ -35,7 +35,7 @@ VERSION_ID="16.04"
 
 func (s *releaseTestSuite) TestGetLSBReleaseSingleQuotes() {
 	content := `NAME='Ubuntu'`
-	filename, cleanup := WriteTempFile(s.Suite, "", "os-release", content)
+	filename, cleanup := WriteTempFile(&s.Suite, "", "os-release", content)
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
@@ -45,7 +45,7 @@ func (s *releaseTestSuite) TestGetLSBReleaseSingleQuotes() {
 
 func (s *releaseTestSuite) TestGetLSBReleaseNoQuotes() {
 	content := `NAME=Ubuntu`
-	filename, cleanup := WriteTempFile(s.Suite, "", "os-release", content)
+	filename, cleanup := WriteTempFile(&s.Suite, "", "os-release", content)
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
@@ -61,7 +61,7 @@ ID="ubuntu"
 # skip this line
 VERSION_ID="16.04"
 `
-	filename, cleanup := WriteTempFile(s.Suite, "", "os-release", content)
+	filename, cleanup := WriteTempFile(&s.Suite, "", "os-release", content)
 	defer cleanup()
 
 	lsbRelease, err := getLSBRelease(filename)
@@ -80,7 +80,7 @@ NAME="Ubuntu"
 this is invalid
 ID="ubuntu"
 `
-	filename, cleanup := WriteTempFile(s.Suite, "", "os-release", content)
+	filename, cleanup := WriteTempFile(&s.Suite, "", "os-release", content)
 	defer cleanup()
 
 	_, err := getLSBRelease(filename)
