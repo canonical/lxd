@@ -51,7 +51,7 @@ func (s *httpService) LogRequest(req *http.Request) {
 	s.Logger.Printf("%s - %s %s", s.Name, req.Method, req.URL.Path)
 }
 
-// Fail returns an HTTP error with the specified message
+// Fail returns an HTTP error with the specified message.
 func (s *httpService) Fail(w http.ResponseWriter, code int, msg string, args ...any) {
 	http.Error(w, fmt.Sprintf(msg, args...), code)
 }
