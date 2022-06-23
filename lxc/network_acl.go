@@ -9,15 +9,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lxc/lxd/lxc/utils"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/termios"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxc/utils"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type cmdNetworkACL struct {

@@ -1,16 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
-
-	"fmt"
-	"strings"
-	"time"
 )
 
 type cmdSnapshot struct {
