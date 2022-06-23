@@ -392,7 +392,7 @@ func (r *ProtocolLXD) GetInstanceFull(name string) (*api.InstanceFull, string, e
 }
 
 // CreateInstanceFromBackup is a convenience function to make it easier to
-// create a instance from a backup
+// create a instance from a backup.
 func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operation, error) {
 	if !r.HasExtension("container_backup") {
 		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
@@ -1481,7 +1481,7 @@ func (r *ProtocolLXD) GetInstanceSnapshots(instanceName string) ([]api.InstanceS
 	return snapshots, nil
 }
 
-// GetInstanceSnapshot returns a Snapshot struct for the provided instance and snapshot names
+// GetInstanceSnapshot returns a Snapshot struct for the provided instance and snapshot names.
 func (r *ProtocolLXD) GetInstanceSnapshot(instanceName string, name string) (*api.InstanceSnapshot, string, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
@@ -1936,7 +1936,7 @@ func (r *ProtocolLXD) GetInstanceLogfiles(name string) ([]string, error) {
 
 // GetInstanceLogfile returns the content of the requested logfile.
 //
-// Note that it's the caller's responsibility to close the returned ReadCloser
+// Note that it's the caller's responsibility to close the returned ReadCloser.
 func (r *ProtocolLXD) GetInstanceLogfile(name string, filename string) (io.ReadCloser, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
@@ -2316,7 +2316,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 // GetInstanceConsoleLog requests that LXD attaches to the console device of a instance.
 //
-// Note that it's the caller's responsibility to close the returned ReadCloser
+// Note that it's the caller's responsibility to close the returned ReadCloser.
 func (r *ProtocolLXD) GetInstanceConsoleLog(instanceName string, args *InstanceConsoleLogArgs) (io.ReadCloser, error) {
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {

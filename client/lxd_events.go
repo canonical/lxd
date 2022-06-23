@@ -13,7 +13,7 @@ import (
 
 // Event handling functions
 
-// getEvents connects to the LXD monitoring interface
+// getEvents connects to the LXD monitoring interface.
 func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Prevent anything else from interacting with the listeners
 	r.eventListenersLock.Lock()

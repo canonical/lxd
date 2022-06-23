@@ -9,7 +9,7 @@ import (
 
 // Warning handling functions
 
-// GetWarningUUIDs returns a list of operation uuids
+// GetWarningUUIDs returns a list of operation uuids.
 func (r *ProtocolLXD) GetWarningUUIDs() ([]string, error) {
 	if !r.HasExtension("warnings") {
 		return nil, fmt.Errorf("The server is missing the required \"warnings\" API extension")

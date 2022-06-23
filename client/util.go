@@ -212,7 +212,7 @@ func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, erro
 	return resourceNames, nil
 }
 
-// parseFilters translates filters passed at client side to form acceptable by server-side API
+// parseFilters translates filters passed at client side to form acceptable by server-side API.
 func parseFilters(filters []string) string {
 	var result []string
 	for _, filter := range filters {

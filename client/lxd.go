@@ -22,7 +22,7 @@ import (
 	neturl "net/url"
 )
 
-// ProtocolLXD represents a LXD API server
+// ProtocolLXD represents a LXD API server.
 type ProtocolLXD struct {
 	ctx                context.Context
 	server             *api.Server
@@ -54,14 +54,14 @@ type ProtocolLXD struct {
 	project       string
 }
 
-// Disconnect gets rid of any background goroutines
+// Disconnect gets rid of any background goroutines.
 func (r *ProtocolLXD) Disconnect() {
 	if r.ctxConnected.Err() != nil {
 		r.ctxConnectedCancel()
 	}
 }
 
-// GetConnectionInfo returns the basic connection information used to interact with the server
+// GetConnectionInfo returns the basic connection information used to interact with the server.
 func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
 	info.Certificate = r.httpCertificate
@@ -176,7 +176,7 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	}
 }
 
-// RequireAuthenticated sets whether we expect to be authenticated with the server
+// RequireAuthenticated sets whether we expect to be authenticated with the server.
 func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 	r.requireAuthenticated = authenticated
 }
@@ -204,7 +204,7 @@ func (r *ProtocolLXD) RawOperation(method string, path string, data any, ETag st
 	return r.queryOperation(method, path, data, ETag)
 }
 
-// Internal functions
+// Internal functions.
 func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	// Get the ETag
 	etag := resp.Header.Get("ETag")

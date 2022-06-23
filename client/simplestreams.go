@@ -7,7 +7,7 @@ import (
 	"github.com/lxc/lxd/shared/simplestreams"
 )
 
-// ProtocolSimpleStreams implements a SimpleStreams API client
+// ProtocolSimpleStreams implements a SimpleStreams API client.
 type ProtocolSimpleStreams struct {
 	ssClient *simplestreams.SimpleStreams
 
@@ -17,11 +17,11 @@ type ProtocolSimpleStreams struct {
 	httpCertificate string
 }
 
-// Disconnect is a no-op for simplestreams
+// Disconnect is a no-op for simplestreams.
 func (r *ProtocolSimpleStreams) Disconnect() {
 }
 
-// GetConnectionInfo returns the basic connection information used to interact with the server
+// GetConnectionInfo returns the basic connection information used to interact with the server.
 func (r *ProtocolSimpleStreams) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
 	info.Addresses = []string{r.httpHost}
