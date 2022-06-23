@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-// Pretty will attempt to convert any Go structure into a string suitable for logging
+// Pretty will attempt to convert any Go structure into a string suitable for logging.
 func Pretty(input any) string {
 	pretty, err := json.MarshalIndent(input, "\t", "\t")
 	if err != nil {
@@ -16,7 +16,7 @@ func Pretty(input any) string {
 	return fmt.Sprintf("\n\t%s", pretty)
 }
 
-// GetStack will convert the Go stack into a string suitable for logging
+// GetStack will convert the Go stack into a string suitable for logging.
 func GetStack() string {
 	buf := make([]byte, 1<<16)
 	n := runtime.Stack(buf, true)
