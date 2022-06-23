@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db/node"
 )
 
 func TestOpen(t *testing.T) {
