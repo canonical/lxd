@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// DeviceGenerated is an interface of generated methods for Device
+// DeviceGenerated is an interface of generated methods for Device.
 type DeviceGenerated interface {
 	// GetDevices returns all available devices for the parent entity.
 	// generator: device GetMany

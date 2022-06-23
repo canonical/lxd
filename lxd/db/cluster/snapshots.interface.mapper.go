@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// InstanceSnapshotGenerated is an interface of generated methods for InstanceSnapshot
+// InstanceSnapshotGenerated is an interface of generated methods for InstanceSnapshot.
 type InstanceSnapshotGenerated interface {
 	// GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
 	// generator: instance_snapshot GetMany

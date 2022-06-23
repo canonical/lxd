@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// InstanceGenerated is an interface of generated methods for Instance
+// InstanceGenerated is an interface of generated methods for Instance.
 type InstanceGenerated interface {
 	// GetInstanceConfig returns all available Instance Config
 	// generator: instance GetMany

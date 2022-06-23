@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// ImageGenerated is an interface of generated methods for Image
+// ImageGenerated is an interface of generated methods for Image.
 type ImageGenerated interface {
 	// GetImages returns all available images.
 	// generator: image GetMany

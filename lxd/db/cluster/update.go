@@ -1143,7 +1143,7 @@ RENAME COLUMN pending TO state;
 	return nil
 }
 
-// updateFromV47 adds warnings
+// updateFromV47 adds warnings.
 func updateFromV47(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE warnings (
@@ -1174,7 +1174,7 @@ CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_i
 	return err
 }
 
-// updateFromV46 adds support for restricting certificates to projects
+// updateFromV46 adds support for restricting certificates to projects.
 func updateFromV46(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE certificates ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
@@ -1198,7 +1198,7 @@ CREATE VIEW certificates_projects_ref (fingerprint, value) AS
 	return nil
 }
 
-// updateFromV45 updates projects_used_by_ref to include ceph volumes
+// updateFromV45 updates projects_used_by_ref to include ceph volumes.
 func updateFromV45(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
@@ -1251,7 +1251,7 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // updateFromV44 adds networks_acls table, and adds a foreign key relationship between networks and projects.
-// API extension: network_acl
+// API extension: network_acl.
 func updateFromV44(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
@@ -2033,7 +2033,7 @@ ALTER TABLE nodes
 	return nil
 }
 
-// Add content type field to storage volumes
+// Add content type field to storage volumes.
 func updateFromV30(tx *sql.Tx) error {
 	stmts := `ALTER TABLE storage_volumes ADD COLUMN content_type INTEGER NOT NULL DEFAULT 0;
 UPDATE storage_volumes SET content_type = 1 WHERE type = 3;
@@ -2114,13 +2114,13 @@ CREATE VIEW projects_used_by_ref (name,
 	return err
 }
 
-// Attempt to add missing project feature
+// Attempt to add missing project feature.
 func updateFromV28(tx *sql.Tx) error {
 	_, _ = tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
 	return nil
 }
 
-// Add expiry date to storage volume snapshots
+// Add expiry date to storage volume snapshots.
 func updateFromV27(tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE storage_volumes_snapshots ADD COLUMN expiry_date DATETIME;")
 	return err
@@ -2433,7 +2433,7 @@ SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
 	return nil
 }
 
-// Fix "images_profiles" table (missing UNIQUE)
+// Fix "images_profiles" table (missing UNIQUE).
 func updateFromV21(tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE images_profiles RENAME TO old_images_profiles;
@@ -2451,7 +2451,7 @@ DROP TABLE old_images_profiles;
 	return err
 }
 
-// Add "images_profiles" table
+// Add "images_profiles" table.
 func updateFromV20(tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE images_profiles (
@@ -2554,7 +2554,7 @@ CREATE VIEW projects_used_by_ref (name,
 	return err
 }
 
-// Add nodes_roles table
+// Add nodes_roles table.
 func updateFromV17(tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE nodes_roles (
@@ -2568,7 +2568,7 @@ CREATE TABLE nodes_roles (
 	return err
 }
 
-// Add image type column
+// Add image type column.
 func updateFromV16(tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE images ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	return err
@@ -2951,7 +2951,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 	return nil
 }
 
-// Rename all containers* tables to instances*/
+// Rename all containers* tables to instances*/.
 func updateFromV14(tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE containers RENAME TO instances;

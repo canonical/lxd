@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// ProfileGenerated is an interface of generated methods for Profile
+// ProfileGenerated is an interface of generated methods for Profile.
 type ProfileGenerated interface {
 	// GetProfileID return the ID of the profile with the given key.
 	// generator: profile ID
