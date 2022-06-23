@@ -16,77 +16,77 @@ type MetricSet struct {
 type MetricType int
 
 const (
-	// CPUSecondsTotal represents the total CPU seconds used
+	// CPUSecondsTotal represents the total CPU seconds used.
 	CPUSecondsTotal MetricType = iota
-	// DiskReadBytesTotal represents the read bytes for a disk
+	// DiskReadBytesTotal represents the read bytes for a disk.
 	DiskReadBytesTotal
-	// DiskReadsCompletedTotal represents the completed for a disk
+	// DiskReadsCompletedTotal represents the completed for a disk.
 	DiskReadsCompletedTotal
-	// DiskWrittenBytesTotal represents the written bytes for a disk
+	// DiskWrittenBytesTotal represents the written bytes for a disk.
 	DiskWrittenBytesTotal
-	// DiskWritesCompletedTotal represents the completed writes for a disk
+	// DiskWritesCompletedTotal represents the completed writes for a disk.
 	DiskWritesCompletedTotal
-	// FilesystemAvailBytes represents the available bytes on a filesystem
+	// FilesystemAvailBytes represents the available bytes on a filesystem.
 	FilesystemAvailBytes
-	// FilesystemFreeBytes represents the free bytes on a filesystem
+	// FilesystemFreeBytes represents the free bytes on a filesystem.
 	FilesystemFreeBytes
-	// FilesystemSizeBytes represents the size in bytes of a filesystem
+	// FilesystemSizeBytes represents the size in bytes of a filesystem.
 	FilesystemSizeBytes
-	// MemoryActiveAnonBytes represents the amount of anonymous memory on active LRU list
+	// MemoryActiveAnonBytes represents the amount of anonymous memory on active LRU list.
 	MemoryActiveAnonBytes
-	// MemoryActiveFileBytes represents the amount of file-backed memory on active LRU list
+	// MemoryActiveFileBytes represents the amount of file-backed memory on active LRU list.
 	MemoryActiveFileBytes
-	// MemoryActiveBytes represents the amount of memory on active LRU list
+	// MemoryActiveBytes represents the amount of memory on active LRU list.
 	MemoryActiveBytes
-	// MemoryCachedBytes represents the amount of cached memory
+	// MemoryCachedBytes represents the amount of cached memory.
 	MemoryCachedBytes
-	// MemoryDirtyBytes represents the amount of memory waiting to get written back to the disk
+	// MemoryDirtyBytes represents the amount of memory waiting to get written back to the disk.
 	MemoryDirtyBytes
-	// MemoryHugePagesFreeBytes represents the amount of free memory for hugetlb
+	// MemoryHugePagesFreeBytes represents the amount of free memory for hugetlb.
 	MemoryHugePagesFreeBytes
-	// MemoryHugePagesTotalBytes represents the amount of used memory for hugetlb
+	// MemoryHugePagesTotalBytes represents the amount of used memory for hugetlb.
 	MemoryHugePagesTotalBytes
-	// MemoryInactiveAnonBytes represents the amount of anonymous memory on inactive LRU list
+	// MemoryInactiveAnonBytes represents the amount of anonymous memory on inactive LRU list.
 	MemoryInactiveAnonBytes
-	// MemoryInactiveFileBytes represents the amount of file-backed memory on inactive LRU list
+	// MemoryInactiveFileBytes represents the amount of file-backed memory on inactive LRU list.
 	MemoryInactiveFileBytes
-	// MemoryInactiveBytes represents the amount of memory on inactive LRU list
+	// MemoryInactiveBytes represents the amount of memory on inactive LRU list.
 	MemoryInactiveBytes
-	// MemoryMappedBytes represents the amount of mapped memory
+	// MemoryMappedBytes represents the amount of mapped memory.
 	MemoryMappedBytes
-	//MemoryMemAvailableBytes represents the amount of available memory
+	//MemoryMemAvailableBytes represents the amount of available memory.
 	MemoryMemAvailableBytes
-	// MemoryMemFreeBytes represents the amount of free memory
+	// MemoryMemFreeBytes represents the amount of free memory.
 	MemoryMemFreeBytes
-	// MemoryMemTotalBytes represents the amount of used memory
+	// MemoryMemTotalBytes represents the amount of used memory.
 	MemoryMemTotalBytes
-	// MemoryRSSBytes represents the amount of anonymous and swap cache memory
+	// MemoryRSSBytes represents the amount of anonymous and swap cache memory.
 	MemoryRSSBytes
-	// MemoryShmemBytes represents the amount of cached filesystem data that is swap-backed
+	// MemoryShmemBytes represents the amount of cached filesystem data that is swap-backed.
 	MemoryShmemBytes
-	// MemorySwapBytes represents the amount of swap memory
+	// MemorySwapBytes represents the amount of swap memory.
 	MemorySwapBytes
-	// MemoryUnevictableBytes represents the amount of unevictable memory
+	// MemoryUnevictableBytes represents the amount of unevictable memory.
 	MemoryUnevictableBytes
-	// MemoryWritebackBytes represents the amount of memory queued for syncing to disk
+	// MemoryWritebackBytes represents the amount of memory queued for syncing to disk.
 	MemoryWritebackBytes
-	// NetworkReceiveBytesTotal represents the amount of received bytes on a given interface
+	// NetworkReceiveBytesTotal represents the amount of received bytes on a given interface.
 	NetworkReceiveBytesTotal
-	// NetworkReceiveDropTotal represents the amount of received dropped bytes on a given interface
+	// NetworkReceiveDropTotal represents the amount of received dropped bytes on a given interface.
 	NetworkReceiveDropTotal
-	// NetworkReceiveErrsTotal represents the amount of received errors on a given interface
+	// NetworkReceiveErrsTotal represents the amount of received errors on a given interface.
 	NetworkReceiveErrsTotal
-	// NetworkReceivePacketsTotal represents the amount of received packets on a given interface
+	// NetworkReceivePacketsTotal represents the amount of received packets on a given interface.
 	NetworkReceivePacketsTotal
-	// NetworkTransmitBytesTotal represents the amount of transmitted bytes on a given interface
+	// NetworkTransmitBytesTotal represents the amount of transmitted bytes on a given interface.
 	NetworkTransmitBytesTotal
-	// NetworkTransmitDropTotal represents the amount of transmitted dropped bytes on a given interface
+	// NetworkTransmitDropTotal represents the amount of transmitted dropped bytes on a given interface.
 	NetworkTransmitDropTotal
-	// NetworkTransmitErrsTotal represents the amount of transmitted errors on a given interface
+	// NetworkTransmitErrsTotal represents the amount of transmitted errors on a given interface.
 	NetworkTransmitErrsTotal
-	// NetworkTransmitPacketsTotal represents the amount of transmitted packets on a given interface
+	// NetworkTransmitPacketsTotal represents the amount of transmitted packets on a given interface.
 	NetworkTransmitPacketsTotal
-	// ProcsTotal represents the number of running processes
+	// ProcsTotal represents the number of running processes.
 	ProcsTotal
 )
 
