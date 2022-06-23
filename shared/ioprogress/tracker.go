@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// ProgressTracker provides the stream information needed for tracking
+// ProgressTracker provides the stream information needed for tracking.
 type ProgressTracker struct {
 	Length  int64
 	Handler func(int64, int64)
