@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"sync"
 	"time"
@@ -18,8 +19,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-
-	neturl "net/url"
 )
 
 // ProtocolLXD represents a LXD API server.
