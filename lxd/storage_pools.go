@@ -28,7 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// Lock to prevent concurent storage pools creation
+// Lock to prevent concurent storage pools creation.
 var storagePoolCreateLock sync.Mutex
 
 var storagePoolsCmd = APIEndpoint{

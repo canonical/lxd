@@ -2385,7 +2385,7 @@ type internalClusterPostAssignRequest struct {
 	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 }
 
-// Used to to transfer the responsibilities of a member to another one
+// Used to to transfer the responsibilities of a member to another one.
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	req := internalClusterPostHandoverRequest{}

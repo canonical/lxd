@@ -141,7 +141,7 @@ func snapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
 }
 
 // Check if CRIU supports pre-dumping and number of
-// pre-dump iterations
+// pre-dump iterations.
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)

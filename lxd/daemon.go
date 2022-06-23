@@ -254,7 +254,7 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
+// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission.
 func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		// Shortcut for speed
@@ -274,7 +274,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 	}
 }
 
-// Convenience function around Authenticate
+// Convenience function around Authenticate.
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	trusted, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
@@ -1767,7 +1767,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	return err
 }
 
-// Setup external authentication
+// Setup external authentication.
 func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey string, expiry int64, domains string) error {
 	// Parse the list of domains
 	authDomains := []string{}
@@ -1850,7 +1850,7 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey str
 	return nil
 }
 
-// Setup RBAC
+// Setup RBAC.
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
 	if d.rbac != nil || rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
 		return nil
@@ -1900,7 +1900,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	return nil
 }
 
-// Setup MAAS
+// Setup MAAS.
 func (d *Daemon) setupMAASController(server string, key string, machine string) error {
 	var err error
 	d.maas = nil
