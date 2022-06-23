@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Test memorypipe
+// Test memorypipe.
 func TestMemoryPipe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
