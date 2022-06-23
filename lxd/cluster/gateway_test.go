@@ -151,7 +151,6 @@ func TestGateway_NetworkAuth(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, response.StatusCode)
 	}
-
 }
 
 // RaftNodes returns all nodes of the cluster.
