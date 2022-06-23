@@ -866,7 +866,6 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		if !volumeOnly {
 			volTargetArgs.Snapshots = syncSnapshotNames
 		}
-
 	}
 
 	return d.createVolumeFromMigrationOptimized(vol, conn, volTargetArgs, volumeOnly, preFiller, op)
