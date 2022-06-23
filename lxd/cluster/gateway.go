@@ -325,7 +325,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 	}
 }
 
-// Snapshot can be used to manually trigger a RAFT snapshot
+// Snapshot can be used to manually trigger a RAFT snapshot.
 func (g *Gateway) Snapshot() error {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
@@ -719,7 +719,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 }
 
 // NetworkUpdateCert sets a new network certificate for the gateway
-// Use with Endpoints.NetworkUpdateCert() to fully update the API endpoint
+// Use with Endpoints.NetworkUpdateCert() to fully update the API endpoint.
 func (g *Gateway) NetworkUpdateCert(cert *shared.CertInfo) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -1068,7 +1068,7 @@ func dqliteMemoryDial(bindAddress string) client.DialFunc {
 // performing SQL queries against the dqlite server running on this node.
 const databaseEndpoint = "/internal/database"
 
-// DqliteLog redirects dqlite's logs to our own logger
+// DqliteLog redirects dqlite's logs to our own logger.
 func DqliteLog(l client.LogLevel, format string, a ...any) {
 	format = fmt.Sprintf("Dqlite: %s", format)
 	switch l {
