@@ -1353,7 +1353,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota sets the quota/reservation on the volume.
-// Does nothing if supplied with an empty/zero size for block volumes
+// Does nothing if supplied with an empty/zero size for block volumes.
 func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
