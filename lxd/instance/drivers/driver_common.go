@@ -1384,6 +1384,5 @@ func (d *common) devicesRemove(inst instance.Instance) {
 				d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
-
 	}
 }
