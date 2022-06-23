@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 )
 
 var reLimitsArg = regexp.MustCompile(`^limit=(\w+):(\w+):(\w+)$`)

@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
@@ -1180,7 +1179,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 		}
 
 		// Check uplink exists and load config to compare subnets.
-		_, uplink, _, err := s.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
+		_, uplink, _, err := s.DB.Cluster.GetNetworkInAnyState(projecthelpers.Default, uplinkName)
 		if err != nil {
 			return fmt.Errorf("Invalid uplink network %q: %w", uplinkName, err)
 		}

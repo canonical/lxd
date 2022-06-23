@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	liblxc "github.com/lxc/go-lxc"
+	"github.com/spf13/cobra"
 )
 
 type cmdForkconsole struct {
