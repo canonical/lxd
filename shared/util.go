@@ -161,7 +161,7 @@ func HostPathFollow(path string) string {
 
 // HostPath returns the host path for the provided path
 // On a normal system, this does nothing
-// When inside of a snap environment, returns the real path
+// When inside of a snap environment, returns the real path.
 func HostPath(path string) string {
 	// Ignore empty paths
 	if len(path) == 0 {
@@ -763,7 +763,7 @@ func RunningInUserNS() bool {
 	return true
 }
 
-// Spawn the editor with a temporary YAML file for editing configs
+// Spawn the editor with a temporary YAML file for editing configs.
 func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	var f *os.File
 	var err error
@@ -1009,7 +1009,7 @@ func TimeIsSet(ts time.Time) bool {
 
 // EscapePathFstab escapes a path fstab-style.
 // This ensures that getmntent_r() and friends can correctly parse stuff like
-// /some/wacky path with spaces /some/wacky target with spaces
+// /some/wacky path with spaces /some/wacky target with spaces.
 func EscapePathFstab(path string) string {
 	r := strings.NewReplacer(
 		" ", "\\040",

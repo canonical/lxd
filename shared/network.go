@@ -368,7 +368,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	_ = w.Close()
 }
 
-// WebsocketIO is a wrapper implementing ReadWriteCloser on top of websocket
+// WebsocketIO is a wrapper implementing ReadWriteCloser on top of websocket.
 type WebsocketIO struct {
 	Conn   *websocket.Conn
 	reader io.Reader
@@ -501,7 +501,7 @@ var WebsocketUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// AllocatePort asks the kernel for a free open port that is ready to use
+// AllocatePort asks the kernel for a free open port that is ready to use.
 func AllocatePort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
