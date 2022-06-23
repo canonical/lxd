@@ -6,11 +6,11 @@ package db
 type WarningSeverity int
 
 const (
-	// WarningSeverityLow represents the low WarningSeverity
+	// WarningSeverityLow represents the low WarningSeverity.
 	WarningSeverityLow WarningSeverity = 1
-	// WarningSeverityModerate represents the moderate WarningSeverity
+	// WarningSeverityModerate represents the moderate WarningSeverity.
 	WarningSeverityModerate WarningSeverity = 2
-	// WarningSeverityHigh represents the high WarningSeverity
+	// WarningSeverityHigh represents the high WarningSeverity.
 	WarningSeverityHigh WarningSeverity = 3
 )
 

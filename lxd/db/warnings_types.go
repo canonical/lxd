@@ -6,53 +6,53 @@ package db
 type WarningType int
 
 const (
-	// WarningUndefined represents an undefined warning
+	// WarningUndefined represents an undefined warning.
 	WarningUndefined WarningType = iota
-	// WarningMissingCGroupBlkio represents the missing CGroup blkio warning
+	// WarningMissingCGroupBlkio represents the missing CGroup blkio warning.
 	WarningMissingCGroupBlkio
-	// WarningMissingCGroupBlkioWeight represents the missing CGroup blkio.weight warning
+	// WarningMissingCGroupBlkioWeight represents the missing CGroup blkio.weight warning.
 	WarningMissingCGroupBlkioWeight
-	// WarningMissingCGroupCPUController represents the missing CGroup CPU controller warning
+	// WarningMissingCGroupCPUController represents the missing CGroup CPU controller warning.
 	WarningMissingCGroupCPUController
-	// WarningMissingCGroupCPUsetController represents the missing GCgroup CPUset controller warning
+	// WarningMissingCGroupCPUsetController represents the missing GCgroup CPUset controller warning.
 	WarningMissingCGroupCPUsetController
-	// WarningMissingCGroupCPUacctController represents the missing GCgroup CPUacct controller warning
+	// WarningMissingCGroupCPUacctController represents the missing GCgroup CPUacct controller warning.
 	WarningMissingCGroupCPUacctController
-	// WarningMissingCGroupDevicesController represents the missing GCgroup devices controller warning
+	// WarningMissingCGroupDevicesController represents the missing GCgroup devices controller warning.
 	WarningMissingCGroupDevicesController
-	// WarningMissingCGroupFreezerController represents the missing GCgroup freezer controller warning
+	// WarningMissingCGroupFreezerController represents the missing GCgroup freezer controller warning.
 	WarningMissingCGroupFreezerController
-	// WarningMissingCGroupHugetlbController represents the missing GCgroup hugetlb controller warning
+	// WarningMissingCGroupHugetlbController represents the missing GCgroup hugetlb controller warning.
 	WarningMissingCGroupHugetlbController
-	// WarningMissingCGroupMemoryController represents the missing GCgroup memory controller warning
+	// WarningMissingCGroupMemoryController represents the missing GCgroup memory controller warning.
 	WarningMissingCGroupMemoryController
-	// WarningMissingCGroupNetworkPriorityController represents the missing GCgroup network priority controller warning
+	// WarningMissingCGroupNetworkPriorityController represents the missing GCgroup network priority controller warning.
 	WarningMissingCGroupNetworkPriorityController
-	// WarningMissingCGroupPidsController represents the missing GCgroup pids controller warning
+	// WarningMissingCGroupPidsController represents the missing GCgroup pids controller warning.
 	WarningMissingCGroupPidsController
-	// WarningMissingCGroupMemorySwapAccounting represents the missing GCgroup memory swap accounting warning
+	// WarningMissingCGroupMemorySwapAccounting represents the missing GCgroup memory swap accounting warning.
 	WarningMissingCGroupMemorySwapAccounting
-	// WarningClusterTimeSkew represents the cluster time skew warning
+	// WarningClusterTimeSkew represents the cluster time skew warning.
 	WarningClusterTimeSkew
-	// WarningAppArmorNotAvailable represents the AppArmor not available warning
+	// WarningAppArmorNotAvailable represents the AppArmor not available warning.
 	WarningAppArmorNotAvailable
-	//WarningMissingVirtiofsd represents the missing virtiofsd warning
+	//WarningMissingVirtiofsd represents the missing virtiofsd warning.
 	WarningMissingVirtiofsd
-	// WarningUnableToConnectToMAAS represents the unable to connect to MAAS warning
+	// WarningUnableToConnectToMAAS represents the unable to connect to MAAS warning.
 	WarningUnableToConnectToMAAS
-	// WarningAppArmorDisabledDueToRawDnsmasq represents the disabled AppArmor due to raw.dnsmasq warning
+	// WarningAppArmorDisabledDueToRawDnsmasq represents the disabled AppArmor due to raw.dnsmasq warning.
 	WarningAppArmorDisabledDueToRawDnsmasq
-	// WarningLargerIPv6PrefixThanSupported represents the larger IPv6 prefix than supported warning
+	// WarningLargerIPv6PrefixThanSupported represents the larger IPv6 prefix than supported warning.
 	WarningLargerIPv6PrefixThanSupported
-	// WarningProxyBridgeNetfilterNotEnabled represents the proxy bridge netfilter not enable warning
+	// WarningProxyBridgeNetfilterNotEnabled represents the proxy bridge netfilter not enable warning.
 	WarningProxyBridgeNetfilterNotEnabled
 	// WarningNetworkUnvailable represents a network that cannot be initialized on the local server.
 	WarningNetworkUnvailable
-	// WarningOfflineClusterMember represents the offline cluster members warning
+	// WarningOfflineClusterMember represents the offline cluster members warning.
 	WarningOfflineClusterMember
-	// WarningInstanceAutostartFailure represents the failure of instance autostart process after three retries
+	// WarningInstanceAutostartFailure represents the failure of instance autostart process after three retries.
 	WarningInstanceAutostartFailure
-	//WarningInstanceTypeNotOperational represents the lack of support for an instance driver
+	//WarningInstanceTypeNotOperational represents the lack of support for an instance driver.
 	WarningInstanceTypeNotOperational
 	//WarningStoragePoolUnvailable represents a storage pool that cannot be initialized on the local server.
 	WarningStoragePoolUnvailable

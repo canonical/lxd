@@ -355,7 +355,7 @@ SELECT ?, key, value
 	return nil
 }
 
-// CreateStoragePoolConfig adds a new entry in the storage_pools_config table
+// CreateStoragePoolConfig adds a new entry in the storage_pools_config table.
 func (c *ClusterTx) CreateStoragePoolConfig(poolID, nodeID int64, config map[string]string) error {
 	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
 }
