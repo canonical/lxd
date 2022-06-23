@@ -56,7 +56,6 @@ func (m *Method) Generate(buf *file.Buffer) error {
 			return m.delete(buf, false)
 		default:
 			return fmt.Errorf("Unknown method kind '%s'", m.kind)
-
 		}
 	}
 
@@ -777,7 +776,6 @@ func (m *Method) update(buf *file.Buffer) error {
 				m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Replace %s for %s failed: %%w\", err)", field.Name, mapping.Name))
 				buf.N()
 			}
-
 		}
 	}
 
