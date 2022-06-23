@@ -224,7 +224,6 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			pathCount++
 			if pathCount > 1 {
 				return fmt.Errorf("More than one disk device uses the same path %q", d.config["path"])
-
 			}
 		}
 	}
