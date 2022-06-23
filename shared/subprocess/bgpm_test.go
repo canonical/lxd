@@ -79,7 +79,7 @@ func TestSignalHandling(t *testing.T) {
 	}
 }
 
-// tests newprocess, start, stop, save, import, restart, wait
+// tests newprocess, start, stop, save, import, restart, wait.
 func TestStopRestart(t *testing.T) {
 	var a []string
 	a = append(a, "testscript/stoprestart.sh")
