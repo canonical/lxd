@@ -13,7 +13,7 @@ import (
 
 // Server handling functions
 
-// GetServer returns the server status as a Server struct
+// GetServer returns the server status as a Server struct.
 func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	server := api.Server{}
 
@@ -43,7 +43,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	return &server, etag, nil
 }
 
-// UpdateServer updates the server status to match the provided Server struct
+// UpdateServer updates the server status to match the provided Server struct.
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
 	_, _, err := r.query("PUT", "", server, ETag)
@@ -54,7 +54,7 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	return nil
 }
 
-// HasExtension returns true if the server supports a given API extension
+// HasExtension returns true if the server supports a given API extension.
 func (r *ProtocolLXD) HasExtension(extension string) bool {
 	// If no cached API information, just assume we're good
 	// This is needed for those rare cases where we must avoid a GetServer call
@@ -76,7 +76,7 @@ func (r *ProtocolLXD) IsClustered() bool {
 	return r.server.Environment.ServerClustered
 }
 
-// GetServerResources returns the resources available to a given LXD server
+// GetServerResources returns the resources available to a given LXD server.
 func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	if !r.HasExtension("resources") {
 		return nil, fmt.Errorf("The server is missing the required \"resources\" API extension")

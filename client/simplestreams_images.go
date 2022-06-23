@@ -17,12 +17,12 @@ import (
 
 // Image handling functions
 
-// GetImages returns a list of available images as Image structs
+// GetImages returns a list of available images as Image structs.
 func (r *ProtocolSimpleStreams) GetImages() ([]api.Image, error) {
 	return r.ssClient.ListImages()
 }
 
-// GetImageFingerprints returns a list of available image fingerprints
+// GetImageFingerprints returns a list of available image fingerprints.
 func (r *ProtocolSimpleStreams) GetImageFingerprints() ([]string, error) {
 	// Get all the images from simplestreams
 	images, err := r.ssClient.ListImages()
@@ -39,12 +39,12 @@ func (r *ProtocolSimpleStreams) GetImageFingerprints() ([]string, error) {
 	return fingerprints, nil
 }
 
-// GetImagesWithFilter returns a filtered list of available images as Image structs
+// GetImagesWithFilter returns a filtered list of available images as Image structs.
 func (r *ProtocolSimpleStreams) GetImagesWithFilter(filters []string) ([]api.Image, error) {
 	return nil, fmt.Errorf("GetImagesWithFilter is not supported by the simplestreams protocol")
 }
 
-// GetImage returns an Image struct for the provided fingerprint
+// GetImage returns an Image struct for the provided fingerprint.
 func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string, error) {
 	image, err := r.ssClient.GetImage(fingerprint)
 	if err != nil {
@@ -54,7 +54,7 @@ func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string
 	return image, "", err
 }
 
-// GetImageFile downloads an image from the server, returning an ImageFileResponse struct
+// GetImageFile downloads an image from the server, returning an ImageFileResponse struct.
 func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRequest) (*ImageFileResponse, error) {
 	// Quick checks.
 	if req.MetaFile == nil && req.RootfsFile == nil {
@@ -205,27 +205,27 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	return &resp, nil
 }
 
-// GetImageSecret isn't relevant for the simplestreams protocol
+// GetImageSecret isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetImageSecret(fingerprint string) (string, error) {
 	return "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
 }
 
-// GetPrivateImage isn't relevant for the simplestreams protocol
+// GetPrivateImage isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImage(fingerprint string, secret string) (*api.Image, string, error) {
 	return nil, "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
 }
 
-// GetPrivateImageFile isn't relevant for the simplestreams protocol
+// GetPrivateImageFile isn't relevant for the simplestreams protocol.
 func (r *ProtocolSimpleStreams) GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (*ImageFileResponse, error) {
 	return nil, fmt.Errorf("Private images aren't supported by the simplestreams protocol")
 }
 
-// GetImageAliases returns the list of available aliases as ImageAliasesEntry structs
+// GetImageAliases returns the list of available aliases as ImageAliasesEntry structs.
 func (r *ProtocolSimpleStreams) GetImageAliases() ([]api.ImageAliasesEntry, error) {
 	return r.ssClient.ListAliases()
 }
 
-// GetImageAliasNames returns the list of available alias names
+// GetImageAliasNames returns the list of available alias names.
 func (r *ProtocolSimpleStreams) GetImageAliasNames() ([]string, error) {
 	// Get all the images from simplestreams
 	aliases, err := r.ssClient.ListAliases()
@@ -242,7 +242,7 @@ func (r *ProtocolSimpleStreams) GetImageAliasNames() ([]string, error) {
 	return names, nil
 }
 
-// GetImageAlias returns an existing alias as an ImageAliasesEntry struct
+// GetImageAlias returns an existing alias as an ImageAliasesEntry struct.
 func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEntry, string, error) {
 	alias, err := r.ssClient.GetAlias("container", name)
 	if err != nil {
@@ -255,7 +255,7 @@ func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEnt
 	return alias, "", err
 }
 
-// GetImageAliasType returns an existing alias as an ImageAliasesEntry struct
+// GetImageAliasType returns an existing alias as an ImageAliasesEntry struct.
 func (r *ProtocolSimpleStreams) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
 	if imageType == "" {
 		return r.GetImageAlias(name)
@@ -269,7 +269,7 @@ func (r *ProtocolSimpleStreams) GetImageAliasType(imageType string, name string)
 	return alias, "", err
 }
 
-// GetImageAliasArchitectures returns a map of architectures / targets
+// GetImageAliasArchitectures returns a map of architectures / targets.
 func (r *ProtocolSimpleStreams) GetImageAliasArchitectures(imageType string, name string) (map[string]*api.ImageAliasesEntry, error) {
 	if imageType == "" {
 		aliases, err := r.ssClient.GetAliasArchitectures("container", name)
@@ -286,7 +286,7 @@ func (r *ProtocolSimpleStreams) GetImageAliasArchitectures(imageType string, nam
 	return r.ssClient.GetAliasArchitectures(imageType, name)
 }
 
-// ExportImage exports (copies) an image to a remote server
+// ExportImage exports (copies) an image to a remote server.
 func (r *ProtocolSimpleStreams) ExportImage(fingerprint string, image api.ImageExportPost) (Operation, error) {
 	return nil, fmt.Errorf("Exporting images is not supported by the simplestreams protocol")
 }

@@ -63,7 +63,7 @@ func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error
 
 // GetNetworkACLLogfile returns a reader for the ACL log file.
 //
-// Note that it's the caller's responsibility to close the returned ReadCloser
+// Note that it's the caller's responsibility to close the returned ReadCloser.
 func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
 	if !r.HasExtension("network_acl_log") {
 		return nil, fmt.Errorf(`The server is missing the required "network_acl_log" API extension`)
