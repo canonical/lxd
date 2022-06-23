@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Test Volume_ConfigSizeFromSource
+// Test Volume_ConfigSizeFromSource.
 func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 	nonBlockBackedDriver := dir{}
 	blockBackedDriver := lvm{}
