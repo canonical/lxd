@@ -2192,7 +2192,6 @@ func MountSyscallFilter(config map[string]string) []string {
 
 	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return fs
-
 	}
 
 	fsAllowed := strings.Split(config["security.syscalls.intercept.mount.allowed"], ",")
@@ -2207,7 +2206,6 @@ func MountSyscallFilter(config map[string]string) []string {
 func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
 	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return map[string]string{}, nil
-
 	}
 
 	fsMap := map[string]string{}
