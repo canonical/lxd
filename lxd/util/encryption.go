@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// PasswordCheck validates the provided password against the encoded secret
+// PasswordCheck validates the provided password against the encoded secret.
 func PasswordCheck(secret string, password string) error {
 	// No password set
 	if secret == "" {
