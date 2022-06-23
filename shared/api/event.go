@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+// LXD event types.
+const (
+	EventTypeLifecycle = "lifecycle"
+	EventTypeLogging   = "logging"
+	EventTypeOperation = "operation"
+)
+
 // Event represents an event entry (over websocket)
 //
 // swagger:model
@@ -37,7 +44,7 @@ type Event struct {
 
 // ToLogging creates log record for the event
 func (event *Event) ToLogging() (EventLogRecord, error) {
-	if event.Type == "logging" {
+	if event.Type == EventTypeLogging {
 		e := &EventLogging{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -57,7 +64,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			Ctx:  ctx,
 		}
 		return record, nil
-	} else if event.Type == "lifecycle" {
+	} else if event.Type == EventTypeLifecycle {
 		e := &EventLifecycle{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -84,7 +91,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 		}
 
 		return record, nil
-	} else if event.Type == "operation" {
+	} else if event.Type == EventTypeOperation {
 		e := &Operation{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
