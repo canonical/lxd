@@ -111,6 +111,5 @@ func (g *Group) Stop(timeout time.Duration) error {
 		return fmt.Errorf("Task(s) still running: IDs %v", running)
 	case <-graceful:
 		return nil
-
 	}
 }
