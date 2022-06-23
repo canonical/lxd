@@ -56,7 +56,6 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 			projectName string
 		}{})
 		return []any{&networks[i].id, &networks[i].name, &networks[i].projectName}
-
 	}
 
 	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
@@ -147,7 +146,6 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 				networkID: network,
 			}
 		}
-
 	}
 	err = rows.Err()
 	if err != nil {
@@ -219,7 +217,7 @@ func (c *Cluster) GetNetworkNameAndProjectWithID(networkID int) (string, string,
 	return networkName, projectName, nil
 }
 
-// CreateNetworkConfig adds a new entry in the networks_config table
+// CreateNetworkConfig adds a new entry in the networks_config table.
 func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[string]string) error {
 	return networkConfigAdd(c.tx, networkID, nodeID, config)
 }

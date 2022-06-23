@@ -159,5 +159,4 @@ func newLogFunc(t *testing.T) client.LogFunc {
 		format = fmt.Sprintf("%s: %s", l.String(), format)
 		t.Logf(format, a...)
 	}
-
 }
