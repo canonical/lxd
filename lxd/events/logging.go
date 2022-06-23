@@ -26,7 +26,7 @@ func (h Handler) Fire(entry *logrus.Entry) error {
 		return nil
 	}
 
-	return LoggingServer.Send("", "logging", api.EventLogging{
+	return LoggingServer.Send("", api.EventTypeLogging, api.EventLogging{
 		Message: entry.Message,
 		Level:   entry.Level.String(),
 		Context: logContextMap(entry.Data),
