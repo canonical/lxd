@@ -1167,7 +1167,7 @@ func InterfaceBindWait(ifName string) error {
 	return fmt.Errorf("Bind of interface %q took too long", ifName)
 }
 
-// IPRangesOverlap checks whether two ip ranges have ip addresses in common
+// IPRangesOverlap checks whether two ip ranges have ip addresses in common.
 func IPRangesOverlap(r1, r2 *shared.IPRange) bool {
 	if r1.End == nil {
 		return r2.ContainsIP(r1.Start)
