@@ -64,7 +64,7 @@ func (c *cmdConfigDevice) Command() *cobra.Command {
 	return cmd
 }
 
-// Add
+// Add.
 type cmdConfigDeviceAdd struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -183,7 +183,7 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdConfigDeviceGet struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -256,7 +256,6 @@ func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			return fmt.Errorf(i18n.G("Device from profile(s) cannot be retrieved for individual instance"))
-
 		}
 
 		fmt.Println(dev[key])
@@ -265,7 +264,7 @@ func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdConfigDeviceList struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -336,7 +335,7 @@ func (c *cmdConfigDeviceList) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Override
+// Override.
 type cmdConfigDeviceOverride struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -424,7 +423,7 @@ func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Remove
+// Remove.
 type cmdConfigDeviceRemove struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -502,7 +501,6 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 				}
 
 				return fmt.Errorf(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
-
 			}
 			delete(inst.Devices, devname)
 		}
@@ -525,7 +523,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdConfigDeviceSet struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -638,7 +636,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdConfigDeviceShow struct {
 	global       *cmdGlobal
 	config       *cmdConfig
@@ -709,7 +707,7 @@ func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Unset
+// Unset.
 type cmdConfigDeviceUnset struct {
 	global          *cmdGlobal
 	config          *cmdConfig

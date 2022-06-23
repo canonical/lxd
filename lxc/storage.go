@@ -80,7 +80,7 @@ func (c *cmdStorage) Command() *cobra.Command {
 	return cmd
 }
 
-// Create
+// Create.
 type cmdStorageCreate struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -153,7 +153,7 @@ func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdStorageDelete struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -204,7 +204,7 @@ func (c *cmdStorageDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdStorageEdit struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -324,7 +324,7 @@ func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdStorageGet struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -382,7 +382,7 @@ func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Info
+// Info.
 type cmdStorageInfo struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -537,7 +537,7 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdStorageList struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -615,7 +615,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, pools)
 }
 
-// Set
+// Set.
 type cmdStorageSet struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -687,7 +687,7 @@ func (c *cmdStorageSet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdStorageShow struct {
 	global  *cmdGlobal
 	storage *cmdStorage
@@ -772,7 +772,7 @@ func (c *cmdStorageShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Unset
+// Unset.
 type cmdStorageUnset struct {
 	global     *cmdGlobal
 	storage    *cmdStorage

@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-// Start
+// Start.
 type cmdStart struct {
 	global *cmdGlobal
 	action *cmdAction
@@ -34,7 +34,7 @@ func (c *cmdStart) Command() *cobra.Command {
 	return cmd
 }
 
-// Pause
+// Pause.
 type cmdPause struct {
 	global *cmdGlobal
 	action *cmdAction
@@ -54,7 +54,7 @@ func (c *cmdPause) Command() *cobra.Command {
 	return cmd
 }
 
-// Restart
+// Restart.
 type cmdRestart struct {
 	global *cmdGlobal
 	action *cmdAction
@@ -75,7 +75,7 @@ The opposite of "lxc pause" is "lxc start".`))
 	return cmd
 }
 
-// Stop
+// Stop.
 type cmdStop struct {
 	global *cmdGlobal
 	action *cmdAction

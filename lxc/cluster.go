@@ -103,7 +103,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 	return cmd
 }
 
-// List
+// List.
 type cmdClusterList struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -188,7 +188,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, members)
 }
 
-// Show
+// Show.
 type cmdClusterShow struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -237,7 +237,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdClusterGet struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -284,7 +284,7 @@ func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdClusterSet struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -335,7 +335,7 @@ func (c *cmdClusterSet) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateClusterMember(resource.name, member.Writable(), "")
 }
 
-// Unset
+// Unset.
 type cmdClusterUnset struct {
 	global     *cmdGlobal
 	cluster    *cmdCluster
@@ -364,7 +364,7 @@ func (c *cmdClusterUnset) Run(cmd *cobra.Command, args []string) error {
 	return c.clusterSet.Run(cmd, args)
 }
 
-// Rename
+// Rename.
 type cmdClusterRename struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -411,7 +411,7 @@ func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Remove
+// Remove.
 type cmdClusterRemove struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -498,7 +498,7 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Enable
+// Enable.
 type cmdClusterEnable struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -583,7 +583,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdClusterEdit struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -694,7 +694,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Add
+// Add.
 type cmdClusterAdd struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -942,7 +942,7 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf(i18n.G("No cluster join token for member %s on remote: %s"), resource.name, resource.remote)
 }
 
-// Update Certificates
+// Update Certificates.
 type cmdClusterUpdateCertificate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -1044,7 +1044,7 @@ type cmdClusterEvacuateAction struct {
 	flagForce bool
 }
 
-// Cluster member evacuation
+// Cluster member evacuation.
 type cmdClusterEvacuate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -1064,7 +1064,7 @@ func (c *cmdClusterEvacuate) Command() *cobra.Command {
 	return cmd
 }
 
-// Cluster member restore
+// Cluster member restore.
 type cmdClusterRestore struct {
 	global  *cmdGlobal
 	cluster *cmdCluster

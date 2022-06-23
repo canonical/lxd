@@ -316,7 +316,7 @@ func (c *cmdNetworkPeerCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdNetworkPeerGet struct {
 	global      *cmdGlobal
 	networkPeer *cmdNetworkPeer

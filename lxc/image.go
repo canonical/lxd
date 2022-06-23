@@ -123,7 +123,7 @@ func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName 
 	return result.Target
 }
 
-// Copy
+// Copy.
 type cmdImageCopy struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -296,7 +296,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdImageDelete struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -348,7 +348,7 @@ func (c *cmdImageDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdImageEdit struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -471,7 +471,7 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Export
+// Export.
 type cmdImageExport struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -629,7 +629,7 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Import
+// Import.
 type cmdImageImport struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -781,7 +781,6 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			}
 			// remove temp file
 			defer func() { _ = os.Remove(imageFile) }()
-
 		}
 		meta, err = os.Open(imageFile)
 		if err != nil {
@@ -857,7 +856,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Info
+// Info.
 type cmdImageInfo struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -990,7 +989,7 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdImageList struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -1298,7 +1297,7 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
-// Refresh
+// Refresh.
 type cmdImageRefresh struct {
 	global *cmdGlobal
 	image  *cmdImage
@@ -1375,7 +1374,7 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdImageShow struct {
 	global *cmdGlobal
 	image  *cmdImage
