@@ -1051,7 +1051,7 @@ func (d *Daemon) init() error {
 		// Attempt to mount the shmounts tmpfs
 		err := setupSharedMounts()
 		if err != nil {
-			logger.Warn("Failed settting up shared mounts", logger.Ctx{"err": err})
+			logger.Warn("Failed setting up shared mounts", logger.Ctx{"err": err})
 		}
 
 		// Attempt to Mount the devlxd tmpfs
