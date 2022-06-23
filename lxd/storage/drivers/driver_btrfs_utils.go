@@ -23,7 +23,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// Errors
+// Errors.
 var errBtrfsNoQuota = fmt.Errorf("Quotas disabled on filesystem")
 var errBtrfsNoQGroup = fmt.Errorf("Unable to find quota group")
 
