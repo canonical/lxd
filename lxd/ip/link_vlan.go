@@ -1,13 +1,13 @@
 package ip
 
-// Vlan represents arguments for link of type vlan
+// Vlan represents arguments for link of type vlan.
 type Vlan struct {
 	Link
 	VlanID string
 	Gvrp   bool
 }
 
-// additionalArgs generates vlan specific arguments
+// additionalArgs generates vlan specific arguments.
 func (vlan *Vlan) additionalArgs() []string {
 	args := []string{"id", vlan.VlanID}
 	if vlan.Gvrp {
@@ -16,7 +16,7 @@ func (vlan *Vlan) additionalArgs() []string {
 	return args
 }
 
-// Add adds new virtual link
+// Add adds new virtual link.
 func (vlan *Vlan) Add() error {
 	return vlan.Link.add("vlan", vlan.additionalArgs())
 }
