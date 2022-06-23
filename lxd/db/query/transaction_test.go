@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // Any error happening when beginning the transaction will be propagated.
@@ -30,7 +31,6 @@ func TestTransaction_FunctionError(t *testing.T) {
 		_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 		assert.NoError(t, err)
 		return fmt.Errorf("boom")
-
 	})
 	assert.EqualError(t, err, "boom")
 
