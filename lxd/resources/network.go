@@ -274,7 +274,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	return nil
 }
 
-// GetNetwork returns a filled api.ResourcesNetwork struct ready for use by LXD
+// GetNetwork returns a filled api.ResourcesNetwork struct ready for use by LXD.
 func GetNetwork() (*api.ResourcesNetwork, error) {
 	network := api.ResourcesNetwork{}
 	network.Cards = []api.ResourcesNetworkCard{}
