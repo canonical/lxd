@@ -4,7 +4,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Qdisc represents 'queueing discipline' object
+// Qdisc represents 'queueing discipline' object.
 type Qdisc struct {
 	Dev     string
 	Handle  string
@@ -28,7 +28,7 @@ func (qdisc *Qdisc) mainCmd() []string {
 	return cmd
 }
 
-// Add adds qdisc to a node
+// Add adds qdisc to a node.
 func (qdisc *Qdisc) Add() error {
 	cmd := qdisc.mainCmd()
 	_, err := shared.RunCommand("tc", cmd...)
@@ -38,7 +38,7 @@ func (qdisc *Qdisc) Add() error {
 	return nil
 }
 
-// Delete deletes qdisc from node
+// Delete deletes qdisc from node.
 func (qdisc *Qdisc) Delete() error {
 	cmd := []string{"qdisc", "del", "dev", qdisc.Dev}
 	if qdisc.Root {
@@ -56,13 +56,13 @@ func (qdisc *Qdisc) Delete() error {
 	return nil
 }
 
-// QdiscHTB represents the hierarchy token bucket qdisc object
+// QdiscHTB represents the hierarchy token bucket qdisc object.
 type QdiscHTB struct {
 	Qdisc
 	Default string
 }
 
-// Add adds qdisc to a node
+// Add adds qdisc to a node.
 func (qdisc *QdiscHTB) Add() error {
 	cmd := qdisc.mainCmd()
 	cmd = append(cmd, "htb")

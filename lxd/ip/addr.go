@@ -4,7 +4,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Addr represents arguments for address protocol manipulation
+// Addr represents arguments for address protocol manipulation.
 type Addr struct {
 	DevName string
 	Address string
@@ -12,7 +12,7 @@ type Addr struct {
 	Family  string
 }
 
-// Add adds new protocol address
+// Add adds new protocol address.
 func (a *Addr) Add() error {
 	_, err := shared.RunCommand("ip", a.Family, "addr", "add", "dev", a.DevName, a.Address)
 	if err != nil {
@@ -21,7 +21,7 @@ func (a *Addr) Add() error {
 	return nil
 }
 
-// Flush flushes protocol addresses
+// Flush flushes protocol addresses.
 func (a *Addr) Flush() error {
 	cmd := []string{}
 	if a.Family != "" {
