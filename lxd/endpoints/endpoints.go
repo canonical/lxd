@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
+	tomb "gopkg.in/tomb.v2"
+
 	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	tomb "gopkg.in/tomb.v2"
 )
 
 // Config holds various configuration values that affect LXD endpoints
