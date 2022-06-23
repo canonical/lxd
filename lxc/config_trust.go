@@ -69,7 +69,7 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 	return cmd
 }
 
-// Add
+// Add.
 type cmdConfigTrustAdd struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -215,7 +215,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.CreateCertificate(cert)
 }
 
-// Edit
+// Edit.
 type cmdConfigTrustEdit struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -324,7 +324,7 @@ func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdConfigTrustList struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -406,7 +406,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, trust)
 }
 
-// List tokens
+// List tokens.
 type cmdConfigTrustListTokens struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -498,7 +498,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
 }
 
-// Remove
+// Remove.
 type cmdConfigTrustRemove struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -545,7 +545,7 @@ func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.DeleteCertificate(fingerprint)
 }
 
-// List tokens
+// List tokens.
 type cmdConfigTrustRevokeToken struct {
 	global      *cmdGlobal
 	config      *cmdConfig
@@ -616,7 +616,7 @@ func (c *cmdConfigTrustRevokeToken) Run(cmd *cobra.Command, args []string) error
 	return fmt.Errorf(i18n.G("No certificate add token for member %s on remote: %s"), resource.name, resource.remote)
 }
 
-// Show
+// Show.
 type cmdConfigTrustShow struct {
 	global      *cmdGlobal
 	config      *cmdConfig

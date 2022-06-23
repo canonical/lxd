@@ -314,7 +314,7 @@ func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdNetworkForwardGet struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward

@@ -152,7 +152,7 @@ func TestShouldShow(t *testing.T) {
 	}
 }
 
-// Used by TestColumns and TestInvalidColumns
+// Used by TestColumns and TestInvalidColumns.
 const shorthand = "46abcdDefFlmMnNpPsStuL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
