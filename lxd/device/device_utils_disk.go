@@ -299,7 +299,7 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns a file handle to the proxy process and a revert fail function that can be used to undo this function if
-// a subsequent step fails,
+// a subsequent step fails,.
 func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (*os.File, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
