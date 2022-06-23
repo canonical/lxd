@@ -587,9 +587,7 @@ func qemuHostDrive(opts *qemuHostDriveOpts) []cfgSection {
 			{key: "mount_tag", value: opts.mountTag},
 			{key: "fsdev", value: opts.name},
 		}
-
 	} else if opts.protocol == "virtio-fs" {
-
 		driveSection = cfgSection{
 			name:    fmt.Sprintf(`chardev "%s"`, opts.name),
 			comment: opts.comment,

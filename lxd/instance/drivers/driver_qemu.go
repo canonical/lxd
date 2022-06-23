@@ -1966,7 +1966,6 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 
 			if !devExists {
 				break
-
 			}
 
 			if time.Now().After(waitUntil) {
@@ -2714,7 +2713,6 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				return "", nil, err
 			}
 		}
-
 	}
 
 	// Allocate 4 PCI slots for hotplug devices.
@@ -4848,7 +4846,6 @@ func (d *qemu) Delete(force bool) error {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
-
 			// Remove snapshot volume and database record.
 			err = pool.DeleteInstanceSnapshot(d, nil)
 			if err != nil {
