@@ -83,7 +83,7 @@ func (d *gpuMIG) validateEnvironment() error {
 	return validatePCIDevice(d.config["pci"])
 }
 
-// buildMIGDeviceName builds the name of the MIG device based on old/new format
+// buildMIGDeviceName builds the name of the MIG device based on old/new format.
 func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
 	if d.config["mig.uuid"] != "" {
 		if strings.HasPrefix(d.config["mig.uuid"], "MIG-") {
@@ -94,7 +94,7 @@ func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
 	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running,
+// CanHotPlug returns whether the device can be managed whilst the instance is running,.
 func (d *gpuMIG) CanHotPlug() bool {
 	return false
 }

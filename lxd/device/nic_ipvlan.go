@@ -22,7 +22,7 @@ type nicIPVLAN struct {
 	deviceCommon
 }
 
-// CanHotPlug returns whether the device can be managed whilst the instance is running,
+// CanHotPlug returns whether the device can be managed whilst the instance is running,.
 func (d *nicIPVLAN) CanHotPlug() bool {
 	return false
 }
