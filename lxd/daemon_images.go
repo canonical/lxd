@@ -54,7 +54,7 @@ func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
 	return locking.Lock(fmt.Sprintf("ImageOperation_%s", fingerprint))
 }
 
-// ImageDownload resolves the image fingerprint and if not in the database, downloads it
+// ImageDownload resolves the image fingerprint and if not in the database, downloads it.
 func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
 	var err error
 	var ctxMap logger.Ctx

@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// Initialize the random number generator
+// Initialize the random number generator.
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }

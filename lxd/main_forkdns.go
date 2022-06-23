@@ -283,7 +283,7 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 	return msg, nil
 }
 
-// getLeaseHostByDNSName finds the hostname used in the DHCP lease by supplying a DNS A name
+// getLeaseHostByDNSName finds the hostname used in the DHCP lease by supplying a DNS A name.
 func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	host := strings.TrimSuffix(dnsName, fmt.Sprintf(".%s.", h.domain))
 
