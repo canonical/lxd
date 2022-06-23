@@ -30,7 +30,7 @@ const iptablesCommentPrefix = "generated for"
 // As its own locking mechanism isn't always available.
 var ebtablesMu sync.Mutex
 
-// Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
+// Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables.
 type Xtables struct{}
 
 // String returns the driver name.
