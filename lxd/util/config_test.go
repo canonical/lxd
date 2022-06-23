@@ -3,8 +3,9 @@ package util_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lxc/lxd/lxd/util"
 )
 
 func Test_CompareConfigsMismatch(t *testing.T) {
