@@ -1022,7 +1022,6 @@ func (d *Daemon) init() error {
 		logger.Warn("No local trusted server certificates found, falling back to trusting network certificate", logger.Ctx{"fingerprint": networkCertFingerPrint})
 		logger.Info("Set client certificate to network certificate", logger.Ctx{"fingerprint": networkCertFingerPrint})
 		d.serverCertInt = networkCert
-
 	} else {
 		// If standalone or the local trusted certificates table is populated with server certificates then
 		// use our local server certificate as client certificate for intra-cluster communication.
