@@ -4,12 +4,12 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Action represents an action in filter
+// Action represents an action in filter.
 type Action interface {
 	AddAction() []string
 }
 
-// ActionPolice represents an action of 'police' type
+// ActionPolice represents an action of 'police' type.
 type ActionPolice struct {
 	Rate  string
 	Burst string
@@ -17,7 +17,7 @@ type ActionPolice struct {
 	Drop  bool
 }
 
-// AddAction generates a part of command specific for 'police' action
+// AddAction generates a part of command specific for 'police' action.
 func (a *ActionPolice) AddAction() []string {
 	result := []string{"police"}
 	if a.Rate != "" {
@@ -38,7 +38,7 @@ func (a *ActionPolice) AddAction() []string {
 	return result
 }
 
-// Filter represents filter object
+// Filter represents filter object.
 type Filter struct {
 	Dev      string
 	Parent   string
@@ -46,7 +46,7 @@ type Filter struct {
 	Flowid   string
 }
 
-// U32Filter represents universal 32bit traffic control filter
+// U32Filter represents universal 32bit traffic control filter.
 type U32Filter struct {
 	Filter
 	Value   string
@@ -54,7 +54,7 @@ type U32Filter struct {
 	Actions []Action
 }
 
-// Add adds universal 32bit traffic control filter to a node
+// Add adds universal 32bit traffic control filter to a node.
 func (u32 *U32Filter) Add() error {
 	cmd := []string{"filter", "add", "dev", u32.Dev}
 	if u32.Parent != "" {

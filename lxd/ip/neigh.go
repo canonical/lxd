@@ -40,7 +40,7 @@ const NeighbourIPStateProbe = "PROBE"
 // NeighbourIPStateFailed max number of probes exceeded without success, neighbor validation has ultimately failed.
 const NeighbourIPStateFailed = "FAILED"
 
-// Neigh represents arguments for neighbour manipulation
+// Neigh represents arguments for neighbour manipulation.
 type Neigh struct {
 	DevName string
 	Addr    net.IP
