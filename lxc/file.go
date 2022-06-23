@@ -30,7 +30,7 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// DirMode represents the file mode for creating dirs on `lxc file pull/push`
+// DirMode represents the file mode for creating dirs on `lxc file pull/push`.
 const DirMode = 0755
 
 type cmdFile struct {
@@ -106,7 +106,7 @@ func (c *cmdFile) Command() *cobra.Command {
 	return cmd
 }
 
-// Delete
+// Delete.
 type cmdFileDelete struct {
 	global *cmdGlobal
 	file   *cmdFile
@@ -154,7 +154,7 @@ func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdFileEdit struct {
 	global   *cmdGlobal
 	file     *cmdFile
@@ -223,7 +223,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Pull
+// Pull.
 type cmdFilePull struct {
 	global *cmdGlobal
 	file   *cmdFile
@@ -429,7 +429,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Push
+// Push.
 type cmdFilePush struct {
 	global *cmdGlobal
 	file   *cmdFile
@@ -926,7 +926,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mo
 	return nil
 }
 
-// Mount
+// Mount.
 type cmdFileMount struct {
 	global *cmdGlobal
 	file   *cmdFile

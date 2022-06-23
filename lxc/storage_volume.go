@@ -151,7 +151,7 @@ func (c *cmdStorageVolume) parseVolumeWithPool(name string) (string, string) {
 	return fields[1], fields[0]
 }
 
-// Attach
+// Attach.
 type cmdStorageVolumeAttach struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -226,7 +226,7 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Attach profile
+// Attach profile.
 type cmdStorageVolumeAttachProfile struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -311,7 +311,7 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 	return nil
 }
 
-// Copy
+// Copy.
 type cmdStorageVolumeCopy struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -503,7 +503,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Create
+// Create.
 type cmdStorageVolumeCreate struct {
 	global          *cmdGlobal
 	storage         *cmdStorage
@@ -582,7 +582,7 @@ func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdStorageVolumeDelete struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -643,7 +643,6 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-
 	} else {
 		// Delete the volume
 		err := client.DeleteStoragePoolVolume(resource.name, volType, volName)
@@ -659,7 +658,7 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Detach
+// Detach.
 type cmdStorageVolumeDetach struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -741,7 +740,7 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 	return op.Wait()
 }
 
-// Detach profile
+// Detach profile.
 type cmdStorageVolumeDetachProfile struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -822,7 +821,7 @@ func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) e
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdStorageVolumeEdit struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1022,7 +1021,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdStorageVolumeGet struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1110,7 +1109,7 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Info
+// Info.
 type cmdStorageVolumeInfo struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1317,7 +1316,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdStorageVolumeList struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1514,7 +1513,7 @@ func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.
 	return ""
 }
 
-// Move
+// Move.
 type cmdStorageVolumeMove struct {
 	global            *cmdGlobal
 	storage           *cmdStorage
@@ -1549,7 +1548,7 @@ func (c *cmdStorageVolumeMove) Run(cmd *cobra.Command, args []string) error {
 	return c.storageVolumeCopy.Run(cmd, args)
 }
 
-// Rename
+// Rename.
 type cmdStorageVolumeRename struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1662,7 +1661,7 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdStorageVolumeSet struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1750,7 +1749,7 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdStorageVolumeShow struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1848,7 +1847,7 @@ func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Unset
+// Unset.
 type cmdStorageVolumeUnset struct {
 	global           *cmdGlobal
 	storage          *cmdStorage
@@ -1880,7 +1879,7 @@ func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
 	return c.storageVolumeSet.Run(cmd, args)
 }
 
-// Snapshot
+// Snapshot.
 type cmdStorageVolumeSnapshot struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -1978,10 +1977,9 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 	}
 
 	return op.Wait()
-
 }
 
-// Restore
+// Restore.
 type cmdStorageVolumeRestore struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -2044,7 +2042,7 @@ func (c *cmdStorageVolumeRestore) Run(cmd *cobra.Command, args []string) error {
 	return client.UpdateStoragePoolVolume(resource.name, "custom", args[1], req, etag)
 }
 
-// Export
+// Export.
 type cmdStorageVolumeExport struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
@@ -2189,7 +2187,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Import
+// Import.
 type cmdStorageVolumeImport struct {
 	global        *cmdGlobal
 	storage       *cmdStorage

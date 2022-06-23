@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-// Batch operations
+// Batch operations.
 type batchResult struct {
 	err  error
 	name string
@@ -38,7 +38,7 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 	return results
 }
 
-// Add a device to an instance
+// Add a device to an instance.
 func instanceDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
 	// Get the instance entry
 	inst, etag, err := client.GetInstance(name)
@@ -62,7 +62,7 @@ func instanceDeviceAdd(client lxd.InstanceServer, name string, devName string, d
 	return op.Wait()
 }
 
-// Add a device to a profile
+// Add a device to a profile.
 func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
 	// Get the profile entry
 	profile, profileEtag, err := client.GetProfile(name)

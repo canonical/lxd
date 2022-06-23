@@ -47,7 +47,7 @@ func (c *cmdImageAlias) Command() *cobra.Command {
 	return cmd
 }
 
-// Create
+// Create.
 type cmdImageAliasCreate struct {
 	global     *cmdGlobal
 	image      *cmdImage
@@ -93,7 +93,7 @@ func (c *cmdImageAliasCreate) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.CreateImageAlias(alias)
 }
 
-// Delete
+// Delete.
 type cmdImageAliasDelete struct {
 	global     *cmdGlobal
 	image      *cmdImage
@@ -136,7 +136,7 @@ func (c *cmdImageAliasDelete) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.DeleteImageAlias(resource.name)
 }
 
-// List
+// List.
 type cmdImageAliasList struct {
 	global     *cmdGlobal
 	image      *cmdImage
@@ -240,7 +240,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, aliases)
 }
 
-// Rename
+// Rename.
 type cmdImageAliasRename struct {
 	global     *cmdGlobal
 	image      *cmdImage

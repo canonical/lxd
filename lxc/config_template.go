@@ -54,7 +54,7 @@ func (c *cmdConfigTemplate) Command() *cobra.Command {
 	return cmd
 }
 
-// Create
+// Create.
 type cmdConfigTemplateCreate struct {
 	global         *cmdGlobal
 	config         *cmdConfig
@@ -96,7 +96,7 @@ func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.CreateInstanceTemplateFile(resource.name, args[1], nil)
 }
 
-// Delete
+// Delete.
 type cmdConfigTemplateDelete struct {
 	global         *cmdGlobal
 	config         *cmdConfig
@@ -139,7 +139,7 @@ func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.DeleteInstanceTemplateFile(resource.name, args[1])
 }
 
-// Edit
+// Edit.
 type cmdConfigTemplateEdit struct {
 	global         *cmdGlobal
 	config         *cmdConfig
@@ -223,7 +223,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdConfigTemplateList struct {
 	global         *cmdGlobal
 	config         *cmdConfig
@@ -284,7 +284,7 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, templates)
 }
 
-// Show
+// Show.
 type cmdConfigTemplateShow struct {
 	global         *cmdGlobal
 	config         *cmdConfig

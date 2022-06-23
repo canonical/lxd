@@ -80,7 +80,7 @@ func (c *cmdProject) Command() *cobra.Command {
 	return cmd
 }
 
-// Create
+// Create.
 type cmdProjectCreate struct {
 	global     *cmdGlobal
 	project    *cmdProject
@@ -145,7 +145,7 @@ func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdProjectDelete struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -209,7 +209,7 @@ func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdProjectEdit struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -329,7 +329,7 @@ func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdProjectGet struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -376,7 +376,7 @@ func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdProjectList struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -477,7 +477,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, projects)
 }
 
-// Rename
+// Rename.
 type cmdProjectRename struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -533,7 +533,7 @@ func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdProjectSet struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -592,7 +592,7 @@ func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateProject(resource.name, project.Writable(), etag)
 }
 
-// Unset
+// Unset.
 type cmdProjectUnset struct {
 	global     *cmdGlobal
 	project    *cmdProject
@@ -622,7 +622,7 @@ func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
 	return c.projectSet.Run(cmd, args)
 }
 
-// Show
+// Show.
 type cmdProjectShow struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -675,7 +675,7 @@ func (c *cmdProjectShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Switch project
+// Switch project.
 type cmdProjectSwitch struct {
 	global  *cmdGlobal
 	project *cmdProject
@@ -732,7 +732,7 @@ func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Info
+// Info.
 type cmdProjectInfo struct {
 	global  *cmdGlobal
 	project *cmdProject
