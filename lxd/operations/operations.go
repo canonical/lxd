@@ -26,15 +26,15 @@ var debug bool
 var operationsLock sync.Mutex
 var operations = make(map[string]*Operation)
 
-// OperationClass represents the OperationClass type
+// OperationClass represents the OperationClass type.
 type OperationClass int
 
 const (
-	// OperationClassTask represents the Task OperationClass
+	// OperationClassTask represents the Task OperationClass.
 	OperationClassTask OperationClass = 1
-	// OperationClassWebsocket represents the Websocket OperationClass
+	// OperationClassWebsocket represents the Websocket OperationClass.
 	OperationClassWebsocket OperationClass = 2
-	// OperationClassToken represents the Token OperationClass
+	// OperationClassToken represents the Token OperationClass.
 	OperationClassToken OperationClass = 3
 )
 
