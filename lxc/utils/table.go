@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Table list format
+// Table list format.
 const (
 	TableFormatCSV     = "csv"
 	TableFormatJSON    = "json"
