@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// CreateRequestor extracts the lifecycle event requestor data from an http.Request context
+// CreateRequestor extracts the lifecycle event requestor data from an http.Request context.
 func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 	ctx := r.Context()
 	requestor := &api.EventLifecycleRequestor{}
