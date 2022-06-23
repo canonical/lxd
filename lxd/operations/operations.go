@@ -374,7 +374,6 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.lock.Lock()
 			op.sendEvent(md)
 			op.lock.Unlock()
-
 		}(op, oldStatus, chanCancel)
 	}
 
