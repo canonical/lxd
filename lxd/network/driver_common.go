@@ -501,7 +501,7 @@ func (n *common) handleDependencyChange(netName string, netConfig map[string]str
 	return nil
 }
 
-// bgpValidate
+// bgpValidate.
 func (n *common) bgpValidationRules(config map[string]string) (map[string]func(value string) error, error) {
 	rules := map[string]func(value string) error{}
 	for k := range config {
