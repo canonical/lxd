@@ -44,7 +44,6 @@ func processBatch(count int, batchSize int, process func(index int, wg *sync.Wai
 			logf("Processed %d containers in %.3fs (%.3f/s)", processed, interval, float64(processed)/interval)
 			nextStat = nextStat * 2
 		}
-
 	}
 
 	for k := 0; k < remainder; k++ {
