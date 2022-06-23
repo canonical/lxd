@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// ContainersPost represents the fields available for a new LXD container
+// ContainersPost represents the fields available for a new LXD container.
 type ContainersPost struct {
 	ContainerPut `yaml:",inline"`
 
@@ -14,7 +14,7 @@ type ContainersPost struct {
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
 }
 
-// ContainerPost represents the fields required to rename/move a LXD container
+// ContainerPost represents the fields required to rename/move a LXD container.
 type ContainerPost struct {
 	// Used for renames
 	Name string `json:"name" yaml:"name"`
@@ -34,14 +34,14 @@ type ContainerPost struct {
 
 // ContainerPostTarget represents the migration target host and operation
 //
-// API extension: container_push_target
+// API extension: container_push_target.
 type ContainerPostTarget struct {
 	Certificate string            `json:"certificate" yaml:"certificate"`
 	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
 	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
-// ContainerPut represents the modifiable fields of a LXD container
+// ContainerPut represents the modifiable fields of a LXD container.
 type ContainerPut struct {
 	Architecture string                       `json:"architecture" yaml:"architecture"`
 	Config       map[string]string            `json:"config" yaml:"config"`
@@ -57,7 +57,7 @@ type ContainerPut struct {
 	Description string `json:"description" yaml:"description"`
 }
 
-// Container represents a LXD container
+// Container represents a LXD container.
 type Container struct {
 	ContainerPut `yaml:",inline"`
 
@@ -77,7 +77,7 @@ type Container struct {
 
 // ContainerFull is a combination of Container, ContainerState and CotnainerSnapshot
 //
-// API extension: container_full
+// API extension: container_full.
 type ContainerFull struct {
 	Container `yaml:",inline"`
 
@@ -86,12 +86,12 @@ type ContainerFull struct {
 	Snapshots []ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
-// Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
+// Writable converts a full Container struct into a ContainerPut struct (filters read-only fields).
 func (c *Container) Writable() ContainerPut {
 	return c.ContainerPut
 }
 
-// IsActive checks whether the container state indicates the container is active
+// IsActive checks whether the container state indicates the container is active.
 func (c Container) IsActive() bool {
 	switch c.StatusCode {
 	case Stopped:
@@ -103,7 +103,7 @@ func (c Container) IsActive() bool {
 	}
 }
 
-// ContainerSource represents the creation source for a new container
+// ContainerSource represents the creation source for a new container.
 type ContainerSource struct {
 	Type        string `json:"type" yaml:"type"`
 	Certificate string `json:"certificate" yaml:"certificate"`

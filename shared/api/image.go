@@ -8,7 +8,7 @@ import (
 //
 // swagger:model
 //
-// API extension: images_push_relay
+// API extension: images_push_relay.
 type ImageExportPost struct {
 	// Target server URL
 	// Example: https://1.2.3.4:8443
@@ -181,7 +181,7 @@ type Image struct {
 	UploadedAt time.Time `json:"uploaded_at" yaml:"uploaded_at"`
 }
 
-// Writable converts a full Image struct into a ImagePut struct (filters read-only fields)
+// Writable converts a full Image struct into a ImagePut struct (filters read-only fields).
 func (img *Image) Writable() ImagePut {
 	return img.ImagePut
 }

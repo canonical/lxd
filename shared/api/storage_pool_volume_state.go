@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: storage_volume_state
+// API extension: storage_volume_state.
 type StorageVolumeState struct {
 	// Volume usage
 	Usage *StorageVolumeStateUsage `json:"usage" yaml:"usage"`
@@ -14,7 +14,7 @@ type StorageVolumeState struct {
 //
 // swagger:model
 //
-// API extension: storage_volume_state
+// API extension: storage_volume_state.
 type StorageVolumeStateUsage struct {
 	// Used space in bytes
 	// Example: 1693552640

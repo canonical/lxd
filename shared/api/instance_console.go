@@ -2,7 +2,7 @@ package api
 
 // InstanceConsoleControl represents a message on the instance console "control" socket.
 //
-// API extension: instances
+// API extension: instances.
 type InstanceConsoleControl struct {
 	Command string            `json:"command" yaml:"command"`
 	Args    map[string]string `json:"args" yaml:"args"`
@@ -12,7 +12,7 @@ type InstanceConsoleControl struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceConsolePost struct {
 	// Console width in columns (console type only)
 	// Example: 80

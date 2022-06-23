@@ -1,6 +1,6 @@
 package api
 
-// ServerEnvironment represents the read-only environment fields of a LXD server
+// ServerEnvironment represents the read-only environment fields of a LXD server.
 type ServerEnvironment struct {
 	// List of addresses the server is listening on
 	// Example: [":8443"]
@@ -121,7 +121,7 @@ type ServerEnvironment struct {
 //
 // swagger:model
 //
-// API extension: server_supported_storage_drivers
+// API extension: server_supported_storage_drivers.
 type ServerStorageDriverInfo struct {
 	// Name of the driver
 	// Example: zfs
@@ -200,7 +200,7 @@ type Server struct {
 	Environment ServerEnvironment `json:"environment" yaml:"environment"`
 }
 
-// Writable converts a full Server struct into a ServerPut struct (filters read-only fields)
+// Writable converts a full Server struct into a ServerPut struct (filters read-only fields).
 func (srv *Server) Writable() ServerPut {
 	return srv.ServerPut
 }
