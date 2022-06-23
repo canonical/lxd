@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-// ResponseRaw represents a LXD operation in its original form
+// ResponseRaw represents a LXD operation in its original form.
 type ResponseRaw struct {
 	Type ResponseType `json:"type" yaml:"type"`
 
@@ -22,7 +22,7 @@ type ResponseRaw struct {
 	Metadata any `json:"metadata" yaml:"metadata"`
 }
 
-// Response represents a LXD operation
+// Response represents a LXD operation.
 type Response struct {
 	Type ResponseType `json:"type" yaml:"type"`
 
@@ -41,7 +41,7 @@ type Response struct {
 	Metadata json.RawMessage `json:"metadata" yaml:"metadata"`
 }
 
-// MetadataAsMap parses the Response metadata into a map
+// MetadataAsMap parses the Response metadata into a map.
 func (r *Response) MetadataAsMap() (map[string]any, error) {
 	ret := map[string]any{}
 	err := r.MetadataAsStruct(&ret)
@@ -52,7 +52,7 @@ func (r *Response) MetadataAsMap() (map[string]any, error) {
 	return ret, nil
 }
 
-// MetadataAsOperation turns the Response metadata into an Operation
+// MetadataAsOperation turns the Response metadata into an Operation.
 func (r *Response) MetadataAsOperation() (*Operation, error) {
 	op := Operation{}
 	err := r.MetadataAsStruct(&op)
@@ -63,7 +63,7 @@ func (r *Response) MetadataAsOperation() (*Operation, error) {
 	return &op, nil
 }
 
-// MetadataAsStringSlice parses the Response metadata into a slice of string
+// MetadataAsStringSlice parses the Response metadata into a slice of string.
 func (r *Response) MetadataAsStringSlice() ([]string, error) {
 	sl := []string{}
 	err := r.MetadataAsStruct(&sl)
@@ -74,15 +74,15 @@ func (r *Response) MetadataAsStringSlice() ([]string, error) {
 	return sl, nil
 }
 
-// MetadataAsStruct parses the Response metadata into a provided struct
+// MetadataAsStruct parses the Response metadata into a provided struct.
 func (r *Response) MetadataAsStruct(target any) error {
 	return json.Unmarshal(r.Metadata, &target)
 }
 
-// ResponseType represents a valid LXD response type
+// ResponseType represents a valid LXD response type.
 type ResponseType string
 
-// LXD response types
+// LXD response types.
 const (
 	SyncResponse  ResponseType = "sync"
 	AsyncResponse ResponseType = "async"

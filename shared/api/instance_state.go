@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStatePut struct {
 	// State change action (start, stop, restart, freeze, unfreeze)
 	// Example: start
@@ -27,7 +27,7 @@ type InstanceStatePut struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceState struct {
 	// Current status (Running, Stopped, Frozen or Error)
 	// Example: Running
@@ -62,7 +62,7 @@ type InstanceState struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateDisk struct {
 	// Disk usage in bytes
 	// Example: 502239232
@@ -73,7 +73,7 @@ type InstanceStateDisk struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateCPU struct {
 	// CPU usage in nanoseconds
 	// Example: 3637691016
@@ -84,7 +84,7 @@ type InstanceStateCPU struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateMemory struct {
 	// Memory usage in bytes
 	// Example: 73248768
@@ -107,7 +107,7 @@ type InstanceStateMemory struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateNetwork struct {
 	// List of IP addresses
 	Addresses []InstanceStateNetworkAddress `json:"addresses" yaml:"addresses"`
@@ -141,7 +141,7 @@ type InstanceStateNetwork struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateNetworkAddress struct {
 	// Network family (inet or inet6)
 	// Example: inet6
@@ -165,7 +165,7 @@ type InstanceStateNetworkAddress struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceStateNetworkCounters struct {
 	// Number of bytes received
 	// Example: 192021

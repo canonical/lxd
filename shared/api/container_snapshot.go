@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// ContainerSnapshotsPost represents the fields available for a new LXD container snapshot
+// ContainerSnapshotsPost represents the fields available for a new LXD container snapshot.
 type ContainerSnapshotsPost struct {
 	Name     string `json:"name" yaml:"name"`
 	Stateful bool   `json:"stateful" yaml:"stateful"`
@@ -13,7 +13,7 @@ type ContainerSnapshotsPost struct {
 	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
 }
 
-// ContainerSnapshotPost represents the fields required to rename/move a LXD container snapshot
+// ContainerSnapshotPost represents the fields required to rename/move a LXD container snapshot.
 type ContainerSnapshotPost struct {
 	Name      string               `json:"name" yaml:"name"`
 	Migration bool                 `json:"migration" yaml:"migration"`
@@ -24,7 +24,7 @@ type ContainerSnapshotPost struct {
 }
 
 // ContainerSnapshotPut represents the modifiable fields of a LXD container snapshot
-// API extension: snapshot_expiry
+// API extension: snapshot_expiry.
 type ContainerSnapshotPut struct {
 	Architecture string                       `json:"architecture" yaml:"architecture"`
 	Config       map[string]string            `json:"config" yaml:"config"`
@@ -34,7 +34,7 @@ type ContainerSnapshotPut struct {
 	ExpiresAt    time.Time                    `json:"expires_at" yaml:"expires_at"`
 }
 
-// ContainerSnapshot represents a LXD conainer snapshot
+// ContainerSnapshot represents a LXD conainer snapshot.
 type ContainerSnapshot struct {
 	ContainerSnapshotPut `yaml:",inline"`
 
@@ -47,7 +47,7 @@ type ContainerSnapshot struct {
 }
 
 // Writable converts a full ContainerSnapshot struct into a ContainerSnapshotPut struct
-// (filters read-only fields)
+// (filters read-only fields).
 func (c *ContainerSnapshot) Writable() ContainerSnapshotPut {
 	return c.ContainerSnapshotPut
 }

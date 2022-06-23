@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: projects
+// API extension: projects.
 type ProjectsPost struct {
 	ProjectPut `yaml:",inline"`
 
@@ -17,7 +17,7 @@ type ProjectsPost struct {
 //
 // swagger:model
 //
-// API extension: projects
+// API extension: projects.
 type ProjectPost struct {
 	// The new name for the project
 	// Example: bar
@@ -28,7 +28,7 @@ type ProjectPost struct {
 //
 // swagger:model
 //
-// API extension: projects
+// API extension: projects.
 type ProjectPut struct {
 	// Project configuration map (refer to doc/projects.md)
 	// Example: {"features.profiles": "true", "features.networks": "false"}
@@ -43,7 +43,7 @@ type ProjectPut struct {
 //
 // swagger:model
 //
-// API extension: projects
+// API extension: projects.
 type Project struct {
 	ProjectPut `yaml:",inline"`
 
@@ -60,7 +60,7 @@ type Project struct {
 
 // Writable converts a full Project struct into a ProjectPut struct (filters read-only fields)
 //
-// API extension: projects
+// API extension: projects.
 func (project *Project) Writable() ProjectPut {
 	return project.ProjectPut
 }
@@ -74,7 +74,7 @@ func (project *Project) URL(apiVersion string) *URL {
 //
 // swagger:model
 //
-// API extension: project_usage
+// API extension: project_usage.
 type ProjectState struct {
 	// Allocated and used resources
 	// Read only: true
@@ -86,7 +86,7 @@ type ProjectState struct {
 //
 // swagger:model
 //
-// API extension: project_usage
+// API extension: project_usage.
 type ProjectStateResource struct {
 	// Limit for the resource (-1 if none)
 	// Example: 10

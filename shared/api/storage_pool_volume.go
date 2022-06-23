@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StorageVolumesPost struct {
 	StorageVolumePut `yaml:",inline"`
 
@@ -32,7 +32,7 @@ type StorageVolumesPost struct {
 //
 // swagger:model
 //
-// API extension: storage_api_volume_rename
+// API extension: storage_api_volume_rename.
 type StorageVolumePost struct {
 	// New volume name
 	// Example: foo
@@ -72,7 +72,7 @@ type StorageVolumePost struct {
 //
 // swagger:model
 //
-// API extension: storage_api_remote_volume_handling
+// API extension: storage_api_remote_volume_handling.
 type StorageVolumePostTarget struct {
 	// The certificate of the migration target
 	// Example: X509 PEM certificate
@@ -91,7 +91,7 @@ type StorageVolumePostTarget struct {
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StorageVolume struct {
 	StorageVolumePut `yaml:",inline"`
 
@@ -124,7 +124,7 @@ type StorageVolume struct {
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StorageVolumePut struct {
 	// Storage volume configuration map (refer to doc/storage.md)
 	// Example: {"zfs.remove_snapshots": "true", "size": "50GiB"}
@@ -147,7 +147,7 @@ type StorageVolumePut struct {
 //
 // swagger:model
 //
-// API extension: storage_api_local_volume_handling
+// API extension: storage_api_local_volume_handling.
 type StorageVolumeSource struct {
 	// Source volume name (for copy)
 	// Example: foo

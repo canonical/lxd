@@ -1,9 +1,9 @@
 package api
 
-// StatusCode represents a valid LXD operation and container status
+// StatusCode represents a valid LXD operation and container status.
 type StatusCode int
 
-// LXD status codes
+// LXD status codes.
 const (
 	OperationCreated StatusCode = 100
 	Started          StatusCode = 101
@@ -25,7 +25,7 @@ const (
 	Cancelled StatusCode = 401
 )
 
-// String returns a suitable string representation for the status code
+// String returns a suitable string representation for the status code.
 func (o StatusCode) String() string {
 	return map[StatusCode]string{
 		OperationCreated: "Operation created",
@@ -47,7 +47,7 @@ func (o StatusCode) String() string {
 	}[o]
 }
 
-// IsFinal will return true if the status code indicates an end state
+// IsFinal will return true if the status code indicates an end state.
 func (o StatusCode) IsFinal() bool {
 	return int(o) >= 200
 }
