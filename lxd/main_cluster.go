@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/canonical/go-dqlite/client"
+	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
-
-	"github.com/canonical/go-dqlite/client"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
-	"github.com/spf13/cobra"
 )
 
 type cmdCluster struct {
