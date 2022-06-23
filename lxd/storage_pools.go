@@ -756,7 +756,6 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolUpdated.Event(pool.Name(), projectName, requestor, ctx))
 
 	return response
-
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name} storage storage_pool_patch

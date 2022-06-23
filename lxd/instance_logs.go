@@ -331,5 +331,4 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
-
 }

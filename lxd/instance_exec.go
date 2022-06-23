@@ -390,7 +390,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 				// For containers, we are running the command via the local LXD managed PTY and so
 				// need special signal handling provided by netutils.WebsocketExecMirror.
 				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
-
 			} else {
 				// For VMs we are just relaying the websockets between client and lxd-agent, so no
 				// need for the special signal handling provided by netutils.WebsocketExecMirror.

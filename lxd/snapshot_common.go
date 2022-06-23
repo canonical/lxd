@@ -44,7 +44,6 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 
 	if strings.Contains(spec, ", ") {
 		for _, curSpec := range shared.SplitNTrimSpace(spec, ",", -1, true) {
-
 			entry := getCronSyntax(curSpec, subjectID)
 			if entry != "" {
 				result = append(result, entry)
