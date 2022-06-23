@@ -960,7 +960,6 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 					if err != nil {
 						return fmt.Errorf("Failed to allocate uplink IPv6 address: %w", err)
 					}
-
 				} else {
 					// Otherwise use EUI64 derived from MAC address.
 					routerExtPortIPv6, err = eui64.ParseMAC(uplinkIPv6Net.IP, routerMAC)
@@ -1075,7 +1074,6 @@ func (n *ovn) uplinkAllocateIP(ipRanges []*shared.IPRange, allAllocated []net.IP
 					freeIP = false
 					break
 				}
-
 			}
 
 			if !freeIP {
