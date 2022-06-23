@@ -16,7 +16,7 @@ func TestKey_validate(t *testing.T) {
 	}
 }
 
-// Test cases for TestKey_validate
+// Test cases for TestKey_validate.
 var validateCases = []struct {
 	node  Key
 	value string
@@ -48,7 +48,7 @@ func TestKey_validateError(t *testing.T) {
 	}
 }
 
-// Test cases for TestKey_validateError
+// Test cases for TestKey_validateError.
 var validateErrorCases = []struct {
 	node    Key
 	value   string
