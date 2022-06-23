@@ -6,10 +6,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 )
 
 // The connection returned by the dialer is paired with the one returned by the
