@@ -14,23 +14,23 @@ import (
 var cgControllers = map[string]Backend{}
 var cgNamespace bool
 
-// Layout determines the cgroup layout on this system
+// Layout determines the cgroup layout on this system.
 type Layout int
 
 const (
-	// CgroupsDisabled indicates that cgroups are not supported
+	// CgroupsDisabled indicates that cgroups are not supported.
 	CgroupsDisabled Layout = iota
-	// CgroupsUnified indicates that this is a pure cgroup2 layout
+	// CgroupsUnified indicates that this is a pure cgroup2 layout.
 	CgroupsUnified
-	// CgroupsHybrid indicates that this is a mixed cgroup1 and cgroup2 layout
+	// CgroupsHybrid indicates that this is a mixed cgroup1 and cgroup2 layout.
 	CgroupsHybrid
-	// CgroupsLegacy indicates that this is a pure cgroup1 layout
+	// CgroupsLegacy indicates that this is a pure cgroup1 layout.
 	CgroupsLegacy
 )
 
 var cgLayout Layout
 
-// Info contains system cgroup information
+// Info contains system cgroup information.
 type Info struct {
 	// Layout is one of CgroupsDisabled, CgroupsUnified, CgroupsHybrid, CgroupsLegacy
 	Layout Layout
@@ -39,7 +39,7 @@ type Info struct {
 	Namespacing bool
 }
 
-// GetInfo returns basic system cgroup information
+// GetInfo returns basic system cgroup information.
 func GetInfo() Info {
 	info := Info{}
 	info.Namespacing = cgNamespace
@@ -48,7 +48,7 @@ func GetInfo() Info {
 	return info
 }
 
-// Mode returns the cgroup layout name
+// Mode returns the cgroup layout name.
 func (info *Info) Mode() string {
 	switch info.Layout {
 	case CgroupsDisabled:
@@ -69,52 +69,52 @@ func (info *Info) Mode() string {
 type Resource int
 
 const (
-	// Blkio resource control
+	// Blkio resource control.
 	Blkio Resource = iota
 
-	// BlkioWeight resource control
+	// BlkioWeight resource control.
 	BlkioWeight
 
-	// CPU resource control
+	// CPU resource control.
 	CPU
 
-	// CPUAcct resource control
+	// CPUAcct resource control.
 	CPUAcct
 
-	// CPUSet resource control
+	// CPUSet resource control.
 	CPUSet
 
-	// Devices resource control
+	// Devices resource control.
 	Devices
 
-	// Freezer resource control
+	// Freezer resource control.
 	Freezer
 
-	// Hugetlb resource control
+	// Hugetlb resource control.
 	Hugetlb
 
-	// Memory resource control
+	// Memory resource control.
 	Memory
 
-	// MemoryMaxUsage resource control
+	// MemoryMaxUsage resource control.
 	MemoryMaxUsage
 
-	// MemorySwap resource control
+	// MemorySwap resource control.
 	MemorySwap
 
-	// MemorySwapMaxUsage resource control
+	// MemorySwapMaxUsage resource control.
 	MemorySwapMaxUsage
 
-	// MemorySwapUsage resource control
+	// MemorySwapUsage resource control.
 	MemorySwapUsage
 
-	// MemorySwappiness resource control
+	// MemorySwappiness resource control.
 	MemorySwappiness
 
-	// NetPrio resource control
+	// NetPrio resource control.
 	NetPrio
 
-	// Pids resource control
+	// Pids resource control.
 	Pids
 )
 
