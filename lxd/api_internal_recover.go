@@ -114,7 +114,6 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 			}
 
 			projectProfiles[profile.Project] = append(projectProfiles[profile.Project], apiProfile)
-
 		}
 
 		// Load list of project/network names for validation.

@@ -2262,7 +2262,6 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to get current cluster nodes: %w", err)
-
 	}
 	return cluster.UpgradeMembersWithoutRole(d.gateway, allNodes)
 }
@@ -3766,7 +3765,6 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 
 		if len(members) > 0 {
 			return fmt.Errorf("Only empty cluster groups can be removed")
-
 		}
 
 		return tx.DeleteClusterGroup(name)

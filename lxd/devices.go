@@ -306,7 +306,6 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 				chUnix <- unix
 			}
-
 		}
 	}(chCPU, chNetwork, chUSB, chUnix)
 

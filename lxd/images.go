@@ -1593,7 +1593,6 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 					logger.Error("Unable to retrieve cluster member information for image update", logger.Ctx{"err": err})
 					skipFingerprint = true
 					break
-
 				}
 			}
 
@@ -3059,7 +3058,6 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, name)
 			responseStr = append(responseStr, url)
-
 		} else {
 			_, alias, err := d.db.Cluster.GetImageAlias(projectName, name, true)
 			if err != nil {
