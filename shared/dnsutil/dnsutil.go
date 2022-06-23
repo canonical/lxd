@@ -58,7 +58,7 @@ func reverse(slice []string) string {
 
 // reverse6 reverse the segments and combine them according to RFC3596:
 // b.a.9.8.7.6.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2
-// is reversed to 2001:db8::567:89ab
+// is reversed to 2001:db8::567:89ab.
 func reverse6(slice []string) string {
 	for i := 0; i < len(slice)/2; i++ {
 		j := len(slice) - i - 1
