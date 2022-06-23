@@ -17,7 +17,7 @@ type CGroup struct {
 	UnifiedCapable bool
 }
 
-// SetMaxProcesses applies a limit to the number of processes
+// SetMaxProcesses applies a limit to the number of processes.
 func (cg *CGroup) SetMaxProcesses(limit int64) error {
 	version := cgControllers["pids"]
 	switch version {
@@ -36,7 +36,7 @@ func (cg *CGroup) SetMaxProcesses(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetMemorySoftLimit returns the soft limit for memory
+// GetMemorySoftLimit returns the soft limit for memory.
 func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -71,7 +71,7 @@ func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetMemorySoftLimit set the soft limit for memory
+// SetMemorySoftLimit set the soft limit for memory.
 func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 	version := cgControllers["memory"]
 	switch version {
@@ -90,7 +90,7 @@ func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetMemoryLimit return the hard limit for memory
+// GetMemoryLimit return the hard limit for memory.
 func (cg *CGroup) GetMemoryLimit() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -142,7 +142,7 @@ func (cg *CGroup) GetEffectiveMemoryLimit() (int64, error) {
 	return memoryLimit, nil
 }
 
-// SetMemoryLimit sets the hard limit for memory
+// SetMemoryLimit sets the hard limit for memory.
 func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	version := cgControllers["memory"]
 	switch version {
@@ -161,7 +161,7 @@ func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetMemoryUsage returns the current use of memory
+// GetMemoryUsage returns the current use of memory.
 func (cg *CGroup) GetMemoryUsage() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -196,7 +196,7 @@ func (cg *CGroup) GetMemoryUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// GetProcessesUsage returns the current number of pids
+// GetProcessesUsage returns the current number of pids.
 func (cg *CGroup) GetProcessesUsage() (int64, error) {
 	version := cgControllers["pids"]
 	switch version {
@@ -221,7 +221,7 @@ func (cg *CGroup) GetProcessesUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetMemorySwapLimit sets the hard limit for swap
+// SetMemorySwapLimit sets the hard limit for swap.
 func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	version := cgControllers["memory"]
 	switch version {
@@ -254,7 +254,7 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetCPUAcctUsageAll returns the user and system CPU times of each CPU thread in ns used by processes
+// GetCPUAcctUsageAll returns the user and system CPU times of each CPU thread in ns used by processes.
 func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 	out := map[int64]CPUStats{}
 
@@ -346,7 +346,7 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 	return nil, ErrUnknownVersion
 }
 
-// GetCPUAcctUsage returns the total CPU time in ns used by processes
+// GetCPUAcctUsage returns the total CPU time in ns used by processes.
 func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 	version := cgControllers["cpuacct"]
 	switch version {
@@ -397,7 +397,7 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// GetMemoryMaxUsage returns the record high for memory usage
+// GetMemoryMaxUsage returns the record high for memory usage.
 func (cg *CGroup) GetMemoryMaxUsage() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -422,7 +422,7 @@ func (cg *CGroup) GetMemoryMaxUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// GetMemorySwapMaxUsage returns the record high for swap usage
+// GetMemorySwapMaxUsage returns the record high for swap usage.
 func (cg *CGroup) GetMemorySwapMaxUsage() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -457,7 +457,7 @@ func (cg *CGroup) GetMemorySwapMaxUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetMemorySwappiness sets swappiness paramet of vmscan
+// SetMemorySwappiness sets swappiness paramet of vmscan.
 func (cg *CGroup) SetMemorySwappiness(limit int64) error {
 	// Confirm we have the controller
 	version := cgControllers["memory"]
@@ -473,7 +473,7 @@ func (cg *CGroup) SetMemorySwappiness(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetMemorySwapLimit returns the hard limit on swap usage
+// GetMemorySwapLimit returns the hard limit on swap usage.
 func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -521,7 +521,7 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// GetMemorySwapUsage return current usage of swap
+// GetMemorySwapUsage return current usage of swap.
 func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 	version := cgControllers["memory"]
 	switch version {
@@ -566,7 +566,7 @@ func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// GetBlkioWeight returns the currently allowed range of weights
+// GetBlkioWeight returns the currently allowed range of weights.
 func (cg *CGroup) GetBlkioWeight() (int64, error) {
 	version := cgControllers["blkio"]
 	switch version {
@@ -601,7 +601,7 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
-// SetBlkioWeight sets the currently allowed range of weights
+// SetBlkioWeight sets the currently allowed range of weights.
 func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	version := cgControllers["blkio"]
 	switch version {
@@ -616,7 +616,7 @@ func (cg *CGroup) SetBlkioWeight(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// SetBlkioLimit sets the specified read or write limit for a device
+// SetBlkioLimit sets the specified read or write limit for a device.
 func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit int64) error {
 	if !shared.StringInSlice(oType, []string{"read", "write"}) {
 		return fmt.Errorf("Invalid I/O operation type: %s", oType)
@@ -646,7 +646,7 @@ func (cg *CGroup) SetBlkioLimit(dev string, oType string, uType string, limit in
 	return ErrUnknownVersion
 }
 
-// SetCPUShare sets the weight of each group in the same hierarchy
+// SetCPUShare sets the weight of each group in the same hierarchy.
 func (cg *CGroup) SetCPUShare(limit int64) error {
 	version := cgControllers["cpu"]
 	switch version {
@@ -661,7 +661,7 @@ func (cg *CGroup) SetCPUShare(limit int64) error {
 	return ErrUnknownVersion
 }
 
-// SetCPUCfsLimit sets the quota and duration in ms for each scheduling period
+// SetCPUCfsLimit sets the quota and duration in ms for each scheduling period.
 func (cg *CGroup) SetCPUCfsLimit(limitPeriod int64, limitQuota int64) error {
 	version := cgControllers["cpu"]
 	switch version {
@@ -690,7 +690,7 @@ func (cg *CGroup) SetCPUCfsLimit(limitPeriod int64, limitQuota int64) error {
 	return ErrUnknownVersion
 }
 
-// SetNetIfPrio sets the priority for the process
+// SetNetIfPrio sets the priority for the process.
 func (cg *CGroup) SetNetIfPrio(limit string) error {
 	version := cgControllers["net_prio"]
 	switch version {
@@ -705,7 +705,7 @@ func (cg *CGroup) SetNetIfPrio(limit string) error {
 	return ErrUnknownVersion
 }
 
-// SetHugepagesLimit applies a limit to the number of processes
+// SetHugepagesLimit applies a limit to the number of processes.
 func (cg *CGroup) SetHugepagesLimit(pageType string, limit int64) error {
 	version := cgControllers["hugetlb"]
 	switch version {
@@ -723,7 +723,7 @@ func (cg *CGroup) SetHugepagesLimit(pageType string, limit int64) error {
 	return ErrUnknownVersion
 }
 
-// GetEffectiveCpuset returns the current set of CPUs for the cgroup
+// GetEffectiveCpuset returns the current set of CPUs for the cgroup.
 func (cg *CGroup) GetEffectiveCpuset() (string, error) {
 	version := cgControllers["cpuset"]
 	switch version {
@@ -738,7 +738,7 @@ func (cg *CGroup) GetEffectiveCpuset() (string, error) {
 	return "", ErrUnknownVersion
 }
 
-// GetCpuset returns the current set of CPUs for the cgroup
+// GetCpuset returns the current set of CPUs for the cgroup.
 func (cg *CGroup) GetCpuset() (string, error) {
 	version := cgControllers["cpuset"]
 	switch version {
@@ -753,7 +753,7 @@ func (cg *CGroup) GetCpuset() (string, error) {
 	return "", ErrUnknownVersion
 }
 
-// SetCpuset set the currently allowed set of CPUs for the cgroups
+// SetCpuset set the currently allowed set of CPUs for the cgroups.
 func (cg *CGroup) SetCpuset(limit string) error {
 	version := cgControllers["cpuset"]
 	switch version {
@@ -768,7 +768,7 @@ func (cg *CGroup) SetCpuset(limit string) error {
 	return ErrUnknownVersion
 }
 
-// GetMemoryStats returns memory stats
+// GetMemoryStats returns memory stats.
 func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 	var (
 		err   error
@@ -955,7 +955,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	return nil, ErrUnknownVersion
 }
 
-// GetTotalProcesses returns the total number of processes
+// GetTotalProcesses returns the total number of processes.
 func (cg *CGroup) GetTotalProcesses() (int64, error) {
 	version := cgControllers["pids"]
 	switch version {
