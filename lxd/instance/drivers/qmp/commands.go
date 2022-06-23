@@ -433,7 +433,6 @@ func (m *Monitor) AddNIC(netDev map[string]any, device map[string]string) error 
 	err := m.AddDevice(device)
 	if err != nil {
 		return fmt.Errorf("Failed adding NIC device: %w", err)
-
 	}
 
 	revert.Success()
