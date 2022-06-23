@@ -16,7 +16,7 @@ import (
 var monitors = map[string]*Monitor{}
 var monitorsLock sync.Mutex
 
-// RingbufSize is the size of the agent serial ringbuffer in bytes
+// RingbufSize is the size of the agent serial ringbuffer in bytes.
 var RingbufSize = 16
 
 // Monitor represents a QMP monitor.
@@ -32,7 +32,7 @@ type Monitor struct {
 	serialCharDev string
 }
 
-// start handles the background goroutines for event handling and monitoring the ringbuffer
+// start handles the background goroutines for event handling and monitoring the ringbuffer.
 func (m *Monitor) start() error {
 	// Ringbuffer monitoring function.
 	checkBuffer := func() {
