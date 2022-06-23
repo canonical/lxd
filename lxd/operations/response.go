@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// Operation response
+// Operation response.
 type operationResponse struct {
 	op *Operation
 }
@@ -64,7 +64,7 @@ func (r *operationResponse) String() string {
 
 // Forwarded operation response.
 //
-// Returned when the operation has been created on another node
+// Returned when the operation has been created on another node.
 type forwardedOperationResponse struct {
 	op      *api.Operation
 	project string
