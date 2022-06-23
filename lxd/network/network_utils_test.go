@@ -135,5 +135,4 @@ func Example_ipRangesOverlap() {
 	// Range1: 10.1.1.4, Range2: 10.1.1.4, overlapped: true
 	// Range1: 10.1.1.4, Range2: 10.1.1.8-10.1.1.9, overlapped: false
 	// Range1: 10.1.1.8-10.1.1.9, Range2: 10.1.1.4, overlapped: false
-
 }

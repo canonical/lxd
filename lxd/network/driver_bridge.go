@@ -427,7 +427,6 @@ func (n *bridge) Validate(config map[string]string) error {
 				}
 			}
 		}
-
 	}
 
 	// Check IPv6 OVN ranges.
@@ -611,7 +610,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
 		} else {
-
 			bridge := &ip.Bridge{
 				Link: *bridgeLink,
 			}
@@ -1359,7 +1357,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			if n.config["ipv4.nat.order"] == "after" {
 				fwOpts.SNATV4.Append = true
-
 			}
 		}
 
