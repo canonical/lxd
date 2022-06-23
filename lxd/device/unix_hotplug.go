@@ -122,7 +122,7 @@ func (d *unixHotplug) Register() error {
 	return nil
 }
 
-// Start is run when the device is added to the instance
+// Start is run when the device is added to the instance.
 func (d *unixHotplug) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	runConf.PostHooks = []func() error{d.Register}
@@ -154,7 +154,7 @@ func (d *unixHotplug) Start() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// Stop is run when the device is removed from the instance
+// Stop is run when the device is removed from the instance.
 func (d *unixHotplug) Stop() (*deviceConfig.RunConfig, error) {
 	unixHotplugUnregisterHandler(d.inst, d.name)
 
@@ -170,7 +170,7 @@ func (d *unixHotplug) Stop() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// postStop is run after the device is removed from the instance
+// postStop is run after the device is removed from the instance.
 func (d *unixHotplug) postStop() error {
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
@@ -181,7 +181,7 @@ func (d *unixHotplug) postStop() error {
 }
 
 // loadUnixDevice scans the host machine for unix devices with matching product/vendor ids
-// and returns the first matching device with the subsystem type char or block
+// and returns the first matching device with the subsystem type char or block.
 func (d *unixHotplug) loadUnixDevice() *udev.Device {
 	// Find device if exists
 	u := udev.Udev{}
