@@ -61,7 +61,6 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 			assert.Equal(t, out, util.CanonicalNetworkAddress(in, shared.HTTPSDefaultPort))
 		})
 	}
-
 }
 
 func TestIsAddressCovered(t *testing.T) {
