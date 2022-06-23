@@ -226,7 +226,7 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 	return nil
 }
 
-// GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config,
+// GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config,.
 func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
 	newConfig := make(map[string]string, len(volConfig))
@@ -316,7 +316,6 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	}
 
 	return nil
-
 }
 
 // warningsDelete deletes any persistent warnings for the pool.
