@@ -1,11 +1,11 @@
 package zone
 
 import (
+	"strings"
+
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
-
-	"strings"
 )
 
 // NetworkZone represents a Network zone.
