@@ -205,7 +205,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				}
 			}
 
-			if offer.Refresh != nil && *offer.Refresh {
+			if offer.GetRefresh() {
 				// Optimized refresh with zfs only works if ZfsFeatureMigrationHeader is available.
 				if ourType.FSType == MigrationFSType_ZFS && !shared.StringInSlice(ZFSFeatureMigrationHeader, commonFeatures) {
 					continue
