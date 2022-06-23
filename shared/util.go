@@ -511,7 +511,6 @@ func DirCopy(source string, dest string) error {
 	}
 
 	for _, entry := range entries {
-
 		sourcePath := filepath.Join(source, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
 
@@ -526,7 +525,6 @@ func DirCopy(source string, dest string) error {
 				return fmt.Errorf("failed to copy file from %s to %s: %w", sourcePath, destPath, err)
 			}
 		}
-
 	}
 
 	return nil
@@ -1218,7 +1216,6 @@ func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
 		}
 
 		expiry[fields[2]] = val
-
 	}
 
 	t := refDate.AddDate(expiry["y"], expiry["m"], expiry["d"]+expiry["w"]*7).Add(
