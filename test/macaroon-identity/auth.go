@@ -32,7 +32,7 @@ type authService struct {
 	userTokens map[string]string // map user token to username
 }
 
-// NewAuthService returns an AuthService
+// NewAuthService returns an AuthService.
 func newAuthService(listenAddr string, logger *log.Logger) *authService {
 	key := bakery.MustGenerateKey()
 	mux := http.NewServeMux()
