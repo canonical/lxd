@@ -9,12 +9,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/pborman/uuid"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
-
-	"github.com/pborman/uuid"
 )
 
 const formURL string = "/form"
