@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 19:41-0500\n"
+"POT-Creation-Date: 2022-07-13 14:43-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -85,7 +85,7 @@ msgstr ""
 "###\n"
 "### Note that the fingerprint is shown but cannot be changed"
 
-#: lxc/cluster_group.go:356
+#: lxc/cluster_group.go:350
 msgid ""
 "### This is a YAML representation of the cluster group.\n"
 "### Any line starting with a '# will be ignored."
@@ -288,7 +288,7 @@ msgstr ""
 "###\n"
 "### Note that the listen_address and location cannot be changed."
 
-#: lxc/network_peer.go:488
+#: lxc/network_peer.go:487
 msgid ""
 "### This is a YAML representation of the network peer.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -581,15 +581,15 @@ msgstr "<alias> <target>"
 msgid "<old alias> <new alias>"
 msgstr "<old alias> <new alias>"
 
-#: lxc/remote.go:778 lxc/remote.go:833
+#: lxc/remote.go:777 lxc/remote.go:832
 msgid "<remote>"
 msgstr "<remote>"
 
-#: lxc/remote.go:871
+#: lxc/remote.go:870
 msgid "<remote> <URL>"
 msgstr "<remote> <URL>"
 
-#: lxc/remote.go:708
+#: lxc/remote.go:707
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
@@ -619,7 +619,7 @@ msgstr "ALIASES"
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
-#: lxc/remote.go:691
+#: lxc/remote.go:690
 msgid "AUTH TYPE"
 msgstr "AUTH TYPE"
 
@@ -722,7 +722,7 @@ msgstr "ACLにルールを追加します"
 msgid "Address: %s"
 msgstr "アドレス: %s"
 
-#: lxc/remote.go:524
+#: lxc/remote.go:523
 #, c-format
 msgid "Admin password for %s:"
 msgstr "%s の管理者パスワード:"
@@ -817,7 +817,7 @@ msgstr ""
 "このコマンドはインスタンスのブートコンソールに接続できます。\n"
 "そしてそこから過去のログエントリを取り出すことができます。"
 
-#: lxc/remote.go:510
+#: lxc/remote.go:509
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr "認証タイプ '%s' はサーバではサポートされていません"
@@ -863,7 +863,7 @@ msgid "Backups:"
 msgstr "バックアップ:"
 
 #: lxc/network.go:321 lxc/network_acl.go:369 lxc/network_forward.go:284
-#: lxc/network_peer.go:281 lxc/network_zone.go:311 lxc/network_zone.go:869
+#: lxc/network_peer.go:280 lxc/network_zone.go:311 lxc/network_zone.go:869
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
@@ -988,7 +988,7 @@ msgstr ""
 msgid "Can't read from stdin: %w"
 msgstr "標準入力から読み込めません: %w"
 
-#: lxc/remote.go:813
+#: lxc/remote.go:812
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
@@ -1045,14 +1045,14 @@ msgstr "カード: %s (%s)"
 msgid "Certificate add token for %s deleted"
 msgstr "%s に対する証明書追加トークンが削除されました"
 
-#: lxc/remote.go:182
+#: lxc/remote.go:181
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
 msgstr ""
 "証明書のフィンガープリントが証明書トークンとサーバの間で一致しません %q"
 
-#: lxc/remote.go:411
+#: lxc/remote.go:410
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
@@ -1066,7 +1066,7 @@ msgstr "Chassis"
 msgid "Client %s certificate add token:"
 msgstr "クライアント %s の証明書追加トークン:"
 
-#: lxc/remote.go:563
+#: lxc/remote.go:562
 msgid "Client certificate now trusted by server:"
 msgstr "クライアント証明書がサーバに信頼されました:"
 
@@ -1075,22 +1075,22 @@ msgstr "クライアント証明書がサーバに信頼されました:"
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/cluster_group.go:190
+#: lxc/cluster_group.go:188
 #, c-format
 msgid "Cluster group %s created"
 msgstr "クラスターグループ %s を作成しました"
 
-#: lxc/cluster_group.go:243
+#: lxc/cluster_group.go:239
 #, c-format
 msgid "Cluster group %s deleted"
 msgstr "クラスターグループ %s が削除されました"
 
-#: lxc/cluster_group.go:479
+#: lxc/cluster_group.go:473
 #, c-format
 msgid "Cluster group %s isn't currently applied to %s"
 msgstr "クラスターグループ %s は現在 %s に適用されていません"
 
-#: lxc/cluster_group.go:548
+#: lxc/cluster_group.go:540
 #, c-format
 msgid "Cluster group %s renamed to %s"
 msgstr "クラスタグループ名 %s を %s に変更しました"
@@ -1105,7 +1105,7 @@ msgstr "%s:%s のクラスターに join するためのトークンが削除さ
 msgid "Cluster member %s added to cluster groups %s"
 msgstr "クラスターメンバー %s がクラスターグループ %s に追加されました"
 
-#: lxc/cluster_group.go:499
+#: lxc/cluster_group.go:493
 #, c-format
 msgid "Cluster member %s removed from group %s"
 msgstr "クラスターメンバー %s がグループ %s から削除されました"
@@ -1118,7 +1118,7 @@ msgstr "クラスターメンバー %s がグループ %s から削除されま�
 #: lxc/network_forward.go:389 lxc/network_forward.go:490
 #: lxc/network_forward.go:632 lxc/network_forward.go:709
 #: lxc/network_forward.go:775 lxc/storage.go:96 lxc/storage.go:340
-#: lxc/storage.go:401 lxc/storage.go:604 lxc/storage.go:676 lxc/storage.go:759
+#: lxc/storage.go:401 lxc/storage.go:634 lxc/storage.go:706 lxc/storage.go:789
 #: lxc/storage_volume.go:335 lxc/storage_volume.go:521
 #: lxc/storage_volume.go:600 lxc/storage_volume.go:842
 #: lxc/storage_volume.go:1039 lxc/storage_volume.go:1127
@@ -1175,10 +1175,10 @@ msgstr "新しいプロジェクトに適用するキー/値の設定"
 msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
-#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:263
+#: lxc/cluster.go:677 lxc/cluster_group.go:327 lxc/config.go:263
 #: lxc/config.go:336 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:454 lxc/network.go:674 lxc/network_acl.go:582
-#: lxc/network_forward.go:596 lxc/network_peer.go:573 lxc/network_zone.go:512
+#: lxc/network_forward.go:596 lxc/network_peer.go:572 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:508 lxc/project.go:312
 #: lxc/storage.go:307 lxc/storage_volume.go:975 lxc/storage_volume.go:1005
 #, c-format
@@ -1295,12 +1295,12 @@ msgstr "コア %d"
 msgid "Cores:"
 msgstr "コア:"
 
-#: lxc/remote.go:446
+#: lxc/remote.go:445
 #, fuzzy, c-format
 msgid "Could not close server cert file %q: %w"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/remote.go:188 lxc/remote.go:430
+#: lxc/remote.go:187 lxc/remote.go:429
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
@@ -1329,7 +1329,7 @@ msgstr "秘密鍵ファイル %s をエラーで読み込めません: %v"
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr "リモート '%s' に対する新しいリモート証明書がエラーで書き込めません: %v"
 
-#: lxc/remote.go:441
+#: lxc/remote.go:440
 #, fuzzy, c-format
 msgid "Could not write server cert file %q: %w"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
@@ -1338,7 +1338,7 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 msgid "Couldn't find a matching entry"
 msgstr "一致するエントリを見つけられませんでした"
 
-#: lxc/cluster_group.go:151 lxc/cluster_group.go:152
+#: lxc/cluster_group.go:149 lxc/cluster_group.go:150
 msgid "Create a cluster group"
 msgstr "クラスターグループを作成します"
 
@@ -1398,7 +1398,7 @@ msgstr "新たにネットワーク ACL を作成します"
 msgid "Create new network forwards"
 msgstr "新たにネットワークフォワードを作成します"
 
-#: lxc/network_peer.go:215 lxc/network_peer.go:216
+#: lxc/network_peer.go:214 lxc/network_peer.go:215
 msgid "Create new network peering"
 msgstr "新たにネットワークピアリングを作成します"
 
@@ -1453,11 +1453,11 @@ msgstr "現在の VF 数: %d"
 msgid "DEFAULT TARGET ADDRESS"
 msgstr "DEFAULT TARGET ADDRESS"
 
-#: lxc/cluster.go:183 lxc/cluster_group.go:428 lxc/image.go:1046
+#: lxc/cluster.go:183 lxc/cluster_group.go:422 lxc/image.go:1046
 #: lxc/image_alias.go:237 lxc/list.go:546 lxc/network.go:956
-#: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:141
+#: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:702 lxc/operation.go:163
-#: lxc/profile.go:631 lxc/project.go:473 lxc/storage.go:581
+#: lxc/profile.go:631 lxc/project.go:473 lxc/storage.go:611
 #: lxc/storage_volume.go:1440
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
@@ -1466,7 +1466,7 @@ msgstr "DESCRIPTION"
 msgid "DISK USAGE"
 msgstr "DISK USAGE"
 
-#: lxc/storage.go:575
+#: lxc/storage.go:605
 msgid "DRIVER"
 msgstr "DRIVER"
 
@@ -1486,7 +1486,7 @@ msgstr "圧縮アルゴリズムを指定します: backup or none"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
-#: lxc/cluster_group.go:208 lxc/cluster_group.go:209
+#: lxc/cluster_group.go:204 lxc/cluster_group.go:205
 msgid "Delete a cluster group"
 msgstr "クラスタグループを削除します"
 
@@ -1522,7 +1522,7 @@ msgstr "ネットワーク ACL を削除します"
 msgid "Delete network forwards"
 msgstr "ネットワークフォワードを削除します"
 
-#: lxc/network_peer.go:605 lxc/network_peer.go:606
+#: lxc/network_peer.go:604 lxc/network_peer.go:605
 msgid "Delete network peerings"
 msgstr "ネットワークピアリングを削除します"
 
@@ -1565,9 +1565,9 @@ msgstr "警告を削除します"
 #: lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709
 #: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1062
 #: lxc/cluster.go:1081 lxc/cluster_group.go:30 lxc/cluster_group.go:79
-#: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
-#: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
-#: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
+#: lxc/cluster_group.go:150 lxc/cluster_group.go:205 lxc/cluster_group.go:255
+#: lxc/cluster_group.go:368 lxc/cluster_group.go:439 lxc/cluster_group.go:510
+#: lxc/cluster_group.go:556 lxc/cluster_role.go:22 lxc/cluster_role.go:48
 #: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:368
 #: lxc/config.go:460 lxc/config.go:618 lxc/config.go:738
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:202
@@ -1604,10 +1604,10 @@ msgstr "警告を削除します"
 #: lxc/network_forward.go:382 lxc/network_forward.go:460
 #: lxc/network_forward.go:487 lxc/network_forward.go:629
 #: lxc/network_forward.go:691 lxc/network_forward.go:706
-#: lxc/network_forward.go:771 lxc/network_peer.go:30 lxc/network_peer.go:83
-#: lxc/network_peer.go:159 lxc/network_peer.go:216 lxc/network_peer.go:330
-#: lxc/network_peer.go:385 lxc/network_peer.go:454 lxc/network_peer.go:481
-#: lxc/network_peer.go:606 lxc/network_zone.go:29 lxc/network_zone.go:86
+#: lxc/network_forward.go:771 lxc/network_peer.go:29 lxc/network_peer.go:82
+#: lxc/network_peer.go:158 lxc/network_peer.go:215 lxc/network_peer.go:329
+#: lxc/network_peer.go:384 lxc/network_peer.go:453 lxc/network_peer.go:480
+#: lxc/network_peer.go:605 lxc/network_zone.go:29 lxc/network_zone.go:86
 #: lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258
 #: lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426
 #: lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650
@@ -1623,11 +1623,11 @@ msgstr "警告を削除します"
 #: lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491
 #: lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688
 #: lxc/project.go:747 lxc/publish.go:33 lxc/query.go:33 lxc/remote.go:33
-#: lxc/remote.go:88 lxc/remote.go:589 lxc/remote.go:625 lxc/remote.go:711
-#: lxc/remote.go:781 lxc/remote.go:835 lxc/remote.go:873 lxc/rename.go:21
+#: lxc/remote.go:88 lxc/remote.go:588 lxc/remote.go:624 lxc/remote.go:710
+#: lxc/remote.go:780 lxc/remote.go:834 lxc/remote.go:872 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
 #: lxc/storage.go:167 lxc/storage.go:217 lxc/storage.go:337 lxc/storage.go:397
-#: lxc/storage.go:523 lxc/storage.go:598 lxc/storage.go:672 lxc/storage.go:756
+#: lxc/storage.go:553 lxc/storage.go:628 lxc/storage.go:702 lxc/storage.go:786
 #: lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240
 #: lxc/storage_volume.go:331 lxc/storage_volume.go:518
 #: lxc/storage_volume.go:597 lxc/storage_volume.go:673
@@ -1802,7 +1802,7 @@ msgstr ""
 "ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
 "あと2回行ってください）"
 
-#: lxc/cluster_group.go:260 lxc/cluster_group.go:261
+#: lxc/cluster_group.go:254 lxc/cluster_group.go:255
 msgid "Edit a cluster group"
 msgstr "クラスタグループを編集します"
 
@@ -1842,7 +1842,7 @@ msgstr "ネットワーク設定をYAMLで編集します"
 msgid "Edit network forward configurations as YAML"
 msgstr "ネットワークフォワード設定をYAMLで編集します"
 
-#: lxc/network_peer.go:480 lxc/network_peer.go:481
+#: lxc/network_peer.go:479 lxc/network_peer.go:480
 msgid "Edit network peer configurations as YAML"
 msgstr "ネットワークピア設定をYAMLで編集します"
 
@@ -2082,7 +2082,7 @@ msgstr "証明書追加トークンのトークン変換操作に失敗しまし
 msgid "Failed generating SSH host key: %w"
 msgstr "SSH ホスト鍵の生成に失敗しました: %w"
 
-#: lxc/network_peer.go:305
+#: lxc/network_peer.go:304
 #, c-format
 msgid "Failed getting peer's status: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
@@ -2107,11 +2107,11 @@ msgstr "sshfs の起動に失敗しました: %w"
 msgid "Failed to accept incoming connection: %w"
 msgstr "受信接続の受け入れに失敗しました: %w"
 
-#: lxc/remote.go:236
+#: lxc/remote.go:235
 msgid "Failed to add remote"
 msgstr "リモートの追加に失敗しました"
 
-#: lxc/remote.go:205
+#: lxc/remote.go:204
 #, fuzzy, c-format
 msgid "Failed to close server cert file %q: %w"
 msgstr "%q の作成に失敗しました: %w"
@@ -2121,7 +2121,7 @@ msgstr "%q の作成に失敗しました: %w"
 msgid "Failed to connect to cluster member: %w"
 msgstr "クラスタメンバへの接続に失敗しました: %w"
 
-#: lxc/remote.go:195
+#: lxc/remote.go:194
 #, c-format
 msgid "Failed to create %q: %w"
 msgstr "%q の作成に失敗しました: %w"
@@ -2131,12 +2131,12 @@ msgstr "%q の作成に失敗しました: %w"
 msgid "Failed to create alias %s: %w"
 msgstr "エイリアス %s の作成に失敗しました: %w"
 
-#: lxc/remote.go:220
+#: lxc/remote.go:219
 #, c-format
 msgid "Failed to create certificate: %w"
 msgstr "証明書の作成に失敗しました: %w"
 
-#: lxc/remote.go:227
+#: lxc/remote.go:226
 #, c-format
 msgid "Failed to find project: %w"
 msgstr "プロジェクトが見つけられませんでした: %w"
@@ -2165,7 +2165,7 @@ msgstr "エイリアス %s の削除に失敗しました: %w"
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
 
-#: lxc/remote.go:200
+#: lxc/remote.go:199
 #, fuzzy, c-format
 msgid "Failed to write server cert file %q: %w"
 msgstr "証明書の作成に失敗しました: %w"
@@ -2248,12 +2248,12 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:105 lxc/cluster.go:121 lxc/cluster.go:780
-#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:343
+#: lxc/cluster_group.go:370 lxc/config_template.go:241 lxc/config_trust.go:343
 #: lxc/config_trust.go:424 lxc/image.go:1033 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
-#: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
+#: lxc/network_forward.go:90 lxc/network_peer.go:85 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:591
-#: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:629 lxc/storage.go:525
+#: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:628 lxc/storage.go:555
 #: lxc/storage_volume.go:1358 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr "フォーマット (csv|json|table|yaml|compact)"
@@ -2290,7 +2290,7 @@ msgstr "クロック数: %vMhz"
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr "クロック数: %vMhz (最小: %vMhz, 最大: %vMhz)"
 
-#: lxc/remote.go:694
+#: lxc/remote.go:693
 msgid "GLOBAL"
 msgstr "GLOBAL"
 
@@ -2306,7 +2306,7 @@ msgstr "GPUs:"
 msgid "Generate manpages for all commands"
 msgstr "すべてのコマンドに対する man ページを作成します"
 
-#: lxc/remote.go:161 lxc/remote.go:359
+#: lxc/remote.go:160 lxc/remote.go:358
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
@@ -2346,7 +2346,7 @@ msgstr "ネットワークの設定値を取得します"
 msgid "Get values for network forward configuration keys"
 msgstr "ネットワークフォワードの設定値を取得します"
 
-#: lxc/network_peer.go:329 lxc/network_peer.go:330
+#: lxc/network_peer.go:328 lxc/network_peer.go:329
 msgid "Get values for network peer configuration keys"
 msgstr "ネットワークピアの設定値を取得します"
 
@@ -2605,7 +2605,7 @@ msgstr "インスタンスは以下のフィンガープリントで publish さ
 msgid "Instance type"
 msgstr "インスタンスタイプ"
 
-#: lxc/remote.go:311
+#: lxc/remote.go:310
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
@@ -2699,7 +2699,7 @@ msgstr "引数の数が不正です"
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/remote.go:300
+#: lxc/remote.go:299
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
@@ -2761,7 +2761,7 @@ msgstr ""
 "を使います。"
 
 #: lxc/cluster.go:155 lxc/cluster.go:814 lxc/cluster.go:904 lxc/cluster.go:995
-#: lxc/cluster_group.go:410
+#: lxc/cluster_group.go:404
 msgid "LXD server isn't part of a cluster"
 msgstr "LXD サーバはクラスタの一部ではありません"
 
@@ -2805,7 +2805,7 @@ msgstr "有効な証明書追加トークンをすべて一覧表示します"
 msgid "List all active cluster member join tokens"
 msgstr "有効なクラスターへの join トークンをすべて一覧表示します"
 
-#: lxc/cluster_group.go:373 lxc/cluster_group.go:374
+#: lxc/cluster_group.go:367 lxc/cluster_group.go:368
 msgid "List all the cluster groups"
 msgstr "クラスタグループをすべて一覧表示します"
 
@@ -2829,7 +2829,7 @@ msgstr "利用可能なネットワーク ACL を一覧表示します"
 msgid "List available network forwards"
 msgstr "利用可能なネットワークフォワードを一覧表示します"
 
-#: lxc/network_peer.go:82 lxc/network_peer.go:83
+#: lxc/network_peer.go:81 lxc/network_peer.go:82
 msgid "List available network peers"
 msgstr "利用可能なネットワークピアを一覧表示します"
 
@@ -2849,7 +2849,7 @@ msgstr "利用可能なネットワークゾーンを一覧表示します"
 msgid "List available networks"
 msgstr "利用可能なネットワークを一覧表示します"
 
-#: lxc/storage.go:522 lxc/storage.go:523
+#: lxc/storage.go:552 lxc/storage.go:553
 msgid "List available storage pools"
 msgstr "利用可能なストレージプールを一覧表示します"
 
@@ -3152,7 +3152,7 @@ msgstr ""
 "    L - インスタンスの場所 (例: its cluster member)\n"
 "    U - 現在のディスク使用量"
 
-#: lxc/remote.go:624 lxc/remote.go:625
+#: lxc/remote.go:623 lxc/remote.go:624
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
@@ -3248,7 +3248,7 @@ msgstr "MAD: %s (%s)"
 msgid "MANAGED"
 msgstr "MANAGED"
 
-#: lxc/cluster_group.go:429
+#: lxc/cluster_group.go:423
 msgid "MEMBERS"
 msgstr "MEMBERS"
 
@@ -3387,7 +3387,7 @@ msgstr "ネットワークフォワードのポートを管理します"
 msgid "Manage network forwards"
 msgstr "ネットワークフォワードを管理します"
 
-#: lxc/network_peer.go:29 lxc/network_peer.go:30
+#: lxc/network_peer.go:28 lxc/network_peer.go:29
 msgid "Manage network peerings"
 msgstr "ネットワークピアリングを管理します"
 
@@ -3511,13 +3511,13 @@ msgstr "表示するログメッセージの最小レベル"
 msgid "Missing certificate fingerprint"
 msgstr "証明書のフィンガープリントがありません"
 
-#: lxc/cluster_group.go:176 lxc/cluster_group.go:233 lxc/cluster_group.go:285
-#: lxc/cluster_group.go:588
+#: lxc/cluster_group.go:174 lxc/cluster_group.go:229 lxc/cluster_group.go:279
+#: lxc/cluster_group.go:580
 msgid "Missing cluster group name"
 msgstr "クラスターグループ名がありません"
 
 #: lxc/cluster.go:629 lxc/cluster.go:1110 lxc/cluster_group.go:110
-#: lxc/cluster_group.go:469 lxc/cluster_role.go:70 lxc/cluster_role.go:124
+#: lxc/cluster_group.go:463 lxc/cluster_role.go:70 lxc/cluster_role.go:124
 msgid "Missing cluster member name"
 msgstr "クラスターメンバー名がありません"
 
@@ -3556,9 +3556,9 @@ msgstr "ネットワーク ACL 名を指定する必要があります"
 #: lxc/network_forward.go:255 lxc/network_forward.go:350
 #: lxc/network_forward.go:410 lxc/network_forward.go:534
 #: lxc/network_forward.go:653 lxc/network_forward.go:730
-#: lxc/network_forward.go:796 lxc/network_peer.go:112 lxc/network_peer.go:181
-#: lxc/network_peer.go:238 lxc/network_peer.go:353 lxc/network_peer.go:411
-#: lxc/network_peer.go:519 lxc/network_peer.go:628
+#: lxc/network_forward.go:796 lxc/network_peer.go:111 lxc/network_peer.go:180
+#: lxc/network_peer.go:237 lxc/network_peer.go:352 lxc/network_peer.go:410
+#: lxc/network_peer.go:518 lxc/network_peer.go:627
 msgid "Missing network name"
 msgstr "ネットワーク名を指定する必要があります"
 
@@ -3574,13 +3574,13 @@ msgstr "ネットワークゾーン名を指定する必要があります"
 msgid "Missing network zone record name"
 msgstr "ネットワークゾーンレコード名を指定する必要があります"
 
-#: lxc/network_peer.go:185 lxc/network_peer.go:242 lxc/network_peer.go:357
-#: lxc/network_peer.go:415 lxc/network_peer.go:523 lxc/network_peer.go:632
+#: lxc/network_peer.go:184 lxc/network_peer.go:241 lxc/network_peer.go:356
+#: lxc/network_peer.go:414 lxc/network_peer.go:522 lxc/network_peer.go:631
 msgid "Missing peer name"
 msgstr "ピア名を指定する必要があります"
 
 #: lxc/storage.go:191 lxc/storage.go:261 lxc/storage.go:362 lxc/storage.go:423
-#: lxc/storage.go:627 lxc/storage.go:704 lxc/storage_volume.go:189
+#: lxc/storage.go:657 lxc/storage.go:734 lxc/storage_volume.go:189
 #: lxc/storage_volume.go:264 lxc/storage_volume.go:544
 #: lxc/storage_volume.go:621 lxc/storage_volume.go:697
 #: lxc/storage_volume.go:779 lxc/storage_volume.go:878
@@ -3617,7 +3617,7 @@ msgstr "ストレージプール名を指定する必要があります"
 msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
-#: lxc/network_peer.go:246
+#: lxc/network_peer.go:245
 msgid "Missing target network"
 msgstr "作成するネットワーク名を指定する必要があります"
 
@@ -3719,11 +3719,11 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
-#: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:427
+#: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:421
 #: lxc/config_trust.go:399 lxc/config_trust.go:494 lxc/list.go:554
-#: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
+#: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:139
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:630
-#: lxc/project.go:468 lxc/remote.go:688 lxc/storage.go:574
+#: lxc/project.go:468 lxc/remote.go:687 lxc/storage.go:604
 #: lxc/storage_volume.go:1439
 msgid "NAME"
 msgstr "NAME"
@@ -3741,8 +3741,8 @@ msgid "NICs:"
 msgstr "NICs:"
 
 #: lxc/network.go:929 lxc/operation.go:146 lxc/project.go:437
-#: lxc/project.go:442 lxc/project.go:447 lxc/project.go:452 lxc/remote.go:646
-#: lxc/remote.go:651 lxc/remote.go:656
+#: lxc/project.go:442 lxc/project.go:447 lxc/project.go:452 lxc/remote.go:645
+#: lxc/remote.go:650 lxc/remote.go:655
 msgid "NO"
 msgstr "NO"
 
@@ -3842,22 +3842,22 @@ msgstr "ネットワークフォワード %s を削除しました"
 msgid "Network name"
 msgstr "ネットワーク名:"
 
-#: lxc/network_peer.go:309
+#: lxc/network_peer.go:308
 #, c-format
 msgid "Network peer %s created"
 msgstr "ネットワークピア %s を作成しました"
 
-#: lxc/network_peer.go:644
+#: lxc/network_peer.go:643
 #, c-format
 msgid "Network peer %s deleted"
 msgstr "ネットワークピア %s を削除しました"
 
-#: lxc/network_peer.go:313
+#: lxc/network_peer.go:312
 #, c-format
 msgid "Network peer %s is in unexpected state %q"
 msgstr "ネットワークピア %s は想定外のステータスです %q"
 
-#: lxc/network_peer.go:311
+#: lxc/network_peer.go:310
 #, c-format
 msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
@@ -3960,7 +3960,7 @@ msgstr "\"カスタム\" のボリュームのみがエクスポートできま�
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr "\"カスタム\" のボリュームのみがスナップショットを取得できます"
 
-#: lxc/remote.go:294
+#: lxc/remote.go:293
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
@@ -3998,7 +3998,7 @@ msgstr "ターミナルモードを上書きします (auto, interactive, non-in
 msgid "PCI address: %v"
 msgstr "PCI アドレス: %v"
 
-#: lxc/network_peer.go:142
+#: lxc/network_peer.go:141
 msgid "PEER"
 msgstr "PEER"
 
@@ -4027,11 +4027,11 @@ msgstr "PROFILES"
 msgid "PROJECT"
 msgstr "PROJECT"
 
-#: lxc/remote.go:690
+#: lxc/remote.go:689
 msgid "PROTOCOL"
 msgstr "PROTOCOL"
 
-#: lxc/image.go:1045 lxc/remote.go:692
+#: lxc/image.go:1045 lxc/remote.go:691
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -4068,7 +4068,7 @@ msgstr "クライアント名を入力してください: "
 msgid "Please provide cluster member name: "
 msgstr "クラスターメンバー名を入力してください: "
 
-#: lxc/remote.go:422
+#: lxc/remote.go:421
 msgid "Please type 'y', 'n' or the fingerprint:"
 msgstr "'y', 'n', フィンガープリントのどれかを入力してください:"
 
@@ -4085,10 +4085,10 @@ msgstr "ポート:"
 msgid "Press ctrl+c to finish"
 msgstr "終了するには ctrl+c を押してください"
 
-#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:264
+#: lxc/cluster.go:678 lxc/cluster_group.go:328 lxc/config.go:264
 #: lxc/config.go:337 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:308 lxc/image.go:455 lxc/network.go:675
-#: lxc/network_acl.go:583 lxc/network_forward.go:597 lxc/network_peer.go:574
+#: lxc/network_acl.go:583 lxc/network_forward.go:597 lxc/network_peer.go:573
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:509
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:976
 #: lxc/storage_volume.go:1006
@@ -4285,28 +4285,28 @@ msgstr "インスタンスの更新中: %s"
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
 
-#: lxc/remote.go:739
+#: lxc/remote.go:738
 #, c-format
 msgid "Remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/project.go:714 lxc/remote.go:731 lxc/remote.go:801 lxc/remote.go:855
-#: lxc/remote.go:893
+#: lxc/project.go:714 lxc/remote.go:730 lxc/remote.go:800 lxc/remote.go:854
+#: lxc/remote.go:892
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:263
+#: lxc/remote.go:262
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:809
+#: lxc/remote.go:808
 #, c-format
 msgid "Remote %s is global and cannot be removed"
 msgstr "リモート %s は global ですので削除できません"
 
-#: lxc/remote.go:735 lxc/remote.go:805 lxc/remote.go:897
+#: lxc/remote.go:734 lxc/remote.go:804 lxc/remote.go:896
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
@@ -4315,7 +4315,7 @@ msgstr "リモート %s は static ですので変更できません"
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/remote.go:257
+#: lxc/remote.go:256
 msgid "Remote names may not contain colons"
 msgstr "リモート名にコロンを含めることはできません"
 
@@ -4333,7 +4333,7 @@ msgstr "リムーバブルディスク: %v"
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
-#: lxc/cluster_group.go:445
+#: lxc/cluster_group.go:439
 msgid "Remove a cluster member from a cluster group"
 msgstr "クラスタグループからメンバを削除します"
 
@@ -4365,7 +4365,7 @@ msgstr "ネットワークゾーンレコードからエントリを削除しま
 msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
-#: lxc/cluster_group.go:444
+#: lxc/cluster_group.go:438
 msgid "Remove member from group"
 msgstr "グループからメンバーを削除します"
 
@@ -4377,7 +4377,7 @@ msgstr "フォワードからポートを削除します"
 msgid "Remove profiles from instances"
 msgstr "インスタンスからプロファイルを削除します"
 
-#: lxc/remote.go:780 lxc/remote.go:781
+#: lxc/remote.go:779 lxc/remote.go:780
 msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
@@ -4395,7 +4395,7 @@ msgstr "ACL からルールを削除します"
 msgid "Remove trusted client"
 msgstr "信頼済みクライアントを削除します"
 
-#: lxc/cluster_group.go:517 lxc/cluster_group.go:518
+#: lxc/cluster_group.go:509 lxc/cluster_group.go:510
 msgid "Rename a cluster group"
 msgstr "クラスタグループの名前を変更します"
 
@@ -4428,7 +4428,7 @@ msgstr "プロファイル名を変更します"
 msgid "Rename projects"
 msgstr "プロジェクト名を変更します"
 
-#: lxc/remote.go:710 lxc/remote.go:711
+#: lxc/remote.go:709 lxc/remote.go:710
 msgid "Rename remotes"
 msgstr "リモートサーバ名を変更します"
 
@@ -4541,7 +4541,7 @@ msgstr "SIZE"
 msgid "SNAPSHOTS"
 msgstr "SNAPSHOTS"
 
-#: lxc/storage.go:578
+#: lxc/storage.go:608
 msgid "SOURCE"
 msgstr "SOURCE"
 
@@ -4560,11 +4560,11 @@ msgid "SSH client disconnected %q"
 msgstr "SSH クライアントが切断されました %q"
 
 #: lxc/cluster.go:184 lxc/list.go:559 lxc/network.go:958
-#: lxc/network_peer.go:143 lxc/storage.go:583
+#: lxc/network_peer.go:142 lxc/storage.go:613
 msgid "STATE"
 msgstr "STATE"
 
-#: lxc/remote.go:693
+#: lxc/remote.go:692
 msgid "STATIC"
 msgstr "STATIC"
 
@@ -4592,11 +4592,11 @@ msgstr "直接リクエスト (raw query) を LXD に送ります"
 msgid "Server authentication type (tls or candid)"
 msgstr "サーバの認証タイプ (tls もしくは candid)"
 
-#: lxc/remote.go:420
+#: lxc/remote.go:419
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
-#: lxc/remote.go:559
+#: lxc/remote.go:558
 msgid "Server doesn't trust us after authentication"
 msgstr "認証後、サーバが我々を信用していません"
 
@@ -4719,11 +4719,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 
-#: lxc/network_peer.go:384
+#: lxc/network_peer.go:383
 msgid "Set network peer keys"
 msgstr "ネットワークピアの設定を行います"
 
-#: lxc/network_peer.go:385
+#: lxc/network_peer.go:384
 msgid ""
 "Set network peer keys\n"
 "\n"
@@ -4791,11 +4791,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc project set [<remote>:]<project> <key> <value>"
 
-#: lxc/storage.go:597
+#: lxc/storage.go:627
 msgid "Set storage pool configuration keys"
 msgstr "ストレージプールの設定項目を設定します"
 
-#: lxc/storage.go:598
+#: lxc/storage.go:628
 msgid ""
 "Set storage pool configuration keys\n"
 "\n"
@@ -4825,7 +4825,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 
-#: lxc/remote.go:872 lxc/remote.go:873
+#: lxc/remote.go:871 lxc/remote.go:872
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
@@ -4854,7 +4854,7 @@ msgstr "デバッグメッセージをすべて表示します"
 msgid "Show all information messages"
 msgstr "詳細な情報を出力します"
 
-#: lxc/cluster_group.go:563 lxc/cluster_group.go:564
+#: lxc/cluster_group.go:555 lxc/cluster_group.go:556
 msgid "Show cluster group configurations"
 msgstr "クラスタグループの設定を表示します"
 
@@ -4918,7 +4918,7 @@ msgstr "ネットワークの設定を表示します"
 msgid "Show network forward configurations"
 msgstr "ネットワークフォワードの設定を表示します"
 
-#: lxc/network_peer.go:158 lxc/network_peer.go:159
+#: lxc/network_peer.go:157 lxc/network_peer.go:158
 msgid "Show network peer configurations"
 msgstr "ネットワークピアの設定を表示します"
 
@@ -4942,7 +4942,7 @@ msgstr "プロファイルの設定を表示します"
 msgid "Show project options"
 msgstr "プロジェクトの設定を表示します"
 
-#: lxc/storage.go:671 lxc/storage.go:672
+#: lxc/storage.go:701 lxc/storage.go:702
 msgid "Show storage pool configurations and resources"
 msgstr "ストレージプールの設定とリソースを表示します"
 
@@ -4954,7 +4954,7 @@ msgstr "ストレージボリュームの設定を表示する"
 msgid "Show storage volume state information"
 msgstr "ストレージボリュームの状態を表示します"
 
-#: lxc/remote.go:588 lxc/remote.go:589
+#: lxc/remote.go:587 lxc/remote.go:588
 msgid "Show the default remote"
 msgstr "デフォルトのリモートを表示します"
 
@@ -4970,7 +4970,7 @@ msgstr "インスタンスログの最後の 100 行を表示しますか?"
 msgid "Show the resources available to the server"
 msgstr "サーバで使用可能なリソースを表示します"
 
-#: lxc/storage.go:675
+#: lxc/storage.go:705
 msgid "Show the resources available to the storage pool"
 msgstr "ストレージプールで利用可能なリソースを表示します"
 
@@ -5142,7 +5142,7 @@ msgstr "Swap (ピーク)"
 msgid "Switch the current project"
 msgstr "現在のプロジェクトを切り替えます"
 
-#: lxc/remote.go:834 lxc/remote.go:835
+#: lxc/remote.go:833 lxc/remote.go:834
 msgid "Switch the default remote"
 msgstr "デフォルトのリモートを切り替えます"
 
@@ -5437,7 +5437,7 @@ msgstr "UNLIMITED"
 msgid "UPLOAD DATE"
 msgstr "UPLOAD DATE"
 
-#: lxc/cluster.go:179 lxc/remote.go:689
+#: lxc/cluster.go:179 lxc/remote.go:688
 msgid "URL"
 msgstr "URL"
 
@@ -5446,7 +5446,7 @@ msgid "USAGE"
 msgstr "USAGE"
 
 #: lxc/network.go:957 lxc/network_acl.go:150 lxc/network_zone.go:140
-#: lxc/profile.go:632 lxc/project.go:474 lxc/storage.go:582
+#: lxc/profile.go:632 lxc/project.go:474 lxc/storage.go:612
 #: lxc/storage_volume.go:1442
 msgid "USED BY"
 msgstr "USED BY"
@@ -5537,11 +5537,11 @@ msgstr "ネットワークフォワードの設定を削除します"
 msgid "Unset network forward keys"
 msgstr "ネットワークフォワードの設定を削除します"
 
-#: lxc/network_peer.go:453
+#: lxc/network_peer.go:452
 msgid "Unset network peer configuration keys"
 msgstr "ネットワークピアの設定を削除します"
 
-#: lxc/network_peer.go:454
+#: lxc/network_peer.go:453
 msgid "Unset network peer keys"
 msgstr "ネットワークピアの設定を削除します"
 
@@ -5561,7 +5561,7 @@ msgstr "プロファイルの設定を削除します"
 msgid "Unset project configuration keys"
 msgstr "プロジェクトの設定を削除します"
 
-#: lxc/storage.go:755 lxc/storage.go:756
+#: lxc/storage.go:785 lxc/storage.go:786
 msgid "Unset storage pool configuration keys"
 msgstr "ストレージプールの設定を削除します"
 
@@ -5696,8 +5696,8 @@ msgid "Whether or not to snapshot the instance's running state"
 msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
 #: lxc/network.go:931 lxc/operation.go:148 lxc/project.go:439
-#: lxc/project.go:444 lxc/project.go:449 lxc/project.go:454 lxc/remote.go:648
-#: lxc/remote.go:653 lxc/remote.go:658
+#: lxc/project.go:444 lxc/project.go:449 lxc/project.go:454 lxc/remote.go:647
+#: lxc/remote.go:652 lxc/remote.go:657
 msgid "YES"
 msgstr "YES"
 
@@ -5726,11 +5726,11 @@ msgstr "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 
-#: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:371
+#: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:365
 #: lxc/config_trust.go:338 lxc/config_trust.go:420 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:584 lxc/project.go:389
-#: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
+#: lxc/storage.go:550 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
 msgstr "[<remote>:]"
 
@@ -5823,12 +5823,12 @@ msgstr "[<remote>:]<cluster member>"
 msgid "[<remote>:]<fingerprint>"
 msgstr "[<remote>:]<fingerprint>"
 
-#: lxc/cluster_group.go:150 lxc/cluster_group.go:206 lxc/cluster_group.go:259
-#: lxc/cluster_group.go:562
+#: lxc/cluster_group.go:148 lxc/cluster_group.go:202 lxc/cluster_group.go:253
+#: lxc/cluster_group.go:554
 msgid "[<remote>:]<group>"
 msgstr "[<remote>:]<group>"
 
-#: lxc/cluster_group.go:515
+#: lxc/cluster_group.go:507
 msgid "[<remote>:]<group> <new-name>"
 msgstr "[<remote>:]<group> <new-name>"
 
@@ -5960,7 +5960,7 @@ msgstr ""
 msgid "[<remote>:]<member>"
 msgstr "[<remote>:]<member>"
 
-#: lxc/cluster_group.go:76 lxc/cluster_group.go:443
+#: lxc/cluster_group.go:76 lxc/cluster_group.go:437
 msgid "[<remote>:]<member> <group>"
 msgstr "[<remote>:]<member> <group>"
 
@@ -5982,7 +5982,7 @@ msgid "[<remote>:]<member> <role[,role...]>"
 msgstr "[<remote>:]<member> <group>"
 
 #: lxc/network.go:357 lxc/network.go:578 lxc/network.go:759 lxc/network.go:974
-#: lxc/network.go:1163 lxc/network_forward.go:84 lxc/network_peer.go:80
+#: lxc/network.go:1163 lxc/network_forward.go:84 lxc/network_peer.go:79
 msgid "[<remote>:]<network>"
 msgstr "[<remote>:]<network>"
 
@@ -6035,15 +6035,15 @@ msgstr "[<remote>:]<network> <listen_address> [key=value...]"
 msgid "[<remote>:]<network> <new-name>"
 msgstr "[<remote>:]<network> <new-name>"
 
-#: lxc/network_peer.go:157
+#: lxc/network_peer.go:156
 msgid "[<remote>:]<network> <peer name>"
 msgstr "[<remote>:]<network> <peer name>"
 
-#: lxc/network_peer.go:479 lxc/network_peer.go:603
+#: lxc/network_peer.go:478 lxc/network_peer.go:602
 msgid "[<remote>:]<network> <peer_name>"
 msgstr "[<remote>:]<network> <peer_name>"
 
-#: lxc/network_peer.go:214
+#: lxc/network_peer.go:213
 msgid ""
 "[<remote>:]<network> <peer_name> <[target project/]target_network> "
 "[key=value...]"
@@ -6051,11 +6051,11 @@ msgstr ""
 "[<remote>:]<network> <peer_name> <[target project/]target_network> "
 "[key=value...]"
 
-#: lxc/network_peer.go:328 lxc/network_peer.go:452
+#: lxc/network_peer.go:327 lxc/network_peer.go:451
 msgid "[<remote>:]<network> <peer_name> <key>"
 msgstr "[<remote>:]<network> <peer_name> <key>"
 
-#: lxc/network_peer.go:383
+#: lxc/network_peer.go:382
 msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
 msgstr "[<remote>:]<network> <peer_name> <key>=<value>..."
 
@@ -6075,7 +6075,7 @@ msgstr "[<remote>:]<network> [key=value...]"
 msgid "[<remote>:]<operation>"
 msgstr "[<remote>:]<operation>"
 
-#: lxc/storage.go:164 lxc/storage.go:215 lxc/storage.go:395 lxc/storage.go:670
+#: lxc/storage.go:164 lxc/storage.go:215 lxc/storage.go:395 lxc/storage.go:700
 msgid "[<remote>:]<pool>"
 msgstr "[<remote>:]<pool>"
 
@@ -6087,11 +6087,11 @@ msgstr "[<remote>:]<pool> <backup file> [<volume name>]"
 msgid "[<remote>:]<pool> <driver> [key=value...]"
 msgstr "[<remote>:]<pool> <driver> [key=value...]"
 
-#: lxc/storage.go:335 lxc/storage.go:754
+#: lxc/storage.go:335 lxc/storage.go:784
 msgid "[<remote>:]<pool> <key>"
 msgstr "[<remote>:]<pool> <key>"
 
-#: lxc/storage.go:596
+#: lxc/storage.go:626
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr "[<remote>:]<pool> <key> <value>"
 
@@ -6277,7 +6277,7 @@ msgstr "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgid "[[<remote>:]<member>]"
 msgstr "[[<remote>:]<member>]"
 
-#: lxc/project.go:459 lxc/remote.go:681
+#: lxc/project.go:459 lxc/remote.go:680
 msgid "current"
 msgstr "現在値"
 
@@ -6700,7 +6700,7 @@ msgstr ""
 "    \"default\" プール内のコンテナ \"data\" のファイルシステムプロパティを表"
 "示します。"
 
-#: lxc/remote.go:419
+#: lxc/remote.go:418
 msgid "n"
 msgstr "n"
 
@@ -6712,7 +6712,7 @@ msgstr "名前"
 msgid "no"
 msgstr "no"
 
-#: lxc/remote.go:412
+#: lxc/remote.go:411
 msgid "ok (y/n/[fingerprint])?"
 msgstr "ok (y/n/[fingerprint])?"
 
@@ -6751,7 +6751,7 @@ msgstr "サーバに接続できません"
 msgid "used by"
 msgstr "ストレージを使用中の"
 
-#: lxc/remote.go:421
+#: lxc/remote.go:420
 msgid "y"
 msgstr "y"
 
