@@ -25,7 +25,7 @@ import (
 )
 
 // InotifyTargetInfo records the inotify information associated with a given
-// inotify target
+// inotify target.
 type InotifyTargetInfo struct {
 	Mask uint32
 	Wd   int
@@ -33,7 +33,7 @@ type InotifyTargetInfo struct {
 }
 
 // InotifyInfo records the inotify information associated with a given
-// inotify instance
+// inotify instance.
 type InotifyInfo struct {
 	Fd int
 	sync.RWMutex
