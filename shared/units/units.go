@@ -19,7 +19,7 @@ func handleOverflow(val int64, mult int64) (int64, error) {
 }
 
 // ParseByteSizeString parses a human representation of an amount of
-// data into a number of bytes
+// data into a number of bytes.
 func ParseByteSizeString(input string) (int64, error) {
 	// Empty input
 	if input == "" {
@@ -87,7 +87,7 @@ func ParseByteSizeString(input string) (int64, error) {
 }
 
 // ParseBitSizeString parses a human representation of an amount of
-// data into a number of bits
+// data into a number of bits.
 func ParseBitSizeString(input string) (int64, error) {
 	// Empty input
 	if input == "" {
@@ -156,7 +156,7 @@ func ParseBitSizeString(input string) (int64, error) {
 }
 
 // GetByteSizeString takes a number of bytes and precision and returns a
-// human representation of the amount of data
+// human representation of the amount of data.
 func GetByteSizeString(input int64, precision uint) string {
 	if input < 1000 {
 		return fmt.Sprintf("%dB", input)
