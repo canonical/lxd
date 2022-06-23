@@ -956,7 +956,6 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		if node.Address == address {
 			nodeID = node.ID
 		}
-
 	}
 	if nodeID == 0 {
 		return "", nil, fmt.Errorf("No dqlite node has address %s: %w", address, err)

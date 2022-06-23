@@ -47,7 +47,6 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 	o := newOptions()
 	for _, option := range options {
 		option(o)
-
 	}
 
 	gateway := &Gateway{
@@ -561,7 +560,6 @@ func (g *Gateway) Sync() {
 		err := ioutil.WriteFile(path, file.Data, 0600)
 		if err != nil {
 			logger.Warnf("Failed to dump database file %s: %v", file.Name, err)
-
 		}
 	}
 }
