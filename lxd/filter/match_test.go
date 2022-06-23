@@ -50,7 +50,6 @@ func TestMatch_Instance(t *testing.T) {
 			assert.Equal(t, cases[s], match)
 		})
 	}
-
 }
 
 func TestMatch_Image(t *testing.T) {
@@ -75,5 +74,4 @@ func TestMatch_Image(t *testing.T) {
 			assert.Equal(t, cases[s], match)
 		})
 	}
-
 }
