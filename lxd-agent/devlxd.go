@@ -280,5 +280,4 @@ func socketUnixListen(path string) (net.Listener, error) {
 	}
 
 	return listener, err
-
 }
