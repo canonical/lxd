@@ -61,7 +61,7 @@ func WriteJSON(w http.ResponseWriter, body any, debugLogger logger.Logger) error
 	return err
 }
 
-// EtagHash hashes the provided data and returns the sha256
+// EtagHash hashes the provided data and returns the sha256.
 func EtagHash(data any) (string, error) {
 	etag := sha256.New()
 	err := json.NewEncoder(etag).Encode(data)
@@ -73,7 +73,7 @@ func EtagHash(data any) (string, error) {
 }
 
 // EtagCheck validates the hash of the current state with the hash
-// provided by the client
+// provided by the client.
 func EtagCheck(r *http.Request, data any) error {
 	match := r.Header.Get("If-Match")
 	if match == "" {
