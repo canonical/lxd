@@ -1,6 +1,6 @@
 package ioprogress
 
-// The ProgressData struct represents new progress information on an operation
+// The ProgressData struct represents new progress information on an operation.
 type ProgressData struct {
 	// Preferred string repreentation of progress (always set)
 	Text string
