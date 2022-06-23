@@ -9,7 +9,7 @@ import (
 
 // Profile handling functions
 
-// GetProfileNames returns a list of available profile names
+// GetProfileNames returns a list of available profile names.
 func (r *ProtocolLXD) GetProfileNames() ([]string, error) {
 	// Fetch the raw URL values.
 	urls := []string{}
@@ -23,7 +23,7 @@ func (r *ProtocolLXD) GetProfileNames() ([]string, error) {
 	return urlsToResourceNames(baseURL, urls...)
 }
 
-// GetProfiles returns a list of available Profile structs
+// GetProfiles returns a list of available Profile structs.
 func (r *ProtocolLXD) GetProfiles() ([]api.Profile, error) {
 	profiles := []api.Profile{}
 
@@ -36,7 +36,7 @@ func (r *ProtocolLXD) GetProfiles() ([]api.Profile, error) {
 	return profiles, nil
 }
 
-// GetProfile returns a Profile entry for the provided name
+// GetProfile returns a Profile entry for the provided name.
 func (r *ProtocolLXD) GetProfile(name string) (*api.Profile, string, error) {
 	profile := api.Profile{}
 
@@ -49,7 +49,7 @@ func (r *ProtocolLXD) GetProfile(name string) (*api.Profile, string, error) {
 	return &profile, etag, nil
 }
 
-// CreateProfile defines a new container profile
+// CreateProfile defines a new container profile.
 func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 	// Send the request
 	_, _, err := r.query("POST", "/profiles", profile, "")
@@ -60,7 +60,7 @@ func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 	return nil
 }
 
-// UpdateProfile updates the profile to match the provided Profile struct
+// UpdateProfile updates the profile to match the provided Profile struct.
 func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag string) error {
 	// Send the request
 	_, _, err := r.query("PUT", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), profile, ETag)
@@ -71,7 +71,7 @@ func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag st
 	return nil
 }
 
-// RenameProfile renames an existing profile entry
+// RenameProfile renames an existing profile entry.
 func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error {
 	// Send the request
 	_, _, err := r.query("POST", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), profile, "")
@@ -82,7 +82,7 @@ func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error 
 	return nil
 }
 
-// DeleteProfile deletes a profile
+// DeleteProfile deletes a profile.
 func (r *ProtocolLXD) DeleteProfile(name string) error {
 	// Send the request
 	_, _, err := r.query("DELETE", fmt.Sprintf("/profiles/%s", url.PathEscape(name)), nil, "")
