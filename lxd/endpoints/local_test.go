@@ -6,9 +6,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // If no socket-based activation is detected, a new local unix socket will be
