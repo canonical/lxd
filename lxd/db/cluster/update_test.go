@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/osarch"
 	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 func TestUpdateFromV0(t *testing.T) {
@@ -92,7 +93,6 @@ INSERT INTO containers VALUES (2, 2, 'jammy', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
 	n, err := result.RowsAffected()
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), n) // The row was already deleted by the previous query
-
 }
 
 func TestUpdateFromV1_Network(t *testing.T) {
@@ -416,7 +416,6 @@ INSERT INTO profiles_devices_config VALUES(3, 2, 'path', '/');
 INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default');
 `, time.Now())
 		require.NoError(t, err)
-
 	})
 	require.NoError(t, err)
 
@@ -526,7 +525,6 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 		require.NoError(t, err)
 		_, err = db.Exec("INSERT INTO instances_devices_config VALUES (2, 2, 'k', 'v')")
 		require.NoError(t, err)
-
 	})
 
 	require.NoError(t, err)
