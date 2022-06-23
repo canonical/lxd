@@ -81,7 +81,6 @@ func TestCluster_RenameNode(t *testing.T) {
 type clusterFixture struct {
 	t       *testing.T
 	clients map[*Daemon]lxd.InstanceServer
-	daemons []*Daemon
 }
 
 // Enable networking in the given daemon. The password is optional and can be

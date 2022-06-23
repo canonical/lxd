@@ -19,8 +19,7 @@ import (
 )
 
 type cmdNetworkPeer struct {
-	global     *cmdGlobal
-	flagTarget string
+	global *cmdGlobal
 }
 
 func (c *cmdNetworkPeer) Command() *cobra.Command {

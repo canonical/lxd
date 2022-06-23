@@ -27,7 +27,6 @@ type listenerCommon struct {
 	done         *cancel.Canceller
 	id           string
 	lock         sync.Mutex
-	pongsPending uint
 	recvFunc     EventHandler
 }
 

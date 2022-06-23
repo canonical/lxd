@@ -141,8 +141,6 @@ func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterGroupCreate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
-
-	flagFormat string
 }
 
 func (c *cmdClusterGroupCreate) Command() *cobra.Command {
@@ -197,8 +195,6 @@ func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterGroupDelete struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
-
-	flagFormat string
 }
 
 func (c *cmdClusterGroupDelete) Command() *cobra.Command {
@@ -250,8 +246,6 @@ func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterGroupEdit struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
-
-	flagFormat string
 }
 
 func (c *cmdClusterGroupEdit) Command() *cobra.Command {
@@ -506,8 +500,6 @@ func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterGroupRename struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
-
-	flagFormat string
 }
 
 func (c *cmdClusterGroupRename) Command() *cobra.Command {
