@@ -983,7 +983,6 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 			fallthrough
 		case "limits.disk":
 			aggregateKeys = append(aggregateKeys, key)
-
 		}
 	}
 
@@ -998,14 +997,13 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 				return err
 			}
 		}
-
 	}
 
 	return nil
 }
 
 // Check that limits.instances, i.e. the total limit of containers/virtual machines allocated
-// to the user is equal to or above the current count
+// to the user is equal to or above the current count.
 func validateTotalInstanceCountLimit(instances []api.Instance, value, project string) error {
 	if value == "" {
 		return nil
@@ -1095,7 +1093,6 @@ func projectHasLimitsOrRestrictions(project api.Project) bool {
 		if k == "restricted" && shared.IsTrue(v) {
 			return true
 		}
-
 	}
 	return false
 }
@@ -1383,7 +1380,7 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 	},
 }
 
-// FilterUsedBy filters a UsedBy list based on project access
+// FilterUsedBy filters a UsedBy list based on project access.
 func FilterUsedBy(r *http.Request, entries []string) []string {
 	// Shortcut for admins and non-RBAC environments.
 	if rbac.UserIsAdmin(r) {
@@ -1418,7 +1415,7 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 	return usedBy
 }
 
-// Return true if particular restriction in project is violated
+// Return true if particular restriction in project is violated.
 func projectHasRestriction(project *api.Project, restrictionKey string, blockValue string) bool {
 	if shared.IsFalseOrEmpty(project.Config["restricted"]) {
 		return false
@@ -1436,7 +1433,7 @@ func projectHasRestriction(project *api.Project, restrictionKey string, blockVal
 	return false
 }
 
-// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
+// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting.
 func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *api.Project, targetFlag string) error {
 	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 	if rbac.UserIsAdmin(r) {
