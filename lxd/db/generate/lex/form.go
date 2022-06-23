@@ -2,7 +2,7 @@ package lex
 
 import "strings"
 
-// Plural converts to plural form ("foo" -> "foos")
+// Plural converts to plural form ("foo" -> "foos").
 func Plural(s string) string {
 	// TODO: smarter algorithm? :)
 
@@ -17,7 +17,7 @@ func Plural(s string) string {
 	return s
 }
 
-// Singular converts to singular form ("foos" -> "foo")
+// Singular converts to singular form ("foos" -> "foo").
 func Singular(s string) string {
 	// TODO: smarter algorithm? :)
 	if s[len(s)-1] == 's' {
