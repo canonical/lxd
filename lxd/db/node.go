@@ -390,7 +390,7 @@ func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
 // GetNodesCount returns the number of nodes in the LXD cluster.
 //
 // Since there's always at least one node row, even when not-clustered, the
-// return value is greater than zero
+// return value is greater than zero.
 func (c *ClusterTx) GetNodesCount() (int, error) {
 	count, err := query.Count(c.tx, "nodes", "")
 	if err != nil {
