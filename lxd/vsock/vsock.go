@@ -1,6 +1,7 @@
 package vsock
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"net/http"
@@ -35,7 +36,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 	client.Transport = &http.Transport{
 		TLSClientConfig: tlsConfig,
 		// Setup a VM socket dialer.
-		Dial: func(network, addr string) (net.Conn, error) {
+		DialContext: func(_ context.Context, network, addr string) (net.Conn, error) {
 			var conn net.Conn
 			var err error
 
