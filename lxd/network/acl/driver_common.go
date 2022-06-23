@@ -509,7 +509,6 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 			ipVersion, err := c(subject)
 			if err == nil {
 				return ipVersion, nil // Found valid subject.
-
 			}
 		}
 

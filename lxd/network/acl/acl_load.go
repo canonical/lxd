@@ -177,7 +177,6 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		// Ingress rules can specify ACL names in their Source subjects.
 		for _, rule := range aclInfo.Ingress {
 			for _, subject := range shared.SplitNTrimSpace(rule.Source, ",", -1, true) {
-
 				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
 				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
 					matchedACLNames = append(matchedACLNames, subject)
@@ -188,7 +187,6 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		// Egress rules can specify ACL names in their Destination subjects.
 		for _, rule := range aclInfo.Egress {
 			for _, subject := range shared.SplitNTrimSpace(rule.Destination, ",", -1, true) {
-
 				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
 				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
 					matchedACLNames = append(matchedACLNames, subject)
