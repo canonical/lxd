@@ -110,7 +110,7 @@ func (m *MethodV2) Generate(buf *file.Buffer) error {
 // GenerateSignature generates an interface signature for the method.
 func (m *MethodV2) GenerateSignature(buf *file.Buffer) error {
 	buf.N()
-	buf.L("// %sGenerated is an interface of generated methods for %s", lex.Camel(m.entity), lex.Camel(m.entity))
+	buf.L("// %sGenerated is an interface of generated methods for %s.", lex.Camel(m.entity), lex.Camel(m.entity))
 	buf.L("type %sGenerated interface {", lex.Camel(m.entity))
 	defer m.end(buf)
 	if m.config["references"] != "" {
