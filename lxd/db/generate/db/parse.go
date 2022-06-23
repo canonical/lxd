@@ -44,7 +44,6 @@ func ParsePackage(pkgPath string) (*ast.Package, error) {
 	}
 
 	return pkg, nil
-
 }
 
 var defaultPackages = []string{
@@ -236,7 +235,7 @@ func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
 	return EntityTable
 }
 
-// Find the StructType node for the structure with the given name
+// Find the StructType node for the structure with the given name.
 func findStruct(scope *ast.Scope, name string) *ast.StructType {
 	obj := scope.Lookup(name)
 	if obj == nil {

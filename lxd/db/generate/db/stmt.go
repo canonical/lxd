@@ -456,10 +456,8 @@ func whereClause(fields []*Field) string {
 			subSelect += fmt.Sprintf(" %s.name = ?", refTable)
 			where[i] = fmt.Sprintf("%s_id = (%s)", ref, subSelect)
 		} else {
-
 			where[i] = fmt.Sprintf("%s = ?", field.Column())
 		}
-
 	}
 
 	return strings.Join(where, " AND ")
