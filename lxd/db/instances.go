@@ -521,7 +521,7 @@ func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error
 	return CreateInstanceConfig(c.tx, id, config)
 }
 
-// UpdateInstanceConfig inserts/updates/deletes the provided keys
+// UpdateInstanceConfig inserts/updates/deletes the provided keys.
 func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error {
 	insertSQL := "INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES"
 	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
@@ -713,7 +713,6 @@ WHERE instances.id=?
 `
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.tx.QueryRow(q, id).Scan(&project, &name)
-
 	})
 
 	if err == sql.ErrNoRows {

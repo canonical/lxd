@@ -947,7 +947,6 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 			nodeID      int64
 		}{})
 		return []any{&images[i].fingerprint, &images[i].nodeID}
-
 	}
 	stmt, err := c.tx.Prepare(`
 SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)

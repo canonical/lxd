@@ -220,7 +220,6 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 			name string
 		}{})
 		return []any{&pools[i].id, &pools[i].name}
-
 	}
 	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
 	if err != nil {
