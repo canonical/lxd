@@ -2,7 +2,7 @@ package api
 
 // InstanceExecControl represents a message on the instance exec "control" socket.
 //
-// API extension: instances
+// API extension: instances.
 type InstanceExecControl struct {
 	Command string            `json:"command" yaml:"command"`
 	Args    map[string]string `json:"args" yaml:"args"`
@@ -13,7 +13,7 @@ type InstanceExecControl struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceExecPost struct {
 	// Command and its arguments
 	// Example: ["bash"]

@@ -7,7 +7,7 @@ import "strings"
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLRule struct {
 	// Action to perform on rule match
 	// Example: allow
@@ -92,7 +92,7 @@ func (r *NetworkACLRule) Normalise() {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLPost struct {
 	// The new name for the ACL
 	// Example: bar
@@ -103,7 +103,7 @@ type NetworkACLPost struct {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLPut struct {
 	// Description of the ACL
 	// Example: Web servers
@@ -124,7 +124,7 @@ type NetworkACLPut struct {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACL struct {
 	NetworkACLPost `yaml:",inline"`
 	NetworkACLPut  `yaml:",inline"`
@@ -144,7 +144,7 @@ func (acl *NetworkACL) Writable() NetworkACLPut {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLsPost struct {
 	NetworkACLPost `yaml:",inline"`
 	NetworkACLPut  `yaml:",inline"`

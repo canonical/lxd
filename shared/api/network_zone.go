@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: network_dns
+// API extension: network_dns.
 type NetworkZonesPost struct {
 	NetworkZonePut `yaml:",inline"`
 
@@ -17,7 +17,7 @@ type NetworkZonesPost struct {
 //
 // swagger:model
 //
-// API extension: network_dns
+// API extension: network_dns.
 type NetworkZonePut struct {
 	// Description of the network zone
 	// Example: Internal domain
@@ -32,7 +32,7 @@ type NetworkZonePut struct {
 //
 // swagger:model
 //
-// API extension: network_dns
+// API extension: network_dns.
 type NetworkZone struct {
 	NetworkZonePut `yaml:",inline"`
 
@@ -55,7 +55,7 @@ func (f *NetworkZone) Writable() NetworkZonePut {
 //
 // swagger:model
 //
-// API extension: network_dns_records
+// API extension: network_dns_records.
 type NetworkZoneRecordsPost struct {
 	NetworkZoneRecordPut `yaml:",inline"`
 
@@ -68,7 +68,7 @@ type NetworkZoneRecordsPost struct {
 //
 // swagger:model
 //
-// API extension: network_dns_records
+// API extension: network_dns_records.
 type NetworkZoneRecordPut struct {
 	// Description of the record
 	// Example: SPF record
@@ -86,7 +86,7 @@ type NetworkZoneRecordPut struct {
 //
 // swagger:model
 //
-// API extension: network_dns_records
+// API extension: network_dns_records.
 type NetworkZoneRecordEntry struct {
 	// Type of DNS entry
 	// Example: TXT
@@ -105,7 +105,7 @@ type NetworkZoneRecordEntry struct {
 //
 // swagger:model
 //
-// API extension: network_dns_records
+// API extension: network_dns_records.
 type NetworkZoneRecord struct {
 	NetworkZoneRecordPut `yaml:",inline"`
 
