@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Send an rsync stream of a path over a websocket
+// Send an rsync stream of a path over a websocket.
 func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 	cmd, dataSocket, stderr, err := rsyncSendSetup(path, rsyncArgs)
 	if err != nil {
@@ -48,7 +48,7 @@ func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 	return nil
 }
 
-// Spawn the rsync process
+// Spawn the rsync process.
 func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	auds := fmt.Sprintf("@lxc-to-lxd/%s", uuid.New())
 	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
