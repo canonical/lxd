@@ -61,7 +61,6 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 			&sources[i].Certificate,
 			&sources[i].Alias,
 		}
-
 	}
 	stmt, err := c.tx.Prepare(q)
 	if err != nil {
@@ -93,7 +92,6 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	}
 
 	return source.ID, result, nil
-
 }
 
 // Fill extra image fields such as properties and alias. This is called after
@@ -139,7 +137,6 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 			&aliases[i].Name,
 			&aliases[i].Description,
 		}
-
 	}
 	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
 	stmt, err := c.tx.Prepare(q)
@@ -1044,7 +1041,6 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 					return err
 				}
 			}
-
 		}
 
 		dbProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), project, []string{"default"})
