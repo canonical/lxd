@@ -17,7 +17,7 @@ type Instance interface {
 	Project() string
 }
 
-// Controller represents a MAAS server's machine functions
+// Controller represents a MAAS server's machine functions.
 type Controller struct {
 	url string
 
@@ -26,14 +26,14 @@ type Controller struct {
 	machine gomaasapi.Machine
 }
 
-// ContainerInterface represents a MAAS connected network interface on the container
+// ContainerInterface represents a MAAS connected network interface on the container.
 type ContainerInterface struct {
 	Name       string
 	MACAddress string
 	Subnets    []ContainerInterfaceSubnet
 }
 
-// ContainerInterfaceSubnet represents an interface's subscription to a MAAS subnet
+// ContainerInterfaceSubnet represents an interface's subscription to a MAAS subnet.
 type ContainerInterfaceSubnet struct {
 	Name    string
 	Address string
@@ -67,7 +67,7 @@ func parseInterfaces(interfaces []ContainerInterface) (map[string]ContainerInter
 	return macInterfaces, nil
 }
 
-// NewController returns a new Controller using the specific MAAS server and machine
+// NewController returns a new Controller using the specific MAAS server and machine.
 func NewController(url string, key string, machine string) (*Controller, error) {
 	baseURL := fmt.Sprintf("%s/api/2.0/", url)
 
@@ -156,7 +156,7 @@ func (c *Controller) getSubnets() (map[string]gomaasapi.Subnet, error) {
 	return subnets, nil
 }
 
-// CreateContainer defines a new MAAS device for the controller
+// CreateContainer defines a new MAAS device for the controller.
 func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterface) error {
 	// Parse the provided interfaces
 	macInterfaces, err := parseInterfaces(interfaces)
@@ -253,7 +253,7 @@ func (c *Controller) CreateContainer(inst Instance, interfaces []ContainerInterf
 	return nil
 }
 
-// DefinedContainer returns true if the container is defined in MAAS
+// DefinedContainer returns true if the container is defined in MAAS.
 func (c *Controller) DefinedContainer(inst Instance) (bool, error) {
 	devs, err := c.machine.Devices(gomaasapi.DevicesArgs{
 		Hostname: []string{inst.Name()},
@@ -270,7 +270,7 @@ func (c *Controller) DefinedContainer(inst Instance) (bool, error) {
 	return false, nil
 }
 
-// UpdateContainer updates the MAAS device's interfaces with the new provided state
+// UpdateContainer updates the MAAS device's interfaces with the new provided state.
 func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterface) error {
 	// Parse the provided interfaces
 	macInterfaces, err := parseInterfaces(interfaces)
@@ -407,7 +407,7 @@ func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterf
 	return nil
 }
 
-// RenameContainer renames the MAAS device for the container without releasing any allocation
+// RenameContainer renames the MAAS device for the container without releasing any allocation.
 func (c *Controller) RenameContainer(inst Instance, newName string) error {
 	device, err := c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
@@ -431,7 +431,7 @@ func (c *Controller) RenameContainer(inst Instance, newName string) error {
 	return nil
 }
 
-// DeleteContainer removes the MAAS device for the container
+// DeleteContainer removes the MAAS device for the container.
 func (c *Controller) DeleteContainer(inst Instance) error {
 	device, err := c.getDevice(inst.Name(), c.getDomain(inst))
 	if err != nil {
