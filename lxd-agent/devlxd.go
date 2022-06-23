@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
