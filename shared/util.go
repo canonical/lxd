@@ -8,7 +8,6 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
-	"github.com/lxc/lxd/lxd/revert"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/flosch/pongo2"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
