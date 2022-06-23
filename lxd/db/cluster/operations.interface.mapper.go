@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// OperationGenerated is an interface of generated methods for Operation
+// OperationGenerated is an interface of generated methods for Operation.
 type OperationGenerated interface {
 	// GetOperations returns all available operations.
 	// generator: operation GetMany

@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// ConfigGenerated is an interface of generated methods for Config
+// ConfigGenerated is an interface of generated methods for Config.
 type ConfigGenerated interface {
 	// GetConfig returns all available config.
 	// generator: config GetMany

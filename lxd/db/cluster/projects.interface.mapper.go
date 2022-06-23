@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// ProjectGenerated is an interface of generated methods for Project
+// ProjectGenerated is an interface of generated methods for Project.
 type ProjectGenerated interface {
 	// GetProjectConfig returns all available Project Config
 	// generator: project GetMany
