@@ -240,7 +240,7 @@ func (e *IdmapEntry) parse(s string) error {
 
 /*
  * Shift a uid from the host into the container
- * I.e. 0 -> 1000 -> 101000
+ * I.e. 0 -> 1000 -> 101000.
  */
 func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
@@ -253,7 +253,7 @@ func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 
 /*
  * Shift a uid from the container back to the host
- * I.e. 101000 -> 1000
+ * I.e. 101000 -> 1000.
  */
 func (e *IdmapEntry) shift_from_ns(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
@@ -278,7 +278,7 @@ func (s ByHostid) Less(i, j int) bool {
 	return s[i].Hostid < s[j].Hostid
 }
 
-/* taken from http://blog.golang.org/slices (which is under BSD licence) */
+/* taken from http://blog.golang.org/slices (which is under BSD licence). */
 func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	n := len(slice)
 	if n == cap(slice) {
@@ -697,7 +697,7 @@ func (set *IdmapSet) ShiftFile(p string) error {
 }
 
 /*
- * get a uid or gid mapping from /etc/subxid
+ * get a uid or gid mapping from /etc/subxid.
  */
 func getFromShadow(fname string, username string) ([][]int64, error) {
 	entries := [][]int64{}
@@ -747,7 +747,7 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 }
 
 /*
- * get a uid or gid mapping from /proc/self/{g,u}id_map
+ * get a uid or gid mapping from /proc/self/{g,u}id_map.
  */
 func getFromProc(fname string) ([][]int64, error) {
 	entries := [][]int64{}
@@ -801,7 +801,7 @@ func getFromProc(fname string) ([][]int64, error) {
 }
 
 /*
- * Create a new default idmap
+ * Create a new default idmap.
  */
 func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
@@ -973,7 +973,7 @@ func kernelDefaultMap() (*IdmapSet, error) {
 }
 
 /*
- * Create an idmap of the current allocation
+ * Create an idmap of the current allocation.
  */
 func CurrentIdmapSet() (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
