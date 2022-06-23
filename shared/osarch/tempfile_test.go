@@ -8,7 +8,7 @@ import (
 )
 
 // WriteTempFile writes content to a temporary file.
-func WriteTempFile(s suite.Suite, dir string, prefix string, content string) (string, func()) {
+func WriteTempFile(s *suite.Suite, dir string, prefix string, content string) (string, func()) {
 	f, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
 		s.T().Errorf("Failed to create temporary file: %v", err)
