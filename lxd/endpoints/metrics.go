@@ -32,7 +32,7 @@ func metricsCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 }
 
 // MetricsAddress returns the network address of the metrics endpoint, or an
-// empty string if there's no metrics endpoint
+// empty string if there's no metrics endpoint.
 func (e *Endpoints) MetricsAddress() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
