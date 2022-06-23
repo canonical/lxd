@@ -4,15 +4,15 @@ package device
 
 import (
 	"fmt"
-	"github.com/lxc/lxd/shared/logger"
 	"strings"
 
-	udev "github.com/jochenvg/go-udev"
+	"github.com/jochenvg/go-udev"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
 )
 
