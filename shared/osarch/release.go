@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// GetLSBRelease returns a map with Linux distribution information
+// GetLSBRelease returns a map with Linux distribution information.
 func GetLSBRelease() (map[string]string, error) {
 	osRelease, err := getLSBRelease("/etc/os-release")
 	if os.IsNotExist(err) {
