@@ -51,5 +51,4 @@ func TestValueOf_Instance(t *testing.T) {
 			assert.Equal(t, cases[field], value)
 		})
 	}
-
 }
