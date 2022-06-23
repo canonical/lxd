@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Add a new raft node.
@@ -127,7 +128,7 @@ func TestGetLocalNodeName(t *testing.T) {
 	assert.Equal(t, "none", name)
 }
 
-// Rename a node
+// Rename a node.
 func TestRenameNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -446,5 +447,4 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	name, err := tx.GetNodeWithLeastInstances(nil, testArch, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
-
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/go-dqlite/client"
+
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
