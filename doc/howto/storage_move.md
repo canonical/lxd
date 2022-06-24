@@ -1,13 +1,19 @@
+---
+discourse: 10877
+---
+
 # How to move or copy storage volumes
 
-You can copy or move storage volumes from one storage pool to another, or copy or rename them within the same storage pool.
+You can {ref}`copy <storage-copy>` or {ref}`move <storage-move>` custom storage volumes from one storage pool to another, or copy or rename them within the same storage pool.
+
+To move instance storage volumes from one storage pool to another, {ref}`move the corresponding instance <storage-move-instance>` to another pool.
 
 When copying or moving a volume between storage pools that use different drivers, the volume is automatically converted.
 
 (storage-copy)=
-## Copy storage volumes
+## Copy custom storage volumes
 
-Use the following command to copy a storage volume:
+Use the following command to copy a custom storage volume:
 
     lxc storage volume copy <source_pool_name>/<source_volume_name> <target_pool_name>/<target_volume_name>
 
@@ -19,9 +25,10 @@ You must specify different volume names for source and target in this case.
 
 When copying from one storage pool to another, you can either use the same name for both volumes or rename the new volume.
 
-## Move or rename storage volumes
+(storage-move)=
+## Move or rename custom storage volumes
 
-Before you can move or rename a storage volume, all instances that use it must be [stopped](https://linuxcontainers.org/lxd/getting-started-cli/#start-and-stop-an-instance).
+Before you can move or rename a custom storage volume, all instances that use it must be [stopped](https://linuxcontainers.org/lxd/getting-started-cli/#start-and-stop-an-instance).
 
 Use the following command to move or rename a storage volume:
 
@@ -36,15 +43,15 @@ When moving from one storage pool to another, you can either use the same name f
 
 For most storage drivers (except for `ceph` and `ceph-fs`), storage volumes exist only on the cluster member for which they were created.
 
-To copy or move a storage volume from one cluster member to another, add the `--target` and `--destination-target` flags to specify the source cluster member and the target cluster member, respectively.
+To copy or move a custom storage volume from one cluster member to another, add the `--target` and `--destination-target` flags to specify the source cluster member and the target cluster member, respectively.
 
 ## Copy or move between projects
 
-Add the `--target-project` to copy or move a storage volume to a different project.
+Add the `--target-project` to copy or move a custom storage volume to a different project.
 
 ## Copy or move between LXD servers
 
-You can copy or move storage volumes between different LXD servers by specifying the remote for each pool:
+You can copy or move custom storage volumes between different LXD servers by specifying the remote for each pool:
 
     lxc storage volume copy <source_remote>:<source_pool_name>/<source_volume_name> <target_remote>:<target_pool_name>/<target_volume_name>
     lxc storage volume move <source_remote>:<source_pool_name>/<source_volume_name> <target_remote>:<target_pool_name>/<target_volume_name>
@@ -59,3 +66,11 @@ You can add the `--mode` flag to choose a transfer mode, depending on your netwo
 
 `relay`
 : Pull the storage volume from the source server to the local client, and then push it to the target server.
+
+(storage-move-instance)=
+## Move instance storage volumes to another pool
+
+To move an instance storage volume to another storage pool, make sure the instance is stopped.
+Then use the following command to move the instance to a different pool:
+
+    lxc move <instance_name> --storage <target_pool_name>
