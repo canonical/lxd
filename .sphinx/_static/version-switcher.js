@@ -50,6 +50,9 @@ function getPaths()
 
         path = url.substr(prefix.pathname.length).split("/");
         paths['current'] = path.shift();
+        if (paths['current'] == "master") {
+            paths['current'] = "latest";
+        };
         paths['page'] = path.join("/");
     }
     else {
