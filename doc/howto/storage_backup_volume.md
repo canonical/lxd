@@ -117,7 +117,7 @@ You can add any of the following flags to the command:
   You can specify a different compression algorithm (for example, `bzip2`) or turn off compression with `--compression=none`.
 
 `--optimized-storage`
-: If your storage pool uses the `btrf` or the `zfs` driver, add the `--optimized-storage` flag to store the data as a driver-specific binary blob instead of an archive of individual files.
+: If your storage pool uses the `btrfs` or the `zfs` driver, add the `--optimized-storage` flag to store the data as a driver-specific binary blob instead of an archive of individual files.
   In this case, the export file can only be used with pools that use the same storage driver.
 
   Exporting a volume in optimized mode is usually quicker than exporting the individual files.
