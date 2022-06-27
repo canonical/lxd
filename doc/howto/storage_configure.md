@@ -47,11 +47,6 @@ To do so, set a storage pool configuration with a `volume` prefix, thus `volume.
 This value is then used for all new storage volumes in the pool, unless it is set explicitly for a volume or an instance.
 In general, the defaults set on a storage pool level (before the volume was created) can be overridden through the volume configuration, and the volume configuration can be overridden through the instance configuration (for storage volumes of {ref}`type <storage-volume-types>` `container` or `vm`).
 
-```{note}
-Work is ongoing to support all `volume.*` configurations.
-However, at the moment, some default configurations are not supported yet.
-```
-
 For example, to set a default volume size for a storage pool, use the following command:
 
     lxc storage set [<remote>:]<pool_name> volume.size <value>

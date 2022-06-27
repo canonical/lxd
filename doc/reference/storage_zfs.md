@@ -104,18 +104,18 @@ zfs.pool\_name                | string                        | name of the pool
 
 (storage-zfs-vol-config)=
 ### Storage volume configuration
-Key                     | Type      | Condition                 | Default                               | Description
-:--                     | :---      | :--------                 | :------                               | :----------
-security.shifted        | bool      | custom volume             | false                                 | {{enable_ID_shifting}}
-security.unmapped       | bool      | custom volume             | false                                 | Disable ID mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                   | Size/quota of the storage volume
-snapshots.expiry        | string    | custom volume             | -                                     | {{snapshot_expiry_format}}
-snapshots.pattern       | string    | custom volume             | snap%d                                | {{snapshot_pattern_format}}
-snapshots.schedule      | string    | custom volume             | -                                     | {{snapshot_schedule_format}}
-zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
-zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
-zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota      | Use `refquota` instead of `quota` for space
-zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use `reservation`/`refreservation` along with `quota`/`refquota`
+Key                     | Type      | Condition                 | Default                                     | Description
+:--                     | :---      | :--------                 | :------                                     | :----------
+security.shifted        | bool      | custom volume             | same as volume.security.shifted or false    | {{enable_ID_shifting}}
+security.unmapped       | bool      | custom volume             | same as volume.security.unmapped or false   | Disable ID mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                         | Size/quota of the storage volume
+snapshots.expiry        | string    | custom volume             | same as volume.snapshots.expiry             | {{snapshot_expiry_format}}
+snapshots.pattern       | string    | custom volume             | same as volume.snapshots.pattern or snap%d  | {{snapshot_pattern_format}}
+snapshots.schedule      | string    | custom volume             | same as snapshots.schedule                  | {{snapshot_schedule_format}}
+zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize                | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
+zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots        | Remove snapshots as needed
+zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota            | Use `refquota` instead of `quota` for space
+zfs.reserve\_space      | string    | ZFS driver                | same as volume.zfs.reserve\_space or false  | Use `reservation`/`refreservation` along with `quota`/`refquota`
 
 ## Growing a loop backed ZFS pool
 LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
