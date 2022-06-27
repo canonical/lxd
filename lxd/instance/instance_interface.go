@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cgroup"

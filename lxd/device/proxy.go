@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	liblxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/db"
