@@ -101,6 +101,7 @@ func (n *ovn) Info() Info {
 	info.Projects = true
 	info.NodeSpecificConfig = false
 	info.AddressForwards = true
+	info.LoadBalancers = true
 	info.Peering = true
 
 	return info

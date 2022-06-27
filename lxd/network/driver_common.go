@@ -29,6 +29,7 @@ type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 	AddressForwards    bool // Indicates if driver supports address forwards.
+	LoadBalancers      bool // Indicates if driver supports load balancers.
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
@@ -222,6 +223,7 @@ func (n *common) Info() Info {
 		Projects:           false,
 		NodeSpecificConfig: true,
 		AddressForwards:    false,
+		LoadBalancers:      false,
 	}
 }
 
