@@ -25,6 +25,7 @@ require (
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+	github.com/lxc/go-lxc v0.0.0-20220627182551-ad3d9f7cb822
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/mdlayher/ndp v0.10.0
@@ -46,7 +47,6 @@ require (
 	golang.org/x/text v0.3.7
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/juju/environschema.v1 v1.0.0
-	gopkg.in/lxc/go-lxc.v2 v2.0.0-20210307013912-d9b9f727ce0f
 	gopkg.in/macaroon-bakery.v2 v2.3.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
