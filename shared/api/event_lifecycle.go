@@ -39,7 +39,7 @@ const (
 	EventLifecycleInstanceFileRetrieved             = "instance-file-retrieved"
 	EventLifecycleInstanceLogDeleted                = "instance-log-deleted"
 	EventLifecycleInstanceLogRetrieved              = "instance-log-retrieved"
-	EventLifecycleInstanceMetadataRetrived          = "instance-metadata-retrieved"
+	EventLifecycleInstanceMetadataRetrieved         = "instance-metadata-retrieved"
 	EventLifecycleInstanceMetadataUpdated           = "instance-metadata-updated"
 	EventLifecycleInstanceMetadataTemplateCreated   = "instance-metadata-template-created"
 	EventLifecycleInstanceMetadataTemplateDeleted   = "instance-metadata-template-deleted"
