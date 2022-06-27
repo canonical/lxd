@@ -769,14 +769,17 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 	return nil
 }
 
-// ValidateVolume validates the supplied volume config.
-func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := map[string]func(value string) error{
-		"block.filesystem":    validate.IsAny,
+// commonVolumeRules returns validation rules which are common for pool and volume.
+func (d *ceph) commonVolumeRules() map[string]func(value string) error {
+	return map[string]func(value string) error{
+		"block.filesystem":    validate.Optional(validate.IsOneOf(cephAllowedFilesystems...)),
 		"block.mount_options": validate.IsAny,
 	}
+}
 
-	return d.validateVolume(vol, rules, removeUnknownKeys)
+// ValidateVolume validates the supplied volume config.
+func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	return d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.
