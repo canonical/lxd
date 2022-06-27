@@ -32,6 +32,13 @@ test_storage() {
   [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "def" ]
 
   lxc storage volume delete "$storage_pool" "$storage_volume"
+
+  # Test copying pool volume.* key to the volume with prefix stripped at volume creation time
+  lxc storage set "$storage_pool" volume.snapshots.expiry 3d
+  lxc storage volume create "$storage_pool" "$storage_volume"
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" snapshots.expiry)" = "3d" ]
+  lxc storage volume delete "$storage_pool" "$storage_volume"
+
   lxc storage delete "$storage_pool"
 
   # Test btrfs resize
