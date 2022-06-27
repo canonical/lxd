@@ -30,6 +30,10 @@ For example, to set the snapshot expiry time to one month, use the following com
 
     lxc storage volume set my-pool my-volume snapshorts.expiry 1M
 
+To configure an instance storage volume, specify the volume name including the {ref}`storage volume type <storage-volume-types>`, for example:
+
+    lxc storage volume set my-pool container/my-container-volume user.XXX value
+
 You can also edit the storage volume configuration by using the following command:
 
     lxc storage volume edit <pool_name> <volume_name>

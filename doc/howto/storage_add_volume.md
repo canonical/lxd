@@ -1,5 +1,5 @@
 (storage-add-volume)=
-# How to add a storage volume
+# How to add a custom storage volume
 
 When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
 
@@ -9,20 +9,20 @@ Custom storage volumes with content type `filesystem` can also be shared between
 
 See {ref}`storage-volumes` for detailed information.
 
-## Create a storage volume
+## Create a custom storage volume
 
-Use the following command to create a storage volume in a storage pool:
+Use the following command to create a custom storage volume in a storage pool:
 
     lxc storage volume create <pool_name> <volume_name> [configuration_options...]
 
 See the {ref}`storage-drivers` documentation for a list of available storage volume configuration options for each driver.
 
-By default, storage volumes use the `filesystem` {ref}`content type <storage-content-types>`.
-To create a storage volume with the content type `block`, add the `--type` flag:
+By default, custom storage volumes use the `filesystem` {ref}`content type <storage-content-types>`.
+To create a custom storage volume with the content type `block`, add the `--type` flag:
 
     lxc storage volume create <pool_name> <volume_name> --type=block [configuration_options...]
 
-To add a storage volume on a cluster member, add the `--target` flag:
+To add a custom storage volume on a cluster member, add the `--target` flag:
 
     lxc storage volume create <pool_name> <volume_name> --target=<cluster_member> [configuration_options...]
 
@@ -32,24 +32,24 @@ This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), w
 ```
 
 (storage-attach-volume)=
-## Attach a storage volume to an instance
+## Attach a custom storage volume to an instance
 
-After creating a storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
+After creating a custom storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
 
 The following restrictions apply:
 
-- Storage volumes of {ref}`content type <storage-content-types>` `block` cannot be attached to containers, but only to virtual machines.
+- Custom storage volumes of {ref}`content type <storage-content-types>` `block` cannot be attached to containers, but only to virtual machines.
 - To avoid data corruption, storage volumes of {ref}`content type <storage-content-types>` `block` should never be attached to more than one virtual machine at a time.
 
-For storage volumes with the content type `filesystem`, use the following command, where `<location>` is the path for accessing the storage volume inside the instance (for example, `/data`):
+For custom storage volumes with the content type `filesystem`, use the following command, where `<location>` is the path for accessing the storage volume inside the instance (for example, `/data`):
 
     lxc storage volume attach <pool_name> <filesystem_volume_name> <instance_name> <location>
 
-Storage volumes with the content type `block` do not take a location:
+Custom storage volumes with the content type `block` do not take a location:
 
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name>
 
-By default, the storage volume is added to the instance with the volume name as the {ref}`device <devices>` name.
+By default, the custom storage volume is added to the instance with the volume name as the {ref}`device <devices>` name.
 If you want to use a different device name, you can add it to the command:
 
     lxc storage volume attach <pool_name> <filesystem_volume_name> <instance_name> <device_name> <location>
