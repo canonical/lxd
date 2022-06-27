@@ -1683,3 +1683,7 @@ Introdues a `raw.qemu.conf` configuration key to override select sections of the
 
 ## storage\_cephfs\_fscache
 Add support for fscache/cachefilesd on cephfs pools through a new `cephfs.fscache` config option.
+
+## network\_load\_balancer
+This introduces the networking load balancer functionality. Allowing `ovn` networks to define port(s) on external
+IP addresses that can be forwarded to one or more internal IP(s) inside their respective networks.
