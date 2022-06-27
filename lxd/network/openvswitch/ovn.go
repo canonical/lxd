@@ -433,8 +433,8 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 			}
 
 			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
-				fmt.Sprintf("networks=%q", strings.Join(ips, `","`)),
-				fmt.Sprintf("mac=%q", mac.String()),
+				fmt.Sprintf(`networks="%s"`, strings.Join(ips, `","`)),
+				fmt.Sprintf(`mac="%s"`, mac.String()),
 				fmt.Sprintf("options:gateway_mtu=%d", gatewayMTU),
 			)
 			if err != nil {
