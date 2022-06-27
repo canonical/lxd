@@ -13,21 +13,21 @@ type ImageAliasAction string
 
 // All supported lifecycle events for image aliases.
 const (
-	ImageAliasCreated = ImageAliasAction("created")
-	ImageAliasDeleted = ImageAliasAction("deleted")
-	ImageAliasUpdated = ImageAliasAction("updated")
-	ImageAliasRenamed = ImageAliasAction("renamed")
+	ImageAliasCreated = ImageAliasAction(api.EventLifecycleImageAliasCreated)
+	ImageAliasDeleted = ImageAliasAction(api.EventLifecycleImageAliasDeleted)
+	ImageAliasUpdated = ImageAliasAction(api.EventLifecycleImageAliasUpdated)
+	ImageAliasRenamed = ImageAliasAction(api.EventLifecycleImageAliasRenamed)
 )
 
 // Event creates the lifecycle event for an action on an image alias.
 func (a ImageAliasAction) Event(image string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("image-alias-%s", a)
 	u := fmt.Sprintf("/1.0/images/aliases/%s", url.PathEscape(image))
 	if projectName != project.Default {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(projectName))
 	}
+
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,
