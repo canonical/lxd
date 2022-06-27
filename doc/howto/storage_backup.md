@@ -1,6 +1,6 @@
-# How to back up storage volumes
+# How to back up custom storage volumes
 
-There are different ways of backing up your storage volumes:
+There are different ways of backing up your custom storage volumes:
 
 - {ref}`storage-backup-snapshots`
 - {ref}`storage-backup-export`
@@ -14,8 +14,8 @@ They can also be used to restore a volume into a different storage pool.
 If you have a separate, network-connected LXD server available, regularly copying a volume to this other server gives high reliability as well, and this method can also be used to back up snapshots of the volume.
 
 ```{note}
-Storage volumes might be attached to an instance, but they are not part of the instance.
-Therefore, the content of a storage volume is not stored when you back up your instance.
+Custom storage volumes might be attached to an instance, but they are not part of the instance.
+Therefore, the content of a custom storage volume is not stored when you back up your instance.
 You must back up the data of your storage volume separately.
 ```
 
@@ -30,9 +30,9 @@ For these drivers, creating snapshots is both quick and space-efficient.
 For the `dir` driver, snapshot functionality is available but not very efficient.
 For the `lvm` driver, snapshot creation is quick, but restoring snapshots is efficient only when using thin-pool mode.
 
-### Create a snapshot
+### Create a snapshot of a custom storage volume
 
-Use the following command to create a snapshot for a storage volume:
+Use the following command to create a snapshot for a custom storage volume:
 
     lxc storage volume snapshot <pool_name> <volume_name> [<snapshot_name>]
 
@@ -47,7 +47,7 @@ Use the following command to display the snapshots for a storage volume:
 
     lxc storage volume info <pool_name> <volume_name>
 
-You can view or modify snapshots in a similar way to storage volumes, by referring to the snapshot with `<volume_name>/<snapshot_name>`.
+You can view or modify snapshots in a similar way to custom storage volumes, by referring to the snapshot with `<volume_name>/<snapshot_name>`.
 
 To show information about a snapshot, use the following command:
 
@@ -61,9 +61,9 @@ To delete a snapshot, use the following command:
 
     lxc storage volume delete <pool_name> <volume_name>/<snapshot_name>
 
-### Schedule snapshots
+### Schedule snapshots of a custom storage volume
 
-You can configure a storage volume to automatically create snapshots at specific times.
+You can configure a custom storage volume to automatically create snapshots at specific times.
 To do so, set the `snapshots.schedule` configuration option for the storage volume (see {ref}`storage-configure-volumes`).
 
 For example, to configure daily snapshots, use the following command:
@@ -77,16 +77,16 @@ To configure taking a snapshot every day at 6 am, use the following command:
 When scheduling regular snapshots, consider setting an automatic expiry (`snapshots.expiry`) and a naming pattern for snapshots (`snapshots.pattern`).
 See the {ref}`storage-drivers` documentation for more information about those configuration options.
 
-### Restore a snapshot
+### Restore a snapshot of a custom storage volume
 
-You can restore a storage volume to the state of any of its snapshots.
+You can restore a custom storage volume to the state of any of its snapshots.
 
 To do so, you must first stop all instances that use the storage volume.
 Then use the following command:
 
     lxc storage volume restore <pool_name> <volume_name> <snapshot_name>
 
-You can also restore a snapshot into a new storage volume, either in the same storage pool or in a different one (even a remote storage pool).
+You can also restore a snapshot into a new custom storage volume, either in the same storage pool or in a different one (even a remote storage pool).
 To do so, use the following command:
 
     lxc storage volume copy <source_pool_name>/<source_volume_name>/<source_snapshot_name> <target_pool_name>/<target_volume_name>
@@ -94,12 +94,12 @@ To do so, use the following command:
 (storage-backup-export)=
 ## Use export files for backup
 
-You can export the full content of your storage volume to a standalone file that can be stored at any location.
+You can export the full content of your custom storage volume to a standalone file that can be stored at any location.
 For highest reliability, store the backup file on a different file system to ensure that it does not get lost or corrupted.
 
-### Export a volume
+### Export a custom storage volume
 
-Use the following command to export a storage volume to a compressed file (for example, `/path/to/my-backup.tgz`):
+Use the following command to export a custom storage volume to a compressed file (for example, `/path/to/my-backup.tgz`):
 
     lxc storage volume export <pool_name> <volume_name> [<file_path>]
 
@@ -126,9 +126,9 @@ You can add any of the following flags to the command:
 : By default, the export file contains all snapshots of the storage volume.
   Add this flag to export the volume without its snapshots.
 
-### Restore a volume from an export file
+### Restore a custom storage volume from an export file
 
-You can import an export file (for example, `/path/to/my-backup.tgz`) as a new storage volume.
+You can import an export file (for example, `/path/to/my-backup.tgz`) as a new custom storage volume.
 To do so, use the following command:
 
     lxc storage volume import <pool_name> <file_path> [<volume_name>]
