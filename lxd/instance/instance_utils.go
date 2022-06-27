@@ -298,14 +298,14 @@ func lxcValidConfig(rawLxc string) error {
 		}
 
 		networkKeyPrefix := "lxc.net."
-		if !RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 			networkKeyPrefix = "lxc.network."
 		}
 
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 
-			if !RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				// lxc.network.X.ipv4 or lxc.network.X.ipv6
 				if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
 					continue
@@ -1248,81 +1248,4 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.InstanceArgs) bool {
 	}
 
 	return false
-}
-
-// RuntimeLiblxcVersionAtLeast checks if the system's liblxc matches the
-// provided version requirement
-func RuntimeLiblxcVersionAtLeast(version string, major int, minor int, micro int) bool {
-	// Strip git versioning from pre-release snapshots.
-	version = strings.Split(version, "~")[0]
-
-	// Convert devel indicator into a valid version.
-	version = strings.Replace(version, " (devel)", "-devel", 1)
-
-	// Split the version into its major, minor and micro parts.
-	parts := strings.Split(version, ".")
-	partsLen := len(parts)
-	if partsLen == 0 {
-		return false
-	}
-
-	// If the last part includes -devel, assume everything is supported.
-	develParts := strings.Split(parts[partsLen-1], "-")
-	if len(develParts) == 2 && develParts[1] == "devel" {
-		return true
-	}
-
-	// Actually parse and compare the version string now.
-	maj := -1
-	min := -1
-	mic := -1
-
-	for i, v := range parts {
-		if i > 2 {
-			break
-		}
-
-		num, err := strconv.Atoi(v)
-		if err != nil {
-			return false
-		}
-
-		switch i {
-		case 0:
-			maj = num
-		case 1:
-			min = num
-		case 2:
-			mic = num
-		}
-	}
-
-	/* Major version is greater. */
-	if maj > major {
-		return true
-	}
-
-	if maj < major {
-		return false
-	}
-
-	/* Minor number is greater.*/
-	if min > minor {
-		return true
-	}
-
-	if min < minor {
-		return false
-	}
-
-	/* Patch number is greater. */
-	if mic > micro {
-		return true
-	}
-
-	if mic < micro {
-		return false
-	}
-
-	return true
 }

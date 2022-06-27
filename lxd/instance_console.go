@@ -564,7 +564,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
+	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
@@ -644,7 +644,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
-	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
+	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
