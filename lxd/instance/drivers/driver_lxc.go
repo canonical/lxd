@@ -73,7 +73,7 @@ func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
 
-	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 		switch key {
 		case "lxc.uts.name":
 			key = "lxc.utsname"
@@ -119,7 +119,7 @@ func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	}
 
 	if strings.HasPrefix(key, "lxc.prlimit.") {
-		if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+		if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 			return fmt.Errorf(`Process limits require liblxc >= 2.1`)
 		}
 	}
@@ -659,7 +659,7 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
-	if instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
+	if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		// Default size log buffer
 		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
 		if err != nil {
@@ -1976,7 +1976,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 		// Process rootfs setup.
 		if runConf.RootFS.Path != "" {
-			if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
 				err := lxcSetConfigItem(d.c, "lxc.rootfs.backend", "dir")
 				if err == nil {
@@ -1993,7 +1993,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
 			}
 
-			if instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+			if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
 				err = lxcSetConfigItem(d.c, "lxc.rootfs.path", rootfsPath)
 			} else {
@@ -2059,7 +2059,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		// Pass any mounts into LXC.
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
-				if shared.StringInSlice("propagation", mount.Opts) && !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
+				if shared.StringInSlice("propagation", mount.Opts) && !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
 				}
 
@@ -2103,7 +2103,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			nicID++
 
 			networkKeyPrefix := "lxc.net"
-			if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
+			if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				networkKeyPrefix = "lxc.network"
 			}
 
@@ -4929,7 +4929,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	/* This feature was only added in 2.0.1, let's not ask for it
 	 * before then or migrations will fail.
 	 */
-	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 1) {
+	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 1) {
 		preservesInodes = false
 	}
 
