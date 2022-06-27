@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"

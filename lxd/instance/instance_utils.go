@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/pborman/uuid"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"

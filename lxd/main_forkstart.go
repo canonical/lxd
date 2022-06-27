@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
