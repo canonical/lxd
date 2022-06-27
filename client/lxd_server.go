@@ -71,6 +71,15 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 	return false
 }
 
+// CheckExtension checks if the server has the specified extension.
+func (r *ProtocolLXD) CheckExtension(extensionName string) error {
+	if !r.HasExtension(extensionName) {
+		return fmt.Errorf("The server is missing the required %q API extension", extensionName)
+	}
+
+	return nil
+}
+
 // IsClustered returns true if the server is part of a LXD cluster.
 func (r *ProtocolLXD) IsClustered() bool {
 	return r.server.Environment.ServerClustered
