@@ -36,7 +36,7 @@ func (d *common) isRemote() bool {
 }
 
 // validatePool validates a pool config against common rules and optional driver specific rules.
-func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error) error {
+func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error, volumeRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
@@ -45,6 +45,12 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	// Merge driver specific rules into common rules.
 	for field, validator := range driverRules {
 		rules[field] = validator
+	}
+
+	// Add to pool volume configuration options as volume.* options.
+	// These will be used as default configuration options for volume.
+	for volRule, volValidator := range volumeRules {
+		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
 	}
 
 	// Run the validator against each field.

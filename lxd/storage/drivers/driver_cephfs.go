@@ -253,7 +253,7 @@ func (d *cephfs) Validate(config map[string]string) error {
 		"volatile.pool.pristine": validate.IsAny,
 	}
 
-	return d.validatePool(config, rules)
+	return d.validatePool(config, rules, nil)
 }
 
 // Update applies any driver changes required from a configuration change.

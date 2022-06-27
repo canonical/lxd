@@ -428,17 +428,6 @@ func ValidateZfsBlocksize(value string) error {
 	return nil
 }
 
-// ValidateZfsVolBlocksize validates blocksize property value on the volume.
-func ValidateZfsVolBlocksize(vol Volume) func(value string) error {
-	return func(value string) error {
-		if vol.contentType != ContentTypeFS {
-			return fmt.Errorf("Blocksize can be change only for filesystem type")
-		}
-
-		return ValidateZfsBlocksize(value)
-	}
-}
-
 // ZFSDataset is the structure used to store information about a dataset.
 type ZFSDataset struct {
 	Name string `json:"name" yaml:"name"`

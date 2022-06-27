@@ -1262,14 +1262,29 @@ func (d *zfs) HasVolume(vol Volume) bool {
 	return d.checkDataset(d.dataset(vol, false))
 }
 
-// ValidateVolume validates the supplied volume config.
-func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := map[string]func(value string) error{
-		"zfs.blocksize":        validate.Optional(ValidateZfsVolBlocksize(vol)),
+// commonVolumeRules returns validation rules which are common for pool and volume.
+func (d *zfs) commonVolumeRules() map[string]func(value string) error {
+	return map[string]func(value string) error{
+		"zfs.blocksize":        validate.Optional(ValidateZfsBlocksize),
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"zfs.use_refquota":     validate.Optional(validate.IsBool),
 		"zfs.reserve_space":    validate.Optional(validate.IsBool),
 	}
+}
+
+// ValidateVolume validates the supplied volume config.
+func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	rules := d.commonVolumeRules()
+
+	commonBlocksizeValidator := rules["zfs.blocksize"]
+	rules["zfs.blocksize"] = validate.Optional(func(value string) error {
+		if vol.contentType != ContentTypeFS {
+			return fmt.Errorf("Blocksize can be change only for filesystem type")
+		}
+
+		// Use the common validation after checking volume content type.
+		return commonBlocksizeValidator(value)
+	})
 
 	return d.validateVolume(vol, rules, removeUnknownKeys)
 }

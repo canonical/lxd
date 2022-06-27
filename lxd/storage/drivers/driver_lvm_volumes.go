@@ -275,15 +275,19 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 	return nil
 }
 
+// commonVolumeRules returns validation rules which are common for pool and volume.
+func (d *lvm) commonVolumeRules() map[string]func(value string) error {
+	return map[string]func(value string) error{
+		"block.mount_options": validate.IsAny,
+		"block.filesystem":    validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
+		"lvm.stripes":         validate.Optional(validate.IsUint32),
+		"lvm.stripes.size":    validate.Optional(validate.IsSize),
+	}
+}
+
 // ValidateVolume validates the supplied volume config.
 func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := map[string]func(value string) error{
-		"block.filesystem": validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
-		"lvm.stripes":      validate.Optional(validate.IsUint32),
-		"lvm.stripes.size": validate.Optional(validate.IsSize),
-	}
-
-	err := d.validateVolume(vol, rules, removeUnknownKeys)
+	err := d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 	if err != nil {
 		return err
 	}

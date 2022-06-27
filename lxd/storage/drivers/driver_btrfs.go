@@ -285,7 +285,7 @@ func (d *btrfs) Validate(config map[string]string) error {
 		"btrfs.mount_options": validate.IsAny,
 	}
 
-	return d.validatePool(config, rules)
+	return d.validatePool(config, rules, nil)
 }
 
 // Update applies any driver changes required from a configuration change.
