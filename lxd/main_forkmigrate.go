@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	liblxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "github.com/lxc/go-lxc"
 )
 
 type cmdForkmigrate struct {
