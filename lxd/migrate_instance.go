@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	liblxc "github.com/lxc/go-lxc"
 	"google.golang.org/protobuf/proto"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -559,7 +559,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(err)
 		}
 
-		if instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
+		if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
 			// What happens below is slightly convoluted. Due to various complications
 			// with networking, there's no easy way for criu to exit and leave the
 			// container in a frozen state for us to somehow resume later.

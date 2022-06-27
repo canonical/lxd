@@ -21,8 +21,8 @@ import (
 	dqliteclient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
+	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	client "github.com/canonical/go-dqlite/client"
 	"gopkg.in/macaroon-bakery.v2/bakery"
