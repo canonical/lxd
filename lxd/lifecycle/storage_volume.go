@@ -20,20 +20,20 @@ type StorageVolumeAction string
 
 // All supported lifecycle events for storage volumes.
 const (
-	StorageVolumeCreated  = StorageVolumeAction("created")
-	StorageVolumeDeleted  = StorageVolumeAction("deleted")
-	StorageVolumeUpdated  = StorageVolumeAction("updated")
-	StorageVolumeRenamed  = StorageVolumeAction("renamed")
-	StorageVolumeRestored = StorageVolumeAction("restored")
+	StorageVolumeCreated  = StorageVolumeAction(api.EventLifecycleStorageVolumCreated)
+	StorageVolumeDeleted  = StorageVolumeAction(api.EventLifecycleStorageVolumeDeleted)
+	StorageVolumeUpdated  = StorageVolumeAction(api.EventLifecycleStorageVolumeUpdated)
+	StorageVolumeRenamed  = StorageVolumeAction(api.EventLifecycleStorageVolumeRenamed)
+	StorageVolumeRestored = StorageVolumeAction(api.EventLifecycleStorageVolumeRestored)
 )
 
 // Event creates the lifecycle event for an action on a storage volume.
 func (a StorageVolumeAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("storage-volume-%s", a)
 	u := fmt.Sprintf("/1.0/storage-pools/%s/volumes", url.PathEscape(v.Pool()))
 	if volumeType != "" {
 		u = fmt.Sprintf("%s/%s", u, url.PathEscape(volumeType))
 	}
+
 	if v.Name() != "" {
 		u = fmt.Sprintf("%s/%s", u, url.PathEscape(v.Name()))
 	}
@@ -48,7 +48,7 @@ func (a StorageVolumeAction) Event(v volume, volumeType string, projectName stri
 	}
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,
