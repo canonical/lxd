@@ -58,13 +58,13 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 func ImportProcess(path string) (*Process, error) {
 	dat, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read file '%s': %w", path, err)
+		return nil, fmt.Errorf("Unable to read PID file %q: %w", path, err)
 	}
 
 	proc := Process{}
 	err = yaml.Unmarshal(dat, &proc)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse Process YAML: %w", err)
+		return nil, fmt.Errorf("Unable to parse YAML in PID file %q: %w", path, err)
 	}
 
 	return &proc, nil
