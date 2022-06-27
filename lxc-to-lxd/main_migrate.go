@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/spf13/cobra"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"

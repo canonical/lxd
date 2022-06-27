@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	liblxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "github.com/lxc/go-lxc"
 )
 
 func networkGet(container *liblxc.Container, index int, configKey string) map[string]string {

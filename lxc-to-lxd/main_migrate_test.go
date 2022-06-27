@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	liblxc "github.com/lxc/go-lxc"
 	"github.com/stretchr/testify/require"
-	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
 func TestValidateConfig(t *testing.T) {
