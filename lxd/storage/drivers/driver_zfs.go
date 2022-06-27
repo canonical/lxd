@@ -364,14 +364,10 @@ func (d *zfs) Validate(config map[string]string) error {
 
 			return validate.IsBool(value)
 		}),
-		"zfs.export":                  validate.Optional(validate.IsBool),
-		"volume.zfs.blocksize":        validate.Optional(ValidateZfsBlocksize),
-		"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
-		"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
-		"volume.zfs.reserve_space":    validate.Optional(validate.IsBool),
+		"zfs.export": validate.Optional(validate.IsBool),
 	}
 
-	return d.validatePool(config, rules)
+	return d.validatePool(config, rules, d.commonVolumeRules())
 }
 
 // Update applies any driver changes required from a configuration change.

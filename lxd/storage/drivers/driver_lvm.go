@@ -460,14 +460,10 @@ func (d *lvm) Validate(config map[string]string) error {
 		"lvm.thinpool_name":          validate.IsAny,
 		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),
 		"lvm.use_thinpool":           validate.Optional(validate.IsBool),
-		"volume.block.mount_options": validate.IsAny,
-		"volume.block.filesystem":    validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
-		"volume.lvm.stripes":         validate.Optional(validate.IsUint32),
-		"volume.lvm.stripes.size":    validate.Optional(validate.IsSize),
 		"lvm.vg.force_reuse":         validate.Optional(validate.IsBool),
 	}
 
-	err := d.validatePool(config, rules)
+	err := d.validatePool(config, rules, d.commonVolumeRules())
 	if err != nil {
 		return err
 	}
