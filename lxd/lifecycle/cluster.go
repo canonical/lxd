@@ -12,19 +12,18 @@ type ClusterAction string
 
 // All supported lifecycle events for clusters.
 const (
-	ClusterEnabled            = ClusterAction("enabled")
-	ClusterDisabled           = ClusterAction("disabled")
-	ClusterCertificateUpdated = ClusterAction("certificate-updated")
-	ClusterTokenCreated       = ClusterAction("token-created")
+	ClusterEnabled            = ClusterAction(api.EventLifecycleClusterEnabled)
+	ClusterDisabled           = ClusterAction(api.EventLifecycleClusterDisabled)
+	ClusterCertificateUpdated = ClusterAction(api.EventLifecycleClusterCertificateUpdated)
+	ClusterTokenCreated       = ClusterAction(api.EventLifecycleClusterTokenCreated)
 )
 
 // Event creates the lifecycle event for an action on a cluster.
 func (a ClusterAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("cluster-%s", a)
 	u := fmt.Sprintf("/1.0/cluster/%s", url.PathEscape(name))
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,
