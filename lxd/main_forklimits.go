@@ -73,11 +73,13 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 				_ = cmd.Help()
 				return fmt.Errorf("Invalid file descriptor number")
 			}
+
 			fds = append(fds, uintptr(fdNum))
 		} else if arg == "--" {
 			if len(args)-1 > i {
 				cmdParts = args[i+1:]
 			}
+
 			break // No more passing of arguments needed.
 		} else {
 			_ = cmd.Help()
@@ -103,6 +105,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			if err != nil {
 				return fmt.Errorf("Invalid soft limit for %q", limit.name)
 			}
+
 			rLimit.Cur = softLimit
 		}
 
@@ -113,6 +116,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 			if err != nil {
 				return fmt.Errorf("Invalid hard limit for %q", limit.name)
 			}
+
 			rLimit.Max = hardLimit
 		}
 

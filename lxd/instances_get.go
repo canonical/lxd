@@ -40,6 +40,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 		if err != nil {
 			return instancetype.Any, err
 		}
+
 		return instanceType, nil
 	}
 
@@ -220,6 +221,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 		if err == nil {
 			return response.SyncResponse(true, result)
 		}
+
 		if !query.IsRetriableError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return response.SmartError(err)
@@ -351,6 +353,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 				Project:    projectInstance[0],
 			}}
 		}
+
 		resultMu.Lock()
 		resultFullList = append(resultFullList, &c)
 		resultMu.Unlock()
@@ -420,6 +423,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 
 			continue
 		}
+
 		if !mustLoadObjects {
 			for _, projectInstance := range projectsInstances {
 				instancePath := "instances"
@@ -428,6 +432,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
+
 				url := api.NewURL().Path(version.APIVersion, instancePath, projectInstance[1]).Project(projectInstance[0])
 				resultString = append(resultString, url.String())
 			}
@@ -495,6 +500,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
+
 				url := api.NewURL().Path(version.APIVersion, instancePath, container.Name).Project(container.Project)
 				resultString = append(resultString, url.String())
 			}
@@ -510,6 +516,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 		if clauses != nil {
 			resultList = instance.Filter(resultList, clauses)
 		}
+
 		return resultList, nil
 	}
 
@@ -521,6 +528,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	if clauses != nil {
 		resultFullList = instance.FilterFull(resultFullList, clauses)
 	}
+
 	return resultFullList, nil
 }
 
@@ -547,6 +555,7 @@ func doContainersGetFromNode(projects []string, node, allProjects string, networ
 				if err != nil {
 					return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 				}
+
 				containers = append(containers, tmpContainers...)
 			}
 		}

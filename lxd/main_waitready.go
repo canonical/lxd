@@ -51,12 +51,14 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 			if doLog {
 				logger.Debugf("Connecting to LXD daemon (attempt %d)", i)
 			}
+
 			d, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
 				errLast = err
 				if doLog {
 					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
 				}
+
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
@@ -64,12 +66,14 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 			if doLog {
 				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
 			}
+
 			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
 			if err != nil {
 				errLast = err
 				if doLog {
 					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
 				}
+
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}

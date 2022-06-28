@@ -378,6 +378,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			if err != nil || count != 1 {
 				continue
 			}
+
 			if num >= max {
 				max = num + 1
 			}

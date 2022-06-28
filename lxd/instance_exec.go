@@ -182,6 +182,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			} else {
 				ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
 			}
+
 			if err != nil {
 				return fmt.Errorf("Unable to open the PTY device: %w", err)
 			}
@@ -663,12 +664,14 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = stdout.Close() }()
 
 			stderr, err = os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = stderr.Close() }()
 
 			// Update metadata with the right URLs.

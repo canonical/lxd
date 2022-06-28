@@ -237,6 +237,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	for _, volume := range imageVolumes {
 		if shared.StringInSlice(volume.Name, projectImages) {
 			volumes = append(volumes, volume)
@@ -275,6 +276,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.InternalError(err)
 			}
+
 			volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 		}
 	}
@@ -301,11 +303,14 @@ func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api
 			StorageVolume: *volume,
 			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
 		}
+
 		if !filter.Match(tmpVolume, clauses) {
 			continue
 		}
+
 		filtered = append(filtered, volume)
 	}
+
 	return filtered
 }
 
@@ -469,6 +474,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return response.SmartError(err)
 			}
+
 			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
 			resultMap = append(resultMap, vol)
@@ -1004,6 +1010,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	r.Body = shared.BytesReadCloser{Buf: &buf}
 
 	resp := forwardedResponseIfTargetIsRemote(d, r)
@@ -1034,6 +1041,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	} else {
 		targetPoolID, err = d.db.Cluster.GetStoragePoolID(srcPoolName)
 	}
+
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1189,6 +1197,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() { _ = storagePoolVolumeUpdateUsers(d, projectName, newPool.Name(), &newVol, pool.Name(), vol) })
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
@@ -1342,6 +1351,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
 	etag := []any{volumeName, volume.Type, volume.Config}
@@ -1764,6 +1774,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	default:
 		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, volumeTypeName))
 	}
+
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1780,6 +1791,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	defer func() { _ = os.Remove(backupFile.Name()) }()
 	revert.Add(func() { _ = backupFile.Close() })
 
@@ -1794,6 +1806,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
 	if err != nil {
 		return response.InternalError(err)
@@ -1808,6 +1821,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		if err != nil {
 			return response.InternalError(err)
 		}
+
 		defer func() { _ = os.Remove(tarFile.Name()) }()
 
 		// Decompress to tarFile temporary file.
@@ -1835,6 +1849,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	bInfo.Project = projectName
 
 	// Override pool.

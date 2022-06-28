@@ -92,6 +92,7 @@ func (c *migrationFields) disconnect() {
 		_ = c.controlConn.Close()
 		c.controlConn = nil /* don't close twice */
 	}
+
 	c.controlLock.Unlock()
 
 	/* Below we just Close(), which doesn't actually write to the
@@ -116,6 +117,7 @@ func (c *migrationFields) sendControl(err error) {
 	if c.controlConn != nil {
 		migration.ProtoSendControl(c.controlConn, err)
 	}
+
 	c.controlLock.Unlock()
 
 	if err != nil {

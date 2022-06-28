@@ -83,6 +83,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -91,6 +92,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	state, err := c.RenderState()
 	if err != nil {
 		return response.InternalError(err)
@@ -152,6 +154,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -228,6 +231,7 @@ func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error 
 		} else {
 			return inst.Shutdown(time.Duration(req.Timeout) * time.Second)
 		}
+
 	case shared.Restart:
 		timeout := req.Timeout
 		if req.Force {

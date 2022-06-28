@@ -104,18 +104,22 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Restart:
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Start:
 			if inst.IsRunning() {
 				continue
 			}
+
 		case shared.Stop:
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Unfreeze:
 			if inst.IsRunning() {
 				continue
@@ -215,6 +219,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 						failures[node.Name] = err
 						failuresLock.Unlock()
 					}
+
 					return
 				}
 
@@ -226,6 +231,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 					failuresLock.Unlock()
 					return
 				}
+
 				client = client.UseProject(projectName)
 
 				// Perform the action.

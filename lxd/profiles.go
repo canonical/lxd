@@ -153,6 +153,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		filter := dbCluster.ProfileFilter{
 			Project: &projectName,
 		}
+
 		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
@@ -183,6 +184,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 			result = urls
 		}
+
 		return err
 	})
 	if err != nil {
@@ -292,6 +294,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			Name:        req.Name,
 			Description: req.Description,
 		}
+
 		id, err := dbCluster.CreateProfile(ctx, tx.Tx(), profile)
 		if err != nil {
 			return err

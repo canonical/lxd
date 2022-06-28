@@ -123,6 +123,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 			if execConsoleOps > 0 {
 				logger.Info("Timeout reached, continuing with shutdown")
 			}
+
 			return
 		case <-logTick:
 			// Print log message every minute.
@@ -199,9 +200,11 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		if len(ops) < 1 {
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
+
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
 		}
@@ -279,9 +282,11 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		if len(ops) < 1 {
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
+
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
 		}
@@ -329,9 +334,11 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 		if err != nil {
 			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
 		}
+
 		if len(ops) < 1 {
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
+
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
 		}
@@ -890,6 +897,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			ctx, cancel = context.WithCancel(r.Context())
 		}
+
 		defer cancel()
 
 		_, err = op.Wait(ctx)
@@ -913,9 +921,11 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		if len(ops) < 1 {
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
+
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
 		}
@@ -1040,9 +1050,11 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		if len(ops) < 1 {
 			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
+
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
 		}

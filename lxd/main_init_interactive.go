@@ -854,6 +854,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 					if defaultSize > 30 {
 						defaultSize = 30
 					}
+
 					if defaultSize < 5 {
 						defaultSize = 5
 					}

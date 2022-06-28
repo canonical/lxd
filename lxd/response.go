@@ -22,6 +22,7 @@ func forwardedResponseToNode(d *Daemon, r *http.Request, node string) response.R
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return response.ForwardedResponse(client, r)
 	}
 
@@ -47,9 +48,11 @@ func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, na
 	if err != nil {
 		return nil, err
 	}
+
 	if client == nil {
 		return nil, nil
 	}
+
 	return response.ForwardedResponse(client, r), nil
 }
 

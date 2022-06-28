@@ -712,6 +712,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 				Restricted:  req.Restricted,
 			}
+
 			_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, req.Projects)
 			return err
 		})
@@ -724,6 +725,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		req := api.CertificatesPost{
 			CertificatePut: api.CertificatePut{
 				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
@@ -794,6 +796,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
 		return err
 	})

@@ -171,6 +171,7 @@ void forkuevent(void)
 		fprintf(stderr, "Error: Missing PID\n");
 		_exit(1);
 	}
+
 	pid = atoi(cur);
 
 	pidfd = atoi(advance_arg(true));
@@ -184,6 +185,7 @@ void forkuevent(void)
 		fprintf(stderr, "Error: Missing uevent length\n");
 		_exit(1);
 	}
+
 	len = atoi(cur);
 
 	// Get the uevent
@@ -192,6 +194,7 @@ void forkuevent(void)
 		fprintf(stderr, "Error: Missing uevent\n");
 		_exit(1);
 	}
+
 	uevent = cur;
 
 	// Check that we're root

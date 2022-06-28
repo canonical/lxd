@@ -137,6 +137,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed to get target node: %w", err)
 			}
+
 			targetNodeOffline = node.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 			// Load source node.
@@ -144,15 +145,18 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed to get address of instance's member: %w", err)
 			}
+
 			if address == "" {
 				// Local node.
 				sourceNodeOffline = false
 				return nil
 			}
+
 			node, err = tx.GetNodeByAddress(address)
 			if err != nil {
 				return fmt.Errorf("Failed to get source member for %s: %w", address, err)
 			}
+
 			sourceNodeOffline = node.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 			return nil
@@ -193,6 +197,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		if resp != nil {
 			return resp
 		}
@@ -276,6 +281,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
 				return response.SmartError(err)
 			}
+
 			if len(backups) > 0 {
 				return response.BadRequest(fmt.Errorf("Instance has backups"))
 			}
@@ -556,6 +562,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		if err != nil {
 			return fmt.Errorf("Failed to get new member address: %w", err)
 		}
+
 		targetAddress = node.Address
 
 		return nil
@@ -570,6 +577,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		if err != nil {
 			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
 		}
+
 		source = source.UseProject(inst.Project())
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
@@ -577,6 +585,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
+
 		dest = dest.UseTarget(newNode).UseProject(inst.Project())
 
 		destName := newName
@@ -672,6 +681,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			if err != nil {
 				return fmt.Errorf("Rename instance operation failed: %w", err)
 			}
+
 			destName = inst.Name()
 		}
 
@@ -682,6 +692,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
 			}
+
 			err = tx.DeleteInstanceConfigKey(id, "volatile.apply_template")
 			if err != nil {
 				return fmt.Errorf("Failed to remove volatile.apply_template config key: %w", err)
@@ -691,6 +702,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 				config := map[string]string{
 					"volatile.apply_template": origVolatileApplyTemplate,
 				}
+
 				err = tx.CreateInstanceConfig(int(id), config)
 				if err != nil {
 					return fmt.Errorf("Failed to set volatile.apply_template config key: %w", err)
@@ -760,6 +772,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			if err != nil {
 				return fmt.Errorf("Failed to connect to source server %q: %w", sourceMember.Address, err)
 			}
+
 			source = source.UseProject(inst.Project())
 
 			// Get instance state on source member.
@@ -840,6 +853,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		if err != nil {
 			return fmt.Errorf("Failed to connect to target node: %w", err)
 		}
+
 		if target == nil {
 			// Create the instance mount point.
 			err := instancePostCreateInstanceMountPoint(d, inst)
@@ -861,6 +875,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			if err != nil {
 				return fmt.Errorf("Failed creating mount point on target member: %w", err)
 			}
+
 			if resp.StatusCode != http.StatusOK {
 				return fmt.Errorf("Failed creating mount point on target member: %s", resp.Error)
 			}
@@ -940,6 +955,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
+
 	if pool.Driver().Info().Name == "ceph" {
 		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, pool, req.Name, sourceNodeOffline, targetNode, req.Live)
 		if err != nil {

@@ -178,6 +178,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		if err != nil {
 			return fmt.Errorf("Failed to get warnings: %w", err)
 		}

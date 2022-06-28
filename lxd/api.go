@@ -183,6 +183,7 @@ func projectParam(request *http.Request) string {
 	if projectParam == "" {
 		projectParam = project.Default
 	}
+
 	return projectParam
 }
 
