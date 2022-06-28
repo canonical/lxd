@@ -82,6 +82,7 @@ func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("cannot set permissions on local socket: %w", err)
 	}
+
 	return nil
 }
 
