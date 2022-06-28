@@ -37,6 +37,7 @@ func processBatch(count int, batchSize int, process func(index int, wg *sync.Wai
 			go process(processed, &wg)
 			processed++
 		}
+
 		wg.Wait()
 
 		if processed >= nextStat {
@@ -51,6 +52,7 @@ func processBatch(count int, batchSize int, process func(index int, wg *sync.Wai
 		go process(processed, &wg)
 		processed++
 	}
+
 	wg.Wait()
 
 	timeEnd := time.Now()

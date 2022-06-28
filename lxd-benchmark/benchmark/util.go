@@ -19,6 +19,7 @@ func printTestConfig(count int, batchSize int, image string, privileged bool, fr
 	if privileged {
 		privilegedStr = "privileged"
 	}
+
 	mode := "normal startup"
 	if freeze {
 		mode = "start and freeze"

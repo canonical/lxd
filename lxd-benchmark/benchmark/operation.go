@@ -10,6 +10,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	if privileged {
 		config["security.privileged"] = "true"
 	}
+
 	config[userConfigKey] = "true"
 
 	req := api.ContainersPost{
@@ -19,6 +20,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 			Fingerprint: fingerprint,
 		},
 	}
+
 	req.Config = config
 
 	op, err := c.CreateContainer(req)

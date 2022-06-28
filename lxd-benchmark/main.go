@@ -30,6 +30,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	c.srv = srv
 
 	// Print the initial header
