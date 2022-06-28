@@ -7,14 +7,18 @@
  - Quotas are supported with the directory backend when running on
    either ext4 or XFS with project quotas enabled at the filesystem level.
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `dir` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
 rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
