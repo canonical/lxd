@@ -21,6 +21,7 @@ func (e *Endpoints) ClusterAddress() string {
 	if listener == nil {
 		return ""
 	}
+
 	return listener.Addr().String()
 }
 
