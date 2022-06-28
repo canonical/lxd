@@ -377,6 +377,7 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 				if err != nil {
 					return fmt.Errorf("Failed deleting left over image volume %q (%s): %w", vol.Name(), vol.ContentType(), err)
 				}
+
 				l.Warn("Deleted left over image volume", logger.Ctx{"volName": vol.Name(), "contentType": vol.ContentType()})
 			}
 		}
@@ -1061,6 +1062,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			if err != nil {
 				cancel()
 			}
+
 			aEndErrCh <- err
 		}()
 
@@ -1078,6 +1080,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			if err != nil {
 				cancel()
 			}
+
 			bEndErrCh <- err
 		}()
 
@@ -1269,6 +1272,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _ = VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 
 			// Generate source snapshot volumes list.
@@ -1341,6 +1345,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			if err != nil {
 				cancel()
 			}
+
 			aEndErrCh <- err
 		}()
 
@@ -1361,6 +1366,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			if err != nil {
 				cancel()
 			}
+
 			bEndErrCh <- err
 		}()
 
@@ -1528,6 +1534,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			if err != nil {
 				cancel()
 			}
+
 			aEndErrCh <- err
 		}()
 
@@ -1544,6 +1551,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			if err != nil {
 				cancel()
 			}
+
 			bEndErrCh <- err
 		}()
 
@@ -1594,6 +1602,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 					_ = op.UpdateMetadata(metadata)
 				}}
 		}
+
 		imageFile := shared.VarPath("images", fingerprint)
 		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS, allowUnsafeResize, tracker)
 	}
@@ -1911,6 +1920,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
@@ -2469,6 +2479,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	if err != nil {
 		return nil, err
 	}
+
 	revert.Add(func() { _, _ = b.driver.UnmountVolume(*vol, false, op) })
 
 	diskPath, err := b.getInstanceDisk(inst)
@@ -2602,6 +2613,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = src.Unfreeze() }()
 
 		// Attempt to sync the filesystem.
@@ -3089,6 +3101,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, op) })
 
 	var volConfig map[string]string
@@ -3468,6 +3481,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		if err != nil {
 			cancel()
 		}
+
 		aEndErrCh <- err
 	}()
 
@@ -3488,6 +3502,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		if err != nil {
 			cancel()
 		}
+
 		bEndErrCh <- err
 	}()
 
@@ -4728,6 +4743,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 	if err != nil {
 		return err
 	}
+
 	contentType := InstanceContentType(inst)
 	vol := b.GetVolume(volType, contentType, volStorageName, config.Volume.Config)
 
@@ -5397,6 +5413,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		},
 		Name: srcBackup.Name,
 	}
+
 	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return project.AllowVolumeCreation(tx, srcBackup.Project, req)
 	})

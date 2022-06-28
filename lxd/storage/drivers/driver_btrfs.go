@@ -332,6 +332,7 @@ func (d *btrfs) Mount() (bool, error) {
 		if err != nil {
 			return false, err
 		}
+
 		defer func() { _ = loopF.Close() }()
 
 		mntSrc = loopF.Name()

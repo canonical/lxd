@@ -59,6 +59,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 		args = append(args, "-o")
 		args = append(args, option)
 	}
+
 	args = append(args, dataset)
 
 	_, err := shared.RunCommand("zfs", args...)
@@ -77,6 +78,7 @@ func (d *zfs) createVolume(dataset string, size int64, options ...string) error 
 		args = append(args, "-o")
 		args = append(args, option)
 	}
+
 	args = append(args, dataset)
 
 	_, err := shared.RunCommand("zfs", args...)
@@ -290,9 +292,11 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 		args = append(args, "-c")
 		args = append(args, "-L")
 	}
+
 	if parent != "" {
 		args = append(args, "-i", parent)
 	}
+
 	args = append(args, dataset)
 	cmd := exec.Command("zfs", args...)
 

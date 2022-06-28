@@ -34,12 +34,14 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = os.RemoveAll(volPath) })
 
 	err = d.createLogicalVolume(d.config["lvm.vg_name"], d.thinpoolName(), vol, d.usesThinpool())
 	if err != nil {
 		return fmt.Errorf("Error creating LVM logical volume: %w", err)
 	}
+
 	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 
 	// For VMs, also create the filesystem volume.
@@ -396,6 +398,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	if err != nil {
 		return err
 	}
+
 	if activated {
 		defer func() { _, _ = d.deactivateVolume(vol) }()
 	}
@@ -425,6 +428,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			if err != nil {
 				return err
 			}
+
 			d.logger.Debug("Logical volume filesystem shrunk", logCtx)
 
 			// Shrink the block device.
@@ -444,6 +448,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			if err != nil {
 				return err
 			}
+
 			d.logger.Debug("Logical volume filesystem grown", logCtx)
 		}
 	} else {
@@ -594,6 +599,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	if activated {
 		revert.Add(func() { _, _ = d.deactivateVolume(vol) })
 	}
@@ -622,6 +628,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 			if err != nil {
 				return fmt.Errorf("Failed to mount LVM logical volume: %w", err)
 			}
+
 			d.logger.Debug("Mounted logical volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
 	} else if vol.contentType == ContentTypeBlock {
@@ -663,6 +670,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		if err != nil {
 			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
 		}
+
 		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 		// We only deactivate filesystem volumes if an unmount was needed to better align with our
@@ -727,6 +735,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _ = d.renameLogicalVolume(newSnapVolDevPath, snapVolDevPath) })
 		}
 
@@ -739,6 +748,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 				if err != nil {
 					return fmt.Errorf("Error renaming LVM logical volume snapshot directory from %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
 				}
+
 				revert.Add(func() { _ = os.Rename(dstSnapshotDir, srcSnapshotDir) })
 			}
 		}
@@ -749,6 +759,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() { _ = d.renameLogicalVolume(newVolDevPath, volDevPath) })
 
 		// Rename volume dir.
@@ -759,6 +770,7 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 			if err != nil {
 				return fmt.Errorf("Error renaming LVM logical volume mount path from %q to %q: %w", srcVolumePath, dstVolumePath, err)
 			}
+
 			revert.Add(func() { _ = os.Rename(dstVolumePath, srcVolumePath) })
 		}
 
@@ -807,6 +819,7 @@ func (d *lvm) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = os.RemoveAll(snapPath) })
 
 	_, err = d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], parentVol, snapVol, true, d.usesThinpool())
@@ -965,6 +978,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if err != nil {
 			return fmt.Errorf("Failed to mount LVM snapshot volume: %w", err)
 		}
+
 		d.logger.Debug("Mounted logical volume snapshot", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 	} else if snapVol.contentType == ContentTypeBlock {
 		// Activate volume if needed.
@@ -1011,6 +1025,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		if err != nil {
 			return false, fmt.Errorf("Failed to unmount LVM snapshot volume: %w", err)
 		}
+
 		d.logger.Debug("Unmounted logical volume snapshot", logger.Ctx{"path": mountPath})
 
 		// Check if a temporary snapshot exists, and if so remove it.
