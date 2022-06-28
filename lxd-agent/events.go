@@ -48,6 +48,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection = events.NewWebsocketListenerConnection(conn)
@@ -61,6 +62,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection, err = events.NewStreamListenerConnection(conn)
