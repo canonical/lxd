@@ -97,6 +97,39 @@ var updates = map[int]schema.Update{
 	58: updateFromV57,
 	59: updateFromV58,
 	60: updateFromV59,
+	61: updateFromV60,
+}
+
+// updateFromV60 creates the networks_load_balancers and networks_load_balancers_config tables.
+func updateFromV60(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "networks_load_balancers" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	node_id INTEGER,
+	listen_address TEXT NOT NULL,
+	description TEXT NOT NULL,
+	backends TEXT NOT NULL,
+	ports TEXT NOT NULL,
+	UNIQUE (network_id, node_id, listen_address),
+	FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
+	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "networks_load_balancers_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_load_balancer_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_load_balancer_id, key),
+	FOREIGN KEY (network_load_balancer_id) REFERENCES "networks_load_balancers" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating network load balancers tables: %w", err)
+	}
+
+	return nil
 }
 
 func updateFromV59(tx *sql.Tx) error {
