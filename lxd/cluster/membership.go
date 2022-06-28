@@ -261,6 +261,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get raft nodes from the log: %w", err)
 	}
+
 	count := len(nodes) // Existing nodes
 	voters := 0
 	standbys := 0
@@ -287,6 +288,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	} else if standbys < int(state.GlobalConfig.MaxStandBy()) {
 		node.Role = db.RaftStandBy
 	}
+
 	nodes = append(nodes, node)
 
 	return nodes, nil
@@ -418,6 +420,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	if err != nil {
 		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
+
 	defer func() { _ = client.Close() }()
 
 	logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
@@ -691,6 +694,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		if err != nil {
 			return fmt.Errorf("Failed to fetch the address of this cluster member: %w", err)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -751,6 +755,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	if err != nil {
 		return fmt.Errorf("Failed to acquire cluster database lock: %w", err)
 	}
+
 	transactor = state.DB.Cluster.ExitExclusive
 
 	// Wipe all existing raft data, for good measure (perhaps they were
@@ -778,6 +783,7 @@ assign:
 	if err != nil {
 		return fmt.Errorf("Connect to cluster leader: %w", err)
 	}
+
 	defer func() { _ = client.Close() }()
 
 	// Figure out our current role.
@@ -786,6 +792,7 @@ assign:
 	if err != nil {
 		return fmt.Errorf("Fetch current cluster configuration: %w", err)
 	}
+
 	for _, server := range cluster {
 		if server.ID == info.ID {
 			role = server.Role
@@ -805,10 +812,12 @@ assign:
 		if err != nil {
 			return fmt.Errorf("Failed to step back to stand-by: %w", err)
 		}
+
 		local, err := gateway.getClient()
 		if err != nil {
 			return fmt.Errorf("Failed to get local dqlite client: %w", err)
 		}
+
 		notified := false
 		for i := 0; i < 10; i++ {
 			time.Sleep(500 * time.Millisecond)
@@ -816,10 +825,12 @@ assign:
 			if err != nil {
 				return fmt.Errorf("Failed to get current cluster: %w", err)
 			}
+
 			for _, server := range servers {
 				if server.ID != info.ID {
 					continue
 				}
+
 				if server.Role == db.RaftStandBy {
 					notified = true
 					break
@@ -906,6 +917,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	if err != nil {
 		return "", err
 	}
+
 	var info *db.RaftNode // Raft node to remove, if any.
 	for i, node := range nodes {
 		if node.Address == address {
@@ -930,6 +942,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	if err != nil {
 		return "", fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
+
 	defer func() { _ = client.Close() }()
 	err = client.Remove(ctx, info.ID)
 	if err != nil {
@@ -957,6 +970,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 			nodeID = node.ID
 		}
 	}
+
 	if nodeID == 0 {
 		return "", nil, fmt.Errorf("No dqlite node has address %s: %w", address, err)
 	}
@@ -1163,6 +1177,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	if err != nil {
 		return err
 	}
+
 	if message != "" {
 		return fmt.Errorf(message)
 	}
@@ -1172,6 +1187,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	if err != nil {
 		return err
 	}
+
 	if len(nodes) == 1 {
 		return fmt.Errorf("Member is the only member in the cluster")
 	}
