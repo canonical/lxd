@@ -951,10 +951,8 @@ func (d *lxc) initLXC(config bool) error {
 		}
 	} else {
 		// Make sure that LXC won't try to apply an apparmor profile.
-		err := lxcSetConfigItem(cc, "lxc.apparmor.profile", "unconfined")
-		if err != nil {
-			return err
-		}
+		// This may fail on liblxc compiled without apparmor, so ignore errors.
+		_ = lxcSetConfigItem(cc, "lxc.apparmor.profile", "unconfined")
 	}
 
 	// Setup Seccomp if necessary
