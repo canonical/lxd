@@ -20,6 +20,7 @@ func lxdIsConfigured(client lxd.InstanceServer) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("Failed to list networks: %w", err)
 	}
+
 	if !shared.StringInSlice("lxdbr0", networks) {
 		// Couldn't find lxdbr0.
 		return false, nil
@@ -45,6 +46,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get server info: %w", err)
 	}
+
 	availableBackends := util.AvailableStorageDrivers(info.Environment.StorageSupportedDrivers, util.PoolTypeLocal)
 
 	// Load the default profile.
@@ -159,6 +161,7 @@ func lxdSetupUser(uid uint32) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create user directory: %w", err)
 	}
+
 	revert.Add(func() { _ = os.RemoveAll(userPath) })
 
 	// Generate certificate.
