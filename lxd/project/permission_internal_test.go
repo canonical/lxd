@@ -35,6 +35,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 				Nsid:     -1,
 			},
 		}
+
 		assert.ErrorIs(t, err, nil)
 		assert.Equal(t, idmaps, expected)
 
@@ -48,6 +49,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 				Nsid:     -1,
 			},
 		}
+
 		assert.ErrorIs(t, err, nil)
 		assert.Equal(t, idmaps, expected)
 
@@ -68,6 +70,7 @@ func TestParseHostIDMapRange(t *testing.T) {
 				Nsid:     -1,
 			},
 		}
+
 		assert.ErrorIs(t, err, nil)
 		assert.Equal(t, idmaps, expected)
 	}
