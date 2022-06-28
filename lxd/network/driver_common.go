@@ -733,7 +733,7 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 	return peers
 }
 
-// forwardValidate valites the forward request.
+// forwardValidate validates the forward request.
 func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwardPut) ([]*forwardPortMap, error) {
 	if listenAddress == nil {
 		return nil, fmt.Errorf("Invalid listen address")
@@ -996,7 +996,7 @@ func (n *common) PeerDelete(peerName string) error {
 	return ErrNotImplemented
 }
 
-// peerValidate valites the peer request.
+// peerValidate validates the peer request.
 func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 	err := acl.ValidName(peerName)
 	if err != nil {
