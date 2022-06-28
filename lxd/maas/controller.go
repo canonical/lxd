@@ -332,6 +332,7 @@ func (c *Controller) UpdateContainer(inst Instance, interfaces []ContainerInterf
 					if subnet.Address == "" || subnet.Address == link.IPAddress() {
 						found = true
 					}
+
 					break
 				}
 			}
