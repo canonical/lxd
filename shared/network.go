@@ -244,6 +244,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 				logger.Debug("WebsocketRecvStream didn't write all of buf")
 				break
 			}
+
 			if err != nil {
 				logger.Debug("WebsocketRecvStream error writing buf", logger.Ctx{"err": err})
 				break
@@ -354,11 +355,13 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 			logger.Debug("DefaultWriter got error writing to writer", logger.Ctx{"err": err})
 			break
 		}
+
 		i, err := w.Write(buf)
 		if i != len(buf) {
 			logger.Debug("DefaultWriter didn't write all of buf")
 			break
 		}
+
 		if err != nil {
 			logger.Debug("DefaultWriter error writing buf", logger.Ctx{"err": err})
 			break

@@ -19,6 +19,7 @@ func systemCertPool() (*x509.CertPool, error) {
 	if systemRoots == nil {
 		return nil, fmt.Errorf("Bad system root pool")
 	}
+
 	return systemRoots, nil
 }
 
@@ -30,6 +31,7 @@ func initSystemRoots() {
 		systemRoots = nil
 		return
 	}
+
 	defer windows.CertCloseStore(store, 0)
 
 	roots := x509.NewCertPool()
@@ -45,6 +47,7 @@ func initSystemRoots() {
 			systemRoots = nil
 			return
 		}
+
 		if cert == nil {
 			break
 		}

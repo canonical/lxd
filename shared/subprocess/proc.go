@@ -123,6 +123,7 @@ func (p *Process) start(fds []*os.File) error {
 	} else {
 		cmd = exec.Command(p.Name, p.Args...)
 	}
+
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
 	cmd.Stdin = p.Stdin
@@ -130,6 +131,7 @@ func (p *Process) start(fds []*os.File) error {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
+
 	cmd.SysProcAttr.Setsid = true
 
 	if p.UID != 0 || p.GID != 0 {
@@ -210,6 +212,7 @@ func (p *Process) Reload() error {
 		if err != nil {
 			return fmt.Errorf("Could not reload process: %w", err)
 		}
+
 		return nil
 	} else if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning
@@ -242,6 +245,7 @@ func (p *Process) Signal(signal int64) error {
 		if err != nil {
 			return fmt.Errorf("Could not signal process: %w", err)
 		}
+
 		return nil
 	} else if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning

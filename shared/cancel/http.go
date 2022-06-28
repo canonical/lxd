@@ -44,6 +44,7 @@ func (c *HTTPRequestCanceller) Cancel() error {
 		cancel()
 		delete(c.reqCancel, req)
 	}
+
 	c.lock.Unlock()
 
 	return nil
