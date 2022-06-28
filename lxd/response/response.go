@@ -328,6 +328,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = f.Close() }()
 
 			fi, err := f.Stat()
@@ -369,6 +370,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = fd.Close() }()
 
 			rd = fd
