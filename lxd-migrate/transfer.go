@@ -122,6 +122,7 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 		_ = cmd.Wait()
 		return nil, nil, nil, err
 	}
+
 	_ = l.Close()
 
 	return cmd, conn, stderr, nil

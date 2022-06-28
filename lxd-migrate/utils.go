@@ -103,6 +103,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = f.Close() }()
 
 		conn := &shared.WebsocketIO{Conn: wsFs}
@@ -143,6 +144,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
+
 	clientFingerprint := ""
 
 	if authType == "tls" {
@@ -195,6 +197,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 		if err != nil {
 			return nil, "", err
 		}
+
 		_ = f.Close()
 
 		jar, err := cookiejar.New(
@@ -276,12 +279,14 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 				if err != nil {
 					return nil, "", err
 				}
+
 				fmt.Println("")
 
 				// Add client certificate to trust store
 				req := api.CertificatesPost{
 					Password: string(pwd),
 				}
+
 				req.Type = api.CertificateTypeClient
 
 				err = c.CreateCertificate(req)
