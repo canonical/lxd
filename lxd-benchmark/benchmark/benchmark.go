@@ -20,6 +20,7 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 	if err != nil {
 		return err
 	}
+
 	env := server.Environment
 	fmt.Printf("Test environment:\n")
 	fmt.Printf("  Server backend: %s\n", env.Server)
@@ -232,6 +233,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
 		fingerprint = fp
 
 		imageServer, err := defaultConfig.GetImageServer(remote)
