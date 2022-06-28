@@ -41,6 +41,7 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 	if ok {
 		requestor.Address = val
 	}
+
 	return requestor
 }
 
