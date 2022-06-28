@@ -169,6 +169,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		network.SRIOVVirtualFunctionMutex.Unlock()
 		return nil, err
 	}
+
 	network.SRIOVVirtualFunctionMutex.Unlock()
 
 	if d.inst.Type() == instancetype.Container {
@@ -241,6 +242,7 @@ func (d *nicSRIOV) postStop() error {
 		network.SRIOVVirtualFunctionMutex.Unlock()
 		return err
 	}
+
 	network.SRIOVVirtualFunctionMutex.Unlock()
 
 	return nil

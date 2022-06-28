@@ -21,6 +21,7 @@ func TestDiskAddRootUserNSEntry(t *testing.T) {
 			Nsid:     0,
 		},
 	}
+
 	assert.Equal(t, idmaps, expected)
 
 	// Check doesn't add another one if an existing combined entry exists.
@@ -55,6 +56,7 @@ func TestDiskAddRootUserNSEntry(t *testing.T) {
 			Nsid:     0,
 		},
 	}
+
 	assert.Equal(t, idmaps, expected)
 
 	// Check adds a root uid entry if root gid entry already exists.
@@ -85,5 +87,6 @@ func TestDiskAddRootUserNSEntry(t *testing.T) {
 			Nsid:     0,
 		},
 	}
+
 	assert.Equal(t, idmaps, expected)
 }

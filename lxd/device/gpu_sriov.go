@@ -231,6 +231,7 @@ func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error)
 	if err != nil {
 		return 0, err
 	}
+
 	sriovNumVfsStr := strings.TrimSpace(string(sriovNumVfsBuf))
 	sriovNum, err := strconv.Atoi(sriovNumVfsStr)
 	if err != nil {
