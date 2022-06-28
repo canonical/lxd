@@ -12,19 +12,18 @@ type ClusterGroupAction string
 
 // All supported lifecycle events for cluster groups.
 const (
-	ClusterGroupCreated = ClusterGroupAction("created")
-	ClusterGroupDeleted = ClusterGroupAction("deleted")
-	ClusterGroupUpdated = ClusterGroupAction("updated")
-	ClusterGroupRenamed = ClusterGroupAction("renamed")
+	ClusterGroupCreated = ClusterGroupAction(api.EventLifecycleClusterGroupCreated)
+	ClusterGroupDeleted = ClusterGroupAction(api.EventLifecycleClusterGroupDeleted)
+	ClusterGroupUpdated = ClusterGroupAction(api.EventLifecycleClusterGroupUpdated)
+	ClusterGroupRenamed = ClusterGroupAction(api.EventLifecycleClusterGroupRenamed)
 )
 
 // Event creates the lifecycle event for an action on a cluster group.
 func (a ClusterGroupAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("cluster-group-%s", a)
 	u := fmt.Sprintf("/1.0/cluster/groups/%s", url.PathEscape(name))
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,

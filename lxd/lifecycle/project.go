@@ -12,19 +12,18 @@ type ProjectAction string
 
 // All supported lifecycle events for projects.
 const (
-	ProjectCreated = ProjectAction("created")
-	ProjectDeleted = ProjectAction("deleted")
-	ProjectUpdated = ProjectAction("updated")
-	ProjectRenamed = ProjectAction("renamed")
+	ProjectCreated = ProjectAction(api.EventLifecycleProjectCreated)
+	ProjectDeleted = ProjectAction(api.EventLifecycleProjectDeleted)
+	ProjectUpdated = ProjectAction(api.EventLifecycleProjectUpdated)
+	ProjectRenamed = ProjectAction(api.EventLifecycleProjectRenamed)
 )
 
 // Event creates the lifecycle event for an action on a project.
 func (a ProjectAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("project-%s", a)
 	u := fmt.Sprintf("/1.0/projects/%s", url.PathEscape(name))
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,
