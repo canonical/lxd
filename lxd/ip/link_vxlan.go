@@ -20,24 +20,31 @@ func (vxlan *Vxlan) additionalArgs() []string {
 	if vxlan.DevName != "" {
 		args = append(args, "dev", vxlan.DevName)
 	}
+
 	if vxlan.Group != "" {
 		args = append(args, "group", vxlan.Group)
 	}
+
 	if vxlan.Remote != "" {
 		args = append(args, "remote", vxlan.Remote)
 	}
+
 	if vxlan.Local != "" {
 		args = append(args, "local", vxlan.Local)
 	}
+
 	if vxlan.TTL != "" {
 		args = append(args, "ttl", vxlan.TTL)
 	}
+
 	if vxlan.DstPort != "" {
 		args = append(args, "dstport", vxlan.DstPort)
 	}
+
 	if vxlan.FanMap != "" {
 		args = append(args, "fan-map", vxlan.FanMap)
 	}
+
 	return args
 }
 
