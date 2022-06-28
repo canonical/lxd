@@ -86,6 +86,7 @@ func TestLoad_Error(t *testing.T) {
 			"cannot set 'bar' to '': unknown key (and 1 more errors)",
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			_, err := config.Load(c.schema, c.values)
@@ -103,6 +104,7 @@ func TestChange(t *testing.T) {
 		"yuk": {Type: config.Bool, Default: "true"},
 		"xyz": {Hidden: true},
 	}
+
 	values := map[string]string{ // Initial values
 		"foo": "hello",
 		"bar": "x",
@@ -172,6 +174,7 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 		"foo": {Type: config.Bool},
 		"bar": {Default: "egg"},
 	}
+
 	values := map[string]string{"foo": "true"} // Initial values
 
 	cases := []struct {
@@ -205,6 +208,7 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 			map[string]string{"foo": "false", "bar": "baz"},
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			m, err := config.Load(schema, values)
@@ -271,11 +275,13 @@ func TestMap_Dump(t *testing.T) {
 		"bar": {Default: "x"},
 		"egg": {Hidden: true},
 	}
+
 	values := map[string]string{
 		"foo": "hello",
 		"bar": "x",
 		"egg": "123",
 	}
+
 	m, err := config.Load(schema, values)
 	assert.NoError(t, err)
 
@@ -283,6 +289,7 @@ func TestMap_Dump(t *testing.T) {
 		"foo": "hello",
 		"egg": true,
 	}
+
 	assert.Equal(t, dump, m.Dump())
 }
 
@@ -293,6 +300,7 @@ func TestMap_Getters(t *testing.T) {
 		"bar": {Type: config.Bool},
 		"egg": {Type: config.Int64},
 	}
+
 	values := map[string]string{
 		"foo": "hello",
 		"bar": "true",

@@ -35,6 +35,7 @@ func isNotEmptyString(value string) error {
 	if value == "" {
 		return fmt.Errorf("empty value not valid")
 	}
+
 	return nil
 }
 
