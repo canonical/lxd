@@ -1,8 +1,13 @@
 (storage-btrfs)=
 # Btrfs - `btrfs`
 
+## `btrfs` driver in LXD
+
  - Uses a subvolume per instance, image and snapshot, creating Btrfs snapshots when creating a new object.
  - Btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on Btrfs. (But see notes about Btrfs quota via qgroups.)
+
+### Quotas
+
  - Btrfs supports storage quotas via qgroups. While Btrfs qgroups are
    hierarchical, new subvolumes will not automatically be added to the qgroups
    of their parent subvolumes. This means that users can trivially escape any

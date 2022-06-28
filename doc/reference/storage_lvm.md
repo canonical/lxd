@@ -1,6 +1,8 @@
 (storage-lvm)=
 # LVM - `lvm`
 
+## `lvm` driver in LXD
+
  - Uses LVs for images, then LV snapshots for instances and instance snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
  - By default, all LVM storage pools use an LVM thinpool in which logical

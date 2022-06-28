@@ -1,6 +1,8 @@
 (storage-ceph)=
 # Ceph - `ceph`
 
+## `ceph` driver in LXD
+
 - Uses RBD images for images, then snapshots and clones to create instances
   and snapshots.
 - Due to the way copy-on-write works in RBD, parent filesystems can't be
@@ -10,6 +12,9 @@
 - Note that LXD will assume it has full control over the osd storage pool.
   It is recommended to not maintain any non-LXD owned filesystem entities in
   a LXD OSD storage pool since LXD might delete them.
+
+### Limitations
+
 - Note that sharing the same osd storage pool between multiple LXD instances is
   not supported. LXD only allows sharing of an OSD storage pool between
   multiple LXD instances only for backup purposes of existing instances via
