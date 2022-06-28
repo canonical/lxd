@@ -134,6 +134,7 @@ func parseConfig(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	var config []string
@@ -187,6 +188,7 @@ func parseConfig(path string) ([]string, error) {
 
 					config = append(config, c...)
 				}
+
 				continue
 			}
 		// Expand any fstab
@@ -200,6 +202,7 @@ func parseConfig(path string) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			defer func() { _ = file.Close() }()
 
 			sc := bufio.NewScanner(file)
