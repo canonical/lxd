@@ -68,6 +68,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	d.db.Node = db.DirectAccess(sqldb)
 
 	// Load the configured address from the database
@@ -100,6 +101,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = sqldb.Close() }()
 
 	d.db.Cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)

@@ -269,6 +269,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
+
 		architectures = append(architectures, architectureName)
 	}
 
@@ -505,6 +506,7 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	err = util.EtagCheck(r, render)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -590,6 +592,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		} else {
 			nodeChanged, err = newNodeConfig.Replace(nodeValues)
 		}
+
 		return err
 	})
 	if err != nil {
@@ -635,6 +638,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		} else {
 			clusterChanged, err = newClusterConfig.Replace(req.Config)
 		}
+
 		return err
 	})
 	if err != nil {
@@ -651,17 +655,20 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	err = notifier(func(client lxd.InstanceServer) error {
 		server, etag, err := client.GetServer()
 		if err != nil {
 			return err
 		}
+
 		serverPut := server.Writable()
 		serverPut.Config = make(map[string]any)
 		// Only propagated cluster-wide changes
 		for key, value := range clusterChanged {
 			serverPut.Config[key] = value
 		}
+
 		return client.UpdateServer(serverPut, etag)
 	})
 	if err != nil {
@@ -724,6 +731,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			if err != nil {
 				logger.Warn("Could not auto-sync images", logger.Ctx{"err": err})
 			}
+
 		case "cluster.offline_threshold":
 			d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
 			d.taskClusterHeartbeat.Reset()
@@ -733,6 +741,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			if !d.os.MockMode {
 				d.taskPruneImages.Reset()
 			}
+
 		case "rbac.agent.url":
 			fallthrough
 		case "rbac.agent.username":
@@ -776,6 +785,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		if err != nil {
 			return err
 		}
+
 		d.endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
 	}
 
@@ -785,6 +795,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		if err != nil {
 			return err
 		}
+
 		d.endpoints.NetworkUpdateTrustedProxy(clusterConfig.HTTPSTrustedProxy())
 	}
 

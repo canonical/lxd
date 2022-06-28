@@ -81,6 +81,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 			Name:   "default",
 			Driver: c.flagStorageBackend,
 		}
+
 		pool.Config = map[string]string{}
 
 		if c.flagStorageDevice != "" {

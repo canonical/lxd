@@ -451,6 +451,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		if response.IsNotFoundError(err) {
 			return fmt.Errorf("Pool not pending on any node (use --target <node> first)")
 		}
+
 		return err
 	}
 
@@ -472,6 +473,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	if err != nil {
 		return err
 	}
+
 	req.Config = updatedConfig
 	logger.Debug("Created storage pool on local cluster member", logger.Ctx{"pool": req.Name})
 
@@ -505,6 +507,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		if err != nil {
 			return err
 		}
+
 		logger.Debug("Created storage pool on cluster member", logger.Ctx{"pool": req.Name, "member": server.Environment.ServerName})
 
 		return nil
@@ -520,6 +523,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	if err != nil {
 		return err
 	}
+
 	logger.Debug("Marked storage pool global status as created", logger.Ctx{"pool": req.Name})
 
 	return nil
@@ -967,6 +971,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		return client.DeleteStoragePool(pool.Name())
 	})
 	if err != nil {

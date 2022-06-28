@@ -39,6 +39,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 		},
 		allConnected: make(chan struct{}),
 	}
+
 	ret.instanceOnly = instanceOnly
 
 	var err error
@@ -191,6 +192,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		// default to 10
 		maxIterations = 10
 	}
+
 	if maxIterations > 999 {
 		// the pre-dump directory is hardcoded to a string
 		// with maximal 3 digits. 999 pre-dumps makes no
@@ -198,6 +200,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		// is not higher than this.
 		maxIterations = 999
 	}
+
 	logger.Debugf("Using maximal %d iterations for pre-dumping", maxIterations)
 
 	return usePreDumps, maxIterations
@@ -339,6 +342,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 		s.sendControl(err)
 		return final, err
 	}
+
 	logger.Debugf("Sending another header done")
 
 	return final, nil
@@ -589,6 +593,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
 					}
+
 					return nil
 				},
 				nil,
@@ -640,6 +645,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					} else {
 						final = true
 					}
+
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 					loopArgs := preDumpLoopArgs{
 						checkpointDir: checkpointDir,
@@ -649,11 +655,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 						final:         final,
 						rsyncFeatures: rsyncFeatures,
 					}
+
 					final, err = s.preDumpLoop(state, &loopArgs)
 					if err != nil {
 						_ = os.RemoveAll(checkpointDir)
 						return abort(err)
 					}
+
 					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
 					preDumpCounter++
 				}
@@ -845,6 +853,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		if err != nil {
 			return err
 		}
+
 		defer c.src.disconnect()
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
@@ -993,6 +1002,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				if err != nil {
 					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 				}
+
 				revert.Add(cleanup)
 				defer snapInstOp.Done(err)
 			}
@@ -1079,6 +1089,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				Hostid:   int64(*idmapSet.Hostid),
 				Maprange: int64(*idmapSet.Maprange),
 			}
+
 			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 		}
 
@@ -1207,6 +1218,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 						restore <- err
 						return
 					}
+
 					l.Debug("Done receiving from rsync")
 
 					l.Debug("About to receive header")
@@ -1217,10 +1229,12 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 						restore <- err
 						return
 					}
+
 					if mtype != websocket.BinaryMessage {
 						restore <- err
 						return
 					}
+
 					err = proto.Unmarshal(data, sync)
 					if err != nil {
 						restore <- err

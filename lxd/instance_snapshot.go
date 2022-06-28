@@ -143,6 +143,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -263,6 +264,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -347,6 +349,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -355,6 +358,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, containerName+shared.SnapshotDelimiter+snapshotName)
 	if err != nil {
 		return response.SmartError(err)

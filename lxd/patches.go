@@ -103,6 +103,7 @@ func patchesGetNames() []string {
 
 		names[i] = patch.name
 	}
+
 	return names
 }
 
@@ -199,6 +200,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	if err != nil {
 		return err
 	}
+
 	logger.Infof("Added local server certificate to global trust store for %q patch", name)
 
 	// Check all other members have done the same.
@@ -716,6 +718,7 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
+
 		for _, node := range nodes {
 			err := tx.UpdateNodeRoles(node.ID, nil)
 			if err != nil {

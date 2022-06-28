@@ -86,6 +86,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -106,6 +107,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// If missing, just return empty result
@@ -119,6 +121,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	defer func() { _ = metadataFile.Close() }()
 
 	data, err := ioutil.ReadAll(metadataFile)
@@ -193,6 +196,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -213,6 +217,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
 	// Read the existing data.
@@ -223,6 +228,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
+
 		defer func() { _ = metadataFile.Close() }()
 
 		data, err := ioutil.ReadAll(metadataFile)
@@ -308,6 +314,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -335,6 +342,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
 	return doInstanceMetadataUpdate(d, inst, metadata, r)
@@ -428,6 +436,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -448,6 +457,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request
@@ -490,6 +500,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = template.Close() }()
 
 	tempfile, err := ioutil.TempFile("", "lxd_template")
@@ -575,6 +586,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -595,6 +607,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request
@@ -690,6 +703,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -710,6 +724,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	defer func() { _ = storagePools.InstanceUnmount(pool, c, nil) }()
 
 	// Look at the request

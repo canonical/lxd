@@ -230,6 +230,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 				Key:         key,
 				Description: fmt.Sprintf("\"%s\" property for storage pool \"%s\"", key, pool),
 			}
+
 			keys = append(keys, key)
 		}
 	}
@@ -246,6 +247,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 				Key:         key,
 				Description: fmt.Sprintf("\"%s\" property for network \"%s\"", key, network),
 			}
+
 			keys = append(keys, key)
 		}
 	}
@@ -304,6 +306,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 	if req.ServerName == "" && req.Enabled {
 		return response.BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
 	}
+
 	if req.ServerName != "" && !req.Enabled {
 		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
 	}
@@ -357,6 +360,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 		return nil
 	}
+
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
@@ -471,6 +475,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			if err != nil {
 				return response.SmartError(err)
 			}
+
 			address = req.ServerAddress
 		}
 
@@ -480,6 +485,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
+
 			_, err = config.Patch(map[string]any{
 				"cluster.https_address": address,
 			})
@@ -550,6 +556,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if err != nil {
 			return fmt.Errorf("Failed to initialize member: %w", err)
 		}
+
 		revert.Add(localRevert)
 
 		// Get all defined storage pools and networks, so they can be compared to the ones in the cluster.
@@ -564,6 +571,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			if err != nil {
 				return err
 			}
+
 			pools = append(pools, *pool)
 		}
 
@@ -804,6 +812,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		if !shared.PathExists(path) {
 			continue
 		}
+
 		err := os.Remove(path)
 		if err != nil {
 			return response.InternalError(err)
@@ -1012,6 +1021,7 @@ func clusterAcceptMember(client lxd.InstanceServer, name string, address string,
 		Networks:     networks,
 		Architecture: architecture,
 	}
+
 	info := &internalClusterPostAcceptResponse{}
 	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", req, "")
 	if err != nil {
@@ -1566,6 +1576,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		if err != nil {
 			return fmt.Errorf("Update cluster groups: %w", err)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -1788,6 +1799,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		err = client.DeleteClusterMember(name, force == 1)
 		if err != nil {
 			return response.SmartError(err)
@@ -2078,10 +2090,12 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	if address != leader {
 		logger.Debugf("Redirect member accept request to %s", leader)
 
@@ -2094,6 +2108,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 			Path:   "/internal/cluster/accept",
 			Host:   leader,
 		}
+
 		return response.SyncResponseRedirect(url.String())
 	}
 
@@ -2107,6 +2122,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	err = clusterCheckNetworksMatch(d.db.Cluster, req.Networks)
 	if err != nil {
 		return response.SmartError(err)
@@ -2116,15 +2132,18 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	accepted := internalClusterPostAcceptResponse{
 		RaftNodes:  make([]internalRaftNode, len(nodes)),
 		PrivateKey: d.endpoints.NetworkPrivateKey(),
 	}
+
 	for i, node := range nodes {
 		accepted.RaftNodes[i].ID = node.ID
 		accepted.RaftNodes[i].Address = node.Address
 		accepted.RaftNodes[i].Role = int(node.Role)
 	}
+
 	return response.SyncResponse(true, accepted)
 }
 
@@ -2168,10 +2187,12 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	if localAddress != leader {
 		logger.Debugf("Redirect cluster rebalance request to %s", leader)
 		url := &url.URL{
@@ -2179,6 +2200,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 			Path:   "/internal/cluster/rebalance",
 			Host:   leader,
 		}
+
 		return response.SyncResponseRedirect(url.String())
 	}
 
@@ -2263,6 +2285,7 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get current cluster nodes: %w", err)
 	}
+
 	return cluster.UpgradeMembersWithoutRole(d.gateway, allNodes)
 }
 
@@ -2299,6 +2322,7 @@ func handoverMemberRole(d *Daemon) error {
 	if err != nil {
 		return err
 	}
+
 	if !clustered {
 		return nil
 	}
@@ -2321,6 +2345,7 @@ findLeader:
 	if err != nil {
 		return err
 	}
+
 	if leader == "" {
 		return fmt.Errorf("No leader address found")
 	}
@@ -2331,6 +2356,7 @@ findLeader:
 		if err != nil {
 			return fmt.Errorf("Failed to transfer leadership: %w", err)
 		}
+
 		goto findLeader
 	}
 
@@ -2407,6 +2433,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
@@ -2423,6 +2450,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 			Path:   "/internal/cluster/handover",
 			Host:   leader,
 		}
+
 		return response.SyncResponseRedirect(url.String())
 	}
 
@@ -2475,17 +2503,20 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	}
+
 	for _, name := range poolNames {
 		found := false
 		for _, reqPool := range reqPools {
 			if reqPool.Name != name {
 				continue
 			}
+
 			found = true
 			_, pool, _, err := cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
+
 			if pool.Driver != reqPool.Driver {
 				return fmt.Errorf("Mismatching driver for storage pool %s", name)
 			}
@@ -2495,8 +2526,10 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			if err != nil {
 				return fmt.Errorf("Mismatching config for storage pool %s: %w", name, err)
 			}
+
 			break
 		}
+
 		if !found {
 			return fmt.Errorf("Missing storage pool %s", name)
 		}
@@ -2827,6 +2860,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return fmt.Errorf("Failed to connect to destination: %w", err)
 			}
+
 			dest = dest.UseProject(inst.Project())
 
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
@@ -3270,6 +3304,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			result, err = tx.GetClusterGroupURIs(db.ClusterGroupFilter{})
 		}
+
 		return err
 	})
 	if err != nil {

@@ -834,6 +834,7 @@ func (d *Daemon) init() error {
 		"idmapped_mounts_v2",
 		"core_scheduling",
 	}
+
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
 	}
@@ -858,6 +859,7 @@ func (d *Daemon) init() error {
 	if canUsePidFds() && d.os.LXCFeatures["pidfd"] {
 		d.os.PidFds = true
 	}
+
 	if d.os.PidFds {
 		logger.Info(" - pidfds: yes")
 	} else {
@@ -980,6 +982,7 @@ func (d *Daemon) init() error {
 			logger.Warn("Unable to access device nodes, LXD likely running on a nodev mount")
 			d.os.Nodev = true
 		}
+
 		_ = fd.Close()
 		_ = os.Remove(testDev)
 	}
@@ -1034,6 +1037,7 @@ func (d *Daemon) init() error {
 	if shared.StringInSlice("dqlite", trace) {
 		clusterLogLevel = "TRACE"
 	}
+
 	d.gateway, err = cluster.NewGateway(
 		d.shutdownCtx,
 		d.db.Node,
@@ -1044,6 +1048,7 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
+
 	d.gateway.HeartbeatNodeHook = d.nodeRefreshTask
 
 	/* Setup some mounts (nice to have) */
@@ -1102,6 +1107,7 @@ func (d *Daemon) init() error {
 		MetricsAddress:       metricsAddress,
 		MetricsServer:        metricsServer(d),
 	}
+
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
 		return err
@@ -1178,6 +1184,7 @@ func (d *Daemon) init() error {
 		// offline.
 		logger.Warn("Could not notify all nodes of database upgrade", logger.Ctx{"err": err})
 	}
+
 	d.gateway.Cluster = d.db.Cluster
 
 	// This logic used to belong to patchUpdateFromV10, but has been moved
@@ -1339,6 +1346,7 @@ func (d *Daemon) init() error {
 		if err != nil {
 			return err
 		}
+
 		logger.Info("Started BGP server")
 	}
 
@@ -1349,6 +1357,7 @@ func (d *Daemon) init() error {
 		if err != nil {
 			return nil, err
 		}
+
 		zoneInfo := zone.Info()
 
 		// Fill in the zone information.
@@ -1382,6 +1391,7 @@ func (d *Daemon) init() error {
 		if err != nil {
 			return err
 		}
+
 		logger.Info("Started DNS server")
 	}
 
@@ -1429,6 +1439,7 @@ func (d *Daemon) init() error {
 			if err != nil {
 				return err
 			}
+
 			d.seccomp = seccompServer
 			logger.Info("Started seccomp handler", logger.Ctx{"path": shared.VarPath("seccomp.socket")})
 		}
@@ -1758,8 +1769,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		if n > 1 {
 			format += fmt.Sprintf(" (and %d more errors)", n)
 		}
+
 		err = fmt.Errorf(format, errs[0])
 	}
+
 	if err != nil {
 		logger.Error("Failed to cleanly shutdown daemon", logger.Ctx{"err": err})
 	}
@@ -1944,6 +1957,7 @@ func initializeDbObject(d *Daemon) error {
 		}
 		return nil
 	}
+
 	var err error
 	d.db.Node, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook)
 	if err != nil {
@@ -1997,6 +2011,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 				}
 			}
 		}
+
 		d.timeSkew = true
 	} else {
 		if d.timeSkew {
@@ -2181,6 +2196,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localAddress})
 			}
+
 			d.clusterMembershipMutex.Unlock()
 		}
 
@@ -2191,6 +2207,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localAddress})
 			}
+
 			d.clusterMembershipMutex.Unlock()
 		}
 	}

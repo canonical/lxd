@@ -59,6 +59,7 @@ type deviceTaskCPU struct {
 	strId string
 	count *int
 }
+
 type deviceTaskCPUs []deviceTaskCPU
 
 func (c deviceTaskCPUs) Len() int           { return len(c) }
@@ -110,6 +111,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				// Skip the header that libudev prepends
 				ueventBuf = ueventBuf[40 : len(ueventBuf)-1]
 			}
+
 			ueventLen := 0
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			for i, part := range ueventParts {
@@ -317,6 +319,7 @@ func deviceTaskBalance(s *state.State) {
 		if x < y {
 			return x
 		}
+
 		return y
 	}
 
@@ -396,6 +399,7 @@ func deviceTaskBalance(s *state.State) {
 			if err != nil {
 				return
 			}
+
 			for _, nr := range containerCpus {
 				if !shared.Int64InSlice(nr, cpus) {
 					continue
@@ -431,6 +435,7 @@ func deviceTaskBalance(s *state.State) {
 			logger.Errorf("Internal error: container using unavailable cpu")
 			continue
 		}
+
 		id := c.strId
 		for _, ctn := range ctns {
 			_, ok := pinning[ctn]
@@ -454,6 +459,7 @@ func deviceTaskBalance(s *state.State) {
 			if count == 0 {
 				break
 			}
+
 			count -= 1
 
 			id := cpu.strId
@@ -558,6 +564,7 @@ func deviceEventListener(s *state.State) {
 			if err != nil {
 				logger.Warn("Failed to auto-attach network", logger.Ctx{"err": err})
 			}
+
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
 		case e := <-chUnix:

@@ -90,6 +90,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			if err != nil {
 				return nil, fmt.Errorf("Failed to connect to LXD server %q: %w", args.Server, err)
 			}
+
 			server, ok := remote.(lxd.InstanceServer)
 			if ok {
 				remote = server.UseProject(args.SourceProjectName)
@@ -133,6 +134,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	if err != nil {
 		return nil, err
 	}
+
 	if args.PreferCached && interval > 0 && alias != fp {
 		for _, architecture := range d.os.Architectures {
 			cachedFingerprint, err := d.db.Cluster.GetCachedImageSourceFingerprint(args.Server, args.Protocol, alias, args.Type, architecture)
@@ -253,6 +255,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	} else {
 		ctxMap = logger.Ctx{"trigger": op.URL(), "fingerprint": fp, "operation": op.ID(), "alias": alias, "server": args.Server}
 	}
+
 	logger.Info("Downloading image", ctxMap)
 
 	// Cleanup any leftover from a past attempt
@@ -297,12 +300,14 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = dest.Close() }()
 
 		destRootfs, err := os.Create(destName + ".rootfs")
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = destRootfs.Close() }()
 
 		// Get the image information
@@ -328,6 +333,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if info.Type == "" {
 			info.Type = "container"
 		}
+
 		if args.Budget > 0 && info.Size > args.Budget {
 			return nil, fmt.Errorf("Remote image with size %d exceeds allowed bugdget of %d", info.Size, args.Budget)
 		}
@@ -354,6 +360,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		} else {
 			resp, err = remote.GetImageFile(fp, request)
 		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -407,6 +414,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			return nil, err
 		}
+
 		defer close(doneCh)
 
 		if raw.StatusCode != http.StatusOK {
@@ -429,6 +437,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = f.Close() }()
 
 		// Hashing
