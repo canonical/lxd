@@ -417,6 +417,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 			Refresh:    args.Refresh,
 		},
 	}
+
 	req.Config = volume.Config
 	req.Description = volume.Description
 	req.ContentType = volume.ContentType
@@ -437,6 +438,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 			if !r.HasExtension("storage_api_project") {
 				return nil, fmt.Errorf("The server is missing the required \"storage_api_project\" API extension")
 			}
+
 			req.Source.Project = sourceInfo.Project
 		}
 
@@ -469,6 +471,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		Name:      volume.Name,
 		Pool:      sourcePool,
 	}
+
 	if args != nil {
 		sourceReq.VolumeOnly = args.VolumeOnly
 	}
@@ -493,6 +496,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		if err != nil {
 			return nil, err
 		}
+
 		opAPI := op.Get()
 
 		targetSecrets := map[string]string{}
@@ -521,6 +525,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	if err != nil {
 		return nil, err
 	}
+
 	opAPI := op.Get()
 
 	// Prepare source server secrets for remote
@@ -543,6 +548,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 		if err != nil {
 			return nil, err
 		}
+
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
@@ -601,6 +607,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 		if !r.HasExtension("storage_volume_project_move") {
 			return nil, fmt.Errorf("The server is missing the required \"storage_volume_project_move\" API extension")
 		}
+
 		req.Project = args.Project
 	}
 
@@ -665,6 +672,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	if !r.HasExtension("storage_api_volume_rename") {
 		return fmt.Errorf("The server is missing the required \"storage_api_volume_rename\" API extension")
 	}
+
 	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.PathEscape(pool), url.PathEscape(volType), url.PathEscape(name))
 
 	// Send the request
@@ -800,6 +808,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = response.Body.Close() }()
 	defer close(doneCh)
 
@@ -869,6 +878,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors.

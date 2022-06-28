@@ -83,6 +83,7 @@ func (r *ProtocolLXD) GetImageSecret(fingerprint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	opAPI := op.Get()
 
 	return opAPI.Metadata["secret"].(string), nil
@@ -176,6 +177,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = response.Body.Close() }()
 	defer close(doneCh)
 
@@ -240,6 +242,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 		if err != nil {
 			return nil, err
 		}
+
 		resp.MetaSize = size
 		resp.MetaName = part.FileName()
 
@@ -257,6 +260,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 		if err != nil {
 			return nil, err
 		}
+
 		resp.RootfsSize = size
 		resp.RootfsName = part.FileName()
 
@@ -284,6 +288,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 	if err != nil {
 		return nil, err
 	}
+
 	resp.MetaSize = size
 	resp.MetaName = filename
 
@@ -408,6 +413,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 		// Setup the multipart writer
@@ -430,6 +436,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		} else {
 			fw, err = w.CreateFormFile("rootfs", args.RootfsName)
 		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -529,6 +536,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
