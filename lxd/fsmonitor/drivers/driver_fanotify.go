@@ -143,8 +143,10 @@ func (d *fanotify) getEvents(mountFd int) {
 			if errno != unix.ESTALE {
 				d.logger.Error("Failed to open file", logger.Ctx{"err": err})
 			}
+
 			continue
 		}
+
 		unix.CloseOnExec(fd)
 
 		// Determine the directory of the created or deleted file.
@@ -153,6 +155,7 @@ func (d *fanotify) getEvents(mountFd int) {
 			d.logger.Error("Failed to read symlink", logger.Ctx{"err": err})
 			continue
 		}
+
 		_ = unix.Close(fd)
 
 		// If the target file has been deleted, the returned value might contain a " (deleted)" suffix.
@@ -206,6 +209,7 @@ func (d *fanotify) getEvents(mountFd int) {
 
 			break
 		}
+
 		d.mu.Unlock()
 	}
 }
