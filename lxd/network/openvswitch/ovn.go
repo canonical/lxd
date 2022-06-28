@@ -1174,6 +1174,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		if err != nil {
 			return "", nil, nil, err
 		}
+
 		dnsUUID = strings.TrimSpace(dnsUUID)
 	}
 
@@ -1994,6 +1995,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 
 		args = append(args, ipNet.String())
 	}
+
 	args = append(args, fmt.Sprintf("peer=%s", opts.TargetRouterPort))
 
 	// Setup target router port peered with local router port.
@@ -2010,6 +2012,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 
 		args = append(args, ipNet.String())
 	}
+
 	args = append(args, fmt.Sprintf("peer=%s", opts.LocalRouterPort))
 
 	// Add routes using the first router gateway IP for each family for next hop address.

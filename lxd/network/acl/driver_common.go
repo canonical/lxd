@@ -652,6 +652,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
+
 		revert.Add(cleanup)
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
@@ -741,6 +742,7 @@ func (d *common) GetLog(clientType request.ClientType) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
 	}
+
 	defer func() { _ = logFile.Close() }()
 
 	logEntries := []string{}
@@ -774,6 +776,7 @@ func (d *common) GetLog(clientType request.ClientType) (string, error) {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = entries.Close() }()
 
 			// Prevent concurrent writes to the log entries slice.
