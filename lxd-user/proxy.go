@@ -20,6 +20,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client certificate: %w", err)
 	}
+
 	tlsClientCert := string(content)
 
 	// Load the client key.
@@ -27,6 +28,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client key: %w", err)
 	}
+
 	tlsClientKey := string(content)
 
 	// Load the server certificate.
@@ -34,6 +36,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open server certificate: %w", err)
 	}
+
 	tlsServerCert := string(content)
 
 	return shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, "", tlsServerCert, false)
@@ -93,6 +96,7 @@ func proxyConnection(conn *net.UnixConn) {
 		log.Errorf("Unable to connect to target server: %v", err)
 		return
 	}
+
 	defer func() { _ = client.Close() }()
 
 	// Get the TLS configuration
