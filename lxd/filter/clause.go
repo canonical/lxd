@@ -44,12 +44,14 @@ func Parse(s string) ([]Clause, error) {
 		if index == len(parts) {
 			return nil, fmt.Errorf("clause has no operator")
 		}
+
 		clause.Operator = parts[index]
 
 		index++
 		if index == len(parts) {
 			return nil, fmt.Errorf("clause has no value")
 		}
+
 		value := parts[index]
 
 		// support strings with spaces that are quoted
@@ -60,14 +62,18 @@ func Parse(s string) ([]Clause, error) {
 				if index == len(parts) {
 					return nil, fmt.Errorf("unterminated quote")
 				}
+
 				if strings.HasSuffix(parts[index], "\"") {
 					break
 				}
+
 				value += " " + parts[index]
 			}
+
 			end := parts[index]
 			value += " " + end[0:len(end)-1]
 		}
+
 		clause.Value = value
 		index++
 
@@ -77,6 +83,7 @@ func Parse(s string) ([]Clause, error) {
 			if !shared.StringInSlice(prevLogical, []string{"and", "or"}) {
 				return nil, fmt.Errorf("invalid clause composition")
 			}
+
 			index++
 			if index == len(parts) {
 				return nil, fmt.Errorf("unterminated compound clause")

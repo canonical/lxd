@@ -20,6 +20,7 @@ func TestParse_Error(t *testing.T) {
 		"foo eq \"bar egg\" and": "unterminated compound clause",
 		"foo eq bar xxx":         "invalid clause composition",
 	}
+
 	for s, message := range cases {
 		t.Run(s, func(t *testing.T) {
 			clauses, err := filter.Parse(s)
