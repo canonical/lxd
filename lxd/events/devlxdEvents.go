@@ -65,6 +65,7 @@ func (s *DevLXDServer) Send(instanceID int, eventType string, eventMessage any) 
 	if err != nil {
 		return err
 	}
+
 	event := api.Event{
 		Type:      eventType,
 		Timestamp: time.Now(),
@@ -108,6 +109,7 @@ func (s *DevLXDServer) broadcast(instanceID int, event api.Event) error {
 			}
 		}(listener, event)
 	}
+
 	s.lock.Unlock()
 
 	return nil
