@@ -4,7 +4,11 @@
  - Can only be used for custom storage volumes
  - Supports snapshots if enabled on the server side
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `cephfs` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
@@ -14,7 +18,7 @@ cephfs.user.name              | string                        | admin           
 source                        | string                        | -                                       | Existing storage pool or path in storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
