@@ -21,6 +21,7 @@ func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	if m == nil {
 		return features
 	}
+
 	if m.RsyncFeatures != nil {
 		if m.RsyncFeatures.Xattrs != nil && *m.RsyncFeatures.Xattrs {
 			features = append(features, "xattrs")

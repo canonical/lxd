@@ -99,6 +99,7 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		features := ZfsFeatures{
 			Compress: &missingFeature,
 		}
+
 		for _, feature := range preferredType.Features {
 			if feature == "compress" {
 				features.Compress = &hasFeature
@@ -116,6 +117,7 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 			MigrationHeader:  &missingFeature,
 			HeaderSubvolumes: &missingFeature,
 		}
+
 		for _, feature := range preferredType.Features {
 			if feature == BTRFSFeatureMigrationHeader {
 				features.MigrationHeader = &hasFeature

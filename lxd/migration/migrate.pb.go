@@ -41,6 +41,7 @@ var (
 		3: "RBD",
 		4: "BLOCK_AND_RSYNC",
 	}
+
 	MigrationFSType_value = map[string]int32{
 		"RSYNC":           0,
 		"BTRFS":           1,
@@ -102,6 +103,7 @@ var (
 		1: "PHAUL",
 		2: "NONE",
 	}
+
 	CRIUType_value = map[string]int32{
 		"CRIU_RSYNC": 0,
 		"PHAUL":      1,
@@ -180,8 +182,10 @@ func (x *IDMapType) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -194,6 +198,7 @@ func (x *IDMapType) GetIsuid() bool {
 	if x != nil && x.Isuid != nil {
 		return *x.Isuid
 	}
+
 	return false
 }
 
@@ -201,6 +206,7 @@ func (x *IDMapType) GetIsgid() bool {
 	if x != nil && x.Isgid != nil {
 		return *x.Isgid
 	}
+
 	return false
 }
 
@@ -208,6 +214,7 @@ func (x *IDMapType) GetHostid() int32 {
 	if x != nil && x.Hostid != nil {
 		return *x.Hostid
 	}
+
 	return 0
 }
 
@@ -215,6 +222,7 @@ func (x *IDMapType) GetNsid() int32 {
 	if x != nil && x.Nsid != nil {
 		return *x.Nsid
 	}
+
 	return 0
 }
 
@@ -222,6 +230,7 @@ func (x *IDMapType) GetMaprange() int32 {
 	if x != nil && x.Maprange != nil {
 		return *x.Maprange
 	}
+
 	return 0
 }
 
@@ -256,8 +265,10 @@ func (x *Config) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -270,6 +281,7 @@ func (x *Config) GetKey() string {
 	if x != nil && x.Key != nil {
 		return *x.Key
 	}
+
 	return ""
 }
 
@@ -277,6 +289,7 @@ func (x *Config) GetValue() string {
 	if x != nil && x.Value != nil {
 		return *x.Value
 	}
+
 	return ""
 }
 
@@ -311,8 +324,10 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -325,6 +340,7 @@ func (x *Device) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
 	}
+
 	return ""
 }
 
@@ -332,6 +348,7 @@ func (x *Device) GetConfig() []*Config {
 	if x != nil {
 		return x.Config
 	}
+
 	return nil
 }
 
@@ -374,8 +391,10 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -388,6 +407,7 @@ func (x *Snapshot) GetName() string {
 	if x != nil && x.Name != nil {
 		return *x.Name
 	}
+
 	return ""
 }
 
@@ -395,6 +415,7 @@ func (x *Snapshot) GetLocalConfig() []*Config {
 	if x != nil {
 		return x.LocalConfig
 	}
+
 	return nil
 }
 
@@ -402,6 +423,7 @@ func (x *Snapshot) GetProfiles() []string {
 	if x != nil {
 		return x.Profiles
 	}
+
 	return nil
 }
 
@@ -409,6 +431,7 @@ func (x *Snapshot) GetEphemeral() bool {
 	if x != nil && x.Ephemeral != nil {
 		return *x.Ephemeral
 	}
+
 	return false
 }
 
@@ -416,6 +439,7 @@ func (x *Snapshot) GetLocalDevices() []*Device {
 	if x != nil {
 		return x.LocalDevices
 	}
+
 	return nil
 }
 
@@ -423,6 +447,7 @@ func (x *Snapshot) GetArchitecture() int32 {
 	if x != nil && x.Architecture != nil {
 		return *x.Architecture
 	}
+
 	return 0
 }
 
@@ -430,6 +455,7 @@ func (x *Snapshot) GetStateful() bool {
 	if x != nil && x.Stateful != nil {
 		return *x.Stateful
 	}
+
 	return false
 }
 
@@ -437,6 +463,7 @@ func (x *Snapshot) GetCreationDate() int64 {
 	if x != nil && x.CreationDate != nil {
 		return *x.CreationDate
 	}
+
 	return 0
 }
 
@@ -444,6 +471,7 @@ func (x *Snapshot) GetLastUsedDate() int64 {
 	if x != nil && x.LastUsedDate != nil {
 		return *x.LastUsedDate
 	}
+
 	return 0
 }
 
@@ -451,6 +479,7 @@ func (x *Snapshot) GetExpiryDate() int64 {
 	if x != nil && x.ExpiryDate != nil {
 		return *x.ExpiryDate
 	}
+
 	return 0
 }
 
@@ -487,8 +516,10 @@ func (x *RsyncFeatures) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -501,6 +532,7 @@ func (x *RsyncFeatures) GetXattrs() bool {
 	if x != nil && x.Xattrs != nil {
 		return *x.Xattrs
 	}
+
 	return false
 }
 
@@ -508,6 +540,7 @@ func (x *RsyncFeatures) GetDelete() bool {
 	if x != nil && x.Delete != nil {
 		return *x.Delete
 	}
+
 	return false
 }
 
@@ -515,6 +548,7 @@ func (x *RsyncFeatures) GetCompress() bool {
 	if x != nil && x.Compress != nil {
 		return *x.Compress
 	}
+
 	return false
 }
 
@@ -522,6 +556,7 @@ func (x *RsyncFeatures) GetBidirectional() bool {
 	if x != nil && x.Bidirectional != nil {
 		return *x.Bidirectional
 	}
+
 	return false
 }
 
@@ -556,8 +591,10 @@ func (x *ZfsFeatures) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -570,6 +607,7 @@ func (x *ZfsFeatures) GetCompress() bool {
 	if x != nil && x.Compress != nil {
 		return *x.Compress
 	}
+
 	return false
 }
 
@@ -577,6 +615,7 @@ func (x *ZfsFeatures) GetMigrationHeader() bool {
 	if x != nil && x.MigrationHeader != nil {
 		return *x.MigrationHeader
 	}
+
 	return false
 }
 
@@ -612,8 +651,10 @@ func (x *BtrfsFeatures) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -626,6 +667,7 @@ func (x *BtrfsFeatures) GetMigrationHeader() bool {
 	if x != nil && x.MigrationHeader != nil {
 		return *x.MigrationHeader
 	}
+
 	return false
 }
 
@@ -633,6 +675,7 @@ func (x *BtrfsFeatures) GetHeaderSubvolumes() bool {
 	if x != nil && x.HeaderSubvolumes != nil {
 		return *x.HeaderSubvolumes
 	}
+
 	return false
 }
 
@@ -640,6 +683,7 @@ func (x *BtrfsFeatures) GetHeaderSubvolumeUuids() bool {
 	if x != nil && x.HeaderSubvolumeUuids != nil {
 		return *x.HeaderSubvolumeUuids
 	}
+
 	return false
 }
 
@@ -684,8 +728,10 @@ func (x *MigrationHeader) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -698,6 +744,7 @@ func (x *MigrationHeader) GetFs() MigrationFSType {
 	if x != nil && x.Fs != nil {
 		return *x.Fs
 	}
+
 	return MigrationFSType_RSYNC
 }
 
@@ -705,6 +752,7 @@ func (x *MigrationHeader) GetCriu() CRIUType {
 	if x != nil && x.Criu != nil {
 		return *x.Criu
 	}
+
 	return CRIUType_CRIU_RSYNC
 }
 
@@ -712,6 +760,7 @@ func (x *MigrationHeader) GetIdmap() []*IDMapType {
 	if x != nil {
 		return x.Idmap
 	}
+
 	return nil
 }
 
@@ -719,6 +768,7 @@ func (x *MigrationHeader) GetSnapshotNames() []string {
 	if x != nil {
 		return x.SnapshotNames
 	}
+
 	return nil
 }
 
@@ -726,6 +776,7 @@ func (x *MigrationHeader) GetSnapshots() []*Snapshot {
 	if x != nil {
 		return x.Snapshots
 	}
+
 	return nil
 }
 
@@ -733,6 +784,7 @@ func (x *MigrationHeader) GetPredump() bool {
 	if x != nil && x.Predump != nil {
 		return *x.Predump
 	}
+
 	return false
 }
 
@@ -740,6 +792,7 @@ func (x *MigrationHeader) GetRsyncFeatures() *RsyncFeatures {
 	if x != nil {
 		return x.RsyncFeatures
 	}
+
 	return nil
 }
 
@@ -747,6 +800,7 @@ func (x *MigrationHeader) GetRefresh() bool {
 	if x != nil && x.Refresh != nil {
 		return *x.Refresh
 	}
+
 	return false
 }
 
@@ -754,6 +808,7 @@ func (x *MigrationHeader) GetZfsFeatures() *ZfsFeatures {
 	if x != nil {
 		return x.ZfsFeatures
 	}
+
 	return nil
 }
 
@@ -761,6 +816,7 @@ func (x *MigrationHeader) GetVolumeSize() int64 {
 	if x != nil && x.VolumeSize != nil {
 		return *x.VolumeSize
 	}
+
 	return 0
 }
 
@@ -768,6 +824,7 @@ func (x *MigrationHeader) GetBtrfsFeatures() *BtrfsFeatures {
 	if x != nil {
 		return x.BtrfsFeatures
 	}
+
 	return nil
 }
 
@@ -775,6 +832,7 @@ func (x *MigrationHeader) GetIndexHeaderVersion() uint32 {
 	if x != nil && x.IndexHeaderVersion != nil {
 		return *x.IndexHeaderVersion
 	}
+
 	return 0
 }
 
@@ -810,8 +868,10 @@ func (x *MigrationControl) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -824,6 +884,7 @@ func (x *MigrationControl) GetSuccess() bool {
 	if x != nil && x.Success != nil {
 		return *x.Success
 	}
+
 	return false
 }
 
@@ -831,6 +892,7 @@ func (x *MigrationControl) GetMessage() string {
 	if x != nil && x.Message != nil {
 		return *x.Message
 	}
+
 	return ""
 }
 
@@ -864,8 +926,10 @@ func (x *MigrationSync) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -878,6 +942,7 @@ func (x *MigrationSync) GetFinalPreDump() bool {
 	if x != nil && x.FinalPreDump != nil {
 		return *x.FinalPreDump
 	}
+
 	return false
 }
 
@@ -922,8 +987,10 @@ func (x *DumpStatsEntry) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -936,6 +1003,7 @@ func (x *DumpStatsEntry) GetFreezingTime() uint32 {
 	if x != nil && x.FreezingTime != nil {
 		return *x.FreezingTime
 	}
+
 	return 0
 }
 
@@ -943,6 +1011,7 @@ func (x *DumpStatsEntry) GetFrozenTime() uint32 {
 	if x != nil && x.FrozenTime != nil {
 		return *x.FrozenTime
 	}
+
 	return 0
 }
 
@@ -950,6 +1019,7 @@ func (x *DumpStatsEntry) GetMemdumpTime() uint32 {
 	if x != nil && x.MemdumpTime != nil {
 		return *x.MemdumpTime
 	}
+
 	return 0
 }
 
@@ -957,6 +1027,7 @@ func (x *DumpStatsEntry) GetMemwriteTime() uint32 {
 	if x != nil && x.MemwriteTime != nil {
 		return *x.MemwriteTime
 	}
+
 	return 0
 }
 
@@ -964,6 +1035,7 @@ func (x *DumpStatsEntry) GetPagesScanned() uint64 {
 	if x != nil && x.PagesScanned != nil {
 		return *x.PagesScanned
 	}
+
 	return 0
 }
 
@@ -971,6 +1043,7 @@ func (x *DumpStatsEntry) GetPagesSkippedParent() uint64 {
 	if x != nil && x.PagesSkippedParent != nil {
 		return *x.PagesSkippedParent
 	}
+
 	return 0
 }
 
@@ -978,6 +1051,7 @@ func (x *DumpStatsEntry) GetPagesWritten() uint64 {
 	if x != nil && x.PagesWritten != nil {
 		return *x.PagesWritten
 	}
+
 	return 0
 }
 
@@ -985,6 +1059,7 @@ func (x *DumpStatsEntry) GetIrmapResolve() uint32 {
 	if x != nil && x.IrmapResolve != nil {
 		return *x.IrmapResolve
 	}
+
 	return 0
 }
 
@@ -992,6 +1067,7 @@ func (x *DumpStatsEntry) GetPagesLazy() uint64 {
 	if x != nil && x.PagesLazy != nil {
 		return *x.PagesLazy
 	}
+
 	return 0
 }
 
@@ -999,6 +1075,7 @@ func (x *DumpStatsEntry) GetPagePipes() uint64 {
 	if x != nil && x.PagePipes != nil {
 		return *x.PagePipes
 	}
+
 	return 0
 }
 
@@ -1006,6 +1083,7 @@ func (x *DumpStatsEntry) GetPagePipeBufs() uint64 {
 	if x != nil && x.PagePipeBufs != nil {
 		return *x.PagePipeBufs
 	}
+
 	return 0
 }
 
@@ -1043,8 +1121,10 @@ func (x *RestoreStatsEntry) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -1057,6 +1137,7 @@ func (x *RestoreStatsEntry) GetPagesCompared() uint64 {
 	if x != nil && x.PagesCompared != nil {
 		return *x.PagesCompared
 	}
+
 	return 0
 }
 
@@ -1064,6 +1145,7 @@ func (x *RestoreStatsEntry) GetPagesSkippedCow() uint64 {
 	if x != nil && x.PagesSkippedCow != nil {
 		return *x.PagesSkippedCow
 	}
+
 	return 0
 }
 
@@ -1071,6 +1153,7 @@ func (x *RestoreStatsEntry) GetForkingTime() uint32 {
 	if x != nil && x.ForkingTime != nil {
 		return *x.ForkingTime
 	}
+
 	return 0
 }
 
@@ -1078,6 +1161,7 @@ func (x *RestoreStatsEntry) GetRestoreTime() uint32 {
 	if x != nil && x.RestoreTime != nil {
 		return *x.RestoreTime
 	}
+
 	return 0
 }
 
@@ -1085,6 +1169,7 @@ func (x *RestoreStatsEntry) GetPagesRestored() uint64 {
 	if x != nil && x.PagesRestored != nil {
 		return *x.PagesRestored
 	}
+
 	return 0
 }
 
@@ -1119,8 +1204,10 @@ func (x *StatsEntry) ProtoReflect() protoreflect.Message {
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
 		}
+
 		return ms
 	}
+
 	return mi.MessageOf(x)
 }
 
@@ -1133,6 +1220,7 @@ func (x *StatsEntry) GetDump() *DumpStatsEntry {
 	if x != nil {
 		return x.Dump
 	}
+
 	return nil
 }
 
@@ -1140,6 +1228,7 @@ func (x *StatsEntry) GetRestore() *RestoreStatsEntry {
 	if x != nil {
 		return x.Restore
 	}
+
 	return nil
 }
 
@@ -1344,6 +1433,7 @@ var file_lxd_migration_migrate_proto_goTypes = []interface{}{
 	(*RestoreStatsEntry)(nil), // 13: migration.restore_stats_entry
 	(*StatsEntry)(nil),        // 14: migration.stats_entry
 }
+
 var file_lxd_migration_migrate_proto_depIdxs = []int32{
 	3,  // 0: migration.Device.config:type_name -> migration.Config
 	3,  // 1: migration.Snapshot.localConfig:type_name -> migration.Config
@@ -1369,6 +1459,7 @@ func file_lxd_migration_migrate_proto_init() {
 	if File_lxd_migration_migrate_proto != nil {
 		return
 	}
+
 	if !protoimpl.UnsafeEnabled {
 		file_lxd_migration_migrate_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IDMapType); i {
@@ -1527,6 +1618,7 @@ func file_lxd_migration_migrate_proto_init() {
 			}
 		}
 	}
+
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
