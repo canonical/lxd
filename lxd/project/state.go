@@ -45,6 +45,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 	if err != nil {
 		return nil, err
 	}
+
 	result["instances"] = api.ProjectStateResource{
 		Limit: int64(limit),
 		Usage: int64(count),
@@ -54,6 +55,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 	if err != nil {
 		return nil, err
 	}
+
 	result["containers"] = api.ProjectStateResource{
 		Limit: int64(limit),
 		Usage: int64(count),
@@ -63,6 +65,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 	if err != nil {
 		return nil, err
 	}
+
 	result["virtual-machines"] = api.ProjectStateResource{
 		Limit: int64(limit),
 		Usage: int64(count),
@@ -82,6 +85,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 	if err != nil {
 		return nil, err
 	}
+
 	result["networks"] = api.ProjectStateResource{
 		Limit: int64(limit),
 		Usage: int64(len(networks[projectName])),
