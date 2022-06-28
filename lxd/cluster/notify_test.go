@@ -41,6 +41,7 @@ func TestNewNotifier(t *testing.T) {
 		peers <- server.Config["cluster.https_address"].(string)
 		return nil
 	}
+
 	assert.NoError(t, notifier(hook))
 
 	addresses := make([]string, 2)
@@ -94,6 +95,7 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 		i++
 		return nil
 	}
+
 	assert.NoError(t, notifier(hook))
 	assert.Equal(t, 1, i)
 }
@@ -127,8 +129,10 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 			} else {
 				_, err = tx.CreateNode(name, address)
 			}
+
 			require.NoError(h.t, err)
 		}
+
 		return nil
 	})
 	require.NoError(h.t, err)

@@ -45,6 +45,7 @@ func TestHeartbeat(t *testing.T) {
 			err := tx.SetNodeHeartbeat(node.Address, time.Now().Add(-time.Minute))
 			require.NoError(t, err)
 		}
+
 		return nil
 	})
 	require.NoError(t, err)
@@ -66,6 +67,7 @@ func TestHeartbeat(t *testing.T) {
 		for _, node := range nodes {
 			assert.False(t, node.IsOffline(offlineThreshold))
 		}
+
 		return nil
 	})
 	require.NoError(t, err)
@@ -123,6 +125,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 			if err != nil {
 				f.t.Errorf("failed to check leadership: %v", err)
 			}
+
 			if isLeader {
 				return gateway
 			}
@@ -151,6 +154,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 			if err != nil {
 				f.t.Errorf("failed to check leadership: %v", err)
 			}
+
 			if !isLeader {
 				return gateway
 			}
@@ -255,6 +259,7 @@ func (f *heartbeatFixture) Cleanup() {
 	for i := len(f.cleanups) - 1; i >= 0; i-- {
 		f.cleanups[i]()
 	}
+
 	for _, server := range f.servers {
 		server.Close()
 	}
