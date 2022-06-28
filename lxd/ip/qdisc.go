@@ -25,6 +25,7 @@ func (qdisc *Qdisc) mainCmd() []string {
 	if qdisc.Ingress {
 		cmd = append(cmd, "ingress")
 	}
+
 	return cmd
 }
 
@@ -35,6 +36,7 @@ func (qdisc *Qdisc) Add() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -53,6 +55,7 @@ func (qdisc *Qdisc) Delete() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -75,5 +78,6 @@ func (qdisc *QdiscHTB) Add() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

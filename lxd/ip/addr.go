@@ -18,6 +18,7 @@ func (a *Addr) Add() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -27,6 +28,7 @@ func (a *Addr) Flush() error {
 	if a.Family != "" {
 		cmd = append(cmd, a.Family)
 	}
+
 	cmd = append(cmd, "addr", "flush", "dev", a.DevName)
 	if a.Scope != "" {
 		cmd = append(cmd, "scope", a.Scope)
@@ -36,5 +38,6 @@ func (a *Addr) Flush() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

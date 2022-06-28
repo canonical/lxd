@@ -25,9 +25,11 @@ func (l *Link) args(linkType string) []string {
 	if l.Parent != "" {
 		result = append(result, "link", l.Parent)
 	}
+
 	if l.MTU != "" {
 		result = append(result, "mtu", l.MTU)
 	}
+
 	result = append(result, "type", linkType)
 	return result
 }
@@ -41,6 +43,7 @@ func (l *Link) add(linkType string, additionalArgs []string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -50,6 +53,7 @@ func (l *Link) SetUp() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -59,6 +63,7 @@ func (l *Link) SetDown() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -68,6 +73,7 @@ func (l *Link) SetMTU(mtu string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -77,6 +83,7 @@ func (l *Link) SetAddress(address string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -86,6 +93,7 @@ func (l *Link) SetMaster(master string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -95,6 +103,7 @@ func (l *Link) SetNoMaster() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -104,6 +113,7 @@ func (l *Link) SetName(newName string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -113,6 +123,7 @@ func (l *Link) SetNetns(netns string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -122,6 +133,7 @@ func (l *Link) SetVfAddress(vf string, address string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -131,6 +143,7 @@ func (l *Link) SetVfVlan(vf string, vlan string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -140,6 +153,7 @@ func (l *Link) SetVfSpoofchk(vf string, mode string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -169,12 +183,14 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 		if err != nil {
 			return vf, err
 		}
+
 		defer func() { _ = stdout.Close() }()
 
 		err = cmd.Start()
 		if err != nil {
 			return vf, err
 		}
+
 		defer func() { _ = cmd.Wait() }()
 
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
@@ -226,12 +242,14 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 	if err != nil {
 		return vf, err
 	}
+
 	defer func() { _ = stdout.Close() }()
 
 	err = cmd.Start()
 	if err != nil {
 		return vf, err
 	}
+
 	defer func() { _ = cmd.Wait() }()
 
 	// Temporary struct to decode ip output into.
@@ -294,6 +312,7 @@ func (l *Link) Change(devType string, fanMap string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -303,6 +322,7 @@ func (l *Link) Delete() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -330,6 +350,7 @@ func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool, ma
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -349,6 +370,7 @@ func (l *Link) BridgeVLANDelete(vid string, self bool, master bool) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -363,6 +385,7 @@ func (l *Link) BridgeLinkSetIsolated(isolated bool) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -377,5 +400,6 @@ func (l *Link) BridgeLinkSetHairpin(hairpin bool) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
