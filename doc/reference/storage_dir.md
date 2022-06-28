@@ -1,11 +1,17 @@
 (storage-dir)=
 # Directory - `dir`
 
+## `dir` driver in LXD
+
  - While this backend is fully functional, it's also much slower than
    all the others due to it having to unpack images or do instant copies of
    instances, snapshots and images.
+
+### Quotas
+
  - Quotas are supported with the directory backend when running on
    either ext4 or XFS with project quotas enabled at the filesystem level.
+
 
 ## Configuration options
 
