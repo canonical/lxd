@@ -654,6 +654,7 @@ func InstanceNeedsPolicy(c Instance) bool {
 	if !ok {
 		value, ok = config["security.syscalls.blacklist_default"]
 	}
+
 	if !ok || shared.IsTrue(value) {
 		return true
 	}
@@ -729,12 +730,14 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	if allowlist == "" {
 		allowlist = config["security.syscalls.whitelist"]
 	}
+
 	if allowlist != "" {
 		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
 			policy += "allowlist\n[all]\n"
 		} else {
 			policy += "whitelist\n[all]\n"
 		}
+
 		policy += allowlist
 	} else {
 		if s.OS.LXCFeatures["seccomp_allow_deny_syntax"] {
@@ -747,6 +750,7 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 		if !ok {
 			defaultFlag, ok = config["security.syscalls.blacklist_default"]
 		}
+
 		if !ok || shared.IsTrue(defaultFlag) {
 			policy += defaultSeccompPolicy
 		}
@@ -798,11 +802,13 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	if !ok {
 		compat = config["security.syscalls.blacklist_compat"]
 	}
+
 	if shared.IsTrue(compat) {
 		arch, err := osarch.ArchitectureName(c.Architecture())
 		if err != nil {
 			return "", err
 		}
+
 		policy += fmt.Sprintf(compatBlockingPolicy, arch)
 	}
 
@@ -810,6 +816,7 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	if !ok {
 		denylist = config["security.syscalls.blacklist"]
 	}
+
 	if denylist != "" {
 		policy += denylist
 	}
@@ -911,12 +918,15 @@ func (siov *Iovec) PutSeccompIovec() {
 	if siov.memFd >= 0 {
 		_ = unix.Close(siov.memFd)
 	}
+
 	if siov.procFd >= 0 {
 		_ = unix.Close(siov.procFd)
 	}
+
 	if siov.notifyFd >= 0 {
 		_ = unix.Close(siov.notifyFd)
 	}
+
 	C.free(unsafe.Pointer(siov.msg))
 	C.free(unsafe.Pointer(siov.req))
 	C.free(unsafe.Pointer(siov.resp))
@@ -945,6 +955,7 @@ func (siov *Iovec) IsValidSeccompIovec(size uint64) bool {
 		logger.Warnf("Disconnected from seccomp socket after incomplete receive")
 		return false
 	}
+
 	if siov.msg.__reserved != 0 {
 		logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
 			siov.ucred.Pid)
@@ -986,6 +997,7 @@ retry:
 			logger.Debugf("Caught EINTR, retrying...")
 			goto retry
 		}
+
 		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.Pid, err)
 		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.Pid)
 	}
@@ -1160,6 +1172,7 @@ func FindTGID(procFd int) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	statusFile = os.NewFile(uintptr(fd), "/proc/<pid>/status")
 	status, err := ioutil.ReadAll(statusFile)
 	_ = statusFile.Close()
@@ -1307,6 +1320,7 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+
 	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
@@ -1372,6 +1386,7 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+
 	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
@@ -1453,6 +1468,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 		return int(-C.EPERM)
 	}
+
 	args.path = C.GoString(&cBuf[0])
 
 	// const char *name
@@ -1467,6 +1483,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 		return int(-C.EPERM)
 	}
+
 	args.name = C.GoString(&cBuf[0])
 
 	// size_t size
@@ -1487,6 +1504,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 		return int(-C.EPERM)
 	}
+
 	args.value = buf
 
 	whiteout := 0
@@ -1646,6 +1664,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 
 		return int(-C.EPERM)
 	}
+
 	args.schedPriority = schedParamArgs.sched_priority
 
 	_, stderr, err := shared.RunCommandSplit(
@@ -1734,6 +1753,7 @@ func mountFlagsToOpts(flags C.ulong) string {
 		if (flag == C.MS_BIND) && msRec == C.MS_REC {
 			flag |= msRec
 		}
+
 		optOrArg := mountFlagsToOptMap[flag]
 
 		if optOrArg == "" {
@@ -1780,11 +1800,13 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 					// If the user specified garbage, let the kernel tell em whats what.
 					return nil
 				}
+
 				uidOpt, _ = idmapset.ShiftIntoNs(n, 0)
 				if uidOpt < 0 {
 					// If the user specified garbage, let the kernel tell em whats what.
 					return nil
 				}
+
 				optStrings[i] = fmt.Sprintf("uid=%d", uidOpt)
 			}
 		} else if strings.HasPrefix(optString, "gid=") {
@@ -1795,11 +1817,13 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 					// If the user specified garbage, let the kernel tell em whats what.
 					return nil
 				}
+
 				gidOpt, _ = idmapset.ShiftIntoNs(n, 0)
 				if gidOpt < 0 {
 					// If the user specified garbage, let the kernel tell em whats what.
 					return nil
 				}
+
 				optStrings[i] = fmt.Sprintf("gid=%d", gidOpt)
 			}
 		}
@@ -1931,6 +1955,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
 	}
+
 	ctx["host_uid"] = args.uid
 	ctx["host_gid"] = args.gid
 	ctx["host_fsuid"] = args.fsuid
@@ -2011,6 +2036,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fmt.Sprintf("%d", args.nsfsgid),
 			args.data)
 	}
+
 	if err != nil {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -2111,6 +2137,7 @@ func (s *Server) HandleValid(fd int, siov *Iovec, findPID func(pid int32, state 
 		} else {
 			_ = siov.SendSeccompIovec(fd, int(-C.EPERM), 0)
 		}
+
 		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
 		return err
 	}
