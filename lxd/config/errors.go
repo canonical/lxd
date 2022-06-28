@@ -18,6 +18,7 @@ func (e Error) Error() string {
 	if e.Value != nil {
 		message += fmt.Sprintf(" to '%v'", e.Value)
 	}
+
 	return message + fmt.Sprintf(": %s", e.Reason)
 }
 
@@ -33,6 +34,7 @@ func (l ErrorList) Error() string {
 	case 1:
 		return l[0].Error()
 	}
+
 	return fmt.Sprintf("%s (and %d more errors)", l[0], len(l)-1)
 }
 
