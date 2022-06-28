@@ -62,10 +62,12 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 			&sources[i].Alias,
 		}
 	}
+
 	stmt, err := c.tx.Prepare(q)
 	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, imageID)
@@ -127,6 +129,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 	if err != nil {
 		return err
 	}
+
 	image.Properties = properties
 
 	// Get the aliases
@@ -138,6 +141,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 			&aliases[i].Description,
 		}
 	}
+
 	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
 	stmt, err := c.tx.Prepare(q)
 	if err != nil {
@@ -167,6 +171,7 @@ func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) 
 	if err != nil {
 		return fmt.Errorf("Check if project has profiles: %w", err)
 	}
+
 	if !enabled {
 		project = "default"
 	}
@@ -207,9 +212,11 @@ SELECT fingerprint
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		fingerprints, err = query.SelectStrings(tx.tx, q, project)
 		return err
 	})
@@ -336,6 +343,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 	if err != nil {
 		return "", err
 	}
+
 	if len(fingerprints) == 0 {
 		return "", api.StatusErrorf(http.StatusNotFound, "Image source not found")
 	}
@@ -354,13 +362,16 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		count, err := query.Count(tx.tx, table, where, project, fingerprint)
 		if err != nil {
 			return err
 		}
+
 		exists = count > 0
 		return nil
 	})
@@ -383,13 +394,16 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		count, err := query.Count(tx.tx, table, where, project, fingerprint)
 		if err != nil {
 			return err
 		}
+
 		referenced = count > 0
 		return nil
 	})
@@ -446,6 +460,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 	if err != nil {
 		return -1, nil, fmt.Errorf("Check if project has images: %w", err)
 	}
+
 	if !enabled {
 		project := "default"
 		filter.Project = &project
@@ -546,11 +561,13 @@ WHERE images.fingerprint LIKE ?
 	`
 		args = append(args, *filter.Project)
 	}
+
 	if filter.Public != nil {
 		sql += `AND images.public = ?
 	`
 		args = append(args, *filter.Public)
 	}
+
 	sql += `ORDER BY projects.id, images.fingerprint
 `
 
@@ -615,25 +632,31 @@ WHERE images.fingerprint = ?
 		if err != nil {
 			return err
 		}
+
 		allAddresses, err := query.SelectStrings(tx.tx, stmt, fingerprint)
 		if err != nil {
 			return err
 		}
+
 		for _, address := range allAddresses {
 			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}
+
 			if address != localAddress && node.IsOffline(offlineThreshold) {
 				continue
 			}
+
 			addresses = append(addresses, address)
 		}
+
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
+
 	if len(addresses) == 0 {
 		return "", fmt.Errorf("Image not available on any online node")
 	}
@@ -669,9 +692,11 @@ func (c *Cluster) DeleteImage(id int) error {
 		if err != nil {
 			return err
 		}
+
 		if !deleted {
 			return fmt.Errorf("No image with ID %d", id)
 		}
+
 		return nil
 	})
 }
@@ -691,9 +716,11 @@ SELECT images_aliases.name
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		names, err = query.SelectStrings(tx.tx, q, project)
 		return err
 	})
@@ -724,9 +751,11 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		var fingerprint, description string
 		var imageType int
 
@@ -777,6 +806,7 @@ DELETE
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
@@ -787,6 +817,7 @@ DELETE
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -811,6 +842,7 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
@@ -902,6 +934,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 
 		_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
@@ -918,6 +951,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt2.Close() }()
 
 		for key, value := range properties {
@@ -936,9 +970,11 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 			if err != nil {
 				return err
 			}
+
 			if !enabled {
 				project = "default"
 			}
+
 			q := `DELETE FROM images_profiles
 				WHERE image_id = ? AND profile_id IN (
 					SELECT profiles.id FROM profiles
@@ -954,6 +990,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = stmt3.Close() }()
 
 			for _, profileID := range profileIds {
@@ -995,6 +1032,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
+
 		if !enabled {
 			imageProject = "default"
 		}
@@ -1013,6 +1051,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 
 		result, err := stmt.Exec(imageProject, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
@@ -1024,6 +1063,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		if err != nil {
 			return err
 		}
+
 		id := int(id64)
 
 		if len(properties) > 0 {
@@ -1031,6 +1071,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = pstmt.Close() }()
 
 			for k, v := range properties {
@@ -1048,6 +1089,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = profileStmt.Close() }()
 
 			for _, profileID := range profileIds {
@@ -1111,6 +1153,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 		params[i] = "?"
 		args[i] = id
 	}
+
 	q := fmt.Sprintf("SELECT name FROM storage_pools WHERE id IN (%s)", strings.Join(params, ","))
 
 	var poolNames []string
@@ -1250,16 +1293,20 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdat
 		if err != nil {
 			return err
 		}
+
 		for _, address := range allAddresses {
 			node, err := tx.GetNodeByAddress(address)
 			if err != nil {
 				return err
 			}
+
 			if node.IsOffline(offlineThreshold) {
 				continue
 			}
+
 			addresses = append(addresses, address)
 		}
+
 		return err
 	})
 	return addresses, err

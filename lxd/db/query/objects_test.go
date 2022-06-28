@@ -23,6 +23,7 @@ func TestSelectObjects_Error(t *testing.T) {
 			"sql: expected 2 destination arguments in Scan, not 1",
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForObjects(t)
@@ -78,6 +79,7 @@ func TestUpsertObject_Error(t *testing.T) {
 			"columns length does not match values length",
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.error, func(t *testing.T) {
 			tx := newTxForObjects(t)

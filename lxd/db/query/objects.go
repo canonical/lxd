@@ -13,6 +13,7 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for i := 0; rows.Next(); i++ {
@@ -26,6 +27,7 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -45,6 +47,7 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []any) (int
 	if n == 0 {
 		return -1, fmt.Errorf("columns length is zero")
 	}
+
 	if n != len(values) {
 		return -1, fmt.Errorf("columns length does not match values length")
 	}
@@ -56,10 +59,12 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []any) (int
 	if err != nil {
 		return -1, fmt.Errorf("insert or replaced row: %w", err)
 	}
+
 	id, err := result.LastInsertId()
 	if err != nil {
 		return -1, fmt.Errorf("get last inserted ID: %w", err)
 	}
+
 	return id, nil
 }
 
@@ -74,12 +79,15 @@ func DeleteObject(tx *sql.Tx, table string, id int64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return false, err
 	}
+
 	if n > 1 {
 		return true, fmt.Errorf("more than one row was deleted")
 	}
+
 	return n == 1, nil
 }

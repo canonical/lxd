@@ -16,6 +16,7 @@ func SelectStrings(tx *sql.Tx, query string, args ...any) ([]string, error) {
 		if err != nil {
 			return err
 		}
+
 		values = append(values, value)
 		return nil
 	}
@@ -38,6 +39,7 @@ func SelectIntegers(tx *sql.Tx, query string, args ...any) ([]int, error) {
 		if err != nil {
 			return err
 		}
+
 		values = append(values, value)
 		return nil
 	}
@@ -81,6 +83,7 @@ func scanSingleColumn(tx *sql.Tx, query string, args []any, typeName string, sca
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
@@ -94,6 +97,7 @@ func scanSingleColumn(tx *sql.Tx, query string, args []any, typeName string, sca
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

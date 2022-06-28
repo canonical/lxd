@@ -142,6 +142,7 @@ func updateFromV39(tx *sql.Tx) error {
 		}{})
 		return []any{&nodes[i].ID, &nodes[i].Address}
 	}
+
 	stmt, err := tx.Prepare("SELECT id, address FROM raft_nodes")
 	if err != nil {
 		return err
@@ -167,6 +168,7 @@ func updateFromV39(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	address := config["cluster.https_address"]
 	if address != "" {
 		_, err := tx.Exec("UPDATE raft_nodes SET address=? WHERE id=1", address)
@@ -476,6 +478,7 @@ func updateFromV18(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
@@ -521,6 +524,7 @@ func updateFromV18(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
@@ -840,6 +844,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	var tablestodelete []string

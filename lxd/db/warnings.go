@@ -156,6 +156,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 			_, err = tx.createWarning(warning)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -176,6 +177,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(status, time.Now(), UUID)
@@ -193,6 +195,7 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status Warni
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	now := time.Now()
@@ -212,6 +215,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	if err != nil {
 		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
 		return -1, fmt.Errorf("This warning already exists")
 	}

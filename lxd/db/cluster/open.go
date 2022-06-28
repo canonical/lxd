@@ -40,6 +40,7 @@ func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.D
 	if name == "" {
 		name = "db.bin"
 	}
+
 	db, err := sql.Open(driverName, name)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open cluster database: %w", err)
@@ -78,6 +79,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		if err != nil {
 			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}
+
 		if n > 1 {
 			// This should never happen, since we only add nodes with valid addresses..
 			return fmt.Errorf("found more than one unclustered nodes")
@@ -98,6 +100,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			if err != nil {
 				return fmt.Errorf("failed to backup global database: %w", err)
 			}
+
 			backupDone = true
 		}
 
@@ -122,6 +125,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		if err != nil {
 			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}
+
 		if n > 1 {
 			// This should never happen, since we only add nodes with valid addresses.
 			return fmt.Errorf("found more than one unclustered nodes")
@@ -140,6 +144,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			someNodesAreBehind = true
 			return schema.ErrGracefulAbort
 		}
+
 		return err
 	}
 
@@ -157,6 +162,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	if someNodesAreBehind {
 		return false, nil
 	}
+
 	if err != nil {
 		return false, err
 	}
@@ -169,6 +175,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+
 		err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
@@ -209,6 +216,7 @@ INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(1, 1);
 			if err != nil {
 				return err
 			}
+
 			return nil
 		})
 		if err != nil {
@@ -244,6 +252,7 @@ func checkClusterIsUpgradable(tx *sql.Tx, target [2]int) error {
 		if err != nil {
 			return err
 		}
+
 		switch n {
 		case 0:
 			// Versions are equal, there's hope for the

@@ -18,6 +18,7 @@ used in LXD's source code.`,
 		},
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
+
 	cmd.AddCommand(newDb())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706

@@ -15,5 +15,6 @@ func Params(n int) string {
 	for i := 0; i < n; i++ {
 		tokens[i] = "?"
 	}
+
 	return fmt.Sprintf("(%s)", strings.Join(tokens, ", "))
 }
