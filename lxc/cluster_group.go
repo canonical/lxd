@@ -415,6 +415,7 @@ func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 		line := []string{group.Name, group.Description, fmt.Sprintf("%d", len(group.Members))}
 		data = append(data, line)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

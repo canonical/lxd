@@ -135,6 +135,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 				replacement := numberedArgsMap[argNo]
 				newArg = strings.Replace(newArg, match[0], replacement, -1)
 			}
+
 			newArgs = append(newArgs, newArg)
 			continue
 		}

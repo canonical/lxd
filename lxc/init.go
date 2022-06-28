@@ -202,6 +202,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	} else {
 		configMap = map[string]string{}
 	}
+
 	for _, entry := range c.flagConfig {
 		if !strings.Contains(entry, "=") {
 			return nil, "", fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
@@ -237,6 +238,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		InstanceType: c.flagType,
 		Type:         instanceDBType,
 	}
+
 	req.Config = configMap
 	req.Devices = devicesMap
 
@@ -249,6 +251,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	} else {
 		req.Profiles = profiles
 	}
+
 	req.Ephemeral = c.flagEphemeral
 
 	var opInfo api.Operation
@@ -323,6 +326,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			progress.Done("")
 			return nil, "", err
 		}
+
 		progress.Done("")
 
 		// Extract the instance name

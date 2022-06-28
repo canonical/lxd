@@ -983,8 +983,10 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return err
 				}
+
 				continue
 			}
+
 			break
 		}
 
@@ -1013,8 +1015,10 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -1207,11 +1211,13 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 	if vol.Type == "" {
 		vol.Type = "custom"
 	}
+
 	fmt.Printf(i18n.G("Type: %s")+"\n", vol.Type)
 
 	if vol.ContentType == "" {
 		vol.ContentType = "filesystem"
 	}
+
 	fmt.Printf(i18n.G("Content type: %s")+"\n", vol.ContentType)
 
 	if vol.Location != "" && client.IsClustered() {
@@ -1415,6 +1421,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, row)
 	}
+
 	if len(columns) >= 2 {
 		sort.Sort(utils.ByNameAndType(data))
 	}
@@ -2133,6 +2140,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 		progress.Done("")
 		return err
 	}
+
 	progress.Done("")
 
 	err = op.Wait()
@@ -2163,6 +2171,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = target.Close() }()
 
 	// Prepare the download request
@@ -2170,6 +2179,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
+
 	backupFileRequest := lxd.BackupFileRequest{
 		BackupFile:      io.WriteSeeker(target),
 		ProgressHandler: progress.UpdateProgress,
@@ -2238,6 +2248,7 @@ func (c *cmdStorageVolumeImport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	fstat, err := file.Stat()

@@ -37,6 +37,7 @@ func CancelableWait(rawOp any, progress *ProgressRenderer) error {
 		} else {
 			chOperation <- rop.Wait()
 		}
+
 		close(chOperation)
 	}()
 
@@ -53,6 +54,7 @@ func CancelableWait(rawOp any, progress *ProgressRenderer) error {
 			} else {
 				err = rop.CancelTarget()
 			}
+
 			if err == nil {
 				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
 			}

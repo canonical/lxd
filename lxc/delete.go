@@ -63,6 +63,7 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 		// Instance delete
 		op, err = d.DeleteInstance(name)
 	}
+
 	if err != nil {
 		return err
 	}

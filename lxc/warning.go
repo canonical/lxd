@@ -150,8 +150,10 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		for _, column := range columns {
 			row = append(row, column.Data(warning))
 		}
+
 		data = append(data, row)
 	}
+
 	sort.Sort(utils.StringList(data))
 
 	rawData := make([]*api.Warning, len(warnings))

@@ -239,6 +239,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 			if c.cookieJars == nil {
 				c.cookieJars = map[string]*cookiejar.Jar{}
 			}
+
 			c.cookieJars[name] = jar
 		}
 

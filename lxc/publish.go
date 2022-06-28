@@ -77,6 +77,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	if cName == "" {
 		return fmt.Errorf(i18n.G("Instance name is mandatory"))
 	}
+
 	if iName != "" {
 		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
@@ -176,6 +177,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		if len(entry) < 2 {
 			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
 		}
+
 		properties[entry[0]] = entry[1]
 	}
 
@@ -203,6 +205,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		},
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
 	}
+
 	req.Properties = properties
 
 	if shared.IsSnapshot(cName) {
@@ -220,6 +223,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("Invalid expiration date: %w", err)
 		}
+
 		req.ExpiresAt = expiresAt
 	}
 
@@ -246,6 +250,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		progress.Done("")
 		return err
 	}
+
 	progress.Done("")
 
 	opAPI := op.Get()

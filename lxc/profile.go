@@ -517,8 +517,10 @@ func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -624,6 +626,7 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(profile.UsedBy))
 		data = append(data, []string{profile.Name, profile.Description, strUsedBy})
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

@@ -463,8 +463,10 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -539,12 +541,14 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = dest.Close() }()
 
 	destRootfs, err := os.Create(targetRootfs)
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = destRootfs.Close() }()
 
 	// Prepare the download request
@@ -666,6 +670,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = outFile.Close() }()
 
 	outFileName := outFile.Name()
@@ -782,10 +787,12 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			// remove temp file
 			defer func() { _ = os.Remove(imageFile) }()
 		}
+
 		meta, err = os.Open(imageFile)
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = meta.Close() }()
 
 		// Open rootfs
@@ -794,12 +801,14 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = rootfs.Close() }()
 
 			_, ext, _, err := shared.DetectCompressionFile(rootfs)
 			if err != nil {
 				return err
 			}
+
 			_, err = rootfs.(*os.File).Seek(0, 0)
 			if err != nil {
 				return err
@@ -818,6 +827,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			ProgressHandler: progress.UpdateProgress,
 			Type:            imageType,
 		}
+
 		image.Filename = createArgs.MetaName
 	}
 
@@ -834,6 +844,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		progress.Done("")
 		return err
 	}
+
 	opAPI := op.Get()
 
 	// Get the fingerprint
@@ -1083,6 +1094,7 @@ func (c *cmdImageList) aliasesColumnData(image api.Image) string {
 	for _, alias := range image.Aliases {
 		aliases = append(aliases, alias.Name)
 	}
+
 	sort.Strings(aliases)
 	return strings.Join(aliases, "\n")
 }
@@ -1099,6 +1111,7 @@ func (c *cmdImageList) publicColumnData(image api.Image) string {
 	if image.Public {
 		return i18n.G("yes")
 	}
+
 	return i18n.G("no")
 }
 
@@ -1133,6 +1146,7 @@ func (c *cmdImageList) shortestAlias(list []api.ImageAlias) string {
 			shortest = l.Name
 			continue
 		}
+
 		if len(l.Name) != 0 && len(l.Name) < len(shortest) {
 			shortest = l.Name
 		}
@@ -1177,6 +1191,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 					if !(strings.Contains(value, "^") || strings.Contains(value, "$")) {
 						regexpValue = "^" + regexpValue + "$"
 					}
+
 					r, err := regexp.Compile(regexpValue)
 					//if not regexp compatible use original value
 					if err != nil {
@@ -1258,6 +1273,7 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		clientFilters = filters
 	}
 
@@ -1280,8 +1296,10 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 		for _, column := range columns {
 			row = append(row, column.Data(image))
 		}
+
 		data = append(data, row)
 	}
+
 	sort.Sort(utils.StringList(data))
 
 	rawData := make([]*api.Image, len(images))
@@ -1355,6 +1373,7 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		opAPI := op.Get()
 
 		// Check if refreshed

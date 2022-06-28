@@ -308,6 +308,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 		Format: i18n.G("Transferring instance: %s"),
 		Quiet:  quiet,
 	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -319,6 +320,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 		progress.Done("")
 		return err
 	}
+
 	progress.Done("")
 
 	err = op.Wait()

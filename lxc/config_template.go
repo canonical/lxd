@@ -186,6 +186,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	content, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return err
@@ -214,6 +215,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -275,6 +277,7 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 	for _, template := range templates {
 		data = append(data, []string{template})
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

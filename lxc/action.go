@@ -260,6 +260,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	progress := utils.ProgressRenderer{
 		Quiet: c.global.flagQuiet,
 	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -329,6 +330,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 					if ct.StatusCode == api.Running {
 						continue
 					}
+
 				case "stop":
 					if ct.StatusCode == api.Stopped {
 						continue
