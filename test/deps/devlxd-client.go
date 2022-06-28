@@ -64,6 +64,7 @@ func devlxdMonitorStream() {
 		if err != nil {
 			return
 		}
+
 		message["timestamp"] = nil
 
 		msg, err := yaml.Marshal(&message)
@@ -97,6 +98,7 @@ func devlxdMonitorWebsocket(c http.Client) {
 		if err != nil {
 			return
 		}
+
 		message["timestamp"] = nil
 
 		msg, err := yaml.Marshal(&message)

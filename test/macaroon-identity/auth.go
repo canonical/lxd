@@ -47,6 +47,7 @@ func newAuthService(listenAddr string, logger *log.Logger) *authService {
 		Checker:    newCredentialsChecker(),
 		userTokens: map[string]string{},
 	}
+
 	mux.Handle(formURL, http.HandlerFunc(s.formHandler))
 
 	discharger := httpbakery.NewDischarger(
@@ -111,6 +112,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 			s.bakeryFail(w, "failed to parse credentials: %v", err)
 			return
 		}
+
 		form := loginRequest.Body.Form
 
 		if !s.Checker.Check(form) {
@@ -128,6 +130,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 				Value: []byte(token),
 			},
 		}
+
 		_ = writeJSON(w, http.StatusOK, loginResponse)
 
 	default:

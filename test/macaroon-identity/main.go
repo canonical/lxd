@@ -18,6 +18,7 @@ func main() {
 	if err := s.Checker.LoadCreds(flags.CredsFile); err != nil {
 		panic(err)
 	}
+
 	if err := s.Start(false); err != nil {
 		panic(err)
 	}
