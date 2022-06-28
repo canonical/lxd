@@ -115,6 +115,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					logger.Debugf("Failed to unshift ACL access permissions of %q: %v", srcPath, err)
 					continue
 				}
+
 				hdr.PAXRecords["SCHILY.acl.access"] = aclAccess
 			} else if key == "system.posix_acl_default" && ctw.idmapSet != nil {
 				aclDefault, err := idmap.UnshiftACL(val, ctw.idmapSet)
@@ -122,6 +123,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					logger.Debugf("Failed to unshift ACL default permissions of %q: %v", srcPath, err)
 					continue
 				}
+
 				hdr.PAXRecords["SCHILY.acl.default"] = aclDefault
 			} else if key == "security.capability" && ctw.idmapSet != nil {
 				vfsCaps, err := idmap.UnshiftCaps(val, ctw.idmapSet)
@@ -129,6 +131,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 					logger.Debugf("Failed to unshift VFS capabilities of %q: %v", srcPath, err)
 					continue
 				}
+
 				hdr.PAXRecords["SCHILY.xattr."+key] = vfsCaps
 			} else {
 				hdr.PAXRecords["SCHILY.xattr."+key] = val
@@ -146,6 +149,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		if err != nil {
 			return fmt.Errorf("Failed to open file %q: %w", srcPath, err)
 		}
+
 		defer func() { _ = f.Close() }()
 
 		r := io.Reader(f)
@@ -190,5 +194,6 @@ func (ctw *InstanceTarWriter) Close() error {
 	if err != nil {
 		return fmt.Errorf("Failed to close tar writer: %w", err)
 	}
+
 	return nil
 }

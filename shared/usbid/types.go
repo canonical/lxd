@@ -87,6 +87,7 @@ func (c ClassCode) String() string {
 	if d, ok := classDescription[c]; ok {
 		return d
 	}
+
 	return strconv.Itoa(int(c))
 }
 

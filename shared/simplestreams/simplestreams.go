@@ -121,6 +121,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 
 		return nil, err
 	}
+
 	defer func() { _ = r.Body.Close() }()
 
 	if r.StatusCode != http.StatusOK {

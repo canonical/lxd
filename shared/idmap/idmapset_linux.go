@@ -216,18 +216,21 @@ func (e *IdmapEntry) parse(s string) error {
 	if err != nil {
 		return err
 	}
+
 	e.Nsid = int64(nsid)
 
 	hostid, err := strconv.ParseUint(split[2], 10, 32)
 	if err != nil {
 		return err
 	}
+
 	e.Hostid = int64(hostid)
 
 	maprange, err := strconv.ParseUint(split[3], 10, 32)
 	if err != nil {
 		return err
 	}
+
 	e.Maprange = int64(maprange)
 
 	// wraparound
@@ -288,6 +291,7 @@ func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 		copy(newSlice, slice)
 		slice = newSlice
 	}
+
 	slice = slice[0 : n+1]
 	slice[n] = element
 	return slice
@@ -379,6 +383,7 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Sort(idmap)
 
 	for _, mapEntry := range idmap.Idmap {
@@ -449,6 +454,7 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 		if lower.Maprange > 0 {
 			result = append(result, lower)
 		}
+
 		result = append(result, i)
 		if upper.Maprange > 0 {
 			result = append(result, upper)
@@ -472,6 +478,7 @@ func (m IdmapSet) ToLxcString() []string {
 			}
 		}
 	}
+
 	return lines
 }
 
@@ -517,9 +524,11 @@ func (m IdmapSet) Append(s string) (IdmapSet, error) {
 	if err != nil {
 		return m, err
 	}
+
 	if m.Intersects(e) {
 		return m, fmt.Errorf("Conflicting id mapping")
 	}
+
 	m.Idmap = Extend(m.Idmap, e)
 	return m, nil
 }
@@ -584,6 +593,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	if err != nil {
 		return fmt.Errorf("Expand symlinks: %w", err)
 	}
+
 	dir = filepath.Join(tmp, filepath.Base(dir))
 	dir = strings.TrimRight(dir, "/")
 
@@ -706,6 +716,7 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
@@ -756,6 +767,7 @@ func getFromProc(fname string) ([][]int64, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
@@ -1082,5 +1094,6 @@ func GetIdmapSet() *IdmapSet {
 			}
 		}
 	}
+
 	return idmapSet
 }

@@ -48,6 +48,7 @@ func (p *NetworkForwardPort) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	p.ListenPort = strings.Join(subjects, ",")
 
 	// Remove space from TargetPort list.
@@ -55,6 +56,7 @@ func (p *NetworkForwardPort) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	p.TargetPort = strings.Join(subjects, ",")
 }
 

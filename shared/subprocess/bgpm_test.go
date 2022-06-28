@@ -49,6 +49,7 @@ func TestSignalHandling(t *testing.T) {
 	if err != nil {
 		t.Error("Could not open file ", err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	var text = make([]byte, 1024)
@@ -159,6 +160,7 @@ func TestProcessStartWaitExit(t *testing.T) {
 	if err != nil {
 		t.Error("Could not open file: ", err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	exp = "hello again\nwaiting now\n"
