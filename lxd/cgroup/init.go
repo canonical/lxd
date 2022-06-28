@@ -352,6 +352,7 @@ func Init() {
 		cgLayout = CgroupsDisabled
 		return
 	}
+
 	defer func() { _ = selfCg.Close() }()
 
 	hasV1 := false
@@ -420,6 +421,7 @@ func Init() {
 				}
 			}
 		}
+
 		_ = controllers.Close()
 	}
 
