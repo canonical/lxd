@@ -3,6 +3,10 @@ discourse: 9310
 ---
 
 # Image handling
+
+```{youtube} https://www.youtube.com/watch?v=wT7IDjo0Wgg
+```
+
 ## Introduction
 LXD uses an image based workflow. It comes with a built-in image store
 where the user or external tools can import images.
