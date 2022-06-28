@@ -24,6 +24,7 @@ func GetArchitectures() ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	architectures = append(architectures, architecture)
 
 	personalities, err := osarch.ArchitecturePersonalities(architecture)

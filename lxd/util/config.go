@@ -19,6 +19,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 		if shared.StringInSlice(key, exclude) {
 			continue
 		}
+
 		if config2[key] != value {
 			delta = append(delta, key)
 		}
@@ -27,6 +28,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 		if shared.StringInSlice(key, exclude) {
 			continue
 		}
+
 		if config1[key] != value {
 			present := false
 			for i := range delta {
@@ -40,6 +42,7 @@ func CompareConfigs(config1, config2 map[string]string, exclude []string) error 
 			}
 		}
 	}
+
 	sort.Strings(delta)
 	if len(delta) > 0 {
 		return fmt.Errorf("different values for keys: %s", strings.Join(delta, ", "))
