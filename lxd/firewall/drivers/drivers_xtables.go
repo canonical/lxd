@@ -100,10 +100,12 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 		if err != nil {
 			return false
 		}
+
 		err = cmd.Start()
 		if err != nil {
 			return false
 		}
+
 		defer func() { _ = cmd.Wait() }()
 
 		scanner := bufio.NewScanner(stdout)
@@ -139,10 +141,12 @@ func (d Xtables) ebtablesInUse() bool {
 	if err != nil {
 		return false
 	}
+
 	err = cmd.Start()
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = cmd.Wait() }()
 
 	scanner := bufio.NewScanner(stdout)
@@ -1138,6 +1142,7 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 					[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "--hex-string", fmt.Sprintf("|%s|", hexPrefix), "--algo", "bm", "--from", "48", "--to", strconv.Itoa(48 + len(hexPrefix)/2), "-j", "ACCEPT"},
 				)
 			}
+
 			if len(IPv6Nets) > 0 {
 				rules = append(rules,
 					// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
@@ -1279,6 +1284,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		for scanner.Scan() {
 			tables = append(tables, scanner.Text())
 		}
+
 		_ = file.Close()
 	}
 
