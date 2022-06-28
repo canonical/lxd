@@ -133,6 +133,7 @@ func (r *Server) StartStatusCheck() {
 		logger.Errorf("Failed to parse RBAC url: %v", err)
 		return
 	}
+
 	u.Path = path.Join(u.Path, "/api/service/v1/changes")
 
 	go func() {
@@ -372,6 +373,7 @@ func (r *Server) syncAdmin(username string) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	var permissions map[string][]string
@@ -404,6 +406,7 @@ func (r *Server) syncPermissions(username string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	var permissions map[string][]string
@@ -466,6 +469,7 @@ func (r *Server) postResources(updates []rbacResource, removals []string, force 
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
