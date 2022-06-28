@@ -111,6 +111,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		ws.conns[execWSStdout] = nil
 		ws.conns[execWSStderr] = nil
 	}
+
 	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
 	ws.interactive = post.Interactive
 
@@ -446,6 +447,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 					l.Debug("Failed forwarding signal", logger.Ctx{"err": err, "signal": command.Signal})
 					continue
 				}
+
 				l.Info("Forwarded signal", logger.Ctx{"signal": command.Signal})
 			}
 		}
