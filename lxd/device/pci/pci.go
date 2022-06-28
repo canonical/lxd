@@ -29,6 +29,7 @@ func ParseUeventFile(ueventFilePath string) (Device, error) {
 	if err != nil {
 		return dev, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)

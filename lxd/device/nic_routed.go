@@ -153,6 +153,7 @@ func (d *nicRouted) validateEnvironment() error {
 			if err != nil {
 				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
 			}
+
 			if sysctlVal != "1\n" {
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
 			}
@@ -165,6 +166,7 @@ func (d *nicRouted) validateEnvironment() error {
 			if err != nil {
 				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
 			}
+
 			if sysctlVal != "1\n" {
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
 			}
@@ -177,6 +179,7 @@ func (d *nicRouted) validateEnvironment() error {
 			if err != nil {
 				return fmt.Errorf("Error reading net sysctl %s: %w", ipv4FwdPath, err)
 			}
+
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
 				return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
@@ -190,6 +193,7 @@ func (d *nicRouted) validateEnvironment() error {
 			if err != nil {
 				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
 			}
+
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
@@ -200,6 +204,7 @@ func (d *nicRouted) validateEnvironment() error {
 			if err != nil {
 				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
 			}
+
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
@@ -322,6 +327,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
 		mtu, err = networkCreateTap(saveData["host_name"], d.config)
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -376,6 +382,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 				Address: fmt.Sprintf("%s/%d", d.ipHostAddress(keyPrefix), subnetSize),
 				Family:  ipFamilyArg,
 			}
+
 			err = addr.Add()
 			if err != nil {
 				return nil, fmt.Errorf("Failed adding host gateway IP %q: %w", addr.Address, err)
@@ -397,6 +404,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 				Table:   "main",
 				Family:  ipFamilyArg,
 			}
+
 			err = r.Add()
 			if err != nil {
 				return nil, fmt.Errorf("Failed adding host route %q: %w", r.Route, err)
@@ -413,6 +421,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					Table:   d.config[fmt.Sprintf("%s.host_table", keyPrefix)],
 					Family:  ipFamilyArg,
 				}
+
 				err = r.Add()
 				if err != nil {
 					return nil, fmt.Errorf("Failed adding host route %q to table %q: %w", r.Route, r.Table, err)
@@ -425,6 +434,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					DevName: d.effectiveParentName,
 					Addr:    net.ParseIP(addrStr),
 				}
+
 				err = np.Add()
 				if err != nil {
 					return nil, fmt.Errorf("Failed adding neighbour proxy %q to %q: %w", np.Addr.String(), np.DevName, err)
@@ -450,6 +460,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					Family:  ipFamilyArg,
 					Via:     addresses[0],
 				}
+
 				err = r.Add()
 				if err != nil {
 					return nil, fmt.Errorf("Failed adding route %q: %w", r.Route, err)

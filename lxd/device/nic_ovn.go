@@ -314,6 +314,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			network.SRIOVVirtualFunctionMutex.Unlock()
 			return nil, err
 		}
+
 		network.SRIOVVirtualFunctionMutex.Unlock()
 
 		// Setup the guest network interface.
@@ -359,6 +360,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	revert.Add(cleanup)
 
 	err = d.volatileSet(saveData)
@@ -424,6 +426,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		if err != nil {
 			return err
 		}
+
 		err = link.SetUp()
 		if err != nil {
 			return err
@@ -577,6 +580,7 @@ func (d *nicOVN) postStop() error {
 				network.SRIOVVirtualFunctionMutex.Unlock()
 				return err
 			}
+
 			network.SRIOVVirtualFunctionMutex.Unlock()
 
 			link := &ip.Link{Name: d.config["host_name"]}

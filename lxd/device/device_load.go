@@ -44,6 +44,7 @@ func newByType(state *state.State, projectName string, conf deviceConfig.Device)
 		case "ovn":
 			dev = &nicOVN{}
 		}
+
 	case "infiniband":
 		switch nicType {
 		case "physical":
@@ -51,6 +52,7 @@ func newByType(state *state.State, projectName string, conf deviceConfig.Device)
 		case "sriov":
 			dev = &infinibandSRIOV{}
 		}
+
 	case "gpu":
 		switch conf["gputype"] {
 		case "mig":
@@ -62,6 +64,7 @@ func newByType(state *state.State, projectName string, conf deviceConfig.Device)
 		default:
 			dev = &gpuPhysical{}
 		}
+
 	case "proxy":
 		dev = &proxy{}
 	case "usb":

@@ -77,6 +77,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 
 		return validate.IsNetworkAddressV4List(value)
 	}
+
 	rules["ipv6.address"] = func(value string) error {
 		if value == "" {
 			return nil
@@ -106,6 +107,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 
 		return validate.IsNetworkAddressV6List(value)
 	}
+
 	rules["mode"] = func(value string) error {
 		if value == "" {
 			return nil
@@ -176,6 +178,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %w", ipv4FwdPath, err)
 		}
+
 		if sysctlVal != "1\n" {
 			// Replace . in parent name with / for sysctl formatting.
 			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
@@ -189,6 +192,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
 		}
+
 		if sysctlVal != "1\n" {
 			// Replace . in parent name with / for sysctl formatting.
 			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
@@ -199,6 +203,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
 		}
+
 		if sysctlVal != "1\n" {
 			// Replace . in parent name with / for sysctl formatting.
 			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(effectiveParentName, ".", "/", -1))
@@ -369,6 +374,7 @@ func (d *nicIPVLAN) postStart() error {
 					Table:   d.config["ipv4.host_table"],
 					Family:  ip.FamilyV4,
 				}
+
 				err := r.Add()
 				if err != nil {
 					return err
@@ -389,6 +395,7 @@ func (d *nicIPVLAN) postStart() error {
 					Table:   d.config["ipv6.host_table"],
 					Family:  ip.FamilyV6,
 				}
+
 				err := r.Add()
 				if err != nil {
 					return err
@@ -451,6 +458,7 @@ func (d *nicIPVLAN) postStop() error {
 					Table:   d.config["ipv4.host_table"],
 					Family:  ip.FamilyV4,
 				}
+
 				err := r.Delete()
 				if err != nil {
 					errs = append(errs, err)
@@ -470,6 +478,7 @@ func (d *nicIPVLAN) postStop() error {
 					Table:   d.config["ipv6.host_table"],
 					Family:  ip.FamilyV6,
 				}
+
 				err := r.Delete()
 				if err != nil {
 					errs = append(errs, err)
