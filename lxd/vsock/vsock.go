@@ -61,6 +61,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 
 				time.Sleep(100 * time.Millisecond)
 			}
+
 			if err != nil {
 				return nil, err
 			}
