@@ -258,6 +258,26 @@ CREATE TABLE "networks_forwards_config" (
 	UNIQUE (network_forward_id, key),
 	FOREIGN KEY (network_forward_id) REFERENCES "networks_forwards" (id) ON DELETE CASCADE
 );
+CREATE TABLE "networks_load_balancers" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	node_id INTEGER,
+	listen_address TEXT NOT NULL,
+	description TEXT NOT NULL,
+	backends TEXT NOT NULL,
+	ports TEXT NOT NULL,
+	UNIQUE (network_id, node_id, listen_address),
+	FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
+	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
+);
+CREATE TABLE "networks_load_balancers_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_load_balancer_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_load_balancer_id, key),
+	FOREIGN KEY (network_load_balancer_id) REFERENCES "networks_load_balancers" (id) ON DELETE CASCADE
+);
 CREATE TABLE "networks_nodes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_id INTEGER NOT NULL,
@@ -562,5 +582,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (60, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (61, strftime("%s"))
 `
