@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-// Products represents the base of download.json
+// Products represents the base of download.json.
 type Products struct {
 	ContentID string             `json:"content_id"`
 	DataType  string             `json:"datatype"`
@@ -20,7 +20,7 @@ type Products struct {
 	Updated   string             `json:"updated,omitempty"`
 }
 
-// Product represents a single product inside download.json
+// Product represents a single product inside download.json.
 type Product struct {
 	Aliases         string                    `json:"aliases"`
 	Architecture    string                    `json:"arch"`
@@ -38,14 +38,14 @@ type Product struct {
 	Variant string `json:"variant,omitempty"`
 }
 
-// ProductVersion represents a particular version of a product
+// ProductVersion represents a particular version of a product.
 type ProductVersion struct {
 	Items      map[string]ProductVersionItem `json:"items"`
 	Label      string                        `json:"label,omitempty"`
 	PublicName string                        `json:"pubname,omitempty"`
 }
 
-// ProductVersionItem represents a file/item of a particular ProductVersion
+// ProductVersionItem represents a file/item of a particular ProductVersion.
 type ProductVersionItem struct {
 	LXDHashSha256DiskImg     string `json:"combined_disk1-img_sha256,omitempty"`
 	LXDHashSha256DiskKvmImg  string `json:"combined_disk-kvm-img_sha256,omitempty"`
@@ -61,7 +61,7 @@ type ProductVersionItem struct {
 	DeltaBase                string `json:"delta_base,omitempty"`
 }
 
-// ToLXD converts the products data into a list of LXD images and associated downloadable files
+// ToLXD converts the products data into a list of LXD images and associated downloadable files.
 func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 

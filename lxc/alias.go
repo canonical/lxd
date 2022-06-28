@@ -44,7 +44,7 @@ func (c *cmdAlias) Command() *cobra.Command {
 	return cmd
 }
 
-// Add
+// Add.
 type cmdAliasAdd struct {
 	global *cmdGlobal
 	alias  *cmdAlias
@@ -87,7 +87,7 @@ func (c *cmdAliasAdd) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// List
+// List.
 type cmdAliasList struct {
 	global *cmdGlobal
 	alias  *cmdAlias
@@ -133,7 +133,7 @@ func (c *cmdAliasList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, conf.Aliases)
 }
 
-// Rename
+// Rename.
 type cmdAliasRename struct {
 	global *cmdGlobal
 	alias  *cmdAlias
@@ -184,7 +184,7 @@ func (c *cmdAliasRename) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Remove
+// Remove.
 type cmdAliasRemove struct {
 	global *cmdGlobal
 	alias  *cmdAlias

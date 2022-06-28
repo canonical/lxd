@@ -15,12 +15,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
-
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/netutils"
 )
@@ -393,7 +391,6 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
-
 		go genericRelay(srcConn, dstConn, false)
 	}
 
@@ -791,7 +788,6 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 			errno, ok := shared.GetErrno(ew)
 			if ok && (errno == unix.EAGAIN) {
 				goto wAgain
-
 			}
 			if ew != nil {
 				err = ew

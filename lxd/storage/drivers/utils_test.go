@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Test GetVolumeMountPath
+// Test GetVolumeMountPath.
 func TestGetVolumeMountPath(t *testing.T) {
 	poolName := "testpool"
 

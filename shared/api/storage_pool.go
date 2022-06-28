@@ -19,7 +19,7 @@ const StoragePoolStatusUnvailable = "Unavailable"
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StoragePoolsPost struct {
 	StoragePoolPut `yaml:",inline"`
 
@@ -36,7 +36,7 @@ type StoragePoolsPost struct {
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StoragePool struct {
 	StoragePoolPut `yaml:",inline"`
 
@@ -71,7 +71,7 @@ type StoragePool struct {
 //
 // swagger:model
 //
-// API extension: storage
+// API extension: storage.
 type StoragePoolPut struct {
 	// Storage pool configuration map (refer to doc/storage.md)
 	// Example: {"volume.block.filesystem": "ext4", "volume.size": "50GiB"}

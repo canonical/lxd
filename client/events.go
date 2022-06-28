@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// The EventListener struct is used to interact with a LXD event stream
+// The EventListener struct is used to interact with a LXD event stream.
 type EventListener struct {
 	r         *ProtocolLXD
 	ctx       context.Context
@@ -21,13 +21,13 @@ type EventListener struct {
 	targetsLock sync.Mutex
 }
 
-// The EventTarget struct is returned to the caller of AddHandler and used in RemoveHandler
+// The EventTarget struct is returned to the caller of AddHandler and used in RemoveHandler.
 type EventTarget struct {
 	function func(api.Event)
 	types    []string
 }
 
-// AddHandler adds a function to be called whenever an event is received
+// AddHandler adds a function to be called whenever an event is received.
 func (e *EventListener) AddHandler(types []string, function func(api.Event)) (*EventTarget, error) {
 	if function == nil {
 		return nil, fmt.Errorf("A valid function must be provided")
@@ -49,7 +49,7 @@ func (e *EventListener) AddHandler(types []string, function func(api.Event)) (*E
 	return &target, nil
 }
 
-// RemoveHandler removes a function to be called whenever an event is received
+// RemoveHandler removes a function to be called whenever an event is received.
 func (e *EventListener) RemoveHandler(target *EventTarget) error {
 	if target == nil {
 		return fmt.Errorf("A valid event target must be provided")
@@ -72,7 +72,7 @@ func (e *EventListener) RemoveHandler(target *EventTarget) error {
 	return fmt.Errorf("Couldn't find this function and event types combination")
 }
 
-// Disconnect must be used once done listening for events
+// Disconnect must be used once done listening for events.
 func (e *EventListener) Disconnect() {
 	// Handle locking
 	e.r.eventListenersLock.Lock()
@@ -97,7 +97,7 @@ func (e *EventListener) Disconnect() {
 	e.ctxCancel()
 }
 
-// Wait blocks until the server disconnects the connection or Disconnect() is called
+// Wait blocks until the server disconnects the connection or Disconnect() is called.
 func (e *EventListener) Wait() error {
 	<-e.ctx.Done()
 	return e.err

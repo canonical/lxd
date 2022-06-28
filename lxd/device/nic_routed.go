@@ -461,7 +461,6 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed adding route %q: %w", r.Route, err)
 				}
 			}
-
 		}
 	}
 

@@ -278,7 +278,7 @@ func SysctlGet(path string) (string, error) {
 }
 
 // SysctlSet writes a value to a sysctl file in /proc/sys.
-// Requires an even number of arguments as key/value pairs. E.g. SysctlSet("path1", "value1", "path2", "value2")
+// Requires an even number of arguments as key/value pairs. E.g. SysctlSet("path1", "value1", "path2", "value2").
 func SysctlSet(parts ...string) error {
 	partsLen := len(parts)
 	if partsLen%2 != 0 {

@@ -32,7 +32,7 @@ func AskBool(question string, defaultAnswer string) (bool, error) {
 	}
 }
 
-// AskChoice asks the user to select one of multiple options
+// AskChoice asks the user to select one of multiple options.
 func AskChoice(question string, choices []string, defaultAnswer string) (string, error) {
 	for {
 		answer, err := askQuestion(question, defaultAnswer)
@@ -48,7 +48,7 @@ func AskChoice(question string, choices []string, defaultAnswer string) (string,
 	}
 }
 
-// AskInt asks the user to enter an integer between a min and max value
+// AskInt asks the user to enter an integer between a min and max value.
 func AskInt(question string, min int64, max int64, defaultAnswer string, validate func(int64) error) (int64, error) {
 	for {
 		answer, err := askQuestion(question, defaultAnswer)
@@ -150,7 +150,7 @@ func AskPasswordOnce(question string) string {
 	}
 }
 
-// Ask a question on the output stream and read the answer from the input stream
+// Ask a question on the output stream and read the answer from the input stream.
 func askQuestion(question, defaultAnswer string) (string, error) {
 	fmt.Print(question)
 
@@ -168,7 +168,7 @@ func readAnswer(defaultAnswer string) (string, error) {
 	return answer, err
 }
 
-// Print an invalid input message on the error stream
+// Print an invalid input message on the error stream.
 func invalidInput() {
 	fmt.Fprintf(os.Stderr, "Invalid input, try again.\n\n")
 }

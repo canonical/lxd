@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
 // Event handling functions
 
-// getEvents connects to the LXD monitoring interface
+// getEvents connects to the LXD monitoring interface.
 func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Prevent anything else from interacting with the listeners
 	r.eventListenersLock.Lock()

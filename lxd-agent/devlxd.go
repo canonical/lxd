@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
@@ -257,7 +258,7 @@ func socketUnixRemoveStale(path string) error {
 	return nil
 }
 
-// Change the file mode of the given unix socket file,
+// Change the file mode of the given unix socket file.
 func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	err := os.Chmod(path, mode)
 	if err != nil {
@@ -279,5 +280,4 @@ func socketUnixListen(path string) (net.Listener, error) {
 	}
 
 	return listener, err
-
 }

@@ -1,12 +1,12 @@
 package ip
 
-// Veth represents arguments for link of type veth
+// Veth represents arguments for link of type veth.
 type Veth struct {
 	Link
 	PeerName string
 }
 
-// additionalArgs generates veth specific arguments
+// additionalArgs generates veth specific arguments.
 func (veth *Veth) additionalArgs() []string {
 	args := []string{}
 	if veth.PeerName != "" {
@@ -15,7 +15,7 @@ func (veth *Veth) additionalArgs() []string {
 	return args
 }
 
-// Add adds new virtual link
+// Add adds new virtual link.
 func (veth *Veth) Add() error {
 	return veth.Link.add("veth", veth.additionalArgs())
 }

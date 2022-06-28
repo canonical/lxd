@@ -539,7 +539,6 @@ func doContainersGetFromNode(projects []string, node, allProjects string, networ
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 			}
-
 		} else {
 			for _, project := range projects {
 				client = client.UseProject(project)
@@ -550,7 +549,6 @@ func doContainersGetFromNode(projects []string, node, allProjects string, networ
 				}
 				containers = append(containers, tmpContainers...)
 			}
-
 		}
 
 		return containers, nil

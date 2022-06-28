@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// WriteTempFile creates a temp file with the specified content
+// WriteTempFile creates a temp file with the specified content.
 func WriteTempFile(dir string, prefix string, content string) (string, error) {
 	f, err := ioutil.TempFile(dir, prefix)
 	if err != nil {

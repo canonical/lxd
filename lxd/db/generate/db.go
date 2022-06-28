@@ -150,7 +150,6 @@ func newDbMapperMethod() *cobra.Command {
 				if err != nil {
 					return err
 				}
-
 			} else {
 				method, err = db.NewMethod(database, pkg, entity, kind, config)
 				if err != nil {

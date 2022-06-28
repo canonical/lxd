@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: network
+// API extension: network.
 type NetworksPost struct {
 	NetworkPut `yaml:",inline"`
 
@@ -21,7 +21,7 @@ type NetworksPost struct {
 //
 // swagger:model
 //
-// API extension: network
+// API extension: network.
 type NetworkPost struct {
 	// The new name for the network
 	// Example: lxdbr1
@@ -32,7 +32,7 @@ type NetworkPost struct {
 //
 // swagger:model
 //
-// API extension: network
+// API extension: network.
 type NetworkPut struct {
 	// Network configuration map (refer to doc/networks.md)
 	// Example: {"ipv4.address": "10.0.0.1/24", "ipv4.nat": "true", "ipv6.address": "none"}
@@ -103,7 +103,7 @@ type Network struct {
 	Locations []string `json:"locations" yaml:"locations"`
 }
 
-// Writable converts a full Network struct into a NetworkPut struct (filters read-only fields)
+// Writable converts a full Network struct into a NetworkPut struct (filters read-only fields).
 func (network *Network) Writable() NetworkPut {
 	return network.NetworkPut
 }
@@ -112,7 +112,7 @@ func (network *Network) Writable() NetworkPut {
 //
 // swagger:model
 //
-// API extension: network_leases
+// API extension: network_leases.
 type NetworkLease struct {
 	// The hostname associated with the record
 	// Example: c1
@@ -230,7 +230,7 @@ type NetworkStateCounters struct {
 //
 // swagger:model
 //
-// API extension: network_state_bond_bridge
+// API extension: network_state_bond_bridge.
 type NetworkStateBond struct {
 	// Bonding mode
 	// Example: 802.3ad
@@ -265,7 +265,7 @@ type NetworkStateBond struct {
 //
 // swagger:model
 //
-// API extension: network_state_bond_bridge
+// API extension: network_state_bond_bridge.
 type NetworkStateBridge struct {
 	// Bridge ID
 	// Example: 8000.0a0f7c6edbd9
@@ -296,7 +296,7 @@ type NetworkStateBridge struct {
 //
 // swagger:model
 //
-// API extension: network_state_vlan
+// API extension: network_state_vlan.
 type NetworkStateVLAN struct {
 	// Parent device
 	// Example: eth0
@@ -311,7 +311,7 @@ type NetworkStateVLAN struct {
 //
 // swagger:model
 //
-// API extension: network_state_ovn
+// API extension: network_state_ovn.
 type NetworkStateOVN struct {
 	// OVN network chassis name
 	Chassis string `json:"chassis" yaml:"chassis"`

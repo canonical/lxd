@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
-// ProgressRenderer tracks the progress information
+// ProgressRenderer tracks the progress information.
 type ProgressRenderer struct {
 	Format string
 	Quiet  bool
@@ -38,7 +38,7 @@ func (p *ProgressRenderer) truncate(msg string) string {
 	return msg
 }
 
-// Done prints the final status and prevents any update
+// Done prints the final status and prevents any update.
 func (p *ProgressRenderer) Done(msg string) {
 	// Acquire rendering lock
 	p.lock.Lock()
@@ -80,7 +80,7 @@ func (p *ProgressRenderer) Done(msg string) {
 	fmt.Print(msg)
 }
 
-// Update changes the status message to the provided string
+// Update changes the status message to the provided string.
 func (p *ProgressRenderer) Update(status string) {
 	// Wait if needed
 	timeout := time.Until(p.wait)
@@ -140,7 +140,7 @@ func (p *ProgressRenderer) Update(status string) {
 	fmt.Print(msg)
 }
 
-// Warn shows a temporary message instead of the status
+// Warn shows a temporary message instead of the status.
 func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	// Acquire rendering lock
 	p.lock.Lock()
@@ -172,12 +172,12 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	fmt.Print(msg)
 }
 
-// UpdateProgress is a helper to update the status using an iopgress instance
+// UpdateProgress is a helper to update the status using an iopgress instance.
 func (p *ProgressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
 	p.Update(progress.Text)
 }
 
-// UpdateOp is a helper to update the status using a LXD API operation
+// UpdateOp is a helper to update the status using a LXD API operation.
 func (p *ProgressRenderer) UpdateOp(op api.Operation) {
 	if op.Metadata == nil {
 		return

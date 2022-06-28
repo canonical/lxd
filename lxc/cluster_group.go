@@ -65,7 +65,7 @@ func (c *cmdClusterGroup) Command() *cobra.Command {
 	return cmd
 }
 
-// Assign
+// Assign.
 type cmdClusterGroupAssign struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -137,7 +137,7 @@ func (c *cmdClusterGroupAssign) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Create
+// Create.
 type cmdClusterGroupCreate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -191,7 +191,7 @@ func (c *cmdClusterGroupCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdClusterGroupDelete struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -242,7 +242,7 @@ func (c *cmdClusterGroupDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdClusterGroupEdit struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -352,7 +352,7 @@ func (c *cmdClusterGroupEdit) helpTemplate() string {
 ### Any line starting with a '# will be ignored.`)
 }
 
-// List
+// List.
 type cmdClusterGroupList struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -426,7 +426,7 @@ func (c *cmdClusterGroupList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, groups)
 }
 
-// Remove
+// Remove.
 type cmdClusterGroupRemove struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -496,7 +496,7 @@ func (c *cmdClusterGroupRemove) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Rename
+// Rename.
 type cmdClusterGroupRename struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
@@ -543,7 +543,7 @@ func (c *cmdClusterGroupRename) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdClusterGroupShow struct {
 	global  *cmdGlobal
 	cluster *cmdCluster

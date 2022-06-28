@@ -13,7 +13,7 @@ import (
 // and options for their values, expressed using Key objects.
 type Schema map[string]Key
 
-// Keys returns all keys defined in the schema
+// Keys returns all keys defined in the schema.
 func (s Schema) Keys() []string {
 	keys := make([]string, len(s))
 	i := 0

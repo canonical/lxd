@@ -8,7 +8,6 @@ func LogLevel(level string) Option {
 	return func(options *options) {
 		options.logLevel = level
 	}
-
 }
 
 // Latency is a coarse grain measure of how fast/reliable network links
@@ -21,7 +20,6 @@ func Latency(latency float64) Option {
 	return func(options *options) {
 		options.latency = latency
 	}
-
 }
 
 // Create a options instance with default values.

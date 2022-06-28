@@ -170,7 +170,6 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	// Check project limits.
 	apiProfiles := make([]api.Profile, 0, len(req.Profiles))
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-
 		profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, req.Profiles)
 		if err != nil {
 			return err

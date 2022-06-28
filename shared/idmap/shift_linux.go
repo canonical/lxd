@@ -11,9 +11,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	// Used by cgo
-	_ "github.com/lxc/lxd/lxd/include"
-
+	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )

@@ -2,19 +2,19 @@ package drivers
 
 import "fmt"
 
-// ErrNotImplemented is the "Not implemented" error
+// ErrNotImplemented is the "Not implemented" error.
 var ErrNotImplemented = fmt.Errorf("Not implemented")
 
-// ErrInvalidFunction is the "Invalid function" error
+// ErrInvalidFunction is the "Invalid function" error.
 var ErrInvalidFunction = fmt.Errorf("Invalid function")
 
-// ErrUnknownDriver is the "Unknown driver" error
+// ErrUnknownDriver is the "Unknown driver" error.
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
 
-// ErrWatchExists is the "Watch already exists" error
+// ErrWatchExists is the "Watch already exists" error.
 var ErrWatchExists = fmt.Errorf("Watch already exists")
 
-// ErrInvalidPath is the "Invalid path" error
+// ErrInvalidPath is the "Invalid path" error.
 type ErrInvalidPath struct {
 	PrefixPath string
 }

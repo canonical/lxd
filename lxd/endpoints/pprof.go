@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	_ "net/http/pprof" // pprof magic
 	"time"
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	_ "net/http/pprof" // pprof magic
 )
 
 func pprofCreateServer() *http.Server {
@@ -30,7 +29,7 @@ func pprofCreateListener(address string) (net.Listener, error) {
 	return net.Listen("tcp", address)
 }
 
-// PprofAddress returns the network addresss of the pprof endpoint, or an empty string if there's no pprof endpoint
+// PprofAddress returns the network addresss of the pprof endpoint, or an empty string if there's no pprof endpoint.
 func (e *Endpoints) PprofAddress() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

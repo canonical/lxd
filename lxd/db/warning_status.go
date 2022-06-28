@@ -6,11 +6,11 @@ package db
 type WarningStatus int
 
 const (
-	// WarningStatusNew represents the New WarningStatus
+	// WarningStatusNew represents the New WarningStatus.
 	WarningStatusNew WarningStatus = 1
-	// WarningStatusAcknowledged represents the Acknowledged WarningStatus
+	// WarningStatusAcknowledged represents the Acknowledged WarningStatus.
 	WarningStatusAcknowledged WarningStatus = 2
-	// WarningStatusResolved represents the Resolved WarningStatus
+	// WarningStatusResolved represents the Resolved WarningStatus.
 	WarningStatusResolved WarningStatus = 3
 )
 

@@ -220,7 +220,6 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 			name string
 		}{})
 		return []any{&pools[i].id, &pools[i].name}
-
 	}
 	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
 	if err != nil {
@@ -356,7 +355,7 @@ SELECT ?, key, value
 	return nil
 }
 
-// CreateStoragePoolConfig adds a new entry in the storage_pools_config table
+// CreateStoragePoolConfig adds a new entry in the storage_pools_config table.
 func (c *ClusterTx) CreateStoragePoolConfig(poolID, nodeID int64, config map[string]string) error {
 	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
 }

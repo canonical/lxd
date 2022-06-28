@@ -42,7 +42,7 @@ type rbacStatus struct {
 	LastChange string `json:"last-change"`
 }
 
-// Errors
+// Errors.
 var errUnknownUser = fmt.Errorf("Unknown RBAC user")
 
 // UserAccess struct for permission checks.
@@ -203,7 +203,7 @@ func (r *Server) StopStatusCheck() {
 	r.ctxCancel()
 }
 
-// SyncProjects updates the list of projects in RBAC
+// SyncProjects updates the list of projects in RBAC.
 func (r *Server) SyncProjects() error {
 	if r.ProjectsFunc == nil {
 		return fmt.Errorf("ProjectsFunc isn't configured yet, cannot sync")

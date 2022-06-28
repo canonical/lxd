@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/filter"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/filter"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func TestMatch_Instance(t *testing.T) {
@@ -49,7 +50,6 @@ func TestMatch_Instance(t *testing.T) {
 			assert.Equal(t, cases[s], match)
 		})
 	}
-
 }
 
 func TestMatch_Image(t *testing.T) {
@@ -74,5 +74,4 @@ func TestMatch_Image(t *testing.T) {
 			assert.Equal(t, cases[s], match)
 		})
 	}
-
 }

@@ -94,7 +94,6 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 	}
 
 	return c.UpsertWarning(localName, projectName, entityTypeCode, entityID, typeCode, message)
-
 }
 
 // UpsertWarning creates or updates a warning.

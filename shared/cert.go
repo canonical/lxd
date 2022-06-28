@@ -206,7 +206,7 @@ func TestingAltKeyPair() *CertInfo {
 
 /*
  * Generate a list of names for which the certificate will be valid.
- * This will include the hostname and ip address
+ * This will include the hostname and ip address.
  */
 func mynames() ([]string, error) {
 	h, err := os.Hostname()
@@ -235,7 +235,7 @@ func FindOrGenCert(certf string, keyf string, certtype bool, addHosts bool) erro
 	return nil
 }
 
-// GenCert will create and populate a certificate file and a key file
+// GenCert will create and populate a certificate file and a key file.
 func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 	/* Create the basenames if needed */
 	dir := filepath.Dir(certf)

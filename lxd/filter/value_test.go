@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestValueOf_Instance(t *testing.T) {
@@ -50,5 +51,4 @@ func TestValueOf_Instance(t *testing.T) {
 			assert.Equal(t, cases[field], value)
 		})
 	}
-
 }

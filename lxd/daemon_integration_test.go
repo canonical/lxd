@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/sys"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // The daemon is started and a client can connect to it via unix socket.

@@ -12,12 +12,13 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/driver"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/shared"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Basic creation and shutdown. By default, the gateway runs an in-memory gRPC
@@ -151,7 +152,6 @@ func TestGateway_NetworkAuth(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, response.StatusCode)
 	}
-
 }
 
 // RaftNodes returns all nodes of the cluster.

@@ -219,11 +219,9 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 	err = addNodesToClusterGroup(c.tx, int(id), object.Nodes)
 	if err != nil {
 		return -1, fmt.Errorf("Insert nodes for cluster group: %w", err)
-
 	}
 
 	return id, nil
-
 }
 
 // RenameClusterGroup renames the ClusterGroup matching the given key parameters.

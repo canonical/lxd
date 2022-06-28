@@ -45,12 +45,12 @@ func (c *Config) HTTPSAddress() string {
 	return networkAddress
 }
 
-// BGPAddress returns the address and port to setup the BGP listener on
+// BGPAddress returns the address and port to setup the BGP listener on.
 func (c *Config) BGPAddress() string {
 	return c.m.GetString("core.bgp_address")
 }
 
-// BGPRouterID returns the address to use as a router ID
+// BGPRouterID returns the address to use as a router ID.
 func (c *Config) BGPRouterID() string {
 	return c.m.GetString("core.bgp_routerid")
 }
@@ -66,7 +66,7 @@ func (c *Config) ClusterAddress() string {
 	return clusterAddress
 }
 
-// DebugAddress returns the address and port to setup the pprof listener on
+// DebugAddress returns the address and port to setup the pprof listener on.
 func (c *Config) DebugAddress() string {
 	debugAddress := c.m.GetString("core.debug_address")
 	if debugAddress != "" {
@@ -76,12 +76,12 @@ func (c *Config) DebugAddress() string {
 	return debugAddress
 }
 
-// DNSAddress returns the address and port to setup the DNS listener on
+// DNSAddress returns the address and port to setup the DNS listener on.
 func (c *Config) DNSAddress() string {
 	return c.m.GetString("core.dns_address")
 }
 
-// MetricsAddress returns the address and port to setup the metrics listener on
+// MetricsAddress returns the address and port to setup the metrics listener on.
 func (c *Config) MetricsAddress() string {
 	metricsAddress := c.m.GetString("core.metrics_address")
 	if metricsAddress != "" {
@@ -97,12 +97,12 @@ func (c *Config) MAASMachine() string {
 	return c.m.GetString("maas.machine")
 }
 
-// StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs
+// StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs.
 func (c *Config) StorageBackupsVolume() string {
 	return c.m.GetString("storage.backups_volume")
 }
 
-// StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs
+// StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs.
 func (c *Config) StorageImagesVolume() string {
 	return c.m.GetString("storage.images_volume")
 }

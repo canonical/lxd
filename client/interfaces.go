@@ -526,7 +526,7 @@ type StoragePoolVolumeMoveArgs struct {
 }
 
 // The StoragePoolVolumeBackupArgs struct is used when creating a storage volume from a backup.
-// API extension: custom_volume_backup
+// API extension: custom_volume_backup.
 type StoragePoolVolumeBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader

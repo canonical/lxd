@@ -3,9 +3,10 @@ package filter_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/filter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/filter"
 )
 
 func TestParse_Error(t *testing.T) {

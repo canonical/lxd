@@ -41,7 +41,7 @@ func (c *cmdConfigMetadata) Command() *cobra.Command {
 	return cmd
 }
 
-// Edit
+// Edit.
 type cmdConfigMetadataEdit struct {
 	global         *cmdGlobal
 	config         *cmdConfig
@@ -163,7 +163,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Show
+// Show.
 type cmdConfigMetadataShow struct {
 	global         *cmdGlobal
 	config         *cmdConfig

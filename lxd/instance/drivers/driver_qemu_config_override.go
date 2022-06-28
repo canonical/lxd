@@ -112,7 +112,6 @@ func updateEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgE
 	rv := []cfgEntry{}
 
 	for _, entry := range entries {
-
 		newEntry := cfgEntry{
 			key:   entry.key,
 			value: entry.value,

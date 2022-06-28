@@ -81,7 +81,7 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 	}
 }
 
-// GenerateSignature is not used for statements
+// GenerateSignature is not used for statements.
 func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 	return nil
 }
@@ -420,7 +420,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	return nil
 }
 
-// Return a where clause that filters an entity by the given fields
+// Return a where clause that filters an entity by the given fields.
 func whereClause(fields []*Field) string {
 	via := map[string][]*Field{} // Map scalar fields to their additional indirect fields
 
@@ -456,10 +456,8 @@ func whereClause(fields []*Field) string {
 			subSelect += fmt.Sprintf(" %s.name = ?", refTable)
 			where[i] = fmt.Sprintf("%s_id = (%s)", ref, subSelect)
 		} else {
-
 			where[i] = fmt.Sprintf("%s = ?", field.Column())
 		}
-
 	}
 
 	return strings.Join(where, " AND ")
