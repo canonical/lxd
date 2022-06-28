@@ -33,6 +33,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = os.RemoveAll(volPath) })
 
 	// Create sparse loopback file if volume is block.
@@ -116,6 +117,7 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if err != nil {
 				return err
 			}
+
 			revert.Add(revertQuota)
 
 			revert.Success()

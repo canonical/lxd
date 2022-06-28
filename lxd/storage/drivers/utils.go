@@ -300,6 +300,7 @@ func ensureSparseFile(filePath string, sizeBytes int64) error {
 	if err != nil {
 		return fmt.Errorf("Failed to open %s: %w", filePath, err)
 	}
+
 	defer func() { _ = f.Close() }()
 
 	err = f.Truncate(sizeBytes)
@@ -842,6 +843,7 @@ func BlockDiskSizeBytes(blockDiskPath string) (int64, error) {
 		if err != nil {
 			return -1, err
 		}
+
 		defer func() { _ = f.Close() }()
 		fd := int(f.Fd())
 
@@ -882,6 +884,7 @@ func loopFileSizeDefault() (uint64, error) {
 	if defaultSize > 30 {
 		defaultSize = 30
 	}
+
 	if defaultSize < 5 {
 		defaultSize = 5
 	}

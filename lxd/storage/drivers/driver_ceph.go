@@ -52,6 +52,7 @@ func (d *ceph) load() error {
 		if err != nil {
 			return err
 		}
+
 		out = strings.TrimSpace(out)
 
 		fields := strings.Split(out, " ")
@@ -164,6 +165,7 @@ func (d *ceph) Create() error {
 		if err != nil {
 			return err
 		}
+
 		d.config["volatile.pool.pristine"] = "true"
 	} else {
 		ok := d.HasVolume(placeholderVol)
