@@ -98,6 +98,7 @@ type OVNDHCPv4Opts struct {
 	DomainName         string
 	LeaseTime          time.Duration
 	MTU                uint32
+	Netmask            string
 }
 
 // OVNDHCPv6Opts IPv6 DHCP option set that can be created (and then applied to a switch port by resulting ID).
@@ -858,6 +859,10 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 
 	if opts.MTU > 0 {
 		args = append(args, fmt.Sprintf("mtu=%d", opts.MTU))
+	}
+
+	if opts.Netmask != "" {
+		args = append(args, fmt.Sprintf("netmask=%s", opts.Netmask))
 	}
 
 	_, err = o.nbctl(args...)
