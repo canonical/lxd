@@ -156,6 +156,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	if err != nil {
 		return nil, err
 	}
+
 	op.metadata = newMetadata
 
 	// Callback functions
@@ -470,8 +471,10 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 			for _, c := range value {
 				values = append(values, fmt.Sprintf("/%s/%s/%s", version.APIVersion, key, c))
 			}
+
 			tmpResources[key] = values
 		}
+
 		resources = tmpResources
 	}
 
