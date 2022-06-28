@@ -5,6 +5,8 @@ discourse: 1333
 (storage-zfs)=
 # ZFS - `zfs`
 
+## `zfs` driver in LXD
+
  - When LXD creates a ZFS pool, compression is enabled by default.
  - Uses ZFS filesystems for images, then snapshots and clones to create instances and snapshots.
  - Due to the way copy-on-write works in ZFS, parent filesystems can't
@@ -12,6 +14,12 @@ discourse: 1333
    automatically rename any removed but still referenced object to a random
    deleted/ path and keep it until such time the references are gone and it
    can safely be removed.
+ - Note that LXD will assume it has full control over the ZFS pool or dataset.
+   It is recommended to not maintain any non-LXD owned filesystem entities in
+   a LXD ZFS pool or dataset since LXD might delete them.
+
+### Limitations
+
  - ZFS as it is today doesn't support delegating part of a pool to a
    container user. Upstream is actively working on this.
  - ZFS doesn't support restoring from snapshots other than the latest
@@ -30,9 +38,13 @@ discourse: 1333
    the old instance does however work, at the cost of losing any other
    snapshot the instance may have had.
 
- - Note that LXD will assume it has full control over the ZFS pool or dataset.
-   It is recommended to not maintain any non-LXD owned filesystem entities in
-   a LXD ZFS pool or dataset since LXD might delete them.
+ - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
+   much. That's because of ZFS being a port of a Solaris module (using SPL)
+   and not a native Linux filesystem using the Linux VFS API which is where
+   I/O limits are applied.
+
+### Quotas
+
  - When quotas are used on a ZFS dataset LXD will set the ZFS "quota" property.
    In order to have LXD set the ZFS "refquota" property, either set
    "zfs.use\_refquota" to "true" for the given dataset or set
@@ -42,10 +54,6 @@ discourse: 1333
    set "zfs.reserve\_space" on the volume or "volume.zfs.reserve\_space" on the
    storage pool to use ZFS "reservation"/"refreservation" along with
    "quota"/"refquota".
- - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
-   much. That's because of ZFS being a port of a Solaris module (using SPL)
-   and not a native Linux filesystem using the Linux VFS API which is where
-   I/O limits are applied.
 
 ## Configuration options
 
