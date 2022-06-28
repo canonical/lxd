@@ -38,6 +38,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
 		}
+
 		setDqliteVersionHeader(request)
 
 		httpClient, err := client.GetHTTPClient()
@@ -67,6 +68,7 @@ func MaybeUpdate(state *state.State) error {
 	if err != nil {
 		return fmt.Errorf("Failed to check clustering is enabled: %w", err)
 	}
+
 	if !enabled {
 		return nil
 	}
@@ -80,6 +82,7 @@ func MaybeUpdate(state *state.State) error {
 		if err != nil {
 			return err
 		}
+
 		shouldUpdate = outdated
 		return nil
 	})
@@ -119,6 +122,7 @@ func triggerUpdate() error {
 		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
 		return err
 	}
+
 	logger.Info("Triggering cluster auto-update succeeded")
 
 	return nil
@@ -131,6 +135,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	if err == ErrNotLeader {
 		return nil
 	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to get current raft members: %w", err)
 	}
@@ -145,6 +150,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect to local dqlite member: %w", err)
 	}
+
 	defer func() { _ = dqliteClient.Close() }()
 
 	// Check that each member is present in the raft configuration, and add it if not.

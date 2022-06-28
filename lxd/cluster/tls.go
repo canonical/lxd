@@ -100,5 +100,6 @@ func tlsTransport(config *tls.Config) (*http.Transport, func()) {
 		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
+
 	return transport, transport.CloseIdleConnections
 }

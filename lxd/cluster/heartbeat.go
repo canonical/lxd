@@ -534,6 +534,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	if err != nil {
 		return err
 	}
+
 	setDqliteVersionHeader(request)
 
 	// Use 1s later timeout to give HTTP client chance timeout with more useful info.
@@ -546,6 +547,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	if err != nil {
 		return fmt.Errorf("Failed to send heartbeat request: %w", err)
 	}
+
 	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode != http.StatusOK {
