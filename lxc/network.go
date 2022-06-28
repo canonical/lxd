@@ -683,10 +683,13 @@ func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
+
 	return nil
 }
 
@@ -945,6 +948,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, details)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
@@ -1016,6 +1020,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, entry)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
@@ -1024,6 +1029,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("IP ADDRESS"),
 		i18n.G("TYPE"),
 	}
+
 	if resource.server.IsClustered() {
 		header = append(header, i18n.G("LOCATION"))
 	}

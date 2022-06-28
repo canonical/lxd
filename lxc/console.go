@@ -148,12 +148,14 @@ func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	if c.flagType == "" {
 		c.flagType = "console"
 	}
+
 	switch c.flagType {
 	case "console":
 		return c.console(d, name)
 	case "vga":
 		return c.vga(d, name)
 	}
+
 	return fmt.Errorf(i18n.G("Unknown console type %q"), c.flagType)
 }
 
@@ -165,6 +167,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = termios.Restore(cfd, oldTTYstate) }()
 
 	handler := c.controlSocketHandler
@@ -263,6 +266,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
+
 		_ = path.Close()
 
 		err = os.Remove(path.Name())
@@ -275,6 +279,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = os.Remove(path.Name()) }()
 
 		socket = fmt.Sprintf("spice+unix://%s", path.Name())
@@ -318,6 +323,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 				hasConnected = true
 				close(chConnected)
 			}
+
 			wgConnections.Add(1)
 
 			go func(conn io.ReadWriteCloser) {

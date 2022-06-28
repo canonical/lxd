@@ -122,6 +122,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		if len(pieces) > 1 {
 			value = pieces[1]
 		}
+
 		env[pieces[0]] = value
 	}
 
@@ -206,6 +207,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	opAPI := op.Get()
 
 	// Wait for any remaining I/O to be flushed

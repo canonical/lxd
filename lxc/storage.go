@@ -316,8 +316,10 @@ func (c *cmdStorageEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -598,12 +600,14 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 		details = append(details, strings.ToUpper(pool.Status))
 		data = append(data, details)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("NAME"),
 		i18n.G("DRIVER"),
 	}
+
 	if !resource.server.IsClustered() {
 		header = append(header, i18n.G("SOURCE"))
 	}
