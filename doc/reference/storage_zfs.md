@@ -47,7 +47,11 @@ discourse: 1333
    and not a native Linux filesystem using the Linux VFS API which is where
    I/O limits are applied.
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `zfs` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and ZFS.)
@@ -56,7 +60,7 @@ zfs.clone\_copy               | string                        | true            
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)

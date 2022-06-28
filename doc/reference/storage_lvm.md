@@ -18,7 +18,11 @@
    settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with
    LXD.
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `lvm` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
@@ -30,7 +34,7 @@ rsync.bwlimit                 | string                        | 0 (no limit)    
 rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume

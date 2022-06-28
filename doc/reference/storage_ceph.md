@@ -28,7 +28,11 @@
   `ceph.osd.data_pool_name=<erasure-coded-pool-name>` and
   `source=<replicated-pool-name>` for the replicated pool.
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `ceph` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 ceph.cluster\_name            | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
@@ -43,7 +47,7 @@ ceph.user.name                | string                        | admin           
 source                        | string                        | -                                       | Existing OSD storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume

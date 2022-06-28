@@ -21,13 +21,17 @@
    that block rewrites don't cause as much storage to be double tracked. However as this is a storage pool option
    it will affect all volumes on the pool.
 
-## Storage pool configuration
+## Configuration options
+
+The following configuration options are available for storage pools that use the `btrfs` driver and for storage volumes in these pools.
+
+### Storage pool configuration
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
 btrfs.mount\_options            | string    | user\_subvol\_rm\_allowed  | Mount options for block devices
 source                          | string    | -                          | Path to block device or loop file or filesystem entry
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
