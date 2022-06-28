@@ -298,6 +298,7 @@ func PrepareLoopDev(source string, flags int) (*os.File, error) {
 	if cLoopDev == nil {
 		return nil, fmt.Errorf("Failed to allocate memory in C")
 	}
+
 	defer C.free(cLoopDev)
 
 	cSource := C.CString(source)
@@ -325,6 +326,7 @@ func releaseLoopDev(source string) error {
 	if cLoopDev == nil {
 		return fmt.Errorf("Failed to allocate memory in C")
 	}
+
 	defer C.free(cLoopDev)
 
 	cSource := C.CString(source)
@@ -354,6 +356,7 @@ func SetAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
+
 		return fmt.Errorf("Failed to set LO_FLAGS_AUTOCLEAR")
 	}
 
@@ -367,6 +370,7 @@ func UnsetAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
+
 		return fmt.Errorf("Failed to unset LO_FLAGS_AUTOCLEAR")
 	}
 

@@ -77,6 +77,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pool.driver = driver
 
 		return &pool, nil
@@ -142,6 +143,7 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pool.driver = driver
 
 		return &pool, nil

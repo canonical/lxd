@@ -202,6 +202,7 @@ func (v Volume) EnsureMountPath() error {
 		if err != nil {
 			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
 		}
+
 		revert.Add(func() { _ = os.Remove(volPath) })
 	}
 
@@ -247,6 +248,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	} else {
 		err = v.driver.MountVolume(v, op)
 	}
+
 	if err != nil {
 		return err
 	}

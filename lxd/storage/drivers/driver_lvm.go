@@ -152,6 +152,7 @@ func (d *lvm) Create() error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = loopFile.Close() }()
 
 		// Check if the physical volume already exists.
@@ -176,6 +177,7 @@ func (d *lvm) Create() error {
 		if d.config["lvm.vg_name"] == "" {
 			d.config["lvm.vg_name"] = d.name
 		}
+
 		d.config["source"] = d.config["lvm.vg_name"]
 
 		if !shared.IsBlockdevPath(srcPath) {
@@ -287,6 +289,7 @@ func (d *lvm) Create() error {
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _, _ = shared.TryRunCommand("pvremove", pvName) })
 		}
 
@@ -295,6 +298,7 @@ func (d *lvm) Create() error {
 		if err != nil {
 			return err
 		}
+
 		d.logger.Debug("Volume group created", logger.Ctx{"pv_name": pvName, "vg_name": d.config["lvm.vg_name"]})
 		revert.Add(func() { _, _ = shared.TryRunCommand("vgremove", d.config["lvm.vg_name"]) })
 	}
@@ -305,6 +309,7 @@ func (d *lvm) Create() error {
 		if err != nil {
 			return err
 		}
+
 		d.logger.Debug("Thin pool created", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
 
 		revert.Add(func() {
@@ -317,6 +322,7 @@ func (d *lvm) Create() error {
 	if err != nil {
 		return err
 	}
+
 	d.logger.Debug("LXD marker tag added to volume group", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
 
 	revert.Success()
@@ -334,6 +340,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = loopFile.Close() }()
 	}
 
@@ -381,6 +388,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 						if err != nil {
 							return fmt.Errorf("Failed to delete thin pool %q from volume group %q: %w", d.thinpoolName(), d.config["lvm.vg_name"], err)
 						}
+
 						d.logger.Debug("Thin pool removed", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
 					}
 				}
@@ -393,6 +401,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 			if err != nil {
 				return fmt.Errorf("Failed to delete the volume group for the lvm storage pool: %w", err)
 			}
+
 			d.logger.Debug("Volume group removed", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
 		} else {
 			// Otherwise just remove the lvmVgPoolMarker tag to indicate LXD no longer uses this VG.
@@ -401,6 +410,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 				if err != nil {
 					return fmt.Errorf("Failed to remove marker tag on volume group for the lvm storage pool: %w", err)
 				}
+
 				d.logger.Debug("LXD marker tag removed from volume group", logger.Ctx{"vg_name": d.config["lvm.vg_name"]})
 			}
 		}
@@ -417,6 +427,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if err != nil {
 			d.logger.Warn("Failed to destroy the physical volume for the lvm storage pool", logger.Ctx{"err": err})
 		}
+
 		d.logger.Debug("Physical volume removed", logger.Ctx{"pv_name": loopFile.Name()})
 
 		err = loopFile.Close()
@@ -429,6 +440,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("Error removing LVM pool loop file %q: %w", d.config["source"], err)
 		}
+
 		d.logger.Debug("Physical loop file removed", logger.Ctx{"file_name": d.config["source"]})
 	}
 
@@ -496,6 +508,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("Error renaming LVM volume group from %q to %q: %w", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"], err)
 		}
+
 		d.logger.Debug("Volume group renamed", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "new_vg_name": changedConfig["lvm.vg_name"]})
 	}
 
@@ -504,6 +517,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("Error renaming LVM thin pool from %q to %q: %w", d.thinpoolName(), changedConfig["lvm.thinpool_name"], err)
 		}
+
 		d.logger.Debug("Thin pool volume renamed", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool": d.thinpoolName(), "new_thinpool": changedConfig["lvm.thinpool_name"]})
 	}
 
@@ -629,6 +643,7 @@ func (d *lvm) GetResources() (*api.ResourcesStoragePool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		res.Space.Used = total - free
 	}
 

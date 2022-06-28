@@ -300,6 +300,7 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 				}
 			}
 		}
+
 		return err
 	}
 
@@ -330,6 +331,7 @@ func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error
 				}
 			}
 		}
+
 		return err
 	}
 
@@ -864,6 +866,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	if idx == -1 {
 		return vol, "", fmt.Errorf("Pool delimiter not found")
 	}
+
 	slider := parent[(idx + 1):]
 	poolName := parent[:idx]
 
@@ -920,6 +923,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	if idx == -1 {
 		return "", "", "", fmt.Errorf("Unexpected parsing error")
 	}
+
 	slider := clone[(idx + 1):]
 	poolName := clone[:idx]
 
@@ -939,6 +943,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	if idx == len("zombie_") {
 		idxType += idx
 	}
+
 	volumeType = volumeType[:idxType]
 
 	idx = strings.Index(slider, "_")
@@ -951,6 +956,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	if idx == -1 {
 		return "", "", "", fmt.Errorf("Unexpected parsing error")
 	}
+
 	volumeName = volumeName[(idx + 1):]
 
 	return poolName, volumeType, volumeName, nil
