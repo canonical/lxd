@@ -48,6 +48,7 @@ func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open %q: %w", filepath.Join(entryPath, "information"), err)
 		}
+
 		defer func() { _ = f.Close() }()
 
 		gpuInfo := bufio.NewScanner(f)
@@ -114,6 +115,7 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 		if err == io.EOF {
 			break
 		}
+
 		line++
 
 		if err != nil {
@@ -194,6 +196,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		if err != nil {
 			return fmt.Errorf("Failed to find USB address for %q: %w", devicePath, err)
 		}
+
 		if usbAddr != "" {
 			card.USBAddress = usbAddr
 		}
@@ -470,6 +473,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to find PCI address for %q: %w", devicePath, err)
 			}
+
 			if pciAddr != "" {
 				card.PCIAddress = pciAddr
 
@@ -494,12 +498,14 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
 				}
+
 				parentAddress := filepath.Base(linkTarget)
 
 				_, ok := pciVFs[parentAddress]
 				if !ok {
 					pciVFs[parentAddress] = []api.ResourcesGPUCard{}
 				}
+
 				pciVFs[parentAddress] = append(pciVFs[parentAddress], card)
 			} else {
 				gpu.Cards = append(gpu.Cards, card)
@@ -556,12 +562,14 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
 				}
+
 				parentAddress := filepath.Base(linkTarget)
 
 				_, ok := pciVFs[parentAddress]
 				if !ok {
 					pciVFs[parentAddress] = []api.ResourcesGPUCard{}
 				}
+
 				pciVFs[parentAddress] = append(pciVFs[parentAddress], card)
 			} else {
 				gpu.Cards = append(gpu.Cards, card)
