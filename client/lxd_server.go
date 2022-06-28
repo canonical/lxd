@@ -167,6 +167,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
