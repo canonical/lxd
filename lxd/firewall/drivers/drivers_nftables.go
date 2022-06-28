@@ -140,10 +140,12 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = cmd.Wait() }()
 
 	// This only extracts certain generic parts of the ruleset, see man libnftables-json for more info.
@@ -700,6 +702,7 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 		"family":         "inet",
 		"rules":          nftRules,
 	}
+
 	config := &strings.Builder{}
 	err := nftablesNetACLRules.Execute(config, tplFields)
 	if err != nil {

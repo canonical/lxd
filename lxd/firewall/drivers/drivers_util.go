@@ -37,6 +37,7 @@ func portRangeStr(portRange [2]uint64, delimiter string) string {
 	} else if portRange[1] == 1 {
 		return fmt.Sprintf("%d", portRange[0])
 	}
+
 	return fmt.Sprintf("%d%s%d", portRange[0], delimiter, portRange[0]+portRange[1]-1)
 }
 
@@ -121,6 +122,7 @@ func subnetMask(ipNet *net.IPNet) string {
 		if i%4 == 0 && i != 0 {
 			hexMask = append(hexMask, ':')
 		}
+
 		hexMask = append(hexMask, r)
 	}
 
