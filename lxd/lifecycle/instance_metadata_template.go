@@ -13,22 +13,20 @@ type InstanceMetadataTemplateAction string
 
 // All supported lifecycle events for instance metadata templates.
 const (
-	InstanceMetadataTemplateDeleted   = InstanceMetadataTemplateAction("deleted")
-	InstanceMetadataTemplateCreated   = InstanceMetadataTemplateAction("created")
-	InstanceMetadataTemplateRetrieved = InstanceMetadataTemplateAction("retrieved")
+	InstanceMetadataTemplateDeleted   = InstanceMetadataTemplateAction(api.EventLifecycleInstanceMetadataTemplateDeleted)
+	InstanceMetadataTemplateCreated   = InstanceMetadataTemplateAction(api.EventLifecycleInstanceMetadataTemplateCreated)
+	InstanceMetadataTemplateRetrieved = InstanceMetadataTemplateAction(api.EventLifecycleInstanceMetadataTemplateRetrieved)
 )
 
 // Event creates the lifecycle event for an action on instance metadata templates.
 func (a InstanceMetadataTemplateAction) Event(inst instance, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("instance-metadata-template-%s", a)
 	u := fmt.Sprintf("/1.0/instances/%s/metadata/templates", url.PathEscape(inst.Name()))
-
 	if inst.Project() != project.Default {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
 	}
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,

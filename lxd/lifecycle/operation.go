@@ -17,16 +17,15 @@ type OperationAction string
 
 // All supported lifecycle events for operations.
 const (
-	OperationCancelled = OperationAction("cancelled")
+	OperationCancelled = OperationAction(api.EventLifecycleOperationCancelled)
 )
 
 // Event creates the lifecycle event for an action on an operation.
 func (a OperationAction) Event(op operation, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	eventType := fmt.Sprintf("operation-%s", a)
 	u := fmt.Sprintf("/1.0/operations/%s", url.PathEscape(op.ID()))
 
 	return api.EventLifecycle{
-		Action:    eventType,
+		Action:    string(a),
 		Source:    u,
 		Context:   ctx,
 		Requestor: requestor,
