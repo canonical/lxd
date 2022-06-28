@@ -79,6 +79,7 @@ func (b *VolumeBackup) Rename(newName string) error {
 	if err != nil {
 		return err
 	}
+
 	revert.Add(func() { _ = os.Rename(newBackupPath, oldBackupPath) })
 
 	// Check if we can remove the old parent directory.

@@ -65,6 +65,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer cancelFunc()
 
 	for {
@@ -72,6 +73,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 		if err == io.EOF {
 			break // End of archive.
 		}
+
 		if err != nil {
 			return nil, fmt.Errorf("Error reading backup file info: %w", err)
 		}
