@@ -610,6 +610,27 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
+	// Check any existing network load balancer backend addresses are suitable for this network's subnet.
+	loadBalancers, err := n.state.DB.Cluster.GetNetworkLoadBalancers(n.ID(), memberSpecific)
+	if err != nil {
+		return fmt.Errorf("Failed loading network load balancers: %w", err)
+	}
+
+	for _, loadBalancer := range loadBalancers {
+		for _, port := range loadBalancer.Backends {
+			targetIP := net.ParseIP(port.TargetAddress)
+
+			netSubnet := netSubnets["ipv4.address"]
+			if targetIP.To4() == nil {
+				netSubnet = netSubnets["ipv6.address"]
+			}
+
+			if !SubnetContainsIP(netSubnet, targetIP) {
+				return api.StatusErrorf(http.StatusBadRequest, "Network load balancer for %q has a backend target address %q that is not within the network subnet", loadBalancer.ListenAddress, targetIP.String())
+			}
+		}
+	}
+
 	// Check Security ACLs exist.
 	if config["security.acls"] != "" {
 		err = acl.Exists(n.state, n.project, shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
@@ -2542,21 +2563,30 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 			}
 		}
 
-		// Delete any network forwards.
+		// Delete any network forwards and load balancers.
 		memberSpecific := false // OVN doesn't support per-member forwards.
-		listenAddresses, err := n.state.DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
+		forwardListenAddresses, err := n.state.DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forwards: %w", err)
 		}
 
-		loadBalancers := make([]openvswitch.OVNLoadBalancer, 0, len(listenAddresses))
-		for _, listenAddress := range listenAddresses {
+		loadBalancerListenAddresses, err := n.state.DB.Cluster.GetNetworkLoadBalancerListenAddresses(n.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading network forwards: %w", err)
+		}
+
+		loadBalancers := make([]openvswitch.OVNLoadBalancer, 0, len(forwardListenAddresses)+len(loadBalancerListenAddresses))
+		for _, listenAddress := range forwardListenAddresses {
+			loadBalancers = append(loadBalancers, n.getLoadBalancerName(listenAddress))
+		}
+
+		for _, listenAddress := range loadBalancerListenAddresses {
 			loadBalancers = append(loadBalancers, n.getLoadBalancerName(listenAddress))
 		}
 
 		err = client.LoadBalancerDelete(loadBalancers...)
 		if err != nil {
-			return fmt.Errorf("Failed deleting network forwards: %w", err)
+			return fmt.Errorf("Failed deleting network forwards and load balancers: %w", err)
 		}
 	}
 
@@ -4335,6 +4365,318 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 
 	// Refresh exported BGP prefixes on local member.
 	err := n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
+	return nil
+}
+
+// loadBalancerFlattenVIPs flattens port maps into format compatible with OVN load balancers.
+func (n *ovn) loadBalancerFlattenVIPs(listenAddress net.IP, portMaps []*loadBalancerPortMap) []openvswitch.OVNLoadBalancerVIP {
+	var vips []openvswitch.OVNLoadBalancerVIP
+
+	for _, portMap := range portMaps {
+		for i, lp := range portMap.listenPorts {
+			vip := openvswitch.OVNLoadBalancerVIP{
+				ListenAddress: listenAddress,
+				Protocol:      portMap.protocol,
+				ListenPort:    lp,
+			}
+
+			for _, target := range portMap.targets {
+				targetPort := lp // Default to using same port as listen port for target port.
+				targetPortsLen := len(target.ports)
+
+				if targetPortsLen == 1 {
+					// If a single target port is specified, forward all listen ports to it.
+					targetPort = target.ports[0]
+				} else if targetPortsLen > 1 {
+					// If more than 1 target port specified, use listen port index to get the
+					// target port to use.
+					targetPort = target.ports[i]
+				}
+
+				vip.Targets = append(vip.Targets, openvswitch.OVNLoadBalancerTarget{
+					Address: target.address,
+					Port:    targetPort,
+				})
+			}
+
+			vips = append(vips, vip)
+		}
+	}
+
+	return vips
+}
+
+// LoadBalancerCreate creates a network load balancer.
+func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member load balancers.
+
+		// Check if there is an existing load balancer using the same listen address.
+		_, _, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, loadBalancer.ListenAddress)
+		if err == nil {
+			return api.StatusErrorf(http.StatusConflict, "A load balancer for that listen address already exists")
+		}
+
+		// Convert listen address to subnet so we can check its valid and can be used.
+		listenAddressNet, err := ParseIPToNet(loadBalancer.ListenAddress)
+		if err != nil {
+			return fmt.Errorf("Failed parsing %q: %w", loadBalancer.ListenAddress, err)
+		}
+
+		portMaps, err := n.loadBalancerValidate(listenAddressNet.IP, &loadBalancer.NetworkLoadBalancerPut)
+		if err != nil {
+			return err
+		}
+
+		// Load the project to get uplink network restrictions.
+		var p *api.Project
+		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(ctx, tx.Tx())
+
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
+		}
+
+		// Get uplink routes.
+		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+		if err != nil {
+			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
+		}
+
+		uplinkRoutes, err := n.uplinkRoutes(uplink)
+		if err != nil {
+			return err
+		}
+
+		// Get project restricted routes.
+		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+		if err != nil {
+			return err
+		}
+
+		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+		if err != nil {
+			return err
+		}
+
+		// Check the listen address subnet is allowed within both the uplink's external routes and any
+		// project restricted subnets.
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+		if err != nil {
+			return err
+		}
+
+		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
+		for _, externalSubnetUser := range externalSubnetsInUse {
+			// Check if usage is from our own network.
+			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				// Skip checking conflict with our own network's subnet or SNAT address.
+				// But do not allow other conflict with other usage types within our own network.
+				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+					continue
+				}
+			}
+
+			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the network's project.
+				return fmt.Errorf("Load balancer listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+			}
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		// Create load balancer DB record.
+		loadBalancerID, err := n.state.DB.Cluster.CreateNetworkLoadBalancer(n.ID(), memberSpecific, &loadBalancer)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			_ = n.state.DB.Cluster.DeleteNetworkLoadBalancer(n.ID(), loadBalancerID)
+			_ = client.LoadBalancerDelete(n.getLoadBalancerName(loadBalancer.ListenAddress))
+			_ = n.loadBalancerBGPSetupPrefixes()
+		})
+
+		vips := n.loadBalancerFlattenVIPs(net.ParseIP(loadBalancer.ListenAddress), portMaps)
+
+		err = client.LoadBalancerApply(n.getLoadBalancerName(loadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		if err != nil {
+			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).CreateNetworkLoadBalancer(n.name, loadBalancer)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.loadBalancerBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
+	}
+
+	revert.Success()
+	return nil
+}
+
+// LoadBalancerUpdate updates a network load balancer.
+func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member load balancers.
+		curLoadBalancerID, curLoadBalancer, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, listenAddress)
+		if err != nil {
+			return err
+		}
+
+		portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), &req)
+		if err != nil {
+			return err
+		}
+
+		curForwardEtagHash, err := util.EtagHash(curLoadBalancer.Etag())
+		if err != nil {
+			return err
+		}
+
+		newLoadBalancer := api.NetworkLoadBalancer{
+			ListenAddress:          curLoadBalancer.ListenAddress,
+			NetworkLoadBalancerPut: req,
+		}
+
+		newLoadBalancerEtagHash, err := util.EtagHash(newLoadBalancer.Etag())
+		if err != nil {
+			return err
+		}
+
+		if curForwardEtagHash == newLoadBalancerEtagHash {
+			return nil // Nothing has changed.
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		vips := n.loadBalancerFlattenVIPs(net.ParseIP(newLoadBalancer.ListenAddress), portMaps)
+
+		err = client.LoadBalancerApply(n.getLoadBalancerName(newLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		if err != nil {
+			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+		}
+
+		revert.Add(func() {
+			// Apply old settings to OVN on failure.
+			portMaps, err := n.loadBalancerValidate(net.ParseIP(curLoadBalancer.ListenAddress), &curLoadBalancer.NetworkLoadBalancerPut)
+			if err == nil {
+				vips := n.loadBalancerFlattenVIPs(net.ParseIP(curLoadBalancer.ListenAddress), portMaps)
+				_ = client.LoadBalancerApply(n.getLoadBalancerName(curLoadBalancer.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+				_ = n.forwardBGPSetupPrefixes()
+			}
+		})
+
+		err = n.state.DB.Cluster.UpdateNetworkLoadBalancer(n.ID(), curLoadBalancerID, &newLoadBalancer.NetworkLoadBalancerPut)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			_ = n.state.DB.Cluster.UpdateNetworkLoadBalancer(n.ID(), curLoadBalancerID, &curLoadBalancer.NetworkLoadBalancerPut)
+		})
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).UpdateNetworkLoadBalancer(n.name, curLoadBalancer.ListenAddress, req, "")
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.loadBalancerBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for load balancers: %w", err)
+	}
+
+	revert.Success()
+	return nil
+}
+
+// LoadBalancerDelete deletes a network load balancer.
+func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.ClientType) error {
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member forwards.
+		loadBalancerID, forward, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, listenAddress)
+		if err != nil {
+			return err
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		err = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+		if err != nil {
+			return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
+		}
+
+		err = n.state.DB.Cluster.DeleteNetworkLoadBalancer(n.ID(), loadBalancerID)
+		if err != nil {
+			return err
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).DeleteNetworkLoadBalancer(n.name, forward.ListenAddress)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.loadBalancerBGPSetupPrefixes()
 	if err != nil {
 		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
