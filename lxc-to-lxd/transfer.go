@@ -112,6 +112,7 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		_ = cmd.Wait()
 		return nil, nil, nil, err
 	}
+
 	_ = l.Close()
 
 	return cmd, conn, stderr, nil
