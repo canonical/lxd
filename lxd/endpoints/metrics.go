@@ -41,6 +41,7 @@ func (e *Endpoints) MetricsAddress() string {
 	if listener == nil {
 		return ""
 	}
+
 	return listener.Addr().String()
 }
 

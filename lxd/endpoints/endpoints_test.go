@@ -38,6 +38,7 @@ func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()
 		DevLxdServer: newServer(),
 		Cert:         shared.TestingKeyPair(),
 	}
+
 	endpoints := endpoints.Unstarted()
 
 	cleanup := func() {
@@ -61,6 +62,7 @@ func httpGetOverUnixSocket(path string) error {
 	dial := func(_ context.Context, network, addr string) (net.Conn, error) {
 		return net.Dial("unix", path)
 	}
+
 	client := &http.Client{Transport: &http.Transport{DialContext: dial}}
 	_, err := client.Get("http://unix.socket/")
 	return err

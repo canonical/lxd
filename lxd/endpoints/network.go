@@ -49,6 +49,7 @@ func (e *Endpoints) NetworkAddress() string {
 	if listener == nil {
 		return ""
 	}
+
 	return listener.Addr().String()
 }
 
@@ -157,9 +158,11 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 		if len(p) == 0 {
 			continue
 		}
+
 		proxyIP := net.ParseIP(p)
 		proxies = append(proxies, proxyIP)
 	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	listener, ok := e.listeners[network]
@@ -195,5 +198,6 @@ func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 	if err != nil {
 		return nil, fmt.Errorf("Bind network address: %w", err)
 	}
+
 	return listeners.NewFancyTLSListener(listener, cert), nil
 }

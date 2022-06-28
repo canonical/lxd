@@ -117,15 +117,19 @@ func Up(config *Config) (*Endpoints, error) {
 	if config.Dir == "" {
 		return nil, fmt.Errorf("No directory configured")
 	}
+
 	if config.UnixSocket == "" {
 		return nil, fmt.Errorf("No unix socket configured")
 	}
+
 	if config.RestServer == nil {
 		return nil, fmt.Errorf("No REST server configured")
 	}
+
 	if config.DevLxdServer == nil {
 		return nil, fmt.Errorf("No devlxd server configured")
 	}
+
 	if config.Cert == nil {
 		return nil, fmt.Errorf("No TLS certificate configured")
 	}
@@ -139,6 +143,7 @@ func Up(config *Config) (*Endpoints, error) {
 		_ = endpoints.Down()
 		return nil, err
 	}
+
 	return endpoints, nil
 }
 
@@ -172,6 +177,7 @@ func (e *Endpoints) up(config *Config) error {
 		pprof:   pprofCreateServer(),
 		metrics: config.MetricsServer,
 	}
+
 	e.cert = config.Cert
 	e.inherited = map[kind]bool{}
 
@@ -403,6 +409,7 @@ func (e *Endpoints) closeListener(kind kind) error {
 	if listener == nil {
 		return nil
 	}
+
 	delete(e.listeners, kind)
 
 	logger.Info(" - closing socket", logger.Ctx{"socket": listener.Addr()})
@@ -425,8 +432,10 @@ func activatedListeners(systemdListeners []net.Listener, cert *shared.CertInfo) 
 		default:
 			continue
 		}
+
 		activatedListeners[kind] = listener
 	}
+
 	return activatedListeners
 }
 
