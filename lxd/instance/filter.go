@@ -12,8 +12,10 @@ func Filter(instances []*api.Instance, clauses []filter.Clause) []*api.Instance 
 		if !filter.Match(*instance, clauses) {
 			continue
 		}
+
 		filtered = append(filtered, instance)
 	}
+
 	return filtered
 }
 
@@ -24,7 +26,9 @@ func FilterFull(instances []*api.InstanceFull, clauses []filter.Clause) []*api.I
 		if !filter.Match(*instance, clauses) {
 			continue
 		}
+
 		filtered = append(filtered, instance)
 	}
+
 	return filtered
 }

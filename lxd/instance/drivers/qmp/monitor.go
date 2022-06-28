@@ -64,6 +64,7 @@ func (m *Monitor) start() error {
 			} else if status == "STOPPED" {
 				m.agentReady = false
 			}
+
 			m.agentReadyMu.Unlock()
 		}
 	}
@@ -211,6 +212,7 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 		if err != nil {
 			return nil, err
 		}
+
 	case <-time.After(5 * time.Second):
 		_ = qmpConn.Disconnect()
 		return nil, fmt.Errorf("QMP connection timed out")
