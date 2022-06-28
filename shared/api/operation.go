@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-// OperationClassTask represents the Task OperationClass
+// OperationClassTask represents the Task OperationClass.
 const OperationClassTask = "task"
 
-// OperationClassWebsocket represents the Websocket OperationClass
+// OperationClassWebsocket represents the Websocket OperationClass.
 const OperationClassWebsocket = "websocket"
 
-// OperationClassToken represents the Token OperationClass
+// OperationClassToken represents the Token OperationClass.
 const OperationClassToken = "token"
 
 // Operation represents a LXD background operation

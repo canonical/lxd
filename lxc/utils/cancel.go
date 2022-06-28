@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-// CancelableWait waits for an operation and cancel it on SIGINT/SIGTERM
+// CancelableWait waits for an operation and cancel it on SIGINT/SIGTERM.
 func CancelableWait(rawOp any, progress *ProgressRenderer) error {
 	var op lxd.Operation
 	var rop lxd.RemoteOperation

@@ -91,7 +91,7 @@ func (c *cmdProfile) Command() *cobra.Command {
 	return cmd
 }
 
-// Add
+// Add.
 type cmdProfileAdd struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -153,7 +153,7 @@ func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Assign
+// Assign.
 type cmdProfileAssign struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -233,7 +233,7 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Copy
+// Copy.
 type cmdProfileCopy struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -297,7 +297,7 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 	return dest.server.CreateProfile(newProfile)
 }
 
-// Create
+// Create.
 type cmdProfileCreate struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -350,7 +350,7 @@ func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdProfileDelete struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -401,7 +401,7 @@ func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Edit
+// Edit.
 type cmdProfileEdit struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -525,7 +525,7 @@ func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdProfileGet struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -572,7 +572,7 @@ func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdProfileList struct {
 	global     *cmdGlobal
 	profile    *cmdProfile
@@ -634,7 +634,7 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, profiles)
 }
 
-// Remove
+// Remove.
 type cmdProfileRemove struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -709,7 +709,7 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Rename
+// Rename.
 type cmdProfileRename struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -760,7 +760,7 @@ func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdProfileSet struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -819,7 +819,7 @@ func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
 }
 
-// Show
+// Show.
 type cmdProfileShow struct {
 	global  *cmdGlobal
 	profile *cmdProfile
@@ -872,7 +872,7 @@ func (c *cmdProfileShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Unset
+// Unset.
 type cmdProfileUnset struct {
 	global     *cmdGlobal
 	profile    *cmdProfile

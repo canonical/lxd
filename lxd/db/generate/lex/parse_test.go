@@ -5,9 +5,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db/generate/lex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db/generate/lex"
 )
 
 func TestParse(t *testing.T) {

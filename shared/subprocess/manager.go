@@ -41,7 +41,7 @@ func NewProcess(name string, args []string, stdoutPath string, stderrPath string
 	return p, nil
 }
 
-// NewProcessWithFds is a constructor for a process object. Represents a process with argument config. Returns an address to process
+// NewProcessWithFds is a constructor for a process object. Represents a process with argument config. Returns an address to process.
 func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout io.WriteCloser, stderr io.WriteCloser) (*Process, error) {
 	proc := Process{
 		Name:   name,

@@ -75,7 +75,7 @@ var HugePageSizeKeys = [...]string{"limits.hugepages.64KB", "limits.hugepages.1M
 // HugePageSizeSuffix contains the list of known hugepage size suffixes.
 var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 
-// InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines)
+// InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines).
 var InstanceConfigKeysAny = map[string]func(value string) error{
 	"boot.autostart":             validate.Optional(validate.IsBool),
 	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
@@ -177,7 +177,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"raw.idmap": validate.IsAny,
 }
 
-// InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only)
+// InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only).
 var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
@@ -268,7 +268,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.whitelist":                    validate.IsAny,
 }
 
-// InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only)
+// InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only).
 var InstanceConfigKeysVM = map[string]func(value string) error{
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 

@@ -187,7 +187,7 @@ func (t Type) Description() string {
 	}
 }
 
-// Permission returns the needed RBAC permission to cancel the oepration
+// Permission returns the needed RBAC permission to cancel the operation.
 func (t Type) Permission() string {
 	switch t {
 	case BackupCreate:

@@ -46,7 +46,6 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
-
 	}
 
 	return id, err

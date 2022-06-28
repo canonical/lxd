@@ -96,7 +96,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 }
 
 // nicHasAutoGateway takes the value of the "ipv4.gateway" or "ipv6.gateway" config keys and returns whether they
-// specify whether the gateway mode is automatic or not
+// specify whether the gateway mode is automatic or not.
 func nicHasAutoGateway(value string) bool {
 	if value == "" || value == "auto" {
 		return true

@@ -885,7 +885,6 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 					}
 				}
 			}
-
 		} else {
 			if pool.Driver == "ceph" {
 				// ask for the name of the cluster

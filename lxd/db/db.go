@@ -317,7 +317,7 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 	return c, nil
 }
 
-// GetNodeID returns the current nodeID (0 if not set)
+// GetNodeID returns the current nodeID (0 if not set).
 func (c *Cluster) GetNodeID() int64 {
 	return c.nodeID
 }
@@ -568,7 +568,6 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 	}
 
 	return result, nil
-
 }
 
 /*

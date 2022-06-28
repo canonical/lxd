@@ -29,10 +29,10 @@ const cephBlockVolSuffix = ".block"
 
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
 
-// CephDefaultCluster represents the default ceph cluster name
+// CephDefaultCluster represents the default ceph cluster name.
 const CephDefaultCluster = "ceph"
 
-// CephDefaultUser represents the default ceph user name
+// CephDefaultUser represents the default ceph user name.
 const CephDefaultUser = "admin"
 
 // cephVolTypePrefixes maps volume type to storage volume name prefix.
@@ -528,7 +528,7 @@ func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
 // valid RBD path relative to a pool
 // <osd-pool-name>/<rbd-storage-volume>@<rbd-snapshot-name>
 // this will only return
-// <rbd-snapshot-name>
+// <rbd-snapshot-name>.
 func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	msg, err := shared.RunCommand(
 		"rbd",
@@ -914,7 +914,7 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 // For example a string like
 // <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>
 // will be split into
-// <osd-pool-name>, <lxd-specific-prefix>, <rbd-storage-volume>
+// <osd-pool-name>, <lxd-specific-prefix>, <rbd-storage-volume>.
 func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	idx := strings.Index(clone, "/")
 	if idx == -1 {

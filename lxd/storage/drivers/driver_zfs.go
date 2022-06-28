@@ -278,7 +278,6 @@ func (d *zfs) Create() error {
 
 	// Create the initial datasets.
 	for _, dataset := range d.initialDatasets() {
-
 		properties := []string{"mountpoint=legacy"}
 		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
 			if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {

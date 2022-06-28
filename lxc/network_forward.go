@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lxc/lxd/shared/termios"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type cmdNetworkForward struct {
@@ -314,7 +314,7 @@ func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdNetworkForwardGet struct {
 	global         *cmdGlobal
 	networkForward *cmdNetworkForward

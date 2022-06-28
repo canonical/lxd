@@ -1,6 +1,6 @@
 package ip
 
-// Vxlan represents arguments for link of type vxlan
+// Vxlan represents arguments for link of type vxlan.
 type Vxlan struct {
 	Link
 	VxlanID string
@@ -13,7 +13,7 @@ type Vxlan struct {
 	FanMap  string
 }
 
-// additionalArgs generates vxlan specific arguments
+// additionalArgs generates vxlan specific arguments.
 func (vxlan *Vxlan) additionalArgs() []string {
 	args := []string{}
 	args = append(args, "id", vxlan.VxlanID)
@@ -41,7 +41,7 @@ func (vxlan *Vxlan) additionalArgs() []string {
 	return args
 }
 
-// Add adds new virtual link
+// Add adds new virtual link.
 func (vxlan *Vxlan) Add() error {
 	return vxlan.Link.add("vxlan", vxlan.additionalArgs())
 }

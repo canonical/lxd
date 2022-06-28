@@ -1,6 +1,6 @@
 package api
 
-// ContainerStatePut represents the modifiable fields of a LXD container's state
+// ContainerStatePut represents the modifiable fields of a LXD container's state.
 type ContainerStatePut struct {
 	Action   string `json:"action" yaml:"action"`
 	Timeout  int    `json:"timeout" yaml:"timeout"`
@@ -8,7 +8,7 @@ type ContainerStatePut struct {
 	Stateful bool   `json:"stateful" yaml:"stateful"`
 }
 
-// ContainerState represents a LXD container's state
+// ContainerState represents a LXD container's state.
 type ContainerState struct {
 	Status     string                           `json:"status" yaml:"status"`
 	StatusCode StatusCode                       `json:"status_code" yaml:"status_code"`
@@ -22,19 +22,19 @@ type ContainerState struct {
 	CPU ContainerStateCPU `json:"cpu" yaml:"cpu"`
 }
 
-// ContainerStateDisk represents the disk information section of a LXD container's state
+// ContainerStateDisk represents the disk information section of a LXD container's state.
 type ContainerStateDisk struct {
 	Usage int64 `json:"usage" yaml:"usage"`
 }
 
 // ContainerStateCPU represents the cpu information section of a LXD container's state
 //
-// API extension: container_cpu_time
+// API extension: container_cpu_time.
 type ContainerStateCPU struct {
 	Usage int64 `json:"usage" yaml:"usage"`
 }
 
-// ContainerStateMemory represents the memory information section of a LXD container's state
+// ContainerStateMemory represents the memory information section of a LXD container's state.
 type ContainerStateMemory struct {
 	Usage         int64 `json:"usage" yaml:"usage"`
 	UsagePeak     int64 `json:"usage_peak" yaml:"usage_peak"`
@@ -42,7 +42,7 @@ type ContainerStateMemory struct {
 	SwapUsagePeak int64 `json:"swap_usage_peak" yaml:"swap_usage_peak"`
 }
 
-// ContainerStateNetwork represents the network information section of a LXD container's state
+// ContainerStateNetwork represents the network information section of a LXD container's state.
 type ContainerStateNetwork struct {
 	Addresses []ContainerStateNetworkAddress `json:"addresses" yaml:"addresses"`
 	Counters  ContainerStateNetworkCounters  `json:"counters" yaml:"counters"`
@@ -53,7 +53,7 @@ type ContainerStateNetwork struct {
 	Type      string                         `json:"type" yaml:"type"`
 }
 
-// ContainerStateNetworkAddress represents a network address as part of the network section of a LXD container's state
+// ContainerStateNetworkAddress represents a network address as part of the network section of a LXD container's state.
 type ContainerStateNetworkAddress struct {
 	Family  string `json:"family" yaml:"family"`
 	Address string `json:"address" yaml:"address"`
@@ -61,7 +61,7 @@ type ContainerStateNetworkAddress struct {
 	Scope   string `json:"scope" yaml:"scope"`
 }
 
-// ContainerStateNetworkCounters represents packet counters as part of the network section of a LXD container's state
+// ContainerStateNetworkCounters represents packet counters as part of the network section of a LXD container's state.
 type ContainerStateNetworkCounters struct {
 	BytesReceived   int64 `json:"bytes_received" yaml:"bytes_received"`
 	BytesSent       int64 `json:"bytes_sent" yaml:"bytes_sent"`

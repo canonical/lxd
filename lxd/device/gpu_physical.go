@@ -22,7 +22,7 @@ import (
 
 const gpuDRIDevPath = "/dev/dri"
 
-// Non-card devices such as {/dev/nvidiactl, /dev/nvidia-uvm, ...}
+// Non-card devices such as {/dev/nvidiactl, /dev/nvidia-uvm, ...}.
 type nvidiaNonCardDevice struct {
 	path  string
 	major uint32

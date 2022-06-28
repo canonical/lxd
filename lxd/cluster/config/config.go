@@ -134,7 +134,7 @@ func (c *Config) OfflineThreshold() time.Duration {
 	return time.Duration(n) * time.Second
 }
 
-// ImagesMinimalReplica returns the numbers of nodes for cluster images replication
+// ImagesMinimalReplica returns the numbers of nodes for cluster images replication.
 func (c *Config) ImagesMinimalReplica() int64 {
 	return c.m.GetInt64("cluster.images_minimal_replica")
 }
@@ -152,7 +152,7 @@ func (c *Config) MaxStandBy() int64 {
 }
 
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
-// before LXD server shut down
+// before LXD server shut down.
 func (c *Config) ShutdownTimeout() time.Duration {
 	n := c.m.GetInt64("core.shutdown_timeout")
 	return time.Duration(n) * time.Minute

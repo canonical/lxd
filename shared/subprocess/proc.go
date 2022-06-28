@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Process struct. Has ability to set runtime arguments
+// Process struct. Has ability to set runtime arguments.
 type Process struct {
 	exitCode int64 `yaml:"-"`
 	exitErr  error `yaml:"-"`
@@ -54,7 +54,7 @@ func (p *Process) hasApparmor() bool {
 	return true
 }
 
-// GetPid returns the pid for the given process object
+// GetPid returns the pid for the given process object.
 func (p *Process) GetPid() (int64, error) {
 	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
@@ -76,7 +76,7 @@ func (p *Process) SetCreds(uid uint32, gid uint32) {
 	p.GID = gid
 }
 
-// Stop will stop the given process object
+// Stop will stop the given process object.
 func (p *Process) Stop() error {
 	pr, _ := os.FindProcess(int(p.PID))
 
@@ -105,12 +105,12 @@ func (p *Process) Stop() error {
 	return fmt.Errorf("Could not kill process: %w", err)
 }
 
-// Start will start the given process object
+// Start will start the given process object.
 func (p *Process) Start() error {
 	return p.start(nil)
 }
 
-// StartWithFiles will start the given process object with extra file descriptors
+// StartWithFiles will start the given process object with extra file descriptors.
 func (p *Process) StartWithFiles(fds []*os.File) error {
 	return p.start(fds)
 }
@@ -186,7 +186,7 @@ func (p *Process) start(fds []*os.File) error {
 	return nil
 }
 
-// Restart stop and starts the given process object
+// Restart stop and starts the given process object.
 func (p *Process) Restart() error {
 	err := p.Stop()
 	if err != nil {
@@ -201,7 +201,7 @@ func (p *Process) Restart() error {
 	return nil
 }
 
-// Reload sends the SIGHUP signal to the given process object
+// Reload sends the SIGHUP signal to the given process object.
 func (p *Process) Reload() error {
 	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
@@ -233,7 +233,7 @@ func (p *Process) Save(path string) error {
 	return nil
 }
 
-// Signal will send a signal to the given process object given a signal value
+// Signal will send a signal to the given process object given a signal value.
 func (p *Process) Signal(signal int64) error {
 	pr, _ := os.FindProcess(int(p.PID))
 	err := pr.Signal(syscall.Signal(0))
@@ -250,7 +250,7 @@ func (p *Process) Signal(signal int64) error {
 	return fmt.Errorf("Could not signal process: %w", err)
 }
 
-// Wait will wait for the given process object exit code
+// Wait will wait for the given process object exit code.
 func (p *Process) Wait(ctx context.Context) (int64, error) {
 	if !p.hasMonitor {
 		return -1, fmt.Errorf("Unable to wait on process we didn't spawn")

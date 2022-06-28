@@ -42,7 +42,7 @@ func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode 
 	return
 }
 
-// GetPathMode returns a os.FileMode for the provided path
+// GetPathMode returns a os.FileMode for the provided path.
 func GetPathMode(path string) (os.FileMode, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
@@ -225,7 +225,7 @@ func GetErrno(err error) (errno error, iserrno bool) {
 	return nil, false
 }
 
-// Utsname returns the same info as unix.Utsname, as strings
+// Utsname returns the same info as unix.Utsname, as strings.
 type Utsname struct {
 	Sysname    string
 	Nodename   string
@@ -235,7 +235,7 @@ type Utsname struct {
 	Domainname string
 }
 
-// Uname returns Utsname as strings
+// Uname returns Utsname as strings.
 func Uname() (*Utsname, error) {
 	/*
 	 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8

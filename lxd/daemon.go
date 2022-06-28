@@ -18,13 +18,11 @@ import (
 	"time"
 
 	"github.com/canonical/candid/candidclient"
-	dqliteclient "github.com/canonical/go-dqlite/client"
+	dqliteClient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
-
-	client "github.com/canonical/go-dqlite/client"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
@@ -41,7 +39,6 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/fsmonitor"
-	devmonitor "github.com/lxc/lxd/lxd/fsmonitor"
 	"github.com/lxc/lxd/lxd/instance"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -124,7 +121,7 @@ type Daemon struct {
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Device monitor for watching filesystem events
-	devmonitor devmonitor.FSMonitor
+	devmonitor fsmonitor.FSMonitor
 
 	// Keep track of skews.
 	timeSkew bool
@@ -257,7 +254,7 @@ func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
+// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission.
 func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		// Shortcut for speed
@@ -277,7 +274,7 @@ func allowProjectPermission(feature string, permission string) func(d *Daemon, r
 	}
 }
 
-// Convenience function around Authenticate
+// Convenience function around Authenticate.
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	trusted, _, _, err := d.Authenticate(nil, r)
 	if !trusted || err != nil {
@@ -1025,7 +1022,6 @@ func (d *Daemon) init() error {
 		logger.Warn("No local trusted server certificates found, falling back to trusting network certificate", logger.Ctx{"fingerprint": networkCertFingerPrint})
 		logger.Info("Set client certificate to network certificate", logger.Ctx{"fingerprint": networkCertFingerPrint})
 		d.serverCertInt = networkCert
-
 	} else {
 		// If standalone or the local trusted certificates table is populated with server certificates then
 		// use our local server certificate as client certificate for intra-cluster communication.
@@ -1055,7 +1051,7 @@ func (d *Daemon) init() error {
 		// Attempt to mount the shmounts tmpfs
 		err := setupSharedMounts()
 		if err != nil {
-			logger.Warn("Failed settting up shared mounts", logger.Ctx{"err": err})
+			logger.Warn("Failed setting up shared mounts", logger.Ctx{"err": err})
 		}
 
 		// Attempt to Mount the devlxd tmpfs
@@ -1138,7 +1134,7 @@ func (d *Daemon) init() error {
 		}
 
 		if shared.StringInSlice("database", trace) {
-			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
+			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
 		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
@@ -1771,7 +1767,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	return err
 }
 
-// Setup external authentication
+// Setup external authentication.
 func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey string, expiry int64, domains string) error {
 	// Parse the list of domains
 	authDomains := []string{}
@@ -1854,7 +1850,7 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey str
 	return nil
 }
 
-// Setup RBAC
+// Setup RBAC.
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
 	if d.rbac != nil || rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
 		return nil
@@ -1904,7 +1900,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	return nil
 }
 
-// Setup MAAS
+// Setup MAAS.
 func (d *Daemon) setupMAASController(server string, key string, machine string) error {
 	var err error
 	d.maas = nil
@@ -2022,7 +2018,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 	for _, node := range hbData.Members {
 		if node.RaftID > 0 {
 			raftNodes = append(raftNodes, db.RaftNode{
-				NodeInfo: client.NodeInfo{
+				NodeInfo: dqliteClient.NodeInfo{
 					ID:      node.RaftID,
 					Address: node.Address,
 					Role:    db.RaftRole(node.RaftRole),

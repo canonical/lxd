@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"time"
-
-	"context"
 
 	"gopkg.in/yaml.v2"
 

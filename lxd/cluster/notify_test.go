@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -16,8 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // The returned notifier connects to all nodes.
@@ -179,7 +180,6 @@ func (h *notifyFixtures) Down(i int) {
 	})
 	require.NoError(h.t, err)
 	h.servers[i].Close()
-
 }
 
 // Returns a minimal stub for the LXD RESTful API server, just realistic

@@ -11,7 +11,7 @@ import (
 
 // CephGetRBDImageName returns the RBD image name as it is used in ceph.
 // Example:
-// A custom block volume named vol1 in project default will return custom_default_vol1.block
+// A custom block volume named vol1 in project default will return custom_default_vol1.block.
 func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 	var out string
 	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)

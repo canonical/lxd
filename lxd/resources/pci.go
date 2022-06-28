@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// GetPCI returns a filled api.ResourcesPCI struct ready for use by LXD
+// GetPCI returns a filled api.ResourcesPCI struct ready for use by LXD.
 func GetPCI() (*api.ResourcesPCI, error) {
 	pci := api.ResourcesPCI{}
 	pci.Devices = []api.ResourcesPCIDevice{}

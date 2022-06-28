@@ -79,7 +79,7 @@ func (c *cmdConfig) Command() *cobra.Command {
 	return cmd
 }
 
-// Edit
+// Edit.
 type cmdConfigEdit struct {
 	global *cmdGlobal
 	config *cmdConfig
@@ -353,7 +353,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Get
+// Get.
 type cmdConfigGet struct {
 	global *cmdGlobal
 	config *cmdConfig
@@ -447,7 +447,7 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Set
+// Set.
 type cmdConfigSet struct {
 	global *cmdGlobal
 	config *cmdConfig
@@ -603,7 +603,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	return resource.server.UpdateServer(server.Writable(), etag)
 }
 
-// Show
+// Show.
 type cmdConfigShow struct {
 	global *cmdGlobal
 	config *cmdConfig
@@ -724,7 +724,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Unset
+// Unset.
 type cmdConfigUnset struct {
 	global    *cmdGlobal
 	config    *cmdConfig

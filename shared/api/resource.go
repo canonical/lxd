@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type Resources struct {
 	// CPU information
 	CPU ResourcesCPU `json:"cpu" yaml:"cpu"`
@@ -47,7 +47,7 @@ type Resources struct {
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type ResourcesCPU struct {
 	// Architecture name
 	// Example: x86_64
@@ -67,7 +67,7 @@ type ResourcesCPU struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesCPUSocket struct {
 	// Product name
 	// Example: Intel(R) Core(TM) i5-7300U CPU @ 2.60GHz
@@ -104,7 +104,7 @@ type ResourcesCPUSocket struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesCPUCache struct {
 	// Cache level (usually a number from 1 to 3)
 	// Example: 1
@@ -123,7 +123,7 @@ type ResourcesCPUCache struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesCPUCore struct {
 	// Core identifier within the socket
 	// Example: 0
@@ -147,7 +147,7 @@ type ResourcesCPUCore struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesCPUThread struct {
 	// Thread ID (used for CPU pinning)
 	// Example: 0
@@ -176,7 +176,7 @@ type ResourcesCPUThread struct {
 //
 // swagger:model
 //
-// API extension: resources_gpu
+// API extension: resources_gpu.
 type ResourcesGPU struct {
 	// List of GPUs
 	Cards []ResourcesGPUCard `json:"cards" yaml:"cards"`
@@ -190,7 +190,7 @@ type ResourcesGPU struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesGPUCard struct {
 	// Kernel driver currently associated with the GPU
 	// Example: i915
@@ -250,7 +250,7 @@ type ResourcesGPUCard struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesGPUCardDRM struct {
 	// DRM card ID
 	// Example: 0
@@ -285,7 +285,7 @@ type ResourcesGPUCardDRM struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesGPUCardSRIOV struct {
 	// Number of VFs currently configured
 	// Example: 0
@@ -304,7 +304,7 @@ type ResourcesGPUCardSRIOV struct {
 //
 // swagger:model
 //
-// API extension: resources_gpu
+// API extension: resources_gpu.
 type ResourcesGPUCardNvidia struct {
 	// Version of the CUDA API
 	// Example: 11.0
@@ -347,7 +347,7 @@ type ResourcesGPUCardNvidia struct {
 //
 // swagger:model
 //
-// API extension: resources_gpu_mdev
+// API extension: resources_gpu_mdev.
 type ResourcesGPUCardMdev struct {
 	// The mechanism used by this device
 	// Example: vfio-pci
@@ -374,7 +374,7 @@ type ResourcesGPUCardMdev struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesNetwork struct {
 	// List of network cards
 	Cards []ResourcesNetworkCard `json:"cards" yaml:"cards"`
@@ -388,7 +388,7 @@ type ResourcesNetwork struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesNetworkCard struct {
 	// Kernel driver currently associated with the card
 	// Example: atlantic
@@ -445,7 +445,7 @@ type ResourcesNetworkCard struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesNetworkCardPort struct {
 	// Port identifier (interface name)
 	// Example: eth0
@@ -505,7 +505,7 @@ type ResourcesNetworkCardPort struct {
 //
 // swagger:model
 //
-// API extension: resources_infiniband
+// API extension: resources_infiniband.
 type ResourcesNetworkCardPortInfiniband struct {
 	// ISSM device name
 	// Example: issm0
@@ -536,7 +536,7 @@ type ResourcesNetworkCardPortInfiniband struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesNetworkCardSRIOV struct {
 	// Number of VFs currently configured
 	// Example: 0
@@ -555,7 +555,7 @@ type ResourcesNetworkCardSRIOV struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesStorage struct {
 	// List of disks
 	Disks []ResourcesStorageDisk `json:"disks" yaml:"disks"`
@@ -569,7 +569,7 @@ type ResourcesStorage struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesStorageDisk struct {
 	// ID of the disk (device name)
 	// Example: nvme0n1
@@ -663,7 +663,7 @@ type ResourcesStorageDisk struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesStorageDiskPartition struct {
 	// ID of the partition (device name)
 	// Example: nvme0n1p1
@@ -690,7 +690,7 @@ type ResourcesStorageDiskPartition struct {
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type ResourcesMemory struct {
 	// List of NUMA memory nodes
 	// Example: null
@@ -723,7 +723,7 @@ type ResourcesMemory struct {
 //
 // swagger:model
 //
-// API extension: resources_v2
+// API extension: resources_v2.
 type ResourcesMemoryNode struct {
 	// NUMA node identifier
 	// Example: 0
@@ -750,7 +750,7 @@ type ResourcesMemoryNode struct {
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type ResourcesStoragePool struct {
 	// Disk space usage
 	Space ResourcesStoragePoolSpace `json:"space,omitempty" yaml:"space,omitempty"`
@@ -763,7 +763,7 @@ type ResourcesStoragePool struct {
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type ResourcesStoragePoolSpace struct {
 	// Used disk space (bytes)
 	// Example: 343537419776
@@ -778,7 +778,7 @@ type ResourcesStoragePoolSpace struct {
 //
 // swagger:model
 //
-// API extension: resources
+// API extension: resources.
 type ResourcesStoragePoolInodes struct {
 	// Used inodes
 	// Example: 23937695
@@ -793,7 +793,7 @@ type ResourcesStoragePoolInodes struct {
 //
 // swagger:model
 //
-// API extension: resources_usb_pci
+// API extension: resources_usb_pci.
 type ResourcesUSB struct {
 	// List of USB devices
 	Devices []ResourcesUSBDevice `json:"devices" yaml:"devices"`
@@ -807,7 +807,7 @@ type ResourcesUSB struct {
 //
 // swagger:model
 //
-// API extension: resources_usb_pci
+// API extension: resources_usb_pci.
 type ResourcesUSBDevice struct {
 	// USB address (bus)
 	// Example: 1
@@ -845,7 +845,7 @@ type ResourcesUSBDevice struct {
 //
 // swagger:model
 //
-// API extension: resources_usb_pci
+// API extension: resources_usb_pci.
 type ResourcesUSBDeviceInterface struct {
 	// Class of USB interface
 	// Example: Human Interface Device
@@ -880,7 +880,7 @@ type ResourcesUSBDeviceInterface struct {
 //
 // swagger:model
 //
-// API extension: resources_usb_pci
+// API extension: resources_usb_pci.
 type ResourcesPCI struct {
 	// List of PCI devices
 	Devices []ResourcesPCIDevice `json:"devices" yaml:"devices"`
@@ -894,7 +894,7 @@ type ResourcesPCI struct {
 //
 // swagger:model
 //
-// API extension: resources_usb_pci
+// API extension: resources_usb_pci.
 type ResourcesPCIDevice struct {
 	// Kernel driver currently associated with the GPU
 	// Example: mgag200
@@ -945,7 +945,7 @@ type ResourcesPCIDevice struct {
 //
 // swagger:model
 //
-// API extension: resources_pci_vpd
+// API extension: resources_pci_vpd.
 type ResourcesPCIVPD struct {
 	// Hardware provided product name.
 	// Example: HP Ethernet 1Gb 4-port 331i Adapter
@@ -960,7 +960,7 @@ type ResourcesPCIVPD struct {
 //
 // swagger:model
 //
-// API extension: resources_system
+// API extension: resources_system.
 type ResourcesSystem struct {
 	// System UUID
 	// Example: 7fa1c0cc-2271-11b2-a85c-aab32a05d71a
@@ -1008,7 +1008,7 @@ type ResourcesSystem struct {
 //
 // swagger:model
 //
-// API extension: resources_system
+// API extension: resources_system.
 type ResourcesSystemFirmware struct {
 	// Firmware vendor
 	// Example: Lenovo
@@ -1027,7 +1027,7 @@ type ResourcesSystemFirmware struct {
 //
 // swagger:model
 //
-// API extension: resources_system
+// API extension: resources_system.
 type ResourcesSystemChassis struct {
 	// Chassis vendor
 	// Example: Lenovo
@@ -1050,7 +1050,7 @@ type ResourcesSystemChassis struct {
 //
 // swagger:model
 //
-// API extension: resources_system
+// API extension: resources_system.
 type ResourcesSystemMotherboard struct {
 	// Motherboard vendor
 	// Example: Lenovo

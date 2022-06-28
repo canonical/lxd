@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	driver "github.com/canonical/go-dqlite/driver"
+
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/util"

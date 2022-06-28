@@ -9,7 +9,7 @@ import (
 //
 // swagger:model
 //
-// API extension: clustering
+// API extension: clustering.
 type Cluster struct {
 	// Name of the cluster member answering the request
 	// Example: lxd01
@@ -35,7 +35,7 @@ type Cluster struct {
 //
 // swagger:model
 //
-// API extension: clustering_join
+// API extension: clustering_join.
 type ClusterMemberConfigKey struct {
 	// The kind of configuration key (network, storage-pool, ...)
 	// Example: storage-pool
@@ -63,7 +63,7 @@ type ClusterMemberConfigKey struct {
 //
 // swagger:model
 //
-// API extension: clustering
+// API extension: clustering.
 type ClusterPut struct {
 	Cluster `yaml:",inline"`
 
@@ -92,7 +92,7 @@ type ClusterPut struct {
 //
 // swagger:model
 //
-// API extension: clustering_join_token
+// API extension: clustering_join_token.
 type ClusterMembersPost struct {
 	// The name of the new cluster member
 	// Example: lxd02
@@ -103,7 +103,7 @@ type ClusterMembersPost struct {
 //
 // swagger:model
 //
-// API extension: clustering_join_token
+// API extension: clustering_join_token.
 type ClusterMemberJoinToken struct {
 	// The name of the new cluster member
 	// Example: lxd02
@@ -136,7 +136,7 @@ func (t *ClusterMemberJoinToken) String() string {
 //
 // swagger:model
 //
-// API extension: clustering
+// API extension: clustering.
 type ClusterMemberPost struct {
 	// The new name of the cluster member
 	// Example: lxd02
@@ -147,7 +147,7 @@ type ClusterMemberPost struct {
 //
 // swagger:model
 //
-// API extension: clustering
+// API extension: clustering.
 type ClusterMember struct {
 	ClusterMemberPut `yaml:",inline"`
 
@@ -178,7 +178,7 @@ type ClusterMember struct {
 	Architecture string `json:"architecture" yaml:"architecture"`
 }
 
-// Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields)
+// Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
 func (member *ClusterMember) Writable() ClusterMemberPut {
 	return member.ClusterMemberPut
 }
@@ -187,7 +187,7 @@ func (member *ClusterMember) Writable() ClusterMemberPut {
 //
 // swagger:model
 //
-// API extension: clustering_edit_roles
+// API extension: clustering_edit_roles.
 type ClusterMemberPut struct {
 	// List of roles held by this cluster member
 	// Example: ["database"]
@@ -224,7 +224,7 @@ type ClusterMemberPut struct {
 //
 // swagger:model
 //
-// API extension: clustering_update_certs
+// API extension: clustering_update_certs.
 type ClusterCertificatePut struct {
 	// The new certificate (X509 PEM encoded) for the cluster
 	// Example: X509 PEM certificate
@@ -239,7 +239,7 @@ type ClusterCertificatePut struct {
 //
 // swagger:model
 //
-// API extension: clustering_evacuation
+// API extension: clustering_evacuation.
 type ClusterMemberStatePost struct {
 	// The action to be performed. Valid actions are "evacuate" and "restore".
 	// Example: evacuate
@@ -256,7 +256,7 @@ type ClusterMemberStatePost struct {
 //
 // swagger:model
 //
-// API extension: clustering_groups
+// API extension: clustering_groups.
 type ClusterGroupsPost struct {
 	ClusterGroupPut
 
@@ -269,7 +269,7 @@ type ClusterGroupsPost struct {
 //
 // swagger:model
 //
-// API extension: clustering_groups
+// API extension: clustering_groups.
 type ClusterGroup struct {
 	ClusterGroupPut  `yaml:",inline"`
 	ClusterGroupPost `yaml:",inline"`
@@ -279,7 +279,7 @@ type ClusterGroup struct {
 //
 // swagger:model
 //
-// API extension: clustering_groups
+// API extension: clustering_groups.
 type ClusterGroupPost struct {
 	// The new name of the cluster group
 	// Example: group1
@@ -290,7 +290,7 @@ type ClusterGroupPost struct {
 //
 // swagger:model
 //
-// API extension: clustering_groups
+// API extension: clustering_groups.
 type ClusterGroupPut struct {
 	// The description of the cluster group
 	// Example: amd64 servers
@@ -301,7 +301,7 @@ type ClusterGroupPut struct {
 	Members []string `json:"members" yaml:"members"`
 }
 
-// Writable converts a full ClusterGroup struct into a ClusterGroupPut struct (filters read-only fields)
+// Writable converts a full ClusterGroup struct into a ClusterGroupPut struct (filters read-only fields).
 func (c *ClusterGroup) Writable() ClusterGroupPut {
 	return c.ClusterGroupPut
 }

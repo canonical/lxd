@@ -19,7 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/simplestreams"
 )
 
-// ConnectionArgs represents a set of common connection properties
+// ConnectionArgs represents a set of common connection properties.
 type ConnectionArgs struct {
 	// TLS certificate of the remote server. If not specified, the system CA is used.
 	TLSServerCert string
@@ -295,7 +295,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	return &server, nil
 }
 
-// Internal function called by ConnectLXD and ConnectPublicLXD
+// Internal function called by ConnectLXD and ConnectPublicLXD.
 func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
 	if args == nil {

@@ -189,7 +189,7 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 	return version.Parse(strings.TrimPrefix(lines[1], "v"))
 }
 
-// networkSetupForwardingPolicy allows forwarding dependent on boolean argument
+// networkSetupForwardingPolicy allows forwarding dependent on boolean argument.
 func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *bool, ip6Allow *bool) error {
 	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
@@ -994,7 +994,6 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 							"targetHost":  targetAddressStr,
 							"targetPorts": targetPort,
 						})
-
 					}
 				}
 			} else if rule.Protocol == "" {

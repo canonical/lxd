@@ -42,7 +42,7 @@ func (c *cmdOperation) Command() *cobra.Command {
 	return cmd
 }
 
-// Delete
+// Delete.
 type cmdOperationDelete struct {
 	global    *cmdGlobal
 	operation *cmdOperation
@@ -89,7 +89,7 @@ func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdOperationList struct {
 	global    *cmdGlobal
 	operation *cmdOperation
@@ -171,7 +171,7 @@ func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, operations)
 }
 
-// Show
+// Show.
 type cmdOperationShow struct {
 	global    *cmdGlobal
 	operation *cmdOperation

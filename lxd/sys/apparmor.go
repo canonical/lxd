@@ -9,11 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/syndtr/gocapability/capability"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/syndtr/gocapability/capability"
 )
 
 // Initialize AppArmor-specific attributes.

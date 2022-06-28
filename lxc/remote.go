@@ -67,7 +67,7 @@ func (c *cmdRemote) Command() *cobra.Command {
 	return cmd
 }
 
-// Add
+// Add.
 type cmdRemoteAdd struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -575,7 +575,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Get default
+// Get default.
 type cmdRemoteGetDefault struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -608,7 +608,7 @@ func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// List
+// List.
 type cmdRemoteList struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -696,7 +696,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	return utils.RenderTable(c.flagFormat, header, data, conf.Remotes)
 }
 
-// Rename
+// Rename.
 type cmdRemoteRename struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -766,7 +766,7 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Remove
+// Remove.
 type cmdRemoteRemove struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -820,7 +820,7 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Set default
+// Set default.
 type cmdRemoteSwitch struct {
 	global *cmdGlobal
 	remote *cmdRemote
@@ -859,7 +859,7 @@ func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	return conf.SaveConfig(c.global.confPath)
 }
 
-// Set URL
+// Set URL.
 type cmdRemoteSetURL struct {
 	global *cmdGlobal
 	remote *cmdRemote

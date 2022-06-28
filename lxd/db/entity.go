@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 )
 
-// ErrUnknownEntityID describes the unknown entity ID error
+// ErrUnknownEntityID describes the unknown entity ID error.
 var ErrUnknownEntityID = fmt.Errorf("Unknown entity ID")
 
 // GetURIFromEntity returns the URI for the given entity type and entity ID.

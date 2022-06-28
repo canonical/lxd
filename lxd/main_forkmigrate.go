@@ -5,9 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/spf13/cobra"
-
 	liblxc "github.com/lxc/go-lxc"
+	"github.com/spf13/cobra"
 )
 
 type cmdForkmigrate struct {

@@ -8,7 +8,7 @@ import (
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotsPost struct {
 	// Snapshot name
 	// Example: snap0
@@ -29,7 +29,7 @@ type InstanceSnapshotsPost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotPost struct {
 	// New name for the snapshot
 	// Example: foo
@@ -51,7 +51,7 @@ type InstanceSnapshotPost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotPut struct {
 	// When the snapshot expires (gets auto-deleted)
 	// Example: 2021-03-23T17:38:37.753398689-04:00
@@ -62,7 +62,7 @@ type InstanceSnapshotPut struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshot struct {
 	InstanceSnapshotPut `yaml:",inline"`
 
@@ -120,7 +120,7 @@ type InstanceSnapshot struct {
 // Writable converts a full InstanceSnapshot struct into a InstanceSnapshotPut struct
 // (filters read-only fields).
 //
-// API extension: instances
+// API extension: instances.
 func (c *InstanceSnapshot) Writable() InstanceSnapshotPut {
 	return c.InstanceSnapshotPut
 }

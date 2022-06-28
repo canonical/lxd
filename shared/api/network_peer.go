@@ -4,7 +4,7 @@ package api
 //
 // swagger:model
 //
-// API extension: network_peer
+// API extension: network_peer.
 type NetworkPeersPost struct {
 	NetworkPeerPut `yaml:",inline"`
 
@@ -25,7 +25,7 @@ type NetworkPeersPost struct {
 //
 // swagger:model
 //
-// API extension: network_peer
+// API extension: network_peer.
 type NetworkPeerPut struct {
 	// Description of the peer
 	// Example: Peering with network1 in project1
@@ -40,7 +40,7 @@ type NetworkPeerPut struct {
 //
 // swagger:model
 //
-// API extension: network_forward
+// API extension: network_forward.
 type NetworkPeer struct {
 	NetworkPeerPut `yaml:",inline"`
 

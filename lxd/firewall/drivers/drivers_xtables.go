@@ -30,7 +30,7 @@ const iptablesCommentPrefix = "generated for"
 // As its own locking mechanism isn't always available.
 var ebtablesMu sync.Mutex
 
-// Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
+// Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables.
 type Xtables struct{}
 
 // String returns the driver name.
@@ -364,7 +364,6 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 		if err != nil {
 			return err
 		}
-
 	} else {
 		err := d.iptablesPrepend(family, comment, "nat", "POSTROUTING", args...)
 		if err != nil {
@@ -948,7 +947,6 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	dnatRanges := getOptimisedDNATRanges(forward)
 	for listenPortRange, targetPortRange := range dnatRanges {
-
 		listenPortRangeStr := portRangeStr(listenPortRange, ":")
 		targetDest := targetAddressStr
 
@@ -1109,7 +1107,6 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
 	// inside the ICMPv6 NDP packet.
 	if IPv6Nets != nil {
-
 		var chains []string
 
 		if parentManaged {

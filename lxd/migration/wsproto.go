@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// ProtoRecv gets a protobuf message from a websocket
+// ProtoRecv gets a protobuf message from a websocket.
 func ProtoRecv(ws *websocket.Conn, msg proto.Message) error {
 	if ws == nil {
 		return fmt.Errorf("Empty websocket connection")
@@ -38,7 +38,7 @@ func ProtoRecv(ws *websocket.Conn, msg proto.Message) error {
 	return nil
 }
 
-// ProtoSend sends a protobuf message over a websocket
+// ProtoSend sends a protobuf message over a websocket.
 func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 	if ws == nil {
 		return fmt.Errorf("Empty websocket connection")
@@ -63,7 +63,7 @@ func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 	return w.Close()
 }
 
-// ProtoSendControl sends a migration control message over a websocket
+// ProtoSendControl sends a migration control message over a websocket.
 func ProtoSendControl(ws *websocket.Conn, err error) {
 	message := ""
 	if err != nil {

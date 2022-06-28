@@ -67,7 +67,7 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// Helper functions
+// Helper functions.
 func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	if c == nil {
 		return fmt.Errorf("Uninitialized go-lxc struct")
@@ -332,7 +332,7 @@ func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (inst
 	return d, nil
 }
 
-// Unload is called by the garbage collector
+// Unload is called by the garbage collector.
 func lxcUnload(d *lxc) {
 	runtime.SetFinalizer(d, nil)
 	d.release()
@@ -1270,7 +1270,7 @@ func (d *lxc) initLXC(config bool) error {
 var idmappedStorageMap map[unix.Fsid]idmap.IdmapStorageType = map[unix.Fsid]idmap.IdmapStorageType{}
 var idmappedStorageMapLock sync.Mutex
 
-// IdmappedStorage determines if the container can use idmapped mounts or shiftfs
+// IdmappedStorage determines if the container can use idmapped mounts or shiftfs.
 func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
 
@@ -1811,7 +1811,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 	return idmapType, nextIdmap, nil
 }
 
-// Start functions
+// Start functions.
 func (d *lxc) startCommon() (string, []func() error, error) {
 	revert := revert.New()
 	defer revert.Fail()
@@ -2499,7 +2499,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 	return nil
 }
 
-// Stop functions
+// Stop functions.
 func (d *lxc) Stop(stateful bool) error {
 	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
@@ -6438,7 +6438,7 @@ func (d *lxc) removeDiskDevices() error {
 	return nil
 }
 
-// Network I/O limits
+// Network I/O limits.
 func (d *lxc) setNetworkPriority() error {
 	// Load the go-lxc struct.
 	err := d.initLXC(false)
@@ -6734,7 +6734,7 @@ func (d *lxc) SaveConfigFile() error {
 	return nil
 }
 
-// Info returns "lxc" and the currently loaded version of LXC
+// Info returns "lxc" and the currently loaded version of LXC.
 func (d *lxc) Info() instance.Info {
 	return instance.Info{
 		Name:    "lxc",

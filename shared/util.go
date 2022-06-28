@@ -8,7 +8,6 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
-	"github.com/lxc/lxd/lxd/revert"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/flosch/pongo2"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
@@ -161,7 +161,7 @@ func HostPathFollow(path string) string {
 
 // HostPath returns the host path for the provided path
 // On a normal system, this does nothing
-// When inside of a snap environment, returns the real path
+// When inside of a snap environment, returns the real path.
 func HostPath(path string) string {
 	// Ignore empty paths
 	if len(path) == 0 {
@@ -511,7 +511,6 @@ func DirCopy(source string, dest string) error {
 	}
 
 	for _, entry := range entries {
-
 		sourcePath := filepath.Join(source, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
 
@@ -526,7 +525,6 @@ func DirCopy(source string, dest string) error {
 				return fmt.Errorf("failed to copy file from %s to %s: %w", sourcePath, destPath, err)
 			}
 		}
-
 	}
 
 	return nil
@@ -763,7 +761,7 @@ func RunningInUserNS() bool {
 	return true
 }
 
-// Spawn the editor with a temporary YAML file for editing configs
+// Spawn the editor with a temporary YAML file for editing configs.
 func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	var f *os.File
 	var err error
@@ -1009,7 +1007,7 @@ func TimeIsSet(ts time.Time) bool {
 
 // EscapePathFstab escapes a path fstab-style.
 // This ensures that getmntent_r() and friends can correctly parse stuff like
-// /some/wacky path with spaces /some/wacky target with spaces
+// /some/wacky path with spaces /some/wacky target with spaces.
 func EscapePathFstab(path string) string {
 	r := strings.NewReplacer(
 		" ", "\\040",
@@ -1218,7 +1216,6 @@ func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
 		}
 
 		expiry[fields[2]] = val
-
 	}
 
 	t := refDate.AddDate(expiry["y"], expiry["m"], expiry["d"]+expiry["w"]*7).Add(

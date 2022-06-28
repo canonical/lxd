@@ -19,7 +19,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Remote holds details for communication with a remote daemon
+// Remote holds details for communication with a remote daemon.
 type Remote struct {
 	Addr     string `yaml:"addr"`
 	AuthType string `yaml:"auth_type,omitempty"`
@@ -31,7 +31,7 @@ type Remote struct {
 	Static   bool   `yaml:"-"`
 }
 
-// ParseRemote splits remote and object
+// ParseRemote splits remote and object.
 func (c *Config) ParseRemote(raw string) (string, string, error) {
 	result := strings.SplitN(raw, ":", 2)
 	if len(result) == 1 {
@@ -51,7 +51,7 @@ func (c *Config) ParseRemote(raw string) (string, string, error) {
 	return result[0], result[1], nil
 }
 
-// GetInstanceServer returns a InstanceServer struct for the remote
+// GetInstanceServer returns a InstanceServer struct for the remote.
 func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	// Handle "local" on non-Linux
 	if name == "local" && runtime.GOOS != "linux" {
@@ -114,7 +114,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	return d, nil
 }
 
-// GetImageServer returns a ImageServer struct for the remote
+// GetImageServer returns a ImageServer struct for the remote.
 func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	// Handle "local" on non-Linux
 	if name == "local" && runtime.GOOS != "linux" {

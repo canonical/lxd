@@ -6,7 +6,7 @@ import "time"
 //
 // swagger:model
 //
-// API extension: warnings
+// API extension: warnings.
 type Warning struct {
 	WarningPut `yaml:",inline"`
 
@@ -55,7 +55,7 @@ type Warning struct {
 //
 // swagger:model
 //
-// API extension: warnings
+// API extension: warnings.
 type WarningPut struct {
 	// Status of the warning (new, acknowledged, or resolved)
 	// Example: new

@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/cluster"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
@@ -240,7 +239,7 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	var snaps []cluster.Instance
+	var snaps []dbCluster.Instance
 
 	if d.snapshot {
 		return []instance.Instance{}, nil
@@ -1384,6 +1383,5 @@ func (d *common) devicesRemove(inst instance.Instance) {
 				d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
-
 	}
 }

@@ -45,7 +45,6 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 
 			return nicType, nil
 		}
-
 	}
 
 	// Infiniband devices use "nictype" without supporting "network" property, so just return it directly,

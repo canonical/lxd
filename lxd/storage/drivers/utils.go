@@ -227,7 +227,7 @@ func fsProbe(path string) (string, error) {
 }
 
 // GetPoolMountPath returns the mountpoint of the given pool.
-// {LXD_DIR}/storage-pools/<pool>
+// {LXD_DIR}/storage-pools/<pool>.
 func GetPoolMountPath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName)
 }
@@ -253,7 +253,7 @@ func GetSnapshotVolumeName(parentName, snapshotName string) string {
 	return fmt.Sprintf("%s%s%s", parentName, shared.SnapshotDelimiter, snapshotName)
 }
 
-// createParentSnapshotDirIfMissing creates the parent directory for volume snapshots
+// createParentSnapshotDirIfMissing creates the parent directory for volume snapshots.
 func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volName string) error {
 	snapshotsPath := GetVolumeSnapshotDir(poolName, volType, volName)
 

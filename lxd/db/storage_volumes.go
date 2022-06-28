@@ -896,7 +896,7 @@ func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
 // volume with the given name should have.
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
-// To do that, we'll need to weed out based on # slashes in names
+// To do that, we'll need to weed out based on # slashes in names.
 func (c *Cluster) GetNextStorageVolumeSnapshotIndex(pool, name string, typ int, pattern string) int {
 	remoteDrivers := StorageRemoteDriverNames()
 
@@ -1104,7 +1104,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 }
 
 // GetStorageVolumeURIs returns the URIs of the storage volumes, specifying
-// target node if applicable
+// target node if applicable.
 func (c *ClusterTx) GetStorageVolumeURIs(project string) ([]string, error) {
 	volInfo, err := c.GetCustomVolumesInProject(project)
 	if err != nil {

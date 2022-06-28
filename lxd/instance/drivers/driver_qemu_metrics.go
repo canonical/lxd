@@ -51,7 +51,6 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 	if err != nil {
 		d.logger.Warn("Failed to get network metrics", logger.Ctx{"err": err})
 	} else {
-
 		out.Network = make(map[string]metrics.NetworkMetrics)
 
 		for name, state := range networkState {

@@ -36,7 +36,7 @@ func GetArchitectures() ([]int, error) {
 	return architectures, nil
 }
 
-// GetExecPath returns the path to the current binary
+// GetExecPath returns the path to the current binary.
 func GetExecPath() string {
 	execPath := os.Getenv("LXD_EXEC_PATH")
 	if execPath != "" {

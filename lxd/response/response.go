@@ -23,13 +23,13 @@ func Init(d bool) {
 	debug = d
 }
 
-// Response represents an API response
+// Response represents an API response.
 type Response interface {
 	Render(w http.ResponseWriter) error
 	String() string
 }
 
-// Sync response
+// Sync response.
 type syncResponse struct {
 	success   bool
 	etag      any
@@ -153,7 +153,7 @@ func (r *syncResponse) String() string {
 	return "failure"
 }
 
-// Error response
+// Error response.
 type errorResponse struct {
 	code int    // Code to return in both the HTTP header and Code field of the response body.
 	msg  string // Message to return in the Error field of the response body.
@@ -387,7 +387,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		if entry.Cleanup != nil {
 			entry.Cleanup()
 		}
-
 	}
 
 	return mw.Close()

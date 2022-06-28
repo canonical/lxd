@@ -121,7 +121,7 @@ func TestAllowInstanceCreation_DifferentType(t *testing.T) {
 }
 
 // If a limit is configured, but the limit on instances is more
-// restrictive, the check fails
+// restrictive, the check fails.
 func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()

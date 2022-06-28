@@ -6,10 +6,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// The ContainerServer type is the legacy name for InstanceServer
+// The ContainerServer type is the legacy name for InstanceServer.
 type ContainerServer InstanceServer
 
-// The ContainerBackupArgs struct is used when creating a container from a backup
+// The ContainerBackupArgs struct is used when creating a container from a backup.
 type ContainerBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader
@@ -18,7 +18,7 @@ type ContainerBackupArgs struct {
 	PoolName string
 }
 
-// The ContainerCopyArgs struct is used to pass additional options during container copy
+// The ContainerCopyArgs struct is used to pass additional options during container copy.
 type ContainerCopyArgs struct {
 	// If set, the container will be renamed on copy
 	Name string
@@ -37,7 +37,7 @@ type ContainerCopyArgs struct {
 	Refresh bool
 }
 
-// The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy
+// The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy.
 type ContainerSnapshotCopyArgs struct {
 	// If set, the container will be renamed on copy
 	Name string
@@ -51,7 +51,7 @@ type ContainerSnapshotCopyArgs struct {
 }
 
 // The ContainerConsoleArgs struct is used to pass additional options during a
-// container console session
+// container console session.
 type ContainerConsoleArgs struct {
 	// Bidirectional fd to pass to the container
 	Terminal io.ReadWriteCloser
@@ -64,11 +64,11 @@ type ContainerConsoleArgs struct {
 }
 
 // The ContainerConsoleLogArgs struct is used to pass additional options during a
-// container console log request
+// container console log request.
 type ContainerConsoleLogArgs struct {
 }
 
-// The ContainerExecArgs struct is used to pass additional options during container exec
+// The ContainerExecArgs struct is used to pass additional options during container exec.
 type ContainerExecArgs struct {
 	// Standard input
 	Stdin io.ReadCloser
@@ -86,7 +86,7 @@ type ContainerExecArgs struct {
 	DataDone chan bool
 }
 
-// The ContainerFileArgs struct is used to pass the various options for a container file upload
+// The ContainerFileArgs struct is used to pass the various options for a container file upload.
 type ContainerFileArgs struct {
 	// File content
 	Content io.ReadSeeker
@@ -107,7 +107,7 @@ type ContainerFileArgs struct {
 	WriteMode string
 }
 
-// The ContainerFileResponse struct is used as part of the response for a container file download
+// The ContainerFileResponse struct is used as part of the response for a container file download.
 type ContainerFileResponse struct {
 	// User id that owns the file
 	UID int64

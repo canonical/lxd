@@ -52,7 +52,7 @@ func (c *cmdWarning) Command() *cobra.Command {
 	return cmd
 }
 
-// List
+// List.
 type cmdWarningList struct {
 	global  *cmdGlobal
 	warning *cmdWarning
@@ -246,7 +246,7 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	return columns, nil
 }
 
-// Acknowledge
+// Acknowledge.
 type cmdWarningAcknowledge struct {
 	global  *cmdGlobal
 	warning *cmdWarning
@@ -288,7 +288,7 @@ func (c *cmdWarningAcknowledge) Run(cmd *cobra.Command, args []string) error {
 	return remoteServer.UpdateWarning(UUID, warning, "")
 }
 
-// Show
+// Show.
 type cmdWarningShow struct {
 	global  *cmdGlobal
 	warning *cmdWarning
@@ -339,7 +339,7 @@ func (c *cmdWarningShow) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Delete
+// Delete.
 type cmdWarningDelete struct {
 	global  *cmdGlobal
 	warning *cmdWarning

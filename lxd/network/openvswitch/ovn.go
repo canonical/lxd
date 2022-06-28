@@ -1215,7 +1215,6 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 				}
 			}
 		}
-
 	}
 
 	return OVNDNSUUID(dnsUUID), dnsName, ips, nil

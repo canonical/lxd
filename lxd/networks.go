@@ -39,7 +39,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// Lock to prevent concurent networks creation
+// Lock to prevent concurent networks creation.
 var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{

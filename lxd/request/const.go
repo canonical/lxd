@@ -3,7 +3,7 @@ package request
 // CtxKey is the type used for all fields stored in the request context by LXD.
 type CtxKey string
 
-// Context keys
+// Context keys.
 const (
 	// CtxAccess is the access field in request context.
 	CtxAccess CtxKey = "access"
@@ -30,7 +30,7 @@ const (
 	CtxForwardedProtocol CtxKey = "forwarded_protocol"
 )
 
-// Headers
+// Headers.
 const (
 	// HeaderForwardedAddress is the forwarded address field in request header.
 	HeaderForwardedAddress = "X-LXD-forwarded-address"

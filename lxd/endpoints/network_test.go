@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // If no socket-based activation is detected, and a network address is set, a
