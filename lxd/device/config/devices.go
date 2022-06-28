@@ -75,6 +75,7 @@ func NewDevices(nativeSet map[string]map[string]string) Devices {
 		for k, v := range devConfig {
 			newDev[k] = v
 		}
+
 		newDevices[devName] = newDev
 	}
 

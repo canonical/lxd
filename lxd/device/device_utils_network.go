@@ -150,6 +150,7 @@ func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) err
 	if err != nil {
 		return err
 	}
+
 	volatile["last_state.mtu"] = fmt.Sprintf("%d", mtu)
 
 	// Store current MAC for restoration on detach
@@ -157,6 +158,7 @@ func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) err
 	if err != nil {
 		return err
 	}
+
 	volatile["last_state.hwaddr"] = mac
 	return nil
 }
@@ -212,6 +214,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		},
 		PeerName: peerName,
 	}
+
 	err := veth.Add()
 	if err != nil {
 		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, peerName, err)
@@ -274,6 +277,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 		Mode:       "tap",
 		MultiQueue: true,
 	}
+
 	err := tuntap.Add()
 	if err != nil {
 		return 0, fmt.Errorf("Failed to create the tap interfaces %q: %w", hostName, err)
@@ -287,6 +291,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("Failed to bring up the tap interface %q: %w", hostName, err)
 	}
+
 	revert.Add(func() { _ = network.InterfaceRemove(hostName) })
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
@@ -359,6 +364,7 @@ func networkNICRouteAdd(routeDev string, routes ...string) error {
 			Proto:   "boot",
 			Family:  ipVersion,
 		}
+
 		err = r.Add()
 		if err != nil {
 			return err

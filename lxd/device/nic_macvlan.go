@@ -180,6 +180,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 			},
 			Mode: "bridge",
 		}
+
 		err = macvlan.Add()
 		if err != nil {
 			return nil, err
@@ -195,6 +196,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 				Mode: "bridge",
 			},
 		}
+
 		err = macvtap.Add()
 		if err != nil {
 			return nil, err

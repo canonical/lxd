@@ -231,6 +231,7 @@ again:
 
 		return err
 	}
+
 	goto again
 }
 
@@ -322,42 +323,49 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create unix listener for virtfs-proxy-helper: %w", err)
 	}
+
 	defer func() { _ = listener.Close() }()
 
 	cDial, err := net.Dial("unix", listener.Addr().String())
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to connect to virtfs-proxy-helper unix listener: %w", err)
 	}
+
 	defer func() { _ = cDial.Close() }()
 
 	cDialUnix, ok := cDial.(*net.UnixConn)
 	if !ok {
 		return nil, nil, fmt.Errorf("Dialled virtfs-proxy-helper connection isn't unix socket")
 	}
+
 	defer func() { _ = cDialUnix.Close() }()
 
 	cDialUnixFile, err := cDialUnix.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix dialed file: %w", err)
 	}
+
 	revert.Add(func() { _ = cDialUnixFile.Close() })
 
 	cAccept, err := listener.Accept()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to accept connection to virtfs-proxy-helper unix listener: %w", err)
 	}
+
 	defer func() { _ = cAccept.Close() }()
 
 	cAcceptUnix, ok := cAccept.(*net.UnixConn)
 	if !ok {
 		return nil, nil, fmt.Errorf("Accepted virtfs-proxy-helper connection isn't unix socket")
 	}
+
 	defer func() { _ = cAcceptUnix.Close() }()
 
 	acceptFile, err := cAcceptUnix.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix listener file: %w", err)
 	}
+
 	defer func() { _ = acceptFile.Close() }()
 
 	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
@@ -454,6 +462,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	if err != nil {
 		return nil, nil, err
 	}
+
 	defer func() { _ = socketFileDir.Close() }()
 
 	socketFile := fmt.Sprintf("/proc/self/fd/%d/%s", socketFileDir.Fd(), filepath.Base(socketPath))
@@ -462,6 +471,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
 	}
+
 	revert.Add(func() {
 		_ = listener.Close()
 		_ = os.Remove(socketPath)
@@ -476,6 +486,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
 	}
+
 	defer func() { _ = unixFile.Close() }()
 
 	// Start the virtiofsd process in non-daemon mode.

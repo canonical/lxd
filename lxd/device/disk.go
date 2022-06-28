@@ -585,6 +585,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			if err != nil {
 				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
+
 			revert.Add(revertFunc)
 		}
 
@@ -593,6 +594,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		revert.Add(revertFunc)
 
 		if isFile {
@@ -761,6 +763,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
+
 				revert.Add(revertFunc)
 
 				mount.Opts = d.detectVMPoolMountOpts()
@@ -783,6 +786,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, err
 				}
+
 				revert.Add(revertFunc)
 
 				mount.TargetPath = d.config["path"]
@@ -827,6 +831,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 						return err
 					}
+
 					revert.Add(revertFunc)
 
 					// Request the unix listener is closed after QEMU has connected on startup.
@@ -857,6 +862,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					if err != nil {
 						return err
 					}
+
 					revert.Add(cleanup)
 
 					// Request the unix socket is closed after QEMU has connected on startup.
@@ -875,6 +881,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, err
 				}
+
 				revert.Add(func() { _ = f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
 				runConf.Revert = func() { _ = f.Close() } // Close file on VM start failure.
@@ -1190,6 +1197,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
 	}
+
 	revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, d.pool.ID())
@@ -1305,6 +1313,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 			if err != nil {
 				return nil, "", false, err
 			}
+
 			defer func() { _ = f.Close() }()
 
 			srcPath = fmt.Sprintf("/proc/self/fd/%d", f.Fd())
@@ -1347,6 +1356,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	if err != nil {
 		return nil, "", false, err
 	}
+
 	revert.Add(func() { _ = DiskMountClear(devPath) })
 
 	cleanup := revert.Clone().Fail // Clone before calling revert.Success() so we can return the Fail func.
@@ -1374,6 +1384,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed opening allowed parent source path %q: %w", d.restrictedParentSourcePath, err)
 		}
+
 		defer func() { _ = allowedParent.Close() }()
 
 		// For restricted source paths we use openat2 to prevent resolving to a mount path above the
@@ -1442,6 +1453,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		} else {
 			nextIdmap, err = c.NextIdmap()
 		}
+
 		if err != nil {
 			return err
 		}
@@ -1453,6 +1465,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 		}
 	}
+
 	poolVolumePut.Config["volatile.idmap.next"] = nextJSONMap
 
 	if !nextIdmap.Equals(lastIdmap) {
@@ -1488,6 +1501,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 					} else {
 						ctNextIdmap, err = ct.NextIdmap()
 					}
+
 					if err != nil {
 						return fmt.Errorf("Failed to retrieve idmap of container")
 					}
@@ -1541,6 +1555,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 			d.logger.Debug("Shifted", logger.Ctx{"path": remapPath})
 		}
+
 		d.logger.Debug("Shifted storage volume")
 	}
 
@@ -1743,6 +1758,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			if blockLimits[blockStr] == nil {
 				blockLimits[blockStr] = []diskBlockLimit{}
 			}
+
 			blockLimits[blockStr] = append(blockLimits[blockStr], device)
 		}
 	}
@@ -1856,6 +1872,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)

@@ -243,6 +243,7 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 		if os.IsNotExist(err) {
 			return result, nil
 		}
+
 		return nil, err
 	}
 
@@ -277,6 +278,7 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
+
 			return nil, err
 		}
 

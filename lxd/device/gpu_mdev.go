@@ -83,6 +83,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 				if v.Available > 0 {
 					mdevAvailable = true
 				}
+
 				break
 			}
 		}
