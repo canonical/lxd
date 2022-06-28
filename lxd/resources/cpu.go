@@ -73,6 +73,7 @@ func ParseCpuset(cpu string) ([]int64, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
 			}
+
 			cpus = append(cpus, nr)
 		}
 	}
@@ -107,6 +108,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "level"), err)
 		}
+
 		cache.Level = cacheLevel
 
 		// Get the cache size
@@ -156,6 +158,7 @@ func getCPUdmi() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+
 	defer func() { _ = stream.Close() }()
 
 	// Decode SMBIOS structures.
@@ -200,6 +203,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open /proc/cpuinfo: %w", err)
 	}
+
 	defer func() { _ = f.Close() }()
 	cpuInfo := bufio.NewScanner(f)
 
@@ -445,6 +449,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 				coreFrequency += core.Frequency
 				coreFrequencyCount++
 			}
+
 			socket.Cores = append(socket.Cores, *core)
 		}
 
@@ -456,6 +461,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		sort.Slice(socket.Cores, func(i int, j int) bool { return socket.Cores[i].Core < socket.Cores[j].Core })
 		cpu.Sockets = append(cpu.Sockets, *socket)
 	}
+
 	sort.Slice(cpu.Sockets, func(i int, j int) bool { return cpu.Sockets[i].Socket < cpu.Sockets[j].Socket })
 
 	// Set the architecture name

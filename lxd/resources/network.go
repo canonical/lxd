@@ -64,6 +64,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if err != nil {
 		return fmt.Errorf("Failed to find USB address for %q: %w", devicePath, err)
 	}
+
 	if usbAddr != "" {
 		card.USBAddress = usbAddr
 	}
@@ -322,6 +323,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to find PCI address for %q: %w", devicePath, err)
 			}
+
 			if pciAddr != "" {
 				card.PCIAddress = pciAddr
 
@@ -346,12 +348,14 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
 				}
+
 				parentAddress := filepath.Base(linkTarget)
 
 				_, ok := pciVFs[parentAddress]
 				if !ok {
 					pciVFs[parentAddress] = []api.ResourcesNetworkCard{}
 				}
+
 				pciVFs[parentAddress] = append(pciVFs[parentAddress], card)
 			} else {
 				network.Cards = append(network.Cards, card)
@@ -408,12 +412,14 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "physfn"), err)
 				}
+
 				parentAddress := filepath.Base(linkTarget)
 
 				_, ok := pciVFs[parentAddress]
 				if !ok {
 					pciVFs[parentAddress] = []api.ResourcesNetworkCard{}
 				}
+
 				pciVFs[parentAddress] = append(pciVFs[parentAddress], card)
 			} else {
 				network.Cards = append(network.Cards, card)
@@ -617,6 +623,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		lower string
 		vid   uint64
 	}
+
 	vlans := map[string]vlan{}
 
 	vlanPath := "/proc/net/vlan/config"
@@ -637,6 +644,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 			if err != nil {
 				continue
 			}
+
 			vLower := strings.TrimSpace(fields[2])
 
 			vlans[vName] = vlan{

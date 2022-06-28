@@ -111,6 +111,7 @@ func parsePCIVPD(buf []byte) api.ResourcesPCIVPD {
 			for key, value := range entries {
 				vpd.Entries[key] = value
 			}
+
 		default:
 			// For other tags, just skip the value.
 			buf = buf[length:]
