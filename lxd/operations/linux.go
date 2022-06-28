@@ -29,6 +29,7 @@ func registerDBOperation(op *Operation, opType operationtype.Type) error {
 			if err != nil {
 				return fmt.Errorf("Fetch project ID: %w", err)
 			}
+
 			opInfo.ProjectID = &projectID
 		}
 
