@@ -256,7 +256,7 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
-	var projectNetworksForwardsOnUplink map[string]map[int64][]string
+	var projectNetworksForwardsOnUplink, projectNetworksLoadBalancersOnUplink map[string]map[int64][]string
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
@@ -267,6 +267,12 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 
 		// Get all network forward listen addresses for all networks (of any type) connected to our uplink.
 		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName)
+		if err != nil {
+			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
+		}
+
+		// Get all network load balancer listen addresses for all networks (of any type) connected to our uplink.
+		projectNetworksLoadBalancersOnUplink, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkNetworkName)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 		}
@@ -314,6 +320,29 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 					networkProject: projectName,
 					networkName:    projectNetworks[projectName][networkID].Name,
 					usageType:      subnetUsageNetworkForward,
+				})
+			}
+		}
+	}
+
+	// Add load balancer listen addresses to this list.
+	for projectName, networks := range projectNetworksLoadBalancersOnUplink {
+		for networkID, listenAddresses := range networks {
+			for _, listenAddress := range listenAddresses {
+				// Convert listen address to subnet.
+				listenAddressNet, err := ParseIPToNet(listenAddress)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid existing load balancer listen address %q", listenAddress)
+				}
+
+				// Create an externalSubnetUsage for the listen address by using the network ID
+				// of the listen address to retrieve the already loaded network name from the
+				// projectNetworks map.
+				externalSubnets = append(externalSubnets, externalSubnetUsage{
+					subnet:         *listenAddressNet,
+					networkProject: projectName,
+					networkName:    projectNetworks[projectName][networkID].Name,
+					usageType:      subnetUsageNetworkLoadBalancer,
 				})
 			}
 		}
