@@ -87,6 +87,7 @@ func (g *Group) Stop(timeout time.Duration) error {
 		// We were not even started
 		return nil
 	}
+
 	g.cancel()
 
 	graceful := make(chan struct{}, 1)
