@@ -129,6 +129,7 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 			if len(results) != 2 {
 				return fmt.Errorf(i18n.G("No value found in %q"), prop)
 			}
+
 			k := results[0]
 			v := results[1]
 			device[k] = v
@@ -198,6 +199,7 @@ func (c *cmdConfigDeviceGet) Command() *cobra.Command {
 	} else if c.profile != nil {
 		cmd.Use = usage("get", i18n.G("[<remote>:]<profile> <device> <key>"))
 	}
+
 	cmd.Short = i18n.G("Get values for device configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for device configuration keys`))
@@ -438,6 +440,7 @@ func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 	} else if c.profile != nil {
 		cmd.Use = usage("remove", i18n.G("[<remote>:]<profile> <name>..."))
 	}
+
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove instance devices")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -479,6 +482,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 			if !ok {
 				return fmt.Errorf(i18n.G("Device doesn't exist"))
 			}
+
 			delete(profile.Devices, devname)
 		}
 
@@ -502,6 +506,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 
 				return fmt.Errorf(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
 			}
+
 			delete(inst.Devices, devname)
 		}
 
@@ -596,6 +601,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 		for k, v := range keys {
 			dev[k] = v
 		}
+
 		profile.Devices[devname] = dev
 
 		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
@@ -607,6 +613,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		dev, ok := inst.Devices[devname]
 		if !ok {
 			_, ok = inst.ExpandedDevices[devname]
@@ -620,6 +627,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 		for k, v := range keys {
 			dev[k] = v
 		}
+
 		inst.Devices[devname] = dev
 
 		op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
@@ -651,6 +659,7 @@ func (c *cmdConfigDeviceShow) Command() *cobra.Command {
 	} else if c.profile != nil {
 		cmd.Use = usage("show", i18n.G("[<remote>:]<profile>"))
 	}
+
 	cmd.Short = i18n.G("Show full device configuration")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show full device configuration`))
@@ -723,6 +732,7 @@ func (c *cmdConfigDeviceUnset) Command() *cobra.Command {
 	} else if c.profile != nil {
 		cmd.Use = usage("unset", i18n.G("[<remote>:]<profile> <device> <key>"))
 	}
+
 	cmd.Short = i18n.G("Unset device configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset device configuration keys`))

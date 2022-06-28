@@ -42,6 +42,7 @@ func LoadConfig(path string) (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Unable to decode the configuration: %w", err)
 		}
+
 		for k, r := range globalConf.Remotes {
 			if _, ok := c.Remotes[k]; !ok {
 				r.Global = true
@@ -117,6 +118,7 @@ func (c *Config) SaveConfig(path string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to create the configuration file: %w", err)
 	}
+
 	defer func() { _ = f.Close() }()
 
 	// Write the new config

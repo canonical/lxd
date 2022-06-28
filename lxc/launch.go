@@ -89,6 +89,7 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	progress := utils.ProgressRenderer{
 		Quiet: c.global.flagQuiet,
 	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -106,6 +107,7 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
 	}
+
 	progress.Done("")
 
 	// Handle console attach

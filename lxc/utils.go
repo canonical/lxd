@@ -97,6 +97,7 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 	for i, alias := range aliases {
 		names[i] = alias.Name
 	}
+
 	sort.Strings(names)
 
 	resp, err := client.GetImageAliases()

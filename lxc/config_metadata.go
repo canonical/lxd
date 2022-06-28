@@ -115,6 +115,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		return resource.server.UpdateInstanceMetadata(resource.name, metadata, "")
 	}
 
@@ -122,6 +123,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	origContent, err := yaml.Marshal(metadata)
 	if err != nil {
 		return err
@@ -154,6 +156,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -211,6 +214,7 @@ func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	fmt.Printf("%s", content)
 
 	return nil

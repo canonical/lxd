@@ -43,6 +43,7 @@ func (c *Config) GlobalConfigPath(paths ...string) string {
 	if os.Getenv("LXD_GLOBAL_CONF") != "" {
 		configDir = os.Getenv("LXD_GLOBAL_CONF")
 	}
+
 	path := []string{configDir}
 	path = append(path, paths...)
 
@@ -67,6 +68,7 @@ func (c *Config) ServerCertPath(remote string) string {
 	if c.Remotes[remote].Global {
 		return c.GlobalConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
 	}
+
 	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
 }
 

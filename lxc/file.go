@@ -193,6 +193,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf(i18n.G("Unable to create a temporary file: %v"), err)
 	}
+
 	fname := f.Name()
 	_ = f.Close()
 	_ = os.Remove(fname)
@@ -285,6 +286,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		targetIsDir = true
 	} else if c.file.flagMkdir {
 		err := os.MkdirAll(filepath.Dir(target), DirMode)
@@ -318,6 +320,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 					if err != nil {
 						return err
 					}
+
 					targetIsDir = true
 				}
 
@@ -382,6 +385,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = f.Close() }()
 
 			err = os.Chmod(targetPath, os.FileMode(resp.Mode))
@@ -513,6 +517,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		mode = os.FileMode(m)
 	}
 
@@ -529,6 +534,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			finfo, err := f.Stat()
 			_ = f.Close()
 			if err != nil {
@@ -654,6 +660,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			args.GID = int64(gid)
 			args.Mode = int(mode.Perm())
 		}
+
 		args.Type = "file"
 
 		fstat, err := f.Stat()
@@ -684,6 +691,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 			progress.Done("")
 			return err
 		}
+
 		progress.Done("")
 	}
 
@@ -718,6 +726,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = f.Close() }()
 
 		err = os.Chmod(target, os.FileMode(resp.Mode))
@@ -817,6 +826,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = f.Close() }()
 
 			args.Type = "file"
@@ -859,11 +869,14 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 			if args.Type != "directory" {
 				progress.Done("")
 			}
+
 			return err
 		}
+
 		if args.Type != "directory" {
 			progress.Done("")
 		}
+
 		return nil
 	}
 
@@ -909,6 +922,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mo
 		if mode != nil {
 			modeArg = int(mode.Perm())
 		}
+
 		args := lxd.InstanceFileArgs{
 			UID:  uid,
 			GID:  gid,
@@ -978,6 +992,7 @@ func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		if !sb.IsDir() {
 			return fmt.Errorf(i18n.G("Target path must be a directory"))
 		}
@@ -1027,6 +1042,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed connecting to instance SFTP: %w"), err)
 	}
+
 	defer func() { _ = sftpConn.Close() }()
 
 	// Use the format "lxd.<instance_name>" as the source "host" (although not used for communication)
@@ -1086,6 +1102,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 	if err != nil && ctx.Err() == nil {
 		fmt.Fprintf(os.Stderr, i18n.G("I/O copy from sshfs to instance failed: %v")+"\n", err)
 	}
+
 	cancel() // Ask sshfs to end.
 
 	err = sshfsCmd.Wait()
@@ -1163,6 +1180,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed to listen for connection: %w"), err)
 	}
+
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
 
 	if config.PasswordCallback != nil {
@@ -1240,6 +1258,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 						fmt.Fprintf(os.Stderr, i18n.G("Failed connecting to instance SFTP for client %q: %v")+"\n", nConn.RemoteAddr(), err)
 						return
 					}
+
 					defer func() { _ = sftpConn.Close() }()
 
 					// Copy SFTP data between client and remote instance.
@@ -1261,6 +1280,7 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 					if err != nil && ctx.Err() == nil {
 						fmt.Fprintf(os.Stderr, i18n.G("I/O copy from SSH to instance failed: %v")+"\n", err)
 					}
+
 					cancel() // Prevents error output when other io.Copy finishes.
 					_ = sftpConn.Close()
 				}()

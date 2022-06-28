@@ -321,8 +321,10 @@ func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -412,6 +414,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		remote = args[0]
 	}
+
 	remoteName := strings.TrimSuffix(remote, ":")
 
 	resources, err := c.global.ParseServers(remote)
@@ -462,6 +465,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(project.UsedBy))
 		data = append(data, []string{name, images, profiles, storageVolumes, networks, project.Description, strUsedBy})
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
@@ -800,6 +804,7 @@ func (c *cmdProjectInfo) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, []string{strings.ToUpper(k), limit, usage})
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

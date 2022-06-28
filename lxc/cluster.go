@@ -169,9 +169,11 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		if c.flagFormat == "csv" {
 			rolesDelimiter = ","
 		}
+
 		line := []string{member.ServerName, member.URL, strings.Join(roles, rolesDelimiter), member.Architecture, member.FailureDomain, member.Description, strings.ToUpper(member.Status), member.Message}
 		data = append(data, line)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
@@ -686,8 +688,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -759,6 +763,7 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("Member %s join token:")+"\n", resource.name)
 	}
+
 	fmt.Println(joinToken.String())
 
 	return nil
@@ -854,6 +859,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 		line := []string{token.ServerName, token.Token}
 		data = append(data, line)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

@@ -192,6 +192,7 @@ func TestColumns(t *testing.T) {
 		if l == 0 {
 			l = rand.Intn(20) + 20
 		}
+
 		for i := 0; i < l; i++ {
 			buffer.WriteByte(alphanum[rand.Intn(len(alphanum))])
 		}
@@ -287,6 +288,7 @@ func TestColumns(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to parse columns string.  Input: %s, Error: %s", raw, err)
 			}
+
 			if len(columns) != num {
 				t.Errorf("Did not generate correct number of columns.  Expected: %d, Actual: %d, Input: %s", num, len(columns), raw)
 			}

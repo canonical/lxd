@@ -366,6 +366,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		progress.Done("")
 		return err
 	}
+
 	progress.Done("")
 
 	if c.flagRefresh {
@@ -400,6 +401,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			progress.Done("")
 			return err
 		}
+
 		progress.Done("")
 	}
 

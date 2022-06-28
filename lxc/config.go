@@ -272,8 +272,10 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 				if err != nil {
 					return err
 				}
+
 				continue
 			}
+
 			break
 		}
 
@@ -345,8 +347,10 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
