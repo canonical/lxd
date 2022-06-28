@@ -35,6 +35,7 @@ func (a *ActionPolice) AddAction() []string {
 	if a.Drop {
 		result = append(result, "drop")
 	}
+
 	return result
 }
 
@@ -77,5 +78,6 @@ func (u32 *U32Filter) Add() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
