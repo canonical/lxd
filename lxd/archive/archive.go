@@ -42,6 +42,7 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 		if err != nil {
 			return fmt.Errorf("Failed to start extract: Failed to find executable: %w", err)
 		}
+
 		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
 	}
 
@@ -49,6 +50,7 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 	if err != nil {
 		return fmt.Errorf("Failed to start extract: Failed to load profile: %w", err)
 	}
+
 	defer func() { _ = apparmor.ArchiveDelete(sysOS, outputPath) }()
 	defer func() { _ = apparmor.ArchiveUnload(sysOS, outputPath) }()
 
@@ -155,6 +157,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 			args = append(args, "--exclude=rootfs/dev/*")
 			args = append(args, "--exclude=rootfs/./dev/*")
 		}
+
 		args = append(args, "--restrict", "--force-local")
 		args = append(args, "-C", path, "--numeric-owner", "--xattrs-include=*")
 		args = append(args, extractArgs...)
@@ -164,6 +167,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = f.Close() }()
 
 		reader = f
@@ -209,6 +213,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 	if err != nil {
 		return fmt.Errorf("Error opening directory: %w", err)
 	}
+
 	defer func() { _ = outputDir.Close() }()
 
 	var readCloser io.ReadCloser
