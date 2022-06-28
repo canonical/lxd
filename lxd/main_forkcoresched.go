@@ -68,6 +68,7 @@ void forkcoresched(void)
 			if (!core_scheduling_cookie_valid(cookie))
 				_exit(EXIT_FAILURE);
 		}
+
 		break;
 	case 1:
 		pidstr = getenv("LXC_PID");

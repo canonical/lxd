@@ -153,10 +153,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		if !shared.PathExists(config.Cluster.ClusterCertificatePath) {
 			return fmt.Errorf("Path %s doesn't exist", config.Cluster.ClusterCertificatePath)
 		}
+
 		content, err := ioutil.ReadFile(config.Cluster.ClusterCertificatePath)
 		if err != nil {
 			return err
 		}
+
 		config.Cluster.ClusterCertificate = string(content)
 	}
 
@@ -220,10 +222,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("Failed to join cluster: %w", err)
 		}
+
 		err = op.Wait()
 		if err != nil {
 			return fmt.Errorf("Failed to join cluster: %w", err)
 		}
+
 		return nil
 	}
 
@@ -234,6 +238,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	revert.Add(localRevert)
 
 	err = initDataClusterApply(d, config.Cluster)

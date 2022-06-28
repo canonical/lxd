@@ -55,6 +55,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 			Description: "unprivileged",
 			Project:     "default",
 		}
+
 		id, err := cluster.CreateProfile(ctx, tx.Tx(), profile)
 		if err != nil {
 			return err
@@ -146,6 +147,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 				"parent":  "unknownbr0"}},
 		Name: "testFoo",
 	}
+
 	state := suite.d.State()
 
 	_, err := state.DB.Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)

@@ -44,6 +44,7 @@ func setupDir() error {
 	if err != nil {
 		return err
 	}
+
 	err = sys.SetupTestCerts(testDir)
 	if err != nil {
 		return err
@@ -71,6 +72,7 @@ func setupSocket() (*net.UnixListener, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return listener, nil
 }
 
@@ -95,6 +97,7 @@ func TestCredsSendRecv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer func() { _ = listener.Close() }()
 	defer func() { _ = os.RemoveAll(testDir) }()
 
@@ -105,6 +108,7 @@ func TestCredsSendRecv(t *testing.T) {
 			result <- -1
 			return
 		}
+
 		defer func() { _ = conn.Close() }()
 
 		cred, err := ucred.GetCred(conn)
@@ -113,6 +117,7 @@ func TestCredsSendRecv(t *testing.T) {
 			result <- -1
 			return
 		}
+
 		result <- cred.Pid
 	}()
 
@@ -120,6 +125,7 @@ func TestCredsSendRecv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer func() { _ = conn.Close() }()
 
 	pid := <-result
@@ -144,6 +150,7 @@ func TestHttpRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer func() { _ = d.Stop(context.Background(), unix.SIGQUIT) }()
 
 	c := http.Client{Transport: &http.Transport{DialContext: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}

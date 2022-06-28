@@ -350,6 +350,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return resp
 	}
 
@@ -374,6 +375,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 			if err == db.ErrAlreadyDefined {
 				return response.BadRequest(fmt.Errorf("The network is already defined on node %q", targetNode))
 			}
+
 			return response.SmartError(err)
 		}
 
@@ -447,6 +449,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
+
 	revert.Add(func() { _ = d.db.Cluster.DeleteNetwork(projectName, req.Name) })
 
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
@@ -576,6 +579,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	if err != nil {
 		return err
 	}
+
 	logger.Debug("Created network on local cluster member", logger.Ctx{"project": projectName, "network": req.Name, "config": netConfig})
 
 	// Remove this node's node specific config keys.
@@ -616,6 +620,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		if err != nil {
 			return err
 		}
+
 		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
 
 		return nil
@@ -631,6 +636,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	if err != nil {
 		return err
 	}
+
 	logger.Debug("Marked network global status as created", logger.Ctx{"project": projectName, "network": req.Name})
 
 	return nil
@@ -683,6 +689,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 	if err != nil {
 		return err
 	}
+
 	logger.Debug("Marked network local status as created", logger.Ctx{"project": n.Project(), "network": n.Name()})
 
 	revert.Success()
@@ -937,11 +944,13 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if clustered {
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UseProject(n.Project()).DeleteNetwork(n.Name())
 		})
@@ -1006,6 +1015,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if clustered {
 		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}

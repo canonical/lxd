@@ -398,6 +398,7 @@ static void mount_emulate(void)
 		flags = atoi(advance_arg(true));
 		shiftfs = advance_arg(true);
 	}
+
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
@@ -560,6 +561,7 @@ static void mount_emulate(void)
 			remove(template);
 			_exit(EXIT_FAILURE);
 		}
+
 		remove(template);
 	} else {
 		if (mount(source, target, fstype, flags, data) < 0)

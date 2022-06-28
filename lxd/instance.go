@@ -40,6 +40,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
@@ -178,6 +179,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
@@ -242,6 +244,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
+
 		revert.Add(cleanup)
 	} else {
 		instOp, err = inst.LockExclusive()
@@ -345,6 +348,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
+
 			revert.Add(cleanup)
 			defer snapInstOp.Done(err)
 		}

@@ -483,6 +483,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				if ok && (errno == unix.EAGAIN) {
 					goto sAgain
 				}
+
 				break
 			}
 
@@ -561,6 +562,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 		files = append(files, f)
 	}
+
 	_ = unix.Close(forkproxyUDSSockFDNum)
 
 	var listenerMap map[int]*lStruct
@@ -581,6 +583,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				fmt.Printf("Error: Failed to re-assemble listener: %v\n", err)
 				return err
 			}
+
 			listenerMap[int(f.Fd())] = &lStruct{
 				lConn:      &listener,
 				lAddrIndex: i,
@@ -633,6 +636,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			C.epoll_ctl(epFd, C.EPOLL_CTL_DEL, C.int(f.Fd()), nil)
 			_ = f.Close()
 		}
+
 		_ = unix.Close(int(epFd))
 
 		if !isUDPListener {
@@ -789,10 +793,12 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 			if ok && (errno == unix.EAGAIN) {
 				goto wAgain
 			}
+
 			if ew != nil {
 				err = ew
 				break
 			}
+
 			if nr != nw {
 				err = io.ErrShortWrite
 				break
@@ -861,6 +867,7 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
 			if ok && errno == unix.EAGAIN {
 				goto readAgain
 			}
+
 			ch <- err
 			return
 		}
@@ -890,6 +897,7 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
 			if ok && errno == unix.EAGAIN {
 				goto writeAgain
 			}
+
 			ch <- err
 			return
 		}
@@ -976,6 +984,7 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 
 		time.Sleep(500 * time.Millisecond)
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1008,6 +1017,7 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 	default:
 		return nil, fmt.Errorf("Could not get listener file: invalid listener type")
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get file from listener: %w", err)
 	}

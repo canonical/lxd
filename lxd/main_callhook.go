@@ -75,6 +75,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	lxdArgs := lxd.ConnectionArgs{
 		SkipGetServer: true,
 	}
+
 	d, err := lxd.ConnectLXDUnix(socket, &lxdArgs)
 	if err != nil {
 		return err
@@ -91,6 +92,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 		if target == "" {
 			target = "unknown"
 		}
+
 		v.Set("target", target)
 	}
 
@@ -112,6 +114,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		break
 	case <-time.After(30 * time.Second):
 		return fmt.Errorf("Hook didn't finish within 30s")

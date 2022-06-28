@@ -197,6 +197,7 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = console.Close() }()
 
 	// Detect size of window and set it into console.
@@ -560,6 +561,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
