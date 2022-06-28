@@ -56,6 +56,7 @@ func parseConfOverride(confOverride string) configMap {
 					index:       currentIndex,
 					entryKey:    "",
 				}
+
 				rv[k] = ""
 			}
 
@@ -66,6 +67,7 @@ func parseConfOverride(confOverride string) configMap {
 				if err != nil || i < 0 {
 					panic("failed to parse index")
 				}
+
 				currentIndex = uint(i)
 			} else {
 				currentIndex = 0
@@ -102,6 +104,7 @@ func parseConfOverride(confOverride string) configMap {
 			index:       currentIndex,
 			entryKey:    "",
 		}
+
 		rv[k] = ""
 	}
 
@@ -201,6 +204,7 @@ func appendSections(newCfg []cfgSection, cfgMap configMap) []cfgSection {
 			// entryKey == "") since we are only adding new sections now
 			continue
 		}
+
 		sectionKey := rawConfigKey{k.sectionName, k.index, ""}
 		section, found := tmp[sectionKey]
 		if !found {
