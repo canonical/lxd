@@ -89,6 +89,7 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 				fmt.Println("Would destroy container now")
 				continue
 			}
+
 			err := container.Destroy()
 			if err != nil {
 				fmt.Printf("Failed to destroy container '%s': %v\n", container.Name(), err)
@@ -111,6 +112,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 	if value == nil {
 		value = getConfig(conf, "lxc.utsname")
 	}
+
 	if value == nil || value[0] != container.Name() {
 		return fmt.Errorf("Container name doesn't match lxc.uts.name / lxc.utsname")
 	}
@@ -121,6 +123,7 @@ func validateConfig(conf []string, container *liblxc.Container) error {
 	if value == nil {
 		value = getConfig(conf, "lxc.aa_allow_incomplete")
 	}
+
 	if value != nil {
 		v, err := strconv.Atoi(value[0])
 		if err != nil {
@@ -218,6 +221,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	if value == nil {
 		value = getConfig(conf, "lxd.id_map")
 	}
+
 	if value == nil {
 		// Privileged container
 		newConfig["security.privileged"] = "true"
@@ -294,6 +298,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	if value == nil {
 		value = getConfig(conf, "lxc.aa_profile")
 	}
+
 	if value != nil {
 		if value[0] == "lxc-container-default-with-nesting" {
 			newConfig["security.nesting"] = "true"
@@ -308,6 +313,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	if value == nil {
 		value = getConfig(conf, "lxc.seccomp")
 	}
+
 	if value != nil && value[0] != "/usr/share/lxc/config/common.seccomp" {
 		return fmt.Errorf("Custom seccomp profiles aren't supported")
 	}
@@ -318,6 +324,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 	if value == nil {
 		value = getConfig(conf, "lxc.se_context")
 	}
+
 	if value != nil {
 		return fmt.Errorf("Custom SELinux policies aren't supported")
 	}
@@ -332,6 +339,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 				"sys_time"}) {
 				continue
 			}
+
 			return fmt.Errorf("Custom capabilities aren't supported")
 		}
 	}
@@ -375,6 +383,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 			Mode: "push",
 		},
 	}
+
 	req.Config = newConfig
 	req.Devices = newDevices
 	req.Profiles = []string{"default"}
@@ -478,6 +487,7 @@ func convertNetworkConfig(container *liblxc.Container, devices map[string]map[st
 			} else {
 				device["nictype"] = "p2p"
 			}
+
 		case "phys":
 			device["nictype"] = "physical"
 		case "empty":
@@ -566,6 +576,7 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 			if err != nil {
 				return err
 			}
+
 			device["path"] = strings.TrimPrefix(parts[1], rootfs)
 		}
 
