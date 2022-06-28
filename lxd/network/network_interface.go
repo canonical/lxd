@@ -63,6 +63,11 @@ type Network interface {
 	ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error
 	ForwardDelete(listenAddress string, clientType request.ClientType) error
 
+	// Load Balancers.
+	LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error
+	LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error
+	LoadBalancerDelete(listenAddress string, clientType request.ClientType) error
+
 	// Peerings.
 	PeerCreate(forward api.NetworkPeersPost) error
 	PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error
