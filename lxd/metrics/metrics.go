@@ -113,6 +113,7 @@ func (m *MetricSet) String() string {
 			} else {
 				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
 			}
+
 			if err != nil {
 				return ""
 			}
