@@ -30,6 +30,7 @@ func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode 
 	if err != nil {
 		return
 	}
+
 	uid = int(stat.Uid)
 	gid = int(stat.Gid)
 	inode = uint64(stat.Ino)
@@ -61,6 +62,7 @@ func SetSize(fd int, width int, height int) (err error) {
 	if _, _, err := unix.Syscall6(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
 		return err
 	}
+
 	return nil
 }
 
@@ -74,17 +76,20 @@ func llistxattr(path string, list []byte) (sz int, err error) {
 	if err != nil {
 		return
 	}
+
 	var _p1 unsafe.Pointer
 	if len(list) > 0 {
 		_p1 = unsafe.Pointer(&list[0])
 	} else {
 		_p1 = unsafe.Pointer(nil)
 	}
+
 	r0, _, e1 := unix.Syscall(unix.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
 	sz = int(r0)
 	if e1 != 0 {
 		err = e1
 	}
+
 	return
 }
 
@@ -101,8 +106,10 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		if err == unix.EOPNOTSUPP {
 			return nil, nil
 		}
+
 		return nil, err
 	}
+
 	if pre == 0 {
 		return nil, nil
 	}
@@ -113,6 +120,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 	if err != nil || post < 0 {
 		return nil, err
 	}
+
 	if post > pre {
 		return nil, fmt.Errorf("Extended attribute list size increased from %d to %d during retrieval", pre, post)
 	}
@@ -299,6 +307,7 @@ func GetMeminfo(field string) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	// Read it line by line
@@ -341,9 +350,11 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 	} else {
 		fd, err = unix.Openat(-1, "/dev/ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
 	}
+
 	if err != nil {
 		return nil, nil, err
 	}
+
 	ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
 	revert.Add(func() { _ = ptx.Close() })
 
@@ -629,6 +640,7 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 		Events:  int16(flags),
 		Revents: 0,
 	}
+
 	pollFds := []unix.PollFd{pollFd}
 
 again:

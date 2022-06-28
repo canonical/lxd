@@ -91,6 +91,7 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 		ca:      ca,
 		crl:     crl,
 	}
+
 	return info, nil
 }
 
@@ -156,6 +157,7 @@ func (c *CertInfo) Fingerprint() string {
 	if err != nil {
 		panic("invalid public key material")
 	}
+
 	return fingerprint
 }
 
@@ -184,9 +186,11 @@ func TestingKeyPair() *CertInfo {
 	if err != nil {
 		panic(fmt.Sprintf("invalid X509 keypair material: %v", err))
 	}
+
 	cert := &CertInfo{
 		keypair: keypair,
 	}
+
 	return cert
 }
 
@@ -198,9 +202,11 @@ func TestingAltKeyPair() *CertInfo {
 	if err != nil {
 		panic(fmt.Sprintf("invalid X509 keypair material: %v", err))
 	}
+
 	cert := &CertInfo{
 		keypair: keypair,
 	}
+
 	return cert
 }
 

@@ -47,6 +47,7 @@ func TestFileCopy(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	defer func() { _ = os.Remove(source.Name()) }()
 
 	if err := WriteAll(source, helloWorld); err != nil {
@@ -54,6 +55,7 @@ func TestFileCopy(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	_ = source.Close()
 
 	dest, err := ioutil.TempFile("", "")
@@ -62,6 +64,7 @@ func TestFileCopy(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	_ = dest.Close()
 
 	if err := FileCopy(source.Name(), dest.Name()); err != nil {
@@ -215,6 +218,7 @@ func TestRemoveElementsFromStringSlice(t *testing.T) {
 		list             []string
 		expectedList     []string
 	}
+
 	tests := []test{
 		{
 			elementsToRemove: []string{"one", "two", "three"},

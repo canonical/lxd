@@ -64,6 +64,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	r.Source = strings.Join(subjects, ",")
 
 	// Remove space from Destination subject list.
@@ -71,6 +72,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	r.Destination = strings.Join(subjects, ",")
 
 	// Remove space from SourcePort port list.
@@ -78,6 +80,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)
 	}
+
 	r.SourcePort = strings.Join(ports, ",")
 
 	// Remove space from DestinationPort port list.
@@ -85,6 +88,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)
 	}
+
 	r.DestinationPort = strings.Join(ports, ",")
 }
 

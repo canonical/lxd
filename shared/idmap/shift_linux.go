@@ -409,6 +409,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 	if acl == nil {
 		return nil
 	}
+
 	defer C.acl_free(unsafe.Pointer(acl))
 
 	// Iterate through all ACL entries
@@ -475,6 +476,7 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = tmpfile.Close() }()
 	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
@@ -528,6 +530,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 	if count < 0 {
 		return "", fmt.Errorf("Invalid ACL count")
 	}
+
 	if count == 0 {
 		return "", fmt.Errorf("No valid ACLs found")
 	}
@@ -544,6 +547,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 				entry.e_id = C.native_to_le32(C.int(uid))
 				logger.Debugf("Unshifting ACL_USER from uid %d to uid %d", ouid, uid)
 			}
+
 		case C.ACL_GROUP:
 			ogid := int64(C.le32_to_native(entry.e_id))
 			_, gid := set.ShiftFromNs(-1, ogid)
@@ -551,6 +555,7 @@ func UnshiftACL(value string, set *IdmapSet) (string, error) {
 				entry.e_id = C.native_to_le32(C.int(gid))
 				logger.Debugf("Unshifting ACL_GROUP from gid %d to gid %d", ogid, gid)
 			}
+
 		case C.ACL_USER_OBJ:
 			logger.Debugf("Ignoring ACL type ACL_USER_OBJ")
 		case C.ACL_GROUP_OBJ:

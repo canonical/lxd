@@ -132,10 +132,12 @@ func ArchitectureGetLocalID() (int, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	id, err := ArchitectureId(name)
 	if err != nil {
 		return -1, err
 	}
+
 	return id, nil
 }
 
@@ -145,5 +147,6 @@ func SupportedArchitectures() []string {
 	for _, archName := range architectureNames {
 		result = append(result, archName)
 	}
+
 	return result
 }

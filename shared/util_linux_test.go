@@ -22,6 +22,7 @@ func TestGetAllXattr(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	defer func() { _ = os.Remove(xattrFile.Name()) }()
 	_ = xattrFile.Close()
 
@@ -30,6 +31,7 @@ func TestGetAllXattr(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
 	defer func() { _ = os.Remove(xattrDir) }()
 
 	for k, v := range testxattr {
@@ -38,15 +40,18 @@ func TestGetAllXattr(t *testing.T) {
 			t.Log(err)
 			return
 		}
+
 		if err != nil {
 			t.Error(err)
 			return
 		}
+
 		err = unix.Setxattr(xattrDir, k, []byte(v), 0)
 		if err == unix.ENOTSUP {
 			t.Log(err)
 			return
 		}
+
 		if err != nil {
 			t.Error(err)
 			return

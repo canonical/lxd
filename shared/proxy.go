@@ -14,9 +14,11 @@ var (
 	httpProxyEnv = &envOnce{
 		names: []string{"HTTP_PROXY", "http_proxy"},
 	}
+
 	httpsProxyEnv = &envOnce{
 		names: []string{"HTTPS_PROXY", "https_proxy"},
 	}
+
 	noProxyEnv = &envOnce{
 		names: []string{"NO_PROXY", "no_proxy"},
 	}
@@ -60,12 +62,14 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 			if proxy == "" {
 				proxy = httpsProxyEnv.Get()
 			}
+
 			port = ":443"
 		case "http":
 			proxy = httpProxy
 			if proxy == "" {
 				proxy = httpProxyEnv.Get()
 			}
+
 			port = ":80"
 		default:
 			return nil, fmt.Errorf("unknown scheme %s", req.URL.Scheme)
@@ -84,6 +88,7 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 		if err != nil {
 			return nil, err
 		}
+
 		if !use {
 			return nil, nil
 		}
@@ -100,6 +105,7 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 		if err != nil {
 			return nil, fmt.Errorf("invalid proxy address %q: %w", proxy, err)
 		}
+
 		return proxyURL, nil
 	}
 }
@@ -116,13 +122,16 @@ func useProxy(addr string, noProxy string) (bool, error) {
 	if len(addr) == 0 {
 		return true, nil
 	}
+
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return false, nil
 	}
+
 	if host == "localhost" {
 		return false, nil
 	}
+
 	ip := net.ParseIP(host)
 	if ip != nil {
 		if ip.IsLoopback() {
@@ -144,12 +153,15 @@ func useProxy(addr string, noProxy string) (bool, error) {
 		if len(p) == 0 {
 			continue
 		}
+
 		if hasPort(p) {
 			p = p[:strings.LastIndex(p, ":")]
 		}
+
 		if addr == p {
 			return false, nil
 		}
+
 		if _, pnet, err := net.ParseCIDR(p); err == nil && ip != nil {
 			// IPv4/CIDR, IPv6/CIDR
 			if pnet.Contains(ip) {
@@ -160,6 +172,7 @@ func useProxy(addr string, noProxy string) (bool, error) {
 			// noProxy ".foo.com" matches "bar.foo.com" or "foo.com"
 			return false, nil
 		}
+
 		if p[0] != '.' && strings.HasSuffix(addr, p) && addr[len(addr)-len(p)-1] == '.' {
 			// noProxy "foo.com" matches "bar.foo.com"
 			return false, nil

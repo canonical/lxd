@@ -36,6 +36,7 @@ func NewProcess(name string, args []string, stdoutPath string, stderrPath string
 	if err != nil {
 		return nil, fmt.Errorf("Error when creating process object: %w", err)
 	}
+
 	p.closeFds = true
 
 	return p, nil
