@@ -51,6 +51,7 @@ func NewServer() *Server {
 		paths: map[string]path{},
 		peers: map[string]peer{},
 	}
+
 	return s
 }
 
