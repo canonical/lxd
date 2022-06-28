@@ -20,9 +20,11 @@ func CompareVersions(version1, version2 [2]int) (int, error) {
 	if schema1 == schema2 && extensions1 == extensions2 {
 		return 0, nil
 	}
+
 	if schema1 >= schema2 && extensions1 >= extensions2 {
 		return 1, nil
 	}
+
 	if schema1 <= schema2 && extensions1 <= extensions2 {
 		return 2, nil
 	}

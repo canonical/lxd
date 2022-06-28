@@ -28,6 +28,7 @@ func SupportsFilesystem(filesystem string) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -50,6 +51,7 @@ func HugepagesPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)

@@ -25,6 +25,7 @@ func Test_CompareConfigsMismatch(t *testing.T) {
 			"different values for keys: egg, foo",
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.error, func(t *testing.T) {
 			err := util.CompareConfigs(c.config1, c.config2, nil)
