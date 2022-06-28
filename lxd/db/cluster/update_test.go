@@ -614,6 +614,7 @@ VALUES (2, 'n2', '', '2.2.3.4:666', 1, 32, ?, 0)`, time.Now())
 	if err == nil {
 		t.Fatal("expected insertion to fail")
 	}
+
 	sqliteErr, ok := err.(sqlite3.Error)
 	require.True(t, ok)
 	assert.Equal(t, sqliteErr.Code, sqlite3.ErrConstraint)

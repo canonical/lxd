@@ -162,6 +162,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 				aborted = true
 				return nil
 			}
+
 			if err != nil {
 				return err
 			}
@@ -186,9 +187,11 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	if aborted {
 		return current, ErrGracefulAbort
 	}
+
 	return current, nil
 }
 
@@ -205,12 +208,14 @@ func (s *Schema) Dump(db *sql.DB) (string, error) {
 		if err != nil {
 			return err
 		}
+
 		statements, err = selectTablesSQL(tx)
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
+
 	for i, statement := range statements {
 		statements[i] = formatSQL(statement)
 	}
@@ -278,6 +283,7 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to check if schema table is there: %w", err)
 	}
+
 	if !exists {
 		err := createSchemaTable(tx)
 		if err != nil {
@@ -315,12 +321,14 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 		if err != nil {
 			return -1, fmt.Errorf("Failed to check if cluster.https_address is set: %w", err)
 		}
+
 		if count == 1 {
 			// Insert the missing version.
 			err := insertSchemaVersion(tx, 38)
 			if err != nil {
 				return -1, fmt.Errorf("Failed to insert missing schema version 38")
 			}
+
 			versions = append(versions, 38)
 		}
 	}
@@ -331,6 +339,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 		if err != nil {
 			return -1, err
 		}
+
 		current = versions[len(versions)-1] // Highest recorded version
 	}
 
@@ -363,6 +372,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 		if err != nil {
 			return fmt.Errorf("failed to apply update %d: %w", current, err)
 		}
+
 		current++
 
 		err = insertSchemaVersion(tx, current)
@@ -406,6 +416,7 @@ func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
 	if current != len(updates) {
 		return fmt.Errorf("update level is %d, expected %d", current, len(updates))
 	}
+
 	return nil
 }
 
@@ -421,7 +432,9 @@ func formatSQL(statement string) string {
 			// Let UNIQUE(x, y) constraints alone.
 			continue
 		}
+
 		lines[i] = strings.Replace(line, ", ", ",\n    ", -1)
 	}
+
 	return strings.Join(lines, "\n")
 }

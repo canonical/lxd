@@ -17,13 +17,16 @@ func updateNodeVersion(tx *sql.Tx, address string, apiExtensions int) error {
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return fmt.Errorf("updated %d rows instead of 1", n)
 	}
+
 	return nil
 }
 
@@ -56,5 +59,6 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return versions, nil
 }

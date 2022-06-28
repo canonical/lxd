@@ -30,6 +30,7 @@ func TestOperation(t *testing.T) {
 		UUID:      uuid,
 		ProjectID: &projectID,
 	}
+
 	id, err := cluster.CreateOrReplaceOperation(context.TODO(), tx.Tx(), opInfo)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)

@@ -207,6 +207,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 				// Ignore errors here, there's not much we can do
 				logger.Errorf("Failed to restore local database: %v", copyErr)
 			}
+
 			rmErr := os.RemoveAll(filepath.Join(dir, "global"))
 			if rmErr != nil {
 				// Ignore errors here, there's not much we can do
@@ -409,6 +410,7 @@ func (c *Cluster) Close() error {
 	for _, stmt := range c.stmts {
 		_ = stmt.Close()
 	}
+
 	return c.db.Close()
 }
 
@@ -433,10 +435,12 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 		if err == nil {
 			return tx, nil
 		}
+
 		if !query.IsRetriableError(err) {
 			logger.Debugf("DbBegin: error %q", err)
 			return nil, err
 		}
+
 		time.Sleep(30 * time.Millisecond)
 	}
 
@@ -451,6 +455,7 @@ func TxCommit(tx *sql.Tx) error {
 	if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
 		return nil
 	}
+
 	return err
 }
 
@@ -461,6 +466,7 @@ func DqliteLatestSegment() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Unable to open directory %s with error %v", dir, err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	fileNames, err := file.Readdirnames(0)
@@ -513,6 +519,7 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = rows.Close() }()
 
 			for rows.Next() {
@@ -539,6 +546,7 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 				if err != nil {
 					return err
 				}
+
 				newargs := make([]any, len(outargs))
 				for i := range ptrargs {
 					switch t := outargs[i].(type) {
@@ -556,10 +564,12 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 				}
 				result = append(result, newargs)
 			}
+
 			err = rows.Err()
 			if err != nil {
 				return err
 			}
+
 			return nil
 		})
 	})

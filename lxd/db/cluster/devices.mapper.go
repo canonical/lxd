@@ -81,6 +81,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 		if _, ok := resultMap[object.ReferenceID]; !ok {
 			resultMap[object.ReferenceID] = []Device{}
 		}
+
 		resultMap[object.ReferenceID] = append(resultMap[object.ReferenceID], object)
 	}
 

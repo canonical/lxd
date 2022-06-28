@@ -29,6 +29,7 @@ func Packages() (map[string]*ast.Package, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Parse %q: %w", name, err)
 		}
+
 		parts := strings.Split(name, "/")
 		packages[parts[len(parts)-1]] = pkg
 	}
@@ -64,6 +65,7 @@ func FiltersFromStmt(pkg *ast.Package, kind string, entity string, filters []*Fi
 		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
+
 		rest := name[len(prefix):]
 		stmtFilters = append(stmtFilters, strings.Split(rest, "And"))
 	}
@@ -95,6 +97,7 @@ func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string, filters []*
 		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
+
 		rest := name[len(prefix):]
 		stmtFilters = append(stmtFilters, strings.Split(rest, "And"))
 	}
@@ -122,14 +125,17 @@ func sortFilters(filters [][]string) [][]string {
 		if n1 != n2 {
 			return n1 > n2
 		}
+
 		f1 := sortFilter(filters[i])
 		f2 := sortFilter(filters[j])
 		for k := range f1 {
 			if f1[k] == f2[k] {
 				continue
 			}
+
 			return f1[k] > f2[k]
 		}
+
 		panic("duplicate filter")
 	})
 	return filters
@@ -199,6 +205,7 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 					if f.Name == indirectField {
 						break
 					}
+
 					if i == len(filters)-1 {
 						return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
 					}
@@ -281,6 +288,7 @@ func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to parse parent struct: %w", err)
 			}
+
 			fields = append(fields, parentFields...)
 
 			continue
@@ -391,6 +399,7 @@ func parseType(x ast.Expr) string {
 		if s == "byte" {
 			return "uint8"
 		}
+
 		return s
 	case *ast.ArrayType:
 		return "[" + parseType(t.Len) + "]" + parseType(t.Elt)

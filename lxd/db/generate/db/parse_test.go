@@ -53,6 +53,7 @@ func TestParse(t *testing.T) {
 	files := map[string]*ast.File{
 		"parse_test": file,
 	}
+
 	pkg, _ := ast.NewPackage(fset, files, nil, nil)
 
 	m, err := db.Parse(pkg, "Teacher", "objects")

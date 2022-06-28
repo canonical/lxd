@@ -966,6 +966,7 @@ CREATE VIEW storage_volumes_all (
 	if err != nil {
 		return fmt.Errorf("Could not add not null constraint to description field: %w", err)
 	}
+
 	return nil
 }
 
@@ -986,6 +987,7 @@ DROP VIEW projects_used_by_ref;
 	if err != nil {
 		return fmt.Errorf("Failed to drop database views: %w", err)
 	}
+
 	return nil
 }
 
@@ -1393,12 +1395,14 @@ func updateFromV42(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("Failed preparing query: %w", err)
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	rows, err := stmt.Query()
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	type dupeRow struct {
@@ -1443,6 +1447,7 @@ func updateFromV42(tx *sql.Tx) error {
 			if err != nil {
 				return fmt.Errorf("Failed deleting storage pool config row with ID %d: %w", rowID, err)
 			}
+
 			logger.Warn("Deleted duplicated storage pool config row", logger.Ctx{"storagePoolID": r.storagePoolID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
 		}
 	}
@@ -1462,12 +1467,14 @@ func updateFromV41(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("Failed preparing query: %w", err)
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	rows, err := stmt.Query()
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	type dupeRow struct {
@@ -1512,6 +1519,7 @@ func updateFromV41(tx *sql.Tx) error {
 			if err != nil {
 				return fmt.Errorf("Failed deleting network config row with ID %d: %w", rowID, err)
 			}
+
 			logger.Warn("Deleted duplicated network config row", logger.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
 		}
 	}
@@ -2133,6 +2141,7 @@ func updateFromV26(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = tx.Exec("UPDATE sqlite_sequence SET seq = ? WHERE name = 'storage_volumes'", ids[0])
 	return err
 }
@@ -2175,10 +2184,12 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 	if err != nil {
 		return fmt.Errorf("Failed to prepare volume snapshot query: %w", err)
 	}
+
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch instances: %w", err)
 	}
+
 	for i, snapshot := range snapshots {
 		config, err := query.SelectConfig(tx,
 			"storage_volumes_config", "storage_volume_id=?",
@@ -2186,6 +2197,7 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 		if err != nil {
 			return fmt.Errorf("Failed to fetch volume snapshot config: %w", err)
 		}
+
 		snapshots[i].Config = config
 	}
 
@@ -2288,16 +2300,19 @@ CREATE VIEW storage_volumes_all (
 			logger.Errorf("Invalid volume snapshot name: %s", snapshot.Name)
 			continue
 		}
+
 		volume := parts[0]
 		name := parts[1]
 		ids, err := query.SelectIntegers(tx, "SELECT id FROM storage_volumes WHERE name=?", volume)
 		if err != nil {
 			return err
 		}
+
 		if len(ids) != 1 {
 			logger.Errorf("Volume snapshot %s has no parent", snapshot.Name)
 			continue
 		}
+
 		volumeID := ids[0]
 		_, err = tx.Exec(`
 INSERT INTO storage_volumes_snapshots(id, storage_volume_id, name, description) VALUES(?, ?, ?, ?)
@@ -2305,6 +2320,7 @@ INSERT INTO storage_volumes_snapshots(id, storage_volume_id, name, description) 
 		if err != nil {
 			return err
 		}
+
 		for key, value := range snapshot.Config {
 			_, err = tx.Exec(`
 INSERT INTO storage_volumes_snapshots_config(storage_volume_snapshot_id, key, value) VALUES(?, ?, ?)
@@ -2500,10 +2516,12 @@ func updateFromV19(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	arch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		return err
 	}
+
 	_, err = tx.Exec("UPDATE nodes SET arch = ?", arch)
 	if err != nil {
 		return err
@@ -2703,6 +2721,7 @@ SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expir
 		if instance.Type == 1 {
 			continue
 		}
+
 		instanceIDsByName[instance.Name] = instance.ID
 	}
 
@@ -2715,6 +2734,7 @@ SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expir
 	if err != nil {
 		return fmt.Errorf("Failed to count rows in instances_config table: %w", err)
 	}
+
 	configs := make([]struct {
 		ID         int
 		InstanceID int
@@ -2752,6 +2772,7 @@ SELECT instances_config.id, instance_id, key, value
 			c = make(map[string]string)
 			configBySnapshotID[config.InstanceID] = c
 		}
+
 		c[config.Key] = config.Value
 	}
 
@@ -2764,6 +2785,7 @@ SELECT instances_config.id, instance_id, key, value
 	if err != nil {
 		return fmt.Errorf("Failed to count rows in instances_devices table: %w", err)
 	}
+
 	devices := make([]struct {
 		ID         int
 		InstanceID int
@@ -2833,11 +2855,13 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 		if len(parts) != 2 {
 			return fmt.Errorf("Snapshot %s has an invalid name", instance.Name)
 		}
+
 		instanceName := parts[0]
 		instanceID, ok := instanceIDsByName[instanceName]
 		if !ok {
 			return fmt.Errorf("Found snapshot %s with no associated instance", instance.Name)
 		}
+
 		snapshotName := parts[1]
 
 		// Insert a new row in instances_snapshots
@@ -2849,6 +2873,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 			"description",
 			"expiry_date",
 		}
+
 		id, err := query.UpsertObject(
 			tx,
 			"instances_snapshots",
@@ -2873,6 +2898,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 				"key",
 				"value",
 			}
+
 			_, err := query.UpsertObject(
 				tx,
 				"instances_snapshots_config",
@@ -2895,6 +2921,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 				"name",
 				"type",
 			}
+
 			deviceID, err := query.UpsertObject(
 				tx,
 				"instances_snapshots_devices",
@@ -2908,12 +2935,14 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 			if err != nil {
 				return fmt.Errorf("Failed migrate device %s for snapshot %s: %w", name, instance.Name, err)
 			}
+
 			for key, value := range device.Config {
 				columns := []string{
 					"instance_snapshot_device_id",
 					"key",
 					"value",
 				}
+
 				_, err := query.UpsertObject(
 					tx,
 					"instances_snapshots_devices_config",
@@ -2934,6 +2963,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 		if err != nil {
 			return fmt.Errorf("Failed to delete snapshot %s: %w", instance.Name, err)
 		}
+
 		if !deleted {
 			return fmt.Errorf("Expected to delete snapshot %s", instance.Name)
 		}
@@ -2944,6 +2974,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 	if err != nil {
 		return fmt.Errorf("Failed to count leftover snapshot rows: %w", err)
 	}
+
 	if count != 0 {
 		return fmt.Errorf("Found %d unexpected snapshots left in instances table", count)
 	}
@@ -3566,6 +3597,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 		if table == "sqlite_sequence" {
 			continue
 		}
+
 		count2 := counts2[table]
 		if count1 != count2 {
 			return fmt.Errorf("Row count mismatch in table '%s': %d vs %d", table, count1, count2)
@@ -3655,6 +3687,7 @@ SELECT id FROM storage_pools WHERE driver='zfs'
 		if err != nil {
 			return fmt.Errorf("failed to fetch of zfs pool config: %w", err)
 		}
+
 		poolName, ok := config["zfs.pool_name"]
 		if !ok {
 			continue // This zfs storage pool does not have a zfs.pool_name config
@@ -3727,6 +3760,7 @@ FROM storage_volumes
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, func(i int) []any {
 		return []any{
@@ -3752,6 +3786,7 @@ FROM storage_volumes
 				// This node already has the volume row
 				continue
 			}
+
 			values := []any{
 				volume.Name,
 				volume.StoragePoolID,
@@ -3759,14 +3794,17 @@ FROM storage_volumes
 				volume.Type,
 				volume.Description,
 			}
+
 			id, err := query.UpsertObject(tx, "storage_volumes", columns, values)
 			if err != nil {
 				return fmt.Errorf("failed to insert new volume: %w", err)
 			}
+
 			_, ok := created[volume.ID]
 			if !ok {
 				created[volume.ID] = make([]int64, 0)
 			}
+
 			created[volume.ID] = append(created[volume.ID], id)
 		}
 	}
@@ -3777,6 +3815,7 @@ FROM storage_volumes
 		if err != nil {
 			return fmt.Errorf("failed to fetch volume config: %w", err)
 		}
+
 		for _, newID := range newIDs {
 			for key, value := range config {
 				_, err := tx.Exec(`
@@ -4035,6 +4074,7 @@ CREATE TABLE storage_volumes_config (
 	_, err := tx.Exec(stmt)
 	return err
 }
+
 func updateFromV0(tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `

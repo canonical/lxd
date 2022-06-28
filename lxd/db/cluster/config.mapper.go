@@ -68,6 +68,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 		if _, ok := resultMap[object.ReferenceID]; !ok {
 			resultMap[object.ReferenceID] = map[string]string{}
 		}
+
 		resultMap[object.ReferenceID][object.Key] = object.Value
 	}
 
@@ -120,6 +121,7 @@ func UpdateConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 
 		err = CreateConfig(ctx, tx, parent, object)
 	}
+
 	if err != nil {
 		return err
 	}

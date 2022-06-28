@@ -45,6 +45,7 @@ func (c *ClusterTx) stmt(code int) *sql.Stmt {
 	if !ok {
 		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
 	}
+
 	return c.tx.Stmt(stmt)
 }
 
@@ -65,6 +66,7 @@ func (c *ClusterTx) QueryScan(sql string, rowFunc func(scan func(dest ...any) er
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {

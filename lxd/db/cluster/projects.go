@@ -107,6 +107,7 @@ func GetProjectIDsToNames(ctx context.Context, tx *sql.Tx) (map[int64]string, er
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	result := map[int64]string{}
@@ -165,6 +166,7 @@ func UpdateProject(ctx context.Context, tx *sql.Tx, name string, object api.Proj
 	if err != nil {
 		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
@@ -193,6 +195,7 @@ func InitProjectWithoutImages(ctx context.Context, tx *sql.Tx, project string) e
 	if err != nil {
 		return fmt.Errorf("Fetch project ID: %w", err)
 	}
+
 	stmt := `INSERT INTO images_profiles (image_id, profile_id)
 	SELECT images.id, ? FROM images WHERE project_id=1`
 	_, err = tx.Exec(stmt, defaultProfileID)

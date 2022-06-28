@@ -16,6 +16,7 @@ func Minuscule(s string) string {
 	if strings.ToUpper(s) == s {
 		return strings.ToLower(s)
 	}
+
 	return strings.ToLower(s[:1]) + s[1:]
 }
 
@@ -25,6 +26,7 @@ func Camel(s string) string {
 	for i := range words {
 		words[i] = Capital(words[i])
 	}
+
 	return strings.Join(words, "")
 }
 
@@ -51,6 +53,7 @@ func Snake(name string) string {
 			if ret.Len() > 0 && (firstInRow || lastInRow) && beforeUpper != '_' {
 				ret.WriteByte('_')
 			}
+
 			ret.WriteRune(unicode.ToLower(lastUpper))
 		}
 
@@ -71,5 +74,6 @@ func Snake(name string) string {
 	if lastUpper != 0 {
 		ret.WriteRune(unicode.ToLower(lastUpper))
 	}
+
 	return ret.String()
 }

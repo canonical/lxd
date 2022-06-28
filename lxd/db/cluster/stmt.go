@@ -29,6 +29,7 @@ func PrepareStmts(db *sql.DB, skipErrors bool) (map[int]*sql.Stmt, error) {
 		if err != nil && !skipErrors {
 			return nil, fmt.Errorf("%q: %w", sql, err)
 		}
+
 		index[code] = stmt
 	}
 
@@ -46,6 +47,7 @@ func stmt(tx *sql.Tx, code int) *sql.Stmt {
 	if !ok {
 		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
 	}
+
 	return tx.Stmt(stmt)
 }
 
