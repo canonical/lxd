@@ -35,12 +35,14 @@ func Every(interval time.Duration, options ...EveryOption) Schedule {
 	for _, option := range options {
 		option(every)
 	}
+
 	first := true
 	return func() (time.Duration, error) {
 		var err error
 		if first && every.skipFirst {
 			err = ErrSkip
 		}
+
 		first = false
 		return interval, err
 	}
