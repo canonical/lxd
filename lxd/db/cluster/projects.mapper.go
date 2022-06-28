@@ -118,6 +118,7 @@ func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int) (map[strin
 	if !ok {
 		config = map[string]string{}
 	}
+
 	return config, nil
 }
 
@@ -150,6 +151,7 @@ func ProjectExists(ctx context.Context, tx *sql.Tx, name string) (bool, error) {
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
@@ -209,6 +211,7 @@ func CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, confi
 		}
 
 	}
+
 	return nil
 }
 
@@ -227,6 +230,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Project not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -236,6 +240,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -261,6 +266,7 @@ func RenameProject(ctx context.Context, tx *sql.Tx, name string, to string) erro
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
+
 	return nil
 }
 

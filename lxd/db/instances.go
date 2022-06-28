@@ -124,6 +124,7 @@ func InstanceTypeFilter(instanceType instancetype.Type) cluster.InstanceFilter {
 	if instanceType != instancetype.Any {
 		return cluster.InstanceFilter{Type: &instanceType}
 	}
+
 	return cluster.InstanceFilter{}
 }
 
@@ -196,6 +197,7 @@ SELECT nodes.id, nodes.address
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
@@ -265,6 +267,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	result := map[string][][2]string{}
@@ -279,11 +282,13 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 		if err != nil {
 			return nil, err
 		}
+
 		if nodeID == c.nodeID {
 			nodeAddress = ""
 		} else if nodeIsOffline(offlineThreshold, nodeHeartbeat) {
 			nodeAddress = "0.0.0.0"
 		}
+
 		result[nodeAddress] = append(result[nodeAddress], [2]string{projectName, instanceName})
 	}
 
@@ -291,6 +296,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 	if err != nil {
 		return nil, err
 	}
+
 	return result, nil
 }
 
@@ -405,6 +411,7 @@ SELECT instances.name, nodes.name, projects.name
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	result := map[[2]string]string{}
@@ -417,6 +424,7 @@ SELECT instances.name, nodes.name, projects.name
 		if err != nil {
 			return nil, err
 		}
+
 		result[[2]string{projectName, instanceName}] = nodeName
 	}
 
@@ -424,6 +432,7 @@ SELECT instances.name, nodes.name, projects.name
 	if err != nil {
 		return nil, err
 	}
+
 	return result, nil
 }
 
@@ -538,6 +547,7 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 			deletes = append(deletes, key)
 			continue
 		}
+
 		changes[key] = value
 	}
 
@@ -592,6 +602,7 @@ func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(id, state)
@@ -610,6 +621,7 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	_, err = stmt.Exec(date, id)
@@ -626,6 +638,7 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 	if err != nil {
 		return nil, err
 	}
+
 	filter := cluster.InstanceSnapshotFilter{
 		Project:  &project,
 		Instance: &name,
@@ -695,6 +708,7 @@ func (c *Cluster) DeleteInstance(project, name string) error {
 			return cluster.DeleteInstanceSnapshot(ctx, tx.tx, project, parts[0], parts[1])
 		})
 	}
+
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return cluster.DeleteInstance(ctx, tx.tx, project, name)
 	})
@@ -763,6 +777,7 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	if stateful {
 		statefulInt = 1
 	}
+
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
 		return err
@@ -819,6 +834,7 @@ WHERE projects.name=? AND instances.name=?`
 	if err != nil {
 		return 0
 	}
+
 	max := 0
 
 	for _, r := range results {
@@ -830,6 +846,7 @@ WHERE projects.name=? AND instances.name=?`
 		if err != nil || count != 1 {
 			continue
 		}
+
 		if num >= max {
 			max = num + 1
 		}
@@ -857,6 +874,7 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
@@ -882,6 +900,7 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	ephemeralInt := 0
@@ -894,6 +913,7 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	} else {
 		_, err = stmt.Exec(description, architecture, ephemeralInt, expiryDate, id)
 	}
+
 	if err != nil {
 		return err
 	}
@@ -907,5 +927,6 @@ func generateInClauseParams(length int) string {
 	for i := 0; i < length; i++ {
 		result = append(result, "?")
 	}
+
 	return strings.Join(result, ",")
 }

@@ -34,6 +34,7 @@ func TestCount(t *testing.T) {
 			2,
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(strconv.Itoa(c.count), func(t *testing.T) {
 			tx := newTxForCount(t)

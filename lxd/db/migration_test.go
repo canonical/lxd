@@ -201,10 +201,12 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		"INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')",
 		"INSERT INTO storage_volumes_config VALUES(1, 1, 'source', '/foo/bar')",
 	}
+
 	for _, stmt := range stmts {
 		_, err := tx.Exec(stmt)
 		require.NoError(t, err)
 	}
+
 	return tx
 }
 

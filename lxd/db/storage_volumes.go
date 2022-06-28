@@ -198,6 +198,7 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 			if err != nil {
 				return nil, fmt.Errorf("Failed to fetch volume type: %w", err)
 			}
+
 			result = append(result, volume)
 		}
 	}
@@ -408,6 +409,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	storageVolume := api.StorageVolume{
 		Type: volumeTypeName,
 	}
+
 	storageVolume.Name = volumeName
 	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
@@ -449,6 +451,7 @@ func (c *Cluster) UpdateStoragePoolVolume(project, volumeName string, volumeType
 		if err != nil {
 			return err
 		}
+
 		return nil
 	})
 
@@ -517,6 +520,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 	if err != nil {
 		return err
 	}
+
 	volumeIDs := []int64{volumeID}
 
 	remoteDrivers := StorageRemoteDriverNames()
@@ -572,6 +576,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 `,
 				poolID, c.nodeID, volumeType, volumeName, volumeDescription, project, contentType)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -607,6 +612,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	if err != nil {
 		return -1, err
 	}
+
 	return id, nil
 }
 
@@ -743,6 +749,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
 	if err != nil {
@@ -868,6 +875,7 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 		if err == sql.ErrNoRows {
 			return "", api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
+
 		return "", err
 	}
 
@@ -886,6 +894,7 @@ func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
 		if err == sql.ErrNoRows {
 			return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
+
 		return -1, err
 	}
 
@@ -921,6 +930,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 	if err != nil {
 		return 0
 	}
+
 	max := 0
 
 	for _, r := range results {
@@ -932,6 +942,7 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 		if err != nil || count != 1 {
 			continue
 		}
+
 		if num >= max {
 			max = num + 1
 		}
@@ -948,6 +959,7 @@ func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 	} else {
 		table = "storage_volumes"
 	}
+
 	stmt := fmt.Sprintf("UPDATE %s SET description=? WHERE id=?", table)
 	_, err := tx.Exec(stmt, description, volumeID)
 	return err
@@ -961,10 +973,12 @@ func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	} else {
 		str = "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
 	}
+
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for k, v := range volumeConfig {
@@ -989,6 +1003,7 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	} else {
 		stmt = "DELETE FROM storage_volumes_config WHERE storage_volume_id=?"
 	}
+
 	_, err := tx.Exec(stmt, volumeID)
 	if err != nil {
 		return err
@@ -1012,10 +1027,12 @@ SELECT storage_volumes_all.id
 	if err != nil {
 		return nil, err
 	}
+
 	ids64 := make([]int64, len(ids))
 	for i, id := range ids {
 		ids64[i] = int64(id)
 	}
+
 	return ids64, nil
 }
 
@@ -1029,6 +1046,7 @@ func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	for _, fingerprint := range fingerprints {
 		args = append(args, fingerprint)
 	}
+
 	err := exec(c, stmt, args...)
 	return err
 }
@@ -1074,6 +1092,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	volumes := []StorageVolumeArgs{}
@@ -1097,6 +1116,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 		if err != nil {
 			return nil, fmt.Errorf("Fetch custom volume config: %w", err)
 		}
+
 		volumes[i].Config = config
 	}
 

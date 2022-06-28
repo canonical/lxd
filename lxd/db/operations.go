@@ -35,6 +35,7 @@ WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type =
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
@@ -46,6 +47,7 @@ WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type =
 
 		ops = append(ops, op)
 	}
+
 	if rows.Err() != nil {
 		return nil, err
 	}

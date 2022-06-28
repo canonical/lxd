@@ -168,14 +168,17 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
 		result.Database = true
 	}
+
 	if raftNode != nil && raftNode.Role == RaftStandBy {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabaseStandBy))
 		result.Database = true
 	}
+
 	result.Architecture, err = osarch.ArchitectureName(n.Architecture)
 	if err != nil {
 		return nil, err
 	}
+
 	result.FailureDomain = failureDomain
 
 	// Set state and message.
@@ -220,6 +223,7 @@ func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	if err != nil {
 		return null, err
 	}
+
 	switch len(nodes) {
 	case 0:
 		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
@@ -263,6 +267,7 @@ func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
 	if err != nil {
 		return null, err
 	}
+
 	switch len(nodes) {
 	case 0:
 		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
@@ -280,6 +285,7 @@ func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	if err != nil {
 		return null, err
 	}
+
 	switch len(nodes) {
 	case 0:
 		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
@@ -297,6 +303,7 @@ func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	if err != nil {
 		return null, err
 	}
+
 	switch len(nodes) {
 	case 0:
 		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
@@ -314,6 +321,7 @@ func (c *ClusterTx) GetLocalNodeName() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	switch len(names) {
 	case 0:
 		return "", nil
@@ -331,6 +339,7 @@ func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	switch len(addresses) {
 	case 0:
 		return "", nil
@@ -365,6 +374,7 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 		if node.ID == c.nodeID {
 			continue
 		}
+
 		n, err := util.CompareVersions(node.Version(), version)
 		if err != nil {
 			return false, fmt.Errorf("Failed to compare with version of member %s: %w", node.Name, err)
@@ -396,6 +406,7 @@ func (c *ClusterTx) GetNodesCount() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to count existing nodes: %w", err)
 	}
+
 	return count, nil
 }
 
@@ -407,21 +418,26 @@ func (c *ClusterTx) RenameNode(old, new string) error {
 	if err != nil {
 		return fmt.Errorf("failed to check existing nodes: %w", err)
 	}
+
 	if count != 0 {
 		return ErrAlreadyDefined
 	}
+
 	stmt := `UPDATE nodes SET name=? WHERE name=?`
 	result, err := c.tx.Exec(stmt, new, old)
 	if err != nil {
 		return fmt.Errorf("failed to update node name: %w", err)
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows count: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("expected to update one row, not %d", n)
 	}
+
 	return nil
 }
 
@@ -534,12 +550,14 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
 	}
+
 	sql += "ORDER BY id"
 
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, args...)
@@ -587,6 +605,7 @@ func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	return c.CreateNodeWithArch(name, address, arch)
 }
 
@@ -605,17 +624,21 @@ func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	if pending {
 		value = 1
 	}
+
 	result, err := c.tx.Exec("UPDATE nodes SET state=? WHERE id=?", value, id)
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return fmt.Errorf("query updated %d rows instead of 1", n)
 	}
+
 	return nil
 }
 
@@ -625,10 +648,12 @@ func (c *ClusterTx) BootstrapNode(name string, address string) error {
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return fmt.Errorf("query updated %d rows instead of 1", n)
 	}
@@ -751,10 +776,12 @@ func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
 			if err != sql.ErrNoRows {
 				return fmt.Errorf("Load failure domain name: %w", err)
 			}
+
 			result, err := c.tx.Exec("INSERT INTO nodes_failure_domains (name) VALUES (?)", domain)
 			if err != nil {
 				return fmt.Errorf("Create new failure domain: %w", err)
 			}
+
 			domainID, err = result.LastInsertId()
 			if err != nil {
 				return fmt.Errorf("Get last inserted ID: %w", err)
@@ -766,10 +793,12 @@ func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
@@ -809,6 +838,7 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 	if err != nil {
 		return "", err
 	}
+
 	return domain, nil
 }
 
@@ -890,13 +920,16 @@ func (c *ClusterTx) RemoveNode(id int64) error {
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return fmt.Errorf("query deleted %d rows instead of 1", n)
 	}
+
 	return nil
 }
 
@@ -907,6 +940,7 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
@@ -930,6 +964,7 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to get instances for node %d: %w", id, err)
 	}
+
 	if len(containers) > 0 {
 		message := fmt.Sprintf(
 			"Node still has the following containers: %s", strings.Join(containers, ", "))
@@ -948,16 +983,19 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 		}{})
 		return []any{&images[i].fingerprint, &images[i].nodeID}
 	}
+
 	stmt, err := c.tx.Prepare(`
 SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get image list for node %d: %w", id, err)
 	}
+
 	index := map[string][]int64{} // Map fingerprints to IDs of nodes
 	for _, image := range images {
 		index[image.fingerprint] = append(index[image.fingerprint], image.nodeID)
@@ -968,6 +1006,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 		if len(ids) > 1 {
 			continue
 		}
+
 		if ids[0] == id {
 			fingerprints = append(fingerprints, fingerprint)
 		}
@@ -986,6 +1025,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	if err != nil {
 		return "", fmt.Errorf("Failed to get custom volumes for node %d: %w", id, err)
 	}
+
 	if len(volumes) > 0 {
 		message := fmt.Sprintf(
 			"Node still has the following custom volumes: %s", strings.Join(volumes, ", "))
@@ -1020,9 +1060,11 @@ func (c *ClusterTx) ClearNode(id int64) error {
 		if err != nil {
 			return err
 		}
+
 		if count > 0 {
 			continue
 		}
+
 		_, err = c.tx.Exec("DELETE FROM images WHERE id=?", id)
 		if err != nil {
 			return err
@@ -1042,13 +1084,16 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	if len(values) > 0 {
 		seconds, err := strconv.Atoi(values[0])
 		if err != nil {
 			return -1, err
 		}
+
 		threshold = time.Duration(seconds) * time.Second
 	}
+
 	return threshold, nil
 }
 
@@ -1121,6 +1166,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 			if shared.IntInSlice(entry, archs) {
 				match = true
 			}
+
 			if entry == defaultArch {
 				isDefaultArch = true
 			}
@@ -1128,6 +1174,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 		if len(archs) > 0 && !match {
 			continue
 		}
+
 		if !isDefaultArch && isDefaultArchChosen {
 			continue
 		}

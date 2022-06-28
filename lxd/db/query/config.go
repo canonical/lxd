@@ -21,6 +21,7 @@ func SelectConfig(tx *sql.Tx, table string, where string, args ...any) (map[stri
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	values := map[string]string{}
@@ -55,6 +56,7 @@ func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
 			deletes = append(deletes, key)
 			continue
 		}
+
 		changes[key] = value
 	}
 
@@ -85,6 +87,7 @@ func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
 		params = append(params, key)
 		params = append(params, value)
 	}
+
 	query += strings.Join(exprs, ",")
 	_, err := tx.Exec(query, params...)
 	return err
@@ -103,6 +106,7 @@ func deleteConfig(tx *sql.Tx, table string, keys []string) error {
 	for i, key := range keys {
 		values[i] = key
 	}
+
 	_, err := tx.Exec(query, values...)
 	return err
 }

@@ -28,6 +28,7 @@ func entityType(pkg string, entity string) string {
 	if pkg != "db" {
 		typ = pkg + "." + typ
 	}
+
 	return typ
 }
 
@@ -79,6 +80,7 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 		if i > 0 {
 			expr += " && "
 		}
+
 		expr += fmt.Sprintf("filter.%s != nil", name)
 	}
 
@@ -86,6 +88,7 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 		if len(expr) > 0 {
 			expr += " && "
 		}
+
 		expr += fmt.Sprintf("filter.%s == nil", name)
 	}
 

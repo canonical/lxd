@@ -87,6 +87,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 			"nodes have inconsistent versions",
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			db := newDB(t)
@@ -124,6 +125,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 			true,
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%v", c.ready), func(t *testing.T) {
 			db := newDB(t)

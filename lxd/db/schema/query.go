@@ -20,6 +20,7 @@ SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 	if err != nil {
 		return false, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {

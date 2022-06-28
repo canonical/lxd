@@ -36,6 +36,7 @@ func Retry(f func() error) error {
 					logger.Warn("Database error, giving up", logger.Ctx{"attempt": i, "err": err})
 					break
 				}
+
 				logger.Debug("Database error, retrying", logger.Ctx{"attempt": i, "err": err})
 				time.Sleep(jitter.Deviation(nil, 0.8)(100 * time.Millisecond))
 				continue

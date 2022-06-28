@@ -22,6 +22,7 @@ func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.T
 		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
 			_, _ = db.Exec("ROLLBACK")
 		}
+
 		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
@@ -34,6 +35,7 @@ func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.T
 	if err == sql.ErrTxDone {
 		err = nil // Ignore duplicate commits/rollbacks
 	}
+
 	return err
 }
 

@@ -50,6 +50,7 @@ func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest)
@@ -82,6 +83,7 @@ func (n *NodeTx) ReplaceCertificates(certs []cluster.Certificate) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for _, cert := range certs {

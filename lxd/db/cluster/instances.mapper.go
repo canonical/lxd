@@ -317,6 +317,7 @@ func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int) (map[str
 	if !ok {
 		config = map[string]string{}
 	}
+
 	return config, nil
 }
 
@@ -357,6 +358,7 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Instance not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -366,6 +368,7 @@ func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string)
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -382,6 +385,7 @@ func InstanceExists(ctx context.Context, tx *sql.Tx, project string, name string
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
@@ -466,6 +470,7 @@ func CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, con
 		}
 
 	}
+
 	return nil
 }
 
@@ -486,6 +491,7 @@ func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
+
 	return nil
 }
 
