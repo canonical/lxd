@@ -53,6 +53,7 @@ func (t *Task) loop(ctx context.Context) {
 			} else {
 				timer = make(chan time.Time)
 			}
+
 		default:
 			// If the schedule is not greater than zero, abort the
 			// task and return immediately. Otherwise set up the
@@ -60,6 +61,7 @@ func (t *Task) loop(ctx context.Context) {
 			if schedule <= 0 {
 				return
 			}
+
 			timer = time.After(schedule)
 		}
 
@@ -83,6 +85,7 @@ func (t *Task) loop(ctx context.Context) {
 				// schedule function returns a nil error.
 				delay = immediately
 			}
+
 		case <-ctx.Done():
 			return
 

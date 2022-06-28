@@ -54,6 +54,7 @@ func TestTask_ScheduleError(t *testing.T) {
 	schedule := func() (time.Duration, error) {
 		return 0, fmt.Errorf("boom")
 	}
+
 	f, _ := newFunc(t, 0)
 	defer startTask(t, f, schedule)()
 
@@ -70,8 +71,10 @@ func TestTask_ScheduleTemporaryError(t *testing.T) {
 			errored = true
 			return time.Millisecond, fmt.Errorf("boom")
 		}
+
 		return time.Second, nil
 	}
+
 	f, wait := newFunc(t, 1)
 	defer startTask(t, f, schedule)()
 
@@ -86,6 +89,7 @@ func TestTask_SkipFirst(t *testing.T) {
 	f := func(context.Context) {
 		i++
 	}
+
 	defer startTask(t, f, task.Every(250*time.Millisecond, task.SkipFirst))()
 	time.Sleep(400 * time.Millisecond)
 	assert.Equal(t, 1, i) // The function got executed only once, not twice.
@@ -109,9 +113,11 @@ func newFunc(t *testing.T, n int) (task.Func, func(time.Duration)) {
 		if i == n {
 			t.Errorf("task was supposed to be called at most %d times", n)
 		}
+
 		notifications <- struct{}{}
 		i++
 	}
+
 	wait := func(timeout time.Duration) {
 		select {
 		case <-notifications:
