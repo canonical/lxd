@@ -989,6 +989,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 			Mask: uplinkIPv4Net.Mask,
 			IP:   routerExtPortIPv4,
 		}
+
 		v.routerExtPortIPv4Net = routerExtPortIPv4Net.String()
 	}
 
@@ -997,6 +998,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 			Mask: uplinkIPv6Net.Mask,
 			IP:   routerExtPortIPv6,
 		}
+
 		v.routerExtPortIPv6Net = routerExtPortIPv6Net.String()
 	}
 
@@ -1154,6 +1156,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 			},
 			PeerName: vars.ovsEnd,
 		}
+
 		err := veth.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create the uplink veth interfaces %q and %q: %w", vars.uplinkEnd, vars.ovsEnd, err)
@@ -2245,6 +2248,7 @@ func (n *ovn) setup(update bool) error {
 		if err != nil {
 			return fmt.Errorf("Failed ensuring security ACLs are configured in OVN for network: %w", err)
 		}
+
 		revert.Add(cleanup)
 	}
 
@@ -2404,6 +2408,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	if err != nil {
 		return fmt.Errorf("Failed adding OVS chassis %q with priority %d to chassis group %q: %w", chassisID, priority, chassisGroupName, err)
 	}
+
 	n.logger.Debug("Chassis group entry added", logger.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
 
 	return nil
@@ -3161,6 +3166,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		if ip == nil {
 			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
 		}
+
 		ips = append(ips, ip)
 	}
 
@@ -3279,6 +3285,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 		break
 	}
+
 	if err != nil {
 		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
@@ -3490,6 +3497,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			if err != nil {
 				return "", fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
 			}
+
 			revert.Add(cleanup)
 
 			for _, aclName := range nicACLNames {
@@ -4206,6 +4214,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
+
 		revert.Add(func() {
 			// Apply old settings to OVN on failure.
 			vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)

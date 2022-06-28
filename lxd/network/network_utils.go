@@ -280,6 +280,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	ifaceName := ""
@@ -519,6 +520,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	if err != nil {
 		return servers, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -589,6 +591,7 @@ func inRoutingTable(subnet *net.IPNet) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewReader(file)
@@ -746,6 +749,7 @@ func GetHostDevice(parent string, vlan string) string {
 	if err != nil {
 		return defaultVlan
 	}
+
 	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)

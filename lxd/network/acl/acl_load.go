@@ -285,6 +285,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 					}
 				}
 			}
+
 		case *api.Network:
 			if shared.StringInSlice(u.Type, supportedNetTypes) {
 				if _, found := aclNets[u.Name]; !found {
@@ -301,6 +302,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 					}
 				}
 			}
+
 		case *api.NetworkACL:
 			return nil // Nothing to do for ACL rules referencing us.
 		default:
