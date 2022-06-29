@@ -71,7 +71,8 @@ func MakeRaw(fd int) (*State, error) {
 
 // Restore restores the terminal connected to the given file descriptor to a previous state.
 func Restore(fd int, state *State) error {
-	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios, &state.Termios); err != nil {
+	err := unix.IoctlSetTermios(fd, ioctlWriteTermios, &state.Termios)
+	if err != nil {
 		return err
 	}
 
