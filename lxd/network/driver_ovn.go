@@ -4236,6 +4236,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() {
 			_ = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
 		})
