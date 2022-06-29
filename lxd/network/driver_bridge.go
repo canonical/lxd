@@ -2347,9 +2347,9 @@ func (n *bridge) forwardConvertToFirewallForwards(listenAddress net.IP, defaultT
 		vips = append(vips, firewallDrivers.AddressForward{
 			ListenAddress: listenAddress,
 			Protocol:      portMap.protocol,
-			TargetAddress: portMap.targetAddress,
+			TargetAddress: portMap.target.address,
 			ListenPorts:   portMap.listenPorts,
-			TargetPorts:   portMap.targetPorts,
+			TargetPorts:   portMap.target.ports,
 		})
 	}
 
@@ -2400,6 +2400,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
+						usageType:      subnetUsageNetwork,
 					})
 				}
 
@@ -2421,7 +2422,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
-						networkSNAT:    true,
+						usageType:      subnetUsageNetworkSNAT,
 					})
 				}
 
@@ -2436,6 +2437,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
+						usageType:      subnetUsageNetwork,
 					})
 				}
 			}
@@ -2489,6 +2491,7 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 						instanceProject: inst.Project,
 						instanceName:    inst.Name,
 						instanceDevice:  devName,
+						usageType:       subnetUsageInstance,
 					})
 				}
 			}
@@ -2565,6 +2568,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 					subnet:         *listenAddressNet,
 					networkProject: projectName,
 					networkName:    projectNetworks[projectName][networkID].Name,
+					usageType:      subnetUsageNetworkForward,
 				})
 			}
 		}
@@ -2601,14 +2605,13 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 	// Check the listen address subnet doesn't fall within any existing network external subnets.
 	for _, externalSubnetUser := range externalSubnetsInUse {
-		// Skip our own network's SNAT address (as it can be used for NICs in the network).
-		if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-			continue
-		}
-
-		// Skip our own network (but not NIC devices on our own network).
-		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
-			continue
+		// Check if usage is from our own network.
+		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+			// Skip checking conflict with our own network's subnet or SNAT address.
+			// But do not allow other conflict with other usage types within our own network.
+			if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+				continue
+			}
 		}
 
 		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {

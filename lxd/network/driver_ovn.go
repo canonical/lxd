@@ -312,6 +312,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 					subnet:         *listenAddressNet,
 					networkProject: projectName,
 					networkName:    projectNetworks[projectName][networkID].Name,
+					usageType:      subnetUsageNetworkForward,
 				})
 			}
 		}
@@ -497,7 +498,7 @@ func (n *ovn) Validate(config map[string]string) error {
 			// Check the external subnet doesn't fall within any existing OVN network external subnets.
 			for _, externalSubnetUser := range externalSubnetsInUse {
 				// Skip our own network (but not NIC devices on our own network).
-				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
+				if externalSubnetUser.usageType != subnetUsageInstance && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
 					continue
 				}
 
@@ -3117,7 +3118,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
 		for _, externalSubnetUser := range externalSubnetsInUse {
 			// Skip our own network's SNAT address (as it can be used for NICs in the network).
-			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+			if externalSubnetUser.usageType == subnetUsageNetworkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
 				continue
 			}
 
@@ -3775,6 +3776,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
+						usageType:      subnetUsageNetwork,
 					})
 				}
 
@@ -3796,7 +3798,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
-						networkSNAT:    true,
+						usageType:      subnetUsageNetworkSNAT,
 					})
 				}
 			}
@@ -3845,6 +3847,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 						instanceProject: inst.Project,
 						instanceName:    inst.Name,
 						instanceDevice:  devName,
+						usageType:       subnetUsageInstance,
 					})
 				}
 			}
@@ -4000,31 +4003,35 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 	if defaultTargetAddress != nil {
 		vips = append(vips, openvswitch.OVNLoadBalancerVIP{
 			ListenAddress: listenAddress,
-			TargetAddress: defaultTargetAddress,
+			Targets:       []openvswitch.OVNLoadBalancerTarget{{Address: defaultTargetAddress}},
 		})
 	}
 
 	for _, portMap := range portMaps {
-		targetPortsLen := len(portMap.targetPorts)
+		targetPortsLen := len(portMap.target.ports)
 
 		for i, lp := range portMap.listenPorts {
 			targetPort := lp // Default to using same port as listen port for target port.
 
 			if targetPortsLen == 1 {
 				// If a single target port is specified, forward all listen ports to it.
-				targetPort = portMap.targetPorts[0]
+				targetPort = portMap.target.ports[0]
 			} else if targetPortsLen > 1 {
 				// If more than 1 target port specified, use listen port index to get the
 				// target port to use.
-				targetPort = portMap.targetPorts[i]
+				targetPort = portMap.target.ports[i]
 			}
 
 			vips = append(vips, openvswitch.OVNLoadBalancerVIP{
 				ListenAddress: listenAddress,
 				Protocol:      portMap.protocol,
-				TargetAddress: portMap.targetAddress,
 				ListenPort:    lp,
-				TargetPort:    targetPort,
+				Targets: []openvswitch.OVNLoadBalancerTarget{
+					{
+						Address: portMap.target.address,
+						Port:    targetPort,
+					},
+				},
 			})
 		}
 	}
@@ -4104,14 +4111,13 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 
 		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
 		for _, externalSubnetUser := range externalSubnetsInUse {
-			// Skip our own network's SNAT address (as it can be used for NICs in the network).
-			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-				continue
-			}
-
-			// Skip our own network (but not NIC devices on our own network).
-			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
-				continue
+			// Check if usage is from our own network.
+			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				// Skip checking conflict with our own network's subnet or SNAT address.
+				// But do not allow other conflict with other usage types within our own network.
+				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+					continue
+				}
 			}
 
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
@@ -4218,15 +4224,21 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 
 		revert.Add(func() {
 			// Apply old settings to OVN on failure.
-			vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
-			_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-			_ = n.forwardBGPSetupPrefixes()
+			portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), &curForward.NetworkForwardPut)
+			if err == nil {
+				vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
+				_ = client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+				_ = n.forwardBGPSetupPrefixes()
+			}
 		})
 
 		err = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
 		if err != nil {
 			return err
 		}
+		revert.Add(func() {
+			_ = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
+		})
 
 		// Notify all other members to refresh their BGP prefixes.
 		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
