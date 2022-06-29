@@ -1,6 +1,8 @@
 package cancel
 
-import "context"
+import (
+	"context"
+)
 
 // Canceller is a simple wrapper for a cancellable context which makes the associated context.CancelFunc more easily
 // accessible.
