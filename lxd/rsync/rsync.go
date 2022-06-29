@@ -156,7 +156,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		return nil, nil, nil, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
