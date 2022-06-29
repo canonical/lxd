@@ -816,8 +816,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 	}
 
 	// Maps portSpecID to a portMap struct.
-	portSpecsMap := make(map[int]*forwardPortMap)
-
+	portMaps := make([]*forwardPortMap, 0, len(forward.Ports))
 	for portSpecID, portSpec := range forward.Ports {
 		if !shared.StringInSlice(portSpec.Protocol, validPortProcols) {
 			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
@@ -849,9 +848,11 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 		}
 
 		portMap := forwardPortMap{
-			listenPorts:   make([]uint64, 0),
-			targetAddress: targetAddress,
-			protocol:      portSpec.Protocol,
+			listenPorts: make([]uint64, 0),
+			target: forwardTarget{
+				address: targetAddress,
+			},
+			protocol: portSpec.Protocol,
 		}
 
 		for _, pr := range listenPortRanges {
@@ -877,7 +878,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 
 		if len(targetPortRanges) > 0 {
 			// Target ports can be at maximum the same length as listen ports.
-			portMap.targetPorts = make([]uint64, 0, len(portMap.listenPorts))
+			portMap.target.ports = make([]uint64, 0, len(portMap.listenPorts))
 
 			for _, pr := range targetPortRanges {
 				portFirst, portRange, err := ParsePortRange(pr)
@@ -887,24 +888,19 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 
 				for i := int64(0); i < portRange; i++ {
 					port := portFirst + i
-					portMap.targetPorts = append(portMap.targetPorts, uint64(port))
+					portMap.target.ports = append(portMap.target.ports, uint64(port))
 				}
 			}
 
 			// Only check if the target port count matches the listen port count if the target ports
 			// don't equal 1, because we allow many-to-one type mapping.
-			portSpectTargetPortsLen := len(portMap.targetPorts)
+			portSpectTargetPortsLen := len(portMap.target.ports)
 			if portSpectTargetPortsLen != 1 && len(portMap.listenPorts) != portSpectTargetPortsLen {
 				return nil, fmt.Errorf("Mismatch of listen port(s) and target port(s) count in port specification %d", portSpecID)
 			}
 		}
 
-		portSpecsMap[portSpecID] = &portMap
-	}
-
-	portMaps := make([]*forwardPortMap, 0)
-	for _, portMap := range portSpecsMap {
-		portMaps = append(portMaps, portMap)
+		portMaps = append(portMaps, &portMap)
 	}
 
 	return portMaps, err
