@@ -129,13 +129,18 @@ type OVNACLRule struct {
 	LogName   string // Log label name (requires Log be true).
 }
 
+// OVNLoadBalancerTarget represents an OVN load balancer Virtual IP target.
+type OVNLoadBalancerTarget struct {
+	Address net.IP
+	Port    uint64
+}
+
 // OVNLoadBalancerVIP represents a OVN load balancer Virtual IP entry.
 type OVNLoadBalancerVIP struct {
 	Protocol      string // Either "tcp" or "udp". But only applies to port based VIPs.
 	ListenAddress net.IP
 	ListenPort    uint64
-	TargetAddress net.IP
-	TargetPort    uint64
+	Targets       []OVNLoadBalancerTarget
 }
 
 // OVNRouterRoute represents a static route added to a logical router.
@@ -1671,12 +1676,8 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			return fmt.Errorf("Missing VIP listen address")
 		}
 
-		if r.TargetAddress == nil {
-			return fmt.Errorf("Missing VIP target address")
-		}
-
-		if (r.ListenPort > 0 && r.TargetPort <= 0) || (r.TargetPort > 0 && r.ListenPort <= 0) {
-			return fmt.Errorf("The listen and target ports must be specified together")
+		if len(r.Targets) == 0 {
+			return fmt.Errorf("Missing VIP target(s)")
 		}
 
 		if r.Protocol == "udp" {
@@ -1687,16 +1688,30 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 			lbNames[lbTCPName] = struct{}{} // Record that TCP load balancer is created.
 		}
 
+		targetArgs := make([]string, 0, len(r.Targets))
+
+		for _, target := range r.Targets {
+			if (r.ListenPort > 0 && target.Port <= 0) || (target.Port > 0 && r.ListenPort <= 0) {
+				return fmt.Errorf("The listen and target ports must be specified together")
+			}
+
+			if r.ListenPort > 0 {
+				targetArgs = append(targetArgs, fmt.Sprintf("%s:%d", ipToString(target.Address), target.Port))
+			} else {
+				targetArgs = append(targetArgs, ipToString(target.Address))
+			}
+		}
+
 		if r.ListenPort > 0 {
 			args = append(args,
 				fmt.Sprintf("%s:%d", ipToString(r.ListenAddress), r.ListenPort),
-				fmt.Sprintf("%s:%d", ipToString(r.TargetAddress), r.TargetPort),
+				strings.Join(targetArgs, ","),
 				r.Protocol,
 			)
 		} else {
 			args = append(args,
 				ipToString(r.ListenAddress),
-				ipToString(r.TargetAddress),
+				strings.Join(targetArgs, ","),
 			)
 		}
 	}
