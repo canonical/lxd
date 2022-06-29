@@ -2766,7 +2766,8 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImagePut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2866,12 +2867,14 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	req := api.ImagePut{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2946,7 +2949,8 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	req := api.ImageAliasesPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2955,7 +2959,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, _, err := d.db.Cluster.GetImageAlias(projectName, req.Name, true)
+	_, _, err = d.db.Cluster.GetImageAlias(projectName, req.Name, true)
 	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.InternalError(err)
@@ -3304,7 +3308,8 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImageAliasesEntryPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -3382,7 +3387,8 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := shared.Jmap{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -3462,7 +3468,8 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImageAliasesEntryPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

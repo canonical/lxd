@@ -86,7 +86,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	req := api.InstancesPut{}
 	req.State = &api.InstanceStatePut{}
 	req.State.Timeout = -1
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
