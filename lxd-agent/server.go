@@ -55,7 +55,8 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
-			if _, err := io.Copy(multiW, r.Body); err != nil {
+			_, err := io.Copy(multiW, r.Body)
+			if err != nil {
 				_ = response.InternalError(err).Render(w)
 				return
 			}
