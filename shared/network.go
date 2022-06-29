@@ -44,7 +44,8 @@ func RFC3493Dialer(context context.Context, network string, address string) (net
 			continue
 		}
 
-		if tc, ok := c.(*net.TCPConn); ok {
+		tc, ok := c.(*net.TCPConn)
+		if ok {
 			_ = tc.SetKeepAlive(true)
 			_ = tc.SetKeepAlivePeriod(3 * time.Second)
 		}
