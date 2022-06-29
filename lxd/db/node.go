@@ -587,7 +587,8 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	}
 
 	for i := range nodes {
-		if data, ok := config[int(nodes[i].ID)]; !ok {
+		data, ok := config[int(nodes[i].ID)]
+		if !ok {
 			nodes[i].Config = map[string]string{}
 		} else {
 			nodes[i].Config = data

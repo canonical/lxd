@@ -228,7 +228,8 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 				"query":   "UPDATE instances_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
+		_, err = stmt.Exec(newName, oldName)
+		if err != nil {
 			return err
 		}
 
@@ -499,7 +500,8 @@ func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 				"query":   "UPDATE storage_volumes_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
+		_, err = stmt.Exec(newName, oldName)
+		if err != nil {
 			return err
 		}
 
