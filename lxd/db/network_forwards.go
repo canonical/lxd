@@ -204,9 +204,9 @@ func (c *Cluster) GetNetworkForward(networkID int64, memberSpecific bool, listen
 		var rowCount int
 
 		err = tx.tx.QueryRow(q.String(), args...).Scan(&forwardID, &forward.ListenAddress, &forward.Description, &forward.Location, &portsJSON, &rowCount)
-		if rowCount <= 0 || errors.Is(err, sql.ErrNoRows) {
+		if (err == nil && rowCount <= 0) || errors.Is(err, sql.ErrNoRows) {
 			return api.StatusErrorf(http.StatusNotFound, "Network forward not found")
-		} else if rowCount > 1 {
+		} else if err == nil && rowCount > 1 {
 			return api.StatusErrorf(http.StatusConflict, "Network forward found on more than one cluster member. Please target a specific member")
 		} else if err != nil {
 			return err
