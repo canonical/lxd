@@ -112,7 +112,8 @@ func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instance
 		return nil, nil, nil, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
