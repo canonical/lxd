@@ -355,7 +355,8 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 	}
 
 	// Ignore fields that are marked with `db:"omit"`.
-	if omit := config.Get("omit"); omit != "" {
+	omit := config.Get("omit")
+	if omit != "" {
 		omitFields := strings.Split(omit, ",")
 		stmtKind := strings.Replace(lex.Snake(kind), "_", "-", -1)
 		switch kind {
