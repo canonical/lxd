@@ -207,7 +207,8 @@ func (n *bridge) Validate(config map[string]string) error {
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
-				if err := validate.IsInterfaceName(entry); err != nil {
+				err := validate.IsInterfaceName(entry)
+				if err != nil {
 					return fmt.Errorf("Invalid interface name %q: %w", entry, err)
 				}
 			}
