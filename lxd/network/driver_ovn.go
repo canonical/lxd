@@ -312,6 +312,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 					subnet:         *listenAddressNet,
 					networkProject: projectName,
 					networkName:    projectNetworks[projectName][networkID].Name,
+					usageType:      subnetUsageNetworkForward,
 				})
 			}
 		}
@@ -497,7 +498,7 @@ func (n *ovn) Validate(config map[string]string) error {
 			// Check the external subnet doesn't fall within any existing OVN network external subnets.
 			for _, externalSubnetUser := range externalSubnetsInUse {
 				// Skip our own network (but not NIC devices on our own network).
-				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
+				if externalSubnetUser.usageType != subnetUsageInstance && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
 					continue
 				}
 
@@ -3117,7 +3118,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
 		for _, externalSubnetUser := range externalSubnetsInUse {
 			// Skip our own network's SNAT address (as it can be used for NICs in the network).
-			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+			if externalSubnetUser.usageType == subnetUsageNetworkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
 				continue
 			}
 
@@ -3775,6 +3776,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
+						usageType:      subnetUsageNetwork,
 					})
 				}
 
@@ -3796,7 +3798,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
-						networkSNAT:    true,
+						usageType:      subnetUsageNetworkSNAT,
 					})
 				}
 			}
@@ -3845,6 +3847,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 						instanceProject: inst.Project,
 						instanceName:    inst.Name,
 						instanceDevice:  devName,
+						usageType:       subnetUsageInstance,
 					})
 				}
 			}
@@ -4104,14 +4107,13 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 
 		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
 		for _, externalSubnetUser := range externalSubnetsInUse {
-			// Skip our own network's SNAT address (as it can be used for NICs in the network).
-			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-				continue
-			}
-
-			// Skip our own network (but not NIC devices on our own network).
-			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
-				continue
+			// Check if usage is from our own network.
+			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				// Skip checking conflict with our own network's subnet or SNAT address.
+				// But do not allow other conflict with other usage types within our own network.
+				if externalSubnetUser.usageType == subnetUsageNetwork || externalSubnetUser.usageType == subnetUsageNetworkSNAT {
+					continue
+				}
 			}
 
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
