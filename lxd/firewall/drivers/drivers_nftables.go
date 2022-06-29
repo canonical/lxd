@@ -160,13 +160,16 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 
 	items := []nftGenericItem{}
 	for _, item := range v.Nftables {
-		if rule, found := item["rule"]; found {
+		rule, foundRule := item["rule"]
+		chain, foundChain := item["chain"]
+		table, foundTable := item["table"]
+		if foundRule {
 			rule.ItemType = "rule"
 			items = append(items, rule)
-		} else if chain, found := item["chain"]; found {
+		} else if foundChain {
 			chain.ItemType = "chain"
 			items = append(items, chain)
-		} else if table, found := item["table"]; found {
+		} else if foundTable {
 			table.ItemType = "table"
 			items = append(items, table)
 		}
