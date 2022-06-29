@@ -2,7 +2,7 @@
 
 echo "Checking that functional blocks are followed by newlines..."
 
-files=$(find ./ -type f -name "*.go")
+files=$(git ls-files "*.go")
 
 exit_code=0
 for file in $files
