@@ -65,7 +65,8 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 
 	resultMap := map[int]map[string]string{}
 	for _, object := range objects {
-		if _, ok := resultMap[object.ReferenceID]; !ok {
+		_, ok := resultMap[object.ReferenceID]
+		if !ok {
 			resultMap[object.ReferenceID] = map[string]string{}
 		}
 

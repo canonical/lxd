@@ -294,7 +294,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			m.ifErrNotNil(buf, "nil", "err")
 			buf.L("for i := range objects {")
 			buf.L("objects[i].%s = make([]string, 0)", field.Name)
-			buf.L("if refIDs, ok := %s[objects[i].ID]; ok {", lex.Minuscule(assocStruct))
+			buf.L("refIDs, ok := %s[objects[i].ID]", lex.Minuscule(assocStruct))
+			buf.L("if ok {")
 			buf.L("for _, refID := range refIDs {")
 			buf.L("%sURIs, err := c.Get%sURIs(%sFilter{ID: &refID})", refVar, refStruct, refStruct)
 			m.ifErrNotNil(buf, "nil", "err")
@@ -325,7 +326,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			} else if field.Type.Code == TypeMap {
 				buf.L("objects[i].%s = map[string]%s{}", lex.Plural(refStruct), refStruct)
 				buf.L("for _, obj := range %s[objects[i].ID] {", refSlice)
-				buf.L("if _, ok := objects[i].%s[obj.%s]; !ok {", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
+				buf.L("_, ok := objects[i].%s[obj.%s]", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
+				buf.L("if !ok {")
 				buf.L("objects[i].%s[obj.%s] = obj", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
 				buf.L("} else {")
 				buf.L("return nil, fmt.Errorf(\"Found duplicate %s with name %%q\", obj.%s)", refStruct, refMapping.NaturalKey()[0].Name)
@@ -345,7 +347,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			}
 
 			buf.L("for i := range objects {")
-			buf.L("if _, ok := %s[objects[i].ID]; !ok {", refSlice)
+			buf.L("_, ok := %s[objects[i].ID]", refSlice)
+			buf.L("if !ok {")
 			buf.L("objects[i].%s = map[string]string{}", refStruct)
 			buf.L("} else {")
 			buf.L("objects[i].%s = %s[objects[i].ID]", lex.Plural(refStruct), refSlice)
@@ -368,7 +371,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	case ReferenceTable:
 		buf.L("resultMap := map[int][]%s{}", mapping.Name)
 		buf.L("for _, object := range objects {")
-		buf.L("if _, ok := resultMap[object.ReferenceID]; !ok {")
+		buf.L("_, ok := resultMap[object.ReferenceID]")
+		buf.L("!ok {")
 		buf.L("resultMap[object.ReferenceID] = []%s{}", mapping.Name)
 		buf.L("}")
 		buf.L("resultMap[object.ReferenceID] = append(resultMap[object.ReferenceID], object)")
@@ -378,7 +382,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	case MapTable:
 		buf.L("resultMap := map[int]map[string]string{}")
 		buf.L("for _, object := range objects {")
-		buf.L("if _, ok := resultMap[object.ReferenceID]; !ok {")
+		buf.L("_, ok := resultMap[object.ReferenceID]")
+		buf.L("!ok {")
 		buf.L("resultMap[object.ReferenceID] = map[string]string{}")
 		buf.L("}")
 		buf.L("resultMap[object.ReferenceID][object.Key] = object.Value")
