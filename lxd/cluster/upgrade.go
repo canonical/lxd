@@ -168,9 +168,11 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 
 		// Try to use the same ID as the node, but it might not be possible if it's use.
 		id := uint64(member.ID)
-		if _, ok := raftNodeIDs[id]; ok {
+		_, ok := raftNodeIDs[id]
+		if ok {
 			for _, other := range members {
-				if _, ok := raftNodeIDs[uint64(other.ID)]; !ok {
+				_, ok := raftNodeIDs[uint64(other.ID)]
+				if !ok {
 					id = uint64(other.ID) // Found unused raft ID for member.
 					break
 				}

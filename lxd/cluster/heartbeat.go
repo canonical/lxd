@@ -100,7 +100,8 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			Roles:         node.Roles,
 		}
 
-		if raftNode, exists := raftNodeMap[member.Address]; exists {
+		raftNode, exists := raftNodeMap[member.Address]
+		if exists {
 			member.RaftID = raftNode.ID
 			member.RaftRole = int(raftNode.Role)
 			delete(raftNodeMap, member.Address) // Used to check any remaining later.
