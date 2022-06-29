@@ -50,7 +50,8 @@ func TestFileCopy(t *testing.T) {
 
 	defer func() { _ = os.Remove(source.Name()) }()
 
-	if err := WriteAll(source, helloWorld); err != nil {
+	err = WriteAll(source, helloWorld)
+	if err != nil {
 		_ = source.Close()
 		t.Error(err)
 		return
@@ -67,7 +68,8 @@ func TestFileCopy(t *testing.T) {
 
 	_ = dest.Close()
 
-	if err := FileCopy(source.Name(), dest.Name()); err != nil {
+	err = FileCopy(source.Name(), dest.Name())
+	if err != nil {
 		t.Error(err)
 		return
 	}

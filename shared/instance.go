@@ -292,18 +292,21 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 // be done by the caller.  User defined keys are always considered to
 // be valid, e.g. user.* and environment.* keys.
 func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value string) error, error) {
-	if f, ok := InstanceConfigKeysAny[key]; ok {
+	f, ok := InstanceConfigKeysAny[key]
+	if ok {
 		return f, nil
 	}
 
 	if instanceType == instancetype.Any || instanceType == instancetype.Container {
-		if f, ok := InstanceConfigKeysContainer[key]; ok {
+		f, ok := InstanceConfigKeysContainer[key]
+		if ok {
 			return f, nil
 		}
 	}
 
 	if instanceType == instancetype.Any || instanceType == instancetype.VM {
-		if f, ok := InstanceConfigKeysVM[key]; ok {
+		f, ok := InstanceConfigKeysVM[key]
+		if ok {
 			return f, nil
 		}
 	}

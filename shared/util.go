@@ -715,7 +715,8 @@ func IsUserConfig(key string) bool {
 // StringMapHasStringKey returns true if any of the supplied keys are present in the map.
 func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	for _, k := range keys {
-		if _, ok := m[k]; ok {
+		_, ok := m[k]
+		if ok {
 			return true
 		}
 	}
@@ -742,11 +743,13 @@ func DeepCopy(src, dest any) error {
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)
-	if err := enc.Encode(src); err != nil {
+	err := enc.Encode(src)
+	if err != nil {
 		return err
 	}
 
-	if err := dec.Decode(dest); err != nil {
+	err = dec.Decode(dest)
+	if err != nil {
 		return err
 	}
 

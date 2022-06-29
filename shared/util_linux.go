@@ -59,8 +59,9 @@ func SetSize(fd int, width int, height int) (err error) {
 	dimensions[0] = uint16(height)
 	dimensions[1] = uint16(width)
 
-	if _, _, err := unix.Syscall6(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
-		return err
+	_, _, errno := unix.Syscall6(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0)
+	if errno != 0 {
+		return errno
 	}
 
 	return nil
