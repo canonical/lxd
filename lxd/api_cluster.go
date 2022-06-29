@@ -1539,7 +1539,8 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 				req.Config = nodeInfo.Config
 			} else {
 				for k, v := range nodeInfo.Config {
-					if _, ok := req.Config[k]; !ok {
+					_, ok := req.Config[k]
+					if !ok {
 						req.Config[k] = v
 					}
 				}
@@ -3435,7 +3436,8 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ClusterGroupPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

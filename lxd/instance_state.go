@@ -163,7 +163,8 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 
 	// We default to -1 (i.e. no timeout) here instead of 0 (instant timeout).
 	req.Timeout = -1
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

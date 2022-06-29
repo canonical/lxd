@@ -31,7 +31,8 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 
 		localDevices := inst.LocalDevices()
 		for _, devName := range usedByDevices {
-			if _, exists := localDevices[devName]; exists {
+			_, exists := localDevices[devName]
+			if exists {
 				localDevices[devName]["pool"] = newPoolName
 				localDevices[devName]["source"] = newVol.Name
 			}

@@ -211,7 +211,8 @@ func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, er
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 
@@ -309,7 +310,8 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 

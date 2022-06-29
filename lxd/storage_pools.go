@@ -719,7 +719,8 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	// Decode the request.
 	req := api.StoragePoolPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

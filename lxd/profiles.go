@@ -249,7 +249,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ProfilesPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -491,7 +492,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ProfilePut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -601,12 +603,14 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	req := api.ProfilePut{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -694,7 +698,8 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ProfilePost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

@@ -62,7 +62,8 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := d.LoadConfigFile(configPath); err != nil {
+	err = d.LoadConfigFile(configPath)
+	if err != nil {
 		return err
 	}
 

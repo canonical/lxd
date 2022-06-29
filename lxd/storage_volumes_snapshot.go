@@ -1107,7 +1107,8 @@ var customVolSnapshotsPruneRunning = sync.Map{}
 
 func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSnapshots []db.StorageVolumeArgs) error {
 	for _, s := range expiredSnapshots {
-		if _, loaded := customVolSnapshotsPruneRunning.LoadOrStore(s.ID, struct{}{}); loaded {
+		_, loaded := customVolSnapshotsPruneRunning.LoadOrStore(s.ID, struct{}{})
+		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
