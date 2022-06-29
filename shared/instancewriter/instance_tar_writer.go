@@ -91,7 +91,8 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	// If it's a hardlink we've already seen use the old name.
 	if fi.Mode().IsRegular() && nlink > 1 {
-		if firstPath, found := ctw.linkMap[ino]; found {
+		firstPath, found := ctw.linkMap[ino]
+		if found {
 			hdr.Typeflag = tar.TypeLink
 			hdr.Linkname = firstPath
 			hdr.Size = 0
