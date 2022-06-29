@@ -102,7 +102,8 @@ func (m *Mapping) ActiveFilters(kind string) []*Field {
 	names := activeFilters(kind)
 	fields := []*Field{}
 	for _, name := range names {
-		if field := m.FieldByName(name); field != nil {
+		field := m.FieldByName(name)
+		if field != nil {
 			fields = append(fields, field)
 		}
 	}

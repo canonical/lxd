@@ -139,7 +139,8 @@ func (m *MethodV2) uris(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := lex.Camel(m.entity)
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -237,7 +238,8 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := lex.Camel(m.entity)
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -440,7 +442,8 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 
 func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	if err := m.signature(buf, false); err != nil {
+	err := m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -490,7 +493,8 @@ func (m *MethodV2) getOne(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -530,7 +534,8 @@ func (m *MethodV2) id(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -572,7 +577,8 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -609,7 +615,8 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 		}
 	}
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -771,7 +778,8 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 
 func (m *MethodV2) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	if err := m.signature(buf, false); err != nil {
+	err := m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -821,7 +829,8 @@ func (m *MethodV2) rename(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -867,7 +876,8 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -987,7 +997,8 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 
 func (m *MethodV2) updateRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	if err := m.signature(buf, false); err != nil {
+	err := m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -1014,7 +1025,8 @@ func (m *MethodV2) delete(buf *file.Buffer, deleteOne bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 

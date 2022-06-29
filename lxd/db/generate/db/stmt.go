@@ -120,7 +120,8 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				column = mapping.FieldColumnName(field.Name, table)
 			}
 
-			if coalesce, ok := field.Config["coalesce"]; ok {
+			coalesce, ok := field.Config["coalesce"]
+			if ok {
 				// Ensure filters operate on the coalesced value for fields using coalesce setting.
 				where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
 			} else {

@@ -102,7 +102,8 @@ func (m *Method) uris(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -188,7 +189,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -405,7 +407,8 @@ func (m *Method) getOne(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -445,7 +448,8 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -487,7 +491,8 @@ func (m *Method) exists(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -512,7 +517,8 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -661,7 +667,8 @@ func (m *Method) rename(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -695,7 +702,8 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
@@ -809,7 +817,8 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	if err := m.signature(buf, false); err != nil {
+	err = m.signature(buf, false)
+	if err != nil {
 		return err
 	}
 
