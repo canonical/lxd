@@ -216,11 +216,8 @@ func IsAvailable(poolName string) bool {
 	unavailablePoolsMu.Lock()
 	defer unavailablePoolsMu.Unlock()
 
-	if _, found := unavailablePools[poolName]; found {
-		return false
-	}
-
-	return true
+	_, found := unavailablePools[poolName]
+	return !found
 }
 
 // Patch applies specified patch to all storage pools.
