@@ -841,7 +841,8 @@ func CreateProfile(s *state.State, c Instance) error {
 		return err
 	}
 
-	if err := os.MkdirAll(seccompPath, 0700); err != nil {
+	err = os.MkdirAll(seccompPath, 0700)
+	if err != nil {
 		return err
 	}
 
@@ -2269,7 +2270,8 @@ func (s *Server) MountSyscallValid(c Instance, args *MountArgs) (bool, string) {
 		return false, ""
 	}
 
-	if fuse, ok := fsMap[args.fstype]; ok {
+	fuse, ok := fsMap[args.fstype]
+	if ok {
 		return true, fuse
 	}
 
