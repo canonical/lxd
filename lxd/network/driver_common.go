@@ -46,6 +46,12 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+type loadBalancerPortMap struct {
+	listenPorts []uint64
+	protocol    string
+	targets     []forwardTarget
+}
+
 // subnetUsageType indicates the type of use for a subnet.
 type subnetUsageType uint
 
