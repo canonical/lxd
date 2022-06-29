@@ -129,7 +129,8 @@ func main() {
 	}
 
 	result := []string{}
-	if err := json.NewDecoder(raw.Body).Decode(&result); err != nil {
+	err = json.NewDecoder(raw.Body).Decode(&result)
+	if err != nil {
 		fmt.Println("err decoding response", err)
 		os.Exit(1)
 	}
