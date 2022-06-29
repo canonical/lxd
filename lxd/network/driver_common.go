@@ -45,12 +45,22 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+// subnetUsageType indicates the type of use for a subnet.
+type subnetUsageType uint
+
+const (
+	subnetUsageNetwork subnetUsageType = iota
+	subnetUsageNetworkSNAT
+	subnetUsageNetworkForward
+	subnetUsageInstance
+)
+
 // externalSubnetUsage represents usage of a subnet by a network or NIC.
 type externalSubnetUsage struct {
 	subnet          net.IPNet
+	usageType       subnetUsageType
 	networkProject  string
 	networkName     string
-	networkSNAT     bool
 	instanceProject string
 	instanceName    string
 	instanceDevice  string
