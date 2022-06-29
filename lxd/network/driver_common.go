@@ -32,20 +32,35 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+// forwardTarget represents a single port forward target.
+type forwardTarget struct {
+	address net.IP
+	ports   []uint64
+}
+
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
 type forwardPortMap struct {
-	listenPorts   []uint64
-	targetPorts   []uint64
-	targetAddress net.IP
-	protocol      string
+	listenPorts []uint64
+	protocol    string
+	target      forwardTarget
 }
+
+// subnetUsageType indicates the type of use for a subnet.
+type subnetUsageType uint
+
+const (
+	subnetUsageNetwork subnetUsageType = iota
+	subnetUsageNetworkSNAT
+	subnetUsageNetworkForward
+	subnetUsageInstance
+)
 
 // externalSubnetUsage represents usage of a subnet by a network or NIC.
 type externalSubnetUsage struct {
 	subnet          net.IPNet
+	usageType       subnetUsageType
 	networkProject  string
 	networkName     string
-	networkSNAT     bool
 	instanceProject string
 	instanceName    string
 	instanceDevice  string
@@ -733,7 +748,7 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 	return peers
 }
 
-// forwardValidate valites the forward request.
+// forwardValidate validates the forward request.
 func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwardPut) ([]*forwardPortMap, error) {
 	if listenAddress == nil {
 		return nil, fmt.Errorf("Invalid listen address")
@@ -801,8 +816,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 	}
 
 	// Maps portSpecID to a portMap struct.
-	portSpecsMap := make(map[int]*forwardPortMap)
-
+	portMaps := make([]*forwardPortMap, 0, len(forward.Ports))
 	for portSpecID, portSpec := range forward.Ports {
 		if !shared.StringInSlice(portSpec.Protocol, validPortProcols) {
 			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
@@ -834,9 +848,11 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 		}
 
 		portMap := forwardPortMap{
-			listenPorts:   make([]uint64, 0),
-			targetAddress: targetAddress,
-			protocol:      portSpec.Protocol,
+			listenPorts: make([]uint64, 0),
+			target: forwardTarget{
+				address: targetAddress,
+			},
+			protocol: portSpec.Protocol,
 		}
 
 		for _, pr := range listenPortRanges {
@@ -862,7 +878,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 
 		if len(targetPortRanges) > 0 {
 			// Target ports can be at maximum the same length as listen ports.
-			portMap.targetPorts = make([]uint64, 0, len(portMap.listenPorts))
+			portMap.target.ports = make([]uint64, 0, len(portMap.listenPorts))
 
 			for _, pr := range targetPortRanges {
 				portFirst, portRange, err := ParsePortRange(pr)
@@ -872,24 +888,19 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 
 				for i := int64(0); i < portRange; i++ {
 					port := portFirst + i
-					portMap.targetPorts = append(portMap.targetPorts, uint64(port))
+					portMap.target.ports = append(portMap.target.ports, uint64(port))
 				}
 			}
 
 			// Only check if the target port count matches the listen port count if the target ports
 			// don't equal 1, because we allow many-to-one type mapping.
-			portSpectTargetPortsLen := len(portMap.targetPorts)
+			portSpectTargetPortsLen := len(portMap.target.ports)
 			if portSpectTargetPortsLen != 1 && len(portMap.listenPorts) != portSpectTargetPortsLen {
 				return nil, fmt.Errorf("Mismatch of listen port(s) and target port(s) count in port specification %d", portSpecID)
 			}
 		}
 
-		portSpecsMap[portSpecID] = &portMap
-	}
-
-	portMaps := make([]*forwardPortMap, 0)
-	for _, portMap := range portSpecsMap {
-		portMaps = append(portMaps, portMap)
+		portMaps = append(portMaps, &portMap)
 	}
 
 	return portMaps, err
@@ -996,7 +1007,7 @@ func (n *common) PeerDelete(peerName string) error {
 	return ErrNotImplemented
 }
 
-// peerValidate valites the peer request.
+// peerValidate validates the peer request.
 func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 	err := acl.ValidName(peerName)
 	if err != nil {
