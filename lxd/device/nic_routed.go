@@ -98,7 +98,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		if d.config[key] != "" {
 			for _, addr := range strings.Split(d.config[key], ",") {
 				addr = strings.TrimSpace(addr)
-				if _, dupe := ips[addr]; dupe {
+				_, dupe := ips[addr]
+				if dupe {
 					return fmt.Errorf("Duplicate address %q in %q", addr, key)
 				}
 

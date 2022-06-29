@@ -86,7 +86,8 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		// Copy certain keys verbatim from the network's settings.
 		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
 		for _, inheritKey := range inheritKeys {
-			if _, found := netConfig[inheritKey]; found {
+			_, found := netConfig[inheritKey]
+			if found {
 				d.config[inheritKey] = netConfig[inheritKey]
 			}
 		}
