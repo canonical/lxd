@@ -2347,9 +2347,9 @@ func (n *bridge) forwardConvertToFirewallForwards(listenAddress net.IP, defaultT
 		vips = append(vips, firewallDrivers.AddressForward{
 			ListenAddress: listenAddress,
 			Protocol:      portMap.protocol,
-			TargetAddress: portMap.targetAddress,
+			TargetAddress: portMap.target.address,
 			ListenPorts:   portMap.listenPorts,
-			TargetPorts:   portMap.targetPorts,
+			TargetPorts:   portMap.target.ports,
 		})
 	}
 
