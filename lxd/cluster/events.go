@@ -344,7 +344,8 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 	listenersLock.Lock()
 	for address, listener := range listeners {
-		if _, found := keepListeners[address]; !found {
+		_, found := keepListeners[address]
+		if !found {
 			listener.Disconnect()
 			delete(listeners, address)
 
