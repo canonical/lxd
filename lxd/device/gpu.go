@@ -1,6 +1,8 @@
 package device
 
-import "github.com/lxc/lxd/shared/validate"
+import (
+	"github.com/lxc/lxd/shared/validate"
+)
 
 func gpuValidationRules(requiredFields []string, optionalFields []string) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
