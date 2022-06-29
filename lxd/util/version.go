@@ -1,6 +1,8 @@
 package util
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // CompareVersions the versions of two LXD nodes.
 //
