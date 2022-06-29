@@ -190,7 +190,8 @@ func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[stri
 
 	devices := map[string]Device{}
 	for _, ref := range profileDevices[profileID] {
-		if _, ok := devices[ref.Name]; !ok {
+		_, ok := devices[ref.Name]
+		if !ok {
 			devices[ref.Name] = ref
 		} else {
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)

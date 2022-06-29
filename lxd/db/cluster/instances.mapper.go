@@ -296,7 +296,8 @@ func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[st
 
 	devices := map[string]Device{}
 	for _, ref := range instanceDevices[instanceID] {
-		if _, ok := devices[ref.Name]; !ok {
+		_, ok := devices[ref.Name]
+		if !ok {
 			devices[ref.Name] = ref
 		} else {
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)

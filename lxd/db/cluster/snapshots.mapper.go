@@ -129,7 +129,8 @@ func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapsho
 
 	devices := map[string]Device{}
 	for _, ref := range instanceSnapshotDevices[instanceSnapshotID] {
-		if _, ok := devices[ref.Name]; !ok {
+		_, ok := devices[ref.Name]
+		if !ok {
 			devices[ref.Name] = ref
 		} else {
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
