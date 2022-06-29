@@ -12,7 +12,8 @@ import (
 func TestIdmapSetAddSafe_split(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
-	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 500, Maprange: 10}); err != nil {
+	err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 500, Maprange: 10})
+	if err != nil {
 		t.Error(err)
 		return
 	}
@@ -41,7 +42,8 @@ func TestIdmapSetAddSafe_split(t *testing.T) {
 func TestIdmapSetAddSafe_lower(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
-	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 0, Maprange: 10}); err != nil {
+	err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 0, Maprange: 10})
+	if err != nil {
 		t.Error(err)
 		return
 	}
@@ -65,7 +67,8 @@ func TestIdmapSetAddSafe_lower(t *testing.T) {
 func TestIdmapSetAddSafe_upper(t *testing.T) {
 	orig := IdmapSet{Idmap: []IdmapEntry{{Isuid: true, Hostid: 1000, Nsid: 0, Maprange: 1000}}}
 
-	if err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 995, Maprange: 10}); err != nil {
+	err := orig.AddSafe(IdmapEntry{Isuid: true, Hostid: 500, Nsid: 995, Maprange: 10})
+	if err != nil {
 		t.Error(err)
 		return
 	}
