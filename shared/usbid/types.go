@@ -84,7 +84,8 @@ var classDescription = map[ClassCode]string{
 }
 
 func (c ClassCode) String() string {
-	if d, ok := classDescription[c]; ok {
+	d, ok := classDescription[c]
+	if ok {
 		return d
 	}
 
