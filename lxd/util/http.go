@@ -28,7 +28,8 @@ import (
 // logging the the JSON (allowing for custom context to be added to the log).
 func DebugJSON(title string, r *bytes.Buffer, l logger.Logger) {
 	pretty := &bytes.Buffer{}
-	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
+	err := json.Indent(pretty, r.Bytes(), "\t", "\t")
+	if err != nil {
 		l.Debug("Error indenting JSON", logger.Ctx{"err": err})
 		return
 	}
