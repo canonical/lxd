@@ -153,7 +153,8 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if err := c.doDelete(resource.server, resource.name); err != nil {
+		err = c.doDelete(resource.server, resource.name)
+		if err != nil {
 			return err
 		}
 	}

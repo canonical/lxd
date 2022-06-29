@@ -740,7 +740,8 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
 	}
 
-	if _, ok := conf.Remotes[args[1]]; ok {
+	_, ok = conf.Remotes[args[1]]
+	if ok {
 		return fmt.Errorf(i18n.G("Remote %s already exists"), args[1])
 	}
 

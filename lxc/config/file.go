@@ -44,7 +44,8 @@ func LoadConfig(path string) (*Config, error) {
 		}
 
 		for k, r := range globalConf.Remotes {
-			if _, ok := c.Remotes[k]; !ok {
+			_, ok := c.Remotes[k]
+			if !ok {
 				r.Global = true
 				c.Remotes[k] = r
 			}
