@@ -977,7 +977,8 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	_ = conn.SetDeadline(deadline)
 	msg, _, _, err := conn.ReadFrom()
 	if err != nil {
-		if cause, ok := err.(net.Error); ok && cause.Timeout() {
+		cause, ok := err.(net.Error)
+		if ok && cause.Timeout() {
 			return false, nil
 		}
 
