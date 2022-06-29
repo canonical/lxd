@@ -614,7 +614,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		// period as a series of shorthand runes.
 		if !strings.Contains(columnEntry, ".") {
 			for _, columnRune := range columnEntry {
-				if column, ok := columnsShorthandMap[columnRune]; ok {
+				column, ok := columnsShorthandMap[columnRune]
+				if ok {
 					columns = append(columns, column)
 
 					if column.NeedsState || column.NeedsSnapshots {
@@ -638,7 +639,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 
 			k := cc[0]
 			if colType == configColumnType {
-				if _, err := shared.ConfigKeyChecker(k, instancetype.Any); err != nil {
+				_, err := shared.ConfigKeyChecker(k, instancetype.Any)
+				if err != nil {
 					return nil, false, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
 				}
 			}

@@ -237,7 +237,8 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 		}
 
 		for _, columnRune := range columnEntry {
-			if column, ok := columnsShorthandMap[columnRune]; ok {
+			column, ok := columnsShorthandMap[columnRune]
+			if ok {
 				columns = append(columns, column)
 			} else {
 				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
