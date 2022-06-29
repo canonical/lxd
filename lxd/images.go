@@ -136,6 +136,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = tempfile.Close() }()
 		defer func() { _ = os.Remove(tempfile.Name()) }()
 
@@ -144,6 +145,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
+
 		args = append(args, "--no-skip", "--force", "--compressor", "xz", tempfile.Name())
 		cmd = exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
@@ -157,6 +159,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
+
 		_, err = io.Copy(outfile, tempfile)
 		if err != nil {
 			return err
@@ -166,6 +169,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if len(fields) > 1 {
 			args = append(args, fields[1:]...)
 		}
+
 		if shared.StringInSlice(fields[0], reproducible) {
 			args = append(args, "-n")
 		}
@@ -201,10 +205,12 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		if !shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("Not a snapshot")
 		}
+
 	case "container", "virtual-machine", "instance":
 		if shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("This is a snapshot")
 		}
+
 	default:
 		return nil, fmt.Errorf("Bad type")
 	}
@@ -229,6 +235,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = os.Remove(imageFile.Name()) }()
 
 	// Calculate (close estimate of) total size of input to image
@@ -355,6 +362,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if err != nil {
 		return nil, err
 	}
+
 	info.Size = fi.Size()
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 	info.CreatedAt = time.Now().UTC()
@@ -478,6 +486,7 @@ func imgPostURLInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operatio
 		if err != nil {
 			return nil, err
 		}
+
 		architectures = append(architectures, architectureName)
 	}
 
@@ -556,6 +565,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = os.Remove(imageTarf.Name()) }()
 
 		// Parse the POST data
@@ -606,6 +616,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = os.Remove(rootfsTarf.Name()) }()
 
 		size, err = io.Copy(io.MultiWriter(rootfsTarf, sha256), part)
@@ -656,11 +667,13 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		if err != nil {
 			return nil, err
 		}
+
 		size, err = io.Copy(sha256, post)
 		if err != nil {
 			l.Error("Failed to copy the tarfile", logger.Ctx{"err": err})
 			return nil, err
 		}
+
 		info.Size = size
 
 		info.Filename = r.Header.Get("X-LXD-filename")
@@ -681,6 +694,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			l.Error("Failed to get image metadata", logger.Ctx{"err": err})
 			return nil, err
 		}
+
 		info.Type = imageType
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
@@ -1071,6 +1085,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 			_ = op.UpdateMetadata(metadata)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -1147,6 +1162,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	if err != nil {
 		return nil, "unknown", err
 	}
+
 	defer func() { _ = r.Close() }()
 
 	// Decompress if needed
@@ -1154,6 +1170,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	if err != nil {
 		return nil, "unknown", err
 	}
+
 	_, err = r.Seek(0, 0)
 	if err != nil {
 		return nil, "", err
@@ -1169,6 +1186,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 			// sqfs2tar can only read from a file
 			unpacker = append(unpacker, fname)
 		}
+
 		cmd := exec.Command(unpacker[0], unpacker[1:]...)
 		cmd.Stdin = r
 
@@ -1176,12 +1194,14 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		if err != nil {
 			return nil, "unknown", err
 		}
+
 		defer func() { _ = stdout.Close() }()
 
 		err = cmd.Start()
 		if err != nil {
 			return nil, "unknown", err
 		}
+
 		defer func() { _ = cmd.Wait() }()
 
 		// Double close stdout, this is to avoid blocks in Wait()
@@ -1201,6 +1221,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 		if err == io.EOF {
 			break // End of archive
 		}
+
 		if err != nil {
 			return nil, "unknown", err
 		}
@@ -1266,9 +1287,11 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 			if response != nil {
 				continue
 			}
+
 			if clauses != nil && !filter.Match(*image, clauses) {
 				continue
 			}
+
 			resultMap = append(resultMap, image)
 		}
 	}
@@ -1509,6 +1532,7 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	return response.SyncResponse(true, result)
 }
 
@@ -1805,6 +1829,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = metaFile.Close() }()
 
 		createArgs.MetaFile = metaFile
@@ -1816,6 +1841,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
@@ -2740,7 +2766,8 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImagePut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2753,6 +2780,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
+
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
 		profileID, _, err := d.db.Cluster.GetProfile(projectName, profile)
@@ -2761,6 +2789,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		} else if err != nil {
 			return response.SmartError(err)
 		}
+
 		profileIds[i] = profileID
 	}
 
@@ -2838,12 +2867,14 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	req := api.ImagePut{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2918,7 +2949,8 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	req := api.ImageAliasesPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -2927,7 +2959,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, _, err := d.db.Cluster.GetImageAlias(projectName, req.Name, true)
+	_, _, err = d.db.Cluster.GetImageAlias(projectName, req.Name, true)
 	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.InternalError(err)
@@ -3052,6 +3084,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	responseStr := []string{}
 	responseMap := []api.ImageAliasesEntry{}
 	for _, name := range names {
@@ -3063,6 +3096,7 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				continue
 			}
+
 			responseMap = append(responseMap, alias)
 		}
 	}
@@ -3274,7 +3308,8 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImageAliasesEntryPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -3352,7 +3387,8 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := shared.Jmap{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -3432,7 +3468,8 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.ImageAliasesEntryPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -3554,6 +3591,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if address != "" {
 		// Forward the request to the other node
 		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
@@ -3571,6 +3609,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		ext = ""
 	}
+
 	filename := fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
 	if shared.PathExists(rootfsPath) {
@@ -3586,6 +3625,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			ext = ""
 		}
+
 		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
 		if imgInfo.Type == "virtual-machine" {
@@ -3593,6 +3633,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		} else {
 			files[1].Identifier = "rootfs"
 		}
+
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
@@ -3684,6 +3725,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = metaFile.Close() }()
 
 		createArgs.MetaFile = metaFile
@@ -3694,6 +3736,7 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = rootfsFile.Close() }()
 
 			createArgs.RootfsFile = rootfsFile
@@ -3797,18 +3840,21 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for download: %w", err)
 	}
+
 	defer func() { _ = os.RemoveAll(buildDir) }()
 
 	metaFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = metaFile.Close() }()
 
 	rootfsFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = rootfsFile.Close() }()
 
 	getReq := lxd.ImageFileRequest{
@@ -3850,6 +3896,7 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 		if err != nil {
 			return nil
 		}
+
 		err = shared.FileMove(rootfsFile.Name(), rootfsPath)
 		if err != nil {
 			return nil
@@ -4001,6 +4048,7 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 			if err != nil {
 				logger.Error("Failed to synchronize images", logger.Ctx{"err": err, "fingerprint": fingerprint})
 			}
+
 			ch <- nil
 		}()
 

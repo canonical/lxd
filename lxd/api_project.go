@@ -366,6 +366,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	if err != nil {
 		return fmt.Errorf("Add default profile to database: %w", err)
 	}
+
 	return nil
 }
 
@@ -511,6 +512,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config,
 	}
+
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -599,6 +601,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config,
 	}
+
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -613,12 +616,14 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	req := api.ProjectPut{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -961,6 +966,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		state.Resources = result
 
 		return nil

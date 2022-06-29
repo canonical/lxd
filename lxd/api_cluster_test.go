@@ -128,11 +128,13 @@ func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.InstanceServer {
 	if f.clients == nil {
 		f.clients = make(map[*Daemon]lxd.InstanceServer)
 	}
+
 	client, ok := f.clients[daemon]
 	if !ok {
 		var err error
 		client, err = lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
 		require.NoError(f.t, err)
 	}
+
 	return client
 }

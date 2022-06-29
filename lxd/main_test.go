@@ -29,7 +29,8 @@ func mockStartDaemon() (*Daemon, error) {
 		return nil, err
 	}
 
-	if err := d.Init(); err != nil {
+	err = d.Init()
+	if err != nil {
 		return nil, err
 	}
 
@@ -55,9 +56,11 @@ func (suite *lxdTestSuite) SetupTest() {
 	if err != nil {
 		suite.T().Errorf("failed to create temp dir: %v", err)
 	}
+
 	suite.tmpdir = tmpdir
 
-	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
+	err = os.Setenv("LXD_DIR", suite.tmpdir)
+	if err != nil {
 		suite.T().Errorf("failed to set LXD_DIR: %v", err)
 	}
 
@@ -91,6 +94,7 @@ func (suite *lxdTestSuite) SetupTest() {
 		if err != nil {
 			return err
 		}
+
 		return cluster.UpdateProfileDevices(ctx, tx.Tx(), int64(profile.ID), map[string]cluster.Device{"root": device})
 	})
 	if err != nil {
@@ -105,6 +109,7 @@ func (suite *lxdTestSuite) TearDownTest() {
 	if err != nil {
 		suite.T().Errorf("failed to stop daemon: %v", err)
 	}
+
 	err = os.RemoveAll(suite.tmpdir)
 	if err != nil {
 		suite.T().Errorf("failed to remove temp dir: %v", err)

@@ -393,6 +393,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			if err != nil {
 				return response.SmartError(err)
 			}
+
 			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
 			tmp := &api.StorageVolumeSnapshot{}
@@ -904,6 +905,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		Description: vol.Description,
 		ExpiresAt:   &expiry,
 	}
+
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
@@ -1105,7 +1107,8 @@ var customVolSnapshotsPruneRunning = sync.Map{}
 
 func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSnapshots []db.StorageVolumeArgs) error {
 	for _, s := range expiredSnapshots {
-		if _, loaded := customVolSnapshotsPruneRunning.LoadOrStore(s.ID, struct{}{}); loaded {
+		_, loaded := customVolSnapshotsPruneRunning.LoadOrStore(s.ID, struct{}{})
+		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 

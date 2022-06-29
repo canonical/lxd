@@ -97,6 +97,7 @@ func (lc *eventListenerClient) SetEventMode(eventMode EventMode, eventHubPushCh 
 
 						return
 					}
+
 				case <-ctx.Done():
 					return
 				}
@@ -335,6 +336,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			l.Info("Added member event listener client")
 		}(member)
 	}
+
 	wg.Wait()
 
 	// Disconnect and delete any out of date listeners and their notifiers.
@@ -342,7 +344,8 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 	listenersLock.Lock()
 	for address, listener := range listeners {
-		if _, found := keepListeners[address]; !found {
+		_, found := keepListeners[address]
+		if !found {
 			listener.Disconnect()
 			delete(listeners, address)
 
@@ -408,6 +411,7 @@ func EventHubPush(event api.Event) {
 		listenersLock.Unlock()
 		return
 	}
+
 	listenersLock.Unlock()
 
 	// Run in a go routine so as not to delay caller of this function as we try and deliver it.

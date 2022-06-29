@@ -82,6 +82,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("Failed to read from stdin: %w", err)
 		}
+
 		query = string(bytes)
 	}
 
@@ -89,6 +90,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	lxdArgs := lxd.ConnectionArgs{
 		SkipGetServer: true,
 	}
+
 	d, err := lxd.ConnectLXDUnix("", &lxdArgs)
 	if err != nil {
 		return err
@@ -99,15 +101,18 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		if query == ".schema" {
 			url += "&schema=1"
 		}
+
 		response, _, err := d.RawQuery("GET", url, nil, "")
 		if err != nil {
 			return fmt.Errorf("failed to request dump: %w", err)
 		}
+
 		dump := internalSQLDump{}
 		err = json.Unmarshal(response.Metadata, &dump)
 		if err != nil {
 			return fmt.Errorf("failed to parse dump response: %w", err)
 		}
+
 		fmt.Print(dump.Text)
 		return nil
 	}
@@ -116,6 +121,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		Database: database,
 		Query:    query,
 	}
+
 	response, _, err := d.RawQuery("POST", "/internal/sql", data, "")
 	if err != nil {
 		return err
@@ -126,15 +132,18 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	for i, result := range batch.Results {
 		if len(batch.Results) > 1 {
 			fmt.Printf("=> Query %d:\n\n", i)
 		}
+
 		if result.Type == "select" {
 			sqlPrintSelectResult(result)
 		} else {
 			fmt.Printf("Rows affected: %d\n", result.RowsAffected)
 		}
+
 		if len(batch.Results) > 1 {
 			fmt.Printf("\n")
 		}
@@ -153,7 +162,9 @@ func sqlPrintSelectResult(result internalSQLResult) {
 		for _, col := range row {
 			data = append(data, fmt.Sprintf("%v", col))
 		}
+
 		table.Append(data)
 	}
+
 	table.Render()
 }

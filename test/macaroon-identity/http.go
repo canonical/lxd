@@ -29,6 +29,7 @@ func (s *httpService) Start(background bool) error {
 	if err != nil {
 		return err
 	}
+
 	s.listener = listener
 	if s.Name != "" {
 		s.Logger.Printf("%s - running at %s", s.Name, s.Endpoint())

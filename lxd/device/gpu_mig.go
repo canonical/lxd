@@ -89,8 +89,10 @@ func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
 		if strings.HasPrefix(d.config["mig.uuid"], "MIG-") {
 			return d.config["mig.uuid"]
 		}
+
 		return fmt.Sprintf("MIG-%s", d.config["mig.uuid"])
 	}
+
 	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
 }
 
@@ -128,6 +130,7 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 		if pciAddress != "" {
 			return nil, fmt.Errorf("More than one GPU matched the MIG device")
 		}
+
 		pciAddress = gpu.PCIAddress
 
 		// Validate the GPU.
@@ -140,6 +143,7 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 		if len(fields) != 2 {
 			return nil, fmt.Errorf("Bad NVIDIA GPU (couldn't find ID)")
 		}
+
 		gpuID := fields[1]
 
 		if d.config["mig.uuid"] == "" {

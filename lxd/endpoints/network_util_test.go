@@ -45,11 +45,13 @@ func Test_networkServerErrorLogWriter_shouldDiscard(t *testing.T) {
 			want:    "http: response.WriteHeader on hijacked connection from yourfunction (yourfile.go:80)",
 		},
 	}
+
 	for i, tt := range tests {
 		t.Logf("Case %d: %s", i, tt.name)
 		d := networkServerErrorLogWriter{
 			proxies: tt.proxies,
 		}
+
 		assert.Equal(t, tt.want, d.stripLog(tt.log))
 	}
 }

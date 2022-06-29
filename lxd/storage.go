@@ -61,6 +61,7 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 			if err != nil {
 				return err
 			}
+
 			jsonIdmap = string(idmapBytes)
 		} else {
 			jsonIdmap = "[]"

@@ -104,6 +104,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			err = fmt.Errorf("malformatted id %q: %w", pieces[0], err)
 			return
 		}
+
 		id = i
 
 		return
@@ -121,6 +122,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			vendor = &Vendor{
 				Name: name,
 			}
+
 			vendors[id] = vendor
 
 		case 1:
@@ -131,9 +133,11 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			device = &Product{
 				Name: name,
 			}
+
 			if vendor.Product == nil {
 				vendor.Product = make(map[ID]*Product)
 			}
+
 			vendor.Product[id] = device
 
 		case 2:
@@ -144,6 +148,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			if device.Interface == nil {
 				device.Interface = make(map[ID]string)
 			}
+
 			device.Interface[id] = name
 
 		default:
@@ -163,6 +168,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			class = &Class{
 				Name: name,
 			}
+
 			classes[ClassCode(id)] = class
 
 		case 1:
@@ -173,9 +179,11 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			subclass = &SubClass{
 				Name: name,
 			}
+
 			if class.SubClass == nil {
 				class.SubClass = make(map[ClassCode]*SubClass)
 			}
+
 			class.SubClass[ClassCode(id)] = subclass
 
 		case 2:
@@ -186,6 +194,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 			if subclass.Protocol == nil {
 				subclass.Protocol = make(map[Protocol]string)
 			}
+
 			subclass.Protocol[Protocol(id)] = name
 
 		default:
@@ -213,6 +222,7 @@ parseLines:
 		case isPrefix:
 			return nil, nil, fmt.Errorf("line %d: line too long", lineno)
 		}
+
 		line := string(b)
 
 		if len(line) == 0 || line[0] == '#' {
@@ -223,6 +233,7 @@ parseLines:
 		if err != nil {
 			return nil, nil, fmt.Errorf("line %d: %w", lineno, err)
 		}
+
 		if k != "" {
 			kind = k
 		}
@@ -233,6 +244,7 @@ parseLines:
 		case "C":
 			err = parseClass(level, id, name)
 		}
+
 		if err != nil {
 			return nil, nil, fmt.Errorf("line %d: %w", lineno, err)
 		}

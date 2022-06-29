@@ -1561,6 +1561,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			{"global", 4, ""}:     "",
 			{"global", 5, ""}:     "",
 		}
+
 		actual := parseConfOverride(input)
 		if !reflect.DeepEqual(expected, actual) {
 			t.Errorf("Expected: %v. Got: %v", expected, actual)

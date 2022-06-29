@@ -11,24 +11,29 @@ func Count(tx *sql.Tx, table string, where string, args ...any) (int, error) {
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)
 	}
+
 	rows, err := tx.Query(stmt, args...)
 	if err != nil {
 		return -1, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
 		return -1, fmt.Errorf("no rows returned")
 	}
+
 	var count int
 	err = rows.Scan(&count)
 	if err != nil {
 		return -1, fmt.Errorf("failed to scan count column")
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("more than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, err
@@ -51,6 +56,7 @@ func CountAll(tx *sql.Tx) (map[string]int, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to count rows of %s: %w", table, err)
 		}
+
 		counts[table] = count
 	}
 

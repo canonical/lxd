@@ -74,6 +74,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 				}
 			}
 		}
+
 		return msg, err
 	}
 
@@ -101,10 +102,12 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
 		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
 	}
+
 	l, err := net.Listen("unix", auds)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	defer func() { _ = l.Close() }()
 
 	/*
@@ -153,7 +156,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		return nil, nil, nil, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		return nil, nil, nil, err
 	}
 

@@ -38,6 +38,7 @@ func setReceivedUUID(path string, UUID string) error {
 	if err != nil {
 		return fmt.Errorf("Failed opening %s: %w", path, err)
 	}
+
 	defer func() { _ = f.Close() }()
 
 	args := btrfsIoctlReceivedSubvolArgs{}
@@ -147,6 +148,7 @@ func (d *btrfs) snapshotSubvolume(path string, dest string, recursion bool) erro
 		if err != nil {
 			return err
 		}
+
 		sort.Strings(subSubVols)
 
 		for _, subSubVol := range subSubVols {
@@ -275,6 +277,7 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	if parent != "" {
 		args = append(args, "-p", parent)
 	}
+
 	args = append(args, path)
 	cmd := exec.Command("btrfs", args...)
 
@@ -351,6 +354,7 @@ func (d *btrfs) setSubvolumeReadonlyProperty(path string, readonly bool) error {
 	if btrfsPropertyForce {
 		args = append(args, "-f")
 	}
+
 	args = append(args, "-ts", path, "ro", fmt.Sprintf("%t", readonly))
 
 	_, err := shared.RunCommand("btrfs", args...)
@@ -388,6 +392,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Strings(subVolPaths)
 
 	// Add any subvolumes under the root subvolume with relative path to root.
@@ -522,6 +527,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 	if err != nil {
 		return nil, err
 	}
+
 	defer cancelFunc()
 
 	for {
@@ -529,6 +535,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 		if err == io.EOF {
 			break // End of archive.
 		}
+
 		if err != nil {
 			return nil, fmt.Errorf("Error reading backup file for optimized backup header file: %w", err)
 		}

@@ -47,6 +47,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 		if err != nil {
 			return fmt.Errorf("Failed to open %q: %w", udevInfo, err)
 		}
+
 		defer func() { _ = f.Close() }()
 
 		udevProperties := map[string]string{}
@@ -161,6 +162,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "dev"), err)
 			}
+
 			disk.Device = strings.TrimSpace(string(diskDev))
 
 			// PCI address
@@ -168,6 +170,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to find PCI address for %q: %w", devicePath, err)
 			}
+
 			if pciAddr != "" {
 				disk.PCIAddress = pciAddr
 			}
@@ -177,6 +180,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to find USB address for %q: %w", devicePath, err)
 			}
+
 			if usbAddr != "" {
 				disk.USBAddress = usbAddr
 			}
@@ -223,6 +227,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "ro"), err)
 			}
+
 			disk.ReadOnly = diskRo == 1
 
 			// Size
@@ -230,6 +235,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "size"), err)
 			}
+
 			disk.Size = diskSize * 512
 
 			// Removable
@@ -237,6 +243,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "removable"), err)
 			}
+
 			disk.Removable = diskRemovable == 1
 
 			// WWN
@@ -245,6 +252,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "wwid"), err)
 				}
+
 				disk.WWN = strings.TrimSpace(string(diskWWN))
 			}
 
@@ -281,6 +289,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(subEntryPath, "partition"), err)
 				}
+
 				partition.Partition = partitionNumber
 
 				// Device node
@@ -288,6 +297,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(subEntryPath, "dev"), err)
 				}
+
 				partition.Device = strings.TrimSpace(string(partitionDev))
 
 				// Read-only
@@ -295,6 +305,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(subEntryPath, "ro"), err)
 				}
+
 				partition.ReadOnly = partitionRo == 1
 
 				// Size
@@ -302,6 +313,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(subEntryPath, "size"), err)
 				}
+
 				partition.Size = partitionSize * 512
 
 				// Add to list

@@ -128,6 +128,7 @@ func TestReplaceRaftNodes(t *testing.T) {
 		{NodeInfo: client.NodeInfo{ID: 2, Address: "2.2.2.2:666"}},
 		{NodeInfo: client.NodeInfo{ID: 3, Address: "3.3.3.3:666"}},
 	}
+
 	err = tx.ReplaceRaftNodes(nodes)
 	assert.NoError(t, err)
 

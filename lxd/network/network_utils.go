@@ -280,6 +280,7 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	ifaceName := ""
@@ -519,6 +520,7 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 	if err != nil {
 		return servers, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -528,7 +530,9 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 			servers = append(servers, fields[0])
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return servers, err
 	}
 
@@ -589,6 +593,7 @@ func inRoutingTable(subnet *net.IPNet) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewReader(file)
@@ -746,6 +751,7 @@ func GetHostDevice(parent string, vlan string) string {
 	if err != nil {
 		return defaultVlan
 	}
+
 	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
@@ -831,7 +837,8 @@ func GetMACSlice(hwaddr string) []string {
 	var buf []string
 
 	if !strings.Contains(hwaddr, ":") {
-		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
+		s, err := strconv.ParseUint(hwaddr, 10, 64)
+		if err == nil {
 			hwaddr = fmt.Sprintf("%x\n", s)
 			var tuple string
 			for i, r := range hwaddr {

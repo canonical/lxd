@@ -215,7 +215,8 @@ func updateCertificateCache(d *Daemon) {
 	}
 
 	for i, dbCert := range dbCerts {
-		if _, found := newCerts[dbCert.Type]; !found {
+		_, found := newCerts[dbCert.Type]
+		if !found {
 			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
 		}
 
@@ -277,7 +278,8 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	}
 
 	for _, dbCert := range dbCerts {
-		if _, found := newCerts[dbCert.Type]; !found {
+		_, found := newCerts[dbCert.Type]
+		if !found {
 			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
 		}
 
@@ -712,6 +714,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 				Restricted:  req.Restricted,
 			}
+
 			_, err := dbCluster.CreateCertificateWithProjects(ctx, tx.Tx(), dbCert, req.Projects)
 			return err
 		})
@@ -724,6 +727,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		req := api.CertificatesPost{
 			CertificatePut: api.CertificatePut{
 				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
@@ -794,6 +798,7 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
+
 		cert, err = dbCertInfo.ToAPI(ctx, tx.Tx())
 		return err
 	})
@@ -931,7 +936,8 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Apply the changes.
 	req := *apiEntry
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

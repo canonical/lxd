@@ -146,20 +146,24 @@ func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Cluster group not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -191,6 +195,7 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 	if err != nil {
 		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
 		return -1, fmt.Errorf("This cluster group already exists")
 	}
@@ -237,9 +242,11 @@ func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
 	if err != nil {
 		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
+
 	return nil
 }
 
@@ -256,6 +263,7 @@ func (c *ClusterTx) DeleteClusterGroup(name string) error {
 	if err != nil {
 		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
@@ -281,6 +289,7 @@ func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
 	if err != nil {
 		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
@@ -452,6 +461,7 @@ INSERT INTO nodes_cluster_groups (group_id, node_id)
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for _, node := range nodes {

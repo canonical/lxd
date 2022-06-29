@@ -390,12 +390,14 @@ func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (uint32, uint32, er
 	if err != nil {
 		return 0, 0, err
 	}
+
 	major := uint32(tmp)
 
 	tmp, err = strconv.ParseUint(devParts[1], 10, 32)
 	if err != nil {
 		return 0, 0, err
 	}
+
 	minor := uint32(tmp)
 
 	return major, minor, nil

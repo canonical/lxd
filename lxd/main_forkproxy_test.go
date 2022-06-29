@@ -185,6 +185,7 @@ func TestParseAddr(t *testing.T) {
 			require.Nil(t, addr)
 			continue
 		}
+
 		require.NoError(t, err)
 		require.Equal(t, tt.expected, addr)
 	}

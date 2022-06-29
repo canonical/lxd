@@ -120,6 +120,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		// If present and valid, merge the existing data.
 		metricSet.Merge(cache.metrics)
 	}
+
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
@@ -145,6 +146,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		// If present and valid, merge the existing data.
 		metricSet.Merge(cache.metrics)
 	}
+
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
@@ -209,6 +211,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 		metricSet.Merge(entries)
 	}
+
 	metricsCacheLock.Unlock()
 
 	return response.SyncResponsePlain(true, metricSet.String())

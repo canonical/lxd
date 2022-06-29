@@ -84,6 +84,7 @@ func (m *Map) Change(changes map[string]any) (map[string]string, error) {
 	for _, name := range names {
 		changed[name] = m.GetRaw(name)
 	}
+
 	return changed, err
 }
 
@@ -128,6 +129,7 @@ func (m *Map) GetRaw(name string) string {
 	if !ok {
 		value = key.Default
 	}
+
 	return value
 }
 
@@ -153,6 +155,7 @@ func (m *Map) GetInt64(name string) int64 {
 	if err != nil {
 		panic(fmt.Sprintf("cannot convert to int64: %v", err))
 	}
+
 	return n
 }
 
@@ -178,6 +181,7 @@ func (m *Map) update(values map[string]string) ([]string, error) {
 			errors.add(name, value, err.Error())
 			continue
 		}
+
 		if changed {
 			names = append(names, name)
 		}
@@ -260,5 +264,6 @@ func normalizeBool(value string) string {
 	if shared.IsTrue(value) {
 		return "true"
 	}
+
 	return "false"
 }

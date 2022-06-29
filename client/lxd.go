@@ -95,6 +95,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 			}
 		}
 	}
+
 	info.Addresses = urls
 
 	return &info, nil
@@ -292,6 +293,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 	if err != nil {
 		return nil, "", err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	return lxdParseResponse(resp)

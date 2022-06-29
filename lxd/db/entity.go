@@ -55,6 +55,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeProfile:
 		var profiles []cluster.Profile
 
@@ -82,6 +83,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeProject:
 		projects := make(map[int64]string)
 
@@ -130,6 +132,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeContainer:
 		fallthrough
 	case cluster.TypeInstance:
@@ -159,6 +162,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeInstanceBackup:
 		instanceBackup, err := c.GetInstanceBackupWithID(entityID)
 		if err != nil {
@@ -191,6 +195,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeInstanceSnapshot:
 		var snapshots []cluster.InstanceSnapshot
 
@@ -218,6 +223,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		if uri == "" {
 			return "", ErrUnknownEntityID
 		}
+
 	case cluster.TypeNetwork:
 		networkName, projectName, err := c.GetNetworkNameAndProjectWithID(entityID)
 		if err != nil {

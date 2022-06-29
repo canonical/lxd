@@ -626,6 +626,7 @@ func canUseShiftfs() bool {
 		logger.Debugf("%s - Failed to open host mount namespace", err)
 		return false
 	}
+
 	defer func() { _ = hostMntNs.Close() }()
 
 	err = unix.Unshare(unix.CLONE_NEWNS)
@@ -633,6 +634,7 @@ func canUseShiftfs() bool {
 		logger.Debugf("%s - Failed to unshare mount namespace", err)
 		return false
 	}
+
 	defer func() {
 		err = unix.Setns(int(hostMntNs.Fd()), unix.CLONE_NEWNS)
 		if err != nil {

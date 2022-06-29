@@ -139,6 +139,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -237,6 +238,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -294,6 +296,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil || count != 1 {
 				continue
 			}
+
 			if num >= max {
 				max = num + 1
 			}
@@ -413,6 +416,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -484,6 +488,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -581,6 +586,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -660,6 +666,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}

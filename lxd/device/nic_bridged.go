@@ -235,7 +235,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		// Copy certain keys verbatim from the network's settings.
 		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
 		for _, inheritKey := range inheritKeys {
-			if _, found := netConfig[inheritKey]; found {
+			_, found := netConfig[inheritKey]
+			if found {
 				d.config[inheritKey] = netConfig[inheritKey]
 			}
 		}
@@ -587,6 +588,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	revert.Add(r)
 
 	// Attach host side veth interface to bridge.
@@ -594,6 +596,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	revert.Add(func() { _ = network.DetachInterface(d.config["parent"], saveData["host_name"]) })
 
 	// Attempt to disable router advertisement acceptance.
@@ -620,6 +623,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	} else {
 		err = d.setupOVSBridgePortVLANs(saveData["host_name"])
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -650,6 +654,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 				}
+
 				d.logger.Debug("Enabled hairpin mode on NIC bridge port", logger.Ctx{"dev": link.Name})
 			}
 		}
@@ -760,6 +765,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		if err != nil {
 			return err
 		}
+
 		revert.Add(r)
 	}
 
@@ -778,6 +784,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		if err != nil {
 			return err
 		}
+
 		err = link.SetUp()
 		if err != nil {
 			return err
@@ -1186,6 +1193,7 @@ func allowedIPNets(config deviceConfig.Device) (IPv4Nets []*net.IPNet, IPv6Nets 
 			if err != nil {
 				return nil, err
 			}
+
 			allowedNets = append(allowedNets, ipNet)
 		}
 
@@ -1243,9 +1251,11 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 		if err != nil {
 			return err
 		}
+
 		if !ip.IsGlobalUnicast() {
 			continue
 		}
+
 		if ip.To4() == nil {
 			dstIPv6 = ip
 		} else {
@@ -1258,6 +1268,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	var dstDUID string
@@ -1331,10 +1342,12 @@ func (d *nicBridged) networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP,
 	if err != nil {
 		return err
 	}
+
 	conn, err := net.DialUDP("udp", nil, dstAddr)
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = conn.Close() }()
 
 	//Random DHCP transaction ID
@@ -1380,10 +1393,12 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 	if err != nil {
 		return err
 	}
+
 	conn, err := net.DialUDP("udp6", nil, dstAddr)
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = conn.Close() }()
 
 	// Construct a DHCPv6 packet pretending to be from the source IP and MAC supplied.
@@ -1408,6 +1423,7 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 	if err != nil {
 		return err
 	}
+
 	srcIAIDRaw32 := uint32(srcIAIDRaw)
 
 	// Build the Identity Association details option manually (as not provided by gopacket).
@@ -1436,6 +1452,7 @@ func (d *nicBridged) networkDHCPv6Release(srcDUID string, srcIAID string, srcIP 
 	if err != nil {
 		return err
 	}
+
 	return conn.Close()
 }
 
@@ -1564,6 +1581,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 		for _, intNetworkVLAN := range intNetworkVLANs {
 			vlanIDs = append(vlanIDs, strconv.Itoa(intNetworkVLAN))
 		}
+
 		vlanMode := "trunk" // Default to only allowing tagged frames (drop untagged frames).
 		if d.config["vlan"] != "none" {
 			// If untagged vlan mode isn't "none" then allow untagged frames for port's 'native' VLAN.

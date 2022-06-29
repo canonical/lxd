@@ -16,6 +16,7 @@ func SafeLoad(schema Schema, values map[string]string) (Map, error) {
 		if !ok {
 			return m, err
 		}
+
 		for _, error := range errors {
 			message := fmt.Sprintf("Invalid configuration key: %s", error.Reason)
 			logger.Error(message, logger.Ctx{"key": error.Name})

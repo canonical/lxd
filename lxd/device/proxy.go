@@ -305,6 +305,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -476,6 +477,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 		// filesystem, not be scoped inside the LXD snap.
 		addr = shared.HostPath(addr)
 	}
+
 	return fmt.Sprintf("%s:%s", proto, addr)
 }
 
@@ -485,6 +487,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = cc.Release() }()
 
 	containerPid := strconv.Itoa(cc.InitPid())

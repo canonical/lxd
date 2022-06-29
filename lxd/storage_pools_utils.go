@@ -139,6 +139,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	if err != nil {
 		return nil, err
 	}
+
 	logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": req.Name})
 
 	revert.Success()

@@ -56,6 +56,7 @@ func parseConfOverride(confOverride string) configMap {
 					index:       currentIndex,
 					entryKey:    "",
 				}
+
 				rv[k] = ""
 			}
 
@@ -66,6 +67,7 @@ func parseConfOverride(confOverride string) configMap {
 				if err != nil || i < 0 {
 					panic("failed to parse index")
 				}
+
 				currentIndex = uint(i)
 			} else {
 				currentIndex = 0
@@ -102,6 +104,7 @@ func parseConfOverride(confOverride string) configMap {
 			index:       currentIndex,
 			entryKey:    "",
 		}
+
 		rv[k] = ""
 	}
 
@@ -118,7 +121,8 @@ func updateEntries(entries []cfgEntry, sk rawConfigKey, cfgMap configMap) []cfgE
 		}
 
 		ek := rawConfigKey{sk.sectionName, sk.index, entry.key}
-		if val, ok := cfgMap[ek]; ok {
+		val, ok := cfgMap[ek]
+		if ok {
 			// override
 			delete(cfgMap, ek)
 			newEntry.value = val
@@ -168,7 +172,8 @@ func updateSections(cfg []cfgSection, cfgMap configMap) []cfgSection {
 		index := sectionCounts[section.name] - 1
 		sk := rawConfigKey{section.name, index, ""}
 
-		if val, ok := cfgMap[sk]; ok {
+		val, ok := cfgMap[sk]
+		if ok {
 			if val == "" {
 				// deleted section
 				delete(cfgMap, sk)
@@ -201,6 +206,7 @@ func appendSections(newCfg []cfgSection, cfgMap configMap) []cfgSection {
 			// entryKey == "") since we are only adding new sections now
 			continue
 		}
+
 		sectionKey := rawConfigKey{k.sectionName, k.index, ""}
 		section, found := tmp[sectionKey]
 		if !found {

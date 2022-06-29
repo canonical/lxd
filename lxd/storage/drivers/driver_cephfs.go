@@ -50,6 +50,7 @@ func (d *cephfs) load() error {
 		if err != nil {
 			return err
 		}
+
 		out = strings.TrimSpace(out)
 
 		fields := strings.Split(out, " ")
@@ -127,6 +128,7 @@ func (d *cephfs) Create() error {
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}
+
 	defer func() { _ = os.RemoveAll(mountPath) }()
 
 	err = os.Chmod(mountPath, 0700)
@@ -153,6 +155,7 @@ func (d *cephfs) Create() error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _, _ = forceUnmount(mountPoint) }()
 
 	// Create the path if missing.
@@ -185,6 +188,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}
+
 	defer func() { _ = os.RemoveAll(mountPath) }()
 
 	err = os.Chmod(mountPath, 0700)
@@ -210,6 +214,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _, _ = forceUnmount(mountPoint) }()
 
 	// On delete, wipe everything in the directory.

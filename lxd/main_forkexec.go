@@ -236,6 +236,7 @@ __attribute__ ((noinline)) static int __forkexec(void)
 		if (errno == ENOSYS || errno == EINVAL)
 			ret = close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
 	}
+
 	if (ret)
 		return log_error(EXIT_FAILURE, "Aborting attach to prevent leaking file descriptors into container");
 

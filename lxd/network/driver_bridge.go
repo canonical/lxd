@@ -207,7 +207,8 @@ func (n *bridge) Validate(config map[string]string) error {
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
-				if err := validate.IsInterfaceName(entry); err != nil {
+				err := validate.IsInterfaceName(entry)
+				if err != nil {
 					return fmt.Errorf("Invalid interface name %q: %w", entry, err)
 				}
 			}
@@ -608,15 +609,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
 		} else {
 			bridge := &ip.Bridge{
 				Link: *bridgeLink,
 			}
+
 			err := bridge.Add()
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _ = bridge.Delete() })
 		}
 	}
@@ -692,6 +696,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dummy := &ip.Dummy{
 			Link: ip.Link{Name: fmt.Sprintf("%s-mtu", n.name), MTU: mtu},
 		}
+
 		err = dummy.Add()
 		if err == nil {
 			revert.Add(func() { _ = dummy.Delete() })
@@ -858,6 +863,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		Scope:   "global",
 		Family:  ip.FamilyV4,
 	}
+
 	err = addr.Flush()
 	if err != nil {
 		return err
@@ -868,6 +874,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		Proto:   "static",
 		Family:  ip.FamilyV4,
 	}
+
 	err = r.Flush()
 	if err != nil {
 		return err
@@ -969,6 +976,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			Address: n.config["ipv4.address"],
 			Family:  ip.FamilyV4,
 		}
+
 		err = addr.Add()
 		if err != nil {
 			return err
@@ -1002,6 +1010,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					Proto:   "static",
 					Family:  ip.FamilyV4,
 				}
+
 				err = r.Add()
 				if err != nil {
 					return err
@@ -1026,6 +1035,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		Scope:   "global",
 		Family:  ip.FamilyV6,
 	}
+
 	err = addr.Flush()
 	if err != nil {
 		return err
@@ -1036,6 +1046,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		Proto:   "static",
 		Family:  ip.FamilyV6,
 	}
+
 	err = r.Flush()
 	if err != nil {
 		return err
@@ -1054,6 +1065,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("Failed parsing ipv6.address: %w", err)
 		}
+
 		subnetSize, _ := subnet.Mask.Size()
 
 		if subnetSize > 64 {
@@ -1143,6 +1155,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			Address: n.config["ipv6.address"],
 			Family:  ip.FamilyV6,
 		}
+
 		err = addr.Add()
 		if err != nil {
 			return err
@@ -1176,6 +1189,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 					Proto:   "static",
 					Family:  ip.FamilyV6,
 				}
+
 				err = r.Add()
 				if err != nil {
 					return err
@@ -1264,6 +1278,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			Address: fanAddress,
 			Family:  ip.FamilyV4,
 		}
+
 		err = ipAddr.Add()
 		if err != nil {
 			return err
@@ -1288,6 +1303,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				DevName: "tunl0",
 				Family:  ip.FamilyV4,
 			}
+
 			err = r.Flush()
 			if err != nil {
 				return err
@@ -1308,6 +1324,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				Src:     addr[0],
 				Proto:   "static",
 			}
+
 			err = r.Add()
 			if err != nil {
 				return err
@@ -1322,6 +1339,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				Local:   devAddr,
 				FanMap:  fmt.Sprintf("%s:%s", overlay, underlay),
 			}
+
 			err = vxlan.Add()
 			if err != nil {
 				return err
@@ -1400,6 +1418,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				Local:  tunLocal,
 				Remote: tunRemote,
 			}
+
 			err := gretap.Add()
 			if err != nil {
 				return err
@@ -1416,6 +1435,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			vxlan := &ip.Vxlan{
 				Link: ip.Link{Name: tunName},
 			}
+
 			if tunLocal != "" && tunRemote != "" {
 				vxlan.Local = tunLocal
 				vxlan.Remote = tunRemote
@@ -1440,18 +1460,21 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if tunPort == "" {
 				tunPort = "0"
 			}
+
 			vxlan.DstPort = tunPort
 
 			tunID := getConfig("id")
 			if tunID == "" {
 				tunID = "1"
 			}
+
 			vxlan.VxlanID = tunID
 
 			tunTTL := getConfig("ttl")
 			if tunTTL == "" {
 				tunTTL = "1"
 			}
+
 			vxlan.TTL = tunTTL
 
 			err := vxlan.Add()
@@ -1527,12 +1550,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if err != nil {
 			return err
 		}
+
 		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
 
 		// Attempt to drop privileges.
 		if n.state.OS.UnprivUser != "" {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", n.state.OS.UnprivUser}...)
 		}
+
 		if n.state.OS.UnprivGroup != "" {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-g", n.state.OS.UnprivGroup}...)
 		}
@@ -1597,6 +1622,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			// don't leave the firewall in an inconsistent state.
 			n.logger.Error("The dnsmasq process exited prematurely", logger.Ctx{"err": err, "stderr": strings.TrimSpace(string(stderr))})
 		}
+
 		cancel()
 
 		err = p.Save(shared.VarPath("networks", n.name, "dnsmasq.pid"))
@@ -1625,6 +1651,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
+
 			_ = f.Close()
 
 			err = n.spawnForkDNS(dnsClusteredAddress)
@@ -2005,10 +2032,12 @@ func (n *bridge) bootRoutesV4() ([]string, error) {
 		Proto:   "boot",
 		Family:  ip.FamilyV4,
 	}
+
 	routes, err := r.Show()
 	if err != nil {
 		return nil, err
 	}
+
 	return routes, nil
 }
 
@@ -2019,10 +2048,12 @@ func (n *bridge) bootRoutesV6() ([]string, error) {
 		Proto:   "boot",
 		Family:  ip.FamilyV6,
 	}
+
 	routes, err := r.Show()
 	if err != nil {
 		return nil, err
 	}
+
 	return routes, nil
 }
 
@@ -2034,6 +2065,7 @@ func (n *bridge) applyBootRoutesV4(routes []string) {
 			Proto:   "boot",
 			Family:  ip.FamilyV4,
 		}
+
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
@@ -2050,6 +2082,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 			Proto:   "boot",
 			Family:  ip.FamilyV6,
 		}
+
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
@@ -2079,6 +2112,7 @@ func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, st
 	if err != nil {
 		return "", "", "", err
 	}
+
 	ipStr := ip.String()
 
 	// Force into IPv4 format
@@ -2175,6 +2209,7 @@ func (n *bridge) updateForkdnsServersFile(addresses []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = tmpFile.Close() }()
 
 	for _, address := range addresses {
@@ -2650,6 +2685,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					if instNetworkProject != project.Default {
 						return nil // Managed bridge networks can only exist in default project.
 					}
+
 					devices := db.ExpandInstanceDevices(inst.Devices.Clone(), profiles)
 
 					// Iterate through each of the instance's devices, looking for bridged NICs
@@ -2671,6 +2707,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 							if err != nil {
 								return fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 							}
+
 							n.logger.Debug("Enabled hairpin mode on NIC bridge port", logger.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
 						}
 					}
@@ -2770,6 +2807,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 			NetworkForwardPut: forward.NetworkForwardPut,
 			ListenAddress:     forward.ListenAddress,
 		}
+
 		_, _ = n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
 		_ = n.forwardSetupFirewall()
 		_ = n.forwardBGPSetupPrefixes()

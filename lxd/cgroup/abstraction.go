@@ -518,6 +518,7 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 
 		return n, nil
 	}
+
 	return -1, ErrUnknownVersion
 }
 
@@ -717,6 +718,7 @@ func (cg *CGroup) SetHugepagesLimit(pageType string, limit int64) error {
 		if limit == -1 {
 			return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), "max")
 		}
+
 		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), fmt.Sprintf("%d", limit))
 	}
 
@@ -784,6 +786,7 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 	case V1, V2:
 		stats, err = cg.rw.Get(version, "memory", "memory.stat")
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -883,6 +886,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			case "Write":
 				ioMap[partMap[fields[0]]].WrittenBytes, err = strconv.ParseUint(fields[2], 10, 64)
 			}
+
 			if err != nil {
 				return nil, err
 			}
@@ -912,6 +916,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			case "Write":
 				ioMap[partMap[fields[0]]].WritesCompleted, err = strconv.ParseUint(fields[2], 10, 64)
 			}
+
 			if err != nil {
 				return nil, err
 			}

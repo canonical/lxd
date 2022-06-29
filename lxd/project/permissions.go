@@ -380,6 +380,7 @@ func getAggregateLimits(info *projectInfo, aggregateKeys []string) (map[string]a
 			Usage: totals[key],
 			Limit: max,
 		}
+
 		result[key] = resource
 	}
 
@@ -473,10 +474,12 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.containers.lowlevel":
 			if restrictionValue == "allow" {
 				allowContainerLowLevel = true
 			}
+
 		case "restricted.containers.privilege":
 			containerConfigChecks["security.privileged"] = func(instanceValue string) error {
 				if restrictionValue != "allow" && shared.IsTrue(instanceValue) {
@@ -485,6 +488,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 			containerConfigChecks["security.idmap.isolated"] = func(instanceValue string) error {
 				if restrictionValue == "isolated" && shared.IsFalseOrEmpty(instanceValue) {
 					return fmt.Errorf("Non-isolated containers are forbidden")
@@ -492,10 +496,12 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.virtual-machines.lowlevel":
 			if restrictionValue == "allow" {
 				allowVMLowLevel = true
 			}
+
 		case "restricted.devices.unix-char":
 			devicesChecks["unix-char"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -504,6 +510,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.unix-block":
 			devicesChecks["unix-block"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -512,6 +519,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.unix-hotplug":
 			devicesChecks["unix-hotplug"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -520,6 +528,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.infiniband":
 			devicesChecks["infiniband"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -528,6 +537,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.gpu":
 			devicesChecks["gpu"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -536,6 +546,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.usb":
 			devicesChecks["usb"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -544,6 +555,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.pci":
 			devicesChecks["pci"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -552,6 +564,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.proxy":
 			devicesChecks["proxy"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
@@ -560,6 +573,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.devices.nic":
 			devicesChecks["nic"] = func(device map[string]string) error {
 				switch restrictionValue {
@@ -572,6 +586,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 				}
 				return nil
 			}
+
 		case "restricted.devices.disk":
 			devicesChecks["disk"] = func(device map[string]string) error {
 				// The root device is always allowed.
@@ -591,6 +606,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 					if device["pool"] == "" {
 						return fmt.Errorf("Attaching disks not backed by a pool is forbidden")
 					}
+
 				case "allow":
 					var allowed bool
 					allowed, _ = CheckRestrictedDevicesDiskPaths(project.Config, device["source"])
@@ -601,12 +617,14 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 				return nil
 			}
+
 		case "restricted.idmap.uid":
 			var err error
 			allowedIDMapHostUIDs, err = parseHostIDMapRange(true, false, restrictionValue)
 			if err != nil {
 				return fmt.Errorf("Failed parsing %q: %w", "restricted.idmap.uid", err)
 			}
+
 		case "restricted.idmap.gid":
 			var err error
 			allowedIDMapHostGIDs, err = parseHostIDMapRange(false, true, restrictionValue)
@@ -662,6 +680,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 			if checker == nil {
 				continue
 			}
+
 			err := checker(value)
 			if err != nil {
 				return fmt.Errorf("Invalid value %q for config %q on %s %q of project %q: %w", value, key, instType, entityName, project.Name, err)
@@ -842,6 +861,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		if instance.Name != instanceName {
 			continue
 		}
+
 		info.Instances[i].Profiles = req.Profiles
 		info.Instances[i].Config = req.Config
 		info.Instances[i].Devices = req.Devices
@@ -891,6 +911,7 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 		if volume.Name != volumeName {
 			continue
 		}
+
 		info.Volumes[i].Config = req.Config
 	}
 
@@ -909,6 +930,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 	if err != nil {
 		return err
 	}
+
 	if info == nil {
 		return nil
 	}
@@ -918,6 +940,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 		if profile.Name != profileName {
 			continue
 		}
+
 		info.Profiles[i].Config = req.Config
 		info.Profiles[i].Devices = req.Devices
 	}
@@ -969,6 +992,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 			if err != nil {
 				return fmt.Errorf("Can't change limits.instances in project %q: %w", projectName, err)
 			}
+
 		case "limits.containers":
 			fallthrough
 		case "limits.virtual-machines":
@@ -976,6 +1000,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 			if err != nil {
 				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
+
 		case "limits.processes":
 			fallthrough
 		case "limits.cpu":
@@ -992,6 +1017,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		if err != nil {
 			return err
 		}
+
 		for _, key := range aggregateKeys {
 			err := validateAggregateLimit(totals, key, config[key])
 			if err != nil {
@@ -1020,6 +1046,7 @@ func validateTotalInstanceCountLimit(instances []api.Instance, value, project st
 	if limit < count {
 		return fmt.Errorf("'limits.instances' is too low: there currently are %d total instances in project %s", count, project)
 	}
+
 	return nil
 }
 
@@ -1095,6 +1122,7 @@ func projectHasLimitsOrRestrictions(project api.Project) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -1239,6 +1267,7 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 						"Parse 'size' for custom volume %s in project %s: %w",
 						volume.Name, info.Project.Name, err)
 				}
+
 				totals[key] += limit
 			}
 		}
@@ -1340,6 +1369,7 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 		if strings.HasSuffix(value, "%") {
 			return -1, fmt.Errorf("Value can't be a percentage")
 		}
+
 		return units.ParseByteSizeString(value)
 	},
 	"limits.processes": func(value string) (int64, error) {
@@ -1347,6 +1377,7 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 		if err != nil {
 			return -1, err
 		}
+
 		return int64(limit), nil
 	},
 	"limits.cpu": func(value string) (int64, error) {
@@ -1465,6 +1496,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 	if projectHasRestriction(project, "restricted.backups", "block") {
 		return fmt.Errorf("Project %s doesn't allow for backup creation", projectName)
 	}
+
 	return nil
 }
 
@@ -1479,5 +1511,6 @@ func AllowSnapshotCreation(tx *db.ClusterTx, dbProject *cluster.Project) error {
 	if projectHasRestriction(project, "restricted.snapshots", "block") {
 		return fmt.Errorf("Project %s doesn't allow for snapshot creation", project.Name)
 	}
+
 	return nil
 }

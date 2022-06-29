@@ -47,6 +47,7 @@ func TestGateway_Single(t *testing.T) {
 		r.TLS = &tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{c},
 		}
+
 		f(w, r)
 		assert.Equal(t, 404, w.Code, endpoint)
 	}

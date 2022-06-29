@@ -175,6 +175,7 @@ func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 		result, err := stmt.Exec(args.InstanceID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
@@ -218,6 +219,7 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 
 		logger.Debug(
@@ -226,7 +228,8 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 				"query":   "UPDATE instances_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
+		_, err = stmt.Exec(newName, oldName)
+		if err != nil {
 			return err
 		}
 
@@ -368,6 +371,7 @@ func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) er
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 		result, err := stmt.Exec(args.VolumeID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), volumeOnlyInt,
@@ -487,6 +491,7 @@ func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = stmt.Close() }()
 
 		logger.Debug(
@@ -495,7 +500,8 @@ func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 				"query":   "UPDATE storage_volumes_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
+		_, err = stmt.Exec(newName, oldName)
+		if err != nil {
 			return err
 		}
 

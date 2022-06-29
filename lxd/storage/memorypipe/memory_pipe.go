@@ -47,6 +47,7 @@ func (p *pipe) Read(b []byte) (int, error) {
 		if msg.err == io.EOF {
 			return 0, msg.err
 		}
+
 		n := copy(b, msg.data)
 
 		// Store the remainder of the message for next Read.

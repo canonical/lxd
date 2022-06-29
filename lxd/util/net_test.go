@@ -56,6 +56,7 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 		"[f921:7358:4510:3fce:ac2e:844:2a35:54e]:":     "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8443",
 		"[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8444": "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8444",
 	}
+
 	for in, out := range cases {
 		t.Run(in, func(t *testing.T) {
 			assert.Equal(t, out, util.CanonicalNetworkAddress(in, shared.HTTPSDefaultPort))

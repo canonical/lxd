@@ -184,6 +184,7 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	for name, value := range patch {
 		values[name] = value
 	}
+
 	return c.update(values)
 }
 
@@ -211,6 +212,7 @@ func GetString(cluster *db.Cluster, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return config.m.GetString(key), nil
 }
 
@@ -224,6 +226,7 @@ func GetBool(cluster *db.Cluster, key string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	return config.m.GetBool(key), nil
 }
 
@@ -237,6 +240,7 @@ func GetInt64(cluster *db.Cluster, key string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return config.m.GetInt64(key), nil
 }
 

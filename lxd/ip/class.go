@@ -33,5 +33,6 @@ func (class *ClassHTB) Add() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

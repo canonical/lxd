@@ -137,6 +137,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Project: "test",
 		Name:    "intranet",
 	}
+
 	_, err = cluster.CreateProfile(ctx, tx.Tx(), profile)
 	require.NoError(t, err)
 
@@ -151,6 +152,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
+
 	id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), c1p1)
 	require.NoError(t, err)
 
@@ -168,6 +170,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
+
 	id, err = cluster.CreateInstance(context.TODO(), tx.Tx(), c1p2)
 	require.NoError(t, err)
 
@@ -470,6 +473,7 @@ func TestGetInstancePool(t *testing.T) {
 			Name:    "c1",
 			Node:    "none",
 		}
+
 		id, err := cluster.CreateInstance(context.TODO(), tx.Tx(), container)
 		if err != nil {
 			return err

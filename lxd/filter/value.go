@@ -26,6 +26,7 @@ func ValueOf(obj any, field string) any {
 				if entry.Interface() != key {
 					continue
 				}
+
 				m := value.MapIndex(entry)
 				return ValueOf(m.Interface(), rest)
 			}
@@ -48,6 +49,7 @@ func ValueOf(obj any, field string) any {
 			if len(parts) == 1 {
 				return v
 			}
+
 			return ValueOf(v, rest)
 		}
 	}

@@ -361,6 +361,7 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	for i, address := range addresses {
 		data[i] = []string{address}
 	}
+
 	_ = utils.RenderTable(utils.TableFormatTable, columns, data, nil)
 
 	return nil
@@ -433,6 +434,7 @@ Do you want to proceed? (yes/no): `)
 	if !shared.StringInSlice(strings.ToLower(input), []string{"yes"}) {
 		return fmt.Errorf("Recover operation aborted")
 	}
+
 	return nil
 }
 
@@ -496,5 +498,6 @@ Do you want to proceed? (yes/no): `)
 	if !shared.StringInSlice(strings.ToLower(input), []string{"yes"}) {
 		return fmt.Errorf("Remove raft node operation aborted")
 	}
+
 	return nil
 }

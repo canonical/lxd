@@ -182,6 +182,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			} else {
 				ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
 			}
+
 			if err != nil {
 				return fmt.Errorf("Unable to open the PTY device: %w", err)
 			}
@@ -337,7 +338,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			command := api.InstanceExecControl{}
 
-			if err := json.Unmarshal(buf, &command); err != nil {
+			err = json.Unmarshal(buf, &command)
+			if err != nil {
 				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
 				continue
 			}
@@ -512,7 +514,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if err := json.Unmarshal(buf, &post); err != nil {
+	err = json.Unmarshal(buf, &post)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -559,7 +562,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	for k, v := range inst.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
 			envKey := strings.TrimPrefix(k, "environment.")
-			if _, found := post.Environment[envKey]; !found {
+			_, found := post.Environment[envKey]
+			if !found {
 				post.Environment[envKey] = v
 			}
 		}
@@ -663,12 +667,14 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = stdout.Close() }()
 
 			stderr, err = os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = stderr.Close() }()
 
 			// Update metadata with the right URLs.

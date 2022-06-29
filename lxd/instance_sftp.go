@@ -74,6 +74,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if client != nil {
 		resp.instConn, err = client.GetInstanceFileSFTPConn(instName)
 		if err != nil {
@@ -118,6 +119,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	if err != nil {
 		return api.StatusErrorf(http.StatusInternalServerError, "Failed to hijack connection: %v", err)
 	}
+
 	defer func() { _ = remoteConn.Close() }()
 
 	remoteTCP, _ := tcp.ExtractConn(remoteConn)

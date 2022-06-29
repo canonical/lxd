@@ -90,6 +90,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 					d.shutdownDoneCh <- d.Stop(context.Background(), sig)
 				}()
 			}
+
 		case err = <-d.shutdownDoneCh:
 			return err
 		}

@@ -24,6 +24,7 @@ func TestAllowInstanceCreation_NotConfigured(t *testing.T) {
 		Name: "c1",
 		Type: api.InstanceTypeContainer,
 	}
+
 	err := project.AllowInstanceCreation(tx, "default", req)
 	assert.NoError(t, err)
 }

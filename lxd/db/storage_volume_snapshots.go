@@ -98,6 +98,7 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volume
 		if err != nil {
 			return err
 		}
+
 		return nil
 	})
 
@@ -152,6 +153,7 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 		if err == sql.ErrNoRows {
 			return expiry, api.StatusErrorf(http.StatusNotFound, "Storage pool volume snapshot not found")
 		}
+
 		return expiry, err
 	}
 

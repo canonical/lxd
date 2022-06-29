@@ -26,6 +26,7 @@ func NewFancyTLSListener(inner net.Listener, cert *shared.CertInfo) *FancyTLSLis
 	listener := &FancyTLSListener{
 		Listener: inner,
 	}
+
 	listener.Config(cert)
 	return listener
 }
@@ -37,12 +38,14 @@ func (l *FancyTLSListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	config := l.config
 	if isProxy(c.RemoteAddr().String(), l.trustedProxy) {
 		c = proxyproto.NewConn(c, 0)
 	}
+
 	return tls.Server(c, config), nil
 }
 
@@ -69,6 +72,7 @@ func isProxy(addr string, proxies []net.IP) bool {
 	if err != nil {
 		return false
 	}
+
 	hostIP := net.ParseIP(host)
 
 	for _, p := range proxies {

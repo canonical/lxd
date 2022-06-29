@@ -58,6 +58,7 @@ func TestUpdateFromV36_DropTables(t *testing.T) {
 		"networks",
 		"networks_config",
 	}
+
 	for _, name := range deleted {
 		assert.False(t, shared.StringInSlice(name, current))
 	}

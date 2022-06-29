@@ -72,6 +72,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 		if err != nil {
 			return nil, err
 		}
+
 		defer func() { _ = f.Close() }()
 
 		netnsID = C.netns_get_nsid(C.__s32(f.Fd()))
@@ -86,6 +87,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to retrieve network interfaces and addresses")
 	}
+
 	defer C.netns_freeifaddrs(ifaddrs)
 
 	if netnsID >= 0 && !netnsidAware {
@@ -125,6 +127,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 		if (addr.ifa_flags & C.IFF_UP) > 0 {
 			netState = "up"
 		}
+
 		addNetwork.State = netState
 		addNetwork.Type = netType
 		addNetwork.Mtu = int(addr.ifa_mtu)
@@ -205,6 +208,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 			addNetwork.Counters.PacketsDroppedInbound = int64(addr.ifa_stats64.rx_dropped)
 			addNetwork.Counters.PacketsDroppedOutbound = int64(addr.ifa_stats64.tx_dropped)
 		}
+
 		ifName := C.GoString(addr.ifa_name)
 
 		networks[ifName] = addNetwork

@@ -121,6 +121,7 @@ func (n *physical) Create(clientType request.ClientType) error {
 		if err != nil {
 			return err
 		}
+
 		if inUse {
 			return fmt.Errorf("Parent interface %q in use by another network", n.config["parent"])
 		}
@@ -190,6 +191,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	if err != nil {
 		return err
 	}
+
 	if created {
 		revert.Add(func() { _ = InterfaceRemove(hostName) })
 	}
@@ -305,6 +307,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 			if err != nil {
 				return err
 			}
+
 			if inUse {
 				return fmt.Errorf("Parent interface %q in use by another network", newNetwork.Config["parent"])
 			}

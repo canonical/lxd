@@ -34,6 +34,7 @@ func (a *qemuBus) allocateRoot() *qemuBusEntry {
 		a.rootPort = &qemuBusEntry{
 			bridgeDev: a.devNum,
 		}
+
 		a.devNum++
 	} else {
 		if a.rootPort.bridgeFn == 7 {

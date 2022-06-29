@@ -38,9 +38,11 @@ func IsReverse(name string) int {
 	if strings.HasSuffix(name, IP4arpa) {
 		return 1
 	}
+
 	if strings.HasSuffix(name, IP6arpa) {
 		return 2
 	}
+
 	return 0
 }
 
@@ -49,10 +51,12 @@ func reverse(slice []string) string {
 		j := len(slice) - i - 1
 		slice[i], slice[j] = slice[j], slice[i]
 	}
+
 	ip := net.ParseIP(strings.Join(slice, ".")).To4()
 	if ip == nil {
 		return ""
 	}
+
 	return ip.String()
 }
 
@@ -64,14 +68,17 @@ func reverse6(slice []string) string {
 		j := len(slice) - i - 1
 		slice[i], slice[j] = slice[j], slice[i]
 	}
+
 	slice6 := []string{}
 	for i := 0; i < len(slice)/4; i++ {
 		slice6 = append(slice6, strings.Join(slice[i*4:i*4+4], ""))
 	}
+
 	ip := net.ParseIP(strings.Join(slice6, ":")).To16()
 	if ip == nil {
 		return ""
 	}
+
 	return ip.String()
 }
 

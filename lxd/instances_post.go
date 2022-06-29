@@ -203,6 +203,7 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		if err != nil {
 			return response.InternalError(err)
 		}
+
 		args.Architecture = architecture
 	}
 
@@ -278,6 +279,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		if err != nil {
 			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
+
 		if !enabled {
 			profileProject = "default"
 		}
@@ -338,6 +340,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			if args.Devices[rootDevName] == nil {
 				break
 			}
+
 			rootDevName = fmt.Sprintf("root%d", i)
 			continue
 		}
@@ -383,6 +386,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 		}
+
 		revert.Add(cleanup)
 	} else {
 		instOp, err = inst.LockExclusive()
@@ -494,6 +498,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 	if sourceProject == "" {
 		sourceProject = projectName
 	}
+
 	targetProject := projectName
 
 	source, err := instance.LoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
@@ -644,6 +649,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		if err != nil {
 			return err
 		}
+
 		return nil
 	}
 
@@ -671,6 +677,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	defer func() { _ = os.Remove(backupFile.Name()) }()
 	revert.Add(func() { _ = backupFile.Close() })
 
@@ -700,6 +707,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		if err != nil {
 			return response.InternalError(err)
 		}
+
 		defer func() { _ = os.Remove(tarFile.Name()) }()
 
 		// Decompress to tarFile temporary file.
@@ -727,6 +735,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	bInfo.Project = projectName
 
 	// Override pool.
@@ -802,6 +811,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		if err != nil {
 			return fmt.Errorf("Create instance from backup: %w", err)
 		}
+
 		runRevert.Add(revertHook)
 
 		err = internalImportFromBackup(d, bInfo.Project, bInfo.Name, true, instanceName != "")
@@ -1038,6 +1048,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		if address != "" {
 			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 			if err != nil {
@@ -1137,6 +1148,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			logger.Debugf("No name provided, creating %s", req.Name)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -1203,6 +1215,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 			if response.IsNotFoundError(err) {
 				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
 			}
+
 			return "", "", "", nil, response.SmartError(err)
 		}
 

@@ -276,7 +276,8 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 			}
 
 			if shared.StringInSlice(network.Type, supportedNetTypes) {
-				if _, found := aclNets[network.Name]; !found {
+				_, found := aclNets[network.Name]
+				if !found {
 					aclNets[network.Name] = NetworkACLUsage{
 						ID:     networkID,
 						Name:   network.Name,
@@ -285,9 +286,11 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 					}
 				}
 			}
+
 		case *api.Network:
 			if shared.StringInSlice(u.Type, supportedNetTypes) {
-				if _, found := aclNets[u.Name]; !found {
+				_, found := aclNets[u.Name]
+				if !found {
 					networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
 					if err != nil {
 						return fmt.Errorf("Failed to load network %q: %w", u.Name, err)
@@ -301,6 +304,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 					}
 				}
 			}
+
 		case *api.NetworkACL:
 			return nil // Nothing to do for ACL rules referencing us.
 		default:

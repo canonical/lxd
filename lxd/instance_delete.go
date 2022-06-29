@@ -46,6 +46,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -61,6 +62,7 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}

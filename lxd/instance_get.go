@@ -125,6 +125,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -141,6 +142,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	} else {
 		state, etag, err = c.RenderFull()
 	}
+
 	if err != nil {
 		return response.SmartError(err)
 	}

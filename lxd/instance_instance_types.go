@@ -135,9 +135,11 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		if err != nil {
 			return err
 		}
+
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+
 		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
@@ -169,6 +171,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		if err != ctx.Err() {
 			logger.Warnf("Failed to update instance types: %v", err)
 		}
+
 		return err
 	}
 
@@ -264,6 +267,7 @@ func instanceParseType(value string) (map[string]string, error) {
 		if float32(cpuCores) < limits.CPU {
 			cpuCores++
 		}
+
 		cpuTime := int(limits.CPU / float32(cpuCores) * 100.0)
 
 		out["limits.cpu"] = fmt.Sprintf("%d", cpuCores)

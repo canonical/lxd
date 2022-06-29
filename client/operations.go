@@ -50,6 +50,7 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 			op.handlerLock.Unlock()
 			return
 		}
+
 		op.handlerLock.Unlock()
 
 		function(newOp)
@@ -114,6 +115,7 @@ func (op *operation) Wait() error {
 		op.handlerLock.Unlock()
 		return nil
 	}
+
 	op.handlerLock.Unlock()
 
 	// Make sure we have a listener setup
@@ -141,6 +143,7 @@ func (op *operation) setupListener() error {
 	if op.handlerReady {
 		return nil
 	}
+
 	op.handlerReady = true
 
 	// Get a new listener
@@ -207,6 +210,7 @@ func (op *operation) setupListener() error {
 			op.handlerLock.Unlock()
 			return
 		}
+
 		op.handlerLock.Unlock()
 
 		// Wait for the listener or operation to be done
@@ -217,6 +221,7 @@ func (op *operation) setupListener() error {
 				op.Err = listener.err.Error()
 				close(op.chActive)
 			}
+
 			op.handlerLock.Unlock()
 		case <-op.chActive:
 			return

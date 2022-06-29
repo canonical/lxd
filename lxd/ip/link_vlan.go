@@ -13,6 +13,7 @@ func (vlan *Vlan) additionalArgs() []string {
 	if vlan.Gvrp {
 		args = append(args, "gvrp", "on")
 	}
+
 	return args
 }
 

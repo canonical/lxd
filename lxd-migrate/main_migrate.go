@@ -429,6 +429,7 @@ Additional overrides can be applied at this stage:
 		case 5:
 			err = c.askNetwork(server, &config)
 		}
+
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -556,6 +557,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	config.InstanceArgs.Architecture = architectureName
 
 	revert := revert.New()

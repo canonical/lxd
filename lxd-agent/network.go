@@ -142,6 +142,7 @@ func reconfigureNetworkInterfaces() {
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() {
 			_ = link.SetUp()
 		})
@@ -152,6 +153,7 @@ func reconfigureNetworkInterfaces() {
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() {
 				err := link.SetName(currentNIC.Name)
 				if err != nil {
@@ -171,6 +173,7 @@ func reconfigureNetworkInterfaces() {
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() {
 				currentMTU := fmt.Sprintf("%d", currentNIC.MTU)
 				err := link.SetMTU(currentMTU)

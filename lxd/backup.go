@@ -121,6 +121,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
+
 	defer func() { _ = tarFileWriter.Close() }()
 	revert.Add(func() { _ = os.Remove(target) })
 
@@ -173,6 +174,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 			backupProgressWriter.WriteCloser = tarFileWriter
 			_, err = io.Copy(backupProgressWriter, tarPipeReader)
 		}
+
 		resCh <- err
 	}(tarWriterRes)
 
@@ -273,6 +275,7 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	if err != nil {
 		return err
 	}
+
 	r := bytes.NewReader(indexData)
 
 	indexFileInfo := instancewriter.FileInfo{
@@ -422,6 +425,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
+
 	defer func() { _ = tarFileWriter.Close() }()
 	revert.Add(func() { _ = os.Remove(target) })
 
@@ -447,6 +451,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		} else {
 			_, err = io.Copy(tarFileWriter, tarPipeReader)
 		}
+
 		resCh <- err
 	}(tarWriterRes)
 
@@ -530,6 +535,7 @@ func volumeBackupWriteIndex(s *state.State, projectName string, volumeName strin
 	if err != nil {
 		return err
 	}
+
 	r := bytes.NewReader(indexData)
 
 	indexFileInfo := instancewriter.FileInfo{

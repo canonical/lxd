@@ -63,6 +63,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			Msg:  e.Message,
 			Ctx:  ctx,
 		}
+
 		return record, nil
 	} else if event.Type == EventTypeLifecycle {
 		e := &EventLifecycle{}
@@ -114,6 +115,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 				"Location", e.Location,
 			},
 		}
+
 		return record, nil
 	}
 

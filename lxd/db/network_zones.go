@@ -264,6 +264,7 @@ func networkzoneConfigAdd(tx *sql.Tx, id int64, config map[string]string) error 
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
@@ -464,6 +465,7 @@ func networkZoneRecordConfigAdd(tx *sql.Tx, id int64, config map[string]string) 
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {

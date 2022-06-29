@@ -141,6 +141,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
+
 	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": instance.Location}, "json")
 }}
 
@@ -156,6 +157,7 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
+
 	return okResponse(instance.Devices, "json")
 }}
 
@@ -264,6 +266,7 @@ func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("cannot set permissions on local socket: %w", err)
 	}
+
 	return nil
 }
 

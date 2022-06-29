@@ -201,6 +201,7 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 	if err != nil {
 		return nil, err
 	}
+
 	server.http = httpClient
 
 	// Test the connection and seed the server information
@@ -262,6 +263,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	if err != nil {
 		return nil, err
 	}
+
 	server.http = httpClient
 
 	// Get simplestreams client

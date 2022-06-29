@@ -85,6 +85,7 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Profile not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -94,6 +95,7 @@ func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) 
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -110,6 +112,7 @@ func ProfileExists(ctx context.Context, tx *sql.Tx, project string, name string)
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
@@ -187,7 +190,8 @@ func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[stri
 
 	devices := map[string]Device{}
 	for _, ref := range profileDevices[profileID] {
-		if _, ok := devices[ref.Name]; !ok {
+		_, ok := devices[ref.Name]
+		if !ok {
 			devices[ref.Name] = ref
 		} else {
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
@@ -208,6 +212,7 @@ func GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int) (map[strin
 	if !ok {
 		config = map[string]string{}
 	}
+
 	return config, nil
 }
 
@@ -303,6 +308,7 @@ func CreateProfileConfig(ctx context.Context, tx *sql.Tx, profileID int64, confi
 		}
 
 	}
+
 	return nil
 }
 
@@ -323,6 +329,7 @@ func RenameProfile(ctx context.Context, tx *sql.Tx, project string, name string,
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
+
 	return nil
 }
 

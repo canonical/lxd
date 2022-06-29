@@ -102,6 +102,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 					// Daemon has been inactive for 10s, exit.
 					os.Exit(0)
 				}
+
 				mu.RUnlock()
 			}
 		}()
@@ -122,6 +123,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("Unable to setup unix socket: %w", err)
 		}
+
 		server.SetUnlinkOnClose(true)
 
 		listener = server

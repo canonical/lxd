@@ -45,6 +45,7 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		if err != nil {
 			return err
 		}
+
 	case TableFormatJSON:
 		enc := json.NewEncoder(os.Stdout)
 
@@ -52,6 +53,7 @@ func RenderTable(format string, header []string, data [][]string, raw any) error
 		if err != nil {
 			return err
 		}
+
 	case TableFormatYAML:
 		out, err := yaml.Marshal(raw)
 		if err != nil {

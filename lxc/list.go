@@ -298,6 +298,7 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 					cInfo = append(cInfo, *state)
 					cInfoLock.Unlock()
 				}
+
 				cInfoWg.Done()
 			}()
 		}
@@ -340,6 +341,7 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 				cStates[cName] = state
 				cStatesLock.Unlock()
 			}
+
 			cStatesWg.Done()
 		}()
 
@@ -360,6 +362,7 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 				cSnapshots[cName] = snaps
 				cSnapshotsLock.Unlock()
 			}
+
 			cSnapshotsWg.Done()
 		}()
 	}
@@ -426,8 +429,10 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, column
 		for _, column := range columns {
 			col = append(col, column.Data(ct))
 		}
+
 		data = append(data, col)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	headers := []string{}
@@ -502,6 +507,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 		} else {
 			cts, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -519,6 +525,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	} else {
 		ctslist, err = d.GetInstancesWithFilter(api.InstanceTypeAny, serverFilters)
 	}
+
 	if err != nil {
 		return err
 	}
@@ -607,7 +614,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		// period as a series of shorthand runes.
 		if !strings.Contains(columnEntry, ".") {
 			for _, columnRune := range columnEntry {
-				if column, ok := columnsShorthandMap[columnRune]; ok {
+				column, ok := columnsShorthandMap[columnRune]
+				if ok {
 					columns = append(columns, column)
 
 					if column.NeedsState || column.NeedsSnapshots {
@@ -631,7 +639,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 
 			k := cc[0]
 			if colType == configColumnType {
-				if _, err := shared.ConfigKeyChecker(k, instancetype.Any); err != nil {
+				_, err := shared.ConfigKeyChecker(k, instancetype.Any)
+				if err != nil {
 					return nil, false, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
 				}
 			}
@@ -641,6 +650,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 				if len(cc[1]) == 0 && len(cc) != 3 {
 					return nil, false, fmt.Errorf(i18n.G("Invalid name in '%s', empty string is only allowed when defining maxWidth"), columnEntry)
 				}
+
 				column.Name = cc[1]
 			}
 
@@ -650,9 +660,11 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 				if err != nil {
 					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
+
 				if temp < -1 {
 					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
+
 				if temp == 0 {
 					maxWidth = len(column.Name)
 				} else {
@@ -671,6 +683,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 					if maxWidth > 0 && len(v) > maxWidth {
 						return v[:maxWidth]
 					}
+
 					return v
 				}
 			}
@@ -680,6 +693,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 					if len(d) == 1 || len(d) > 2 {
 						return ""
 					}
+
 					v, ok := cInfo.Devices[d[0]][d[1]]
 					if !ok {
 						v = cInfo.ExpandedDevices[d[0]][d[1]]
@@ -690,6 +704,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 					if maxWidth > 0 && len(v) > maxWidth {
 						return v[:maxWidth]
 					}
+
 					return v
 				}
 			}
@@ -755,6 +770,7 @@ func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
 				}
 			}
 		}
+
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv4s)))
 		return strings.Join(ipv4s, "\n")
 	}
@@ -780,6 +796,7 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 				}
 			}
 		}
+
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
 		return strings.Join(ipv6s, "\n")
 	}
@@ -950,6 +967,7 @@ func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, que
 			if family == "ipv6" && addr.Family != "inet6" {
 				continue
 			}
+
 			if family == "ipv4" && addr.Family != "inet" {
 				continue
 			}
@@ -973,6 +991,7 @@ func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, que
 func (c *cmdList) matchByIPV6(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cInfo, cState, query, "ipv6")
 }
+
 func (c *cmdList) matchByIPV4(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
 	return c.matchByNet(cInfo, cState, query, "ipv4")
 }

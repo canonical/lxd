@@ -29,6 +29,7 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 				if err != nil {
 					logger.Debugf("Got err writing barrier %s", err)
 				}
+
 				readDone <- true
 				return
 			}

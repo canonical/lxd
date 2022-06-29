@@ -426,6 +426,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	if err != nil {
 		return "", err
 	}
+
 	d.logger.Debug("Logical volume snapshot created", logCtx)
 
 	revert.Add(func() {
@@ -444,6 +445,7 @@ func (d *lvm) removeLogicalVolume(volDevPath string) error {
 	if err != nil {
 		return err
 	}
+
 	d.logger.Debug("Logical volume removed", logger.Ctx{"dev": volDevPath})
 
 	return nil
@@ -455,6 +457,7 @@ func (d *lvm) renameLogicalVolume(volDevPath string, newVolDevPath string) error
 	if err != nil {
 		return err
 	}
+
 	d.logger.Debug("Logical volume renamed", logger.Ctx{"dev": volDevPath, "new_dev": newVolDevPath})
 
 	return nil
@@ -751,6 +754,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
+
 		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 
 		return true, nil

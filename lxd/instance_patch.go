@@ -77,6 +77,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -102,12 +103,14 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&reqRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	req := api.InstancePut{}
-	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
+	err = json.NewDecoder(rdr2).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

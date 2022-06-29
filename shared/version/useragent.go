@@ -26,6 +26,7 @@ func getUserAgent() string {
 	if err != nil {
 		panic(err)
 	}
+
 	osTokens := []string{cases.Title(language.English).String(arch)}
 	osTokens = append(osTokens, getPlatformVersionStrings()...)
 

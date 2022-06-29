@@ -847,7 +847,8 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 
 			for i := int64(0); i < portRange; i++ {
 				port := portFirst + i
-				if _, found := listenPorts[portSpec.Protocol][port]; found {
+				_, found := listenPorts[portSpec.Protocol][port]
+				if found {
 					return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", port, portSpec.Protocol, portSpecID)
 				}
 

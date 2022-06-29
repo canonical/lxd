@@ -119,6 +119,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	// Handle errors
@@ -289,6 +290,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		Name:         container.Name,
 		ContainerPut: container.Writable(),
 	}
+
 	req.Source.BaseImage = container.Config["volatile.base_image"]
 
 	// Process the copy arguments
@@ -439,6 +441,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 	if err != nil {
 		return nil, err
 	}
+
 	opAPI := op.Get()
 
 	sourceSecrets := map[string]string{}
@@ -457,6 +460,7 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 		if err != nil {
 			return nil, err
 		}
+
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
@@ -630,6 +634,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 	if err != nil {
 		return nil, err
 	}
+
 	opAPI := op.Get()
 
 	// Process additional arguments
@@ -985,9 +990,11 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		if !r.HasExtension("container_snapshot_stateful_migration") {
 			return nil, fmt.Errorf("The server is missing the required \"container_snapshot_stateful_migration\" API extension")
 		}
+
 		req.ContainerPut.Stateful = snapshot.Stateful
 		req.Source.Live = args.Live
 	}
+
 	req.Source.BaseImage = snapshot.Config["volatile.base_image"]
 
 	// Process the copy arguments
@@ -1068,6 +1075,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		Migration: true,
 		Name:      args.Name,
 	}
+
 	if snapshot.Stateful && args.Live {
 		sourceReq.Live = args.Live
 	}
@@ -1088,6 +1096,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		if err != nil {
 			return nil, err
 		}
+
 		opAPI := op.Get()
 
 		targetSecrets := map[string]string{}
@@ -1115,6 +1124,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 	if err != nil {
 		return nil, err
 	}
+
 	opAPI := op.Get()
 
 	sourceSecrets := map[string]string{}
@@ -1133,6 +1143,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 		if err != nil {
 			return nil, err
 		}
+
 		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
@@ -1470,6 +1481,7 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	// Send the request
@@ -1494,6 +1506,7 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 	if !r.HasExtension("container_edit_metadata") {
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
+
 	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", url.PathEscape(name), url.QueryEscape(templateName)), nil, "")
 	return err
 }
@@ -1509,6 +1522,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	if err != nil {
 		return nil, err
 	}
+
 	opAPI := op.Get()
 
 	if args == nil || args.Terminal == nil {
@@ -1748,6 +1762,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = response.Body.Close() }()
 	defer close(doneCh)
 

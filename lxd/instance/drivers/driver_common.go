@@ -293,6 +293,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 			return tx.UpdateInstanceConfig(d.id, changes)
 		})
 	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to set volatile config: %w", err)
 	}
@@ -413,7 +414,8 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 		}
 
 		devKey := strings.TrimPrefix(k, devicePrefix)
-		if _, found := newConfig[devKey]; found {
+		_, found := newConfig[devKey]
+		if found {
 			volatileClear[k] = ""
 		}
 	}
@@ -570,6 +572,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", name, err)
 	}
+
 	revert.Add(cleanup)
 	defer snapInstOp.Done(err)
 
@@ -590,6 +593,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	if err != nil {
 		return fmt.Errorf("Create instance snapshot (mount source): %w", err)
 	}
+
 	defer func() { _ = pool.UnmountInstance(inst, d.op) }()
 
 	// Attempt to update backup.yaml for instance.
@@ -1014,6 +1018,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 		if err != nil {
 			return "", nil, err
 		}
+
 		devices = storageInstance.ExpandedDevices()
 	}
 

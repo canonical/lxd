@@ -126,6 +126,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
+
 	_, err = cluster.CreateInstance(context.TODO(), tx.Tx(), i1default)
 	require.NoError(t, err)
 
@@ -139,6 +140,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Ephemeral:    false,
 		Stateful:     true,
 	}
+
 	_, err = cluster.CreateInstance(context.TODO(), tx.Tx(), i1p1)
 	require.NoError(t, err)
 
@@ -148,6 +150,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Instance: "i1",
 		Name:     "s1",
 	}
+
 	_, err = cluster.CreateInstanceSnapshot(context.TODO(), tx.Tx(), s1default)
 	require.NoError(t, err)
 
@@ -156,6 +159,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 		Instance: "i1",
 		Name:     "s1",
 	}
+
 	_, err = cluster.CreateInstanceSnapshot(context.TODO(), tx.Tx(), s1p1)
 	require.NoError(t, err)
 

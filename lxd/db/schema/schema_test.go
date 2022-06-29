@@ -21,6 +21,7 @@ func WriteTempFile(dir string, prefix string, content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	_, err = f.WriteString(content)
@@ -312,6 +313,7 @@ func TestSchema_Trim(t *testing.T) {
 		2: updateInsertValue,
 		3: updateAddColumn,
 	}
+
 	schema := schema.NewFromMap(updates)
 	trimmed := schema.Trim(2)
 	assert.Len(t, trimmed, 1)
@@ -436,6 +438,7 @@ func TestSchema_File_Hook(t *testing.T) {
 			_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 			return err
 		}
+
 		return nil
 	})
 

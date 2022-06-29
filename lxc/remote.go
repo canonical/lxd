@@ -362,6 +362,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
+
 	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
 
 	// Attempt to connect
@@ -386,6 +387,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		remote.Project = project
 
 		conf.Remotes[server] = remote
@@ -538,6 +540,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			req := api.CertificatesPost{
 				Password: c.flagPassword,
 			}
+
 			req.Type = api.CertificateTypeClient
 
 			err = d.(lxd.InstanceServer).CreateCertificate(req)
@@ -569,6 +572,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	remote.Project = project
 	conf.Remotes[server] = remote
 
@@ -679,8 +683,10 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		if name == conf.DefaultRemote {
 			strName = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
 		}
+
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic, strGlobal})
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{
@@ -734,7 +740,8 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Remote %s is static and cannot be modified"), args[0])
 	}
 
-	if _, ok := conf.Remotes[args[1]]; ok {
+	_, ok = conf.Remotes[args[1]]
+	if ok {
 		return fmt.Errorf(i18n.G("Remote %s already exists"), args[1])
 	}
 
@@ -747,6 +754,7 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			rc.Global = false
 		} else {
 			err := os.Rename(oldPath, newPath)
@@ -902,6 +910,7 @@ func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		remote.Global = false
 		conf.Remotes[args[0]] = remote
 	}

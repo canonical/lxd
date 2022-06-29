@@ -102,7 +102,8 @@ func (m *Mapping) ActiveFilters(kind string) []*Field {
 	names := activeFilters(kind)
 	fields := []*Field{}
 	for _, name := range names {
-		if field := m.FieldByName(name); field != nil {
+		field := m.FieldByName(name)
+		if field != nil {
 			fields = append(fields, field)
 		}
 	}
@@ -124,6 +125,7 @@ func (m *Mapping) FilterFieldByName(name string) (*Field, error) {
 			if filter.Type.Code != TypeColumn {
 				return nil, fmt.Errorf("Unknown filter %q not a column", name)
 			}
+
 			return filter, nil
 		}
 	}
@@ -140,6 +142,7 @@ func (m *Mapping) ColumnFields(exclude ...string) []*Field {
 		if shared.StringInSlice(field.Name, exclude) {
 			continue
 		}
+
 		if field.Type.Code == TypeColumn {
 			fields = append(fields, field)
 		}
@@ -186,6 +189,7 @@ func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
 		if name == "type" {
 			name = lex.Minuscule(m.Name) + field.Name
 		}
+
 		arg := fmt.Sprintf("%s %s", name, field.Type.Name)
 		args = append(args, arg)
 	}
@@ -204,6 +208,7 @@ func (m *Mapping) FieldParams(fields []*Field) string {
 		if name == "type" {
 			name = lex.Minuscule(m.Name) + field.Name
 		}
+
 		args[i] = name
 	}
 
@@ -274,6 +279,7 @@ func FieldNames(fields []*Field) []string {
 	for _, f := range fields {
 		names = append(names, f.Name)
 	}
+
 	return names
 }
 

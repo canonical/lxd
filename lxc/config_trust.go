@@ -207,6 +207,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 		if !c.global.flagQuiet {
 			fmt.Printf(i18n.G("Client %s certificate add token:")+"\n", cert.Name)
 		}
+
 		fmt.Println(certificateToken.String())
 
 		return nil
@@ -316,8 +317,10 @@ func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		break
 	}
 
@@ -392,6 +395,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		expiry := tlsCert.NotAfter.Format(layout)
 		data = append(data, []string{cert.Type, cert.Name, tlsCert.Subject.CommonName, fp, issue, expiry})
 	}
+
 	sort.Sort(utils.StringList(data))
 
 	header := []string{
@@ -488,6 +492,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 		line := []string{token.ClientName, token.Token}
 		data = append(data, line)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

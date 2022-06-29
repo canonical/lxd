@@ -230,6 +230,7 @@ func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Warning not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -239,6 +240,7 @@ func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -255,6 +257,7 @@ func (c *ClusterTx) WarningExists(uuid string) (bool, error) {
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 

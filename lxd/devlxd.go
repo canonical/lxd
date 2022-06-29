@@ -128,6 +128,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		if err != nil {
 			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 		}
+
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection = events.NewWebsocketListenerConnection(conn)
@@ -143,6 +144,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		if err != nil {
 			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 		}
+
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection, err = events.NewStreamListenerConnection(conn)
@@ -174,6 +176,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 	if clustered {
 		location = c.Location()
 	}
+
 	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location, "instance_type": c.Type().String()}, "json")
 }}
 
@@ -297,6 +300,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 			m.m[unixConn] = cred
 			m.mLock.Unlock()
 		}
+
 	case http.StateActive:
 		return
 	case http.StateIdle:

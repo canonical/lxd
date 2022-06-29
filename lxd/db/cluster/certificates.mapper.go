@@ -134,6 +134,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -143,6 +144,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -159,6 +161,7 @@ func CertificateExists(ctx context.Context, tx *sql.Tx, fingerprint string) (boo
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 

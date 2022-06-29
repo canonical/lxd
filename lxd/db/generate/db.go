@@ -178,6 +178,7 @@ func parseParams(args []string) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Invalid config parameter: %w", err)
 		}
+
 		config[key] = value
 	}
 

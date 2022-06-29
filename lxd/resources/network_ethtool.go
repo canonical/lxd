@@ -151,15 +151,18 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	if err != nil {
 		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
 	}
+
 	defer func() { _ = unix.Close(ethtoolFd) }()
 
 	// Driver info
 	ethDrvInfo := ethtoolDrvInfo{
 		cmd: 0x00000003,
 	}
+
 	req := ethtoolReq{
 		data: uintptr(unsafe.Pointer(&ethDrvInfo)),
 	}
+
 	copy(req.name[:], []byte(name))
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
@@ -177,6 +180,7 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	ethCmd := ethtoolCmd{
 		cmd: 0x00000001,
 	}
+
 	req.data = uintptr(unsafe.Pointer(&ethCmd))
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
@@ -257,6 +261,7 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	ethLinkSettings := ethtoolLinkSettings{
 		cmd: 0x0000004c,
 	}
+
 	req.data = uintptr(unsafe.Pointer(&ethLinkSettings))
 
 	// Retrieve size of masks
@@ -362,6 +367,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	if err != nil {
 		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
 	}
+
 	defer func() { _ = unix.Close(ethtoolFd) }()
 
 	// Prepare the request struct
@@ -373,6 +379,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 		cmd:  0x00000020,
 		size: 32,
 	}
+
 	req.data = uintptr(unsafe.Pointer(&ethPermaddr))
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
@@ -385,6 +392,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	ethGlink := ethtoolValue{
 		cmd: 0x0000000a,
 	}
+
 	req.data = uintptr(unsafe.Pointer(&ethGlink))
 
 	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))

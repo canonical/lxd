@@ -78,6 +78,7 @@ func templatesApply(path string) ([]string, error) {
 			if err != nil {
 				return err
 			}
+
 			defer func() { _ = src.Close() }()
 
 			_, err = io.Copy(w, src)

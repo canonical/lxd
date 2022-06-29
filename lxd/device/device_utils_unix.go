@@ -76,6 +76,7 @@ func unixDeviceSourcePath(m deviceConfig.Device) string {
 	if srcPath == "" {
 		srcPath = m["path"]
 	}
+
 	return shared.HostPath(srcPath)
 }
 
@@ -128,12 +129,14 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], srcPath)
 		}
+
 		d.Major = uint32(tmp)
 
 		tmp, err = strconv.ParseUint(m["minor"], 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], srcPath)
 		}
+
 		d.Minor = uint32(tmp)
 	}
 
@@ -144,6 +147,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], srcPath)
 		}
+
 		d.Mode = os.FileMode(tmp)
 	} else if !defaultMode {
 		// If not specified mode in device config, and default mode is false, then try and
@@ -154,6 +158,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 			if !isErrno || errno != unix.ENOENT {
 				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %w", srcPath, err)
 			}
+
 			d.Mode = os.FileMode(unixDefaultMode)
 		}
 	}
@@ -229,6 +234,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			return nil, err
 		}
+
 		_ = f.Close()
 
 		err = DiskMount(srcPath, devPath, false, false, "", nil, "none")

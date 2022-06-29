@@ -149,6 +149,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				if version.Label != "" {
 					description = fmt.Sprintf("%s (%s)", description, version.Label)
 				}
+
 				description = fmt.Sprintf("%s (%s)", description, name)
 
 				image := api.Image{}

@@ -47,11 +47,13 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 			if !strings.HasSuffix(ev.Name, network.ForkdnsServersListPath+"/"+network.ForkdnsServersListFile) {
 				continue
 			}
+
 			err := loadServersList(networkName)
 			if err != nil {
 				logger.Errorf("Server list load error: %v", err)
 				continue
 			}
+
 		case err := <-watcher.Errors:
 			logger.Errorf("Inotify error: %v", err)
 		}
@@ -195,6 +197,7 @@ func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, er
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -207,7 +210,9 @@ func (h *dnsHandler) getLeaseHostByReverseIPName(reverseName string) (string, er
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 
@@ -291,6 +296,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -303,7 +309,9 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 

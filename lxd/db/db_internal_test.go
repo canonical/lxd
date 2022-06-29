@@ -72,6 +72,7 @@ func (s *dbTestSuite) CreateTestTx() (*sql.Tx, func()) {
 	commit := func() {
 		s.Nil(tx.Commit())
 	}
+
 	return tx, commit
 }
 

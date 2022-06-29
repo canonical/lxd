@@ -99,6 +99,7 @@ func TestExpandAliases(t *testing.T) {
 			if !slicesEqual(tc.input, tc.expected) {
 				t.Errorf("didn't expand when expected to: %s", tc.input)
 			}
+
 			continue
 		}
 

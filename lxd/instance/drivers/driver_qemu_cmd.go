@@ -90,6 +90,7 @@ func (c *qemuCmd) WindowResize(fd, winchWidth, winchHeight int) error {
 	if err != nil {
 		return err
 	}
+
 	logger.Debugf(`Forwarded window resize "%dx%d" to lxd-agent`, winchWidth, winchHeight)
 	return nil
 }

@@ -99,6 +99,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		progress.Done("")
 		return err
 	}
+
 	progress.Done("")
 
 	err = op.Wait()
@@ -134,6 +135,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = target.Close() }()
 	}
 
@@ -142,6 +144,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		Format: i18n.G("Exporting the backup: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
+
 	backupFileRequest := lxd.BackupFileRequest{
 		BackupFile:      io.WriteSeeker(target),
 		ProgressHandler: progress.UpdateProgress,

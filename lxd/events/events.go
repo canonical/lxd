@@ -110,6 +110,7 @@ func (s *Server) Send(projectName string, eventType string, eventMessage any) er
 	if err != nil {
 		return err
 	}
+
 	event := api.Event{
 		Type:      eventType,
 		Timestamp: time.Now(),
@@ -213,6 +214,7 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 			}
 		}(listener, event)
 	}
+
 	s.lock.Unlock()
 
 	return nil

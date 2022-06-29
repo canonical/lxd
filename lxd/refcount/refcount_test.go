@@ -16,7 +16,8 @@ func ExampleIncrement() {
 
 	// Test overflow panic.
 	defer func() {
-		if r := recover(); r != nil {
+		r := recover()
+		if r != nil {
 			fmt.Printf("Recovered: %v\n", r)
 		}
 	}()

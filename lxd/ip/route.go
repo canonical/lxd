@@ -23,20 +23,25 @@ func (r *Route) Add() error {
 	if r.Table != "" {
 		cmd = append(cmd, "table", r.Table)
 	}
+
 	if r.Via != "" {
 		cmd = append(cmd, "via", r.Via)
 	}
+
 	cmd = append(cmd, r.Route, "dev", r.DevName)
 	if r.Src != "" {
 		cmd = append(cmd, "src", r.Src)
 	}
+
 	if r.Proto != "" {
 		cmd = append(cmd, "proto", r.Proto)
 	}
+
 	_, err := shared.RunCommand("ip", cmd...)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -46,6 +51,7 @@ func (r *Route) Delete() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -55,13 +61,16 @@ func (r *Route) Flush() error {
 	if r.Family != "" {
 		cmd = append(cmd, r.Family)
 	}
+
 	cmd = append(cmd, "route", "flush")
 	if r.Route != "" {
 		cmd = append(cmd, r.Route)
 	}
+
 	if r.Via != "" {
 		cmd = append(cmd, "via", r.Via)
 	}
+
 	cmd = append(cmd, "dev", r.DevName)
 	if r.Proto != "" {
 		cmd = append(cmd, "proto", r.Proto)
@@ -71,6 +80,7 @@ func (r *Route) Flush() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -82,6 +92,7 @@ func (r *Route) Replace(routes []string) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -92,13 +103,16 @@ func (r *Route) Show() ([]string, error) {
 	if err != nil {
 		return routes, err
 	}
+
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
+
 		route := strings.Replace(line, "linkdown", "", -1)
 		routes = append(routes, route)
 	}
+
 	return routes, nil
 }

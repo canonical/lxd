@@ -150,8 +150,10 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		for _, column := range columns {
 			row = append(row, column.Data(warning))
 		}
+
 		data = append(data, row)
 	}
+
 	sort.Sort(utils.StringList(data))
 
 	rawData := make([]*api.Warning, len(warnings))
@@ -235,7 +237,8 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 		}
 
 		for _, columnRune := range columnEntry {
-			if column, ok := columnsShorthandMap[columnRune]; ok {
+			column, ok := columnsShorthandMap[columnRune]
+			if ok {
 				columns = append(columns, column)
 			} else {
 				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)

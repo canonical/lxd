@@ -54,6 +54,7 @@ func Test_portRangesFromSlice(t *testing.T) {
 			},
 		},
 	}
+
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
 		ranges := portRangesFromSlice(tt.ports)
@@ -138,6 +139,7 @@ func Test_getOptimisedSNATRanges(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		actual := getOptimisedDNATRanges(tt.forward)
 		assert.Equal(t, tt.expected, actual)

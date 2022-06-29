@@ -202,6 +202,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 		assert.Equal(t, "volume 1", volume.Description)
 		assert.Equal(t, config, volume.Config)
 	}
+
 	err = cluster.RenameStoragePoolVolume("default", "v1", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
@@ -209,6 +210,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, volume)
 	}
+
 	require.NoError(t, err)
 
 	// Delete the volume

@@ -131,6 +131,7 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.Hard
 	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -143,12 +144,14 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.Hard
 				if IP.To4() == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
+
 				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP.To4(), MAC: mac}
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
+
 				IPv6 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP, MAC: mac}
 			} else if strings.Count(field, ":") == 5 {
 				// This field is expected to come first, so that mac variable can be used with
@@ -160,7 +163,9 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.Hard
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
 
@@ -212,6 +217,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	if err != nil {
 		return nil, nil, err
 	}
+
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
@@ -258,7 +264,9 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return nil, nil, err
 	}
 
