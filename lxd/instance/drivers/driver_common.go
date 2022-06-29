@@ -414,7 +414,8 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 		}
 
 		devKey := strings.TrimPrefix(k, devicePrefix)
-		if _, found := newConfig[devKey]; found {
+		_, found := newConfig[devKey]
+		if found {
 			volatileClear[k] = ""
 		}
 	}

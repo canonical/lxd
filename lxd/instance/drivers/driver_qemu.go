@@ -3441,7 +3441,8 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	if qemuDev["driver"] != "" {
 		// Return a monitor hook to add the NIC via QMP before the VM is started.
 		monHook := func(m *qmp.Monitor) error {
-			if fd, found := qemuNetDev["fd"]; found {
+			fd, found := qemuNetDev["fd"]
+			if found {
 				fileName := fd.(string)
 
 				f, err := os.OpenFile(fileName, os.O_RDWR, 0)
@@ -4932,7 +4933,8 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
+	err = d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name())
+	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project()})
 		return err
 	}
@@ -5079,7 +5081,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
-		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
+		err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
+		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
