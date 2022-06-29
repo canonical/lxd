@@ -1,6 +1,8 @@
 package lex
 
-import "strings"
+import (
+	"strings"
+)
 
 // Plural converts to plural form ("foo" -> "foos").
 func Plural(s string) string {
