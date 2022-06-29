@@ -163,7 +163,9 @@ func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.Hard
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
 
@@ -262,7 +264,9 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return nil, nil, err
 	}
 
