@@ -32,12 +32,17 @@ type Info struct {
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
+// forwardTarget represents a single port forward target.
+type forwardTarget struct {
+	address net.IP
+	ports   []uint64
+}
+
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
 type forwardPortMap struct {
-	listenPorts   []uint64
-	targetPorts   []uint64
-	targetAddress net.IP
-	protocol      string
+	listenPorts []uint64
+	protocol    string
+	target      forwardTarget
 }
 
 // externalSubnetUsage represents usage of a subnet by a network or NIC.
