@@ -110,7 +110,8 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 				},
 			}
 
-			if got := d.getRBDVolumeName(tt.args.vol, tt.args.snapName, tt.args.zombie, tt.args.withPoolName); got != tt.want {
+			got := d.getRBDVolumeName(tt.args.vol, tt.args.snapName, tt.args.zombie, tt.args.withPoolName)
+			if got != tt.want {
 				t.Errorf("ceph.getRBDVolumeName() = %v, want %v", got, tt.want)
 			}
 		})

@@ -875,7 +875,8 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block@readonly
 	// pool/image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_xfs
 	reImage := regexp.MustCompile(`^((?:zombie_)?image)_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.?(block)?@?([-\w]+)?$`)
-	if imageRes := reImage.FindStringSubmatch(slider); imageRes != nil {
+	imageRes := reImage.FindStringSubmatch(slider)
+	if imageRes != nil {
 		vol.volType = VolumeType(imageRes[1])
 		vol.pool = poolName
 		vol.name = imageRes[2]
@@ -896,7 +897,8 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// Looks for volumes like:
 	// pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82
 	reInst := regexp.MustCompile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
-	if instRes := reInst.FindStringSubmatch(slider); instRes != nil {
+	instRes := reInst.FindStringSubmatch(slider)
+	if instRes != nil {
 		vol.volType = VolumeType(instRes[1])
 		vol.pool = poolName
 		vol.name = instRes[2]
