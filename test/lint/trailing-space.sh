@@ -2,7 +2,7 @@
 
 echo "Checking that there are no trailing spaces in shell scripts..."
 
-OUT=$(git grep -lP "\s$" '*.sh' || true)
+OUT=$(git grep --untracked -lP "\s$" '*.sh' || true)
 if [ -n "${OUT}" ]; then
   echo "ERROR: trailing space in script: ${OUT}"
   exit 1
