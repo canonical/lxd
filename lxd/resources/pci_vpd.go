@@ -21,12 +21,14 @@ func vpdKnownKey(name string) bool {
 	prefix := int(name[0])
 
 	// Check if starting by a valid prefix.
-	if pos := sort.SearchInts(prefixes, prefix); pos < len(prefixes) && prefixes[pos] == prefix {
+	pos := sort.SearchInts(prefixes, prefix)
+	if pos < len(prefixes) && prefixes[pos] == prefix {
 		return true
 	}
 
 	// Check if a key we're interested in.
-	if pos := sort.SearchStrings(fields, name); pos < len(fields) && fields[pos] == name {
+	pos = sort.SearchStrings(fields, name)
+	if pos < len(fields) && fields[pos] == name {
 		return true
 	}
 
