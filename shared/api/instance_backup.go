@@ -1,6 +1,8 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // InstanceBackupsPost represents the fields available for a new LXD instance backup.
 //

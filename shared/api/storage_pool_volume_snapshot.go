@@ -1,6 +1,8 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // StorageVolumeSnapshotsPost represents the fields available for a new LXD storage volume snapshot
 //
