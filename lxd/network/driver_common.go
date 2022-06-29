@@ -59,6 +59,7 @@ const (
 	subnetUsageNetwork subnetUsageType = iota
 	subnetUsageNetworkSNAT
 	subnetUsageNetworkForward
+	subnetUsageNetworkLoadBalancer
 	subnetUsageInstance
 )
 
