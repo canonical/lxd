@@ -1,6 +1,8 @@
 package api
 
-import "strings"
+import (
+	"strings"
+)
 
 // NetworkACLRule represents a single rule in an ACL ruleset.
 // Refer to doc/network-acls.md for details.
