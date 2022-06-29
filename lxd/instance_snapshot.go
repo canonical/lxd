@@ -281,7 +281,8 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	req := api.InstanceSnapshotsPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -623,7 +624,8 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	raw := shared.Jmap{}
-	if err := json.NewDecoder(rdr1).Decode(&raw); err != nil {
+	err = json.NewDecoder(rdr1).Decode(&raw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

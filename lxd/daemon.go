@@ -616,7 +616,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
-			if _, err := io.Copy(multiW, r.Body); err != nil {
+			_, err := io.Copy(multiW, r.Body)
+			if err != nil {
 				_ = response.InternalError(err).Render(w)
 				return
 			}
@@ -733,13 +734,15 @@ func setupSharedMounts() error {
 	}
 
 	// Mount a new tmpfs
-	if err := unix.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
+	err := unix.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711")
+	if err != nil {
 		return err
 	}
 
 	// Mark as MS_SHARED and MS_REC
 	var flags uintptr = unix.MS_SHARED | unix.MS_REC
-	if err := unix.Mount(path, path, "none", flags, ""); err != nil {
+	err = unix.Mount(path, path, "none", flags, "")
+	if err != nil {
 		return err
 	}
 
@@ -1764,7 +1767,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		trackError(d.seccomp.Stop(), "Stop seccomp")
 	}
 
-	if n := len(errs); n > 0 {
+	n = len(errs)
+	if n > 0 {
 		format := "%v"
 		if n > 1 {
 			format += fmt.Sprintf(" (and %d more errors)", n)

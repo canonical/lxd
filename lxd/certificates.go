@@ -215,7 +215,8 @@ func updateCertificateCache(d *Daemon) {
 	}
 
 	for i, dbCert := range dbCerts {
-		if _, found := newCerts[dbCert.Type]; !found {
+		_, found := newCerts[dbCert.Type]
+		if !found {
 			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
 		}
 
@@ -277,7 +278,8 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	}
 
 	for _, dbCert := range dbCerts {
-		if _, found := newCerts[dbCert.Type]; !found {
+		_, found := newCerts[dbCert.Type]
+		if !found {
 			newCerts[dbCert.Type] = make(map[string]x509.Certificate)
 		}
 
@@ -934,7 +936,8 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	// Apply the changes.
 	req := *apiEntry
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

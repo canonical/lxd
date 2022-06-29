@@ -833,7 +833,8 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 		apiNet.Type = "bond"
 	} else {
 		ovs := openvswitch.NewOVS()
-		if exists, _ := ovs.BridgeExists(apiNet.Name); exists {
+		exists, _ := ovs.BridgeExists(apiNet.Name)
+		if exists {
 			apiNet.Type = "bridge"
 		} else {
 			apiNet.Type = "unknown"
@@ -1184,7 +1185,8 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	// Decode the request.
 	req := api.NetworkPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

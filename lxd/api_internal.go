@@ -954,7 +954,8 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		// Inherit any extra root disk config from the expanded root disk from backup.yaml.
 		if expandedRootName != "" {
 			for k, v := range expandedRootConfig {
-				if _, found := rootDev[k]; !found {
+				_, found := rootDev[k]
+				if !found {
 					rootDev[k] = v
 				}
 			}
