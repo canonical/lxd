@@ -4003,31 +4003,35 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 	if defaultTargetAddress != nil {
 		vips = append(vips, openvswitch.OVNLoadBalancerVIP{
 			ListenAddress: listenAddress,
-			TargetAddress: defaultTargetAddress,
+			Targets:       []openvswitch.OVNLoadBalancerTarget{{Address: defaultTargetAddress}},
 		})
 	}
 
 	for _, portMap := range portMaps {
-		targetPortsLen := len(portMap.targetPorts)
+		targetPortsLen := len(portMap.target.ports)
 
 		for i, lp := range portMap.listenPorts {
 			targetPort := lp // Default to using same port as listen port for target port.
 
 			if targetPortsLen == 1 {
 				// If a single target port is specified, forward all listen ports to it.
-				targetPort = portMap.targetPorts[0]
+				targetPort = portMap.target.ports[0]
 			} else if targetPortsLen > 1 {
 				// If more than 1 target port specified, use listen port index to get the
 				// target port to use.
-				targetPort = portMap.targetPorts[i]
+				targetPort = portMap.target.ports[i]
 			}
 
 			vips = append(vips, openvswitch.OVNLoadBalancerVIP{
 				ListenAddress: listenAddress,
 				Protocol:      portMap.protocol,
-				TargetAddress: portMap.targetAddress,
 				ListenPort:    lp,
-				TargetPort:    targetPort,
+				Targets: []openvswitch.OVNLoadBalancerTarget{
+					{
+						Address: portMap.target.address,
+						Port:    targetPort,
+					},
+				},
 			})
 		}
 	}
