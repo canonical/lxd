@@ -323,6 +323,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = d.rbdUnmapVolume(v, true) }()
 
 		if vol.contentType == ContentTypeFS {
@@ -601,6 +602,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = d.rbdUnmapVolume(vol, true) }()
 
 	// Re-generate the UUID.
@@ -1101,6 +1103,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 	if err != nil {
 		return err
 	}
+
 	if activated {
 		revert.Add(func() { _ = d.rbdUnmapVolume(vol, true) })
 	}
@@ -1169,6 +1172,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 		if err != nil {
 			return false, err
 		}
+
 		d.logger.Debug("Unmounted RBD volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 		// Attempt to unmap.
@@ -1291,6 +1295,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		if err != nil {
 			return err
 		}
+
 		defer func() { _, _ = d.UnmountVolume(parentVol, false, op) }()
 
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
@@ -1317,6 +1322,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		if err != nil {
 			return err
 		}
+
 		defer func() { _, _ = d.UnmountVolumeSnapshot(cloneVol, op) }()
 
 		// Setup progress tracking.
@@ -1374,6 +1380,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = d.rbdDeleteVolumeSnapshot(vol, runningSnapName) }()
 
 	cur := d.getRBDVolumeName(vol, runningSnapName, false, true)
@@ -1573,6 +1580,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		if err != nil {
 			return err
 		}
+
 		d.logger.Debug("Mounted RBD volume snapshot", logger.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
 	} else if snapVol.contentType == ContentTypeBlock {
 		// Activate RBD volume if needed.
@@ -1616,6 +1624,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 		if err != nil {
 			return false, err
 		}
+
 		d.logger.Debug("Unmounted RBD volume snapshot", logger.Ctx{"path": mountPath})
 
 		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
@@ -1727,6 +1736,7 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = d.rbdUnmapVolume(snapVol, true) }()
 
 	// Re-generate the UUID.
@@ -1734,6 +1744,7 @@ func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Ope
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

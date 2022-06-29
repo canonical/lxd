@@ -52,6 +52,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	} else {
 		url, err = r.setQueryAttributes("/events")
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +96,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 
 				return
 			}
+
 			r.eventListenersLock.Unlock()
 			r.eventConnsLock.Unlock()
 		}
@@ -147,8 +149,10 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 
 					go target.function(event)
 				}
+
 				listener.targetsLock.Unlock()
 			}
+
 			r.eventListenersLock.Unlock()
 		}
 	}()

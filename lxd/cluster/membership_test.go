@@ -205,6 +205,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			fmt.Sprintf("The joining server version doesn't (expected %s with API count %d)", version.Version, len(version.APIExtensions)-1),
 		},
 	}
+
 	for _, c := range cases {
 		t.Run(c.error, func(t *testing.T) {
 			state, cleanup := state.NewTestState(t)
@@ -441,6 +442,7 @@ func (h *membershipFixtures) CoreAddress(address string) {
 		config := map[string]string{
 			"core.https_address": address,
 		}
+
 		return tx.UpdateConfig(config)
 	})
 	require.NoError(h.t, err)
@@ -452,6 +454,7 @@ func (h *membershipFixtures) ClusterAddress(address string) {
 		config := map[string]string{
 			"cluster.https_address": address,
 		}
+
 		return tx.UpdateConfig(config)
 	})
 	require.NoError(h.t, err)

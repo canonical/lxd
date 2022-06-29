@@ -48,6 +48,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 		Schema: map[string][]string{},
 		Data:   map[string][][]any{},
 	}
+
 	for _, table := range preClusteringTables {
 		logger.Debugf("Loading data from table %s", table)
 		data := [][]any{}
@@ -63,6 +64,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			_ = rows.Close()
 			return nil, fmt.Errorf("failed to get columns of %s: %w", table, err)
 		}
+
 		dump.Schema[table] = columns
 
 		for rows.Next() {
@@ -71,18 +73,22 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			for i := range values {
 				row[i] = &values[i]
 			}
+
 			err := rows.Scan(row...)
 			if err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("failed to scan row from %s: %w", table, err)
 			}
+
 			data = append(data, values)
 		}
+
 		err = rows.Err()
 		if err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("error while fetching rows from %s: %w", table, err)
 		}
+
 		_ = rows.Close()
 
 		dump.Data[table] = data
@@ -167,6 +173,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 					if !ok {
 						continue
 					}
+
 					if column == "key" && shared.StringInSlice(value, keys) {
 						skip = true
 					}
@@ -174,6 +181,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 				if skip {
 					continue
 				}
+
 			case "containers":
 				appendNodeID()
 			case "networks_config":
@@ -193,6 +201,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 					nullNodeID = true
 					break
 				}
+
 				appendNodeID()
 			case "storage_pools_config":
 				// The keys listed in NodeSpecificStorageConfig
@@ -211,6 +220,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 					nullNodeID = true
 					break
 				}
+
 				appendNodeID()
 			case "networks":
 				fallthrough
@@ -233,10 +243,12 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 			if err != nil {
 				return fmt.Errorf("failed to insert row %d into %s: %w", i, table, err)
 			}
+
 			n, err := result.RowsAffected()
 			if err != nil {
 				return fmt.Errorf("no result count for row %d of %s: %w", i, table, err)
 			}
+
 			if n != 1 {
 				return fmt.Errorf("could not insert %d int %s", i, table)
 			}
@@ -270,10 +282,12 @@ func importNodeAssociation(entity string, columns []string, row []any, tx *sql.T
 	if id == 0 {
 		return fmt.Errorf("entity %s has invalid ID", entity)
 	}
+
 	_, err := tx.Exec(stmt, id)
 	if err != nil {
 		return fmt.Errorf("failed to associate %s to node: %w", entity, err)
 	}
+
 	return nil
 }
 

@@ -111,6 +111,7 @@ func Example_ipRangesOverlap() {
 	singleIPRange := &shared.IPRange{
 		Start: net.ParseIP("10.1.1.4"),
 	}
+
 	otherRange, _ := parseIPRange("10.1.1.1-10.1.1.6")
 
 	fmt.Printf("Range1: %v, Range2: %v, overlapped: %t\n", singleIPRange, otherRange, IPRangesOverlap(singleIPRange, otherRange))

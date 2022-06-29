@@ -23,7 +23,8 @@ func SmartError(err error) Response {
 		return EmptySyncResponse
 	}
 
-	if statusCode, found := api.StatusErrorMatch(err); found {
+	statusCode, found := api.StatusErrorMatch(err)
+	if found {
 		return &errorResponse{statusCode, err.Error()}
 	}
 

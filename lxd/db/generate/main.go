@@ -1,10 +1,13 @@
 package main
 
-import "os"
+import (
+	"os"
+)
 
 func main() {
 	root := newRoot()
-	if err := root.Execute(); err != nil {
+	err := root.Execute()
+	if err != nil {
 		os.Exit(1)
 	}
 }

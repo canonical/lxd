@@ -100,6 +100,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	} else {
 		listener, err = d.GetEvents()
 	}
+
 	if err != nil {
 		return err
 	}
@@ -143,6 +144,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 			logger := &logrus.Logger{
 				Out: os.Stdout,
 			}
+
 			entry := &logrus.Entry{Logger: logger}
 			entry.Data = c.unpackCtx(record.Ctx)
 			entry.Message = record.Msg

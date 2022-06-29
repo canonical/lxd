@@ -1,6 +1,8 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // ContainerBackupsPost represents the fields available for a new LXD container backup
 // API extension: container_backup.

@@ -40,15 +40,18 @@ func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 		nodes = append(nodes, RaftNode{})
 		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role, &nodes[i].Name}
 	}
+
 	stmt, err := n.tx.Prepare("SELECT id, address, role, name FROM raft_nodes ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch raft nodes: %w", err)
 	}
+
 	return nodes, nil
 }
 
@@ -67,6 +70,7 @@ func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	switch len(addresses) {
 	case 0:
 		return "", api.StatusErrorf(http.StatusNotFound, "Raft member not found")
@@ -91,9 +95,11 @@ func (n *NodeTx) CreateFirstRaftNode(address string, name string) error {
 	if err != nil {
 		return err
 	}
+
 	if id != 1 {
 		return fmt.Errorf("could not set raft node ID to 1")
 	}
+
 	return nil
 }
 
@@ -112,9 +118,11 @@ func (n *NodeTx) RemoveRaftNode(id int64) error {
 	if err != nil {
 		return err
 	}
+
 	if !deleted {
 		return api.StatusErrorf(http.StatusNotFound, "Raft member not found")
 	}
+
 	return nil
 }
 

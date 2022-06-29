@@ -18,9 +18,11 @@ func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 		if err != nil {
 			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -114,9 +116,11 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 		if err != nil {
 			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
+
 		if !enabled {
 			project = "default"
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -202,6 +206,7 @@ func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile)
 	for i, profile := range profiles {
 		profileDevices[i] = deviceConfig.NewDevices(profile.Devices)
 	}
+
 	for i := range profileDevices {
 		for k, v := range profileDevices[i] {
 			expandedDevices[k] = v

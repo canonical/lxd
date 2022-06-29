@@ -11,5 +11,6 @@ func gpuValidMigUUID(value string) error {
 	if value == "" {
 		return nil
 	}
+
 	return validate.IsUUID(strings.TrimPrefix(value, "MIG-"))
 }

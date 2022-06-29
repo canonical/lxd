@@ -88,6 +88,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 	if initial {
 		fmt.Print(prefix)
 	}
+
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", gpu.NUMANode)
 
 	if gpu.Vendor != "" {
@@ -101,6 +102,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 	if gpu.PCIAddress != "" {
 		fmt.Printf(prefix+i18n.G("PCI address: %v")+"\n", gpu.PCIAddress)
 	}
+
 	if gpu.Driver != "" {
 		fmt.Printf(prefix+i18n.G("Driver: %v (%v)")+"\n", gpu.Driver, gpu.DriverVersion)
 	}
@@ -152,6 +154,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 		for k := range gpu.Mdev {
 			keys = append(keys, k)
 		}
+
 		sort.Strings(keys)
 
 		for _, k := range keys {
@@ -171,6 +174,7 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 	if initial {
 		fmt.Print(prefix)
 	}
+
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", nic.NUMANode)
 
 	if nic.Vendor != "" {
@@ -184,6 +188,7 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 	if nic.PCIAddress != "" {
 		fmt.Printf(prefix+i18n.G("PCI address: %v")+"\n", nic.PCIAddress)
 	}
+
 	if nic.Driver != "" {
 		fmt.Printf(prefix+i18n.G("Driver: %v (%v)")+"\n", nic.Driver, nic.DriverVersion)
 	}
@@ -256,6 +261,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 	if initial {
 		fmt.Print(prefix)
 	}
+
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", disk.NUMANode)
 
 	fmt.Printf(prefix+i18n.G("ID: %s")+"\n", disk.ID)
@@ -376,6 +382,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 					fmt.Printf("        "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(node.HugepagesUsed), 2))
 					fmt.Printf("        "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(node.HugepagesTotal), 2))
 				}
+
 				fmt.Printf("      "+i18n.G("Free: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Total-node.Used), 2))
 				fmt.Printf("      "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Used), 2))
 				fmt.Printf("      "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Total), 2))
@@ -550,12 +557,15 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 				if net.HostName != "" {
 					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Host interface"), net.HostName)
 				}
+
 				if net.Hwaddr != "" {
 					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("MAC address"), net.Hwaddr)
 				}
+
 				if net.Mtu != 0 {
 					networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("MTU"), net.Mtu)
 				}
+
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2))
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2))
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)

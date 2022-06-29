@@ -38,6 +38,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 		if err != nil {
 			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
 		}
+
 		setDqliteVersionHeader(request)
 
 		httpClient, err := client.GetHTTPClient()
@@ -67,6 +68,7 @@ func MaybeUpdate(state *state.State) error {
 	if err != nil {
 		return fmt.Errorf("Failed to check clustering is enabled: %w", err)
 	}
+
 	if !enabled {
 		return nil
 	}
@@ -80,6 +82,7 @@ func MaybeUpdate(state *state.State) error {
 		if err != nil {
 			return err
 		}
+
 		shouldUpdate = outdated
 		return nil
 	})
@@ -119,6 +122,7 @@ func triggerUpdate() error {
 		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
 		return err
 	}
+
 	logger.Info("Triggering cluster auto-update succeeded")
 
 	return nil
@@ -131,6 +135,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	if err == ErrNotLeader {
 		return nil
 	}
+
 	if err != nil {
 		return fmt.Errorf("Failed to get current raft members: %w", err)
 	}
@@ -145,6 +150,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect to local dqlite member: %w", err)
 	}
+
 	defer func() { _ = dqliteClient.Close() }()
 
 	// Check that each member is present in the raft configuration, and add it if not.
@@ -162,9 +168,11 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 
 		// Try to use the same ID as the node, but it might not be possible if it's use.
 		id := uint64(member.ID)
-		if _, ok := raftNodeIDs[id]; ok {
+		_, ok := raftNodeIDs[id]
+		if ok {
 			for _, other := range members {
-				if _, ok := raftNodeIDs[uint64(other.ID)]; !ok {
+				_, ok := raftNodeIDs[uint64(other.ID)]
+				if !ok {
 					id = uint64(other.ID) // Found unused raft ID for member.
 					break
 				}

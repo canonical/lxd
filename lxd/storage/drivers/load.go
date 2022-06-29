@@ -32,6 +32,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 		if !ok {
 			return nil, ErrUnknownDriver
 		}
+
 		driverFunc = df
 	}
 

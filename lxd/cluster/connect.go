@@ -94,6 +94,7 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName
 	if err != nil {
 		return nil, err
 	}
+
 	if address == "" {
 		return nil, nil // The instance is running on this local member, no need to connect.
 	}
@@ -304,5 +305,6 @@ func HasConnectivity(networkCert *shared.CertInfo, serverCert *shared.CertInfo, 
 		_ = conn.Close()
 		return true
 	}
+
 	return false
 }

@@ -21,6 +21,7 @@ func (s Schema) Keys() []string {
 		keys[i] = key
 		i++
 	}
+
 	sort.Strings(keys)
 	return keys
 }
@@ -32,6 +33,7 @@ func (s Schema) Defaults() map[string]any {
 	for name, key := range s {
 		values[name] = key.Default
 	}
+
 	return values
 }
 
@@ -41,6 +43,7 @@ func (s Schema) mustGetKey(name string) Key {
 	if !ok {
 		panic(fmt.Sprintf("attempt to access unknown key '%s'", name))
 	}
+
 	return key
 }
 
@@ -102,11 +105,13 @@ func (v *Key) validate(value string) error {
 		if !shared.StringInSlice(strings.ToLower(value), booleans) {
 			return fmt.Errorf("invalid boolean")
 		}
+
 	case Int64:
 		_, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid integer")
 		}
+
 	default:
 		panic(fmt.Sprintf("unexpected value type: %d", v.Type))
 	}

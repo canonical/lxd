@@ -1174,6 +1174,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		if err != nil {
 			return "", nil, nil, err
 		}
+
 		dnsUUID = strings.TrimSpace(dnsUUID)
 	}
 
@@ -1703,21 +1704,25 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 	// If there are some VIP rules then associate the load balancer to the requested routers and switches.
 	if len(vips) > 0 {
 		for _, r := range routers {
-			if _, found := lbNames[lbTCPName]; found {
+			_, found := lbNames[lbTCPName]
+			if found {
 				args = append(args, "--", "lr-lb-add", string(r), lbTCPName)
 			}
 
-			if _, found := lbNames[lbUDPName]; found {
+			_, found = lbNames[lbUDPName]
+			if found {
 				args = append(args, "--", "lr-lb-add", string(r), lbUDPName)
 			}
 		}
 
 		for _, s := range switches {
-			if _, found := lbNames[lbTCPName]; found {
+			_, found := lbNames[lbTCPName]
+			if found {
 				args = append(args, "--", "ls-lb-add", string(s), lbTCPName)
 			}
 
-			if _, found := lbNames[lbUDPName]; found {
+			_, found = lbNames[lbUDPName]
+			if found {
 				args = append(args, "--", "ls-lb-add", string(s), lbUDPName)
 			}
 		}
@@ -1933,7 +1938,8 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 		var route OVNRouterRoute
 
 		// ovn-nbctl doesn't output single-host route prefixes in CIDR format, so do the conversion here.
-		if ip := net.ParseIP(fields[0]); ip != nil {
+		ip := net.ParseIP(fields[0])
+		if ip != nil {
 			subnetSize := 32
 			if ip.To4() == nil {
 				subnetSize = 128
@@ -1994,6 +2000,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 
 		args = append(args, ipNet.String())
 	}
+
 	args = append(args, fmt.Sprintf("peer=%s", opts.TargetRouterPort))
 
 	// Setup target router port peered with local router port.
@@ -2010,6 +2017,7 @@ func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
 
 		args = append(args, ipNet.String())
 	}
+
 	args = append(args, fmt.Sprintf("peer=%s", opts.LocalRouterPort))
 
 	// Add routes using the first router gateway IP for each family for next hop address.

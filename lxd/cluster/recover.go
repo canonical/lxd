@@ -25,13 +25,16 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list database nodes: %w", err)
 	}
+
 	addresses := make([]string, 0)
 	for _, node := range nodes {
 		if node.Role != db.RaftVoter {
 			continue
 		}
+
 		addresses = append(addresses, node.Address)
 	}
+
 	return addresses, nil
 }
 
@@ -188,6 +191,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = file.Close() }()
 
 		_, err = file.Write([]byte(content))
@@ -210,6 +214,7 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get current raft nodes: %w", err)
 	}
+
 	var id uint64
 	for _, node := range nodes {
 		if node.Address == address {
@@ -231,10 +236,12 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
+
 	defer func() { _ = client.Close() }()
 	err = client.Remove(ctx, id)
 	if err != nil {
 		return fmt.Errorf("Failed to remove node: %w", err)
 	}
+
 	return nil
 }

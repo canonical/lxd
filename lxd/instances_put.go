@@ -86,7 +86,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	req := api.InstancesPut{}
 	req.State = &api.InstanceStatePut{}
 	req.State.Timeout = -1
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -104,18 +105,22 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Restart:
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Start:
 			if inst.IsRunning() {
 				continue
 			}
+
 		case shared.Stop:
 			if !inst.IsRunning() {
 				continue
 			}
+
 		case shared.Unfreeze:
 			if inst.IsRunning() {
 				continue
@@ -215,6 +220,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 						failures[node.Name] = err
 						failuresLock.Unlock()
 					}
+
 					return
 				}
 
@@ -226,6 +232,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 					failuresLock.Unlock()
 					return
 				}
+
 				client = client.UseProject(projectName)
 
 				// Perform the action.

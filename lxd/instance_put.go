@@ -79,6 +79,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -96,7 +97,8 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	configRaw := api.InstancePut{}
-	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
+	err = json.NewDecoder(r.Body).Decode(&configRaw)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 

@@ -989,6 +989,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 			Mask: uplinkIPv4Net.Mask,
 			IP:   routerExtPortIPv4,
 		}
+
 		v.routerExtPortIPv4Net = routerExtPortIPv4Net.String()
 	}
 
@@ -997,6 +998,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 			Mask: uplinkIPv6Net.Mask,
 			IP:   routerExtPortIPv6,
 		}
+
 		v.routerExtPortIPv6Net = routerExtPortIPv6Net.String()
 	}
 
@@ -1154,6 +1156,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 			},
 			PeerName: vars.ovsEnd,
 		}
+
 		err := veth.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create the uplink veth interfaces %q and %q: %w", vars.uplinkEnd, vars.ovsEnd, err)
@@ -2245,6 +2248,7 @@ func (n *ovn) setup(update bool) error {
 		if err != nil {
 			return fmt.Errorf("Failed ensuring security ACLs are configured in OVN for network: %w", err)
 		}
+
 		revert.Add(cleanup)
 	}
 
@@ -2404,6 +2408,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	if err != nil {
 		return fmt.Errorf("Failed adding OVS chassis %q with priority %d to chassis group %q: %w", chassisID, priority, chassisGroupName, err)
 	}
+
 	n.logger.Debug("Chassis group entry added", logger.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
 
 	return nil
@@ -2884,7 +2889,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					// If there are ACLs being applied, then decide if the default rule config
 					// has changed materially for the NIC and update it if needed.
 					for _, k := range changedDefaultRuleKeys {
-						if _, found := nicConfig[k]; found {
+						_, found := nicConfig[k]
+						if found {
 							continue // Skip if changed key is overridden in NIC.
 						}
 
@@ -3161,6 +3167,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		if ip == nil {
 			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
 		}
+
 		ips = append(ips, ip)
 	}
 
@@ -3279,6 +3286,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 		break
 	}
+
 	if err != nil {
 		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
@@ -3490,6 +3498,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			if err != nil {
 				return "", fmt.Errorf("Failed ensuring security ACLs are configured in OVN for instance: %w", err)
 			}
+
 			revert.Add(cleanup)
 
 			for _, aclName := range nicACLNames {
@@ -4206,6 +4215,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		if err != nil {
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
+
 		revert.Add(func() {
 			// Apply old settings to OVN on failure.
 			vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
@@ -4426,7 +4436,8 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 		// Get routes on instance NICs connected to local network to be added as routes to target network.
 		err = usedByInstanceDevices(n.state, n.Project(), n.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-			if _, found := activeLocalNICPorts[instancePortName]; !found {
+			_, found := activeLocalNICPorts[instancePortName]
+			if !found {
 				return nil // Don't add config for instance NICs that aren't started.
 			}
 
@@ -4569,7 +4580,8 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	// Get routes on instance NICs connected to target network to be added as routes to local network.
 	err = usedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		instancePortName := targetOVNNet.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-		if _, found := activeTargetNICPorts[instancePortName]; !found {
+		_, found := activeTargetNICPorts[instancePortName]
+		if !found {
 			return nil // Don't add config for instance NICs that aren't started.
 		}
 

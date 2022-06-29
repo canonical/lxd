@@ -22,11 +22,13 @@ func InMemoryNetwork() (net.Listener, func() net.Conn) {
 		conns:  make(chan net.Conn, 16),
 		closed: make(chan struct{}),
 	}
+
 	dialer := func() net.Conn {
 		server, client := net.Pipe()
 		listener.conns <- server
 		return client
 	}
+
 	return listener, dialer
 }
 
@@ -238,6 +240,7 @@ func IsAddressCovered(address1, address2 string) bool {
 		if ip1 != nil && ip1.To4() != nil {
 			return true
 		}
+
 		return false
 	}
 

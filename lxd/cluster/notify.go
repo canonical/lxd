@@ -55,6 +55,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		if err != nil {
 			return err
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -82,6 +83,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 				}
 			}
 		}
+
 		peers = append(peers, node.Address)
 	}
 
@@ -98,12 +100,14 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 					errs[i] = fmt.Errorf("failed to connect to peer %s: %w", address, err)
 					return
 				}
+
 				err = hook(client)
 				if err != nil {
 					errs[i] = fmt.Errorf("failed to notify peer %s: %w", address, err)
 				}
 			}(i, address)
 		}
+
 		wg.Wait()
 		// TODO: aggregate all errors?
 		for i, err := range errs {

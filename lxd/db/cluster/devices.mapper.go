@@ -69,7 +69,8 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	}
 
 	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
+		_, ok := config[objects[i].ID]
+		if !ok {
 			objects[i].Config = map[string]string{}
 		} else {
 			objects[i].Config = config[objects[i].ID]
@@ -78,9 +79,11 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 
 	resultMap := map[int][]Device{}
 	for _, object := range objects {
-		if _, ok := resultMap[object.ReferenceID]; !ok {
+		_, ok := resultMap[object.ReferenceID]
+		if !ok {
 			resultMap[object.ReferenceID] = []Device{}
 		}
+
 		resultMap[object.ReferenceID] = append(resultMap[object.ReferenceID], object)
 	}
 

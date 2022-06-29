@@ -35,5 +35,6 @@ func (b *Buffer) code() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Can't format generated source code: %w", err)
 	}
+
 	return code, nil
 }

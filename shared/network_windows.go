@@ -19,6 +19,7 @@ func systemCertPool() (*x509.CertPool, error) {
 	if systemRoots == nil {
 		return nil, fmt.Errorf("Bad system root pool")
 	}
+
 	return systemRoots, nil
 }
 
@@ -30,6 +31,7 @@ func initSystemRoots() {
 		systemRoots = nil
 		return
 	}
+
 	defer windows.CertCloseStore(store, 0)
 
 	roots := x509.NewCertPool()
@@ -37,14 +39,17 @@ func initSystemRoots() {
 	for {
 		cert, err = windows.CertEnumCertificatesInStore(store, cert)
 		if err != nil {
-			if errno, ok := err.(windows.Errno); ok {
+			errno, ok := err.(windows.Errno)
+			if ok {
 				if errno == CRYPT_E_NOT_FOUND {
 					break
 				}
 			}
+
 			systemRoots = nil
 			return
 		}
+
 		if cert == nil {
 			break
 		}
@@ -52,7 +57,8 @@ func initSystemRoots() {
 		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
 		buf2 := make([]byte, cert.Length)
 		copy(buf2, buf)
-		if c, err := x509.ParseCertificate(buf2); err == nil {
+		c, err := x509.ParseCertificate(buf2)
+		if err == nil {
 			roots.AddCert(c)
 		}
 	}

@@ -17,9 +17,11 @@ func (t *Tuntap) Add() error {
 	if t.MultiQueue {
 		cmd = append(cmd, "multi_queue")
 	}
+
 	_, err := shared.RunCommand("ip", cmd...)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

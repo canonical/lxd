@@ -12,6 +12,7 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 		zombie       bool
 		withPoolName bool
 	}
+
 	tests := []struct {
 		name string
 		args args
@@ -98,6 +99,7 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 			"testosdpool/container_testvol@testsnap1",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &ceph{
@@ -107,7 +109,9 @@ func Test_ceph_getRBDVolumeName(t *testing.T) {
 					},
 				},
 			}
-			if got := d.getRBDVolumeName(tt.args.vol, tt.args.snapName, tt.args.zombie, tt.args.withPoolName); got != tt.want {
+
+			got := d.getRBDVolumeName(tt.args.vol, tt.args.snapName, tt.args.zombie, tt.args.withPoolName)
+			if got != tt.want {
 				t.Errorf("ceph.getRBDVolumeName() = %v, want %v", got, tt.want)
 			}
 		})

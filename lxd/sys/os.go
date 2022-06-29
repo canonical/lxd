@@ -112,6 +112,7 @@ func DefaultOS() *OS {
 		CacheDir: shared.CachePath(),
 		LogDir:   shared.LogPath(),
 	}
+
 	newOS.InotifyWatch.Fd = -1
 	newOS.InotifyWatch.Targets = make(map[string]*InotifyTargetInfo)
 	newOS.ReleaseInfo = make(map[string]string)
@@ -204,6 +205,7 @@ func (s *OS) Init() ([]db.Warning, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.Uname = uname
 
 	kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])

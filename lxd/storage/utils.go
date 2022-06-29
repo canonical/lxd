@@ -264,6 +264,7 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	} else {
 		_, err = p.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
 	}
+
 	if err != nil {
 		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
 	}
@@ -466,6 +467,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		imgVolConfig := map[string]string{
 			"volatile.rootfs.size": fmt.Sprintf("%d", imgInfo.VirtualSize),
 		}
+
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
 
 		l.Debug("Checking image unpack size")
@@ -547,6 +549,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		if err != nil {
 			return -1, err
 		}
+
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Unpack the whole image.
@@ -902,6 +905,7 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 	if err != nil {
 		return -1, err
 	}
+
 	defer func() { _ = InstanceUnmount(pool, inst, op) }()
 
 	if mountInfo.DiskPath == "" {

@@ -68,6 +68,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 		if logErr == nil {
 			_, _ = logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s\n", args[0], err))
 		}
+
 		return err
 	}
 
@@ -76,6 +77,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 		if logErr == nil {
 			_, _ = logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s\n", args[0], err))
 		}
+
 		return err
 	}
 
@@ -87,6 +89,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 		if err != nil && logErr == nil {
 			_, _ = logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err))
 		}
+
 		_ = conn.Close()
 		wg.Done()
 	}()

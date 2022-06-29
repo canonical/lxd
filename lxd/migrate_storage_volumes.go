@@ -22,6 +22,7 @@ func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 		migrationFields: migrationFields{},
 		allConnected:    make(chan struct{}),
 	}
+
 	ret.volumeOnly = volumeOnly
 
 	var err error
@@ -218,6 +219,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			return fmt.Errorf("Timed out waiting for connections")
 		case <-c.allConnected:
 		}
+
 		logger.Info("Migration channels connected")
 	}
 
@@ -234,6 +236,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			logger.Errorf("Failed to connect migration sink control socket")
 			return err
 		}
+
 		defer c.src.disconnect()
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)

@@ -140,10 +140,12 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = cmd.Wait() }()
 
 	// This only extracts certain generic parts of the ruleset, see man libnftables-json for more info.
@@ -158,13 +160,16 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 
 	items := []nftGenericItem{}
 	for _, item := range v.Nftables {
-		if rule, found := item["rule"]; found {
+		rule, foundRule := item["rule"]
+		chain, foundChain := item["chain"]
+		table, foundTable := item["table"]
+		if foundRule {
 			rule.ItemType = "rule"
 			items = append(items, rule)
-		} else if chain, found := item["chain"]; found {
+		} else if foundChain {
 			chain.ItemType = "chain"
 			items = append(items, chain)
-		} else if table, found := item["table"]; found {
+		} else if foundTable {
 			table.ItemType = "table"
 			items = append(items, table)
 		}
@@ -700,6 +705,7 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 		"family":         "inet",
 		"rules":          nftRules,
 	}
+
 	config := &strings.Builder{}
 	err := nftablesNetACLRules.Execute(config, tplFields)
 	if err != nil {

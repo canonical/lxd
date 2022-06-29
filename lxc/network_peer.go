@@ -133,6 +133,7 @@ func (c *cmdNetworkPeerList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, details)
 	}
+
 	sort.Sort(utils.ByName(data))
 
 	header := []string{

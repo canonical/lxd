@@ -151,6 +151,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				if err != nil {
 					return nil, err
 				}
+
 				defer func() { _ = deltaFile.Close() }()
 
 				defer func() { _ = os.Remove(deltaFile.Name()) }()
@@ -166,6 +167,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				if err != nil {
 					return nil, err
 				}
+
 				defer func() { _ = patchedFile.Close() }()
 
 				defer func() { _ = os.Remove(patchedFile.Name()) }()

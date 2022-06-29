@@ -378,6 +378,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed marking storage pool %q local status as created: %w", pool.Name(), err))
 				}
+
 				logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": pool.Name()})
 
 				newPool, err := storagePools.LoadByName(d.State(), pool.Name())
@@ -426,6 +427,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed creating instance %q record in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
+
 				revert.Add(cleanup)
 
 				// Recover instance volume snapshots.
@@ -443,6 +445,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed creating instance %q snapshot %q record in project %q: %w", poolVol.Container.Name, poolInstSnap.Name, projectName, err))
 					}
+
 					revert.Add(cleanup)
 				}
 
@@ -500,6 +503,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	defer instOp.Done(err)
 
 	return inst, cleanup, err
@@ -550,6 +554,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 	}
+
 	defer snapInstOp.Done(err)
 
 	return cleanup, err

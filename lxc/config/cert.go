@@ -39,6 +39,7 @@ func (c *Config) CopyGlobalCert(src string, dst string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = sourceFile.Close() }()
 
 	// Create new file
@@ -46,6 +47,7 @@ func (c *Config) CopyGlobalCert(src string, dst string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = newFile.Close() }()
 
 	_, err = io.Copy(newFile, sourceFile)

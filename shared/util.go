@@ -48,6 +48,7 @@ func URLEncode(path string, query map[string]string) (string, error) {
 	for key, value := range query {
 		params.Add(key, value)
 	}
+
 	u.RawQuery = params.Encode()
 	return u.String(), nil
 }
@@ -68,6 +69,7 @@ func PathExists(name string) bool {
 	if err != nil && os.IsNotExist(err) {
 		return false
 	}
+
 	return true
 }
 
@@ -77,6 +79,7 @@ func PathIsEmpty(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	// read in ONLY one file
@@ -86,6 +89,7 @@ func PathIsEmpty(path string) (bool, error) {
 	if err == io.EOF {
 		return true, nil
 	}
+
 	return false, err
 }
 
@@ -95,6 +99,7 @@ func IsDir(name string) bool {
 	if err != nil {
 		return false
 	}
+
 	return stat.IsDir()
 }
 
@@ -105,6 +110,7 @@ func IsUnixSocket(path string) bool {
 	if err != nil {
 		return false
 	}
+
 	return (stat.Mode() & os.ModeSocket) == os.ModeSocket
 }
 
@@ -149,6 +155,7 @@ func HostPathFollow(path string) string {
 		if err != nil {
 			return path
 		}
+
 		target = strings.TrimSpace(target)
 
 		if path == HostPath(target) {
@@ -225,6 +232,7 @@ func CachePath(path ...string) string {
 	if varDir != "" {
 		logDir = filepath.Join(varDir, "cache")
 	}
+
 	items := []string{logDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
@@ -238,6 +246,7 @@ func LogPath(path ...string) string {
 	if varDir != "" {
 		logDir = filepath.Join(varDir, "logs")
 	}
+
 	items := []string{logDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
@@ -344,6 +353,7 @@ func ReadStdin() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return line, nil
 }
 
@@ -448,6 +458,7 @@ func FileCopy(source string, dest string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = s.Close() }()
 
 	d, err := os.Create(dest)
@@ -557,6 +568,7 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 		if dir.IsDir() {
 			return nil
 		}
+
 		return fmt.Errorf("path exists but isn't a directory")
 	}
 
@@ -594,8 +606,10 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 		if err1 == nil && dir.IsDir() {
 			return nil
 		}
+
 		return err
 	}
+
 	return nil
 }
 
@@ -701,7 +715,8 @@ func IsUserConfig(key string) bool {
 // StringMapHasStringKey returns true if any of the supplied keys are present in the map.
 func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	for _, k := range keys {
-		if _, ok := m[k]; ok {
+		_, ok := m[k]
+		if ok {
 			return true
 		}
 	}
@@ -728,11 +743,13 @@ func DeepCopy(src, dest any) error {
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)
-	if err := enc.Encode(src); err != nil {
+	err := enc.Encode(src)
+	if err != nil {
 		return err
 	}
 
-	if err := dec.Decode(dest); err != nil {
+	err = dec.Decode(dest)
+	if err != nil {
 		return err
 	}
 
@@ -744,6 +761,7 @@ func RunningInUserNS() bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = file.Close() }()
 
 	buf := bufio.NewReader(file)
@@ -758,6 +776,7 @@ func RunningInUserNS() bool {
 	if a == 0 && b == 0 && c == 4294967295 {
 		return false
 	}
+
 	return true
 }
 
@@ -791,6 +810,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		if err != nil {
 			return []byte{}, err
 		}
+
 		revert := revert.New()
 		defer revert.Fail()
 		revert.Add(func() {
@@ -855,6 +875,7 @@ func ParseMetadata(metadata any) (map[string]any, error) {
 			if k.Kind() != reflect.String {
 				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string)")
 			}
+
 			newMetadata[k.String()] = s.MapIndex(k).Interface()
 		}
 	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
@@ -875,6 +896,7 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	for s = strings.Replace(s, dup, sep, -1); strings.Contains(s, dup); s = strings.Replace(s, dup, sep, -1) {
 
 	}
+
 	return s
 }
 
@@ -917,6 +939,7 @@ func RunCommandSplit(env []string, filesInherit []*os.File, name string, arg ...
 			Stderr: stderr.String(),
 			Err:    err,
 		}
+
 		return stdout.String(), stderr.String(), err
 	}
 
@@ -1055,6 +1078,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	} else {
 		req, err = http.NewRequest("GET", url, nil)
 	}
+
 	if err != nil {
 		return -1, err
 	}
@@ -1068,6 +1092,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	if err != nil {
 		return -1, err
 	}
+
 	defer func() { _ = r.Body.Close() }()
 	defer close(doneCh)
 
@@ -1120,6 +1145,7 @@ func ParseNumberFromFile(file string) (int64, error) {
 	if err != nil {
 		return int64(0), err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	buf := make([]byte, 4096)
@@ -1242,6 +1268,7 @@ func JoinUrls(baseUrl, p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	u.Path = path.Join(u.Path, p)
 	return u.String(), nil
 }

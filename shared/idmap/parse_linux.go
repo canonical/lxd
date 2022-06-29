@@ -75,18 +75,21 @@ func ParseRawIdmap(value string) ([]IdmapEntry, error) {
 			if err != nil {
 				return nil, err
 			}
+
 		case "uid":
 			entry.Isuid = true
 			err := ret.AddSafe(entry)
 			if err != nil {
 				return nil, err
 			}
+
 		case "gid":
 			entry.Isgid = true
 			err := ret.AddSafe(entry)
 			if err != nil {
 				return nil, err
 			}
+
 		default:
 			return nil, fmt.Errorf("Invalid ID map type %q", line)
 		}

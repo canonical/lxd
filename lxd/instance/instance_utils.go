@@ -165,12 +165,14 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	if err != nil {
 		return err
 	}
+
 	isDenyDefault := shared.IsTrue(val)
 
 	val, _, err = exclusiveConfigKeys("security.syscalls.deny_compat", "security.syscalls.blacklist_compat", config)
 	if err != nil {
 		return err
 	}
+
 	isDenyCompat := shared.IsTrue(val)
 
 	if rawSeccomp && (isAllow || isDeny || isDenyDefault || isDenyCompat) {
@@ -216,12 +218,15 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 	if err != nil {
 		return err
 	}
+
 	if err = f(value); err != nil {
 		return err
 	}
+
 	if key == "raw.lxc" {
 		return lxcValidConfig(value)
 	}
+
 	if key == "security.syscalls.deny_compat" || key == "security.syscalls.blacklist_compat" {
 		for _, arch := range os.Architectures {
 			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
@@ -232,6 +237,7 @@ func validConfigKey(os *sys.OS, key string, value string, instanceType instancet
 		}
 		return fmt.Errorf("%s isn't supported on this architecture", key)
 	}
+
 	return nil
 }
 
@@ -447,6 +453,7 @@ func LoadAllInternal(s *state.State, dbInstances []cluster.Instance) ([]Instance
 			if !ok {
 				profiles[instance.Project] = map[string][]api.Profile{}
 			}
+
 			_, ok = profilesByProjectAndInstance[instance.Project]
 			if !ok {
 				profilesByProjectAndInstance[instance.Project] = map[string][]cluster.Profile{}
@@ -513,6 +520,7 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 		filter := cluster.InstanceFilter{
 			Project: &project,
 		}
+
 		var err error
 		cts, err = cluster.GetInstances(ctx, tx.Tx(), filter)
 		if err != nil {
@@ -547,6 +555,7 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Load instances in project %s: %w", project, nil)
 		}
+
 		instances = append(instances, projectInstances...)
 	}
 
@@ -640,6 +649,7 @@ func DeviceNextInterfaceHWAddr() (string, error) {
 			if err != nil {
 				return "", err
 			}
+
 			ret.WriteString(fmt.Sprintf("%x", c.Int64()))
 		} else {
 			ret.WriteString(string(c))
@@ -1017,6 +1027,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	revert.Add(func() { op.Done(err) })
 
 	var dbInst cluster.Instance
@@ -1050,6 +1061,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				Description:  args.Description,
 				ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 			}
+
 			id, err := cluster.CreateInstanceSnapshot(ctx, tx.Tx(), snapshot)
 			if err != nil {
 				return fmt.Errorf("Add snapshot info to the database: %w", err)
@@ -1164,6 +1176,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		logger.Error("Failed initialising instance", logger.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
 	}
+
 	revert.Add(cleanup)
 
 	// Wipe any existing log for this instance name.

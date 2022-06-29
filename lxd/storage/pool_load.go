@@ -77,6 +77,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pool.driver = driver
 
 		return &pool, nil
@@ -142,6 +143,7 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		pool.driver = driver
 
 		return &pool, nil
@@ -214,11 +216,8 @@ func IsAvailable(poolName string) bool {
 	unavailablePoolsMu.Lock()
 	defer unavailablePoolsMu.Unlock()
 
-	if _, found := unavailablePools[poolName]; found {
-		return false
-	}
-
-	return true
+	_, found := unavailablePools[poolName]
+	return !found
 }
 
 // Patch applies specified patch to all storage pools.

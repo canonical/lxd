@@ -140,6 +140,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = listener.Close() }()
 
 	// Convert the rootfs FD number.
@@ -173,6 +174,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 				// Daemon has been inactive for 10s, exit.
 				os.Exit(0)
 			}
+
 			mu.RUnlock()
 		}
 	}()
@@ -194,6 +196,7 @@ func (c *cmdForkfile) Run(cmd *cobra.Command, args []string) error {
 				mu.RUnlock()
 				break
 			}
+
 			mu.RUnlock()
 
 			time.Sleep(time.Second)

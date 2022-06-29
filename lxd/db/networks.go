@@ -25,6 +25,7 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
+
 	networks := make(map[string]map[string]string, len(names))
 	for _, name := range names {
 		table := "networks_config JOIN networks ON networks.id=networks_config.network_id"
@@ -34,8 +35,10 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 		if err != nil {
 			return nil, err
 		}
+
 		networks[name] = config
 	}
+
 	return networks, nil
 }
 
@@ -62,6 +65,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, networkPending)
@@ -119,6 +123,7 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = rows.Close() }()
 
 	projectNetworks := make(map[string]map[int64]api.Network)
@@ -147,6 +152,7 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 			}
 		}
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return nil, err
@@ -185,6 +191,7 @@ func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error)
 	if err != nil {
 		return -1, err
 	}
+
 	switch len(ids) {
 	case 0:
 		return -1, api.StatusErrorf(http.StatusNotFound, "Network not found")
@@ -276,6 +283,7 @@ WHERE networks.id = ? AND networks.state = ?
 		if err != nil {
 			return nil, err
 		}
+
 		configs[node.Name] = config
 	}
 
@@ -297,6 +305,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		if i != 0 {
 			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
+
 		return []any{&network.id, &network.state, &network.netType}
 	}
 
@@ -304,6 +313,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, projectName, name)
@@ -352,6 +362,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	if err != nil {
 		return err
 	}
+
 	if count != 0 {
 		return ErrAlreadyDefined
 	}
@@ -388,13 +399,16 @@ func (c *ClusterTx) networkState(project string, name string, state NetworkState
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
+
 	return nil
 }
 
@@ -410,10 +424,12 @@ func (c *ClusterTx) networkNodeState(networkID int64, state NetworkState) error 
 	if err != nil {
 		return err
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
+
 	if n != 1 {
 		return api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
@@ -457,6 +473,7 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	err = query.SelectObjects(stmt, dest, networkID)
@@ -480,6 +497,7 @@ func (c *ClusterTx) GetNetworkURIs(projectID int, project string) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
 	}
+
 	uris := make([]string, len(names))
 	for i := range names {
 		uris[i] = api.NewURL().Path(version.APIVersion, "networks", names[i]).Project(project).String()
@@ -818,6 +836,7 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 	if err != nil {
 		id = -1
 	}
+
 	return id, err
 }
 
@@ -852,12 +871,14 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	for k, v := range config {
 		if v == "" {
 			continue
 		}
+
 		var nodeIDValue any
 		if !shared.StringInSlice(k, NodeSpecificNetworkConfig) {
 			nodeIDValue = nil

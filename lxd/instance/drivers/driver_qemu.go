@@ -444,6 +444,7 @@ func (d *qemu) generateAgentCert() (string, string, string, string, error) {
 	if err != nil {
 		return "", "", "", "", err
 	}
+
 	defer func() { _ = d.unmount() }()
 
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
@@ -701,6 +702,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		op.Done(err)
 		return err
 	}
+
 	d.logger.Debug("Shutdown request sent to instance")
 
 	var timeoutCh <-chan time.Time // If no timeout specified, will be nil, and a nil channel always blocks.
@@ -872,6 +874,7 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 		_ = stateFile.Close()
 		return err
 	}
+
 	defer func() { _ = pipeRead.Close() }()
 	defer func() { _ = pipeWrite.Close() }()
 
@@ -989,6 +992,7 @@ func (d *qemu) Start(stateful bool) error {
 
 		return fmt.Errorf("Failed to create instance start operation: %w", err)
 	}
+
 	defer op.Done(nil)
 
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
@@ -1164,6 +1168,7 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		return fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
 	}
+
 	revert.Add(func() { _ = d.configDriveMountPathClear() })
 
 	// Mount the config drive device as readonly. This way it will be readonly irrespective of whether its
@@ -1363,6 +1368,7 @@ func (d *qemu) Start(stateful bool) error {
 			op.Done(err)
 			return err
 		}
+
 		qemuCmd = append(qemuCmd, fields...)
 	}
 
@@ -1577,6 +1583,7 @@ func (d *qemu) setupNvram() error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = d.unmount() }()
 
 	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
@@ -2413,6 +2420,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Invalid boot.priority for device %q: %w", dev.Name, err)
 			}
+
 			bootPrio = uint32(prio)
 		} else if dev.Config["path"] == "/" {
 			bootPrio = 1 // Set boot priority of root disk higher than any device without a boot prio.
@@ -2472,6 +2480,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
+
 		cfg = append(cfg, qemuDriveFirmware(&driveFirmwareOpts)...)
 	}
 
@@ -2498,6 +2507,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
+
 	cfg = append(cfg, qemuBalloon(&balloonOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2507,6 +2517,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
+
 	cfg = append(cfg, qemuRNG(&rngOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2516,6 +2527,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
+
 	cfg = append(cfg, qemuKeyboard(&keyboardOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2525,6 +2537,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
+
 	cfg = append(cfg, qemuTablet(&tabletOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2537,6 +2550,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		},
 		vsockID: d.vsockID(),
 	}
+
 	cfg = append(cfg, qemuVsock(&vsockOpts)...)
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
@@ -2550,6 +2564,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		charDevName:      qemuSerialChardevName,
 		ringbufSizeBytes: qmp.RingbufSize,
 	}
+
 	cfg = append(cfg, qemuSerial(&serialOpts)...)
 
 	// s390x doesn't really have USB.
@@ -2561,6 +2576,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			multifunction: multi,
 			ports:         qemuSparseUSBPorts,
 		}
+
 		cfg = append(cfg, qemuUSB(&usbOpts)...)
 	}
 
@@ -2571,6 +2587,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		devAddr:       devAddr,
 		multifunction: multi,
 	}
+
 	cfg = append(cfg, qemuSCSI(&scsiOpts)...)
 
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
@@ -2586,6 +2603,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		protocol: "9p",
 		path:     d.configDriveMountPath(),
 	}
+
 	cfg = append(cfg, qemuDriveConfig(&driveConfig9pOpts)...)
 
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
@@ -2604,6 +2622,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			protocol: "virtio-fs",
 			path:     configSockPath,
 		}
+
 		cfg = append(cfg, qemuDriveConfig(&driveConfigVirtioOpts)...)
 	}
 
@@ -2617,6 +2636,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		},
 		architecture: d.architectureName,
 	}
+
 	cfg = append(cfg, qemuGPU(&gpuOpts)...)
 
 	// Dynamic devices.
@@ -2645,6 +2665,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				} else {
 					monHook, err = d.addDriveConfig(bootIndexes, drive)
 				}
+
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed setting up disk device %q: %w", drive.DevName, err)
 				}
@@ -3255,12 +3276,14 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			if err != nil {
 				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 			}
+
 			defer func() { _ = f.Close() }()
 
 			info, err := m.SendFileWithFDSet(nodeName, f, readonly)
 			if err != nil {
 				return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
 			}
+
 			revert.Add(func() {
 				_ = m.RemoveFDFromFDSet(nodeName)
 			})
@@ -3410,6 +3433,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			if err != nil {
 				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
 			}
+
 			revert.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 		}
 	}
@@ -3417,13 +3441,15 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	if qemuDev["driver"] != "" {
 		// Return a monitor hook to add the NIC via QMP before the VM is started.
 		monHook := func(m *qmp.Monitor) error {
-			if fd, found := qemuNetDev["fd"]; found {
+			fd, found := qemuNetDev["fd"]
+			if found {
 				fileName := fd.(string)
 
 				f, err := os.OpenFile(fileName, os.O_RDWR, 0)
 				if err != nil {
 					return fmt.Errorf("Error opening exta file %q: %w", fileName, err)
 				}
+
 				defer func() { _ = f.Close() }() // Close file after device has been added.
 
 				err = m.SendFile(fileName, f)
@@ -3630,12 +3656,14 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 		if err != nil {
 			return fmt.Errorf("Failed to open host device: %w", err)
 		}
+
 		defer func() { _ = f.Close() }()
 
 		info, err := m.SendFileWithFDSet(device["id"], f, false)
 		if err != nil {
 			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
+
 		revert.Add(func() {
 			_ = m.RemoveFDFromFDSet(device["id"])
 		})
@@ -3934,6 +3962,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
+
 	defer op.Done(nil)
 
 	var ctxMap logger.Ctx
@@ -3983,6 +4012,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		if err != nil {
 			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
+
 		defer op.Done(nil)
 	}
 
@@ -4028,6 +4058,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		op.Done(err)
 		return err
 	}
+
 	d.stateful = stateful
 
 	// Restart the instance.
@@ -4216,6 +4247,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if err != nil {
 		return fmt.Errorf("Failed to create instance update operation: %w", err)
 	}
+
 	defer op.Done(nil)
 
 	// Setup the reverter.
@@ -4641,6 +4673,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return fmt.Errorf("Invalid memory size: %w", err)
 	}
+
 	newSizeMB := newSizeBytes / 1024 / 1024
 
 	// Connect to the monitor.
@@ -4653,12 +4686,14 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	if err != nil {
 		return err
 	}
+
 	baseSizeMB := baseSizeBytes / 1024 / 1024
 
 	curSizeBytes, err := monitor.GetMemoryBalloonSizeBytes()
 	if err != nil {
 		return err
 	}
+
 	curSizeMB := curSizeBytes / 1024 / 1024
 
 	if curSizeMB == newSizeMB {
@@ -4680,6 +4715,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 		if err != nil {
 			return err
 		}
+
 		curSizeMB = curSizeBytes / 1024 / 1024
 
 		var diff int64
@@ -4897,7 +4933,8 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
+	err = d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name())
+	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project()})
 		return err
 	}
@@ -4951,6 +4988,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		d.logger.Error("Failed exporting instance", ctxMap)
 		return meta, err
 	}
+
 	defer func() { _ = d.unmount() }()
 
 	// Create the tarball.
@@ -4984,6 +5022,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
+
 		defer func() { _ = os.RemoveAll(tempDir) }()
 
 		// Get the instance's architecture.
@@ -5042,7 +5081,8 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
-		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
+		err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
+		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
@@ -5079,6 +5119,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 				d.logger.Error("Failed exporting instance", ctxMap)
 				return meta, err
 			}
+
 			defer func() { _ = os.RemoveAll(tempDir) }()
 
 			data, err := yaml.Marshal(&meta)
@@ -5113,6 +5154,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		} else {
 			err = tarWriter.WriteFile(fnam[offset:], fnam, fi, false)
 		}
+
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})
@@ -5126,6 +5168,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	if err != nil {
 		return meta, err
 	}
+
 	defer func() { _ = os.RemoveAll(tmpPath) }()
 
 	if mountInfo.DiskPath == "" {
@@ -5323,6 +5366,7 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("Get socket file: %w", err)
 	}
+
 	_ = conn.Close()
 
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
@@ -5345,6 +5389,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
+
 	revert.Add(agent.Disconnect)
 
 	dataDone := make(chan bool)
@@ -5641,6 +5686,7 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to agent: %w", err)
 	}
+
 	defer agent.Disconnect()
 
 	status, _, err := agent.GetInstanceState("")
@@ -5912,6 +5958,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 						if !ok {
 							sockets[cpu.Socket] = []uint64{}
 						}
+
 						if !shared.Uint64InSlice(core.Core, sockets[cpu.Socket]) {
 							sockets[cpu.Socket] = append(sockets[cpu.Socket], core.Core)
 						}
@@ -5921,6 +5968,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 						if !ok {
 							cores[core.Core] = []uint64{}
 						}
+
 						if !shared.Uint64InSlice(thread.Thread, cores[core.Core]) {
 							cores[core.Core] = append(cores[core.Core], thread.Thread)
 						}
@@ -5930,6 +5978,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 						if !ok {
 							numaNodes[thread.NUMANode] = []uint64{}
 						}
+
 						numaNodes[thread.NUMANode] = append(numaNodes[thread.NUMANode], i)
 
 						i++
@@ -6010,6 +6059,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
+
 	defer agent.Disconnect()
 
 	_, _, err = agent.RawQuery("POST", "/1.0/events", &event, "")
@@ -6043,6 +6093,7 @@ func (d *qemu) writeInstanceData() error {
 	if err != nil {
 		return err
 	}
+
 	if clustered {
 		location = d.Location()
 	}
@@ -6138,6 +6189,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	defer func() { _ = os.Remove(pidFile.Name()) }()
 
 	qemuArgs := []string{
@@ -6149,6 +6201,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 		"-pidfile", pidFile.Name(),
 	}
+
 	qemuArgs = append(qemuArgs, args...)
 
 	checkFeature := exec.Cmd{
@@ -6208,6 +6261,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
+
 	defer agent.Disconnect()
 
 	resp, _, err := agent.RawQuery("GET", "/1.0/metrics", nil, "")

@@ -44,8 +44,10 @@ func (c *credentialsChecker) LoadCreds(csvFile string) error {
 		if len(row) != 2 {
 			return fmt.Errorf("invalid length on row %d", i+1)
 		}
+
 		creds[row[0]] = row[1]
 	}
+
 	c.AddCreds(creds)
 	return nil
 }

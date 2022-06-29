@@ -148,6 +148,7 @@ func pciAddress(devicePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "subsystem"), err)
 	}
+
 	subsystem := filepath.Base(subsystemTarget)
 
 	if subsystem == "virtio" {

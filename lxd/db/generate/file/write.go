@@ -67,6 +67,7 @@ func resetInterface(path string, imports []string, buildComment string) error {
 		err := ioutil.WriteFile(interfacePath, []byte(content), 0644)
 		return err
 	}
+
 	return nil
 }
 
@@ -96,6 +97,7 @@ func Append(entity string, path string, snippet Snippet, iface bool) error {
 		if err != nil {
 			return fmt.Errorf("Open target source code file %q: %w", path, err)
 		}
+
 		defer func() { _ = file.Close() }()
 	}
 
@@ -121,6 +123,7 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 	if !strings.HasSuffix(path, ".mapper.go") {
 		return nil
 	}
+
 	parts := strings.Split(path, ".")
 	interfacePath := strings.Join(parts[:len(parts)-2], ".") + ".interface.mapper.go"
 
@@ -139,6 +142,7 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 	if err != nil {
 		return fmt.Errorf("Open target source code file %q: %w", interfacePath, err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	err = snippet.GenerateSignature(buffer)
@@ -175,6 +179,7 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 		// overwrite the closing brace.
 		_, err = file.WriteAt(bytes[startIndex:], stat.Size()-2)
 	}
+
 	if err != nil {
 		return fmt.Errorf("Append snippet to target source code file %q: %w", interfacePath, err)
 	}

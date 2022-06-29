@@ -48,6 +48,7 @@ func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = w.Close() }()
 
 	data, err := proto.Marshal(msg)

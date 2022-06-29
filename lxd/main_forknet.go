@@ -188,6 +188,7 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	addr := &ip.Addr{
 		DevName: ifName,
 	}
+
 	err := addr.Flush()
 	if err != nil {
 		return err

@@ -337,6 +337,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	if target == "" {
 		target = "unknown"
 	}
+
 	netns := queryParam(r, "netns")
 
 	args := map[string]string{
@@ -423,6 +424,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to start transaction: %w", err))
 	}
+
 	defer func() { _ = tx.Rollback() }()
 
 	dump, err := query.Dump(r.Context(), tx, schemaOnly == 1)
@@ -580,6 +582,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		_ = storagePoolsDir.Close()
 		return err
 	}
+
 	_ = storagePoolsDir.Close()
 
 	// Check whether the instance exists on any of the storage pools as either a container or a VM.
@@ -765,6 +768,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
@@ -773,6 +777,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	if backupConf.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
 	}
+
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
 		return err
@@ -858,6 +863,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		if err != nil {
 			return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 		}
+
 		revert.Add(cleanup)
 		defer snapInstOp.Done(err)
 
@@ -948,7 +954,8 @@ func internalImportRootDevicePopulate(instancePoolName string, localDevices map[
 		// Inherit any extra root disk config from the expanded root disk from backup.yaml.
 		if expandedRootName != "" {
 			for k, v := range expandedRootConfig {
-				if _, found := rootDev[k]; !found {
+				_, found := rootDev[k]
+				if !found {
 					rootDev[k] = v
 				}
 			}

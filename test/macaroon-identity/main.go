@@ -15,10 +15,14 @@ func main() {
 	flags := parseFlags()
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	s := newAuthService(flags.Endpoint, logger)
-	if err := s.Checker.LoadCreds(flags.CredsFile); err != nil {
+
+	err := s.Checker.LoadCreds(flags.CredsFile)
+	if err != nil {
 		panic(err)
 	}
-	if err := s.Start(false); err != nil {
+
+	err = s.Start(false)
+	if err != nil {
 		panic(err)
 	}
 }

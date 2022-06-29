@@ -25,6 +25,7 @@ func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDat
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = stmt.Close() }()
 
 	if expiryDate.IsZero() {
@@ -32,6 +33,7 @@ func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDat
 	} else {
 		_, err = stmt.Exec(description, expiryDate, id)
 	}
+
 	if err != nil {
 		return err
 	}

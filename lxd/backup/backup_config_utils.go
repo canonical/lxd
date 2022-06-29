@@ -79,7 +79,8 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 	}
 
 	backupConf := config.Config{}
-	if err := yaml.Unmarshal(data, &backupConf); err != nil {
+	err = yaml.Unmarshal(data, &backupConf)
+	if err != nil {
 		return nil, err
 	}
 
@@ -146,6 +147,7 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) er
 		if err != nil {
 			return err
 		}
+
 		defer func() { _ = file.Close() }()
 
 		data, err := yaml.Marshal(&backup)

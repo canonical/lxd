@@ -330,6 +330,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		if err != nil {
 			return err
 		}
+
 		defer cancelFunc()
 
 		for {
@@ -337,6 +338,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if err == io.EOF {
 				break // End of archive.
 			}
+
 			if err != nil {
 				return err
 			}
@@ -470,6 +472,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if err != nil {
 				return nil, nil, err
 			}
+
 			revert.Add(func() { _, _ = d.UnmountVolume(v, false, op) })
 
 			postHook = func(postVol Volume) error {
@@ -1280,6 +1283,7 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 			old[k] = vol.config[k]
 			vol.config[k] = v
 		}
+
 		if k == "zfs.blocksize" {
 			// Convert to bytes.
 			sizeBytes, err := units.ParseByteSizeString(v)
@@ -1378,6 +1382,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		if err != nil {
 			return err
 		}
+
 		oldVolSizeBytes := int64(oldVolSizeBytesInt)
 
 		if oldVolSizeBytes == sizeBytes {
@@ -1659,6 +1664,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			if err != nil {
 				return err
 			}
+
 			revert.Add(func() { _ = d.setDatasetProperties(dataset, "volmode=none") })
 
 			// Wait half a second to give udev a chance to kick in.
@@ -1852,6 +1858,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
 			vol.mountCustomPath = snapshotPath
 		}
+
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
@@ -2021,6 +2028,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 				if volSrcArgs.Data == nil {
 					volSrcArgs.Data = map[ContentType]string{}
 				}
+
 				volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()] = srcSnapshot // Persist parent state for final sync.
 			}
 		} else {
@@ -2058,6 +2066,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	if err != nil {
 		return "", nil, err
 	}
+
 	revert.Add(func() {
 		_ = os.RemoveAll(tmpDir)
 	})
@@ -2073,6 +2082,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	if err != nil {
 		return "", nil, err
 	}
+
 	revert.Add(func() {
 		_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
 	})
@@ -2086,6 +2096,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	if err != nil {
 		return "", nil, err
 	}
+
 	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
 
 	revert.Add(func() {
@@ -2151,6 +2162,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		if parent != "" {
 			args = append(args, "-i", parent)
 		}
+
 		args = append(args, path)
 
 		// Create temporary file to store output of ZFS send.
@@ -2159,6 +2171,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}
+
 		defer func() { _ = tmpFile.Close() }()
 		defer func() { _ = os.Remove(tmpFile.Name()) }()
 
@@ -2226,6 +2239,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 	if err != nil {
 		return err
 	}
+
 	defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 
 	// Dump the container to a file.
@@ -2376,6 +2390,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if err != nil {
 			return err
 		}
+
 		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, op) })
 
 		parentDataset := d.dataset(parentVol, false)

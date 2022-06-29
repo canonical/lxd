@@ -103,6 +103,7 @@ func patchesGetNames() []string {
 
 		names[i] = patch.name
 	}
+
 	return names
 }
 
@@ -199,6 +200,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	if err != nil {
 		return err
 	}
+
 	logger.Infof("Added local server certificate to global trust store for %q patch", name)
 
 	// Check all other members have done the same.
@@ -236,7 +238,8 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 
 		missingCerts := false
 		for _, n := range nodes {
-			if _, found := trustedServerCerts[n.Name]; !found {
+			_, found := trustedServerCerts[n.Name]
+			if !found {
 				logger.Warnf("Missing trusted server certificate for cluster member %q", n.Name)
 				missingCerts = true
 				break
@@ -295,12 +298,14 @@ func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
 			modified := false
 
 			// Remove the offending keys if found.
-			if _, found := acl.Config["default.action"]; found {
+			_, found := acl.Config["default.action"]
+			if found {
 				delete(acl.Config, "default.action")
 				modified = true
 			}
 
-			if _, found := acl.Config["default.logged"]; found {
+			_, found = acl.Config["default.logged"]
+			if found {
 				delete(acl.Config, "default.logged")
 				modified = true
 			}
@@ -537,7 +542,8 @@ func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 				modified := false
 
 				// Enable ipv4.nat if setting not specified.
-				if _, found := network.Config["ipv4.nat"]; !found {
+				_, found := network.Config["ipv4.nat"]
+				if !found {
 					modified = true
 					network.Config["ipv4.nat"] = "true"
 				}
@@ -580,12 +586,14 @@ func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 				modified := false
 
 				// Ensure existing behaviour of having NAT enabled if IP address was set.
-				if _, found := network.Config["ipv4.routes.external"]; found {
+				_, found := network.Config["ipv4.routes.external"]
+				if found {
 					modified = true
 					delete(network.Config, "ipv4.routes.external")
 				}
 
-				if _, found := network.Config["ipv6.routes.external"]; found {
+				_, found = network.Config["ipv6.routes.external"]
+				if found {
 					modified = true
 					delete(network.Config, "ipv6.routes.external")
 				}
@@ -716,6 +724,7 @@ func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
+
 		for _, node := range nodes {
 			err := tx.UpdateNodeRoles(node.ID, nil)
 			if err != nil {

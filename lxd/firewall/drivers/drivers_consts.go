@@ -1,6 +1,8 @@
 package drivers
 
-import "net"
+import (
+	"net"
+)
 
 // FeatureOpts specify how firewall features are setup.
 type FeatureOpts struct {

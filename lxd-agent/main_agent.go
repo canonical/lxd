@@ -127,6 +127,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to listen on vsock: %w", err)
 	}
+
 	logger.Info("Started vsock listener")
 
 	// Mount shares from host.

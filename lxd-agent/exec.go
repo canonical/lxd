@@ -46,7 +46,8 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if err := json.Unmarshal(buf, &post); err != nil {
+	err = json.Unmarshal(buf, &post)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -111,6 +112,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		ws.conns[execWSStdout] = nil
 		ws.conns[execWSStderr] = nil
 	}
+
 	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
 	ws.interactive = post.Interactive
 
@@ -417,8 +419,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 
 			command := api.ContainerExecControl{}
-
-			if err := json.Unmarshal(buf, &command); err != nil {
+			err = json.Unmarshal(buf, &command)
+			if err != nil {
 				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
 				continue
 			}
@@ -442,10 +444,12 @@ func (s *execWs) Do(op *operations.Operation) error {
 					continue
 				}
 			} else if command.Command == "signal" {
-				if err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal)); err != nil {
+				err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal))
+				if err != nil {
 					l.Debug("Failed forwarding signal", logger.Ctx{"err": err, "signal": command.Signal})
 					continue
 				}
+
 				l.Info("Forwarded signal", logger.Ctx{"signal": command.Signal})
 			}
 		}

@@ -46,6 +46,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	if resp != nil {
 		return resp
 	}
@@ -157,6 +158,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	revert.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
@@ -189,6 +191,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		revert.Add(func() { _ = file.Close() })
 
 		// Setup cleanup logic.
@@ -318,6 +321,7 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	revert.Add(func() { _ = client.Close() })
 
 	// Get the file stats.
@@ -429,6 +433,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	defer func() { _ = client.Close() }()
 
 	// Extract file ownership and mode from headers
@@ -454,6 +459,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		defer func() { _ = file.Close() }()
 
 		// Go to the end of the file.
@@ -584,6 +590,7 @@ func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *
 	if err != nil {
 		return response.InternalError(err)
 	}
+
 	defer func() { _ = client.Close() }()
 
 	// Delete the file.

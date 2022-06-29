@@ -7,6 +7,42 @@ permissions:
   contents: read
 
 jobs:
+  static-analysis:
+    env:
+      CGO_LDFLAGS_ALLOW: "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+    name: Static analysis and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.x
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y acl attr autoconf automake dnsmasq-base git libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables curl gettext jq sqlite3 socat bind9-dnsutils
+          python3 -m pip install flake8
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Make dependencies
+        run: |
+          make deps
+
+      - name: Update gomod
+        run: |
+          make update
+
+      - name: Run static analysis
+        run: |
+          export CGO_CFLAGS="${CGO_CFLAGS} -I$(go env GOPATH)/deps/dqlite/include/ -I$(go env GOPATH)/deps/raft/include/"
+          export CGO_LDFLAGS="${CGO_LDFLAGS} -L$(go env GOPATH)/deps/dqlite/.libs/ -L$(go env GOPATH)/deps/raft/.libs/"
+          export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+          make static-analysis
+          go test -v -tags libsqlite3 ./...
+
   client:
     name: Unit tests (client)
     strategy:
@@ -15,7 +51,6 @@ jobs:
         go:
           - 1.18.x
         os:
-          - ubuntu-latest
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}

@@ -124,6 +124,7 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 
 				break
 			}
+
 			d.mu.Unlock()
 		case err := <-d.watcher.Errors:
 			d.logger.Error("Received event error", logger.Ctx{"err": err})

@@ -129,7 +129,8 @@ func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapsho
 
 	devices := map[string]Device{}
 	for _, ref := range instanceSnapshotDevices[instanceSnapshotID] {
-		if _, ok := devices[ref.Name]; !ok {
+		_, ok := devices[ref.Name]
+		if !ok {
 			devices[ref.Name] = ref
 		} else {
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
@@ -150,6 +151,7 @@ func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshot
 	if !ok {
 		config = map[string]string{}
 	}
+
 	return config, nil
 }
 
@@ -191,6 +193,7 @@ func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, inst
 	if !rows.Next() {
 		return -1, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
 	}
+
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
@@ -200,6 +203,7 @@ func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, inst
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return -1, fmt.Errorf("Result set failure: %w", err)
@@ -216,6 +220,7 @@ func InstanceSnapshotExists(ctx context.Context, tx *sql.Tx, project string, ins
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
@@ -296,6 +301,7 @@ func CreateInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnaps
 		}
 
 	}
+
 	return nil
 }
 
@@ -316,6 +322,7 @@ func RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, ins
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
+
 	return nil
 }
 

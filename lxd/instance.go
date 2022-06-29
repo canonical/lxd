@@ -40,6 +40,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	revert.Add(cleanup)
 	defer instOp.Done(err)
 
@@ -178,6 +179,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
+
 	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
@@ -242,6 +244,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
+
 		revert.Add(cleanup)
 	} else {
 		instOp, err = inst.LockExclusive()
@@ -297,7 +300,8 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				// parent instance's pool, then either modify the device if it is local or add a
 				// new one to local devices if its coming from the profiles.
 				if snapExpandedRootDiskDev["pool"] != instRootDiskDevice["pool"] {
-					if localRootDiskDev, found := snapLocalDevices[snapExpandedRootDiskDevKey]; found {
+					localRootDiskDev, found := snapLocalDevices[snapExpandedRootDiskDevKey]
+					if found {
 						// Modify exist local device's pool.
 						localRootDiskDev["pool"] = instRootDiskDevice["pool"]
 						snapLocalDevices[snapExpandedRootDiskDevKey] = localRootDiskDev
@@ -345,6 +349,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
+
 			revert.Add(cleanup)
 			defer snapInstOp.Done(err)
 		}
@@ -639,7 +644,8 @@ var instSnapshotsPruneRunning = sync.Map{}
 func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
-		if _, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{}); loaded {
+		_, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{})
+		if loaded {
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
