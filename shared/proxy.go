@@ -98,7 +98,8 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 			// proxy was bogus. Try prepending "http://" to it and
 			// see if that parses correctly. If not, we fall
 			// through and complain about the original one.
-			if proxyURL, err := url.Parse("http://" + proxy); err == nil {
+			proxyURL, err := url.Parse("http://" + proxy)
+			if err == nil {
 				return proxyURL, nil
 			}
 		}
@@ -162,7 +163,8 @@ func useProxy(addr string, noProxy string) (bool, error) {
 			return false, nil
 		}
 
-		if _, pnet, err := net.ParseCIDR(p); err == nil && ip != nil {
+		_, pnet, err := net.ParseCIDR(p)
+		if err == nil && ip != nil {
 			// IPv4/CIDR, IPv6/CIDR
 			if pnet.Contains(ip) {
 				return false, nil
