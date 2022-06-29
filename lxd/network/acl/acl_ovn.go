@@ -294,7 +294,8 @@ func OVNEnsureACLs(s *state.State, l logger.Logger, client *openvswitch.OVN, acl
 func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]struct{}) {
 	addACLNamesFrom := func(ruleSubjects []string) {
 		for _, subject := range ruleSubjects {
-			if _, found := referencedACLNames[subject]; found {
+			_, found := referencedACLNames[subject]
+			if found {
 				continue // Skip subjects already seen.
 			}
 
@@ -923,7 +924,8 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 	// usedByOvn checks if any of the aclNames are in use by an OVN entity (network or instance/profile NIC).
 	usedByOvn := func(aclNames ...string) bool {
 		for _, aclName := range aclNames {
-			if _, found := ovnUsedACLs[aclName]; found {
+			_, found := ovnUsedACLs[aclName]
+			if found {
 				return true
 			}
 		}
@@ -961,7 +963,8 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 // OVNPortGroupInstanceNICSchedule adds the specified NIC port to the specified port groups in the changeSet.
 func OVNPortGroupInstanceNICSchedule(portUUID openvswitch.OVNSwitchPortUUID, changeSet map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID, portGroups ...openvswitch.OVNPortGroup) {
 	for _, portGroupName := range portGroups {
-		if _, found := changeSet[portGroupName]; !found {
+		_, found := changeSet[portGroupName]
+		if !found {
 			changeSet[portGroupName] = []openvswitch.OVNSwitchPortUUID{}
 		}
 
