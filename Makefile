@@ -250,12 +250,7 @@ endif
 	golangci-lint run --timeout 5m
 	flake8 test/deps/import-busybox
 	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
-	./test/lint/client-imports.sh
-	./test/lint/i18n-up-to-date.sh
-	./test/lint/mixed-whitespace.sh
-	./test/lint/negated-is-bool.sh
-	./test/lint/no-oneline-assign-and-test.sh
-	./test/lint/trailing-space.sh
+	run-parts --regex '.sh' test/lint
 
 .PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
