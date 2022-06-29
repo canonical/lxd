@@ -1897,7 +1897,8 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Generate the Seccomp profile
-	if err := seccomp.CreateProfile(d.state, d); err != nil {
+	err = seccomp.CreateProfile(d.state, d)
+	if err != nil {
 		return "", nil, err
 	}
 
@@ -3658,7 +3659,8 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := d.state.DB.Cluster.DeleteInstance(d.project, d.Name()); err != nil {
+	err = d.state.DB.Cluster.DeleteInstance(d.project, d.Name())
+	if err != nil {
 		d.logger.Error("Failed deleting container entry", logger.Ctx{"err": err})
 		return err
 	}
@@ -4781,7 +4783,8 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
-		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false); err != nil {
+		err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi, false)
+		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})
 			d.logger.Error("Failed exporting instance", ctxMap)
