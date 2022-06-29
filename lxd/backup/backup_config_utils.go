@@ -79,7 +79,8 @@ func ParseConfigYamlFile(path string) (*config.Config, error) {
 	}
 
 	backupConf := config.Config{}
-	if err := yaml.Unmarshal(data, &backupConf); err != nil {
+	err = yaml.Unmarshal(data, &backupConf)
+	if err != nil {
 		return nil, err
 	}
 
