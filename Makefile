@@ -236,7 +236,26 @@ build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
-	(cd test; sh -c ". suites/static_analysis.sh; test_static_analysis")
+ifeq ($(shell command -v golangci-lint 2> /dev/null),)
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+endif
+ifeq ($(shell command -v shellcheck 2> /dev/null),)
+	echo "Please install shellcheck"
+	exit 1
+endif
+ifeq ($(shell command -v flake8 2> /dev/null),)
+	echo "Please install flake8"
+	exit 1
+endif
+	golangci-lint run --timeout 5m
+	flake8 test/deps/import-busybox
+	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
+	./test/lint/client-imports.sh
+	./test/lint/i18n-up-to-date.sh
+	./test/lint/mixed-whitespace.sh
+	./test/lint/negated-is-bool.sh
+	./test/lint/no-oneline-assign-and-test.sh
+	./test/lint/trailing-space.sh
 
 .PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
