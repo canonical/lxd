@@ -740,6 +740,14 @@ func (d *ceph) HasVolume(vol Volume) bool {
 
 // FillVolumeConfig populate volume with default config.
 func (d *ceph) FillVolumeConfig(vol Volume) error {
+	// Copy volume.* configuration options from pool.
+	// Exclude 'block.filesystem' and 'block.mount_options'
+	// as this ones are handled below in this function and depends from volume type
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	if err != nil {
+		return err
+	}
+
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
 	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
