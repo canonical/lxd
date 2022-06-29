@@ -487,19 +487,23 @@ func (d *lvm) Validate(config map[string]string) error {
 
 // Update updates the storage pool settings.
 func (d *lvm) Update(changedConfig map[string]string) error {
-	if _, changed := changedConfig["lvm.use_thinpool"]; changed {
+	_, changed := changedConfig["lvm.use_thinpool"]
+	if changed {
 		return fmt.Errorf("lvm.use_thinpool cannot be changed")
 	}
 
-	if _, changed := changedConfig["lvm.thinpool_metadata_size"]; changed {
+	_, changed = changedConfig["lvm.thinpool_metadata_size"]
+	if changed {
 		return fmt.Errorf("lvm.thinpool_metadata_size cannot be changed")
 	}
 
-	if _, changed := changedConfig["volume.lvm.stripes"]; changed && d.usesThinpool() {
+	_, changed = changedConfig["volume.lvm.stripes"]
+	if changed && d.usesThinpool() {
 		return fmt.Errorf("volume.lvm.stripes cannot be changed when using thin pool")
 	}
 
-	if _, changed := changedConfig["volume.lvm.stripes.size"]; changed && d.usesThinpool() {
+	_, changed = changedConfig["volume.lvm.stripes.size"]
+	if changed && d.usesThinpool() {
 		return fmt.Errorf("volume.lvm.stripes.size cannot be changed when using thin pool")
 	}
 

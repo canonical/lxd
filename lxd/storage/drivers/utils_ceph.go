@@ -27,7 +27,8 @@ func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 
 	// Use volume's type as storage volume prefix, unless there is an override in cephVolTypePrefixes.
 	volumeTypePrefix := string(vol.volType)
-	if volumeTypePrefixOverride, foundOveride := cephVolTypePrefixes[vol.volType]; foundOveride {
+	volumeTypePrefixOverride, foundOveride := cephVolTypePrefixes[vol.volType]
+	if foundOveride {
 		volumeTypePrefix = volumeTypePrefixOverride
 	}
 

@@ -309,11 +309,13 @@ func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 		}
 	}
 
-	if _, changed := changedConfig["lvm.stripes"]; changed {
+	_, changed := changedConfig["lvm.stripes"]
+	if changed {
 		return fmt.Errorf("lvm.stripes cannot be changed")
 	}
 
-	if _, changed := changedConfig["lvm.stripes.size"]; changed {
+	_, changed = changedConfig["lvm.stripes.size"]
+	if changed {
 		return fmt.Errorf("lvm.stripes.size cannot be changed")
 	}
 
