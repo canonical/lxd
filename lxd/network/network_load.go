@@ -83,9 +83,6 @@ func IsAvailable(projectName string, networkName string) bool {
 		NetworkName: networkName,
 	}
 
-	if _, found := unavailableNetworks[pn]; found {
-		return false
-	}
-
-	return true
+	_, found := unavailableNetworks[pn]
+	return !found
 }

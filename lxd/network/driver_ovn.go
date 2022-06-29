@@ -2889,7 +2889,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					// If there are ACLs being applied, then decide if the default rule config
 					// has changed materially for the NIC and update it if needed.
 					for _, k := range changedDefaultRuleKeys {
-						if _, found := nicConfig[k]; found {
+						_, found := nicConfig[k]
+						if found {
 							continue // Skip if changed key is overridden in NIC.
 						}
 
@@ -4435,7 +4436,8 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 		// Get routes on instance NICs connected to local network to be added as routes to target network.
 		err = usedByInstanceDevices(n.state, n.Project(), n.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-			if _, found := activeLocalNICPorts[instancePortName]; !found {
+			_, found := activeLocalNICPorts[instancePortName]
+			if !found {
 				return nil // Don't add config for instance NICs that aren't started.
 			}
 
@@ -4578,7 +4580,8 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	// Get routes on instance NICs connected to target network to be added as routes to local network.
 	err = usedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		instancePortName := targetOVNNet.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-		if _, found := activeTargetNICPorts[instancePortName]; !found {
+		_, found := activeTargetNICPorts[instancePortName]
+		if !found {
 			return nil // Don't add config for instance NICs that aren't started.
 		}
 

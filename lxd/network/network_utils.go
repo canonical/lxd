@@ -530,7 +530,9 @@ func ForkdnsServersList(networkName string) ([]string, error) {
 			servers = append(servers, fields[0])
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return servers, err
 	}
 
@@ -835,7 +837,8 @@ func GetMACSlice(hwaddr string) []string {
 	var buf []string
 
 	if !strings.Contains(hwaddr, ":") {
-		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
+		s, err := strconv.ParseUint(hwaddr, 10, 64)
+		if err == nil {
 			hwaddr = fmt.Sprintf("%x\n", s)
 			var tuple string
 			for i, r := range hwaddr {
