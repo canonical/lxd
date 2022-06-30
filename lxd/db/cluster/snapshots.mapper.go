@@ -136,6 +136,7 @@ func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapsho
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
 		}
 	}
+
 	return devices, nil
 }
 
