@@ -197,6 +197,7 @@ func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[stri
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
 		}
 	}
+
 	return devices, nil
 }
 

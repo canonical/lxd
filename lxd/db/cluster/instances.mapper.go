@@ -303,6 +303,7 @@ func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[st
 			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
 		}
 	}
+
 	return devices, nil
 }
 
