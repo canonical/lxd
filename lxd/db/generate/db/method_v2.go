@@ -316,7 +316,11 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Select.")
 	buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
-	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity)))
+	} else {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+	}
 
 	for _, field := range mapping.RefFields() {
 		refStruct := lex.Singular(field.Name)
@@ -418,6 +422,7 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		buf.L("if !ok {")
 		buf.L("resultMap[object.ReferenceID] = []%s{}", mapping.Name)
 		buf.L("}")
+		buf.N()
 		buf.L("resultMap[object.ReferenceID] = append(resultMap[object.ReferenceID], object)")
 		buf.L("}")
 		buf.N()
@@ -429,6 +434,7 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		buf.L("if !ok {")
 		buf.L("resultMap[object.ReferenceID] = map[string]string{}")
 		buf.L("}")
+		buf.N()
 		buf.L("resultMap[object.ReferenceID][object.Key] = object.Value")
 		buf.L("}")
 		buf.N()
@@ -471,6 +477,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("return nil, fmt.Errorf(\"Found duplicate %s with name %%q\", ref.%s)", refStruct, refMapping.Identifier().Name)
 		buf.L("}")
 		buf.L("}")
+		buf.N()
 	case MapTable:
 		buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refParentList, m.db, lex.Plural(refStruct), m.entity)
 		m.ifErrNotNil(buf, true, "nil", "err")
@@ -478,6 +485,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("if !ok {")
 		buf.L("%s = map[string]string{}", refList)
 		buf.L("}")
+		buf.N()
 	}
 
 	buf.L("return %s, nil", refList)
@@ -507,7 +515,12 @@ func (m *MethodV2) getOne(buf *file.Buffer) error {
 
 	buf.N()
 	buf.L("objects, err := %sGet%s(ctx, tx, filter)", m.db, lex.Plural(lex.Camel(m.entity)))
-	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity)))
+	} else {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+	}
+
 	buf.L("switch len(objects) {")
 	buf.L("case 0:")
 	buf.L(`        return nil, api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
@@ -550,12 +563,14 @@ func (m *MethodV2) id(buf *file.Buffer) error {
 	buf.L("if !rows.Next() {")
 	buf.L(`        return -1, api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
 	buf.L("}")
+	buf.N()
 	buf.L("var id int64")
 	buf.L("err = rows.Scan(&id)")
 	m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to scan ID: %w\", err)")
 	buf.L("if rows.Next() {")
 	buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
 	buf.L("}")
+	buf.N()
 	buf.L("err = rows.Err()")
 	m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Result set failure: %w\", err)")
 	buf.L("return id, nil")
@@ -589,6 +604,7 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 	buf.L("        if api.StatusErrorCheck(err, http.StatusNotFound) {")
 	buf.L("                return false, nil")
 	buf.L("        }")
+	buf.N()
 	buf.L("        return false, err")
 	buf.L("}")
 	buf.N()
@@ -800,7 +816,7 @@ func (m *MethodV2) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("}")
 		buf.N()
 		buf.L("err := %sCreate%s(ctx, tx, \"%s\", %s)", m.db, lex.Plural(refStruct), m.entity, lex.Plural(refVar))
-		m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", refStruct, lex.Camel(m.entity)))
+		m.ifErrNotNil(buf, false, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", refStruct, lex.Camel(m.entity)))
 	case MapTable:
 		buf.L("referenceID := int(%sID)", refParent)
 		buf.L("for key, value := range %s {", refVar)
@@ -816,6 +832,7 @@ func (m *MethodV2) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("}")
 	}
 
+	buf.N()
 	buf.L("return nil")
 
 	return nil
@@ -844,7 +861,7 @@ func (m *MethodV2) rename(buf *file.Buffer) error {
 	buf.L("if n != 1 {")
 	buf.L("        return fmt.Errorf(\"Query affected %%d rows instead of 1\", n)")
 	buf.L("}")
-
+	buf.N()
 	buf.L("return nil")
 
 	return nil
@@ -932,8 +949,9 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 		buf.L("}")
 		buf.N()
 		buf.L("err = %sCreate%s(ctx, tx, parent, object)", m.db, lex.Camel(m.entity))
+		m.ifErrNotNil(buf, false, "err")
 		buf.L("}")
-		m.ifErrNotNil(buf, true, "err")
+		buf.N()
 	case EntityTable:
 		updateMapping, err := Parse(m.pkg, entityUpdate, m.kind)
 		if err != nil {
