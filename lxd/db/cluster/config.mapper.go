@@ -60,7 +60,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 	// Select.
 	err = query.SelectObjects(sqlStmt, dest, args...)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"config\" table: %w", err)
+		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
 	}
 
 	resultMap := map[int]map[string]string{}
@@ -121,10 +121,9 @@ func UpdateConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 		}
 
 		err = CreateConfig(ctx, tx, parent, object)
-	}
-
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
