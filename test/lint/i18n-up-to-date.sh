@@ -12,6 +12,7 @@ mv "po/lxd.pot" "po/lxd.pot.bak"
 make i18n -s
 hash2=$(safe_pot_hash)
 mv "po/lxd.pot.bak" "po/lxd.pot"
+git checkout -- po/*.po
 if [ "${hash1}" != "${hash2}" ]; then
   echo "==> Please update the .pot file in your commit (make i18n)"
   exit 1
