@@ -173,7 +173,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// Start status notifier in background.
-	cancelStatusNotifier := c.startStatusNotifier(ctx)
+	cancelStatusNotifier := c.startStatusNotifier(ctx, d.chConnected)
 
 	errChan := make(chan error, 1)
 
@@ -218,7 +218,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 // startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
 // Returns a function that can be used to update the running status to STOPPED in the ring buffer.
-func (c *cmdAgent) startStatusNotifier(ctx context.Context) context.CancelFunc {
+func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan struct{}) context.CancelFunc {
 	// Write initial started status.
 	_ = c.writeStatus("STARTED")
 
@@ -238,6 +238,8 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context) context.CancelFunc {
 
 		for {
 			select {
+			case <-chConnected:
+				_ = c.writeStatus("CONNECTED") // Indicate we were able to connect to LXD.
 			case <-ticker.C:
 				_ = c.writeStatus("STARTED") // Re-populate status periodically in case LXD restarts.
 			case <-exitCtx.Done():
