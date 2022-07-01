@@ -1,6 +1,10 @@
 (storage-dir)=
 # Directory - `dir`
 
+The directory storage driver is a basic backend that stores its data in a standard file and directory structure.
+This driver is quick to set up and allows inspecting the files directly on the disk, which can be convenient for testing.
+However, LXD operations are {ref}`not optimized <storage-drivers-features>` for this driver.
+
 ## `dir` driver in LXD
 
  - While this backend is fully functional, it's also much slower than

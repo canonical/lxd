@@ -1,6 +1,19 @@
 (storage-lvm)=
 # LVM - `lvm`
 
+{abbr}`LVM (Logical Volume Manager)` is a storage management framework rather than a file system.
+It is used to manage physical storage devices, allowing you to create a number of logical storage volumes that use and virtualize the underlying physical storage devices.
+
+Note that it is possible to over-commit the physical storage in the process, to allow flexibility for scenarios where not all available storage is in use at the same time.
+
+## Terminology
+
+LVM can combine several physical storage devices into a *volume group*.
+You can then allocate *logical volumes* of different types from this volume group.
+
+One supported volume type is a *thin pool*, which allows over-committing the resources by creating  thinly provisioned volumes whose total allowed maximum size is larger than the available physical storage.
+Another type is a *volume snapshot*, which captures a specific state of a logical volume.
+
 ## `lvm` driver in LXD
 
  - Uses LVs for images, then LV snapshots for instances and instance snapshots.
