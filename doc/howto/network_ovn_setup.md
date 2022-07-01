@@ -53,41 +53,60 @@ See the linked YouTube video for the complete tutorial using four machines.
 
 1. Complete the following steps on the three machines that you want to run OVN's distributed database:
 
-   a. Install the OVN tools:
+   1. Install the OVN tools:
 
-       sudo apt install ovn-central ovn-host
+          sudo apt install ovn-central ovn-host
 
-   b. Mark the OVN services as enabled to ensure that they are started when the machine boots:
+   1. Mark the OVN services as enabled to ensure that they are started when the machine boots:
 
-       systemctl enable ovn-central
-       systemctl enable ovn-host
+           systemctl enable ovn-central
+           systemctl enable ovn-host
 
-   c. Stop OVN for now:
+   1. Stop OVN for now:
 
-       systemctl stop ovn-central
+          systemctl stop ovn-central
 
-   d. Note down the IP address of the machine:
+   1. Note down the IP address of the machine:
 
-       ip -4 a
+          ip -4 a
 
-   e. Open `/etc/default/ovn-central` for editing.
+   1. Open `/etc/default/ovn-central` for editing.
 
-   f. Paste in the following configuration (replace `<server_1>`, `<server_2>` and `<server_3>` with the IP addresses of the respective machines, and `<local>` with the IP address of the machine that you are on):
+   1. Paste in one of the following configurations (replace `<server_1>`, `<server_2>` and `<server_3>` with the IP addresses of the respective machines, and `<local>` with the IP address of the machine that you are on).
 
-     ```
-     OVN_CTL_OPTS=" \
-          --db-nb-addr=<server_1> \
-          --db-nb-create-insecure-remote=yes \
-          --db-sb-addr=<server_1> \
-          --db-sb-create-insecure-remote=yes \
-          --db-nb-cluster-local-addr=<local> \
-          --db-sb-cluster-local-addr=<local> \
-          --ovn-northd-nb-db=tcp:<server_1>:6641,tcp:<server_2>:6641,tcp:<server_3>:6641 \
-          --ovn-northd-sb-db=tcp:<server_1>:6642,tcp:<server_2>:6642,tcp:<server_3>:6642"
-     ```
-   g. Start OVN:
+      - For the first machine:
 
-       systemctl start ovn-central
+        ```
+        OVN_CTL_OPTS=" \
+             --db-nb-addr=<local> \
+             --db-nb-create-insecure-remote=yes \
+             --db-sb-addr=<local> \
+             --db-sb-create-insecure-remote=yes \
+             --db-nb-cluster-local-addr=<local> \
+             --db-sb-cluster-local-addr=<local> \
+             --ovn-northd-nb-db=tcp:<server_1>:6641,tcp:<server_2>:6641,tcp:<server_3>:6641 \
+             --ovn-northd-sb-db=tcp:<server_1>:6642,tcp:<server_2>:6642,tcp:<server_3>:6642"
+        ```
+
+      - For the second and third machine:
+
+        ```
+        OVN_CTL_OPTS=" \
+              --db-nb-addr=<local> \
+             --db-nb-cluster-remote-addr=<server_1> \
+             --db-nb-create-insecure-remote=yes \
+             --db-sb-addr=<local> \
+             --db-sb-cluster-remote-addr=<server_1> \
+             --db-sb-create-insecure-remote=yes \
+             --db-nb-cluster-local-addr=<local> \
+             --db-sb-cluster-local-addr=<local> \
+             --ovn-northd-nb-db=tcp:<server_1>:6641,tcp:<server_2>:6641,tcp:<server_3>:6641 \
+             --ovn-northd-sb-db=tcp:<server_1>:6642,tcp:<server_2>:6642,tcp:<server_3>:6642"
+        ```
+
+   1. Start OVN:
+
+          systemctl start ovn-central
 
 1. On the remaining machines, install only `ovn-host` and make sure it is enabled:
 

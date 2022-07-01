@@ -158,3 +158,8 @@ button.version_select {
 .available_versions a:hover {background-color: var(--color-sidebar-item-background--current)}
 
 .show {display:block;}
+
+/** Fix for nested numbered list - the nested list is lettered **/
+ol.arabic ol.arabic {
+  list-style: lower-alpha;
+}
