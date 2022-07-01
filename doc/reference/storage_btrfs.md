@@ -1,6 +1,18 @@
 (storage-btrfs)=
 # Btrfs - `btrfs`
 
+{abbr}`Btrfs (B-tree file system)` is a local file system based on the {abbr}`COW (copy-on-write)` principle.
+COW means that data is stored to a different block after it has been modified instead of overwriting the existing data, reducing the risk of data corruption.
+Unlike other file systems, Btrfs is extent-based, which means that it stores data in contiguous areas of memory.
+
+In addition to basic file system features, Btrfs offers RAID and volume management, pooling, snapshots, checksums, compression and other features.
+
+## Terminology
+
+A Btrfs file system can have *subvolumes*, which are named binary subtrees of the main tree of the file system with their own independent file and directory hierarchy.
+A *Btrfs snapshot* is a special type of subvolume that captures a specific state of another subvolume.
+Snapshots can be read-write or read-only.
+
 ## `btrfs` driver in LXD
 
  - Uses a subvolume per instance, image and snapshot, creating Btrfs snapshots when creating a new object.

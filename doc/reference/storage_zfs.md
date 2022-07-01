@@ -5,6 +5,26 @@ discourse: 1333
 (storage-zfs)=
 # ZFS - `zfs`
 
+{abbr}`ZFS (Zettabyte file system)` combines both physical volume management and a file system.
+A ZFS installation can span across a series of storage devices and is very scalable, allowing you to add disks to expand the available space in the storage pool immediately.
+
+ZFS is a block-based file system that protects against data corruption by using checksums to verify, confirm and correct every operation.
+To run at a sufficient speed, this mechanism requires a powerful environment with a lot of RAM.
+
+In addition, ZFS offers snapshots and replication, RAID management, copy-on-write clones, compression and other features.
+
+## Terminology
+
+ZFS creates logical units based on physical storage devices.
+These logical units are called *ZFS pools* or *zpools*.
+Each zpool is then divided into a number of *datasets*.
+These datasets can be of different types:
+- A *ZFS filesystem* can be seen as a partition or a mounted file system.
+- A *ZFS volume* represents a block device.
+- A *ZFS snapshot* captures a specific state of either a ZFS filesystem or a ZFS volume.
+  ZFS snapshots are read-only.
+- A *ZFS clone* is a writable copy of a ZFS snapshot.
+
 ## `zfs` driver in LXD
 
  - When LXD creates a ZFS pool, compression is enabled by default.

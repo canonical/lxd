@@ -1,6 +1,23 @@
 (storage-cephfs)=
 # CephFS - `cephfs`
 
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph intro -->
+    :end-before: <!-- Include end Ceph intro -->
+```
+
+{abbr}`CephFS (Ceph File System)` is Ceph's file system component that provides a robust, fully-featured POSIX-compliant distributed file system.
+Internally, it maps files to Ceph objects and stores file metadata (for example, file ownership, directory paths, access permissions) in a separate data pool.
+
+## Terminology
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph terminology -->
+    :end-before: <!-- Include end Ceph terminology -->
+```
+
 ## `cephfs` driver in LXD
 
  - Can only be used for custom storage volumes
