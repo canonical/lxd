@@ -23,6 +23,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+var servers = make(map[string]*http.Server, 2)
+var errChan = make(chan error)
+
 type cmdAgent struct {
 	global *cmdGlobal
 }
@@ -156,26 +159,14 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
-	servers := make(map[string]*http.Server, 2)
-
 	// Prepare the HTTP server.
 	servers["http"] = restServer(tlsConfig, cert, c.global.flagLogDebug, d)
-
-	// Prepare the devlxd server.
-	devlxdListener, err := createDevLxdlListener("/dev")
-	if err != nil {
-		return err
-	}
-
-	servers["devlxd"] = devLxdServer(d)
 
 	// Create a cancellation context.
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// Start status notifier in background.
 	cancelStatusNotifier := c.startStatusNotifier(ctx, d.chConnected)
-
-	errChan := make(chan error, 1)
 
 	// Start the server.
 	go func() {
@@ -184,16 +175,6 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			errChan <- err
 		}
 	}()
-
-	// Only start the devlxd listener if instance-data is present.
-	if shared.PathExists("instance-data") {
-		go func() {
-			err := servers["devlxd"].Serve(devlxdListener)
-			if err != nil {
-				errChan <- err
-			}
-		}()
-	}
 
 	// Cancel context when SIGTEM is received.
 	chSignal := make(chan os.Signal, 1)
