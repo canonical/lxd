@@ -31,9 +31,9 @@ jobs:
         run: |
           make deps
 
-      - name: Update gomod
+      - name: Download go dependencies
         run: |
-          make update
+          go mod download
 
       - name: Run static analysis
         run: |
