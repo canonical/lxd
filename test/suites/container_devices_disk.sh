@@ -135,8 +135,11 @@ test_container_devices_disk_cephfs() {
 }
 
 test_container_devices_disk_socket() {
-  lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
   lxc start foo
+  lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
   [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  lxc restart -f foo
+  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  lxc config device remove foo unix-socket
   lxc stop foo -f
 }
