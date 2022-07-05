@@ -58,11 +58,11 @@ type swaggerBadRequest struct {
 		// Example: error
 		Type string `json:"type"`
 
-		// Example: 400
-		Code int `json:"code"`
-
 		// Example: bad request
 		Error string `json:"error"`
+
+		// Example: 400
+		ErrorCode int `json:"error_code"`
 	}
 }
 
@@ -76,11 +76,11 @@ type swaggerForbidden struct {
 		// Example: error
 		Type string `json:"type"`
 
-		// Example: 403
-		Code int `json:"code"`
-
 		// Example: not authorized
 		Error string `json:"error"`
+
+		// Example: 403
+		ErrorCode int `json:"error_code"`
 	}
 }
 
@@ -94,11 +94,11 @@ type swaggerPreconditionFailed struct {
 		// Example: error
 		Type string `json:"type"`
 
-		// Example: 412
-		Code int `json:"code"`
-
 		// Example: precondition failed
 		Error string `json:"error"`
+
+		// Example: 412
+		ErrorCode int `json:"error_code"`
 	}
 }
 
@@ -112,11 +112,11 @@ type swaggerInternalServerError struct {
 		// Example: error
 		Type string `json:"type"`
 
-		// Example: 500
-		Code int `json:"code"`
-
 		// Example: internal server error
 		Error string `json:"error"`
+
+		// Example: 500
+		ErrorCode int `json:"error_code"`
 	}
 }
 
@@ -130,10 +130,10 @@ type swaggerNotFound struct {
 		// Example: error
 		Type string `json:"type"`
 
-		// Example: 404
-		Code int `json:"code"`
-
 		// Example: not found
 		Error string `json:"error"`
+
+		// Example: 404
+		ErrorCode int `json:"error_code"`
 	}
 }
