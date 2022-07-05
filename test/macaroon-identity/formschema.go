@@ -2,7 +2,7 @@ package main
 
 import (
 	"gopkg.in/juju/environschema.v1"
-	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
+	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 )
 
 var schemaResponse = form.SchemaResponse{
