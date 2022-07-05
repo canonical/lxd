@@ -4786,8 +4786,6 @@ definitions:
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   ServerEnvironment:
-    description: ServerEnvironment represents the read-only environment fields of
-      a LXD server
     properties:
       addresses:
         description: List of addresses the server is listening on
@@ -4929,6 +4927,8 @@ definitions:
         example: 1 | 0.8.4-1ubuntu11
         type: string
         x-go-name: StorageVersion
+    title: ServerEnvironment represents the read-only environment fields of a LXD
+      server.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   ServerPut:
@@ -5017,8 +5017,8 @@ definitions:
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   StatusCode:
-    description: StatusCode represents a valid LXD operation and container status
     format: int64
+    title: StatusCode represents a valid LXD operation and container status.
     type: integer
     x-go-package: github.com/lxc/lxd/shared/api
   StoragePool:
@@ -13534,15 +13534,15 @@ responses:
     description: Bad Request
     schema:
       properties:
-        code:
-          example: 400
-          format: int64
-          type: integer
-          x-go-name: Code
         error:
           example: bad request
           type: string
           x-go-name: Error
+        error_code:
+          example: 400
+          format: int64
+          type: integer
+          x-go-name: ErrorCode
         type:
           example: error
           type: string
@@ -13570,15 +13570,15 @@ responses:
     description: Forbidden
     schema:
       properties:
-        code:
-          example: 403
-          format: int64
-          type: integer
-          x-go-name: Code
         error:
           example: not authorized
           type: string
           x-go-name: Error
+        error_code:
+          example: 403
+          format: int64
+          type: integer
+          x-go-name: ErrorCode
         type:
           example: error
           type: string
@@ -13588,15 +13588,15 @@ responses:
     description: Internal Server Error
     schema:
       properties:
-        code:
-          example: 500
-          format: int64
-          type: integer
-          x-go-name: Code
         error:
           example: internal server error
           type: string
           x-go-name: Error
+        error_code:
+          example: 500
+          format: int64
+          type: integer
+          x-go-name: ErrorCode
         type:
           example: error
           type: string
@@ -13606,15 +13606,15 @@ responses:
     description: Not found
     schema:
       properties:
-        code:
-          example: 404
-          format: int64
-          type: integer
-          x-go-name: Code
         error:
           example: not found
           type: string
           x-go-name: Error
+        error_code:
+          example: 404
+          format: int64
+          type: integer
+          x-go-name: ErrorCode
         type:
           example: error
           type: string
@@ -13648,15 +13648,15 @@ responses:
     description: Precondition Failed
     schema:
       properties:
-        code:
-          example: 412
-          format: int64
-          type: integer
-          x-go-name: Code
         error:
           example: precondition failed
           type: string
           x-go-name: Error
+        error_code:
+          example: 412
+          format: int64
+          type: integer
+          x-go-name: ErrorCode
         type:
           example: error
           type: string
