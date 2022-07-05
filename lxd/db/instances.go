@@ -305,7 +305,7 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project, profiles []api.Profile) error) error {
+func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project) error) error {
 	projectsByName := make(map[string]*api.Project)
 	profilesByID := make(map[int]*api.Profile)
 	var instances map[int]InstanceArgs
@@ -583,7 +583,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
 		}
 
-		err = instanceFunc(instance, *project, instance.Profiles)
+		err = instanceFunc(instance, *project)
 		if err != nil {
 			return err
 		}
