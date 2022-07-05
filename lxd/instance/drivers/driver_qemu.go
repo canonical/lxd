@@ -1571,6 +1571,45 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// advertiseVsockAddress advertises the CID and port to the VM.
+func (d *qemu) advertiseVsockAddress() error {
+	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
+
+	client, err := d.getAgentClient()
+	if err != nil {
+		return fmt.Errorf("Failed getting agent client handle: %w", err)
+	}
+
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to lxd-agent: %w", err)
+	}
+
+	defer agent.Disconnect()
+
+	req := api.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      devlxdEnabled,
+	}
+
+	addr := d.state.Endpoints.VsockAddress()
+	if addr == "" {
+		return nil
+	}
+
+	_, err = fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
+	if err != nil {
+		return fmt.Errorf("Failed parsing vsock address: %w", err)
+	}
+
+	_, _, err = agent.RawQuery("PUT", "/1.0", req, "")
+	if err != nil {
+		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
+	}
+
+	return nil
+}
+
 func (d *qemu) architectureSupportsUEFI() bool {
 	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
