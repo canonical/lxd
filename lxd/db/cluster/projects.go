@@ -59,7 +59,7 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	var err error
 	apiProject.Config, err = GetProjectConfig(ctx, tx, p.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed loading project config: %w", err)
 	}
 
 	return apiProject, nil
