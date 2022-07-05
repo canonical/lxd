@@ -372,7 +372,7 @@ func (d *nicBridged) checkAddressConflict() error {
 		ourNICMAC, _ = net.ParseMAC(d.volatileGet()["hwaddr"])
 	}
 
-	return d.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
+	return d.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		if instNetworkProject != project.Default {
@@ -381,7 +381,7 @@ func (d *nicBridged) checkAddressConflict() error {
 
 		// Iterate through each of the instance's devices, looking for NICs that are linked to
 		// the same network, on the same cluster member as this NIC and have matching static IPs.
-		for devName, devConfig := range db.ExpandInstanceDevices(inst.Devices.Clone(), profiles) {
+		for devName, devConfig := range db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles) {
 			if devConfig["type"] != "nic" {
 				continue
 			}
