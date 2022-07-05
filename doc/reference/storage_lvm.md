@@ -18,12 +18,12 @@ Another type is a *volume snapshot*, which captures a specific state of a logica
 
  - Uses LVs for images, then LV snapshots for instances and instance snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
- - By default, all LVM storage pools use an LVM thinpool in which logical
+ - By default, all LVM storage pools use an LVM thin pool in which logical
    volumes for all LXD storage entities (images, instances, etc.) are created.
    This behavior can be changed by setting "lvm.use\_thinpool" to "false". In
    this case, LXD will use normal logical volumes for all non-instance
    snapshot storage entities (images, instances, etc.). This means most storage
-   operations will need to fallback to rsyncing since non-thinpool logical
+   operations will need to fallback to rsyncing since non-thin-pool logical
    volumes do not support snapshots of snapshots. Note that this entails
    serious performance impacts for the LVM driver causing it to be close to the
    fallback DIR driver both in speed and storage usage. This option should only
@@ -41,8 +41,8 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
-lvm.thinpool\_metadata\_size  | string                        | 0 (auto)                                | The size of the thinpool metadata volume. The default is to let LVM calculate an appropriate size
-lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thinpool for logical volumes
+lvm.thinpool\_metadata\_size  | string                        | 0 (auto)                                | The size of the thin pool metadata volume. The default is to let LVM calculate an appropriate size
+lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thin pool for logical volumes
 lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group
 lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create
 rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities

@@ -76,7 +76,7 @@ Use the existing ZFS zpool `my-tank` for `pool3`:
 
     lxc storage create pool3 zfs source=my-tank
 
-Use the existing ZFS data set `my-tank/slice` for `pool4`:
+Use the existing ZFS dataset `my-tank/slice` for `pool4`:
 
     lxc storage create pool4 zfs source=my-tank/slice
 
@@ -88,7 +88,7 @@ Create a pool named `pool6` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
     lxc storage create pool6 zfs source=/dev/sdX zfs.pool_name=my-tank
 ```
-```{group-tab} Ceph
+```{group-tab} Ceph RBD
 
 Create an OSD storage pool named `pool1` in the default Ceph cluster (named `ceph`):
 
