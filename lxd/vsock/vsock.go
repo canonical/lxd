@@ -23,7 +23,7 @@ func Listen(port uint32) (net.Listener, error) {
 }
 
 // HTTPClient provides an HTTP client for using over vsock.
-func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServerCert string) (*http.Client, error) {
+func HTTPClient(vsockID int, port int, tlsClientCert string, tlsClientKey string, tlsServerCert string) (*http.Client, error) {
 	client := &http.Client{}
 
 	// Get the TLS configuration.
@@ -41,7 +41,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 
 			// Retry for up to 1s at 100ms interval to handle various failures.
 			for i := 0; i < 10; i++ {
-				conn, err = Dial(uint32(vsockID), shared.HTTPSDefaultPort)
+				conn, err = Dial(uint32(vsockID), uint32(port))
 				if err == nil {
 					break
 				} else {
@@ -49,7 +49,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 					msg := err.Error()
 					if strings.Contains(msg, "connection timed out") {
 						// Retry once.
-						conn, err = Dial(uint32(vsockID), shared.HTTPSDefaultPort)
+						conn, err = Dial(uint32(vsockID), uint32(port))
 						break
 					} else if strings.Contains(msg, "connection refused") {
 						break

@@ -332,7 +332,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		}
 	}
 
-	agent, err := vsock.HTTPClient(vsockID, clientCert, clientKey, agentCert)
+	agent, err := vsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
 	if err != nil {
 		return nil, err
 	}
