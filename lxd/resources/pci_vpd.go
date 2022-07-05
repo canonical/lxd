@@ -115,6 +115,11 @@ func parsePCIVPD(buf []byte) api.ResourcesPCIVPD {
 			}
 
 		default:
+			// Check that we aren't past the buffer (invalid length).
+			if len(buf) < length {
+				break
+			}
+
 			// For other tags, just skip the value.
 			buf = buf[length:]
 		}
