@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"crypto/x509"
 	"io"
 	"net"
 	"os"
@@ -169,6 +170,13 @@ type Container interface {
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 	DevptsFd() (*os.File, error)
 	IdmappedStorage(path string) idmap.IdmapStorageType
+}
+
+// VM interface is for VM specific functions.
+type VM interface {
+	Instance
+
+	AgentCertificate() *x509.Certificate
 }
 
 // CriuMigrationArgs arguments for CRIU migration.
