@@ -34,25 +34,25 @@ Ceph block devices are also called *RBD images*, and you can create *snapshots* 
   removed until all children are gone. As a result, LXD will automatically
   prefix any removed but still referenced object with "zombie_" and keep it
   until such time the references are gone and it can safely be removed.
-- Note that LXD will assume it has full control over the osd storage pool.
+- Note that LXD will assume it has full control over the OSD storage pool.
   It is recommended to not maintain any non-LXD owned filesystem entities in
   a LXD OSD storage pool since LXD might delete them.
 
 ### Limitations
 
-- Note that sharing the same osd storage pool between multiple LXD instances is
+- Note that sharing the same OSD storage pool between multiple LXD instances is
   not supported. LXD only allows sharing of an OSD storage pool between
   multiple LXD instances only for backup purposes of existing instances via
   `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
-  property to be set to true. If not set, LXD will refuse to reuse an osd
+  property to be set to true. If not set, LXD will refuse to reuse an OSD
   storage pool it detected as being in use by another LXD instance.
 - When setting up a Ceph cluster that LXD is going to use we recommend using
   `xfs` as the underlying filesystem for the storage entities that are used to
   hold OSD storage pools. Using `ext4` as the underlying filesystem for the
   storage entities is not recommended by Ceph upstream. You may see unexpected
   and erratic failures which are unrelated to LXD itself.
-- To use Ceph osd pool of type "erasure" you __must__ have the osd pool created
-  beforehand, as well as a separate osd pool of type "replicated" that will be used for
+- To use Ceph OSD pool of type "erasure" you __must__ have the OSD pool created
+  beforehand, as well as a separate OSD pool of type "replicated" that will be used for
   storing metadata. This is required as RBD & CephFS do not support omap.
   To specify which pool is "earasure coded" you need to use the
   `ceph.osd.data_pool_name=<erasure-coded-pool-name>` and
@@ -66,12 +66,12 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 ceph.cluster\_name            | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
-ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the osd data pool
-ceph.osd.force\_reuse         | bool                          | false                                   | Force using an osd storage pool that is already in use by another LXD instance
-ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool
-ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the osd storage pool
+ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the OSD data pool
+ceph.osd.force\_reuse         | bool                          | false                                   | Force using an OSD storage pool that is already in use by another LXD instance
+ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the OSD storage pool
+ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the OSD storage pool
 ceph.rbd.clone\_copy          | bool                          | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
-ceph.rbd.du                   | bool                          | true                                    | Whether to use rbd du to obtain disk usage data for stopped instances.
+ceph.rbd.du                   | bool                          | true                                    | Whether to use RBD du to obtain disk usage data for stopped instances.
 ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
 ceph.user.name                | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
 source                        | string                        | -                                       | Existing OSD storage pool to use

@@ -20,7 +20,7 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph | CephFS
+Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph RBD | CephFS
 :---                                        | :---      | :---  | :---  | :--- | :--- | :---
 {ref}`storage-optimized-image-storage`      | no        | yes   | yes   | yes  | yes  | n/a
 Optimized instance creation                 | no        | yes   | yes   | yes  | yes  | n/a
@@ -48,7 +48,7 @@ Therefore, the first instance takes longer to create than subsequent ones.
 (storage-optimized-instance-transfer)=
 ### Optimized instance transfer
 
-Btrfs, ZFS and Ceph (RBD) have an internal send/receive mechanism that allows for optimized volume transfer.
+Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
 LXD uses this mechanism to transfer instances and snapshots between servers.
 
 This optimized transfer is available only when transferring volumes between storage pools that use the same storage driver.
