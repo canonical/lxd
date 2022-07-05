@@ -24,7 +24,7 @@ The following storage drivers are supported:
 Where the LXD data is stored depends on the configuration and the selected storage driver.
 Depending on the storage driver that is used, LXD can either share the file system with its host or keep its data separate.
 
-Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph     | CephFS
+Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph RBD | CephFS
 :---                     | :-:       | :-:      | :-:      | :-:      | :-:      | :-:
 Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -        | -
 Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -        | -
@@ -36,7 +36,7 @@ Separate storage         | -         | -        | -        | -        | &#x2713;
 Sharing the file system with the host is usually the most space-efficient way to run LXD.
 In most cases, it is also the easiest to manage.
 
-This option is supported for the `dir` driver, the `btrfs` driver (if the host is Btrfs and you point LXD to a dedicated sub-volume) and the `zfs` driver (if the host is ZFS and you point LXD to a dedicated data set on your zpool).
+This option is supported for the `dir` driver, the `btrfs` driver (if the host is Btrfs and you point LXD to a dedicated sub-volume) and the `zfs` driver (if the host is ZFS and you point LXD to a dedicated dataset on your zpool).
 
 #### Dedicated disk or partition
 Having LXD use an empty partition on your main disk or a full dedicated disk keeps its storage completely independent from the host.
