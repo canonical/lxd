@@ -17,8 +17,8 @@ import (
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 	schemaform "gopkg.in/juju/environschema.v1/form"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
+	"gopkg.in/macaroon-bakery.v3/httpbakery"
+	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
