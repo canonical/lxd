@@ -67,6 +67,12 @@ type Config struct {
 
 	// HTTP server handling requests for the LXD metrics API.
 	MetricsServer *http.Server
+
+	// HTTP server handling requests from VMs via the vsock.
+	VsockServer *http.Server
+
+	// True if VMs are supported.
+	VsockSupport bool
 }
 
 // Up brings up all applicable LXD endpoints and starts accepting HTTP
@@ -176,6 +182,7 @@ func (e *Endpoints) up(config *Config) error {
 		cluster: config.RestServer,
 		pprof:   pprofCreateServer(),
 		metrics: config.MetricsServer,
+		vsock:   config.VsockServer,
 	}
 
 	e.cert = config.Cert
@@ -208,6 +215,14 @@ func (e *Endpoints) up(config *Config) error {
 	e.listeners[devlxd], err = createDevLxdlListener(config.Dir)
 	if err != nil {
 		return err
+	}
+
+	// Start the VM sock listener.
+	if config.VsockSupport {
+		e.listeners[vsock], err = createVsockListener(e.cert)
+		if err != nil {
+			return err
+		}
 	}
 
 	if config.NetworkAddress != "" {
@@ -305,6 +320,11 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(metrics)
 	}
 
+	if e.listeners[vsock] != nil {
+		logger.Info("Starting VM socket handler:")
+		e.serve(vsock)
+	}
+
 	logger.Infof("Starting /dev/lxd handler:")
 	e.serve(devlxd)
 
@@ -360,6 +380,14 @@ func (e *Endpoints) Down() error {
 	if e.listeners[metrics] != nil {
 		logger.Infof("Stopping metrics handler:")
 		err := e.closeListener(metrics)
+		if err != nil {
+			return err
+		}
+	}
+
+	if e.listeners[vsock] != nil {
+		logger.Infof("Stopping VM socket handler:")
+		err := e.closeListener(vsock)
 		if err != nil {
 			return err
 		}
@@ -450,6 +478,7 @@ const (
 	pprof
 	cluster
 	metrics
+	vsock
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
@@ -460,4 +489,5 @@ var descriptions = map[kind]string{
 	pprof:   "pprof socket",
 	cluster: "cluster socket",
 	metrics: "metrics socket",
+	vsock:   "VM socket",
 }
