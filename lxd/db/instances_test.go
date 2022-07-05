@@ -266,9 +266,9 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.InstanceArgs
-	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
-		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, profiles)
+	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project) error {
+		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
+		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
 		instances = append(instances, dbInst)
 
