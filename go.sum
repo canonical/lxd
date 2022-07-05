@@ -536,7 +536,6 @@ github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4/go.mod h1:NIXFioti1SmKA
 github.com/juju/mgo/v2 v2.0.0-20210302023703-70d5d206e208/go.mod h1:0OChplkvPTZ174D2FYZXg4IB9hbEwyHkD+zT+/eK+Fg=
 github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 h1:zX5GoH3Jp8k1EjUFkApu/YZAYEn0PYQfg/U6IDyNyYs=
 github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090/go.mod h1:N614SE0a4e+ih2rg96Vi2PeC3cTpUOWgCTv3Cgk974c=
-github.com/juju/mgotest v1.0.1/go.mod h1:vTaDufYul+Ps8D7bgseHjq87X8eu0ivlKLp9mVc/Bfc=
 github.com/juju/mgotest v1.0.2/go.mod h1:04v1Xi2RiTO3h77YWtaXB2LAaGRSSi+Vl4hOV1coD0k=
 github.com/juju/mgotest v1.0.3/go.mod h1:Dnzi6seljG9GoZpqFdTqRV3ybB3UcIj+H8iQqy1so1A=
 github.com/juju/mutex v0.0.0-20171110020013-1fe2a4bf0a3a/go.mod h1:Y3oOzHH8CQ0Ppt0oCKJ2JFO81/EsWenH5AEqigLH+yY=
@@ -572,6 +571,7 @@ github.com/juju/usso v1.0.1/go.mod h1:3cvBcGVmWXyHhrBHBQtpNBzca/JRg4S5XH88Hj/NsY
 github.com/juju/utils v0.0.0-20180424094159-2000ea4ff043/go.mod h1:6/KLg8Wz/y2KVGWEpkK9vMNGkOnu4k/cqs8Z1fKjTOk=
 github.com/juju/utils v0.0.0-20180619112806-c746c6e86f4f/go.mod h1:6/KLg8Wz/y2KVGWEpkK9vMNGkOnu4k/cqs8Z1fKjTOk=
 github.com/juju/utils v0.0.0-20180820210520-bf9cc5bdd62d/go.mod h1:6/KLg8Wz/y2KVGWEpkK9vMNGkOnu4k/cqs8Z1fKjTOk=
+github.com/juju/utils v0.0.0-20200116185830-d40c2fe10647 h1:wQpkHVbIIpz1PCcLYku9KFWsJ7aEMQXHBBmLy3tRBTk=
 github.com/juju/utils v0.0.0-20200116185830-d40c2fe10647/go.mod h1:6/KLg8Wz/y2KVGWEpkK9vMNGkOnu4k/cqs8Z1fKjTOk=
 github.com/juju/utils/v2 v2.0.0-20200923005554-4646bfea2ef1/go.mod h1:fdlDtQlzundleLLz/ggoYinEt/LmnrpNKcNTABQATNI=
 github.com/juju/utils/v2 v2.0.0-20210305225158-eedbe7b6b3e2 h1:E7BgV8lczMmMqMtXdOis5BPEDu6bSG1D6K7SHEq7hEw=
@@ -1535,8 +1535,6 @@ gopkg.in/ini.v1 v1.66.6/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=
 gopkg.in/juju/environschema.v1 v1.0.0 h1:51vT1bzbP9fntQ0I9ECSlku2p19Szj/N2beZFeIH2kM=
 gopkg.in/juju/environschema.v1 v1.0.0/go.mod h1:WTgU3KXKCVoO9bMmG/4KHzoaRvLeoxfjArpgd1MGWFA=
 gopkg.in/ldap.v2 v2.5.1/go.mod h1:oI0cpe/D7HRtBQl8aTg+ZmzFUAvu4lsv3eLXMLGFxWk=
-gopkg.in/macaroon-bakery.v2 v2.3.0 h1:b40knPgPTke1QLTE8BSYeH7+R/hiIozB1A8CTLYN0Ic=
-gopkg.in/macaroon-bakery.v2 v2.3.0/go.mod h1:/8YhtPARXeRzbpEPLmRB66+gQE8/pzBBkWwg7Vz/guc=
 gopkg.in/macaroon-bakery.v3 v3.0.0 h1:bgTztGVwcj62/Zms7DIHTMtBPNBajeCzJfiA8TBsK8w=
 gopkg.in/macaroon-bakery.v3 v3.0.0/go.mod h1:jc4E407H0WJzjH84QSPeecCdts0XnHUmKhA1AP/w1k8=
 gopkg.in/macaroon.v2 v2.1.0 h1:HZcsjBCzq9t0eBPMKqTN/uSN6JOm78ZJ2INbqcBQOUI=
