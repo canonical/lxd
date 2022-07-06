@@ -865,7 +865,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// to the equivalent size on the target storage driver, don't fail as the backup
 				// has still been restored successfully.
 				if errors.Is(err, drivers.ErrCannotBeShrunk) {
-					l.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": rootDiskConf["size"]})
+					l.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": size})
 				} else {
 					return fmt.Errorf("Failed applying volume quota to root disk: %w", err)
 				}
@@ -889,7 +889,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				fsVol := vol.NewVMBlockFilesystemVolume()
 				err := b.driver.SetVolumeQuota(fsVol, vmStateSize, allowUnsafeResize, op)
 				if errors.Is(err, drivers.ErrCannotBeShrunk) {
-					l.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": rootDiskConf["size"]})
+					l.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": vmStateSize})
 				} else if err != nil {
 					return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
 				}
