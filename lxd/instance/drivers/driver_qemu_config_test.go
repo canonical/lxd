@@ -503,7 +503,8 @@ func TestQemuConfigTemplates(t *testing.T) {
 
 			[numa]
 			type = "cpu"
-			node-id = "21"
+			node-id = "20"
+			socket-id = "21"
 			core-id = "22"
 			thread-id = "23"`,
 		}, {
@@ -564,7 +565,8 @@ func TestQemuConfigTemplates(t *testing.T) {
 
 			[numa]
 			type = "cpu"
-			node-id = "21"
+			node-id = "20"
+			socket-id = "21"
 			core-id = "22"
 			thread-id = "23"`,
 		}, {
@@ -626,13 +628,15 @@ func TestQemuConfigTemplates(t *testing.T) {
 
 			[numa]
 			type = "cpu"
-			node-id = "12"
+			node-id = "11"
+			socket-id = "12"
 			core-id = "13"
 			thread-id = "14"
 
 			[numa]
 			type = "cpu"
-			node-id = "21"
+			node-id = "20"
+			socket-id = "21"
 			core-id = "22"
 			thread-id = "23"`,
 		}, {
