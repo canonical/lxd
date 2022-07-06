@@ -647,12 +647,14 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
 
-	err = b.driver.CreateVolume(*vol, nil, op)
+	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
 	}
@@ -807,7 +809,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		}
 
 		// Generate the effective root device volume for instance.
-		vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+		volStorageName := project.Instance(inst.Project(), inst.Name())
+		vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
 		if err != nil {
 			return err
 		}
@@ -815,7 +819,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// If the driver returned a post hook, run it now.
 		if volPostHook != nil {
 			// Initialise new volume containing root disk config supplied in instance.
-			err = volPostHook(*vol)
+			err = volPostHook(vol)
 			if err != nil {
 				return err
 			}
@@ -844,7 +848,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				allowUnsafeResize = true
 			}
 
-			err = b.driver.SetVolumeQuota(*vol, size, allowUnsafeResize, op)
+			err = b.driver.SetVolumeQuota(vol, size, allowUnsafeResize, op)
 			if err != nil {
 				// The restored volume can end up being larger than the root disk config's size
 				// property due to the block boundary rounding some storage drivers use. As such
@@ -1407,7 +1411,9 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -1481,7 +1487,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
 		}
 
-		err = b.driver.RefreshVolume(*vol, srcVol, srcSnapVols, allowInconsistent, op)
+		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, allowInconsistent, op)
 		if err != nil {
 			return err
 		}
@@ -1627,7 +1633,9 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -1642,7 +1650,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 			Fill:        b.imageFiller(fingerprint, op),
 		}
 
-		err = b.driver.CreateVolume(*vol, &volFiller, op)
+		err = b.driver.CreateVolume(vol, &volFiller, op)
 		if err != nil {
 			return err
 		}
@@ -1677,7 +1685,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		l.Debug("Set new volume size", logger.Ctx{"size": newVolSize})
 
 		// Proceed to create a new volume by copying the optimized image volume.
-		err = b.driver.CreateVolumeFromCopy(*vol, imgVol, false, false, op)
+		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, false, op)
 
 		// If the driver returns ErrCannotBeShrunk, this means that the cached volume that the new volume
 		// is to be created from is larger than the requested new volume size, and cannot be shrunk.
@@ -1692,7 +1700,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 				Fill:        b.imageFiller(fingerprint, op),
 			}
 
-			err = b.driver.CreateVolume(*vol, &volFiller, op)
+			err = b.driver.CreateVolume(vol, &volFiller, op)
 			if err != nil {
 				return err
 			}
@@ -1769,7 +1777,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	// Check if the volume exists on storage.
 	volStorageName := project.Instance(inst.Project(), inst.Name())
-	volExists := b.driver.HasVolume(b.GetVolume(volType, contentType, volStorageName, volumeConfig))
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+	volExists := b.driver.HasVolume(vol)
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
@@ -1839,7 +1848,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -1903,7 +1912,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}
 	}
 
-	err = b.driver.CreateVolumeFromMigration(*vol, conn, args, &preFiller, op)
+	err = b.driver.CreateVolumeFromMigration(vol, conn, args, &preFiller, op)
 	if err != nil {
 		return err
 	}
@@ -2177,13 +2186,15 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 		}
 
 		// Generate the effective root device volume for instance.
-		curVol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+		volStorageName := project.Instance(inst.Project(), inst.Name())
+		curVol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+		err = b.applyInstanceRootDiskOverrides(inst, &curVol)
 		if err != nil {
 			return err
 		}
 
 		if !userOnly {
-			err = b.driver.UpdateVolume(*curVol, changedConfig)
+			err = b.driver.UpdateVolume(curVol, changedConfig)
 			if err != nil {
 				return err
 			}
@@ -2245,6 +2256,8 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	if len(args.Snapshots) > 0 && args.FinalSync {
 		return fmt.Errorf("Snapshots should not be transferred during final sync")
 	}
@@ -2268,7 +2281,9 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -2301,7 +2316,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		_ = filesystem.SyncFS(inst.RootfsPath())
 	}
 
-	err = b.driver.MigrateVolume(*vol, conn, args, op)
+	err = b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
 		return err
 	}
@@ -2320,6 +2335,8 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Load storage volume from database.
 	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 	if err != nil {
@@ -2327,7 +2344,9 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -2353,7 +2372,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 		}
 	}
 
-	err = b.driver.BackupVolume(*vol, tarWriter, optimized, snapNames, op)
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapNames, op)
 	if err != nil {
 		return err
 	}
@@ -2445,8 +2464,11 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 		return nil, err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Get the volume.
-	var vol *drivers.Volume
+	var vol drivers.Volume
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	if inst.ID() > -1 {
 		// Load storage volume from database.
@@ -2456,23 +2478,22 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 		}
 
 		// Generate the effective root device volume for instance.
-		vol, err = b.instanceEffectiveRootVolume(inst, dbVol.Config)
+		vol = b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		contentType := InstanceContentType(inst)
-		volStorageName := project.Instance(inst.Project(), inst.Name())
-		tmpVol := b.GetVolume(volType, contentType, volStorageName, nil)
-		vol = &tmpVol
+		vol = b.GetVolume(volType, contentType, volStorageName, nil)
 	}
 
-	err = b.driver.MountVolume(*vol, op)
+	err = b.driver.MountVolume(vol, op)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { _, _ = b.driver.UnmountVolume(*vol, false, op) })
+	revert.Add(func() { _, _ = b.driver.UnmountVolume(vol, false, op) })
 
 	diskPath, err := b.getInstanceDisk(inst)
 	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
@@ -2499,8 +2520,11 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Get the volume.
-	var vol *drivers.Volume
+	var vol drivers.Volume
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	if inst.ID() > -1 {
 		// Load storage volume from database.
@@ -2510,18 +2534,16 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 		}
 
 		// Generate the effective root device volume for instance.
-		vol, err = b.instanceEffectiveRootVolume(inst, dbVol.Config)
+		vol = b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
 		if err != nil {
 			return err
 		}
 	} else {
-		contentType := InstanceContentType(inst)
-		volStorageName := project.Instance(inst.Project(), inst.Name())
-		tmpVol := b.GetVolume(volType, contentType, volStorageName, nil)
-		vol = &tmpVol
+		vol = b.GetVolume(volType, contentType, volStorageName, nil)
 	}
 
-	_, err = b.driver.UnmountVolume(*vol, false, op)
+	_, err = b.driver.UnmountVolume(vol, false, op)
 
 	return err
 }
@@ -2794,6 +2816,8 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Load storage volume from database.
 	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 	if err != nil {
@@ -2801,7 +2825,9 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
@@ -2834,7 +2860,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		})
 	}
 
-	err = b.driver.RestoreVolume(*vol, snapshotName, op)
+	err = b.driver.RestoreVolume(vol, snapshotName, op)
 	if err != nil {
 		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
 		if ok {
@@ -2859,7 +2885,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 			}
 
 			// Now try restoring again.
-			err = b.driver.RestoreVolume(*vol, snapshotName, op)
+			err = b.driver.RestoreVolume(vol, snapshotName, op)
 			if err != nil {
 				return err
 			}
@@ -2897,13 +2923,17 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return nil, err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return nil, err
 	}
 
-	err = b.driver.MountVolumeSnapshot(*vol, op)
+	err = b.driver.MountVolumeSnapshot(vol, op)
 	if err != nil {
 		return nil, err
 	}
@@ -2936,6 +2966,8 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
 	// Load storage volume from database.
 	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 	if err != nil {
@@ -2943,12 +2975,14 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, dbVol.Config)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.driver.UnmountVolumeSnapshot(*vol, op)
+	_, err = b.driver.UnmountVolumeSnapshot(vol, op)
 
 	return err
 }
@@ -5273,7 +5307,9 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
+	err = b.applyInstanceRootDiskOverrides(inst, &vol)
 	if err != nil {
 		return err
 	}
