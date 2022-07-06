@@ -593,40 +593,27 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	return nil
 }
 
-// instanceRootVolumeConfig returns the instance's effective root volume config.
-// Returns a copy of volConfig with size and size.state values overridden from the instance's root disk device.
-func (b *lxdBackend) instanceEffectiveRootVolume(inst instance.Instance, volConfig map[string]string) (*drivers.Volume, error) {
-	volType, err := InstanceTypeToVolumeType(inst.Type())
-	if err != nil {
-		return nil, err
-	}
-
-	contentType := InstanceContentType(inst)
-
-	// Get the root disk device config.
+// applyInstanceRootDiskOverrides applies the instance's root disk config to the volume's config.
+func (b *lxdBackend) applyInstanceRootDiskOverrides(inst instance.Instance, vol *drivers.Volume) error {
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Clone the volume config so that effective overrides below don't modify supplied volume config.
-	volConfigClone := make(map[string]string, len(volConfig))
-	for k, v := range volConfig {
-		volConfigClone[k] = v
-	}
-
-	// Apply instance root device effective override fields to config.
 	for _, k := range instanceDiskVolumeEffectiveFields {
 		if rootDiskConf[k] != "" {
-			volConfigClone[k] = rootDiskConf[k]
+			switch k {
+			case "size":
+				vol.SetConfigSize(rootDiskConf[k])
+			case "size.state":
+				vol.SetConfigStateSize(rootDiskConf[k])
+			default:
+				return fmt.Errorf("Unsupported instance disk volume override field %q", k)
+			}
 		}
 	}
 
-	volStorageName := project.Instance(inst.Project(), inst.Name())
-
-	vol := b.GetVolume(volType, contentType, volStorageName, volConfigClone)
-
-	return &vol, err
+	return nil
 }
 
 // CreateInstance creates an empty instance.
