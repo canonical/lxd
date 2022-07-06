@@ -463,7 +463,8 @@ func qemuCPU(opts *qemuCPUOpts) []cfgSection {
 			name: "numa",
 			entries: []cfgEntry{
 				{key: "type", value: "cpu"},
-				{key: "node-id", value: fmt.Sprintf("%d", numa.socket)},
+				{key: "node-id", value: fmt.Sprintf("%d", numa.node)},
+				{key: "socket-id", value: fmt.Sprintf("%d", numa.socket)},
 				{key: "core-id", value: fmt.Sprintf("%d", numa.core)},
 				{key: "thread-id", value: fmt.Sprintf("%d", numa.thread)},
 			},
