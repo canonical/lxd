@@ -88,7 +88,7 @@ type Volume struct {
 }
 
 // NewVolume instantiates a new Volume struct.
-func NewVolume(driver Driver, poolName string, volType VolumeType, contentType ContentType, volName string, volConfig, poolConfig map[string]string) Volume {
+func NewVolume(driver Driver, poolName string, volType VolumeType, contentType ContentType, volName string, volConfig map[string]string, poolConfig map[string]string) Volume {
 	return Volume{
 		name:        volName,
 		pool:        poolName,
