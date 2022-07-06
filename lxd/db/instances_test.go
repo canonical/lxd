@@ -265,10 +265,15 @@ func TestInstanceList(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	opts := db.InstanceListOpts{
+		Devices: true,
+		Config:  true,
+	}
+
 	var instances []db.InstanceArgs
-	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
-		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, profiles)
+	err = c.InstanceList(nil, opts, func(dbInst db.InstanceArgs, p api.Project) error {
+		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
+		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
 		instances = append(instances, dbInst)
 
@@ -278,11 +283,11 @@ func TestInstanceList(t *testing.T) {
 
 	assert.Len(t, instances, 1)
 
-	assert.Equal(t, instances[0].Config, map[string]string{"a": "1", "c": "3"})
-	assert.Equal(t, instances[0].Devices.CloneNative(), map[string]map[string]string{
+	assert.Equal(t, map[string]string{"a": "1", "c": "3"}, instances[0].Config)
+	assert.Equal(t, map[string]map[string]string{
 		"root": {"type": "disk", "b": "2"},
 		"eth0": {"type": "nic", "d": "4"},
-	})
+	}, instances[0].Devices.CloneNative())
 }
 
 func TestCreateInstance(t *testing.T) {

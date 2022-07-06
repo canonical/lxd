@@ -401,7 +401,11 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 	oldUUIDKey := "volatile.vm.uuid"
 	newUUIDKey := "volatile.uuid"
 
-	return d.State().DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
+	opts := db.InstanceListOpts{
+		Config: true,
+	}
+
+	return d.State().DB.Cluster.InstanceList(nil, opts, func(inst db.InstanceArgs, p api.Project) error {
 		if inst.Type != instancetype.VM {
 			return nil
 		}
