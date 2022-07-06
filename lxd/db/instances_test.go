@@ -265,8 +265,13 @@ func TestInstanceList(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	opts := db.InstanceListOpts{
+		Devices: true,
+		Config:  true,
+	}
+
 	var instances []db.InstanceArgs
-	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project) error {
+	err = c.InstanceList(nil, opts, func(dbInst db.InstanceArgs, p api.Project) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
