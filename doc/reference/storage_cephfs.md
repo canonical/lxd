@@ -52,9 +52,9 @@ volatile.pool.pristine        | string                        | true            
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
-security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
-snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+security.shifted        | bool      | custom volume             | false                                 | {{enable_ID_shifting}}
+security.unmapped       | bool      | custom volume             | false                                 | Disable ID mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size/quota of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | {{snapshot_expiry_format}}
+snapshots.pattern       | string    | custom volume             | snap%d                                | {{snapshot_pattern_format}}
 snapshots.schedule      | string    | custom volume             | -                                     | {{snapshot_schedule_format}}

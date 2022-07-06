@@ -94,9 +94,9 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and ZFS.)
-source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
-zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image
+size                          | string                        | 0                                       | Size/quota of the storage pool in bytes (suffixes supported, currently valid for loop-based pools and ZFS)
+source                        | string                        | -                                       | Path to block device or loop file or file system entry
+zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (Boolean), or `rebase` to copy based on the initial image
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
@@ -104,16 +104,16 @@ zfs.pool\_name                | string                        | name of the pool
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
-security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
-snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+security.shifted        | bool      | custom volume             | false                                 | {{enable_ID_shifting}}
+security.unmapped       | bool      | custom volume             | false                                 | Disable ID mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size/quota of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | {{snapshot_expiry_format}}
+snapshots.pattern       | string    | custom volume             | snap%d                                | {{snapshot_pattern_format}}
 snapshots.schedule      | string    | custom volume             | -                                     | {{snapshot_schedule_format}}
-zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16MiB (must be power of 2). For block volume maximum value of 128KiB will be used even though higher value is set
+zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
 zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
-zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota      | Use refquota instead of quota for space
-zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use reservation/refreservation along with qouta/refquota
+zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota      | Use `refquota` instead of `quota` for space
+zfs.reserve\_space      | string    | ZFS driver                | false                                 | Use `reservation`/`refreservation` along with `quota`/`refquota`
 
 ## Growing a loop backed ZFS pool
 LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
