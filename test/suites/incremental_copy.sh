@@ -29,6 +29,9 @@ do_copy() {
   lxc init testimage c1 -s "${source_pool}"
   lxc storage volume set "${source_pool}" container/c1 user.foo=main
 
+  # Set size to check this is supported during copy.
+  lxc config device set c1 root size=50MiB
+
   targetPoolFlag=
   if [ -n "${target_pool}" ]; then
     targetPoolFlag="-s ${target_pool}"
