@@ -278,11 +278,11 @@ func TestInstanceList(t *testing.T) {
 
 	assert.Len(t, instances, 1)
 
-	assert.Equal(t, instances[0].Config, map[string]string{"a": "1", "c": "3"})
-	assert.Equal(t, instances[0].Devices.CloneNative(), map[string]map[string]string{
+	assert.Equal(t, map[string]string{"a": "1", "c": "3"}, instances[0].Config)
+	assert.Equal(t, map[string]map[string]string{
 		"root": {"type": "disk", "b": "2"},
 		"eth0": {"type": "nic", "d": "4"},
-	})
+	}, instances[0].Devices.CloneNative())
 }
 
 func TestCreateInstance(t *testing.T) {
