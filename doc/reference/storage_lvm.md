@@ -40,25 +40,25 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
-lvm.thinpool\_metadata\_size  | string                        | 0 (auto)                                | The size of the thin pool metadata volume. The default is to let LVM calculate an appropriate size
+lvm.thinpool\_metadata\_size  | string                        | 0 (auto)                                | The size of the thin pool metadata volume (the default is to let LVM calculate an appropriate size)
 lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thin pool for logical volumes
 lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group
 lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create
-rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
+rsync.bwlimit                 | string                        | 0 (no limit)                            | The upper limit to be placed on the socket I/O when rsync must be used to transfer storage entities
 rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
-source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
+source                        | string                        | -                                       | Path to block device or loop file or file system entry
 
 (storage-lvm-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
-block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | {{block_filesystem}}
 block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
 lvm.stripes             | string    | LVM driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume)
-lvm.stripes.size        | string    | LVM driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes)
-security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
-snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+lvm.stripes.size        | string    | LVM driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512 bytes)
+security.shifted        | bool      | custom volume             | false                                 | {{enable_ID_shifting}}
+security.unmapped       | bool      | custom volume             | false                                 | Disable ID mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size/quota of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | {{snapshot_expiry_format}}
+snapshots.pattern       | string    | custom volume             | snap%d                                | {{snapshot_pattern_format}}
 snapshots.schedule      | string    | custom volume             | -                                     | {{snapshot_schedule_format}}
