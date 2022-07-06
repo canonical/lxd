@@ -35,18 +35,22 @@ For storage volumes with content type `filesystem` (images, containers and custo
 
 Alternatively, you can use the {ref}`storage-cephfs` driver to create storage volumes with content type `filesystem`.
 ```
-<!-- Include start Ceph driver common -->
+<!-- Include start Ceph driver cluster -->
 Unlike other storage drivers, this driver does not set up the storage system but assumes that you already have a Ceph cluster installed.
+<!-- Include end Ceph driver cluster -->
 
+<!-- Include start Ceph driver remote -->
 This driver also behaves differently than other drivers in that it provides remote storage.
 As a result and depending on the internal network, storage access might be a bit slower than for local storage.
 On the other hand, using remote storage has big advantages in a cluster setup, because all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize storage pools.
-<!-- Include end Ceph driver common -->
+<!-- Include end Ceph driver remote -->
 
 The `ceph` driver in LXD uses RBD images for images, and snapshots and clones to create instances and snapshots.
 
+<!-- Include start Ceph driver control -->
 LXD assumes that it has full control over the OSD storage pool.
 Therefore, you should never maintain any file system entities that are not owned by LXD in a LXD OSD storage pool, because LXD might delete them.
+<!-- Include end Ceph driver control -->
 
 Due to the way copy-on-write works in Ceph RBD, parent RBD images can't be removed until all children are gone.
 As a result, LXD automatically renames any objects that are removed but still referenced.
