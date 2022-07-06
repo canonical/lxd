@@ -32,9 +32,7 @@ Block based                                 | no        | no    | yes   | no   |
 Instant cloning                             | no        | yes   | yes   | yes  | yes  | yes
 Storage driver usable inside a container    | yes       | yes   | no    | no   | no   | n/a
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes  | yes
-Storage quotas                              | yes[^note]| yes   | yes   | yes  | yes  | yes
-
-[^note]: The directory storage driver supports quotas when running on either ext4 or XFS with project quotas enabled at the filesystem level.
+Storage quotas                              | yes<sup>{ref}`* <storage-dir-quotas>`</sup>| yes   | yes   | yes  | yes  | yes
 
 (storage-optimized-image-storage)=
 ### Optimized image storage

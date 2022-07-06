@@ -15,33 +15,42 @@ Snapshots can be read-write or read-only.
 
 ## `btrfs` driver in LXD
 
- - Uses a subvolume per instance, image and snapshot, creating Btrfs snapshots when creating a new object.
- - Btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on Btrfs. (But see notes about Btrfs quota via qgroups.)
+The `btrfs` driver in LXD uses a subvolume per instance, image and snapshot.
+When creating a new object (for example, launching a new instance), it creates a Btrfs snapshot.
 
+Btrfs can be used as a storage backend inside a container in a nested LXD environment.
+In this case, the parent container itself must use Btrfs.
+Note, however, that the nested LXD setup does not inherit the Btrfs quotas from the parent (see {ref}`storage-btrfs-quotas` below).
+
+(storage-btrfs-quotas)=
 ### Quotas
 
- - Btrfs supports storage quotas via qgroups. While Btrfs qgroups are
-   hierarchical, new subvolumes will not automatically be added to the qgroups
-   of their parent subvolumes. This means that users can trivially escape any
-   quotas that are set. If adherence to strict quotas is a necessity users
-   should be mindful of this and maybe consider using a zfs storage pool with
-   refquotas.
- - When using quotas it is critical to take into account that Btrfs extents are immutable so when blocks are
-   written they end up in new extents and the old ones remain until all of its data is dereferenced or rewritten.
-   This means that a quota can be reached even if the total amount of space used by the current files in the
-   subvolume is smaller than the quota. This is seen most often when using VMs on Btrfs due to the random I/O
-   nature of using raw disk image files on top of a Btrfs subvolume. Our recommendation is to not use VMs with Btrfs
-   storage pools, but if you insist then please ensure that the instance root disk's `size.state` property is set
-   to 2x the size of the root disk's size to allow all blocks in the disk image file to be rewritten without
-   reaching the qgroup quota. You may also find that using the `btrfs.mount_options=compress-force` storage pool
-   option avoids this scenario as a side effect of enabling compression is to reduce the maximum extent size such
-   that block rewrites don't cause as much storage to be double tracked. However as this is a storage pool option
-   it will affect all volumes on the pool.
+Btrfs supports storage quotas via qgroups.
+Btrfs qgroups are hierarchical, but new subvolumes will not automatically be added to the qgroups of their parent subvolumes.
+This means that users can trivially escape any quotas that are set.
+Therefore, if strict quotas are needed, you should consider using a different storage driver (for example, ZFS with refquotas or LVM with Btrfs on top).
+
+When using quotas, you must take into account that Btrfs extents are immutable.
+When blocks are written, they end up in new extents.
+The old extents remain until all their data is de-referenced or rewritten.
+This means that a quota can be reached even if the total amount of space used by the current files in the subvolume is smaller than the quota.
+
+```{note}
+This issue is seen most often when using VMs on Btrfs, due to the random I/O nature of using raw disk image files on top of a Btrfs subvolume.
+
+Therefore, you should never use VMs with Btrfs storage pools.
+
+If you really need to use VMs with Btrfs storage pools, set the instance root disk's {ref}`size.state <instance_device_type_disk>` property to twice the size of the root disk's size.
+This configuration allows all blocks in the disk image file to be rewritten without reaching the qgroup quota.
+The {ref}`btrfs.mount_options=compress-force <storage-btrfs-pool-config>` storage pool option can also avoid this scenario, because a side effect of enabling compression is to reduce the maximum extent size such that block rewrites don't cause as much storage to be double-tracked.
+However, this is a storage pool option, and it therefore affects all volumes on the pool.
+```
 
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `btrfs` driver and for storage volumes in these pools.
 
+(storage-btrfs-pool-config)=
 ### Storage pool configuration
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------

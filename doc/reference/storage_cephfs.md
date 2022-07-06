@@ -20,8 +20,20 @@ Internally, it maps files to Ceph objects and stores file metadata (for example,
 
 ## `cephfs` driver in LXD
 
- - Can only be used for custom storage volumes
- - Supports snapshots if enabled on the server side
+```{note}
+The `cephfs` driver can only be used for custom storage volumes with content type `filesystem`.
+
+For other storage volumes, use the {ref}`storage-ceph` driver.
+That driver can also be used for custom storage volumes with content type `filesystem`, but it implements them through Ceph RBD images.
+```
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph driver common -->
+    :end-before: <!-- Include end Ceph driver common -->
+```
+
+The `cephfs` driver in LXD supports snapshots if snapshots are enabled on the server side.
 
 ## Configuration options
 
