@@ -303,64 +303,271 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 // ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
 var ErrInstanceListStop = fmt.Errorf("search stopped")
 
+// InstanceListOpts indicate the options required for instance list.
+type InstanceListOpts struct {
+	Config  bool // Include instance config.
+	Devices bool // Include instance devices.
+}
+
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project, profiles []api.Profile) error) error {
-	var instances []InstanceArgs
-	projectsByName := map[string]api.Project{}
+func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, opts InstanceListOpts, instanceFunc func(inst InstanceArgs, project api.Project) error) error {
+	projectsByName := make(map[string]*api.Project)
+	profilesByID := make(map[int]*api.Profile)
+	var instances map[int]InstanceArgs
+	instanceApplyProfileIDs := make(map[int64][]int)
 
 	if filter == nil {
 		filter = &cluster.InstanceFilter{}
 	}
 
-	// Retrieve required info from the database in single transaction for performance.
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		dbInstances, err := cluster.GetInstances(ctx, tx.tx, *filter)
-		if err != nil {
-			return fmt.Errorf("Failed loading instances: %w", err)
+	// instanceConfig function loads config for all specified instanceIDs in a single query and then updates
+	// the entries in the instances map.
+	instanceConfig := func(tx *ClusterTx, instanceIDs []int) error {
+		q := `
+		SELECT
+			instance_id,
+			key,
+			value
+		FROM instances_config
+		WHERE instance_id IN
+		` + query.Params(len(instanceIDs))
+
+		args := make([]any, 0, len(instanceIDs))
+		for _, instanceID := range instanceIDs {
+			args = append(args, instanceID)
 		}
 
-		instances = make([]InstanceArgs, 0, len(dbInstances))
-		for _, instance := range dbInstances {
-			// Get expanded instance information.
-			instanceArgs, err := InstanceToArgs(ctx, tx.tx, &instance)
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+			var instanceID int
+			var key, value string
+
+			err := scan(&instanceID, &key, &value)
 			if err != nil {
 				return err
 			}
 
-			// Add an empty api.Project so we know this is an instance project.
-			_, ok := projectsByName[instance.Project]
-			if !ok {
-				projectsByName[instance.Project] = api.Project{}
+			_, found := instances[instanceID]
+			if !found {
+				return fmt.Errorf("Failed loading instance config, referenced instance %d not loaded", instanceID)
 			}
 
-			instances = append(instances, *instanceArgs)
+			if instances[instanceID].Config == nil {
+				inst := instances[instanceID]
+				inst.Config = make(map[string]string)
+				instances[instanceID] = inst
+			}
+
+			_, found = instances[instanceID].Config[key]
+			if found {
+				return fmt.Errorf("Duplicate config row found for key %q for instance ID %d", key, instanceID)
+			}
+
+			instances[instanceID].Config[key] = value
+
+			return nil
+		}, args...)
+	}
+
+	// instanceDevices loads the device config for all instanceIDs specified in a single query and then updates
+	// the entries in the instances map.
+	instanceDevices := func(tx *ClusterTx, instanceIDs []int) error {
+		q := `
+		SELECT
+			instances_devices.instance_id AS instance_id,
+			instances_devices.name AS device_name,
+			instances_devices.type AS device_type,
+			instances_devices_config.key,
+			instances_devices_config.value
+		FROM instances_devices_config
+		JOIN instances_devices ON instances_devices.id = instances_devices_config.instance_device_id
+		WHERE instances_devices.instance_id IN
+		` + query.Params(len(instanceIDs))
+
+		args := make([]any, 0, len(instanceIDs))
+		for _, instanceID := range instanceIDs {
+			args = append(args, instanceID)
 		}
 
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+			var instanceID int
+			var deviceType cluster.DeviceType
+			var deviceName, key, value string
+
+			err := scan(&instanceID, &deviceName, &deviceType, &key, &value)
+			if err != nil {
+				return err
+			}
+
+			_, found := instances[instanceID]
+			if !found {
+				return fmt.Errorf("Failed loading instance device, referenced instance %d not loaded", instanceID)
+			}
+
+			if instances[instanceID].Devices == nil {
+				inst := instances[instanceID]
+				inst.Devices = make(deviceConfig.Devices)
+				instances[instanceID] = inst
+			}
+
+			_, found = instances[instanceID].Devices[deviceName]
+			if !found {
+				instances[instanceID].Devices[deviceName] = deviceConfig.Device{
+					"type": deviceType.String(), // Map instances_devices type to config field.
+				}
+			}
+
+			_, found = instances[instanceID].Devices[deviceName][key]
+			if found && key != "type" {
+				// For legacy reasons the type value is in both the instances_devices and
+				// instances_devices_config tables. We use the one from the instances_devices.
+				return fmt.Errorf("Duplicate device row found for device %q key %q for instance ID %d", deviceName, key, instanceID)
+			}
+
+			instances[instanceID].Devices[deviceName][key] = value
+
+			return nil
+		}, args...)
+	}
+
+	// instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
+	// instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
+	instanceProfiles := func(tx *ClusterTx, instanceIDs []int) error {
+		instanceProjectProfilesSQL := `
+		SELECT
+			instances_profiles.instance_id AS instance_id,
+			instances_profiles.profile_id AS profile_id
+		FROM instances_profiles
+		WHERE instances_profiles.instance_id IN
+		` + query.Params(len(instanceIDs)) +
+			`ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`
+
+		args := make([]any, 0, len(instanceIDs))
+		for _, instanceID := range instanceIDs {
+			args = append(args, instanceID)
+		}
+
+		return tx.QueryScan(instanceProjectProfilesSQL, func(scan func(dest ...any) error) error {
+			var instanceID int64
+			var profileID int
+
+			err := scan(&instanceID, &profileID)
+			if err != nil {
+				return err
+			}
+
+			instanceApplyProfileIDs[instanceID] = append(instanceApplyProfileIDs[instanceID], profileID)
+
+			// Record that this profile is referenced by at least one instance in the list.
+			_, ok := profilesByID[profileID]
+			if !ok {
+				profilesByID[profileID] = nil
+			}
+
+			return nil
+		}, args...)
+	}
+
+	// Retrieve required info from the database in single transaction for performance.
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		// Get all projects.
 		projects, err := cluster.GetProjects(ctx, tx.tx, cluster.ProjectFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed loading projects: %w", err)
 		}
 
-		// Index of all projects by name and record which projects have the profiles feature.
+		// Get all instances using supplied filter.
+		dbInstances, err := cluster.GetInstances(ctx, tx.tx, *filter)
+		if err != nil {
+			return fmt.Errorf("Failed loading instances: %w", err)
+		}
+
+		// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated).
+		instances = make(map[int]InstanceArgs, len(dbInstances))
+		instanceIDs := make([]int, 0, len(dbInstances))
+		for _, instance := range dbInstances {
+			args := InstanceArgs{
+				ID:           instance.ID,
+				Project:      instance.Project,
+				Name:         instance.Name,
+				Node:         instance.Node,
+				Type:         instance.Type,
+				Snapshot:     instance.Snapshot,
+				Architecture: instance.Architecture,
+				Ephemeral:    instance.Ephemeral,
+				CreationDate: instance.CreationDate,
+				Stateful:     instance.Stateful,
+				LastUsedDate: instance.LastUseDate.Time,
+				Description:  instance.Description,
+				ExpiryDate:   instance.ExpiryDate.Time,
+			}
+
+			// Record that this project is referenced by at least one instance in the list.
+			_, ok := projectsByName[instance.Project]
+			if !ok {
+				projectsByName[instance.Project] = nil
+			}
+
+			instances[instance.ID] = args
+			instanceIDs = append(instanceIDs, instance.ID)
+		}
+
+		// Populate projectsByName map entry for referenced projects.
+		// This way we only call ToAPI() on the projects actually referenced by the instances in
+		// the list, which can reduce the number of queries run.
 		for _, project := range projects {
-			// Skip any projects not associated with an instance in this filtered list.
-			instanceProject, ok := projectsByName[project.Name]
+			_, ok := projectsByName[project.Name]
 			if !ok {
 				continue
 			}
 
-			// Don't call ToAPI more than once per project.
-			if instanceProject.Name != "" {
-				continue
-			}
-
-			apiProject, err := project.ToAPI(ctx, tx.tx)
+			projectsByName[project.Name], err = project.ToAPI(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
+		}
 
-			projectsByName[project.Name] = *apiProject
+		if opts.Config {
+			// Populate instance config.
+			err = instanceConfig(tx, instanceIDs)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance config: %w", err)
+			}
+		}
+
+		if opts.Devices {
+			// Populate instance devices.
+			err = instanceDevices(tx, instanceIDs)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance devices: %w", err)
+			}
+		}
+
+		// Get all profiles.
+		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		if err != nil {
+			return fmt.Errorf("Failed loading profiles: %w", err)
+		}
+
+		// Get profiles applied to instances (in order they are applied).
+		err = instanceProfiles(tx, instanceIDs)
+		if err != nil {
+			return fmt.Errorf("Failed getting instance profiles: %w", err)
+		}
+
+		// Populate profilesByID map entry for referenced profiles.
+		// This way we only call ToAPI() on the profiles actually referenced by the instances in
+		// the list, which can reduce the number of queries run.
+		for _, profile := range profiles {
+			_, ok := profilesByID[profile.ID]
+			if !ok {
+				continue
+			}
+
+			profilesByID[profile.ID], err = profile.ToAPI(ctx, tx.tx)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -372,7 +579,23 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
 	// the instanceFunc will be slow or may need to make additional DB queries.
 	for _, instance := range instances {
-		err = instanceFunc(instance, projectsByName[instance.Project], instance.Profiles)
+		project := projectsByName[instance.Project]
+		if project == nil {
+			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
+		}
+
+		// Populate instance profiles list before calling instanceFunc.
+		instance.Profiles = make([]api.Profile, 0, len(instance.Profiles))
+		for _, applyProfileID := range instanceApplyProfileIDs[int64(instance.ID)] {
+			profile := profilesByID[applyProfileID]
+			if profile == nil {
+				return fmt.Errorf("Instance %d references profile %d that isn't loaded", instance.ID, applyProfileID)
+			}
+
+			instance.Profiles = append(instance.Profiles, *profile)
+		}
+
+		err = instanceFunc(instance, *project)
 		if err != nil {
 			return err
 		}

@@ -65,11 +65,16 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 
 	reservedDevices := map[string]struct{}{}
 
+	opts := db.InstanceListOpts{
+		Devices: true,
+		Config:  true,
+	}
+
 	// Check if any instances are using the VF device.
-	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project, profiles []api.Profile) error {
+	err = s.DB.Cluster.InstanceList(&filter, opts, func(dbInst db.InstanceArgs, p api.Project) error {
 		// Expand configs so we take into account profile devices.
-		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, profiles)
+		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
+		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
 		for name, dev := range dbInst.Devices {
 			// If device references a parent host interface name, mark that as reserved.
