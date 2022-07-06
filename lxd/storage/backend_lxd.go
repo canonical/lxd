@@ -2173,6 +2173,11 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf(`Instance volume "size" property cannot be changed`)
 		}
 
+		// Check that the volume's size.state property isn't being changed.
+		if changedConfig["size.state"] != "" {
+			return fmt.Errorf(`Instance volume "size.state" property cannot be changed`)
+		}
+
 		// Check that the volume's block.filesystem property isn't being changed.
 		if changedConfig["block.filesystem"] != "" {
 			return fmt.Errorf(`Instance volume "block.filesystem" property cannot be changed`)
