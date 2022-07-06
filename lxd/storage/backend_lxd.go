@@ -942,13 +942,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 	}
 
-	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, srcConfig.Volume.Config)
-	if err != nil {
-		return err
-	}
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	vol := b.GetVolume(volType, contentType, volStorageName, srcConfig.Volume.Config)
 
-	if b.driver.HasVolume(*vol) {
+	if b.driver.HasVolume(vol) {
 		return fmt.Errorf("Cannot create volume, already exists on target storage")
 	}
 
@@ -1003,7 +1000,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project(), newSnapshotName, vol.Type()) })
 		}
 
-		err = b.driver.CreateVolumeFromCopy(*vol, srcVol, snapshots, allowInconsistent, op)
+		// Generate the effective root device volume for instance.
+		err = b.applyInstanceRootDiskOverrides(inst, &vol)
+		if err != nil {
+			return err
+		}
+
+		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, allowInconsistent, op)
 		if err != nil {
 			return err
 		}
