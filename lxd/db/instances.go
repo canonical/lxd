@@ -407,12 +407,14 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			_, found = instances[instanceID].Devices[deviceName]
 			if !found {
 				instances[instanceID].Devices[deviceName] = deviceConfig.Device{
-					"type": deviceType.String(),
+					"type": deviceType.String(), // Map instances_devices type to config field.
 				}
 			}
 
 			_, found = instances[instanceID].Devices[deviceName][key]
-			if found {
+			if found && key != "type" {
+				// For legacy reasons the type value is in both the instances_devices and
+				// instances_devices_config tables. We use the one from the instances_devices.
 				return fmt.Errorf("Duplicate device row found for device %q key %q for instance ID %d", deviceName, key, instanceID)
 			}
 
@@ -468,12 +470,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			return fmt.Errorf("Failed loading projects: %w", err)
 		}
 
-		// Get all profiles.
-		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
-		if err != nil {
-			return fmt.Errorf("Failed loading profiles: %w", err)
-		}
-
 		// Get all instances using supplied filter.
 		dbInstances, err := cluster.GetInstances(ctx, tx.tx, *filter)
 		if err != nil {
@@ -510,24 +506,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			instanceIDs = append(instanceIDs, instance.ID)
 		}
 
-		// Populate instance config.
-		err = instanceConfig(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance config: %w", err)
-		}
-
-		// Populate instance devices.
-		err = instanceDevices(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance devices: %w", err)
-		}
-
-		// Get profiles applied to instances (in order they are applied).
-		err = instanceProfiles(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed getting instance profiles: %w", err)
-		}
-
 		// Populate projectsByName map entry for referenced projects.
 		// This way we only call ToAPI() on the projects actually referenced by the instances in
 		// the list, which can reduce the number of queries run.
@@ -541,6 +519,30 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			if err != nil {
 				return err
 			}
+		}
+
+		// Populate instance config.
+		err = instanceConfig(tx, instanceIDs)
+		if err != nil {
+			return fmt.Errorf("Failed loading instance config: %w", err)
+		}
+
+		// Populate instance devices.
+		err = instanceDevices(tx, instanceIDs)
+		if err != nil {
+			return fmt.Errorf("Failed loading instance devices: %w", err)
+		}
+
+		// Get all profiles.
+		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		if err != nil {
+			return fmt.Errorf("Failed loading profiles: %w", err)
+		}
+
+		// Get profiles applied to instances (in order they are applied).
+		err = instanceProfiles(tx, instanceIDs)
+		if err != nil {
+			return fmt.Errorf("Failed getting instance profiles: %w", err)
 		}
 
 		// Populate profilesByID map entry for referenced profiles.
@@ -567,6 +569,11 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
 	// the instanceFunc will be slow or may need to make additional DB queries.
 	for _, instance := range instances {
+		project := projectsByName[instance.Project]
+		if project == nil {
+			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
+		}
+
 		// Populate instance profiles list before calling instanceFunc.
 		instance.Profiles = make([]api.Profile, 0, len(instance.Profiles))
 		for _, applyProfileID := range instanceApplyProfileIDs[int64(instance.ID)] {
@@ -576,11 +583,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			}
 
 			instance.Profiles = append(instance.Profiles, *profile)
-		}
-
-		project := projectsByName[instance.Project]
-		if project == nil {
-			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
 		}
 
 		err = instanceFunc(instance, *project)
