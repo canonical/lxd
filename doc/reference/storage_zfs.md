@@ -27,58 +27,70 @@ These datasets can be of different types:
 
 ## `zfs` driver in LXD
 
- - When LXD creates a ZFS pool, compression is enabled by default.
- - Uses ZFS filesystems for images, then snapshots and clones to create instances and snapshots.
- - Due to the way copy-on-write works in ZFS, parent filesystems can't
-   be removed until all children are gone. As a result, LXD will
-   automatically rename any removed but still referenced object to a random
-   deleted/ path and keep it until such time the references are gone and it
-   can safely be removed.
- - Note that LXD will assume it has full control over the ZFS pool or dataset.
-   It is recommended to not maintain any non-LXD owned filesystem entities in
-   a LXD ZFS pool or dataset since LXD might delete them.
+The `zfs` driver in LXD uses ZFS filesystems and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.
+By default, LXD enables compression when creating a ZFS pool.
 
+LXD assumes that it has full control over the ZFS pool and dataset.
+Therefore, you should never maintain any datasets or file system entities that are not owned by LXD in a LXD ZFS pool or dataset, because LXD might delete them.
+
+Due to the way copy-on-write works in ZFS, parent ZFS filesystems can't be removed until all children are gone.
+As a result, LXD automatically renames any objects that are removed but still referenced.
+Such objects are kept at a random `deleted/` path until all references are gone and the object can safely be removed.
+Note that this method might have ramifications for restoring snapshots.
+See {ref}`storage-zfs-limitations` below.
+
+LXD automatically enables trimming support on all newly created pools on ZFS 0.8 or later.
+This increases the lifetime of SSDs by allowing better block re-use by the controller, and it also allows to free space on the root filesystem when using a loop-backed ZFS pool.
+If you are running a ZFS version earlier than 0.8 and want to enable trimming, upgrade to at least version 0.8.
+Then use the following commands to make sure that trimming is automatically enabled for the ZFS pool in the future and trim all currently unused space:
+
+    zpool upgrade ZPOOL-NAME
+    zpool set autotrim=on ZPOOL-NAME
+    zpool trim ZPOOL-NAME
+
+(storage-zfs-limitations)=
 ### Limitations
 
- - ZFS as it is today doesn't support delegating part of a pool to a
-   container user. Upstream is actively working on this.
- - ZFS doesn't support restoring from snapshots other than the latest
-   one. You can however create new instances from older snapshots which
-   makes it possible to confirm the snapshots is indeed what you want to
-   restore before you remove the newer snapshots.
+The `zfs` driver has the following limitations:
 
-   LXD can be configured to automatically discard the newer snapshots during restore.
-   This can be configured through the `volume.zfs.remove_snapshots` pool option.
+Delegating part of a pool
+: ZFS doesn't support delegating part of a pool to a container user.
+  Upstream is actively working on providing this functionality.
 
-   However note that instance copies use ZFS snapshots too, so you also cannot
-   restore an instance to a snapshot taken before the last copy without having
-   to also delete all its descendants.
+Restoring from older snapshots
+: ZFS doesn't support restoring from snapshots other than the latest one.
+  You can, however, create new instances from older snapshots.
+  This method makes it possible to confirm whether a specific snapshot contains what you need.
+  After determining the correct snapshot, you can {ref}`remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
 
-   Copying the wanted snapshot into a new instance and then deleting
-   the old instance does however work, at the cost of losing any other
-   snapshot the instance may have had.
+  Alternatively, you can configure LXD to automatically discard the newer snapshots during restore.
+  To do so, set the {ref}`zfs.remove_snapshots <storage-zfs-vol-config>` configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
 
- - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
-   much. That's because of ZFS being a port of a Solaris module (using SPL)
-   and not a native Linux filesystem using the Linux VFS API which is where
-   I/O limits are applied.
+  Note, however, that if {ref}`zfs.clone_copy <storage-zfs-pool-config>` is set to `true`, instance copies use ZFS snapshots too.
+  In that case, you cannot restore an instance to a snapshot taken before the last copy without having to also delete all its descendants.
+  If this is not an option, you can copy the wanted snapshot into a new instance and then delete the old instance.
+  You will, however, lose any other snapshots the instance might have had.
+
+Observing I/O quotas
+: I/O quotas are unlikely to affect ZFS filesystems very much.
+  That's because ZFS is a port of a Solaris module (using SPL) and not a native Linux file system using the Linux VFS API, which is where I/O limits are applied.
 
 ### Quotas
 
- - When quotas are used on a ZFS dataset LXD will set the ZFS "quota" property.
-   In order to have LXD set the ZFS "refquota" property, either set
-   "zfs.use\_refquota" to "true" for the given dataset or set
-   "volume.zfs.use\_refquota" to true on the storage pool. The former option
-   will make LXD use refquota only for the given storage volume the latter will
-   make LXD use refquota for all storage volumes in the storage pool. Also you can
-   set "zfs.reserve\_space" on the volume or "volume.zfs.reserve\_space" on the
-   storage pool to use ZFS "reservation"/"refreservation" along with
-   "quota"/"refquota".
+ZFS provides two different quota properties: `quota` and `refquota`.
+`quota` restricts the total size of a dataset, including its snapshots and clones.
+`refquota` restricts only the size of the data in the dataset, not its snapshots and clones.
+
+By default, LXD uses the `quota` property when you set up a quota for your storage volume.
+If you want to use the `refquota` property instead, set the {ref}`zfs.use_refquota <storage-zfs-vol-config>` configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
+
+You can also set the {ref}`zfs.use_reserve_space <storage-zfs-vol-config>` (or `volume.zfs.use_reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
 
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `zfs` driver and for storage volumes in these pools.
 
+(storage-zfs-pool-config)=
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
@@ -88,6 +100,7 @@ zfs.clone\_copy               | string                        | true            
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
+(storage-zfs-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
@@ -114,18 +127,3 @@ sudo zpool set autoexpand=off <POOL>
 ```
 
 (NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
-
-## Enabling TRIM on existing pools
-LXD will automatically enable trimming support on all newly created pools on ZFS 0.8 or later.
-
-This helps with the lifetime of SSDs by allowing better block re-use by the controller.
-This also will allow freeing space on the root filesystem when using a loop backed ZFS pool.
-
-For systems which were upgraded from pre-0.8 to 0.8, this can be enabled with a one time action of:
-
- - zpool upgrade ZPOOL-NAME
- - zpool set autotrim=on ZPOOL-NAME
- - zpool trim ZPOOL-NAME
-
-This will make sure that TRIM is automatically issued in the future as
-well as cause TRIM on all currently unused space.
