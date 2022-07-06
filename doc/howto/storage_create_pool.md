@@ -14,9 +14,9 @@ See the {ref}`storage-drivers` documentation for a list of available configurati
 
 See the following examples for how to create a storage pool using different storage drivers.
 
-````{tabs}
+`````{tabs}
 
-```{group-tab} Directory
+````{group-tab} Directory
 
 Create a directory pool named `pool1`:
 
@@ -25,8 +25,8 @@ Create a directory pool named `pool1`:
 Use the existing directory `/data/lxd` for `pool2`:
 
     lxc storage create pool2 dir source=/data/lxd
-```
-```{group-tab} Btrfs
+````
+````{group-tab} Btrfs
 
 Create a loop-backed pool named `pool1`:
 
@@ -39,8 +39,8 @@ Use the existing Btrfs file system at `/some/path` for `pool2`:
 Create a pool named `pool3` on `/dev/sdX`:
 
     lxc storage create pool3 btrfs source=/dev/sdX
-```
-```{group-tab} LVM
+````
+````{group-tab} LVM
 
 Create a loop-backed pool named `pool1` (the LVM volume group will also be called `pool1`):
 
@@ -61,8 +61,8 @@ Create a pool named `pool4` on `/dev/sdX` (the LVM volume group will also be cal
 Create a pool named `pool5` on `/dev/sdX` with the LVM volume group name `my-pool`:
 
     lxc storage create pool5 lvm source=/dev/sdX lvm.vg_name=my-pool
-```
-```{group-tab} ZFS
+````
+````{group-tab} ZFS
 
 Create a loop-backed pool named `pool1` (the ZFS zpool will also be called `pool1`):
 
@@ -87,8 +87,8 @@ Create a pool named `pool5` on `/dev/sdX` (the ZFS zpool will also be called `po
 Create a pool named `pool6` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
     lxc storage create pool6 zfs source=/dev/sdX zfs.pool_name=my-tank
-```
-```{group-tab} Ceph RBD
+````
+````{group-tab} Ceph RBD
 
 Create an OSD storage pool named `pool1` in the default Ceph cluster (named `ceph`):
 
@@ -109,27 +109,24 @@ Use the existing OSD storage pool `my-already-existing-osd` for `pool4`:
 Use the existing OSD erasure-coded pool `ecpool` and the OSD replicated pool `rpl-pool` for `pool5`:
 
     lxc storage create pool5 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
-```
-```{group-tab} CephFS
-
-Create a storage pool named `pool1` in the default Ceph cluster (named `ceph`):
-
-    lxc storage create pool1 cephfs
-
-Create a storage pool named `pool2` in the Ceph cluster `my-cluster`:
-
-    lxc storage create pool2 cephfs cephfs.cluster_name=my-cluster
-
-Use the existing storage pool `my-filesystem` for `pool3`:
-
-    lxc storage create pool3 cephfs source=my-filesystem
-
-Use the sub-directory `my-directory` from the `my-filesystem` pool for `pool4`:
-
-    lxc storage create pool4 cephfs source=my-filesystem/my-directory
-
-```
 ````
+````{group-tab} CephFS
+
+```{note}
+When using the CephFS driver, you must create a CephFS file system beforehand.
+This file system consists of two OSD storage pools, one for the actual data and one for the file metadata.
+```
+
+Use the existing CephFS file system `my-filesystem` for `pool1`:
+
+    lxc storage create pool1 cephfs source=my-filesystem
+
+Use the sub-directory `my-directory` from the `my-filesystem` file system for `pool2`:
+
+    lxc storage create pool2 cephfs source=my-filesystem/my-directory
+
+````
+`````
 
 ## Create a storage pool in a cluster
 
