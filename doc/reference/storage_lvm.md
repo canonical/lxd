@@ -16,27 +16,26 @@ Another type is a *volume snapshot*, which captures a specific state of a logica
 
 ## `lvm` driver in LXD
 
- - Uses LVs for images, then LV snapshots for instances and instance snapshots.
- - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
- - By default, all LVM storage pools use an LVM thin pool in which logical
-   volumes for all LXD storage entities (images, instances, etc.) are created.
-   This behavior can be changed by setting "lvm.use\_thinpool" to "false". In
-   this case, LXD will use normal logical volumes for all non-instance
-   snapshot storage entities (images, instances, etc.). This means most storage
-   operations will need to fallback to rsyncing since non-thin-pool logical
-   volumes do not support snapshots of snapshots. Note that this entails
-   serious performance impacts for the LVM driver causing it to be close to the
-   fallback DIR driver both in speed and storage usage. This option should only
-   be chosen if the use-case renders it necessary.
- - For environments with high instance turn over (e.g continuous integration)
-   it may be important to tweak the archival `retain_min` and `retain_days`
-   settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with
-   LXD.
+The `lvm` driver in LXD uses logical volumes for images, and volume snapshots for instances and snapshots.
+
+LXD assumes that it has full control over the volume group.
+Therefore, you should never maintain any file system entities that are not owned by LXD in a LXD volume group, because LXD might delete them.
+
+By default, LVM storage pools use an LVM thin pool and create logical volumes for all LXD storage entities (images, instances and custom volumes) in there.
+This behavior can be changed by setting {ref}`lvm.use_thinpool <storage-lvm-pool-config>` to `false` when you create the pool.
+In this case, LXD uses "normal" logical volumes for all storage entities that are not snapshots.
+Note that this entails serious performance and space reductions for the `lvm` driver (close to the `dir` driver both in speed and storage usage).
+The reason for this is that most storage operations must fall back to rsyncing, because logical volumes that are not thin pools do not support snapshots of snapshots.
+In addition, non-thin snapshots take up much more storage space than thin snapshots, because they must reserve space for their maximum size at creation time.
+Therefore, this option should only be chosen if the use case requires it.
+
+For environments with a high instance turnover (for example, continuous integration) you should tweak the backup `retain_min` and `retain_days` settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with LXD.
 
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `lvm` driver and for storage volumes in these pools.
 
+(storage-lvm-pool-config)=
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
@@ -49,6 +48,7 @@ rsync.bwlimit                 | string                        | 0 (no limit)    
 rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 
+(storage-lvm-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------

@@ -28,40 +28,57 @@ Ceph block devices are also called *RBD images*, and you can create *snapshots* 
 
 ## `ceph` driver in LXD
 
-- Uses RBD images for images, then snapshots and clones to create instances
-  and snapshots.
-- Due to the way copy-on-write works in RBD, parent filesystems can't be
-  removed until all children are gone. As a result, LXD will automatically
-  prefix any removed but still referenced object with "zombie_" and keep it
-  until such time the references are gone and it can safely be removed.
-- Note that LXD will assume it has full control over the OSD storage pool.
-  It is recommended to not maintain any non-LXD owned filesystem entities in
-  a LXD OSD storage pool since LXD might delete them.
+```{note}
+To use the Ceph RBD driver, you must specify it as `ceph`.
+This is slightly misleading, because it uses only Ceph RBD (block storage) functionality, not full Ceph functionality.
+For storage volumes with content type `filesystem` (images, containers and custom filesystem volumes), the `ceph` driver uses Ceph RBD images with a file system on top (see {ref}`block.filesystem <storage-ceph-vol-config>`).
+
+Alternatively, you can use the {ref}`storage-cephfs` driver to create storage volumes with content type `filesystem`.
+```
+<!-- Include start Ceph driver common -->
+Unlike other storage drivers, this driver does not set up the storage system but assumes that you already have a Ceph cluster installed.
+<!-- Include end Ceph driver common -->
+
+The `ceph` driver in LXD uses RBD images for images, and snapshots and clones to create instances and snapshots.
+
+LXD assumes that it has full control over the OSD storage pool.
+Therefore, you should never maintain any file system entities that are not owned by LXD in a LXD OSD storage pool, because LXD might delete them.
+
+Due to the way copy-on-write works in Ceph RBD, parent RBD images can't be removed until all children are gone.
+As a result, LXD automatically renames any objects that are removed but still referenced.
+Such objects are kept with a  `zombie_` prefix until all references are gone and the object can safely be removed.
 
 ### Limitations
 
-- Note that sharing the same OSD storage pool between multiple LXD instances is
-  not supported. LXD only allows sharing of an OSD storage pool between
-  multiple LXD instances only for backup purposes of existing instances via
-  `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
-  property to be set to true. If not set, LXD will refuse to reuse an OSD
-  storage pool it detected as being in use by another LXD instance.
-- When setting up a Ceph cluster that LXD is going to use we recommend using
-  `xfs` as the underlying filesystem for the storage entities that are used to
-  hold OSD storage pools. Using `ext4` as the underlying filesystem for the
-  storage entities is not recommended by Ceph upstream. You may see unexpected
-  and erratic failures which are unrelated to LXD itself.
-- To use Ceph OSD pool of type "erasure" you __must__ have the OSD pool created
-  beforehand, as well as a separate OSD pool of type "replicated" that will be used for
-  storing metadata. This is required as RBD & CephFS do not support omap.
-  To specify which pool is "earasure coded" you need to use the
-  `ceph.osd.data_pool_name=<erasure-coded-pool-name>` and
-  `source=<replicated-pool-name>` for the replicated pool.
+The `ceph` driver has the following limitations:
+
+Sharing custom volumes between instances
+: Custom storage volumes with {ref}`content type <storage-content-types>` `filesystem` can usually be shared between multiple instances different cluster members.
+  However, because the Ceph RBD driver "simulates" volumes with content type `filesystem` by putting a file system on top of an RBD image, custom storage volumes can only be assigned to a single instance at a time.
+  If you need to share a custom volume with content type `filesystem`, use the {ref}`storage-cephfs` driver instead.
+
+Sharing the OSD storage pool between installations
+: Sharing the same OSD storage pool between multiple LXD installations is not supported.
+  The only scenario in which LXD allows sharing an OSD storage pool between multiple LXD installations is if you want to recover existing instances via `lxd recover`.
+  In this case, you must set the {ref}`ceph.osd.force_reuse <storage-ceph-pool-config>` configuration option to `true`.
+  If this option is not set, LXD refuses to reuse an OSD storage pool that it detects as being in use by another LXD installation.
+
+Choosing an underlying file system
+: When setting up the Ceph cluster that LXD will use, choose XFS as the underlying file system for the storage entities that are used to hold OSD storage pools.
+  Using ext4 as the underlying file system is [not recommended by Ceph upstream](https://docs.ceph.com/en/quincy/rados/troubleshooting/troubleshooting-osd/#filesystem-issues).
+  You might see unexpected and erratic failures that are unrelated to LXD itself.
+
+Using an OSD pool of type "erasure"
+: To use a Ceph OSD pool of type "erasure", you must create the OSD pool beforehand.
+  You must also create a separate OSD pool of type "replicated" that will be used for storing metadata.
+  This is required because Ceph RBD does not support omap.
+  To specify which pool is "erasure coded", set the {ref}`ceph.osd.data_pool_name <storage-ceph-pool-config>` configuration option to the erasure coded pool name and the {ref}`source <storage-ceph-pool-config>` configuration option to the replicated pool name.
 
 ## Configuration options
 
 The following configuration options are available for storage pools that use the `ceph` driver and for storage volumes in these pools.
 
+(storage-ceph-pool-config)=
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------

@@ -7,15 +7,15 @@ However, LXD operations are {ref}`not optimized <storage-drivers-features>` for 
 
 ## `dir` driver in LXD
 
- - While this backend is fully functional, it's also much slower than
-   all the others due to it having to unpack images or do instant copies of
-   instances, snapshots and images.
+The `dir` driver in LXD is fully functional and provides the same set of features as other drivers.
+However, it is much slower than all the other drivers because it must unpack images and do instant copies of instances, snapshots and images.
 
+Unless specified differently during creation (with the `source` configuration option), the data is stored in the `/var/snap/lxd/common/lxd/storage-pools/` (for snap installations) or `/var/lib/lxd/storage-pools/` directory.
+
+(storage-dir-quotas)=
 ### Quotas
 
- - Quotas are supported with the directory backend when running on
-   either ext4 or XFS with project quotas enabled at the filesystem level.
-
+The `dir` driver supports storage quotas when running on either ext4 or XFS with project quotas enabled at the file system level.
 
 ## Configuration options
 
