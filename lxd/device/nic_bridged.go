@@ -372,7 +372,12 @@ func (d *nicBridged) checkAddressConflict() error {
 		ourNICMAC, _ = net.ParseMAC(d.volatileGet()["hwaddr"])
 	}
 
-	return d.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+	opts := db.InstanceListOpts{
+		Devices: true,
+		Config:  true,
+	}
+
+	return d.state.DB.Cluster.InstanceList(&filter, opts, func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		if instNetworkProject != project.Default {
