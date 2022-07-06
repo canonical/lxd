@@ -303,9 +303,15 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 // ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
 var ErrInstanceListStop = fmt.Errorf("search stopped")
 
+// InstanceListOpts indicate the options required for instance list.
+type InstanceListOpts struct {
+	Config  bool // Include instance config.
+	Devices bool // Include instance devices.
+}
+
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project) error) error {
+func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, opts InstanceListOpts, instanceFunc func(inst InstanceArgs, project api.Project) error) error {
 	projectsByName := make(map[string]*api.Project)
 	profilesByID := make(map[int]*api.Profile)
 	var instances map[int]InstanceArgs
@@ -521,16 +527,20 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			}
 		}
 
-		// Populate instance config.
-		err = instanceConfig(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance config: %w", err)
+		if opts.Config {
+			// Populate instance config.
+			err = instanceConfig(tx, instanceIDs)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance config: %w", err)
+			}
 		}
 
-		// Populate instance devices.
-		err = instanceDevices(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance devices: %w", err)
+		if opts.Devices {
+			// Populate instance devices.
+			err = instanceDevices(tx, instanceIDs)
+			if err != nil {
+				return fmt.Errorf("Failed loading instance devices: %w", err)
+			}
 		}
 
 		// Get all profiles.
