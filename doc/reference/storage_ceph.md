@@ -37,6 +37,10 @@ Alternatively, you can use the {ref}`storage-cephfs` driver to create storage vo
 ```
 <!-- Include start Ceph driver common -->
 Unlike other storage drivers, this driver does not set up the storage system but assumes that you already have a Ceph cluster installed.
+
+This driver also behaves differently than other drivers in that it provides remote storage.
+As a result and depending on the internal network, storage access might be a bit slower than for local storage.
+On the other hand, using remote storage has big advantages in a cluster setup, because all cluster members have access to the same storage pools with the exact same contents, without the need to synchronize storage pools.
 <!-- Include end Ceph driver common -->
 
 The `ceph` driver in LXD uses RBD images for images, and snapshots and clones to create instances and snapshots.
