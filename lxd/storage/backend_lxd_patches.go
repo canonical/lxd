@@ -48,7 +48,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 		Node: &localNode,
 	}
 
-	err = b.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+	err = b.state.DB.Cluster.InstanceList(&filter, db.InstanceListOpts{}, func(inst db.InstanceArgs, p api.Project) error {
 		// Check we can convert the instance to the volume type needed.
 		volType, err := InstanceTypeToVolumeType(inst.Type)
 		if err != nil {
