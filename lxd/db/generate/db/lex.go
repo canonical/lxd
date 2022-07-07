@@ -8,7 +8,11 @@ import (
 )
 
 // Return the table name for the given database entity.
-func entityTable(entity string) string {
+func entityTable(entity string, override string) string {
+	if override != "" {
+		return override
+	}
+
 	entityParts := strings.Split(lex.Snake(entity), "_")
 	tableParts := make([]string, len(entityParts))
 	for i, part := range entityParts {
