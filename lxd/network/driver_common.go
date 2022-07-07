@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -29,6 +30,7 @@ type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 	AddressForwards    bool // Indicates if driver supports address forwards.
+	LoadBalancers      bool // Indicates if driver supports load balancers.
 	Peering            bool // Indicates if the driver supports network peering.
 }
 
@@ -45,6 +47,12 @@ type forwardPortMap struct {
 	target      forwardTarget
 }
 
+type loadBalancerPortMap struct {
+	listenPorts []uint64
+	protocol    string
+	targets     []forwardTarget
+}
+
 // subnetUsageType indicates the type of use for a subnet.
 type subnetUsageType uint
 
@@ -52,6 +60,7 @@ const (
 	subnetUsageNetwork subnetUsageType = iota
 	subnetUsageNetworkSNAT
 	subnetUsageNetworkForward
+	subnetUsageNetworkLoadBalancer
 	subnetUsageInstance
 )
 
@@ -222,6 +231,7 @@ func (n *common) Info() Info {
 		Projects:           false,
 		NodeSpecificConfig: true,
 		AddressForwards:    false,
+		LoadBalancers:      false,
 	}
 }
 
@@ -973,6 +983,242 @@ func (n *common) forwardBGPSetupPrefixes() error {
 			}
 
 			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", fwdListenAddr.String(), routeSubnetSize))
+			if err != nil {
+				return err
+			}
+
+			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, bgpOwner)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// loadBalancerValidate validates the load balancer request.
+func (n *common) loadBalancerValidate(listenAddress net.IP, forward *api.NetworkLoadBalancerPut) ([]*loadBalancerPortMap, error) {
+	if listenAddress == nil {
+		return nil, fmt.Errorf("Invalid listen address")
+	}
+
+	listenIsIP4 := listenAddress.To4() != nil
+
+	// For checking target addresses are within network's subnet.
+	netIPKey := "ipv4.address"
+	if !listenIsIP4 {
+		netIPKey = "ipv6.address"
+	}
+
+	netIPAddress := n.config[netIPKey]
+
+	var err error
+	var netSubnet *net.IPNet
+	if netIPAddress != "" {
+		_, netSubnet, err = net.ParseCIDR(n.config[netIPKey])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Look for any unknown config fields.
+	for k := range forward.Config {
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return nil, fmt.Errorf("Invalid option %q", k)
+	}
+
+	// Validate port rules.
+	validPortProcols := []string{"tcp", "udp"}
+
+	// Used to ensure that each listen port is only used once.
+	listenPorts := map[string]map[int64]struct{}{
+		"tcp": make(map[int64]struct{}),
+		"udp": make(map[int64]struct{}),
+	}
+
+	// Check backends config and store the parsed target by backend name.
+	backendsByName := make(map[string]*forwardTarget, len(forward.Backends))
+	for backendSpecID, backendSpec := range forward.Backends {
+		for _, r := range backendSpec.Name {
+			if unicode.IsSpace(r) {
+				return nil, fmt.Errorf("Name cannot contain white space in backend specification %d", backendSpecID)
+			}
+		}
+
+		_, found := backendsByName[backendSpec.Name]
+		if found {
+			return nil, fmt.Errorf("Duplicate name %q in backend specification %d", backendSpec.Name, backendSpecID)
+		}
+
+		targetAddress := net.ParseIP(backendSpec.TargetAddress)
+		if targetAddress == nil {
+			return nil, fmt.Errorf("Invalid target address for backend %q", backendSpec.Name)
+		}
+
+		targetIsIP4 := targetAddress.To4() != nil
+		if listenIsIP4 != targetIsIP4 {
+			return nil, fmt.Errorf("Cannot mix IP versions in listen address and backend %q target address", backendSpec.Name)
+		}
+
+		// Check target address is within network's subnet.
+		if netSubnet != nil && !SubnetContainsIP(netSubnet, targetAddress) {
+			return nil, fmt.Errorf("Target address is not within the network subnet for backend %q", backendSpec.Name)
+		}
+
+		// Check valid target port(s) supplied.
+		target := forwardTarget{
+			address: targetAddress,
+		}
+
+		for portSpecID, portSpec := range shared.SplitNTrimSpace(backendSpec.TargetPort, ",", -1, true) {
+			portFirst, portRange, err := ParsePortRange(portSpec)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid backend port specification %d in backend specification %d: %w", portSpecID, backendSpecID, err)
+			}
+
+			for i := int64(0); i < portRange; i++ {
+				port := portFirst + i
+				target.ports = append(target.ports, uint64(port))
+			}
+		}
+
+		backendsByName[backendSpec.Name] = &target
+	}
+
+	// Check ports config.
+	portMaps := make([]*loadBalancerPortMap, 0, len(forward.Ports))
+	for portSpecID, portSpec := range forward.Ports {
+		if !shared.StringInSlice(portSpec.Protocol, validPortProcols) {
+			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
+		}
+
+		// Check valid listen port(s) supplied.
+		listenPortRanges := shared.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
+		if len(listenPortRanges) <= 0 {
+			return nil, fmt.Errorf("Missing listen port in port specification %d", portSpecID)
+		}
+
+		portMap := loadBalancerPortMap{
+			listenPorts: make([]uint64, 0),
+			protocol:    portSpec.Protocol,
+			targets:     make([]forwardTarget, 0, len(portSpec.TargetBackend)),
+		}
+
+		for _, pr := range listenPortRanges {
+			portFirst, portRange, err := ParsePortRange(pr)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid listen port in port specification %d: %w", portSpecID, err)
+			}
+
+			for i := int64(0); i < portRange; i++ {
+				port := portFirst + i
+				_, found := listenPorts[portSpec.Protocol][port]
+				if found {
+					return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", port, portSpec.Protocol, portSpecID)
+				}
+
+				listenPorts[portSpec.Protocol][port] = struct{}{}
+				portMap.listenPorts = append(portMap.listenPorts, uint64(port))
+			}
+		}
+
+		// Check each of the backends specified are compatible with the listen ports.
+		for _, backendName := range portSpec.TargetBackend {
+			// Check backend exists.
+			backend, found := backendsByName[backendName]
+			if !found {
+				return nil, fmt.Errorf("Invalid target backend name %q in port specification %d", backendName, portSpecID)
+			}
+
+			// Only check if the target port count matches the listen port count if the target ports
+			// are greater than 1, because we allow many-to-one type mapping and one-to-one mapping if
+			// no target ports specified.
+			portSpectTargetPortsLen := len(backend.ports)
+			if portSpectTargetPortsLen > 1 && len(portMap.listenPorts) != portSpectTargetPortsLen {
+				return nil, fmt.Errorf("Mismatch of listen port(s) and target port(s) count for backend %q in port specification %d", backendName, portSpecID)
+			}
+
+			portMap.targets = append(portMap.targets, *backend)
+		}
+
+		portMaps = append(portMaps, &portMap)
+	}
+
+	return portMaps, err
+}
+
+// LoadBalancerCreate returns ErrNotImplemented for drivers that do not support load balancers.
+func (n *common) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clientType request.ClientType) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerUpdate returns ErrNotImplemented for drivers that do not support load balancers..
+func (n *common) LoadBalancerUpdate(listenAddress string, newLoadBalancer api.NetworkLoadBalancerPut, clientType request.ClientType) error {
+	return ErrNotImplemented
+}
+
+// LoadBalancerDelete returns ErrNotImplemented for drivers that do not support load balancers..
+func (n *common) LoadBalancerDelete(listenAddress string, clientType request.ClientType) error {
+	return ErrNotImplemented
+}
+
+// loadBalancerBGPSetupPrefixes exports external load balancer addresses as prefixes.
+func (n *common) loadBalancerBGPSetupPrefixes() error {
+	// Retrieve network forwards before clearing existing prefixes, and separate them by IP family.
+	listenAddresses, err := n.state.DB.Cluster.GetNetworkLoadBalancerListenAddresses(n.ID(), true)
+	if err != nil {
+		return fmt.Errorf("Failed loading network forwards: %w", err)
+	}
+
+	listenAddressesByFamily := map[uint][]string{
+		4: make([]string, 0),
+		6: make([]string, 0),
+	}
+
+	for _, listenAddress := range listenAddresses {
+		if strings.Contains(listenAddress, ":") {
+			listenAddressesByFamily[6] = append(listenAddressesByFamily[6], listenAddress)
+		} else {
+			listenAddressesByFamily[4] = append(listenAddressesByFamily[4], listenAddress)
+		}
+	}
+
+	// Use load balancer specific owner string (different from the network prefixes) so that these can be
+	// reapplied independently of the network's own prefixes.
+	bgpOwner := fmt.Sprintf("network_%d_load_balancer", n.id)
+
+	// Clear existing address load balancer prefixes for network.
+	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
+	if err != nil {
+		return err
+	}
+
+	// Add the new prefixes.
+	for _, ipVersion := range []uint{4, 6} {
+		nextHopAddr := n.bgpNextHopAddress(ipVersion)
+		natEnabled := shared.IsTrue(n.config[fmt.Sprintf("ipv%d.nat", ipVersion)])
+		_, netSubnet, _ := net.ParseCIDR(n.config[fmt.Sprintf("ipv%d.address", ipVersion)])
+
+		routeSubnetSize := 128
+		if ipVersion == 4 {
+			routeSubnetSize = 32
+		}
+
+		// Export external forward listen addresses.
+		for _, listenAddress := range listenAddressesByFamily[ipVersion] {
+			listenAddr := net.ParseIP(listenAddress)
+
+			// Don't export internal address forwards (those inside the NAT enabled network's subnet).
+			if natEnabled && netSubnet != nil && netSubnet.Contains(listenAddr) {
+				continue
+			}
+
+			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", listenAddr.String(), routeSubnetSize))
 			if err != nil {
 				return err
 			}

@@ -101,6 +101,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkForwardCmd := cmdNetworkForward{global: c.global}
 	cmd.AddCommand(networkForwardCmd.Command())
 
+	// Load Balancer
+	networkLoadBalancerCmd := cmdNetworkLoadBalancer{global: c.global}
+	cmd.AddCommand(networkLoadBalancerCmd.Command())
+
 	// Peer
 	networkPeerCmd := cmdNetworkPeer{global: c.global}
 	cmd.AddCommand(networkPeerCmd.Command())

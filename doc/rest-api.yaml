@@ -2595,6 +2595,169 @@ definitions:
         x-go-name: Type
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkLoadBalancer:
+    description: NetworkLoadBalancer used for displaying a network load balancer
+    properties:
+      backends:
+        description: Backends (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerBackend'
+        type: array
+        x-go-name: Backends
+      config:
+        additionalProperties:
+          type: string
+        description: Load balancer configuration map (refer to doc/network-load-balancers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the load balancer listen IP
+        example: My public IP load balancer
+        type: string
+        x-go-name: Description
+      listen_address:
+        description: The listen address of the load balancer
+        example: 192.0.2.1
+        type: string
+        x-go-name: ListenAddress
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerPort'
+        type: array
+        x-go-name: Ports
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkLoadBalancerBackend:
+    description: NetworkLoadBalancerBackend represents a target backend specification
+      in a network load balancer
+    properties:
+      description:
+        description: Description of the load balancer backend
+        example: C1 webserver
+        type: string
+        x-go-name: Description
+      name:
+        description: Name of the load balancer backend
+        example: c1-http
+        type: string
+        x-go-name: Name
+      target_address:
+        description: TargetAddress to forward ListenPorts to
+        example: 198.51.100.2
+        type: string
+        x-go-name: TargetAddress
+      target_port:
+        description: TargetPort(s) to forward ListenPorts to (allows for many-to-one)
+        example: 80,81,8080-8090
+        type: string
+        x-go-name: TargetPort
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkLoadBalancerPort:
+    description: NetworkLoadBalancerPort represents a port specification in a network
+      load balancer
+    properties:
+      description:
+        description: Description of the load balancer port
+        example: My web server load balancer
+        type: string
+        x-go-name: Description
+      listen_port:
+        description: ListenPort(s) of load balancer (comma delimited ranges)
+        example: 80,81,8080-8090
+        type: string
+        x-go-name: ListenPort
+      protocol:
+        description: Protocol for load balancer port (either tcp or udp)
+        example: tcp
+        type: string
+        x-go-name: Protocol
+      target_backend:
+        description: TargetBackend backend names to load balance ListenPorts to
+        example:
+        - c1-http
+        - c2-http
+        items:
+          type: string
+        type: array
+        x-go-name: TargetBackend
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkLoadBalancerPut:
+    description: NetworkLoadBalancerPut represents the modifiable fields of a LXD
+      network load balancer
+    properties:
+      backends:
+        description: Backends (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerBackend'
+        type: array
+        x-go-name: Backends
+      config:
+        additionalProperties:
+          type: string
+        description: Load balancer configuration map (refer to doc/network-load-balancers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the load balancer listen IP
+        example: My public IP load balancer
+        type: string
+        x-go-name: Description
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerPort'
+        type: array
+        x-go-name: Ports
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkLoadBalancersPost:
+    description: NetworkLoadBalancersPost represents the fields of a new LXD network
+      load balancer
+    properties:
+      backends:
+        description: Backends (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerBackend'
+        type: array
+        x-go-name: Backends
+      config:
+        additionalProperties:
+          type: string
+        description: Load balancer configuration map (refer to doc/network-load-balancers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the load balancer listen IP
+        example: My public IP load balancer
+        type: string
+        x-go-name: Description
+      listen_address:
+        description: The listen address of the load balancer
+        example: 192.0.2.1
+        type: string
+        x-go-name: ListenAddress
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkLoadBalancerPort'
+        type: array
+        x-go-name: Ports
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworkPeer:
     properties:
       config:
@@ -10705,6 +10868,257 @@ paths:
       summary: Get the network address forwards
       tags:
       - network-forwards
+  /1.0/networks/{networkName}/load-balancers:
+    get:
+      description: Returns a list of network address load balancers (URLs).
+      operationId: network_load_balancers_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/networks/lxdbr0/load-balancers/192.0.2.1",
+                    "/1.0/networks/lxdbr0/load-balancers/192.0.2.2"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network address of load balancers
+      tags:
+      - network-load-balancers
+    post:
+      consumes:
+      - application/json
+      description: Creates a new network load balancer.
+      operationId: network_load_balancers_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Load Balancer
+        in: body
+        name: load-balancer
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkLoadBalancersPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a network load balancer
+      tags:
+      - network-load-balancers
+  /1.0/networks/{networkName}/load-balancers/{listenAddress}:
+    delete:
+      description: Removes the network address load balancer.
+      operationId: network_load_balancer_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the network address load balancer
+      tags:
+      - network-load-balancers
+    get:
+      description: Gets a specific network address load balancer.
+      operationId: network_load_balancer_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Load Balancer
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/NetworkLoadBalancer'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network address load balancer
+      tags:
+      - network-load-balancers
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the network address load balancer configuration.
+      operationId: network_load_balancer_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Address load balancer configuration
+        in: body
+        name: load-balancer
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkLoadBalancerPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the network address load balancer
+      tags:
+      - network-load-balancers
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire network address load balancer configuration.
+      operationId: network_load_balancer_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Address load balancer configuration
+        in: body
+        name: load-balancer
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkLoadBalancerPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the network address load balancer
+      tags:
+      - network-load-balancers
+  /1.0/networks/{networkName}/load-balancers?recursion=1:
+    get:
+      description: Returns a list of network address load balancers (structs).
+      operationId: network_load_balancer_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of network address load balancers
+                items:
+                  $ref: '#/definitions/NetworkLoadBalancer'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network address load balancers
+      tags:
+      - network-load-balancers
   /1.0/networks/{networkName}/peers:
     get:
       description: Returns a list of network peers (URLs).
