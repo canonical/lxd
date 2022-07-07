@@ -268,7 +268,12 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("sqlStmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
+		if m.db == "" {
+			buf.L("sqlStmt, err := prepare(tx, fmt.Sprintf(%s, fillParent...))", stmtLocal)
+		} else {
+			buf.L("sqlStmt, err := %s.Prepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
+		}
+
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("args := []any{}")
 	} else if mapping.Type == AssociationTable {
@@ -358,14 +363,14 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		switch refMapping.Type {
 		case EntityTable:
 			assocStruct := mapping.Name + field.Name
-			buf.L("%s, err := %sGet%s()", lex.Minuscule(assocStruct), m.db, assocStruct)
+			buf.L("%s, err := Get%s()", lex.Minuscule(assocStruct), assocStruct)
 			m.ifErrNotNil(buf, true, "nil", "err")
 			buf.L("for i := range objects {")
 			buf.L("objects[i].%s = make([]string, 0)", field.Name)
 			buf.L("refIDs, ok := %s[objects[i].ID]", lex.Minuscule(assocStruct))
 			buf.L("if ok {")
 			buf.L("for _, refID := range refIDs {")
-			buf.L("%sURIs, err := %sGet%sURIs(%sFilter{ID: &refID})", refVar, m.db, refStruct, refStruct)
+			buf.L("%sURIs, err := Get%sURIs(%sFilter{ID: &refID})", refVar, refStruct, refStruct)
 			m.ifErrNotNil(buf, true, "nil", "err")
 			if field.Config.Get("uri") == "" {
 				uriName := strings.ReplaceAll(lex.Snake(refSlice), "_", "-")
@@ -381,10 +386,10 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		case ReferenceTable:
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := %sGet%s(ctx, tx, parent+\"_%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -407,10 +412,10 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		case MapTable:
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := %sGet%s(ctx, tx, parent+\"_%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -432,7 +437,7 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
 		buf.L("result := make([]%s, len(objects))", ref)
 		buf.L("for i, object := range objects {")
-		buf.L("%s, err := %sGet%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), m.db, lex.Plural(ref), ref, ref)
+		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
 
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("result[i] = %s[0]", lex.Minuscule(ref))
@@ -490,7 +495,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 
 	switch refMapping.Type {
 	case ReferenceTable:
-		buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refParentList, m.db, lex.Plural(refStruct), m.entity)
+		buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refParentList, lex.Plural(refStruct), m.entity)
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("%s := map[string]%s{}", refList, refStruct)
 		buf.L("for _, ref := range %s[%sID] {", refParentList, refParent)
@@ -503,7 +508,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("}")
 		buf.N()
 	case MapTable:
-		buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refParentList, m.db, lex.Plural(refStruct), m.entity)
+		buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refParentList, lex.Plural(refStruct), m.entity)
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("%s, ok := %s[%sID]", refList, refParentList, refParent)
 		buf.L("if !ok {")
@@ -538,7 +543,7 @@ func (m *MethodV2) getOne(buf *file.Buffer) error {
 	}
 
 	buf.N()
-	buf.L("objects, err := %sGet%s(ctx, tx, filter)", m.db, lex.Plural(lex.Camel(m.entity)))
+	buf.L("objects, err := Get%s(ctx, tx, filter)", lex.Plural(lex.Camel(m.entity)))
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
@@ -628,7 +633,7 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	buf.L("_, err := %sGet%sID(ctx, tx, %s)", m.db, lex.Camel(m.entity), mapping.FieldParams(nk))
+	buf.L("_, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        if api.StatusErrorCheck(err, http.StatusNotFound) {")
 	buf.L("                return false, nil")
@@ -722,7 +727,7 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 				kind = "create_or_replace"
 			} else {
 				buf.L("// Check if a %s with the same key exists.", m.entity)
-				buf.L("exists, err := %s%sExists(ctx, tx, %s)", m.db, lex.Camel(m.entity), strings.Join(nkParams, ", "))
+				buf.L("exists, err := %sExists(ctx, tx, %s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
 				m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
 				buf.L("if exists {")
 				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
@@ -1005,7 +1010,7 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 			params[i] = fmt.Sprintf("object.%s", field.Name)
 		}
 
-		buf.L("id, err := %sGet%sID(ctx, tx, %s)", m.db, lex.Camel(m.entity), mapping.FieldParams(nk))
+		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 		m.ifErrNotNil(buf, true, "err")
 		if m.db == "" {
 			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "update"))
