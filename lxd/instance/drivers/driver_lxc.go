@@ -5339,8 +5339,16 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return forkfileConn, nil
 	}
 
-	// Check for ongoing operations (that may involve shifting or replacing the root volume).
-	_ = operationlock.Get(d.Project(), d.Name()).Wait()
+	// Check for ongoing operations (that may involve shifting or replacing the root volume) so as to avoid
+	// allowing SFTP access while the container's filesystem setup is in flux.
+	// If there is an update operation ongoing and the instance is running then do not wait for the operation
+	// to complete before continuing as it is possible that a disk device is being removed that requires SFTP
+	// to clean up the path inside the container. Also it is not possible to be shifting/replacing the root
+	// volume when the instance is running, so there should be no reason to wait for the operation to finish.
+	op := operationlock.Get(d.Project(), d.Name())
+	if op.Action() != operationlock.ActionUpdate || !d.IsRunning() {
+		_ = op.Wait()
+	}
 
 	// Setup reverter.
 	revert := revert.New()
