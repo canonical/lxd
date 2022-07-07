@@ -179,6 +179,11 @@ func Get(projectName string, instanceName string) *InstanceOperation {
 
 // Action returns operation's action.
 func (op *InstanceOperation) Action() Action {
+	// This function can be called on a nil struct.
+	if op == nil {
+		return ""
+	}
+
 	return op.action
 }
 
