@@ -102,3 +102,11 @@ lxc network forward edit <network_name> <listen_address>
 
 This command opens the network forward in YAML format for editing.
 You can edit both the general configuration and the port specifications.
+
+## Delete a network forward
+
+Use the following command to delete a network forward:
+
+```bash
+lxc network forward delete <network_name> <listen_address>
+```

@@ -70,6 +70,7 @@ The following features are supported for the `ovn` network type:
 
 - {ref}`network-acls`
 - {ref}`network-forwards`
+- {ref}`network-load-balancers`
 - {ref}`network-zones`
 - {ref}`network-ovn-peers`
 
