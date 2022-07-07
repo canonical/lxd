@@ -179,7 +179,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	// Start the server.
 	go func() {
-		err := servers["http"].ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
+		err := servers["http"].Serve(networkTLSListener(l, tlsConfig))
 		if err != nil {
 			errChan <- err
 		}
