@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/ip"
@@ -40,21 +39,8 @@ func networkTLSListener(inner net.Listener, config *tls.Config) *networkListener
 // Accept waits for and returns the next incoming TLS connection then use the
 // current TLS configuration to handle it.
 func (l *networkListener) Accept() (net.Conn, error) {
-	var c net.Conn
-	var err error
-
-	// Accept() is non-blocking in go < 1.12 hence the loop and error check.
-	for {
-		c, err = l.Listener.Accept()
-		if err == nil {
-			break
-		}
-
-		if err.(net.Error).Timeout() {
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-
+	c, err := l.Listener.Accept()
+	if err != nil {
 		return nil, err
 	}
 

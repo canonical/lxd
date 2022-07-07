@@ -2,7 +2,6 @@ package vsock
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"strings"
@@ -66,16 +65,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 				return nil, err
 			}
 
-			tlsConn := tls.Client(conn, tlsConfig)
-
-			// Validate the connection.
-			err = tlsConn.Handshake()
-			if err != nil {
-				_ = conn.Close()
-				return nil, err
-			}
-
-			return tlsConn, nil
+			return conn, nil
 		},
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
