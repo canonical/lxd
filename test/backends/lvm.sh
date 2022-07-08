@@ -1,5 +1,5 @@
 lvm_setup() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -8,7 +8,7 @@ lvm_setup() {
 }
 
 lvm_configure() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -20,7 +20,7 @@ lvm_configure() {
 }
 
 lvm_teardown() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1

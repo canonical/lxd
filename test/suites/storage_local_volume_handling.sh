@@ -1,7 +1,7 @@
 test_storage_local_volume_handling() {
   ensure_import_testimage
 
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR lxd_backend
   # shellcheck disable=SC2034
   lxd_backend=$(storage_backend "$LXD_DIR")
@@ -252,7 +252,7 @@ test_storage_local_volume_handling() {
     done
   )
 
-  # shellcheck disable=SC2031
+  # shellcheck disable=SC2031,2269
   LXD_DIR="${LXD_DIR}"
   kill_lxd "${LXD_STORAGE_DIR}"
 }

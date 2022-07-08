@@ -38,7 +38,7 @@ test_server_config_access() {
 }
 
 test_server_config_storage() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
