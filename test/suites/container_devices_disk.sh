@@ -94,7 +94,7 @@ test_container_devices_raw_mount_options() {
 }
 
 test_container_devices_disk_ceph() {
-  # shellcheck disable=SC2039
+  # shellcheck disable=SC2039,3043
   local LXD_BACKEND
 
   LXD_BACKEND=$(storage_backend "$LXD_DIR")
@@ -119,7 +119,7 @@ test_container_devices_disk_ceph() {
 }
 
 test_container_devices_disk_cephfs() {
-  # shellcheck disable=SC2039
+  # shellcheck disable=SC2039,3043
   local LXD_BACKEND
 
   LXD_BACKEND=$(storage_backend "$LXD_DIR")

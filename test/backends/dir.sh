@@ -4,7 +4,7 @@
 
 # Any necessary backend-specific setup
 dir_setup() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -14,7 +14,7 @@ dir_setup() {
 
 # Do the API voodoo necessary to configure LXD to use this backend
 dir_configure() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
@@ -26,7 +26,7 @@ dir_configure() {
 }
 
 dir_teardown() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_DIR
 
   LXD_DIR=$1
