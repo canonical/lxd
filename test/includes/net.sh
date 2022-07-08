@@ -13,7 +13,7 @@ EOF
         return
     fi
 
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local port pid
 
     while true; do

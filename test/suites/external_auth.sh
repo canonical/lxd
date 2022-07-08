@@ -1,5 +1,5 @@
 test_macaroon_auth() {
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local identity_endpoint
     # shellcheck disable=SC2086
     identity_endpoint="$(cat ${TEST_DIR}/macaroon-identity.endpoint)"

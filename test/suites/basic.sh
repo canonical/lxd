@@ -1,5 +1,5 @@
 test_basic_usage() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -330,7 +330,7 @@ test_basic_usage() {
     lxc delete autostart --force --force-local
     lxc storage volume delete "${storage_pool}" vol --force-local
   )
-  # shellcheck disable=SC2031
+  # shellcheck disable=SC2031,2269
   LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_ACTIVATION_DIR}"
 

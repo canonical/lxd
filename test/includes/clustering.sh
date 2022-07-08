@@ -110,7 +110,7 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local LXD_NETNS
 
   set -e
@@ -198,7 +198,7 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
-  # shellcheck disable=2039,2034
+  # shellcheck disable=2039,2034,3043
   local LXD_NETNS
 
   set -e
@@ -273,7 +273,7 @@ EOF
 }
 
 respawn_lxd_cluster_member() {
-  # shellcheck disable=2039,2034
+  # shellcheck disable=2039,2034,3043
   local LXD_NETNS
 
   set -e
