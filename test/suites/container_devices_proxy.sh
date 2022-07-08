@@ -290,7 +290,7 @@ container_devices_proxy_unix() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -313,7 +313,7 @@ container_devices_proxy_unix() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -336,7 +336,7 @@ container_devices_proxy_unix() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -445,7 +445,7 @@ container_devices_proxy_unix_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -463,7 +463,7 @@ container_devices_proxy_unix_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -481,7 +481,7 @@ container_devices_proxy_unix_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -575,7 +575,7 @@ container_devices_proxy_unix_udp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -593,7 +593,7 @@ container_devices_proxy_unix_udp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 
@@ -611,7 +611,7 @@ container_devices_proxy_unix_udp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#$(pwd)/}")
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
   wait "${NSENTER_PID}" 2>/dev/null || true
 

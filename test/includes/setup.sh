@@ -1,8 +1,8 @@
 # Test setup helper functions.
 
 ensure_has_localhost_remote() {
-    # shellcheck disable=SC2039
-    local addr=${1}
+    # shellcheck disable=SC2039,3043
+    local addr="${1}"
     if ! lxc remote list | grep -q "localhost"; then
         lxc remote add localhost "https://${addr}" --accept-certificate --password foo
     fi

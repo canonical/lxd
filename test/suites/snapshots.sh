@@ -15,7 +15,7 @@ test_snapshots() {
 }
 
 snapshots() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -105,7 +105,7 @@ test_snap_restore() {
 }
 
 snap_restore() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -250,7 +250,7 @@ restore_and_compare_fs() {
 }
 
 test_snap_expiry() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -276,7 +276,7 @@ test_snap_expiry() {
 }
 
 test_snap_schedule() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
@@ -303,7 +303,7 @@ test_snap_schedule() {
 }
 
 test_snap_volume_db_recovery() {
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local lxd_backend
   lxd_backend=$(storage_backend "$LXD_DIR")
 
