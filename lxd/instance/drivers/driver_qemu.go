@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -1608,6 +1609,21 @@ func (d *qemu) advertiseVsockAddress() error {
 	}
 
 	return nil
+}
+
+// AgentCertificate returns the server certificate of the lxd-agent.
+func (d *qemu) AgentCertificate() *x509.Certificate {
+	agentCert := filepath.Join(d.Path(), "config", "agent.crt")
+	if !shared.PathExists(agentCert) {
+		return nil
+	}
+
+	cert, err := shared.ReadCert(agentCert)
+	if err != nil {
+		return nil
+	}
+
+	return cert
 }
 
 func (d *qemu) architectureSupportsUEFI() bool {
