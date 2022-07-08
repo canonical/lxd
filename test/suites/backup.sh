@@ -207,7 +207,7 @@ EOF
     lxc project delete test
   )
 
-  # shellcheck disable=SC2031
+  # shellcheck disable=SC2031,2269
   LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"
 }

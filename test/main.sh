@@ -29,7 +29,7 @@ LXD_NETNS=""
 
 import_subdir_files() {
     test "$1"
-    # shellcheck disable=SC2039
+    # shellcheck disable=SC2039,3043
     local file
     for file in "$1"/*.sh; do
         # shellcheck disable=SC1090

@@ -5,7 +5,7 @@ test_incremental_copy() {
   do_copy "" ""
 
   # cross-pool copy
-  # shellcheck disable=2039
+  # shellcheck disable=2039,3043
   local source_pool
   source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
   lxc storage create "${source_pool}" dir
@@ -14,10 +14,10 @@ test_incremental_copy() {
 }
 
 do_copy() {
-  # shellcheck disable=2039
-  local source_pool=$1
-  # shellcheck disable=2039
-  local target_pool=$2
+  # shellcheck disable=2039,3043
+  local source_pool="${1}"
+  # shellcheck disable=2039,3043
+  local target_pool="${2}"
 
   # Make sure the containers don't exist
   lxc rm -f c1 c2 || true
