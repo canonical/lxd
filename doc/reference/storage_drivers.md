@@ -20,7 +20,7 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph | CephFS
+Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph RBD | CephFS
 :---                                        | :---      | :---  | :---  | :--- | :--- | :---
 {ref}`storage-optimized-image-storage`      | no        | yes   | yes   | yes  | yes  | n/a
 Optimized instance creation                 | no        | yes   | yes   | yes  | yes  | n/a
@@ -32,9 +32,7 @@ Block based                                 | no        | no    | yes   | no   |
 Instant cloning                             | no        | yes   | yes   | yes  | yes  | yes
 Storage driver usable inside a container    | yes       | yes   | no    | no   | no   | n/a
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes  | yes
-Storage quotas                              | yes[^note]| yes   | yes   | yes  | yes  | yes
-
-[^note]: The directory storage driver supports quotas when running on either ext4 or XFS with project quotas enabled at the filesystem level.
+Storage quotas                              | yes<sup>{ref}`* <storage-dir-quotas>`</sup>| yes   | yes   | yes  | yes  | yes
 
 (storage-optimized-image-storage)=
 ### Optimized image storage
@@ -48,7 +46,7 @@ Therefore, the first instance takes longer to create than subsequent ones.
 (storage-optimized-instance-transfer)=
 ### Optimized instance transfer
 
-Btrfs, ZFS and Ceph (RBD) have an internal send/receive mechanism that allows for optimized volume transfer.
+Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
 LXD uses this mechanism to transfer instances and snapshots between servers.
 
 This optimized transfer is available only when transferring volumes between storage pools that use the same storage driver.
