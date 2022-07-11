@@ -868,6 +868,9 @@ required    | boolean   | false             | no        | Whether or not this de
 
 #### Type: gpu
 
+```{youtube} https://www.youtube.com/watch?v=T0aV2LsMpoA
+```
+
 GPU device entries simply make the requested gpu device appear in the
 instance.
 
