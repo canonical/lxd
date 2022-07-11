@@ -41,6 +41,7 @@ Add the `--reuse` flag in combination with a snapshot name to replace an existin
 By default, snapshots are kept forever, unless the `snapshots.expiry` configuration option is set for the storage volume.
 To retain a specific snapshot even if a general expiry time is set, use the `--no-expiry` flag.
 
+(storage-edit-snapshots)=
 ### View, edit or delete snapshots
 
 Use the following command to display the snapshots for a storage volume:

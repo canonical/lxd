@@ -1,25 +1,77 @@
 (storage-cephfs)=
 # CephFS - `cephfs`
 
- - Can only be used for custom storage volumes
- - Supports snapshots if enabled on the server side
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph intro -->
+    :end-before: <!-- Include end Ceph intro -->
+```
 
-## Storage pool configuration
+{abbr}`CephFS (Ceph File System)` is Ceph's file system component that provides a robust, fully-featured POSIX-compliant distributed file system.
+Internally, it maps files to Ceph objects and stores file metadata (for example, file ownership, directory paths, access permissions) in a separate data pool.
+
+## Terminology
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph terminology -->
+    :end-before: <!-- Include end Ceph terminology -->
+```
+
+A *CephFS file system* consists of two OSD storage pools, one for the actual data and one for the file metadata.
+
+## `cephfs` driver in LXD
+
+```{note}
+The `cephfs` driver can only be used for custom storage volumes with content type `filesystem`.
+
+For other storage volumes, use the {ref}`storage-ceph` driver.
+That driver can also be used for custom storage volumes with content type `filesystem`, but it implements them through Ceph RBD images.
+```
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph driver cluster -->
+    :end-before: <!-- Include end Ceph driver cluster -->
+```
+
+You must create the CephFS file system that you want to use beforehand and specify it through the {ref}`source <storage-cephfs-pool-config>` option.
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph driver remote -->
+    :end-before: <!-- Include end Ceph driver remote -->
+```
+
+% Include content from [storage_ceph.md](storage_ceph.md)
+```{include} storage_ceph.md
+    :start-after: <!-- Include start Ceph driver control -->
+    :end-before: <!-- Include end Ceph driver control -->
+```
+
+The `cephfs` driver in LXD supports snapshots if snapshots are enabled on the server side.
+
+## Configuration options
+
+The following configuration options are available for storage pools that use the `cephfs` driver and for storage volumes in these pools.
+
+(storage-cephfs-pool-config)=
+### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
+cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster that contains the CephFS file system
 cephfs.fscache                | bool                          | false                                   | Enable use of kernel fscache and cachefilesd
 cephfs.path                   | string                        | /                                       | The base path for the CephFS mount
-cephfs.user.name              | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
-source                        | string                        | -                                       | Existing storage pool or path in storage pool to use
-volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
+cephfs.user.name              | string                        | admin                                   | The Ceph user to use
+source                        | string                        | -                                       | Existing CephFS file system or file system path to use
+volatile.pool.pristine        | string                        | true                                    | Whether the CephFS file system was empty on creation time
 
-## Storage volume configuration
+### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
-security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
-snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+security.shifted        | bool      | custom volume             | false                                 | {{enable_ID_shifting}}
+security.unmapped       | bool      | custom volume             | false                                 | Disable ID mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size/quota of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | {{snapshot_expiry_format}}
+snapshots.pattern       | string    | custom volume             | snap%d                                | {{snapshot_pattern_format}}
 snapshots.schedule      | string    | custom volume             | -                                     | {{snapshot_schedule_format}}
