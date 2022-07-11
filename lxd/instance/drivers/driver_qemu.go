@@ -349,8 +349,16 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 	state := d.state
 
 	return func(event string, data map[string]any) {
-		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET"}) {
+		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET", "LXD-AGENT-READY"}) {
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
+		}
+
+		if event == "LXD-AGENT-READY" {
+			err := d.advertiseVsockAddress()
+			if err != nil {
+				d.logger.Error("Failed to advertise vsock address", logger.Ctx{"err": err})
+				return
+			}
 		}
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
