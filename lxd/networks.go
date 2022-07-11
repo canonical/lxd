@@ -357,14 +357,14 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	targetNode := queryParam(r, "target")
 	if targetNode != "" {
 		if !netTypeInfo.NodeSpecificConfig {
-			return response.BadRequest(fmt.Errorf("Network type %q does not support node specific config", netType.Type()))
+			return response.BadRequest(fmt.Errorf("Network type %q does not support member specific config", netType.Type()))
 		}
 
 		// A targetNode was specified, let's just define the node's network without actually creating it.
 		// Check that only NodeSpecificNetworkConfig keys are specified.
 		for key := range req.Config {
 			if !shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-				return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", key))
+				return response.BadRequest(fmt.Errorf("Config key %q may not be used as member-specific key", key))
 			}
 		}
 
@@ -373,7 +373,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
-				return response.BadRequest(fmt.Errorf("The network is already defined on node %q", targetNode))
+				return response.BadRequest(fmt.Errorf("The network is already defined on member %q", targetNode))
 			}
 
 			return response.SmartError(err)
@@ -1206,7 +1206,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 			// If a target is specified, then ensure only node-specific config keys are changed.
 			for k, v := range req.Config {
 				if !shared.StringInSlice(k, db.NodeSpecificNetworkConfig) && curConfig[k] != v {
-					return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", k))
+					return response.BadRequest(fmt.Errorf("Config key %q may not be used as member-specific key", k))
 				}
 			}
 		}
