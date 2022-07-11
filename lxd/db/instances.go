@@ -872,6 +872,29 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 	return instances, nil
 }
 
+// GetLocalInstanceWithVsockID returns all available instances with the given config key and value.
+func (c *ClusterTx) GetLocalInstanceWithVsockID(vsockID int) (*cluster.Instance, error) {
+	q := `
+SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id JOIN instances_config ON instances.id = instances_config.instance_id
+  WHERE instances.node_id = ? AND instances.type = ? AND instances_config.key = "volatile.vsock_id" AND instances_config.value = ? LIMIT 1
+  `
+
+	inargs := []any{c.nodeID, instancetype.VM, vsockID}
+	inst := cluster.Instance{}
+
+	err := c.tx.QueryRow(q, inargs...).Scan(&inst.ID, &inst.Project, &inst.Name, &inst.Node, &inst.Type, &inst.Architecture, &inst.Ephemeral, &inst.CreationDate, &inst.Stateful, &inst.LastUseDate, &inst.Description, &inst.ExpiryDate)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, api.StatusErrorf(http.StatusNotFound, "Instance not found")
+		}
+
+		return nil, err
+	}
+
+	return &inst, nil
+}
+
 // GetInstancePool returns the storage pool of a given instance (or snapshot).
 func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (string, error) {
 	// Strip snapshot name if supplied in instanceName, and lookup the storage pool of the parent instance
