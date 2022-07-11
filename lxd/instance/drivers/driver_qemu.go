@@ -37,7 +37,6 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device"
@@ -2284,12 +2283,6 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
-	if err != nil {
-		return err
-	}
-
-	// Instance data for devlxd.
-	err = d.writeInstanceData()
 	if err != nil {
 		return err
 	}
@@ -4686,11 +4679,6 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	revert.Success()
 
 	if isRunning {
-		err = d.writeInstanceData()
-		if err != nil {
-			return fmt.Errorf("Failed to write instance-data file: %w", err)
-		}
-
 		// Send devlxd notifications only for user.* key changes
 		for _, key := range changedConfig {
 			if !strings.HasPrefix(key, "user.") {
@@ -6126,55 +6114,6 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 	defer agent.Disconnect()
 
 	_, _, err = agent.RawQuery("POST", "/1.0/events", &event, "")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *qemu) writeInstanceData() error {
-	// Only write instance-data file if security.devlxd is true.
-	if !(d.expandedConfig["security.devlxd"] == "" || shared.IsTrue(d.expandedConfig["security.devlxd"])) {
-		return nil
-	}
-
-	// Instance data for devlxd.
-	configDrivePath := filepath.Join(d.Path(), "config")
-	userConfig := make(map[string]string)
-
-	for k, v := range d.ExpandedConfig() {
-		if !strings.HasPrefix(k, "user.") && !strings.HasPrefix(k, "cloud-init.") {
-			continue
-		}
-
-		userConfig[k] = v
-	}
-
-	location := "none"
-	clustered, err := cluster.Enabled(d.state.DB.Node)
-	if err != nil {
-		return err
-	}
-
-	if clustered {
-		location = d.Location()
-	}
-
-	agentData := instancetype.VMAgentData{
-		Name:        d.Name(),
-		CloudInitID: d.CloudInitID(),
-		Location:    location,
-		Config:      userConfig,
-		Devices:     d.expandedDevices,
-	}
-
-	out, err := json.Marshal(agentData)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "instance-data"), out, 0600)
 	if err != nil {
 		return err
 	}
