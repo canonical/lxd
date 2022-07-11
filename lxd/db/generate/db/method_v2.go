@@ -166,9 +166,13 @@ func (m *MethodV2) uris(buf *file.Buffer) error {
 
 		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
-		buf.L("stmt = %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
-		buf.L("args = []any{")
+		if m.db == "" {
+			buf.L("stmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+		} else {
+			buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+		}
 
+		buf.L("args = []any{")
 		for _, name := range filter {
 			if name == "Parent" {
 				buf.L("len(filter.Parent)+1,")
@@ -187,7 +191,12 @@ func (m *MethodV2) uris(buf *file.Buffer) error {
 	}
 
 	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-	buf.L("stmt = %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+	if m.db == "" {
+		buf.L("stmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+	} else {
+		buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+	}
+
 	buf.L("args = []any{}")
 	buf.L("} else {")
 	buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
@@ -198,7 +207,7 @@ func (m *MethodV2) uris(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Select.")
 	buf.L("err = query.SelectObjects(stmt, dest, args...)")
-	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf("fmt.Errorf(\"Failed to fetch from \\\"%s\\\" table: %%w\", err)", entityTable(m.entity)))
+	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf("fmt.Errorf(\"Failed to fetch from \\\"%s\\\" table: %%w\", err)", entityTable(m.entity, m.config["table"])))
 	buf.L("uris := make([]string, len(objects))")
 	buf.L("for i := range objects {")
 	name := mapping.Identifier().Name
@@ -259,12 +268,22 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("sqlStmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
+		if m.db == "" {
+			buf.L("sqlStmt, err := prepare(tx, fmt.Sprintf(%s, fillParent...))", stmtLocal)
+		} else {
+			buf.L("sqlStmt, err := %s.Prepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
+		}
+
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("args := []any{}")
 	} else if mapping.Type == AssociationTable {
 		filter := m.config["struct"] + "ID"
-		buf.L("sqlStmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter))
+		if m.db == "" {
+			buf.L("sqlStmt := stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter))
+		} else {
+			buf.L("sqlStmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter))
+		}
+
 		buf.L("args := []any{%sID}", lex.Minuscule(m.config["struct"]))
 	} else {
 		filters, ignoredFilters := FiltersFromStmt(m.pkg, "objects", m.entity, mapping.Filters)
@@ -282,7 +301,12 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
-			buf.L("sqlStmt = %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+			if m.db == "" {
+				buf.L("sqlStmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+			} else {
+				buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+			}
+
 			buf.L("args = []any{")
 
 			for _, name := range filter {
@@ -303,7 +327,12 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		}
 
 		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-		buf.L("sqlStmt = %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+		if m.db == "" {
+			buf.L("sqlStmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+		} else {
+			buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+		}
+
 		buf.L("args = []any{}")
 		buf.L("} else {")
 		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
@@ -317,9 +346,9 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 	buf.L("// Select.")
 	buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
-		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
 	for _, field := range mapping.RefFields() {
@@ -334,14 +363,14 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		switch refMapping.Type {
 		case EntityTable:
 			assocStruct := mapping.Name + field.Name
-			buf.L("%s, err := %sGet%s()", lex.Minuscule(assocStruct), m.db, assocStruct)
+			buf.L("%s, err := Get%s()", lex.Minuscule(assocStruct), assocStruct)
 			m.ifErrNotNil(buf, true, "nil", "err")
 			buf.L("for i := range objects {")
 			buf.L("objects[i].%s = make([]string, 0)", field.Name)
 			buf.L("refIDs, ok := %s[objects[i].ID]", lex.Minuscule(assocStruct))
 			buf.L("if ok {")
 			buf.L("for _, refID := range refIDs {")
-			buf.L("%sURIs, err := %sGet%sURIs(%sFilter{ID: &refID})", refVar, m.db, refStruct, refStruct)
+			buf.L("%sURIs, err := Get%sURIs(%sFilter{ID: &refID})", refVar, refStruct, refStruct)
 			m.ifErrNotNil(buf, true, "nil", "err")
 			if field.Config.Get("uri") == "" {
 				uriName := strings.ReplaceAll(lex.Snake(refSlice), "_", "-")
@@ -357,10 +386,10 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		case ReferenceTable:
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := %sGet%s(ctx, tx, parent+\"_%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -383,10 +412,10 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		case MapTable:
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := %sGet%s(ctx, tx, parent+\"_%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refSlice, m.db, lex.Plural(refStruct), m.entity)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refSlice, lex.Plural(refStruct), m.entity)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -408,7 +437,7 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
 		buf.L("result := make([]%s, len(objects))", ref)
 		buf.L("for i, object := range objects {")
-		buf.L("%s, err := %sGet%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), m.db, lex.Plural(ref), ref, ref)
+		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
 
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("result[i] = %s[0]", lex.Minuscule(ref))
@@ -466,7 +495,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 
 	switch refMapping.Type {
 	case ReferenceTable:
-		buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refParentList, m.db, lex.Plural(refStruct), m.entity)
+		buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refParentList, lex.Plural(refStruct), m.entity)
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("%s := map[string]%s{}", refList, refStruct)
 		buf.L("for _, ref := range %s[%sID] {", refParentList, refParent)
@@ -479,7 +508,7 @@ func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 		buf.L("}")
 		buf.N()
 	case MapTable:
-		buf.L("%s, err := %sGet%s(ctx, tx, \"%s\")", refParentList, m.db, lex.Plural(refStruct), m.entity)
+		buf.L("%s, err := Get%s(ctx, tx, \"%s\")", refParentList, lex.Plural(refStruct), m.entity)
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("%s, ok := %s[%sID]", refList, refParentList, refParent)
 		buf.L("if !ok {")
@@ -514,11 +543,11 @@ func (m *MethodV2) getOne(buf *file.Buffer) error {
 	}
 
 	buf.N()
-	buf.L("objects, err := %sGet%s(ctx, tx, filter)", m.db, lex.Plural(lex.Camel(m.entity)))
+	buf.L("objects, err := Get%s(ctx, tx, filter)", lex.Plural(lex.Camel(m.entity)))
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
-		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
 	buf.L("switch len(objects) {")
@@ -527,7 +556,7 @@ func (m *MethodV2) getOne(buf *file.Buffer) error {
 	buf.L("case 1:")
 	buf.L("        return &objects[0], nil")
 	buf.L("default:")
-	buf.L(`        return nil, fmt.Errorf("More than one \"%s\" entry matches")`, entityTable(m.entity))
+	buf.L(`        return nil, fmt.Errorf("More than one \"%s\" entry matches")`, entityTable(m.entity, m.config["table"]))
 	buf.L("}")
 
 	return nil
@@ -554,9 +583,14 @@ func (m *MethodV2) id(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "ID"))
+	if m.db == "" {
+		buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "ID"))
+	} else {
+		buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "ID"))
+	}
+
 	buf.L("rows, err := stmt.Query(%s)", mapping.FieldParams(nk))
-	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity)))
+	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	buf.L("defer func() { _ = rows.Close() }()")
 	buf.N()
 	buf.L("// Ensure we read one and only one row.")
@@ -599,7 +633,7 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	buf.L("_, err := %sGet%sID(ctx, tx, %s)", m.db, lex.Camel(m.entity), mapping.FieldParams(nk))
+	buf.L("_, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        if api.StatusErrorCheck(err, http.StatusNotFound) {")
 	buf.L("                return false, nil")
@@ -693,10 +727,10 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 				kind = "create_or_replace"
 			} else {
 				buf.L("// Check if a %s with the same key exists.", m.entity)
-				buf.L("exists, err := %s%sExists(ctx, tx, %s)", m.db, lex.Camel(m.entity), strings.Join(nkParams, ", "))
+				buf.L("exists, err := %sExists(ctx, tx, %s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
 				m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
 				buf.L("if exists {")
-				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity))
+				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity, m.config["table"]))
 				buf.L("}")
 				buf.N()
 			}
@@ -718,18 +752,23 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 		buf.N()
 
 		buf.L("// Prepared statement to use. ")
-		buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, kind))
+		if m.db == "" {
+			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, kind))
+		} else {
+			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, kind))
+		}
+
 		buf.N()
 		buf.L("// Execute the statement. ")
 
 		if mapping.Type == AssociationTable {
 			buf.L("_, err := stmt.Exec(args...)")
-			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
+			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		} else {
 			buf.L("result, err := stmt.Exec(args...)")
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
+			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity, m.config["table"])))
 			buf.L("id, err := result.LastInsertId()")
-			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity)))
+			m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		}
 	}
 
@@ -853,7 +892,12 @@ func (m *MethodV2) rename(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "rename"))
+	if m.db == "" {
+		buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "rename"))
+	} else {
+		buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "rename"))
+	}
+
 	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
 	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
 	buf.L("n, err := result.RowsAffected()")
@@ -966,11 +1010,16 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 			params[i] = fmt.Sprintf("object.%s", field.Name)
 		}
 
-		buf.L("id, err := %sGet%sID(ctx, tx, %s)", m.db, lex.Camel(m.entity), mapping.FieldParams(nk))
+		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 		m.ifErrNotNil(buf, true, "err")
-		buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "update"))
+		if m.db == "" {
+			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "update"))
+		} else {
+			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "update"))
+		}
+
 		buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
 		buf.L("n, err := result.RowsAffected()")
 		m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 		buf.L("if n != 1 {")
@@ -1050,9 +1099,14 @@ func (m *MethodV2) delete(buf *file.Buffer, deleteOne bool) error {
 
 	defer m.end(buf)
 	if mapping.Type == AssociationTable {
-		buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+		if m.db == "" {
+			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+		} else {
+			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+		}
+
 		buf.L("result, err := stmt.Exec(int(%sID))", lex.Minuscule(m.config["struct"]))
-		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
@@ -1068,9 +1122,14 @@ func (m *MethodV2) delete(buf *file.Buffer, deleteOne bool) error {
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
-		buf.L("stmt := %sstmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+		if m.db == "" {
+			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+		} else {
+			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+		}
+
 		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
-		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity)))
+		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
 	if deleteOne {

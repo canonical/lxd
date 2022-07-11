@@ -92,7 +92,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity)
+	table := entityTable(s.entity, s.config["table"])
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table = "%s_" + table
 	}
@@ -198,9 +198,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		}
 
 		right := strings.Split(join, ".")[0]
-		via := entityTable(s.entity)
+		via := entityTable(s.entity, s.config["table"])
 		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
+			via = entityTable(field.Config.Get("via"), "")
 		}
 
 		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
@@ -213,9 +213,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		}
 
 		right := strings.Split(join, ".")[0]
-		via := entityTable(s.entity)
+		via := entityTable(s.entity, s.config["table"])
 		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
+			via = entityTable(field.Config.Get("via"), "")
 		}
 
 		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
@@ -270,11 +270,11 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
 			columns[i] = ref + "_id"
-			table := entityTable(ref)
+			table := entityTable(ref, "")
 			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", table, table)
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef)
+				otherTable := entityTable(otherRef, "")
 				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, table, otherRef)
 			}
 
@@ -309,7 +309,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		tmpl = stmts["replace"]
 	}
 
-	table := entityTable(s.entity)
+	table := entityTable(s.entity, s.config["table"])
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table = "%s_" + table
 	}
@@ -334,7 +334,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	sql := naturalKeySelect(s.entity, mapping)
+	sql := naturalKeySelect(s.entity, s.config, mapping)
 	stmtName := stmtCodeVar(s.entity, "ID")
 	s.register(buf, stmtName, sql)
 
@@ -347,7 +347,7 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity)
+	table := entityTable(s.entity, s.config["table"])
 	where := whereClause(mapping.NaturalKey())
 
 	sql := fmt.Sprintf(stmts[s.kind], table, where)
@@ -382,7 +382,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(
-		stmts[s.kind], entityTable(s.entity),
+		stmts[s.kind], entityTable(s.entity, s.config["table"]),
 		strings.Join(updates, ", "), "id = ?")
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
@@ -397,7 +397,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity)
+	table := entityTable(s.entity, s.config["table"])
 
 	var where string
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
@@ -455,18 +455,18 @@ func whereClause(fields []*Field) string {
 	for i, field := range directFields {
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
-			refTable := entityTable(ref)
+			refTable := entityTable(ref, "")
 			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", refTable, refTable)
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef)
+				otherTable := entityTable(otherRef, "")
 				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, refTable, otherRef)
 			}
 
 			subSelect += " WHERE"
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef)
+				otherTable := entityTable(otherRef, "")
 				subSelect += fmt.Sprintf(" %s.name = ? AND", otherTable)
 			}
 
@@ -481,9 +481,9 @@ func whereClause(fields []*Field) string {
 }
 
 // Return a select statement that returns the ID of an entity given its natural key.
-func naturalKeySelect(entity string, mapping *Mapping) string {
+func naturalKeySelect(entity string, config map[string]string, mapping *Mapping) string {
 	nk := mapping.NaturalKey()
-	table := entityTable(entity)
+	table := entityTable(entity, config["table"])
 	criteria := ""
 	for i, field := range nk {
 		if i > 0 {
@@ -531,15 +531,15 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 		}
 
 		right := strings.Split(join, ".")[0]
-		via := entityTable(entity)
+		via := entityTable(entity, config["table"])
 		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
+			via = entityTable(field.Config.Get("via"), "")
 		}
 
 		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 	}
 
-	sql := fmt.Sprintf(stmts["id"], entityTable(entity), table, criteria)
+	sql := fmt.Sprintf(stmts["id"], entityTable(entity, config["table"]), table, criteria)
 
 	return sql
 }
