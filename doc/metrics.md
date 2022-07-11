@@ -92,3 +92,94 @@ $ openssl x509 -noout -text -in /etc/prometheus/tls/server.crt
 ```
 
 Since the Subject Alternative Name (SAN) list doesn't include the hostname provided in the `targets` list, it is required to override the name used for comparison using the `server_name` directive.
+
+Here is an example of a `prometheus.yaml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
+
+```yaml
+scrape_configs:
+  # abydos, langara and orilla are part of a single cluster
+  # initially bootstrapped by abydos which is why all 3 nodes
+  # share the its `ca_file` and `server_name`.
+  #
+  # Note: 2 params are provided:
+  #   `project`: needed when not using the `default` project or
+  #              when multiple are used.
+  #   `target`: the individual cluster member to scrape because
+  #             they only report about instances running locally.
+  - job_name: "lxd-abydos"
+    metrics_path: '/1.0/metrics'
+    params:
+      project: ['jdoe']
+      target: ['abydos']
+    scheme: 'https'
+    static_configs:
+      - targets: ['abydos.hosts.example.net:8444']
+    tls_config:
+      ca_file: 'tls/abydos.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'abydos'
+
+  - job_name: "lxd-langara"
+    metrics_path: '/1.0/metrics'
+    params:
+      project: ['jdoe']
+      target: ['langara']
+    scheme: 'https'
+    static_configs:
+      - targets: ['langara.hosts.example.net:8444']
+    tls_config:
+      ca_file: 'tls/abydos.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'abydos'
+
+  - job_name: "lxd-orilla"
+    metrics_path: '/1.0/metrics'
+    params:
+      project: ['jdoe']
+      target: ['orilla']
+    scheme: 'https'
+    static_configs:
+      - targets: ['orilla.hosts.example.net:8444']
+    tls_config:
+      ca_file: 'tls/abydos.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'abydos'
+
+  # jupiter, mars and saturn are 3 standalone LXD servers.
+  # Note: only the `default` project is used on them, so it is not specified.
+  - job_name: "lxd-jupiter"
+    metrics_path: '/1.0/metrics'
+    scheme: 'https'
+    static_configs:
+      - targets: ['jupiter.example.com:9101']
+    tls_config:
+      ca_file: 'tls/jupiter.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'jupiter'
+
+  - job_name: "lxd-mars"
+    metrics_path: '/1.0/metrics'
+    scheme: 'https'
+    static_configs:
+      - targets: ['mars.example.com:9101']
+    tls_config:
+      ca_file: 'tls/mars.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'mars'
+
+  - job_name: "lxd-saturn"
+    metrics_path: '/1.0/metrics'
+    scheme: 'https'
+    static_configs:
+      - targets: ['saturn.example.com:9101']
+    tls_config:
+      ca_file: 'tls/saturn.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
+      server_name: 'saturn'
+```
