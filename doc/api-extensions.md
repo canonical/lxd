@@ -1667,3 +1667,6 @@ Introdues a `raw.qemu.conf` configuration key to override select sections of the
 
 ## storage\_cephfs\_fscache
 Add support for fscache/cachefilesd on cephfs pools through a new `cephfs.fscache` config option.
+
+## vsock\_api
+This introduces a bidirectional vsock interface which allows the lxd-agent and the LXD server to communicate better.
