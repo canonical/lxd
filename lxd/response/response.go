@@ -29,6 +29,71 @@ type Response interface {
 	String() string
 }
 
+// Devlxd response.
+type devLxdResponse struct {
+	content     any
+	code        int
+	contentType string
+}
+
+func (r *devLxdResponse) Render(w http.ResponseWriter) error {
+	var err error
+
+	if r.code != http.StatusOK {
+		http.Error(w, fmt.Sprintf("%s", r.content), r.code)
+	} else if r.contentType == "json" {
+		w.Header().Set("Content-Type", "application/json")
+
+		var debugLogger logger.Logger
+		if debug {
+			debugLogger = logger.Logger(logger.Log)
+		}
+
+		err = util.WriteJSON(w, r.content, debugLogger)
+	} else if r.contentType != "websocket" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+
+		_, err = fmt.Fprint(w, r.content.(string))
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *devLxdResponse) String() string {
+	if r.code == http.StatusOK {
+		return "success"
+	}
+
+	return "failure"
+}
+
+// DevLxdErrorResponse returns an error response. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
+func DevLxdErrorResponse(err error, rawResponse bool) Response {
+	if rawResponse {
+		return SmartError(err)
+	}
+
+	code, ok := api.StatusErrorMatch(err)
+	if ok {
+		return &devLxdResponse{content: err.Error(), code: code, contentType: "raw"}
+	}
+
+	return &devLxdResponse{content: err.Error(), code: http.StatusInternalServerError, contentType: "raw"}
+}
+
+// DevLxdResponse represents a devLxdResponse. If rawResponse is true, a api.ResponseRaw will be sent instead of a minimal devLxdResponse.
+func DevLxdResponse(code int, content any, contentType string, rawResponse bool) Response {
+	if rawResponse {
+		return SyncResponse(true, content)
+	}
+
+	return &devLxdResponse{content: content, code: code, contentType: contentType}
+}
+
 // Sync response.
 type syncResponse struct {
 	success   bool
