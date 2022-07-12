@@ -23,6 +23,7 @@ doc/html/
 .sphinx/themes/
 .sphinx/venv/
 .sphinx/warnings.txt
+.sphinx/.wordlist.dic
 .sphinx/_static/swagger-ui
 .sphinx/_static/download
 
