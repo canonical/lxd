@@ -108,3 +108,18 @@ jobs:
           # Cause the check to fail on any broke rules
           fail-on-error: true
           woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
+
+  spellcheck:
+    name: Spellcheck (documentation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Aspell
+        run: |
+          sudo apt-get install aspell aspell-en
+
+      - name: Build docs and run spellchecker
+        run: |
+          make doc-spellcheck
