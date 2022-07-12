@@ -91,6 +91,11 @@ func parsePCIVPD(buf []byte) api.ResourcesPCIVPD {
 		buf, tag = vpdReadInt(buf, 1)
 		if (tag & 0x80) == 0x80 {
 			// Large resource data, Read the 2-bytes entry length.
+
+			if len(buf) < 2 {
+				break
+			}
+
 			buf, length = vpdReadInt(buf, 2)
 		} else {
 			// Small resource data, size is in the tag itself.
