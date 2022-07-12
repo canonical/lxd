@@ -30,11 +30,13 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
+
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:     devLxdAPI(d),
+		Handler:     devLxdAPI(d, hoistReq),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
@@ -223,12 +225,12 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 	}
 }
 
-func devLxdAPI(d *Daemon) http.Handler {
+func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
-		m.HandleFunc(handler.path, hoistReq(handler.f, d))
+		m.HandleFunc(handler.path, f(handler.f, d))
 	}
 
 	return m
