@@ -1109,6 +1109,14 @@ func (d *Daemon) init() error {
 		DebugAddress:         debugAddress,
 		MetricsAddress:       metricsAddress,
 		MetricsServer:        metricsServer(d),
+		VsockServer:          vSockServer(d),
+		VsockSupport:         false,
+	}
+
+	// Enable vsock server support if VM instances supported.
+	err, found := d.State().InstanceTypes[instancetype.VM]
+	if found && err == nil {
+		config.VsockSupport = true
 	}
 
 	d.endpoints, err = endpoints.Up(config)
