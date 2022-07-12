@@ -1,15 +1,15 @@
 ---
-discourse: 11801
+discourse: 14317
 ---
 
 (network-load-balancers)=
 # How to configure network load balancers
 
 ```{note}
-Network load balancers are available for the {ref}`network-ovn`.
+Network load balancers are currently available for the {ref}`network-ovn`.
 ```
 
-Network load balancers are similar to forwards in that they allow an specific ports on an external IP address to be forwarded to specific ports on internal IP addresses in the network that the load balancer belongs to. The difference between load balancers and forwards is that load balancers can be used to share ingress traffic between multiple internal backend addresses.
+Network load balancers are similar to forwards in that they allow specific ports on an external IP address to be forwarded to specific ports on internal IP addresses in the network that the load balancer belongs to. The difference between load balancers and forwards is that load balancers can be used to share ingress traffic between multiple internal backend addresses.
 
 This feature can be useful if you have limited external IP addresses or want to share a single external address and ports over multiple instances.
 
@@ -28,7 +28,7 @@ lxc network load-balancer create <network_name> <listen_address> [configuration_
 ```
 
 Each load balancer is assigned to a network.
-It requires a single external listen address (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load balanced, depending on the network that you are using).
+It requires a single external listen address (see {ref}`network-load-balancers-listen-addresses` for more information about which addresses can be load-balanced).
 
 ### Load balancer properties
 
@@ -45,11 +45,10 @@ ports            | port list    | no       | List of {ref}`port specifications <
 (network-load-balancers-listen-addresses)=
 ### Requirements for listen addresses
 
-The requirements for valid listen addresses vary depending on which network type the load balancer is associated to.
+The following requirements must be met for valid listen addresses:
 
-OVN network
-: - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's `restricted.networks.subnets` setting (if set).
-  - The listen address must not overlap with a subnet that is in use with another network or entity in that network.
+- Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's `restricted.networks.subnets` setting (if set).
+- The listen address must not overlap with a subnet that is in use with another network or entity in that network.
 
 (network-load-balancers-backend-specifications)=
 ## Configure backends
@@ -63,7 +62,8 @@ Use the following command to add a backend specification:
 lxc network load-balancer backend add <network_name> <listen_address> <backend_name> <listen_ports> <target_address> [<target_ports>]
 ```
 
-The target ports are optional, if not specified, then the load balancer will use the listen ports for the backend.
+The target ports are optional.
+If not specified, the load balancer will use the listen ports for the backend for the backend target ports.
 
 If you want to forward the traffic to different ports, you have two options:
 
@@ -78,14 +78,13 @@ Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
 name              | string     | yes      | Name of the backend
 target\_address   | string     | yes      | IP address to forward to
-target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
+target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as the {ref}`port <network-load-balancers-port-specifications>`'s `listen_port` if empty
 description       | string     | no       | Description of backend
 
 (network-load-balancers-port-specifications)=
 ## Configure ports
 
-You can add port specifications to the network load balancer to forward traffic from specific ports on the listen address to specific ports one one or more target backends.
-It must be within the same subnet as the network that the load balancer is associated to.
+You can add port specifications to the network load balancer to forward traffic from specific ports on the listen address to specific ports on one or more target backends.
 
 Use the following command to add a port specification:
 
