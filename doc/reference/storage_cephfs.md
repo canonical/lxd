@@ -66,6 +66,8 @@ cephfs.user.name              | string                        | admin           
 source                        | string                        | -                                       | Existing CephFS file system or file system path to use
 volatile.pool.pristine        | string                        | true                                    | Whether the CephFS file system was empty on creation time
 
+{{volume_configuration}}
+
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
