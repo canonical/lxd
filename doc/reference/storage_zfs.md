@@ -100,6 +100,8 @@ zfs.clone\_copy               | string                        | true            
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
+{{volume_configuration}}
+
 (storage-zfs-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
