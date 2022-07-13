@@ -21,14 +21,14 @@ Never use unsupported LXD versions in a production environment.
 ```
 ## Access to the LXD daemon
 
-LXD is a daemon that can be accessed locally over a UNIX socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
+LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
 Anyone with access to the socket can fully control LXD, which includes the ability to attach host devices and file systems or to tweak the security features for all instances.
 
 Therefore, make sure to restrict the access to the daemon to trusted users.
 
 ### Local access to the LXD daemon
 
-The LXD daemon runs as root and provides a UNIX socket for local communication.
+The LXD daemon runs as root and provides a Unix socket for local communication.
 Access control for LXD is based on group membership.
 The root user and all members of the `lxd` group can interact with the local daemon.
 
@@ -59,7 +59,7 @@ LXD containers can use a wide range of features for security.
 
 By default, containers are *unprivileged*, meaning that they operate inside a user namespace, restricting the abilities of users in the container to that of regular users on the host with limited privileges on the devices that the container owns.
 
-If data sharing between containers isn't needed, you can enable `security.idmap.isolated` (see {doc}`instances`), which will use non-overlapping uid/gid maps for each container, preventing potential {abbr}`DoS (Denial of Service)` attacks on other containers.
+If data sharing between containers isn't needed, you can enable `security.idmap.isolated` (see {doc}`instances`), which will use non-overlapping UID/GID maps for each container, preventing potential {abbr}`DoS (Denial of Service)` attacks on other containers.
 
 LXD can also run *privileged* containers.
 Note, however, that those aren't root safe, and a user with root access in such a container will be able to DoS the host as well as find ways to escape confinement.
@@ -87,10 +87,10 @@ This means that instances will auto-configure their own IPv6 address using SLAAC
 However, instances that are also using DHCPv4 will also get an AAAA DNS record created for the equivalent SLAAC IPv6 address.
 This assumes that the instances are not using any IPv6 privacy extensions when generating IPv6 addresses.
 
-In this default configuration, whilst DNS names cannot not be spoofed, the instance is connected to an Ethernet bridge and can transmit any layer 2 traffic that it wishes, which means an untrusted instance can effectively do MAC or IP spoofing on the bridge.
+In this default configuration, whilst DNS names cannot not be spoofed, the instance is connected to an Ethernet bridge and can transmit any layer 2 traffic that it wishes, which means an instance that is not trusted can effectively do MAC or IP spoofing on the bridge.
 
 In the default configuration, it is also possible for instances connected to the bridge to modify the LXD host's IPv6 routing table by sending (potentially malicious) IPv6 router advertisements to the bridge.
-This is because the `lxdbr0` interface is created with `/proc/sys/net/ipv6/conf/lxdbr0/accept_ra` set to `2`, meaning that the LXD host will accept router advertisements even though `forwarding` is enabled (see [/proc/sys/net/ipv4/* Variables](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) for more information).
+This is because the `lxdbr0` interface is created with `/proc/sys/net/ipv6/conf/lxdbr0/accept_ra` set to `2`, meaning that the LXD host will accept router advertisements even though `forwarding` is enabled (see [`/proc/sys/net/ipv4/*` Variables](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) for more information).
 
 However, LXD offers several bridged {abbr}`NIC (Network interface controller)` security features that can be used to control the type of traffic that an instance is allowed to send onto the network.
 These NIC settings should be added to the profile that the instance is using, or they can be added to individual instances, as shown below.
@@ -99,9 +99,9 @@ The following security features are available for bridged NICs:
 
 Key                      | Type      | Default           | Required  | Description
 :--                      | :--       | :--               | :--       | :--
-security.mac\_filtering  | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
-security.ipv4\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
-security.ipv6\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
+`security.mac_filtering` | bool      | false             | no        | Prevent the instance from spoofing another instance's MAC address
+`security.ipv4_filtering`| bool      | false             | no        | Prevent the instance from spoofing another instance's IPv4 address (enables `mac_filtering`)
+`security.ipv6_filtering`| bool      | false             | no        | Prevent the instance from spoofing another instance's IPv6 address (enables `mac_filtering`)
 
 One can override the default bridged NIC settings from the profile on a per-instance basis using:
 
@@ -110,7 +110,7 @@ lxc config device override <instance> <NIC> security.mac_filtering=true
 ```
 
 Used together, these features can prevent an instance connected to a bridge from spoofing MAC and IP addresses.
-These options are implemented using either `xtables` (iptables, ip6tables and ebtables) or `nftables`, depending on what is available on the host.
+These options are implemented using either `xtables` (`iptables`, `ip6tables` and `ebtables`) or `nftables`, depending on what is available on the host.
 
 It's worth noting that those options effectively prevent nested containers from using the parent network with a different MAC address (i.e using bridged or macvlan NICs).
 
@@ -121,13 +121,13 @@ If `security.ipv4_filtering` or `security.ipv6_filtering` is enabled and the ins
 When `security.ipv6_filtering` is enabled, IPv6 router advertisements are blocked from the instance.
 
 When `security.ipv4_filtering` or `security.ipv6_filtering` is enabled, any Ethernet frames that are not ARP, IPv4 or IPv6 are dropped.
-This prevents stacked VLAN QinQ (802.1ad) frames from bypassing the IP filtering.
+This prevents stacked VLAN Q-in-Q (802.1ad) frames from bypassing the IP filtering.
 
 ### Routed NIC security
 
 An alternative networking mode is available called "routed".
-It provides a veth pair between container and host.
-In this networking mode, the LXD host functions as a router, and static routes are added to the host directing traffic for the container's IPs towards the container's veth interface.
+It provides a virtual Ethernet device pair between container and host.
+In this networking mode, the LXD host functions as a router, and static routes are added to the host directing traffic for the container's IPs towards the container's `veth` interface.
 
-By default, the veth interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
+By default, the `veth` interface created on the host has its `accept_ra` setting disabled to prevent router advertisements from the container modifying the IPv6 routing table on the LXD host.
 In addition to that, the `rp_filter` on the host is set to `1` to prevent source address spoofing for IPs that the host does not know the container has.
