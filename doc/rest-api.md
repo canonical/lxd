@@ -1,8 +1,8 @@
 # REST API
 ## Introduction
 All the communications between LXD and its clients happen using a
-RESTful API over http which is then encapsulated over either SSL for
-remote operations or a unix socket for local operations.
+RESTful API over HTTP which is then encapsulated over either SSL for
+remote operations or a Unix socket for local operations.
 
 ## API versioning
 The list of supported major API versions can be retrieved using `GET /`.
@@ -125,7 +125,7 @@ Code  | Meaning
 101   | Started
 102   | Stopped
 103   | Running
-104   | Cancelling
+104   | Canceling
 105   | Pending
 106   | Starting
 107   | Stopping
@@ -136,7 +136,7 @@ Code  | Meaning
 112   | Error
 200   | Success
 400   | Failure
-401   | Cancelled
+401   | Canceled
 
 ## Recursion
 To optimize queries of large lists, recursion is implemented for collections.
@@ -158,29 +158,29 @@ Filtering is available for the instance, image and storage volume endpoints.
 There is no default value for filter which means that all results found will
 be returned. The following is the language used for the filter argument:
 
-?filter=field\_name eq desired\_field\_assignment
+    ?filter=field_name eq desired_field_assignment
 
 The language follows the OData conventions for structuring REST API filtering
-logic. Logical operators are also supported for filtering: not(not), equals(eq),
-not equals(ne), and(and), or(or). Filters are evaluated with left associativity.
+logic. Logical operators are also supported for filtering: not (`not`), equals (`eq`),
+not equals (`ne`), and (`and`), or (`or`). Filters are evaluated with left associativity.
 Values with spaces can be surrounded with quotes. Nesting filtering is also supported.
-For instance, to filter on a field in a config you would pass:
+For instance, to filter on a field in a configuration you would pass:
 
-?filter=config.field\_name eq desired\_field\_assignment
+    ?filter=config.field_name eq desired_field_assignment
 
 For filtering on device attributes you would pass:
 
-?filter=devices.device\_name.field\_name eq desired\_field\_assignment
+    ?filter=devices.device_name.field_name eq desired_field_assignment
 
 Here are a few GET query examples of the different filtering methods mentioned above:
 
-containers?filter=name eq "my container" and status eq Running
+    containers?filter=name eq "my container" and status eq Running
 
-containers?filter=config.image.os eq ubuntu or devices.eth0.nictype eq bridged
+    containers?filter=config.image.os eq ubuntu or devices.eth0.nictype eq bridged
 
-images?filter=Properties.os eq Centos and not UpdateSource.Protocol eq simplestreams
+    images?filter=Properties.os eq Centos and not UpdateSource.Protocol eq simplestreams
 
-## Async operations
+## Asynchronous operations
 Any operation which may take more than a second to be done must be done
 in the background, returning a background operation ID to the client.
 
@@ -188,7 +188,7 @@ The client will then be able to either poll for a status update or wait
 for a notification using the long-poll API.
 
 ## Notifications
-A websocket based API is available for notifications, different notification
+A WebSocket-based API is available for notifications, different notification
 types exist to limit the traffic going to the client.
 
 It's recommended that the client always subscribes to the operations
@@ -201,7 +201,7 @@ The LXD API supports both PUT and PATCH to modify existing objects.
 PUT replaces the entire object with a new definition, it's typically
 called after the current object state was retrieved through GET.
 
-To avoid race conditions, the Etag header should be read from the GET
+To avoid race conditions, the ETag header should be read from the GET
 response and sent as If-Match for the PUT request. This will cause LXD
 to fail the request if the object was modified between GET and PUT.
 
@@ -225,5 +225,5 @@ much like `/1.0/containers` will only show you instances of that type.
 
 ## API structure
 LXD has an auto-generated [Swagger](https://swagger.io/) specification describing its API endpoints.
-The YAML version of this API specification can be found in [rest-api.yaml](https://github.com/lxc/lxd/blob/master/doc/rest-api.yaml). <!-- wokeignore:rule=master -->
-A convenient web rendering of it can be found here: [https://linuxcontainers.org/lxd/api/master/](https://linuxcontainers.org/lxd/api/master/) <!-- wokeignore:rule=master -->
+The YAML version of this API specification can be found in [`rest-api.yaml`](https://github.com/lxc/lxd/blob/master/doc/rest-api.yaml). <!-- wokeignore:rule=master -->
+A convenient web rendering of it can be found here: [`https://linuxcontainers.org/lxd/api/master/`](https://linuxcontainers.org/lxd/api/master/) <!-- wokeignore:rule=master -->
