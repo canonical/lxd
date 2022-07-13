@@ -4,7 +4,7 @@ Communication between the hosted workload (instance) and its host while
 not strictly needed is a pretty useful feature.
 
 In LXD, this feature is implemented through a `/dev/lxd/sock` node which is
-created and setup for all LXD instances.
+created and set up for all LXD instances.
 
 This file is a Unix socket which processes inside the instance can
 connect to. It's multi-threaded so multiple clients can be connected at the
