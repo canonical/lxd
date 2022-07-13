@@ -4527,6 +4527,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"limits.memory",
 			"security.agent.metrics",
 			"security.secureboot",
+			"security.devlxd",
 		}
 
 		isLiveUpdatable := func(key string) bool {
@@ -4586,6 +4587,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			} else if key == "security.secureboot" {
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
+			} else if key == "security.devlxd" {
+				err = d.advertiseVsockAddress()
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
