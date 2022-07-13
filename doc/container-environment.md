@@ -30,7 +30,7 @@ LXD assumes that any image it uses to create a new container from will come with
 LXD containers have a minimal and ephemeral `/dev` based on a tmpfs filesystem.
 Since this is a tmpfs and not a devtmpfs, device nodes will only appear if manually created.
 
-The standard set of device nodes will be setup:
+The standard set of device nodes will be set up:
 
  - `/dev/console`
  - `/dev/fd`
@@ -46,14 +46,14 @@ The standard set of device nodes will be setup:
  - `/dev/urandom`
  - `/dev/zero`
 
-On top of the standard set of devices, the following are also setup for convenience:
+On top of the standard set of devices, the following are also set up for convenience:
 
  - `/dev/fuse`
  - `/dev/net/tun`
  - `/dev/mqueue`
 
 ## Mounts
-The following mounts are setup by default under LXD:
+The following mounts are set up by default under LXD:
 
  - `/proc` (proc)
  - `/sys` (sysfs)
@@ -85,7 +85,7 @@ LXD sets up a socket at `/dev/lxd/sock` which root in the container can use to c
 The API is [documented here](dev-lxd.md).
 
 ## LXCFS
-If LXCFS is present on the host, it will automatically be setup for the container.
+If LXCFS is present on the host, it will automatically be set up for the container.
 
 This normally results in a number of `/proc` files being overridden through bind-mounts.
-On older kernels a virtual version of `/sys/fs/cgroup` may also be setup by LXCFS.
+On older kernels a virtual version of `/sys/fs/cgroup` may also be set up by LXCFS.
