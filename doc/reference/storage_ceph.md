@@ -71,11 +71,6 @@ Sharing the OSD storage pool between installations
   In this case, you must set the {ref}`ceph.osd.force_reuse <storage-ceph-pool-config>` configuration option to `true`.
   If this option is not set, LXD refuses to reuse an OSD storage pool that it detects as being in use by another LXD installation.
 
-Choosing an underlying file system
-: When setting up the Ceph cluster that LXD will use, choose XFS as the underlying file system for the storage entities that are used to hold OSD storage pools.
-  Using ext4 as the underlying file system is [not recommended by Ceph upstream](https://docs.ceph.com/en/quincy/rados/troubleshooting/troubleshooting-osd/#filesystem-issues).
-  You might see unexpected and erratic failures that are unrelated to LXD itself.
-
 Using an OSD pool of type "erasure"
 : To use a Ceph OSD pool of type "erasure", you must create the OSD pool beforehand.
   You must also create a separate OSD pool of type "replicated" that will be used for storing metadata.
