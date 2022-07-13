@@ -102,6 +102,8 @@ ceph.user.name                | string                        | admin           
 source                        | string                        | -                                       | Existing OSD storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool was empty on creation time
 
+{{volume_configuration}}
+
 (storage-ceph-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description

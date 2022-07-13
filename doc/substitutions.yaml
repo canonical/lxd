@@ -4,4 +4,5 @@ snapshot_expiry_format: "Controls when snapshots are to be deleted (expects an e
 snapshot_pattern_format: "Pongo2 template string that represents the snapshot name (used for scheduled snapshots and unnamed snapshots)",
 snapshot_schedule_format: "Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases (`@hourly`, `@daily`, `@midnight`, `@weekly`, `@monthly`, `@annually`, `@yearly`)",
 enable_ID_shifting: "Enable ID shifting overlay (allows attach by multiple isolated instances)",
-block_filesystem: "File system of the storage volume: `btrfs`, `ext4` or `xfs` (`ext4` if not set)"}
+block_filesystem: "File system of the storage volume: `btrfs`, `ext4` or `xfs` (`ext4` if not set)",
+volume_configuration: "```{tip}\nIn addition to these configurations, you can also set default values for the storage volume configurations. See {ref}`storage-configure-vol-default`.\n```"}

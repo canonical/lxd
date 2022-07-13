@@ -48,6 +48,8 @@ rsync.bwlimit                 | string                        | 0 (no limit)    
 rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or file system entry
 
+{{volume_configuration}}
+
 (storage-lvm-vol-config)=
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
