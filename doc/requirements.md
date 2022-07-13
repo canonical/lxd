@@ -34,7 +34,7 @@ should also be installed.
 For virtual machines, QEMU 6.0 or higher is required.
 
 ## Additional libraries (and development headers)
-LXD uses `dqlite` for its database, to build and setup it, you can
+LXD uses `dqlite` for its database, to build and set it up, you can
 run `make deps`.
 
 LXD itself also uses a number of (usually packaged) C libraries:
