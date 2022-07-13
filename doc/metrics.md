@@ -63,7 +63,7 @@ chown -R prometheus:prometheus /etc/prometheus/tls
 
 Lastly, LXD has to be added as target.
 For this, `/etc/prometheus/prometheus.yaml` needs to be edited.
-Here's what the config needs to look like:
+Here's what the configuration needs to look like:
 
 ```yaml
 scrape_configs:
@@ -91,7 +91,7 @@ $ openssl x509 -noout -text -in /etc/prometheus/tls/server.crt
 ...
 ```
 
-Since the Subject Alternative Name (SAN) list doesn't include the hostname provided in the `targets` list, it is required to override the name used for comparison using the `server_name` directive.
+Since the Subject Alternative Name (SAN) list doesn't include the host name provided in the `targets` list, it is required to override the name used for comparison using the `server_name` directive.
 
 Here is an example of a `prometheus.yaml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
 
