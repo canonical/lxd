@@ -67,14 +67,6 @@ Sharing custom volumes between instances
 
 Sharing the OSD storage pool between installations
 : Sharing the same OSD storage pool between multiple LXD installations is not supported.
-  The only scenario in which LXD allows sharing an OSD storage pool between multiple LXD installations is if you want to recover existing instances via `lxd recover`.
-  In this case, you must set the {ref}`ceph.osd.force_reuse <storage-ceph-pool-config>` configuration option to `true`.
-  If this option is not set, LXD refuses to reuse an OSD storage pool that it detects as being in use by another LXD installation.
-
-Choosing an underlying file system
-: When setting up the Ceph cluster that LXD will use, choose XFS as the underlying file system for the storage entities that are used to hold OSD storage pools.
-  Using ext4 as the underlying file system is [not recommended by Ceph upstream](https://docs.ceph.com/en/quincy/rados/troubleshooting/troubleshooting-osd/#filesystem-issues).
-  You might see unexpected and erratic failures that are unrelated to LXD itself.
 
 Using an OSD pool of type "erasure"
 : To use a Ceph OSD pool of type "erasure", you must create the OSD pool beforehand.
@@ -92,7 +84,6 @@ Key                           | Type                          | Default         
 :--                           | :---                          | :------                                 | :----------
 ceph.cluster\_name            | string                        | ceph                                    | Name of the Ceph cluster in which to create new storage pools
 ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the OSD data pool
-ceph.osd.force\_reuse         | bool                          | false                                   | Force using an OSD storage pool that is already in use by another LXD instance
 ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the OSD storage pool
 ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the OSD storage pool
 ceph.rbd.clone\_copy          | bool                          | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
@@ -101,6 +92,8 @@ ceph.rbd.features             | string                        | layering        
 ceph.user.name                | string                        | admin                                   | The Ceph user to use when creating storage pools and volumes
 source                        | string                        | -                                       | Existing OSD storage pool to use
 volatile.pool.pristine        | string                        | true                                    | Whether the pool was empty on creation time
+
+{{volume_configuration}}
 
 (storage-ceph-vol-config)=
 ### Storage volume configuration

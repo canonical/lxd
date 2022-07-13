@@ -57,6 +57,8 @@ Key                             | Type      | Default                    | Descr
 btrfs.mount\_options            | string    | user\_subvol\_rm\_allowed  | Mount options for block devices
 source                          | string    | -                          | Path to block device or loop file or file system entry
 
+{{volume_configuration}}
+
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :---      | :--------                 | :------                               | :----------
