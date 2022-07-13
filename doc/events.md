@@ -2,13 +2,13 @@
 
 ## Introduction
 Events are messages about actions that have occurred over LXD. Using the API endpoint `/1.0/events` directly or via
-`lxc monitor` will connect to a WebSocket through which logs and lifecycle messages will be streamed.
+`lxc monitor` will connect to a WebSocket through which logs and life-cycle messages will be streamed.
 
 ## Event types
 LXD Currently supports three event types.
-- **Logging**: Shows all logging messages regardless of the server logging level.
-- **Operation**: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
-- **Lifecycle**: Shows an audit trail for specific actions occurring over LXD.
+- `logging`: Shows all logging messages regardless of the server logging level.
+- `operation`: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
+- `lifecycle`: Shows an audit trail for specific actions occurring over LXD.
 
 ## Event structure
 ### Example:
@@ -35,7 +35,7 @@ type: lifecycle
 
 ### Operation event structure
 - `id`: The UUID of the operation.
-- `class`: The type of operation (task, token, or websocket).
+- `class`: The type of operation (`task`, `token`, or `websocket`).
 - `description`: A description of the operation.
 - `created_at`: The operation's creation date.
 - `updated_at`: The operation's date of last change.
@@ -43,17 +43,17 @@ type: lifecycle
 - `status_code`: The operation status code.
 - `resources`: Resources affected by this operation.
 - `metadata`: Operation specific metadata.
-- `may_cancel`: Whether the operation may be cancelled.
+- `may_cancel`: Whether the operation may be canceled.
 - `err`: Error message of the operation.
 - `location`: The cluster member name (if clustered).
 
-### Lifecycle event structure
-- `action`: The lifecycle action that occurred.
+### Life-cycle event structure
+- `action`: The life-cycle action that occurred.
 - `requestor`: Information about who is making the request (if applicable).
 - `source`: Path to what is being acted upon.
 - `context`: Additional information included in the event.
 
-## Supported lifecycle events
+## Supported life-cycle events
 | Name                                   | Description                                                           | Additional Information                                                                               |
 | :------------------------------------- | :-------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
 | `certificate-created`                  | A new certificate has been added to the server trust store.           |                                                                                                      |
@@ -76,7 +76,7 @@ type: lifecycle
 | `image-alias-deleted`                  | An alias has been deleted for an existing image.                      | `target`: the original instance.                                                                     |
 | `image-alias-renamed`                  | The alias for an existing image has been renamed.                     | `old_name`: the previous name.                                                                       |
 | `image-alias-updated`                  | The configuration for an image alias has changed.                     | `target`: the original instance.                                                                     |
-| `image-created`                        | A new image has been added to the image store.                        | `type`: container or vm.                                                                             |
+| `image-created`                        | A new image has been added to the image store.                        | `type`: `container` or `vm`.                                                                             |
 | `image-deleted`                        | The image has been deleted from the image store.                      |                                                                                                      |
 | `image-refreshed`                      | The local image copy has updated to the current source image version. |                                                                                                      |
 | `image-retrieved`                      | The raw image file has been downloaded from the server.               | `target`: destination server.                                                                        |
@@ -86,7 +86,7 @@ type: lifecycle
 | `instance-backup-deleted`              | The instance backup has been deleted.                                 |                                                                                                      |
 | `instance-backup-renamed`              | The instance backup has been renamed.                                 | `old_name`: the previous name.                                                                       |
 | `instance-backup-retrieved`            | The raw instance backup file has been downloaded.                     |                                                                                                      |
-| `instance-console`                     | Connected to the console of the instance.                             | `type`: console or vga.                                                                              |
+| `instance-console`                     | Connected to the console of the instance.                             | `type`: `console` or `vga`.                                                                              |
 | `instance-console-reset`               | The console buffer has been reset.                                    |                                                                                                      |
 | `instance-console-retrieved`           | The console log has been downloaded.                                  |                                                                                                      |
 | `instance-created`                     | A new instance has been created.                                      |                                                                                                      |
@@ -115,10 +115,10 @@ type: lifecycle
 | `instance-started`                     | The instance has started.                                             |                                                                                                      |
 | `instance-stopped`                     | The instance has stopped.                                             |                                                                                                      |
 | `instance-updated`                     | The instance's configuration has changed.                             |                                                                                                      |
-| `network-acl-created`                  | A new network acl has been created.                                   |                                                                                                      |
-| `network-acl-deleted`                  | The network acl has been deleted.                                     |                                                                                                      |
-| `network-acl-renamed`                  | The network acl has been renamed.                                     | `old_name`: the previous name.                                                                       |
-| `network-acl-updated`                  | The network acl configuration has changed.                            |                                                                                                      |
+| `network-acl-created`                  | A new network ACL has been created.                                   |                                                                                                      |
+| `network-acl-deleted`                  | The network ACL has been deleted.                                     |                                                                                                      |
+| `network-acl-renamed`                  | The network ACL has been renamed.                                     | `old_name`: the previous name.                                                                       |
+| `network-acl-updated`                  | The network ACL configuration has changed.                            |                                                                                                      |
 | `network-created`                      | A network device has been created.                                    |                                                                                                      |
 | `network-deleted`                      | The network device has been deleted.                                  |                                                                                                      |
 | `network-forward-created`              | A new network forward has been created.                               |                                                                                                      |
@@ -135,7 +135,7 @@ type: lifecycle
 | `network-zone-record-deleted`          | The network zone record has been deleted.                             |                                                                                                      |
 | `network-zone-record-updated`          | The network zone record has been updated.                             |                                                                                                      |
 | `network-zone-updated`                 | The network zone has been updated.                                    |                                                                                                      |
-| `operation-cancelled`                  | The operation has been cancelled.                                     |                                                                                                      |
+| `operation-cancelled`                  | The operation has been canceled.                                     |                                                                                                      |
 | `profile-created`                      | A new profile has been created.                                       |                                                                                                      |
 | `profile-deleted`                      | The profile has been deleted.                                         |                                                                                                      |
 | `profile-renamed`                      | The profile has been renamed .                                        | `old_name`: the previous name.                                                                       |
@@ -155,7 +155,7 @@ type: lifecycle
 | `storage-volume-deleted`               | The storage volume has been deleted.                                  |                                                                                                      |
 | `storage-volume-renamed`               | The storage volume has been renamed.                                  | `old_name`: the previous name.                                                                       |
 | `storage-volume-restored`              | The storage volume has been restored from a snapshot.                 | `snapshot`: name of the snapshot being restored.                                                     |
-| `storage-volume-snapshot-created`      | A new storage volume snapshot has been created.                       | `type`: container, virtua-machine, image, or custom.                                                 |
+| `storage-volume-snapshot-created`      | A new storage volume snapshot has been created.                       | `type`: container, virtual-machine, image, or custom.                                                 |
 | `storage-volume-snapshot-deleted`      | The storage volume's snapshot has been deleted.                       |                                                                                                      |
 | `storage-volume-snapshot-renamed`      | The storage volume's snapshot has been renamed.                       | `old_name`: the previous name.                                                                       |
 | `storage-volume-snapshot-updated`      | The configuration for the storage volume's snapshot has changed.      |                                                                                                      |
