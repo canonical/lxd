@@ -37,6 +37,7 @@ func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()
 		RestServer:   newServer(),
 		DevLxdServer: newServer(),
 		Cert:         shared.TestingKeyPair(),
+		VsockServer:  newServer(),
 	}
 
 	endpoints := endpoints.Unstarted()
