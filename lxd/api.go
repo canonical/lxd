@@ -9,6 +9,7 @@ import (
 
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	lxdRequest "github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
@@ -96,6 +97,28 @@ func restServer(d *Daemon) *http.Server {
 		Handler:     &lxdHttpServer{r: mux, d: d},
 		ConnContext: lxdRequest.SaveConnectionInContext,
 	}
+}
+
+func hoistReqVM(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		trusted, inst, err := authenticateAgentCert(d, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !trusted {
+			http.Error(w, "", http.StatusUnauthorized)
+			return
+		}
+
+		resp := f(d, inst, w, r)
+		_ = resp.Render(w)
+	}
+}
+
+func vSockServer(d *Daemon) *http.Server {
+	return &http.Server{Handler: devLxdAPI(d, hoistReqVM)}
 }
 
 func metricsServer(d *Daemon) *http.Server {

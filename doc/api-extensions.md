@@ -1687,3 +1687,6 @@ Add support for fscache/cachefilesd on cephfs pools through a new `cephfs.fscach
 ## network\_load\_balancer
 This introduces the networking load balancer functionality. Allowing `ovn` networks to define port(s) on external
 IP addresses that can be forwarded to one or more internal IP(s) inside their respective networks.
+
+## vsock\_api
+This introduces a bidirectional vsock interface which allows the lxd-agent and the LXD server to communicate better.

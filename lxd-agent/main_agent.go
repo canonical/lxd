@@ -23,6 +23,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+var servers = make(map[string]*http.Server, 2)
+var errChan = make(chan error)
+
 type cmdAgent struct {
 	global *cmdGlobal
 }
@@ -156,26 +159,14 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
-	servers := make(map[string]*http.Server, 2)
-
 	// Prepare the HTTP server.
 	servers["http"] = restServer(tlsConfig, cert, c.global.flagLogDebug, d)
-
-	// Prepare the devlxd server.
-	devlxdListener, err := createDevLxdlListener("/dev")
-	if err != nil {
-		return err
-	}
-
-	servers["devlxd"] = devLxdServer(d)
 
 	// Create a cancellation context.
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// Start status notifier in background.
-	cancelStatusNotifier := c.startStatusNotifier(ctx)
-
-	errChan := make(chan error, 1)
+	cancelStatusNotifier := c.startStatusNotifier(ctx, d.chConnected)
 
 	// Start the server.
 	go func() {
@@ -184,16 +175,6 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 			errChan <- err
 		}
 	}()
-
-	// Only start the devlxd listener if instance-data is present.
-	if shared.PathExists("instance-data") {
-		go func() {
-			err := servers["devlxd"].Serve(devlxdListener)
-			if err != nil {
-				errChan <- err
-			}
-		}()
-	}
 
 	// Cancel context when SIGTEM is received.
 	chSignal := make(chan os.Signal, 1)
@@ -218,7 +199,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 // startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
 // Returns a function that can be used to update the running status to STOPPED in the ring buffer.
-func (c *cmdAgent) startStatusNotifier(ctx context.Context) context.CancelFunc {
+func (c *cmdAgent) startStatusNotifier(ctx context.Context, chConnected <-chan struct{}) context.CancelFunc {
 	// Write initial started status.
 	_ = c.writeStatus("STARTED")
 
@@ -238,6 +219,8 @@ func (c *cmdAgent) startStatusNotifier(ctx context.Context) context.CancelFunc {
 
 		for {
 			select {
+			case <-chConnected:
+				_ = c.writeStatus("CONNECTED") // Indicate we were able to connect to LXD.
 			case <-ticker.C:
 				_ = c.writeStatus("STARTED") // Re-populate status periodically in case LXD restarts.
 			case <-exitCtx.Done():
@@ -258,12 +241,9 @@ func (c *cmdAgent) writeStatus(status string) error {
 			return err
 		}
 
-		_, err = vSerial.Write([]byte(fmt.Sprintf("%s\n", status)))
-		if err != nil {
-			return err
-		}
+		defer vSerial.Close()
 
-		err = vSerial.Close()
+		_, err = vSerial.Write([]byte(fmt.Sprintf("%s\n", status)))
 		if err != nil {
 			return err
 		}

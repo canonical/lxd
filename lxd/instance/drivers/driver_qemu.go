@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -36,7 +37,6 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device"
@@ -332,7 +332,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		}
 	}
 
-	agent, err := vsock.HTTPClient(vsockID, clientCert, clientKey, agentCert)
+	agent, err := vsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
 	if err != nil {
 		return nil, err
 	}
@@ -348,8 +348,16 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 	state := d.state
 
 	return func(event string, data map[string]any) {
-		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET"}) {
+		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET", "LXD-AGENT-READY"}) {
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
+		}
+
+		if event == "LXD-AGENT-READY" {
+			err := d.advertiseVsockAddress()
+			if err != nil {
+				d.logger.Error("Failed to advertise vsock address", logger.Ctx{"err": err})
+				return
+			}
 		}
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
@@ -1571,6 +1579,60 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// advertiseVsockAddress advertises the CID and port to the VM.
+func (d *qemu) advertiseVsockAddress() error {
+	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
+
+	client, err := d.getAgentClient()
+	if err != nil {
+		return fmt.Errorf("Failed getting agent client handle: %w", err)
+	}
+
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		return fmt.Errorf("Failed connecting to lxd-agent: %w", err)
+	}
+
+	defer agent.Disconnect()
+
+	req := api.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      devlxdEnabled,
+	}
+
+	addr := d.state.Endpoints.VsockAddress()
+	if addr == "" {
+		return nil
+	}
+
+	_, err = fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
+	if err != nil {
+		return fmt.Errorf("Failed parsing vsock address: %w", err)
+	}
+
+	_, _, err = agent.RawQuery("PUT", "/1.0", req, "")
+	if err != nil {
+		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
+	}
+
+	return nil
+}
+
+// AgentCertificate returns the server certificate of the lxd-agent.
+func (d *qemu) AgentCertificate() *x509.Certificate {
+	agentCert := filepath.Join(d.Path(), "config", "agent.crt")
+	if !shared.PathExists(agentCert) {
+		return nil
+	}
+
+	cert, err := shared.ReadCert(agentCert)
+	if err != nil {
+		return nil
+	}
+
+	return cert
+}
+
 func (d *qemu) architectureSupportsUEFI() bool {
 	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
@@ -2221,12 +2283,6 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
-	if err != nil {
-		return err
-	}
-
-	// Instance data for devlxd.
-	err = d.writeInstanceData()
 	if err != nil {
 		return err
 	}
@@ -4471,6 +4527,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"limits.memory",
 			"security.agent.metrics",
 			"security.secureboot",
+			"security.devlxd",
 		}
 
 		isLiveUpdatable := func(key string) bool {
@@ -4530,6 +4587,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			} else if key == "security.secureboot" {
 				// Defer rebuilding nvram until next start.
 				d.localConfig["volatile.apply_nvram"] = "true"
+			} else if key == "security.devlxd" {
+				err = d.advertiseVsockAddress()
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -4623,11 +4685,6 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	revert.Success()
 
 	if isRunning {
-		err = d.writeInstanceData()
-		if err != nil {
-			return fmt.Errorf("Failed to write instance-data file: %w", err)
-		}
-
 		// Send devlxd notifications only for user.* key changes
 		for _, key := range changedConfig {
 			if !strings.HasPrefix(key, "user.") {
@@ -6063,55 +6120,6 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 	defer agent.Disconnect()
 
 	_, _, err = agent.RawQuery("POST", "/1.0/events", &event, "")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *qemu) writeInstanceData() error {
-	// Only write instance-data file if security.devlxd is true.
-	if !(d.expandedConfig["security.devlxd"] == "" || shared.IsTrue(d.expandedConfig["security.devlxd"])) {
-		return nil
-	}
-
-	// Instance data for devlxd.
-	configDrivePath := filepath.Join(d.Path(), "config")
-	userConfig := make(map[string]string)
-
-	for k, v := range d.ExpandedConfig() {
-		if !strings.HasPrefix(k, "user.") && !strings.HasPrefix(k, "cloud-init.") {
-			continue
-		}
-
-		userConfig[k] = v
-	}
-
-	location := "none"
-	clustered, err := cluster.Enabled(d.state.DB.Node)
-	if err != nil {
-		return err
-	}
-
-	if clustered {
-		location = d.Location()
-	}
-
-	agentData := instancetype.VMAgentData{
-		Name:        d.Name(),
-		CloudInitID: d.CloudInitID(),
-		Location:    location,
-		Config:      userConfig,
-		Devices:     d.expandedDevices,
-	}
-
-	out, err := json.Marshal(agentData)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "instance-data"), out, 0600)
 	if err != nil {
 		return err
 	}
