@@ -16,38 +16,30 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
+
+type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:     devLxdAPI(d),
+		Handler:     devLxdAPI(d, hoistReq),
 		ConnState:   pidMapper.ConnStateHandler,
 		ConnContext: request.SaveConnectionInContext,
 	}
-}
-
-type devLxdResponse struct {
-	content any
-	code    int
-	ctype   string
-}
-
-func okResponse(ct any, ctype string) *devLxdResponse {
-	return &devLxdResponse{ct, http.StatusOK, ctype}
 }
 
 type devLxdHandler struct {
@@ -59,134 +51,136 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse
+	f func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response
 }
 
-var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
 	}
-	return okResponse(filtered, "json")
+
+	return response.DevLxdResponse(http.StatusOK, filtered, "json", c.Type() == instancetype.VM)
 }}
 
-var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
-		return &devLxdResponse{"bad request", http.StatusBadRequest, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusBadRequest, "bad request"), c.Type() == instancetype.VM)
 	}
 
 	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
-		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
 	value, ok := c.ExpandedConfig()[key]
 	if !ok {
-		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusNotFound, "not found"), c.Type() == instancetype.VM)
 	}
 
-	return okResponse(value, "raw")
+	return response.DevLxdResponse(http.StatusOK, value, "raw", c.Type() == instancetype.VM)
 }}
 
-var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
-		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
 	// Use by security checks to distinguish devlxd vs lxd APIs
 	r.RemoteAddr = "@devlxd"
 
 	resp := imageExport(d, r)
+
 	err := resp.Render(w)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
-	return &devLxdResponse{"", http.StatusOK, "raw"}
+	return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
 }}
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	value := inst.ExpandedConfig()["user.meta-data"]
 
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw")
+	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
 }}
 
-var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "config,device"
 	}
 
 	var listenerConnection events.EventListenerConnection
-	var response devLxdResponse
+	var resp response.Response
 
 	// If the client has not requested a websocket connection then fallback to long polling event stream mode.
 	if r.Header.Get("Upgrade") == "websocket" {
 		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 		if err != nil {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}
 
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection = events.NewWebsocketListenerConnection(conn)
 
-		response = devLxdResponse{"websocket", http.StatusOK, "websocket"}
+		resp = response.DevLxdResponse(http.StatusOK, "websocket", "websocket", c.Type() == instancetype.VM)
 	} else {
 		h, ok := w.(http.Hijacker)
 		if !ok {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}
 
 		conn, _, err := h.Hijack()
 		if err != nil {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}
 
 		defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
 		listenerConnection, err = events.NewStreamListenerConnection(conn)
 		if err != nil {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}
 
-		response = devLxdResponse{"", http.StatusOK, "raw"}
+		resp = response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
 	}
 
 	listener, err := d.devlxdEvents.AddListener(c.ID(), listenerConnection, strings.Split(typeStr, ","))
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
 	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project(), "listener_id": listener.ID})
 	listener.Wait(r.Context())
 
-	return &response
+	return resp
 }}
 
-var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	location := "none"
 	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
 	if clustered {
 		location = c.Location()
 	}
 
-	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location, "instance_type": c.Type().String()}, "json")
+	return response.DevLxdResponse(http.StatusOK, api.VsockServerGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
 }}
 
-var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	return okResponse(c.ExpandedDevices(), "json")
+var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }}
 
 var handlers = []devLxdHandler{
-	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-		return okResponse([]string{"/1.0"}, "json")
+	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+		return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
 	}},
 	devlxdAPIGet,
 	devlxdConfigGet,
@@ -197,18 +191,18 @@ var handlers = []devLxdHandler{
 	devlxdDevicesGet,
 }
 
-func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
+func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {
-			http.Error(w, pidNotInContainerErr.Error(), 500)
+			http.Error(w, pidNotInContainerErr.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		c, err := findContainerForPid(cred.Pid, d.State())
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -227,30 +221,16 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		}
 
 		resp := f(d, c, w, r)
-		if resp.code != http.StatusOK {
-			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
-		} else if resp.ctype == "json" {
-			w.Header().Set("Content-Type", "application/json")
-
-			var debugLogger logger.Logger
-			if daemon.Debug {
-				debugLogger = logger.Logger(logger.Log)
-			}
-
-			_ = util.WriteJSON(w, resp.content, debugLogger)
-		} else if resp.ctype != "websocket" {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			_, _ = fmt.Fprint(w, resp.content.(string))
-		}
+		_ = resp.Render(w)
 	}
 }
 
-func devLxdAPI(d *Daemon) http.Handler {
+func devLxdAPI(d *Daemon, f hoistFunc) http.Handler {
 	m := mux.NewRouter()
 	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
-		m.HandleFunc(handler.path, hoistReq(handler.f, d))
+		m.HandleFunc(handler.path, f(handler.f, d))
 	}
 
 	return m

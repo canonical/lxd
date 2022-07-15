@@ -60,6 +60,10 @@ func (m *Monitor) start() error {
 
 			m.agentReadyMu.Lock()
 			if status == "STARTED" {
+				if !m.agentReady && m.eventHandler != nil {
+					go m.eventHandler("LXD-AGENT-READY", nil)
+				}
+
 				m.agentReady = true
 			} else if status == "STOPPED" {
 				m.agentReady = false

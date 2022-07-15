@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,12 +11,13 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/daemon"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -51,23 +50,45 @@ type devLxdHandler struct {
 	f func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse
 }
 
+func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
+	// Try connecting to LXD server.
+	client, err := getClient(int(d.serverCID), int(d.serverPort), d.serverCertificate)
+	if err != nil {
+		return nil, err
+	}
+
+	server, err := lxd.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return server, nil
+}
+
 var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	data, err := ioutil.ReadFile("instance-data")
+	client, err := getVsockClient(d)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instancetype.VMAgentData
+	defer client.Disconnect()
 
-	err = json.Unmarshal(data, &instance)
+	resp, _, err := client.RawQuery("GET", "/1.0/config", nil, "")
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	var config []string
+
+	err = resp.MetadataAsStruct(&config)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
 	filtered := []string{}
-	for k := range instance.Config {
-		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
-			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
+	for _, k := range config {
+		if strings.HasPrefix(k, "/1.0/config/user.") || strings.HasPrefix(k, "/1.0/config/cloud-init.") {
+			filtered = append(filtered, k)
 		}
 	}
 	return okResponse(filtered, "json")
@@ -83,41 +104,49 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
-	data, err := ioutil.ReadFile("instance-data")
+	client, err := getVsockClient(d)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instancetype.VMAgentData
+	defer client.Disconnect()
 
-	err = json.Unmarshal(data, &instance)
+	resp, _, err := client.RawQuery("GET", fmt.Sprintf("/1.0/config/%s", key), nil, "")
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	value, ok := instance.Config[key]
-	if !ok {
-		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
+	var value string
+
+	err = resp.MetadataAsStruct(&value)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
 	return okResponse(value, "raw")
 }}
 
 var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	data, err := ioutil.ReadFile("instance-data")
+	client, err := getVsockClient(d)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instancetype.VMAgentData
+	defer client.Disconnect()
 
-	err = json.Unmarshal(data, &instance)
+	resp, _, err := client.RawQuery("GET", "/1.0/meta-data", nil, "")
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	value := instance.Config["user.meta-data"]
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", instance.CloudInitID, instance.Name, value), "raw")
+	var metaData string
+
+	err = resp.MetadataAsStruct(&metaData)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	return okResponse(metaData, "raw")
 }}
 
 var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
@@ -130,35 +159,49 @@ var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.Respon
 }}
 
 var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	data, err := ioutil.ReadFile("instance-data")
+	client, err := getVsockClient(d)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instancetype.VMAgentData
+	defer client.Disconnect()
 
-	err = json.Unmarshal(data, &instance)
+	resp, _, err := client.RawQuery("GET", "/1.0", nil, "")
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": instance.Location}, "json")
+	var instanceData api.VsockServerGet
+
+	err = resp.MetadataAsStruct(&instanceData)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	return okResponse(instanceData, "json")
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	data, err := ioutil.ReadFile("instance-data")
+	client, err := getVsockClient(d)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instancetype.VMAgentData
+	defer client.Disconnect()
 
-	err = json.Unmarshal(data, &instance)
+	resp, _, err := client.RawQuery("GET", "/1.0/devices", nil, "")
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	return okResponse(instance.Devices, "json")
+	var devices config.Devices
+
+	err = resp.MetadataAsStruct(&devices)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	return okResponse(devices, "json")
 }}
 
 var handlers = []devLxdHandler{
