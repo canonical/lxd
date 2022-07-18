@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-04 11:12+0100\n"
+"POT-Creation-Date: 2022-07-18 13:44+0100\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Sinhala <https://hosted.weblate.org/projects/linux-containers/"
@@ -941,7 +941,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:237 lxc/network_load_balancer.go:392
 #: lxc/network_load_balancer.go:493 lxc/network_load_balancer.go:636
 #: lxc/network_load_balancer.go:712 lxc/network_load_balancer.go:776
-#: lxc/network_load_balancer.go:877 lxc/network_load_balancer.go:944
+#: lxc/network_load_balancer.go:877 lxc/network_load_balancer.go:939
 #: lxc/storage.go:96 lxc/storage.go:342 lxc/storage.go:403 lxc/storage.go:638
 #: lxc/storage.go:710 lxc/storage.go:793 lxc/storage_volume.go:335
 #: lxc/storage_volume.go:521 lxc/storage_volume.go:600
@@ -1433,7 +1433,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:490 lxc/network_load_balancer.go:633
 #: lxc/network_load_balancer.go:694 lxc/network_load_balancer.go:709
 #: lxc/network_load_balancer.go:773 lxc/network_load_balancer.go:859
-#: lxc/network_load_balancer.go:874 lxc/network_load_balancer.go:940
+#: lxc/network_load_balancer.go:874 lxc/network_load_balancer.go:935
 #: lxc/network_peer.go:29 lxc/network_peer.go:82 lxc/network_peer.go:159
 #: lxc/network_peer.go:216 lxc/network_peer.go:330 lxc/network_peer.go:385
 #: lxc/network_peer.go:454 lxc/network_peer.go:481 lxc/network_peer.go:606
@@ -2855,6 +2855,10 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
+#: lxc/monitor.go:80
+msgid "Log level filtering can only be used with pretty formatting"
+msgstr ""
+
 #: lxc/info.go:713
 msgid "Log:"
 msgstr ""
@@ -3139,7 +3143,8 @@ msgid "Migration operation failure: %w"
 msgstr ""
 
 #: lxc/monitor.go:52
-msgid "Minimum level for log messages"
+msgid ""
+"Minimum level for log messages (only available when using pretty format)"
 msgstr ""
 
 #: lxc/config_trust.go:262 lxc/config_trust.go:660
@@ -3172,7 +3177,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:357 lxc/network_load_balancer.go:417
 #: lxc/network_load_balancer.go:541 lxc/network_load_balancer.go:661
 #: lxc/network_load_balancer.go:737 lxc/network_load_balancer.go:801
-#: lxc/network_load_balancer.go:902 lxc/network_load_balancer.go:969
+#: lxc/network_load_balancer.go:902 lxc/network_load_balancer.go:964
 msgid "Missing listen address"
 msgstr ""
 
@@ -3201,7 +3206,7 @@ msgstr ""
 #: lxc/network_load_balancer.go:353 lxc/network_load_balancer.go:413
 #: lxc/network_load_balancer.go:537 lxc/network_load_balancer.go:657
 #: lxc/network_load_balancer.go:733 lxc/network_load_balancer.go:797
-#: lxc/network_load_balancer.go:898 lxc/network_load_balancer.go:965
+#: lxc/network_load_balancer.go:898 lxc/network_load_balancer.go:960
 #: lxc/network_peer.go:111 lxc/network_peer.go:181 lxc/network_peer.go:238
 #: lxc/network_peer.go:353 lxc/network_peer.go:411 lxc/network_peer.go:519
 #: lxc/network_peer.go:628
@@ -3342,7 +3347,7 @@ msgstr ""
 msgid "Moving the storage volume: %s"
 msgstr ""
 
-#: lxc/network_forward.go:845 lxc/network_load_balancer.go:1013
+#: lxc/network_forward.go:845 lxc/network_load_balancer.go:1008
 msgid "Multiple ports match. Use --force to remove them all"
 msgstr ""
 
@@ -3564,7 +3569,7 @@ msgstr ""
 msgid "No matching backend found"
 msgstr ""
 
-#: lxc/network_forward.go:856 lxc/network_load_balancer.go:1024
+#: lxc/network_forward.go:856 lxc/network_load_balancer.go:1019
 msgid "No matching port(s) found"
 msgstr ""
 
@@ -4002,7 +4007,7 @@ msgstr ""
 msgid "Remove aliases"
 msgstr ""
 
-#: lxc/network_forward.go:773 lxc/network_load_balancer.go:941
+#: lxc/network_forward.go:773 lxc/network_load_balancer.go:936
 msgid "Remove all ports that match"
 msgstr ""
 
@@ -4034,7 +4039,7 @@ msgstr ""
 msgid "Remove ports from a forward"
 msgstr ""
 
-#: lxc/network_load_balancer.go:939 lxc/network_load_balancer.go:940
+#: lxc/network_load_balancer.go:934 lxc/network_load_balancer.go:935
 msgid "Remove ports from a load balancer"
 msgstr ""
 
@@ -5631,7 +5636,7 @@ msgid ""
 "<target_address> [<target_port(s)>]"
 msgstr ""
 
-#: lxc/network_forward.go:770 lxc/network_load_balancer.go:938
+#: lxc/network_forward.go:770 lxc/network_load_balancer.go:933
 msgid "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 msgstr ""
 
