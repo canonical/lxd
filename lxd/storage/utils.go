@@ -313,19 +313,9 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 	return snapshots, nil
 }
 
-// validatePoolCommonRules returns a map of pool config rules common to all drivers.
-func validatePoolCommonRules() map[string]func(string) error {
-	return map[string]func(string) error{
-		"source":                  validate.IsAny,
-		"volatile.initial_source": validate.IsAny,
-		"volume.size":             validate.Optional(validate.IsSize),
-		"rsync.bwlimit":           validate.Optional(validate.IsSize),
-		"rsync.compression":       validate.Optional(validate.IsBool),
-	}
-}
-
-// validateVolumeCommonRules returns a map of volume config rules common to all drivers.
-func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
+// poolAndVolumeCommonRules returns a map of pool and volume config common rules common to all drivers.
+// When vol argument is nil function returns pool specific rules.
+func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error {
 	rules := map[string]func(string) error{
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
@@ -338,6 +328,36 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),
 		"snapshots.pattern":  validate.IsAny,
 	}
+
+	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
+	if (vol == nil) || (vol != nil && vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS) {
+		rules["security.shifted"] = validate.Optional(validate.IsBool)
+		rules["security.unmapped"] = validate.Optional(validate.IsBool)
+	}
+
+	return rules
+}
+
+// validatePoolCommonRules returns a map of pool config rules common to all drivers.
+func validatePoolCommonRules() map[string]func(string) error {
+	rules := map[string]func(string) error{
+		"source":                  validate.IsAny,
+		"volatile.initial_source": validate.IsAny,
+		"rsync.bwlimit":           validate.Optional(validate.IsSize),
+		"rsync.compression":       validate.Optional(validate.IsBool),
+	}
+
+	// Add to pool config rules (prefixed with volume.*) which are common for pool and volume.
+	for volRule, volValidator := range poolAndVolumeCommonRules(nil) {
+		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
+	}
+
+	return rules
+}
+
+// validateVolumeCommonRules returns a map of volume config rules common to all drivers.
+func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
+	rules := poolAndVolumeCommonRules(&vol)
 
 	// volatile.idmap settings only make sense for filesystem volumes.
 	if vol.ContentType() == drivers.ContentTypeFS {
@@ -354,12 +374,6 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 		// Note: block.filesystem should not be modifiable after volume created.
 		// This should be checked in the relevant volume update functions.
 		rules["block.filesystem"] = validate.IsAny
-	}
-
-	// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
-	if vol.Type() == drivers.VolumeTypeCustom && vol.ContentType() == drivers.ContentTypeFS {
-		rules["security.shifted"] = validate.Optional(validate.IsBool)
-		rules["security.unmapped"] = validate.Optional(validate.IsBool)
 	}
 
 	// volatile.rootfs.size is only used for image volumes.

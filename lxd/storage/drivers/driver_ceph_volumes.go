@@ -740,6 +740,14 @@ func (d *ceph) HasVolume(vol Volume) bool {
 
 // FillVolumeConfig populate volume with default config.
 func (d *ceph) FillVolumeConfig(vol Volume) error {
+	// Copy volume.* configuration options from pool.
+	// Exclude 'block.filesystem' and 'block.mount_options'
+	// as this ones are handled below in this function and depends from volume type
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	if err != nil {
+		return err
+	}
+
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
 	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
@@ -769,14 +777,17 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 	return nil
 }
 
-// ValidateVolume validates the supplied volume config.
-func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := map[string]func(value string) error{
-		"block.filesystem":    validate.IsAny,
+// commonVolumeRules returns validation rules which are common for pool and volume.
+func (d *ceph) commonVolumeRules() map[string]func(value string) error {
+	return map[string]func(value string) error{
+		"block.filesystem":    validate.Optional(validate.IsOneOf(cephAllowedFilesystems...)),
 		"block.mount_options": validate.IsAny,
 	}
+}
 
-	return d.validateVolume(vol, rules, removeUnknownKeys)
+// ValidateVolume validates the supplied volume config.
+func (d *ceph) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	return d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.

@@ -269,7 +269,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		"volume.block.mount_options": validate.IsAny,
 	}
 
-	return d.validatePool(config, rules)
+	return d.validatePool(config, rules, d.commonVolumeRules())
 }
 
 // Update applies any driver changes required from a configuration change.

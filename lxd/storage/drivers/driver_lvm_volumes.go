@@ -246,6 +246,14 @@ func (d *lvm) HasVolume(vol Volume) bool {
 
 // FillVolumeConfig populate volume with default config.
 func (d *lvm) FillVolumeConfig(vol Volume) error {
+	// Copy volume.* configuration options from pool.
+	// Exclude 'block.filesystem' and 'block.mount_options'
+	// as this ones are handled below in this function and depends from volume type
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	if err != nil {
+		return err
+	}
+
 	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
 	// associated filesystem volume).
 	if vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
@@ -275,15 +283,19 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 	return nil
 }
 
+// commonVolumeRules returns validation rules which are common for pool and volume.
+func (d *lvm) commonVolumeRules() map[string]func(value string) error {
+	return map[string]func(value string) error{
+		"block.mount_options": validate.IsAny,
+		"block.filesystem":    validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
+		"lvm.stripes":         validate.Optional(validate.IsUint32),
+		"lvm.stripes.size":    validate.Optional(validate.IsSize),
+	}
+}
+
 // ValidateVolume validates the supplied volume config.
 func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := map[string]func(value string) error{
-		"block.filesystem": validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
-		"lvm.stripes":      validate.Optional(validate.IsUint32),
-		"lvm.stripes.size": validate.Optional(validate.IsSize),
-	}
-
-	err := d.validateVolume(vol, rules, removeUnknownKeys)
+	err := d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 	if err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ func (d *common) isRemote() bool {
 }
 
 // validatePool validates a pool config against common rules and optional driver specific rules.
-func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error) error {
+func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error, volumeRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
@@ -45,6 +45,12 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	// Merge driver specific rules into common rules.
 	for field, validator := range driverRules {
 		rules[field] = validator
+	}
+
+	// Add to pool volume configuration options as volume.* options.
+	// These will be used as default configuration options for volume.
+	for volRule, volValidator := range volumeRules {
+		rules[fmt.Sprintf("volume.%s", volRule)] = volValidator
 	}
 
 	// Run the validator against each field.
@@ -74,9 +80,51 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 	return nil
 }
 
+// fillVolumeConfig populates volume config with defaults from pool.
+// excludeKeys allow exclude some keys from copying to volume config.
+// Sometimes that can be useful when copying is dependant from specific conditions
+// and shouldn't be done in generic way.
+func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
+	for k := range d.config {
+		if !strings.HasPrefix(k, "volume.") {
+			continue
+		}
+
+		volKey := strings.TrimPrefix(k, "volume.")
+
+		isExcluded := false
+		for _, excludedKey := range excludedKeys {
+			if excludedKey == volKey {
+				isExcluded = true
+				break
+			}
+		}
+
+		if isExcluded {
+			continue
+		}
+
+		// If volume type is not custom, don't copy "size" property to volume config.
+		if vol.volType != VolumeTypeCustom && volKey == "size" {
+			continue
+		}
+
+		// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
+		if (vol.Type() != VolumeTypeCustom || vol.ContentType() != ContentTypeFS) && (volKey == "security.shifted" || volKey == "security.unmapped") {
+			continue
+		}
+
+		if vol.config[volKey] == "" {
+			vol.config[volKey] = d.config[k]
+		}
+	}
+
+	return nil
+}
+
 // FillVolumeConfig populate volume with default config.
 func (d *common) FillVolumeConfig(vol Volume) error {
-	return nil
+	return d.fillVolumeConfig(&vol)
 }
 
 // validateVolume validates a volume config against common rules and optional driver specific rules.
