@@ -28,8 +28,8 @@ Storage location         | Directory | Btrfs    | LVM      | ZFS      | Ceph RBD
 :---                     | :-:       | :-:      | :-:      | :-:      | :-:      | :-:
 Shared with the host     | &#x2713;  | &#x2713; | -        | &#x2713; | -        | -
 Dedicated disk/partition | -         | &#x2713; | &#x2713; | &#x2713; | -        | -
-Loop disk                | &#x2713;  | &#x2713; | &#x2713; | &#x2713; | -        | -
-Separate storage         | -         | -        | -        | -        | &#x2713; | &#x2713;
+Loop disk                | -         | &#x2713; | &#x2713; | &#x2713; | -        | -
+Remote storage           | -         | -        | -        | -        | &#x2713; | &#x2713;
 
 #### Shared with the host
 
@@ -48,10 +48,13 @@ LXD can create a loop file on your main drive and have the selected storage driv
 This method is functionally similar to using a disk or partition, but it uses a large file on your main drive instead.
 This means that every write must go through the storage driver and your main drive's file system, which leads to decreased performance.
 
+The loop files reside in `/var/snap/lxd/common/lxd/disks/` if you are using the snap, or in `/var/lib/lxd/disks/` otherwise.
+
 Loop files usually cannot be shrunk.
 They will grow up to the configured limit, but deleting instances or images will not cause the file to shrink.
+You can increase their size though; see {ref}`storage-resize-grow-pool`.
 
-#### Separate storage
+#### Remote storage
 The `ceph` and `cephfs` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
 
 (storage-default-pool)=
