@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-13 15:18-0400\n"
+"POT-Creation-Date: 2022-07-25 17:56-0400\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -3035,6 +3035,10 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
+#: lxc/monitor.go:80
+msgid "Log level filtering can only be used with pretty formatting"
+msgstr ""
+
 #: lxc/info.go:713
 msgid "Log:"
 msgstr ""
@@ -3318,7 +3322,8 @@ msgid "Migration operation failure: %w"
 msgstr ""
 
 #: lxc/monitor.go:52
-msgid "Minimum level for log messages"
+msgid ""
+"Minimum level for log messages (only available when using pretty format)"
 msgstr ""
 
 #: lxc/config_trust.go:262 lxc/config_trust.go:660
