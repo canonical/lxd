@@ -54,6 +54,7 @@ They will grow up to the configured limit, but deleting instances or images will
 #### Separate storage
 The `ceph` and `cephfs` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
 
+(storage-default-pool)=
 ### Default storage pool
 
 There is no concept of a default storage pool in LXD.
