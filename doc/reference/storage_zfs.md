@@ -90,7 +90,7 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-size                          | string                        | 0                                       | Size/quota of the storage pool in bytes (suffixes supported, currently valid for loop-based pools and ZFS)
+size                          | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 source                        | string                        | -                                       | Path to block device or loop file or file system entry
 zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (Boolean), or `rebase` to copy based on the initial image
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
