@@ -49,7 +49,7 @@ lxc monitor --type=lifecycle
 	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering (short for --format=pretty)"))
 	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Show events from all projects"))
 	cmd.Flags().StringArrayVar(&c.flagType, "type", nil, i18n.G("Event type to listen for")+"``")
-	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", i18n.G("Minimum level for log messages")+"``")
+	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", i18n.G("Minimum level for log messages (only available when using pretty format)")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "yaml", i18n.G("Format (json|pretty|yaml)")+"``")
 
 	return cmd
@@ -74,6 +74,10 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	// Setup format.
 	if c.flagPretty {
 		c.flagFormat = "pretty"
+	}
+
+	if c.flagFormat != "pretty" && c.flagLogLevel != "" {
+		return fmt.Errorf(i18n.G("Log level filtering can only be used with pretty formatting"))
 	}
 
 	// Connect to the event source.
