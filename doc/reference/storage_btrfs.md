@@ -55,6 +55,7 @@ The following configuration options are available for storage pools that use the
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
 btrfs.mount\_options            | string    | user\_subvol\_rm\_allowed  | Mount options for block devices
+size                            | string    | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 source                          | string    | -                          | Path to block device or loop file or file system entry
 
 {{volume_configuration}}
@@ -68,19 +69,3 @@ size                    | string    | appropriate driver        | same as volume
 snapshots.expiry        | string    | custom volume             | same as volume.snapshots.expiry             | {{snapshot_expiry_format}}
 snapshots.pattern       | string    | custom volume             | same as volume.snapshots.pattern or snap%d  | {{snapshot_pattern_format}}
 snapshots.schedule      | string    | custom volume             | same as volume.snapshots.schedule           | {{snapshot_schedule_format}}
-
-## Growing a loop backed Btrfs pool
-LXD doesn't let you directly grow a loop backed Btrfs pool, but you can do so with:
-
-```bash
-sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
-sudo losetup -c <LOOPDEV>
-sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
-```
-
-(NOTE: For users of the snap, use `/var/snap/lxd/common/mntns/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
-- LOOPDEV refers to the mounted loop device (e.g. `/dev/loop8`) associated with the storage pool image.
-- The mounted loop devices can be found using the following command:
-```bash
-losetup -l
-```
