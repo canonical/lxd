@@ -5905,6 +5905,8 @@ func (d *qemu) statusCode() api.StatusCode {
 		return api.Frozen
 	} else if status == "internal-error" {
 		return api.Error
+	} else if status == "io-error" {
+		return api.Error
 	}
 
 	return api.Stopped
