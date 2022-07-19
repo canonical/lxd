@@ -44,34 +44,6 @@ lxc config trust add client.crt
 
 See {doc}`authentication` for detailed information.
 
-### How do I configure LXD storage?
-LXD supports Btrfs, Ceph, directory, LVM and ZFS based storage.
-
-First make sure you have the relevant tools for your file system of
-choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).
-
-By default, LXD comes with no configured network or storage.
-You can get a basic configuration done with:
-
-```bash
-    lxd init
-```
-
-`lxd init` supports both directory-based storage and ZFS.
-If you want something else, you'll need to use the `lxc storage` command:
-
-```bash
-lxc storage create default BACKEND [OPTIONS...]
-lxc profile device add default root disk path=/ pool=default
-```
-
-BACKEND is one of `btrfs`, `ceph`, `dir`, `lvm` or `zfs`.
-
-Unless specified otherwise, LXD will set up loop-based storage with a sane default size.
-
-For production environments, you should be using block-backed storage
-instead, both for performance and reliability reasons.
-
 ### How can I live-migrate a container using LXD?
 Live migration requires a tool installed on both hosts called
 [CRIU](https://criu.org), which is available in Ubuntu via:

@@ -6,6 +6,8 @@ It is used to manage physical storage devices, allowing you to create a number o
 
 Note that it is possible to over-commit the physical storage in the process, to allow flexibility for scenarios where not all available storage is in use at the same time.
 
+To use LVM, make sure you have `lvm2` installed on your machine.
+
 ## Terminology
 
 LVM can combine several physical storage devices into a *volume group*.
