@@ -30,11 +30,11 @@ Note, however, that the nested LXD setup does not inherit the Btrfs quotas from 
 Btrfs supports storage quotas via qgroups.
 Btrfs qgroups are hierarchical, but new subvolumes will not automatically be added to the qgroups of their parent subvolumes.
 This means that users can trivially escape any quotas that are set.
-Therefore, if strict quotas are needed, you should consider using a different storage driver (for example, ZFS with refquotas or LVM with Btrfs on top).
+Therefore, if strict quotas are needed, you should consider using a different storage driver (for example, ZFS with `refquota` or LVM with Btrfs on top).
 
 When using quotas, you must take into account that Btrfs extents are immutable.
 When blocks are written, they end up in new extents.
-The old extents remain until all their data is de-referenced or rewritten.
+The old extents remain until all their data is dereferenced or rewritten.
 This means that a quota can be reached even if the total amount of space used by the current files in the subvolume is smaller than the quota.
 
 ```{note}
@@ -42,9 +42,9 @@ This issue is seen most often when using VMs on Btrfs, due to the random I/O nat
 
 Therefore, you should never use VMs with Btrfs storage pools.
 
-If you really need to use VMs with Btrfs storage pools, set the instance root disk's {ref}`size.state <instance_device_type_disk>` property to twice the size of the root disk's size.
+If you really need to use VMs with Btrfs storage pools, set the instance root disk's [`size.state`](instance_device_type_disk) property to twice the size of the root disk's size.
 This configuration allows all blocks in the disk image file to be rewritten without reaching the qgroup quota.
-The {ref}`btrfs.mount_options=compress-force <storage-btrfs-pool-config>` storage pool option can also avoid this scenario, because a side effect of enabling compression is to reduce the maximum extent size such that block rewrites don't cause as much storage to be double-tracked.
+The [`btrfs.mount_options=compress-force`](storage-btrfs-pool-config) storage pool option can also avoid this scenario, because a side effect of enabling compression is to reduce the maximum extent size such that block rewrites don't cause as much storage to be double-tracked.
 However, this is a storage pool option, and it therefore affects all volumes on the pool.
 ```
 
@@ -56,18 +56,17 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
-btrfs.mount\_options            | string    | user\_subvol\_rm\_allowed  | Mount options for block devices
-size                            | string    | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
-source                          | string    | -                          | Path to block device or loop file or file system entry
+`btrfs.mount_options`           | string    | `user_subvol_rm_allowed`   | Mount options for block devices
+`size`                          | string    | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 
 {{volume_configuration}}
 
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                                     | Description
 :--                     | :---      | :--------                 | :------                                     | :----------
-security.shifted        | bool      | custom volume             | same as volume.security.shifted or false    | {{enable_ID_shifting}}
-security.unmapped       | bool      | custom volume             | same as volume.security.unmapped or false   | Disable ID mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                         | Size/quota of the storage volume
-snapshots.expiry        | string    | custom volume             | same as volume.snapshots.expiry             | {{snapshot_expiry_format}}
-snapshots.pattern       | string    | custom volume             | same as volume.snapshots.pattern or snap%d  | {{snapshot_pattern_format}}
-snapshots.schedule      | string    | custom volume             | same as volume.snapshots.schedule           | {{snapshot_schedule_format}}
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false    | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false   | Disable ID mapping for the volume
+`size`                  | string    | appropriate driver        | same as `volume.size`                         | Size/quota of the storage volume
+`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry `            | {{snapshot_expiry_format}}
+`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d`| {{snapshot_pattern_format}}
+`snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`           | {{snapshot_schedule_format}}
