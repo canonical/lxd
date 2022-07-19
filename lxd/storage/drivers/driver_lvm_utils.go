@@ -670,21 +670,26 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 
-	parts := strings.Split(strings.TrimSpace(out), ",")
+	parts := shared.SplitNTrimSpace(out, ",", -1, true)
 	if len(parts) < 3 {
 		return 0, 0, fmt.Errorf("Unexpected output from lvs command")
 	}
 
 	total, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("Failed parsing thin volume total size (%q): %w", parts[0], err)
 	}
 
 	totalSize := total
 
+	// Used percentage is not available if thin volume isn't activated.
+	if parts[1] == "" {
+		return 0, 0, ErrNotSupported
+	}
+
 	dataPerc, err := strconv.ParseFloat(parts[1], 64)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("Failed parsing thin volume used percentage (%q): %w", parts[1], err)
 	}
 
 	metaPerc := float64(0)
@@ -693,7 +698,7 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 	if parts[2] != "" {
 		metaPerc, err = strconv.ParseFloat(parts[2], 64)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, fmt.Errorf("Failed parsing thin pool meta used percentage (%q): %w", parts[2], err)
 		}
 	}
 
