@@ -9,6 +9,8 @@ To run at a sufficient speed, this mechanism requires a powerful environment wit
 
 In addition, ZFS offers snapshots and replication, RAID management, copy-on-write clones, compression and other features.
 
+To use ZFS, make sure you have `zfsutils-linux` installed on your machine.
+
 ## Terminology
 
 ZFS creates logical units based on physical storage devices.

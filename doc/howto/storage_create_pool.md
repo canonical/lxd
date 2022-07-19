@@ -1,4 +1,4 @@
-(storage_create_pool)=
+(storage-create-pool)=
 # How to create a storage pool
 
 LXD creates a storage pool during initialization.
@@ -7,6 +7,8 @@ You can add more storage pools later, using the same driver or different drivers
 To create a storage pool, use the following command:
 
     lxc storage create <pool_name> <driver> [configuration_options...]
+
+Unless specified otherwise, LXD sets up loop-based storage with a sensible default size (20% of the free disk space, but at least 5 GiB and at most 30 GiB).
 
 See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
 
