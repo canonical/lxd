@@ -1,7 +1,3 @@
----
-discourse: 1333
----
-
 (storage-zfs)=
 # ZFS - `zfs`
 
@@ -94,7 +90,7 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-size                          | string                        | 0                                       | Size/quota of the storage pool in bytes (suffixes supported, currently valid for loop-based pools and ZFS)
+size                          | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 source                        | string                        | -                                       | Path to block device or loop file or file system entry
 zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (Boolean), or `rebase` to copy based on the initial image
 zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
@@ -116,16 +112,3 @@ zfs.blocksize           | string    | ZFS driver                | same as volume
 zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots        | Remove snapshots as needed
 zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota            | Use `refquota` instead of `quota` for space
 zfs.reserve\_space      | string    | ZFS driver                | same as volume.zfs.reserve\_space or false  | Use `reservation`/`refreservation` along with `quota`/`refquota`
-
-## Growing a loop backed ZFS pool
-LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
-
-```bash
-sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
-sudo zpool set autoexpand=on <POOL>
-sudo zpool status -vg <POOL> # note down the device ID
-sudo zpool online -e <POOL> <device_ID>
-sudo zpool set autoexpand=off <POOL>
-```
-
-(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
