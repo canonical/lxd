@@ -6,7 +6,7 @@ You could think of a storage pool as the disk that is used to store data, while 
 ## Storage pools
 
 During initialization, LXD prompts you to create a first storage pool.
-If required, you can create additional storage pools later.
+If required, you can create additional storage pools later (see {ref}`storage-create-pool`).
 
 Each storage pool uses a storage driver.
 The following storage drivers are supported:

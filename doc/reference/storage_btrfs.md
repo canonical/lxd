@@ -7,6 +7,8 @@ Unlike other file systems, Btrfs is extent-based, which means that it stores dat
 
 In addition to basic file system features, Btrfs offers RAID and volume management, pooling, snapshots, checksums, compression and other features.
 
+To use Btrfs, make sure you have `btrfs-progs` installed on your machine.
+
 ## Terminology
 
 A Btrfs file system can have *subvolumes*, which are named binary subtrees of the main tree of the file system with their own independent file and directory hierarchy.
