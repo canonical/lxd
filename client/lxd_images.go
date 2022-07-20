@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -155,7 +156,14 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		}
 	}
 
-	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, r.http, req)
+	// Use relatively short response header timeout so as not to hold the image lock open too long.
+	// Deference client and transport in order to clone them so as to not modify timeout of base client.
+	httpClient := *r.http
+	httpTransport := httpClient.Transport.(*http.Transport).Clone()
+	httpTransport.ResponseHeaderTimeout = 30 * time.Second
+	httpClient.Transport = httpTransport
+
+	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, &httpClient, req)
 }
 
 func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *http.Client, req ImageFileRequest) (*ImageFileResponse, error) {
