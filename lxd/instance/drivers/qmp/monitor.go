@@ -27,12 +27,12 @@ type Monitor struct {
 	path string
 	qmp  *qmp.SocketMonitor
 
-	agentReady    bool
-	agentReadyMu  sync.Mutex
-	disconnected  bool
-	chDisconnect  chan struct{}
-	eventHandler  func(name string, data map[string]any)
-	serialCharDev string
+	agentStarted   bool
+	agentStartedMu sync.Mutex
+	disconnected   bool
+	chDisconnect   chan struct{}
+	eventHandler   func(name string, data map[string]any)
+	serialCharDev  string
 }
 
 // start handles the background goroutines for event handling and monitoring the ringbuffer.
@@ -61,18 +61,18 @@ func (m *Monitor) start() error {
 		if len(entries) > 1 {
 			status := entries[len(entries)-2]
 
-			m.agentReadyMu.Lock()
+			m.agentStartedMu.Lock()
 			if status == "STARTED" {
-				if !m.agentReady && m.eventHandler != nil {
+				if !m.agentStarted && m.eventHandler != nil {
 					go m.eventHandler(AgentStatusStarted, nil)
 				}
 
-				m.agentReady = true
+				m.agentStarted = true
 			} else if status == "STOPPED" {
-				m.agentReady = false
+				m.agentStarted = false
 			}
 
-			m.agentReadyMu.Unlock()
+			m.agentStartedMu.Unlock()
 		}
 	}
 
@@ -247,10 +247,10 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 
 // AgentReady indicates whether an agent has been detected.
 func (m *Monitor) AgentReady() bool {
-	m.agentReadyMu.Lock()
-	defer m.agentReadyMu.Unlock()
+	m.agentStartedMu.Lock()
+	defer m.agentStartedMu.Unlock()
 
-	return m.agentReady
+	return m.agentStarted
 }
 
 // Disconnect forces a disconnection from QEMU.
