@@ -19,7 +19,8 @@ extensions = [
     "sphinx_reredirects",
     "sphinxext.opengraph",
     "youtube-links",
-    "related-links"
+    "related-links",
+    "custom-rst-roles"
 ]
 
 myst_enable_extensions = [
