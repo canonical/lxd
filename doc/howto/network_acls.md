@@ -44,11 +44,11 @@ ACLs have the following properties:
 
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
-name             | string     | yes      | Unique name of the network ACL in the project
-description      | string     | no       | Description of the network ACL
-ingress          | rule list  | no       | Ingress traffic rules
-egress           | rule list  | no       | Egress traffic rules
-config           | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
+`name`           | string     | yes      | Unique name of the network ACL in the project
+`description`    | string     | no       | Description of the network ACL
+`ingress`        | rule list  | no       | Ingress traffic rules
+`egress`         | rule list  | no       | Egress traffic rules
+`config`         | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
 
 (network-acls-rules)=
 ## Add or remove rules
@@ -97,16 +97,16 @@ ACL rules have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
-action            | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
-state             | string     | yes      | State of the rule (`enabled`, `disabled` or `logged`), defaulting to `enabled` if not specified
-description       | string     | no       | Description of the rule
-source            | string     | no       | Comma-separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
-destination       | string     | no       | Comma-separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
-protocol          | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
-source\_port      | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
-destination\_port | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
-icmp\_type        | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP type number, or empty for any
-icmp\_code        | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP code number, or empty for any
+`action`          | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
+`state`           | string     | yes      | State of the rule (`enabled`, `disabled` or `logged`), defaulting to `enabled` if not specified
+`description`     | string     | no       | Description of the rule
+`source`          | string     | no       | Comma-separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
+`destination`     | string     | no       | Comma-separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
+`protocol`        | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
+`source_port`     | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
+`destination_port`| string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
+`icmp_type`       | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP type number, or empty for any
+`icmp_code`       | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP code number, or empty for any
 
 (network-acls-selectors)=
 ### Use selectors in rules
@@ -219,7 +219,7 @@ When using network ACLs with a bridge network, be aware of the following limitat
 
 - Unlike OVN ACLs, bridge ACLs are applied only on the boundary between the bridge and the LXD host.
   This means they can only be used to apply network policies for traffic going to or from external networks.
-  They cannot be used for intra-bridge firewalling, thus firewalling traffic between instances connected to the same bridge.
+  They cannot be used for to create {spellexception}`intra-bridge` firewalls, thus firewalls that control traffic between instances connected to the same bridge.
 - {ref}`ACL groups and network selectors <network-acls-selectors>` are not supported.
 - When using the `iptables` firewall driver, you cannot use IP range subjects (for example, `192.168.1.1-192.168.1.10`).
 - Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain.
