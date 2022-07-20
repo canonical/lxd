@@ -11,9 +11,9 @@ LXD has four types of remotes:
 
 ### Static
 Static remotes are:
-- local (default)
-- ubuntu
-- ubuntu-daily
+- `local` (default)
+- `ubuntu`
+- `ubuntu-daily`
 
 They are hardcoded and can't be modified by the user.
 
@@ -22,9 +22,9 @@ Automatically added on first use.
 
 ### Global (per-system)
 By default the global configuration file is kept in `/etc/lxc/config.yml` or in `LXD_GLOBAL_CONF` if defined.
-The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. /etc/lxc/servercerts/) and match the remote name (e.g. `foo.crt`).
+The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. `/etc/lxc/servercerts/`) and match the remote name (e.g. `foo.crt`).
 
-An example config is below:
+An example configuration is below:
 ```
 remotes:
   foo:
@@ -47,4 +47,4 @@ Local level remotes are managed from the CLI (`lxc`) with:
 
 By default the configuration file is kept in `~/.config/lxc/config.yml` or in `LXD_CONF` if defined.
 Users have the possibility to override system remotes (e.g. by running `lxc remote rename` or `lxc remote set-url`)
-which results in the remote being copied to their own config, including any associated certificates.
+which results in the remote being copied to their own configuration, including any associated certificates.
