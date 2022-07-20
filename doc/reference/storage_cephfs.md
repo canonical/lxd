@@ -25,7 +25,7 @@ A *CephFS file system* consists of two OSD storage pools, one for the actual dat
 ```{note}
 The `cephfs` driver can only be used for custom storage volumes with content type `filesystem`.
 
-For other storage volumes, use the {ref}`storage-ceph` driver.
+For other storage volumes, use the {ref}`Ceph <storage-ceph>` driver.
 That driver can also be used for custom storage volumes with content type `filesystem`, but it implements them through Ceph RBD images.
 ```
 
@@ -35,7 +35,7 @@ That driver can also be used for custom storage volumes with content type `files
     :end-before: <!-- Include end Ceph driver cluster -->
 ```
 
-You must create the CephFS file system that you want to use beforehand and specify it through the {ref}`source <storage-cephfs-pool-config>` option.
+You must create the CephFS file system that you want to use beforehand and specify it through the [`source`](storage-cephfs-pool-config) option.
 
 % Include content from [storage_ceph.md](storage_ceph.md)
 ```{include} storage_ceph.md
@@ -59,21 +59,21 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-cephfs.cluster\_name          | string                        | ceph                                    | Name of the Ceph cluster that contains the CephFS file system
-cephfs.fscache                | bool                          | false                                   | Enable use of kernel fscache and cachefilesd
-cephfs.path                   | string                        | /                                       | The base path for the CephFS mount
-cephfs.user.name              | string                        | admin                                   | The Ceph user to use
-source                        | string                        | -                                       | Existing CephFS file system or file system path to use
-volatile.pool.pristine        | string                        | true                                    | Whether the CephFS file system was empty on creation time
+`cephfs.cluster_name`         | string                        | `ceph`                                  | Name of the Ceph cluster that contains the CephFS file system
+`cephfs.fscache`              | bool                          | false                                   | Enable use of kernel `fscache` and `cachefilesd`
+`cephfs.path`                 | string                        | `/`                                     | The base path for the CephFS mount
+`cephfs.user.name`            | string                        | `admin`                                 | The Ceph user to use
+`source`                      | string                        | -                                       | Existing CephFS file system or file system path to use
+`volatile.pool.pristine`      | string                        | true                                    | Whether the CephFS file system was empty on creation time
 
 {{volume_configuration}}
 
 ### Storage volume configuration
-Key                     | Type      | Condition                 | Default                                     | Description
-:--                     | :---      | :--------                 | :------                                     | :----------
-security.shifted        | bool      | custom volume             | same as volume.security.shifted or false    | {{enable_ID_shifting}}
-security.unmapped       | bool      | custom volume             | same as volume.security.unmapped or false   | Disable ID mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                         | Size/quota of the storage volume
-snapshots.expiry        | string    | custom volume             | same as volume.snapshots.expiry             | {{snapshot_expiry_format}}
-snapshots.pattern       | string    | custom volume             | same as volume.snapshots.pattern or snap%d  | {{snapshot_pattern_format}}
-snapshots.schedule      | string    | custom volume             | same as volume.snapshots.schedule           | {{snapshot_schedule_format}}
+Key                     | Type      | Condition                 | Default                                        | Description
+:--                     | :---      | :--------                 | :------                                        | :----------
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false     | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false    | Disable ID mapping for the volume
+`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
+`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
+`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
+`snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`            | {{snapshot_schedule_format}}
