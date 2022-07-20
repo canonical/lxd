@@ -36,10 +36,10 @@ one of its aliases.
 
 From a CLI point of view, this is what's done behind those common actions:
 
- - lxc launch ubuntu:22.04 u1
- - lxc launch images:centos/8 c1
- - lxc launch my-server:SHA256 a1
- - lxc image copy images:gentoo local: --copy-aliases --auto-update
+    lxc launch ubuntu:22.04 u1
+    lxc launch images:centos/8 c1
+    lxc launch my-server:SHA256 a1
+    lxc image copy images:gentoo local: --copy-aliases --auto-update
 
 In the cases of `ubuntu` and `images` above, those remotes use
 simplestreams as a read-only image server protocol and select images by
@@ -54,12 +54,12 @@ directly retrieved from an external server.
 
 In such a scenario, image files can be downloaded on another system using:
 
- - lxc image export ubuntu:22.04
+    lxc image export ubuntu:22.04
 
 Then transferred to the target system and manually imported into the
 local image store with:
 
- - lxc image import META ROOTFS --alias ubuntu-22.04
+    lxc image import META ROOTFS --alias ubuntu-22.04
 
 `lxc image import` supports both unified images (single file) and split
 images (two files) with the example above using the latter.
@@ -71,11 +71,11 @@ single image to users, LXD also supports importing images by URL.
 There are a few limitations to that method though:
 
  - Only unified (single file) images are supported
- - Additional http headers must be returned by the remote server
+ - Additional HTTP headers must be returned by the remote server
 
 LXD will set the following headers when querying the server:
 
- - `LXD-Server-Architectures` to a comma separate list of architectures the client supports
+ - `LXD-Server-Architectures` to a comma-separated list of architectures the client supports
  - `LXD-Server-Version` to the version of LXD in use
 
 
@@ -89,7 +89,7 @@ only a basic web server with support for custom headers.
 
 On the client side, this is used with:
 
-`lxc image import URL --alias some-name`
+    lxc image import URL --alias some-name
 
 ### Publishing an instance or snapshot as a new image
 An instance or one of its snapshots can be turned into a new image.
@@ -98,7 +98,7 @@ This is done on the CLI with `lxc publish`.
 When doing this, you will most likely first want to cleanup metadata and
 templates on the instance you're publishing using the `lxc config metadata`
 and `lxc config template` commands. You will also want to remove any
-instance-specific state like host SSH keys, dbus/systemd machine-id, ...
+instance-specific state like host SSH keys, `dbus/systemd machine-id`, ...
 
 The publishing process can take quite a while as a tarball must be
 generated from the instance and then be compressed. As this can be
@@ -152,7 +152,7 @@ profiles can be overridden when launching an instance by using the
 `--profile` and the `--no-profiles` flags to `lxc launch`.
 
 ## Special image properties
-Image properties beginning with the prefix ***requirements*** (e.g. requirements.XYZ)
+Image properties beginning with the prefix ***requirements*** (e.g. `requirements.XYZ`)
 are used by LXD to determine the compatibility of the host system and the
 instance to be created by said image. In the event that these are incompatible,
 LXD will not start the instance.
@@ -161,8 +161,8 @@ At the moment, the following requirements are supported:
 
 Key                                         | Type      | Default      | Description
 :--                                         | :---      | :------      | :----------
-requirements.secureboot                     | string    | -            | If set to "false", indicates the image will not boot under secureboot
-requirements.cgroup                         | string    | -            | If set to "v1", indicates the image requires the host to run CGroupV1
+`requirements.secureboot`                   | string    | -            | If set to `false`, indicates the image will not boot under secure boot
+`requirements.cgroup`                       | string    | -            | If set to `v1`, indicates the image requires the host to run `CGroupV1`
 
 ## Image format
 LXD currently supports two LXD-specific image formats.
@@ -196,24 +196,24 @@ Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
  - `metadata.yaml`
  - `templates/` (optional)
 
-`rootfs.tar` contains a Linux root filesystem at its root.
+`rootfs.tar` contains a Linux root file system at its root.
 
 In this mode the image identifier is the SHA-256 of the concatenation of
 the metadata and rootfs tarball (in that order).
 
 ### Supported compression
 LXD supports a wide variety of compression algorithms for tarballs
-though for compatibility purposes, gzip or xz should be preferred.
+though for compatibility purposes, `gzip` or `xz` should be preferred.
 
-For split images, the rootfs file can also be squashfs formatted in the
+For split images, the rootfs file can also be SquashFS-formatted in the
 container case. For virtual machines, the `rootfs.img` file is always
-qcow2 and can optionally be compressed using qcow2's native compression.
+`qcow2` and can optionally be compressed using `qcow2`'s native compression.
 
 ### Content
 For containers, the rootfs directory (or tarball) contains a full file system tree of what will become the `/`.
 For VMs, this is instead a `rootfs.img` file which becomes the main disk device.
 
-The templates directory contains pongo2-formatted templates of files inside the instance.
+The templates directory contains Pongo2-formatted templates of files inside the instance.
 
 `metadata.yaml` contains information relevant to running the image under
 LXD, at the moment, this contains:
@@ -245,7 +245,7 @@ templates:
 ```
 
 The `architecture` and `creation_date` fields are mandatory, the properties
-are just a set of default properties for the image. The os, release,
+are just a set of default properties for the image. The OS, release,
 name and description fields while not mandatory in any way, should be
 pretty common.
 
@@ -258,12 +258,12 @@ For templates, the `when` key can be one or more of:
 The templates will always receive the following context:
 
  - `trigger`: name of the event which triggered the template (string)
- - `path`: path of the file being templated (string)
+ - `path`: path of the file that uses the template (string)
  - `container`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string) (deprecated in favor of `instance`)
  - `instance`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string)
  - `config`: key/value map of the instance's configuration (map[string]string)
  - `devices`: key/value map of the devices assigned to this instance (map[string]map[string]string)
- - `properties`: key/value map of the template properties specified in metadata.yaml (map[string]string)
+ - `properties`: key/value map of the template properties specified in `metadata.yaml` (map[string]string)
 
 The `create_only` key can be set to have LXD only only create missing files but not overwrite an existing file.
 
@@ -271,6 +271,6 @@ As a general rule, you should never template a file which is owned by a
 package or is otherwise expected to be overwritten by normal operation
 of the instance.
 
-For convenience the following functions are exported to pongo templates:
+For convenience the following functions are exported to Pongo templates:
 
  - `config_get("user.foo", "bar")` => Returns the value of `user.foo` or `"bar"` if unset.
