@@ -19,6 +19,9 @@ var monitorsLock sync.Mutex
 // RingbufSize is the size of the agent serial ringbuffer in bytes.
 var RingbufSize = 16
 
+// AgentStatusStarted is the event sent once the lxd-agent has started.
+var AgentStatusStarted = "LXD-AGENT-STARTED"
+
 // Monitor represents a QMP monitor.
 type Monitor struct {
 	path string
@@ -61,7 +64,7 @@ func (m *Monitor) start() error {
 			m.agentReadyMu.Lock()
 			if status == "STARTED" {
 				if !m.agentReady && m.eventHandler != nil {
-					go m.eventHandler("LXD-AGENT-READY", nil)
+					go m.eventHandler(AgentStatusStarted, nil)
 				}
 
 				m.agentReady = true
