@@ -352,28 +352,32 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
+		var d *qemu // Redefine d as local variable inside callback to avoid keeping references around.
+
+		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
+		if err != nil {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "instance": instanceName})
+			// If DB not available, try loading from backup file.
+			l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
+
+			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
+			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
+			if err != nil {
+				l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
+				return
+			}
+		}
+
+		d = inst.(*qemu)
+
 		if event == "LXD-AGENT-READY" {
+			d.logger.Debug("Instance agent ready")
 			err := d.advertiseVsockAddress()
 			if err != nil {
 				d.logger.Error("Failed to advertise vsock address", logger.Ctx{"err": err})
 				return
 			}
-		}
-
-		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
-		if err != nil {
-			// If DB not available, try loading from backup file.
-			d.logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"err": err})
-
-			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
-			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
-			if err != nil {
-				d.logger.Error("Failed loading instance", logger.Ctx{"err": err})
-				return
-			}
-		}
-
-		if event == "RESET" {
+		} else if event == "RESET" {
 			// As we cannot start QEMU with the -no-reboot flag, because we have to issue a
 			// system_reset QMP command to have the devices bootindex applied, then we need to handle
 			// the RESET events triggered from a guest-reset operation and prevent QEMU internally
@@ -381,7 +385,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
 				d.logger.Debug("Instance guest restart")
-				err = inst.Restart(0) // Using 0 timeout will call inst.Stop() then inst.Start().
+				err = d.Restart(0) // Using 0 timeout will call d.Stop() then d.Start().
 				if err != nil {
 					d.logger.Error("Failed to restart instance", logger.Ctx{"err": err})
 					return
@@ -396,7 +400,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 				target = "reboot"
 			}
 
-			err = inst.(*qemu).onStop(target)
+			err = d.onStop(target)
 			if err != nil {
 				d.logger.Error("Failed to cleanly stop instance", logger.Ctx{"err": err})
 				return
