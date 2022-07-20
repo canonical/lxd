@@ -220,6 +220,10 @@ You can add targets at any place in the documentation. However, if there is no h
   - {ref}`link text <a_random_target>`
   - \{ref\}`link text <a_random_target>`
   - References a target and specifies a title.
+* - ``[`option name\](a_random_target)``
+  - [`option name`](a_random_target)
+  - [`option name`](https://) (link is broken)
+  - Use Markdown syntax if you need markup on the link text.
 ```
 
 ##### Using an automatically generated anchor
