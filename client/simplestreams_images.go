@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -75,6 +77,13 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 		}
 	}
 
+	// Use relatively short response header timeout so as not to hold the image lock open too long.
+	// Deference client and transport in order to clone them so as to not modify timeout of base client.
+	httpClient := *r.http
+	httpTransport := httpClient.Transport.(*http.Transport).Clone()
+	httpTransport.ResponseHeaderTimeout = 30 * time.Second
+	httpClient.Transport = httpTransport
+
 	// Get the file list
 	files, err := r.ssClient.GetFiles(fingerprint)
 	if err != nil {
@@ -92,7 +101,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 			return -1, err
 		}
 
-		size, err := shared.DownloadFileHash(context.TODO(), r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+		size, err := shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 		if err != nil {
 			// Handle cancelation
 			if err.Error() == "net/http: request canceled" {
@@ -105,7 +114,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				return -1, err
 			}
 
-			size, err = shared.DownloadFileHash(context.TODO(), r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
+			size, err = shared.DownloadFileHash(context.TODO(), &httpClient, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 			if err != nil {
 				return -1, err
 			}
