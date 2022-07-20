@@ -19,3 +19,6 @@ matrix:
       - code
       - pre
       - spellexception
+      - link
+      - title
+      - div.relatedlinks
