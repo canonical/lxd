@@ -6,41 +6,41 @@ instance, and a "sink", the host that's getting the instance. Currently,
 in the `pull` mode, the source sets up an operation, and the sink connects
 to the source and pulls the instance.
 
-There are three websockets (channels) used in migration:
+There are three WebSockets (channels) used in migration:
 
   1. the control stream
-  2. the criu images stream
-  3. the filesystem stream
+  2. the CRIU images stream
+  3. the file-system stream
 
 When a migration is initiated, information about the instance, its
 configuration, etc. are sent over the control channel (a full
-description of this process is below), the criu images and instance
-filesystem are synced over their respective channels, and the result of
+description of this process is below), the CRIU images and instance
+file system are synced over their respective channels, and the result of
 the restore operation is sent from the sink to the source over the
 control channel.
 
-In particular, the protocol that is spoken over the criu channel and filesystem
+In particular, the protocol that is spoken over the CRIU channel and file-system
 channel can vary, depending on what is negotiated over the control socket. For
 example, both the source and the sink's LXD directory is on Btrfs, the
-filesystem socket can speak btrfs-send/receive. Additionally, although we do a
-"stop the world" type migration right now, support for criu's p.haul protocol
-will happen over the criu socket at some later time.
+file-system socket can speak `btrfs-send/receive`. Additionally, although we do a
+"stop the world" type migration right now, support for the `p.haul` protocol in CRIU
+will happen over the CRIU socket at some later time.
 
 ## Control Socket
-Once all three websockets are connected between the two endpoints, the
-source sends a MigrationHeader (protobuf description found in
+Once all three WebSockets are connected between the two endpoints, the
+source sends a `MigrationHeader` (`protobuf` description found in
 `/lxd/migration/migrate.proto`). This header contains the instance
 configuration which will be added to the new instance.
 
-There are also two fields indicating the filesystem and criu protocol to speak.
-For example, if a server is hosted on a Btrfs filesystem, it can indicate that it
-wants to do a `btrfs send` instead of a simple rsync (similarly, it could
-indicate that it wants to speak the p.haul protocol, instead of just rsyncing
-the images over slowly).
+There are also two fields indicating the file system and CRIU protocol to speak.
+For example, if a server is hosted on a Btrfs file system, it can indicate that it
+wants to do a `btrfs send` instead of a simple `rsync` (similarly, it could
+indicate that it wants to speak the `p.haul` protocol, instead of just using `rsync`
+to transfer the images over slowly).
 
 The sink then examines this message and responds with whatever it
 supports. Continuing our example, if the sink is not on a Btrfs
-filesystem, it responds with the lowest common denominator (rsync, in
-this case), and the source is to send the root filesystem using rsync.
-Similarly with the criu connection; if the sink doesn't have support for
-the p.haul protocol (or whatever), we fall back to rsync.
+file system, it responds with the lowest common denominator (`rsync`, in
+this case), and the source is to send the root file system using `rsync`.
+Similarly with the CRIU connection; if the sink doesn't have support for
+the `p.haul` protocol (or whatever), we fall back to `rsync`.
