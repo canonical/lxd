@@ -18,7 +18,7 @@ be used by the init system to detect the runtime.
 
 All file descriptors above the default 3 are closed prior to PID1 being spawned.
 
-## Filesystem
+## File system
 LXD assumes that any image it uses to create a new container from will come with at least:
 
  - `/dev` (empty)
@@ -27,8 +27,8 @@ LXD assumes that any image it uses to create a new container from will come with
  - `/sys` (empty)
 
 ## Devices
-LXD containers have a minimal and ephemeral `/dev` based on a tmpfs filesystem.
-Since this is a tmpfs and not a devtmpfs, device nodes will only appear if manually created.
+LXD containers have a minimal and ephemeral `/dev` based on a `tmpfs` file system.
+Since this is a `tmpfs` and not a `devtmpfs`, device nodes will only appear if manually created.
 
 The standard set of device nodes will be set up:
 
@@ -55,9 +55,9 @@ On top of the standard set of devices, the following are also set up for conveni
 ## Mounts
 The following mounts are set up by default under LXD:
 
- - `/proc` (proc)
- - `/sys` (sysfs)
- - `/sys/fs/cgroup/*` (cgroupfs) (only on kernels lacking cgroup namespace support)
+ - `/proc` ({spellexception}`proc`)
+ - `/sys` (`sysfs`)
+ - `/sys/fs/cgroup/*` (`cgroupfs`) (only on kernels lacking cgroup namespace support)
 
 The following paths will also be automatically mounted if present on the host:
 
@@ -69,7 +69,7 @@ The following paths will also be automatically mounted if present on the host:
  - `/sys/kernel/security`
 
 The reason for passing all of those is legacy init systems which require
-those to be mounted or be mountabled inside the container.
+those to be mounted or be mountable inside the container.
 
 The majority of those will not be writable (or even readable) from inside an
 unprivileged container and will be blocked by our AppArmor policy inside
@@ -77,7 +77,7 @@ privileged containers.
 
 ## Network
 LXD containers may have any number of network devices attached to them.
-The naming for those unless overridden by the user is ethX where X is an incrementing number.
+The naming for those unless overridden by the user is `ethX` where X is an incrementing number.
 
 ## Container to host communication
 LXD sets up a socket at `/dev/lxd/sock` which root in the container can use to communicate with LXD on the host.
