@@ -402,6 +402,10 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			return nil, err
 		}
 
+		// Use relatively short response header timeout so as not to hold the image lock open too long.
+		httpTransport := httpClient.Transport.(*http.Transport)
+		httpTransport.ResponseHeaderTimeout = 30 * time.Second
+
 		req, err := http.NewRequest("GET", args.Server, nil)
 		if err != nil {
 			return nil, err
