@@ -55,9 +55,9 @@ Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for 
 LXD uses this mechanism to transfer instances and snapshots between servers.
 
 This optimized transfer is available only when transferring volumes between storage pools that use the same storage driver.
-When transferring between storage pools that use different drivers or drivers that don't support optimized instance transfer, LXD uses rsync to transfer the individual files instead.
+When transferring between storage pools that use different drivers or drivers that don't support optimized instance transfer, LXD uses `rsync` to transfer the individual files instead.
 
-When using rsync, you can specify an upper limit on the amount of socket I/O by setting the `rsync.bwlimit` storage pool property to a non-zero value.
+When using `rsync`, you can specify an upper limit on the amount of socket I/O by setting the `rsync.bwlimit` storage pool property to a non-zero value.
 
 ## Recommended setup
 
@@ -74,7 +74,7 @@ Therefore, it constantly copies the instance's full storage.
 
 ## Security considerations
 
-Currently, the Linux kernel might silently ignore mount options and not apply them when a block-based filesystem (for example, `ext4`) is already mounted with different mount options.
+Currently, the Linux kernel might silently ignore mount options and not apply them when a block-based file system (for example, `ext4`) is already mounted with different mount options.
 This means when dedicated disk devices are shared between different storage pools with different mount options set, the second mount might not have the expected mount options.
 This becomes security relevant when, for example, one storage pool is supposed to provide `acl` support and the second one is supposed to not provide `acl` support.
 
