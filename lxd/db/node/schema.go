@@ -14,10 +14,10 @@ CREATE TABLE certificates (
 	certificate TEXT NOT NULL,
 	UNIQUE (fingerprint)
 );
-CREATE TABLE config (
+CREATE TABLE "config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
     UNIQUE (key)
 );
 CREATE TABLE patches (
@@ -34,5 +34,5 @@ CREATE TABLE raft_nodes (
     UNIQUE (address)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (42, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (43, strftime("%s"))
 `

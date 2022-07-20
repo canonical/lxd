@@ -128,7 +128,7 @@ CREATE TABLE "instances_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     instance_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
     UNIQUE (instance_id, key)
 );
@@ -144,7 +144,7 @@ CREATE TABLE "instances_devices_config" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     instance_device_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (instance_device_id) REFERENCES "instances_devices" (id) ON DELETE CASCADE,
     UNIQUE (instance_device_id, key)
 );
@@ -181,7 +181,7 @@ CREATE TABLE "instances_snapshots_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     instance_snapshot_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (instance_snapshot_id) REFERENCES "instances_snapshots" (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_id, key)
 );
@@ -197,7 +197,7 @@ CREATE TABLE "instances_snapshots_devices_config" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     instance_snapshot_device_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (instance_snapshot_device_id) REFERENCES "instances_snapshots_devices" (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_device_id, key)
 );
@@ -225,7 +225,7 @@ CREATE TABLE "networks_acls_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_acl_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (network_acl_id, key),
     FOREIGN KEY (network_acl_id) REFERENCES "networks_acls" (id) ON DELETE CASCADE
 );
@@ -234,7 +234,7 @@ CREATE TABLE "networks_config" (
     network_id INTEGER NOT NULL,
     node_id INTEGER,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (network_id, node_id, key),
     FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
@@ -253,8 +253,8 @@ CREATE TABLE "networks_forwards" (
 CREATE TABLE "networks_forwards_config" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	network_forward_id INTEGER NOT NULL,
-	key VARCHAR(255) NOT NULL,
-	value TEXT,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
 	UNIQUE (network_forward_id, key),
 	FOREIGN KEY (network_forward_id) REFERENCES "networks_forwards" (id) ON DELETE CASCADE
 );
@@ -303,8 +303,8 @@ CREATE TABLE "networks_peers" (
 CREATE TABLE "networks_peers_config" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	network_peer_id INTEGER NOT NULL,
-	key VARCHAR(255) NOT NULL,
-	value TEXT,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
 	UNIQUE (network_peer_id, key),
 	FOREIGN KEY (network_peer_id) REFERENCES "networks_peers" (id) ON DELETE CASCADE
 );
@@ -320,8 +320,8 @@ CREATE TABLE "networks_zones" (
 CREATE TABLE "networks_zones_config" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	network_zone_id INTEGER NOT NULL,
-	key VARCHAR(255) NOT NULL,
-	value TEXT,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
 	UNIQUE (network_zone_id, key),
 	FOREIGN KEY (network_zone_id) REFERENCES "networks_zones" (id) ON DELETE CASCADE
 );
@@ -334,11 +334,11 @@ CREATE TABLE networks_zones_records (
 	UNIQUE (name),
 	FOREIGN KEY (network_zone_id) REFERENCES networks_zones (id) ON DELETE CASCADE
 );
-CREATE TABLE networks_zones_records_config (
+CREATE TABLE "networks_zones_records_config" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	network_zone_record_id INTEGER NOT NULL,
-	key VARCHAR(255) NOT NULL,
-	value TEXT,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
 	UNIQUE (network_zone_record_id, key),
 	FOREIGN KEY (network_zone_record_id) REFERENCES networks_zones_records (id) ON DELETE CASCADE
 );
@@ -367,7 +367,7 @@ CREATE TABLE "nodes_config" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	node_id INTEGER NOT NULL,
 	key TEXT NOT NULL,
-	value TEXT,
+	value TEXT NOT NULL,
 	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
 	UNIQUE (node_id, key)
 );
@@ -404,7 +404,7 @@ CREATE TABLE "profiles_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (profile_id, key),
     FOREIGN KEY (profile_id) REFERENCES "profiles"(id) ON DELETE CASCADE
 );
@@ -420,7 +420,7 @@ CREATE TABLE "profiles_devices_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_device_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES "profiles_devices" (id) ON DELETE CASCADE
 );
@@ -435,7 +435,7 @@ CREATE TABLE "projects_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     project_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE,
     UNIQUE (project_id, key)
 );
@@ -452,7 +452,7 @@ CREATE TABLE "storage_pools_config" (
     storage_pool_id INTEGER NOT NULL,
     node_id INTEGER,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (storage_pool_id, node_id, key),
     FOREIGN KEY (storage_pool_id) REFERENCES "storage_pools" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
@@ -533,7 +533,7 @@ CREATE TABLE "storage_volumes_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_volume_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     UNIQUE (storage_volume_id, key),
     FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE
 );
@@ -558,7 +558,7 @@ CREATE TABLE "storage_volumes_snapshots_config" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_volume_snapshot_id INTEGER NOT NULL,
     key TEXT NOT NULL,
-    value TEXT,
+    value TEXT NOT NULL,
     FOREIGN KEY (storage_volume_snapshot_id) REFERENCES "storage_volumes_snapshots" (id) ON DELETE CASCADE,
     UNIQUE (storage_volume_snapshot_id, key)
 );
@@ -582,5 +582,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (61, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (62, strftime("%s"))
 `
