@@ -98,6 +98,211 @@ var updates = map[int]schema.Update{
 	59: updateFromV58,
 	60: updateFromV59,
 	61: updateFromV60,
+	62: updateFromV61,
+}
+
+// updateFromV61 converts config value fields to NOT NULL and config key fields to TEXT (from VARCHAR).
+func updateFromV61(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "instances_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, key)
+);
+INSERT INTO "instances_config_new" SELECT * FROM "instances_config";
+DROP TABLE "instances_config";
+ALTER TABLE "instances_config_new" RENAME TO "instances_config";
+CREATE TABLE "instances_devices_config_new" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (instance_device_id) REFERENCES "instances_devices" (id) ON DELETE CASCADE,
+    UNIQUE (instance_device_id, key)
+);
+INSERT INTO "instances_devices_config_new" SELECT * FROM "instances_devices_config";
+DROP TABLE "instances_devices_config";
+ALTER TABLE "instances_devices_config_new" RENAME TO "instances_devices_config";
+CREATE TABLE "instances_snapshots_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES "instances_snapshots" (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, key)
+);
+INSERT INTO "instances_snapshots_config_new" SELECT * FROM "instances_snapshots_config";
+DROP TABLE "instances_snapshots_config";
+ALTER TABLE "instances_snapshots_config_new" RENAME TO "instances_snapshots_config";
+CREATE TABLE "instances_snapshots_devices_config_new" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (instance_snapshot_device_id) REFERENCES "instances_snapshots_devices" (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_device_id, key)
+);
+INSERT INTO "instances_snapshots_devices_config_new" SELECT * FROM "instances_snapshots_devices_config";
+DROP TABLE "instances_snapshots_devices_config";
+ALTER TABLE "instances_snapshots_devices_config_new" RENAME TO "instances_snapshots_devices_config";
+CREATE TABLE "networks_acls_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_acl_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (network_acl_id, key),
+    FOREIGN KEY (network_acl_id) REFERENCES "networks_acls" (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_acls_config_new" SELECT * FROM "networks_acls_config";
+DROP TABLE "networks_acls_config";
+ALTER TABLE "networks_acls_config_new" RENAME TO "networks_acls_config";
+CREATE TABLE "networks_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (network_id, node_id, key),
+    FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_config_new" SELECT * FROM "networks_config";
+DROP TABLE "networks_config";
+ALTER TABLE "networks_config_new" RENAME TO "networks_config";
+CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON "networks_config" (network_id, IFNULL(node_id, -1), key);
+CREATE TABLE "networks_forwards_config_new" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_forward_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_forward_id, key),
+	FOREIGN KEY (network_forward_id) REFERENCES "networks_forwards" (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_forwards_config_new" SELECT * FROM "networks_forwards_config";
+DROP TABLE "networks_forwards_config";
+ALTER TABLE "networks_forwards_config_new" RENAME TO "networks_forwards_config";
+CREATE TABLE "networks_peers_config_new" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_peer_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_peer_id, key),
+	FOREIGN KEY (network_peer_id) REFERENCES "networks_peers" (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_peers_config_new" SELECT * FROM "networks_peers_config";
+DROP TABLE "networks_peers_config";
+ALTER TABLE "networks_peers_config_new" RENAME TO "networks_peers_config";
+CREATE TABLE "networks_zones_config_new" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_zone_id, key),
+	FOREIGN KEY (network_zone_id) REFERENCES "networks_zones" (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_zones_config_new" SELECT * FROM "networks_zones_config";
+DROP TABLE "networks_zones_config";
+ALTER TABLE "networks_zones_config_new" RENAME TO "networks_zones_config";
+CREATE TABLE networks_zones_records_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_record_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_zone_record_id, key),
+	FOREIGN KEY (network_zone_record_id) REFERENCES networks_zones_records (id) ON DELETE CASCADE
+);
+INSERT INTO "networks_zones_records_config_new" SELECT * FROM "networks_zones_records_config";
+DROP TABLE "networks_zones_records_config";
+ALTER TABLE "networks_zones_records_config_new" RENAME TO "networks_zones_records_config";
+CREATE TABLE "nodes_config_new" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	node_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
+	UNIQUE (node_id, key)
+);
+INSERT INTO "nodes_config_new" SELECT * FROM "nodes_config";
+DROP TABLE "nodes_config";
+ALTER TABLE "nodes_config_new" RENAME TO "nodes_config";
+CREATE TABLE "profiles_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES "profiles"(id) ON DELETE CASCADE
+);
+INSERT INTO "profiles_config_new" SELECT * FROM "profiles_config";
+DROP TABLE "profiles_config";
+ALTER TABLE "profiles_config_new" RENAME TO "profiles_config";
+CREATE TABLE "profiles_devices_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES "profiles_devices" (id) ON DELETE CASCADE
+);
+INSERT INTO "profiles_devices_config_new" SELECT * FROM "profiles_devices_config";
+DROP TABLE "profiles_devices_config";
+ALTER TABLE "profiles_devices_config_new" RENAME TO "profiles_devices_config";
+CREATE TABLE "projects_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE,
+    UNIQUE (project_id, key)
+);
+INSERT INTO "projects_config_new" SELECT * FROM "projects_config";
+DROP TABLE "projects_config";
+ALTER TABLE "projects_config_new" RENAME TO "projects_config";
+CREATE TABLE "storage_pools_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (storage_pool_id, node_id, key),
+    FOREIGN KEY (storage_pool_id) REFERENCES "storage_pools" (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
+);
+INSERT INTO "storage_pools_config_new" SELECT * FROM "storage_pools_config";
+DROP TABLE "storage_pools_config";
+ALTER TABLE "storage_pools_config_new" RENAME TO "storage_pools_config";
+CREATE UNIQUE INDEX storage_pools_unique_storage_pool_id_node_id_key ON storage_pools_config (storage_pool_id, IFNULL(node_id, -1), key);
+CREATE TABLE "storage_volumes_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    UNIQUE (storage_volume_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE
+);
+INSERT INTO "storage_volumes_config_new" SELECT * FROM "storage_volumes_config";
+DROP TABLE "storage_volumes_config";
+ALTER TABLE "storage_volumes_config_new" RENAME TO "storage_volumes_config";
+CREATE TABLE "storage_volumes_snapshots_config_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES "storage_volumes_snapshots" (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
+INSERT INTO "storage_volumes_snapshots_config_new" SELECT * FROM "storage_volumes_snapshots_config";
+DROP TABLE "storage_volumes_snapshots_config";
+ALTER TABLE "storage_volumes_snapshots_config_new" RENAME TO "storage_volumes_snapshots_config";
+`)
+	if err != nil {
+		return fmt.Errorf("Failed altering config tables schema: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV60 creates the networks_load_balancers and networks_load_balancers_config tables.
