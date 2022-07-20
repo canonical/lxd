@@ -18,3 +18,4 @@ matrix:
       ignores:
       - code
       - pre
+      - spellexception
