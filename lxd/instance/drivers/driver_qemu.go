@@ -310,7 +310,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		return nil, err
 	}
 
-	if !monitor.AgentReady() {
+	if !monitor.AgenStarted() {
 		return nil, errQemuAgentOffline
 	}
 
