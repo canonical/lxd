@@ -13,6 +13,7 @@ import (
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e image objects version=2
+//go:generate mapper stmt -e image objects-by-ID version=2
 //go:generate mapper stmt -e image objects-by-Project version=2
 //go:generate mapper stmt -e image objects-by-Project-and-Cached version=2
 //go:generate mapper stmt -e image objects-by-Project-and-Public version=2
@@ -43,6 +44,7 @@ type Image struct {
 
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
+	ID          *int
 	Project     *string
 	Fingerprint *string
 	Public      *bool
