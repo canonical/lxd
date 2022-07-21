@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/client"
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
@@ -130,10 +129,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval, err := clusterConfig.GetInt64(d.db.Cluster, "images.auto_update_interval")
-	if err != nil {
-		return nil, err
-	}
+	interval := d.State().GlobalConfig.ImagesAutoUpdateIntervalHours()
 
 	if args.PreferCached && interval > 0 && alias != fp {
 		for _, architecture := range d.os.Architectures {

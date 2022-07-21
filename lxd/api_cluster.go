@@ -161,20 +161,12 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGet(d *Daemon, r *http.Request) response.Response {
-	name := ""
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		name, err = tx.GetLocalNodeName()
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
+	serverName := d.State().ServerName
 
 	// If the name is set to the hard-coded default node name, then
 	// clustering is not enabled.
-	if name == "none" {
-		name = ""
+	if serverName == "none" {
+		serverName = ""
 	}
 
 	memberConfig, err := clusterGetMemberConfig(d.db.Cluster)
@@ -183,8 +175,8 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	cluster := api.Cluster{
-		ServerName:   name,
-		Enabled:      name != "",
+		ServerName:   serverName,
+		Enabled:      serverName != "",
 		MemberConfig: memberConfig,
 	}
 

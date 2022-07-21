@@ -405,7 +405,6 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 
 	// Check that the pool is properly defined, fetch the node-specific configs and insert the global config.
 	var configs map[string]map[string]string
-	var nodeName string
 	var poolID int64
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -428,12 +427,6 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 
 		// Fetch the node-specific configs and check the pool is defined for all nodes.
 		configs, err = tx.GetStoragePoolNodeConfigs(poolID)
-		if err != nil {
-			return err
-		}
-
-		// Take note of the name of this node
-		nodeName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
 		}
@@ -464,8 +457,10 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	// Create the pool on this node.
 	nodeReq := req
 
+	serverName := d.State().ServerName
+
 	// Merge node specific config items into global config.
-	for key, value := range configs[nodeName] {
+	for key, value := range configs[serverName] {
 		nodeReq.Config[key] = value
 	}
 

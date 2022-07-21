@@ -597,7 +597,7 @@ func devicesRegister(s *state.State) {
 	}
 
 	for _, inst := range instances {
-		if !inst.IsRunning() {
+		if !inst.IsRunning() { // For VMs this will also trigger a connection to the QMP socket if running.
 			continue
 		}
 
