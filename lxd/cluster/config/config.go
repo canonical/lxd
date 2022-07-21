@@ -163,6 +163,11 @@ func (c *Config) ImagesDefaultArchitecture() string {
 	return c.m.GetString("images.default_architecture")
 }
 
+// InstancesNICHostname returns hostname mode to use for instance NICs.
+func (c *Config) InstancesNICHostname() string {
+	return c.m.GetString("instances.nic.host_name")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
