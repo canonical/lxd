@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/filter"
@@ -473,4 +475,84 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// getWarningEntityURL fetches the entity corresponding to the warning from the database, and generates a URL.
+func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warning) (string, error) {
+	if warning.EntityID == -1 || warning.EntityTypeCode == -1 {
+		return "", nil
+	}
+
+	_, ok := cluster.EntityNames[warning.EntityTypeCode]
+	if !ok {
+		return "", fmt.Errorf("Unknown entity type")
+	}
+
+	var url string
+	switch warning.EntityTypeCode {
+	case cluster.TypeImage:
+		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiImage := api.Image{Fingerprint: entities[0].Fingerprint}
+		url = apiImage.URL(version.APIVersion, entities[0].Project).String()
+	case cluster.TypeProfile:
+		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiProfile := api.Profile{Name: entities[0].Name}
+		url = apiProfile.URL(version.APIVersion, entities[0].Project).String()
+	case cluster.TypeProject:
+		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiProject := api.Project{Name: entities[0].Name}
+		url = apiProject.URL(version.APIVersion).String()
+	case cluster.TypeCertificate:
+		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiCertificate := api.Certificate{Fingerprint: entities[0].Fingerprint}
+		url = apiCertificate.URL(version.APIVersion).String()
+	case cluster.TypeContainer:
+		fallthrough
+	case cluster.TypeInstance:
+		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiInstance := api.Instance{Name: entities[0].Name}
+		url = apiInstance.URL(version.APIVersion, entities[0].Project).String()
+	}
+
+	return url, nil
 }
