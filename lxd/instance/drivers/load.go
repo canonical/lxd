@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -26,7 +27,7 @@ var instanceDrivers = map[string]func() instance.Instance{
 // DriverStatus definition.
 type DriverStatus struct {
 	Info      instance.Info
-	Warning   *db.Warning
+	Warning   *cluster.Warning
 	Supported bool
 }
 
@@ -144,7 +145,7 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
 
 			driverStatus.Supported = false
-			driverStatus.Warning = &db.Warning{
+			driverStatus.Warning = &cluster.Warning{
 				TypeCode:    warningtype.InstanceTypeNotOperational,
 				LastMessage: fmt.Sprintf("%v", driverInfo.Error),
 			}

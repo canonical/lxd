@@ -12,8 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 var warningCreate = cluster.RegisterStmt(`
@@ -61,7 +59,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	now := time.Now()
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		filter := WarningFilter{
+		filter := cluster.WarningFilter{
 			TypeCode:       &typeCode,
 			Node:           &nodeName,
 			Project:        &projectName,
@@ -69,7 +67,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 			EntityID:       &entityID,
 		}
 
-		warnings, err := tx.GetWarnings(filter)
+		warnings, err := cluster.GetWarnings(ctx, tx.tx, filter)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve warnings: %w", err)
 		}
@@ -88,7 +86,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 			err = tx.UpdateWarningState(warnings[0].UUID, message, newStatus)
 		} else {
-			warning := Warning{
+			warning := cluster.Warning{
 				Node:           nodeName,
 				Project:        projectName,
 				EntityTypeCode: entityTypeCode,
@@ -103,7 +101,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 				Count:          1,
 			}
 
-			_, err = tx.createWarning(warning)
+			_, err = tx.createWarning(ctx, warning)
 		}
 
 		if err != nil {
@@ -158,9 +156,9 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status warni
 }
 
 // createWarning adds a new warning to the database.
-func (c *ClusterTx) createWarning(object Warning) (int64, error) {
+func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (int64, error) {
 	// Check if a warning with the same key exists.
-	exists, err := c.WarningExists(object.UUID)
+	exists, err := cluster.WarningExists(ctx, c.tx, object.UUID)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
@@ -228,30 +226,4 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	}
 
 	return id, nil
-}
-
-// ToAPI returns a LXD API entry.
-func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
-	typeCode := warningtype.Type(w.TypeCode)
-
-	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
-	if err != nil {
-		logger.Warn("Failed to get entity URI for warning", logger.Ctx{"ID": w.UUID, "entityID": w.EntityID, "entityTypeCode": w.EntityTypeCode, "err": err})
-	}
-
-	return api.Warning{
-		WarningPut: api.WarningPut{
-			Status: warningtype.Statuses[warningtype.Status(w.Status)],
-		},
-		UUID:        w.UUID,
-		Location:    w.Node,
-		Project:     w.Project,
-		Type:        warningtype.TypeNames[typeCode],
-		Count:       w.Count,
-		FirstSeenAt: w.FirstSeenDate,
-		LastSeenAt:  w.LastSeenDate,
-		LastMessage: w.LastMessage,
-		Severity:    warningtype.Severities[typeCode.Severity()],
-		EntityURL:   entity,
-	}, nil
 }
