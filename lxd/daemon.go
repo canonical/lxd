@@ -770,7 +770,7 @@ func (d *Daemon) Init() error {
 }
 
 func (d *Daemon) init() error {
-	var dbWarnings []db.Warning
+	var dbWarnings []clusterDB.Warning
 
 	// Setup logger
 	events.LoggingServer = d.events

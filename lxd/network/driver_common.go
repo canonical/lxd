@@ -429,7 +429,7 @@ func (n *common) rename(newName string) error {
 // warningsDelete deletes any persistent warnings for the network.
 func (n *common) warningsDelete() error {
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.DeleteWarnings(dbCluster.TypeNetwork, int(n.ID()))
+		return dbCluster.DeleteWarnings(ctx, tx.Tx(), dbCluster.TypeNetwork, int(n.ID()))
 	})
 	if err != nil {
 		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
