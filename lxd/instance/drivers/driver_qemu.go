@@ -35,6 +35,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
+	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
@@ -1599,7 +1600,7 @@ func (d *qemu) advertiseVsockAddress() error {
 
 	defer agent.Disconnect()
 
-	req := api.API10Put{
+	req := agentAPI.API10Put{
 		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
 		Devlxd:      devlxdEnabled,
 	}
