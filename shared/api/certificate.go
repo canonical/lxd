@@ -84,6 +84,11 @@ func (cert *Certificate) Writable() CertificatePut {
 	return cert.CertificatePut
 }
 
+// URL returns the URL for the certificate.
+func (c *Certificate) URL(apiVersion string) *URL {
+	return NewURL().Path(apiVersion, "certificates", c.Fingerprint)
+}
+
 // CertificateAddToken represents the fields contained within an encoded certificate add token.
 //
 // swagger:model
