@@ -22,6 +22,12 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
   ORDER BY certificates.fingerprint
 `)
 
+var certificateObjectsByID = RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.id = ? ORDER BY certificates.fingerprint
+`)
+
 var certificateObjectsByFingerprint = RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
@@ -64,12 +70,17 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 	var sqlStmt *sql.Stmt
 	var args []any
 
-	if filter.Fingerprint != nil && filter.Name == nil && filter.Type == nil {
+	if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+		sqlStmt = stmt(tx, certificateObjectsByID)
+		args = []any{
+			filter.ID,
+		}
+	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 		sqlStmt = stmt(tx, certificateObjectsByFingerprint)
 		args = []any{
 			filter.Fingerprint,
 		}
-	} else if filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+	} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
 		sqlStmt = stmt(tx, certificateObjects)
 		args = []any{}
 	} else {
