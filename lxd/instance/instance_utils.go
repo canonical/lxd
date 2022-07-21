@@ -1042,11 +1042,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	var dbInst cluster.Instance
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		node, err := tx.GetLocalNodeName()
-		if err != nil {
-			return err
-		}
-
 		devices, err := cluster.APIToDevices(args.Devices.CloneNative())
 		if err != nil {
 			return err
@@ -1108,7 +1103,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		dbInst = cluster.Instance{
 			Project:      args.Project,
 			Name:         args.Name,
-			Node:         node,
+			Node:         s.ServerName,
 			Type:         args.Type,
 			Snapshot:     args.Snapshot,
 			Architecture: args.Architecture,
