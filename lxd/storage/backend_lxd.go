@@ -5231,16 +5231,6 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 		return err
 	}
 
-	// Get local cluster member name.
-	var nodeName string
-	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodeName, err = tx.GetLocalNodeName()
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed getting local cluster member name: %w", err)
-	}
-
 	contentType := InstanceContentType(inst)
 
 	revert := revert.New()
@@ -5323,7 +5313,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	}
 
 	// Only attempt to restore mount status on instance's local cluster member.
-	if inst.Location() == nodeName {
+	if inst.Location() == b.state.ServerName {
 		l.Debug("Restoring local instance mount status")
 
 		if inst.IsRunning() {
