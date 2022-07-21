@@ -173,6 +173,11 @@ func (c *Config) ImagesDefaultArchitecture() string {
 	return c.m.GetString("images.default_architecture")
 }
 
+// ImagesCompressionAlgorithm returns the compression algorithm to use for images.
+func (c *Config) ImagesCompressionAlgorithm() string {
+	return c.m.GetString("images.compression_algorithm")
+}
+
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
