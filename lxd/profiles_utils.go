@@ -139,20 +139,12 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	}
 
 	// Update all the instances on this node using the profile. Must be done after db.TxCommit due to DB lock.
-	nodeName := ""
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		nodeName, err = tx.GetLocalNodeName()
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to query local cluster member name: %w", err)
-	}
+	serverName := d.State().ServerName
 
 	failures := map[*db.InstanceArgs]error{}
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
-		err := doProfileUpdateInstance(d, name, profile.ProfilePut, nodeName, inst)
+		err := doProfileUpdateInstance(d, name, profile.ProfilePut, serverName, inst)
 		if err != nil {
 			failures[&inst] = err
 		}
