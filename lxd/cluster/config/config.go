@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -37,6 +36,11 @@ func Load(tx *db.ClusterTx) (*Config, error) {
 	}
 
 	return &Config{tx: tx, m: m}, nil
+}
+
+// BackupsCompressionAlgorithm returns the compression algorithm to use for backups.
+func (c *Config) BackupsCompressionAlgorithm() string {
+	return c.m.GetString("backups.compression_algorithm")
 }
 
 // MetricsAuthentication checks whether metrics API requires authentication.
@@ -151,6 +155,16 @@ func (c *Config) MaxStandBy() int64 {
 	return c.m.GetInt64("cluster.max_standby")
 }
 
+// NetworkOVNIntegrationBridge returns the integration OVS bridge to use for OVN networks.
+func (c *Config) NetworkOVNIntegrationBridge() string {
+	return c.m.GetString("network.ovn.integration_bridge")
+}
+
+// NetworkOVNNorthboundConnection returns the OVN northbound database connection string for OVN networks.
+func (c *Config) NetworkOVNNorthboundConnection() string {
+	return c.m.GetString("network.ovn.northbound_connection")
+}
+
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
 // before LXD server shut down.
 func (c *Config) ShutdownTimeout() time.Duration {
@@ -161,6 +175,31 @@ func (c *Config) ShutdownTimeout() time.Duration {
 // ImagesDefaultArchitecture returns the default architecture.
 func (c *Config) ImagesDefaultArchitecture() string {
 	return c.m.GetString("images.default_architecture")
+}
+
+// ImagesCompressionAlgorithm returns the compression algorithm to use for images.
+func (c *Config) ImagesCompressionAlgorithm() string {
+	return c.m.GetString("images.compression_algorithm")
+}
+
+// ImagesAutoUpdateCached returns whether or not to auto update cached images.
+func (c *Config) ImagesAutoUpdateCached() bool {
+	return c.m.GetBool("images.auto_update_cached")
+}
+
+// ImagesAutoUpdateIntervalHours returns interval in hours at which to look for update to cached images.
+func (c *Config) ImagesAutoUpdateIntervalHours() int64 {
+	return c.m.GetInt64("images.auto_update_interval")
+}
+
+// ImagesRemoteCacheExpiryDays returns the number of days after which an unused cached remote image will be flushed.
+func (c *Config) ImagesRemoteCacheExpiryDays() int64 {
+	return c.m.GetInt64("images.remote_cache_expiry")
+}
+
+// InstancesNICHostname returns hostname mode to use for instance NICs.
+func (c *Config) InstancesNICHostname() string {
+	return c.m.GetString("instances.nic.host_name")
 }
 
 // Dump current configuration keys and their values. Keys with values matching
@@ -200,58 +239,6 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	}
 
 	return changed, nil
-}
-
-// GetString is a convenience for loading the cluster configuration and
-// returning the value of a particular key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetString(cluster *db.Cluster, key string) (string, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return "", err
-	}
-
-	return config.m.GetString(key), nil
-}
-
-// GetBool is a convenience for loading the cluster configuration and
-// returning the value of a particular boolean key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetBool(cluster *db.Cluster, key string) (bool, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return false, err
-	}
-
-	return config.m.GetBool(key), nil
-}
-
-// GetInt64 is a convenience for loading the cluster configuration and
-// returning the value of a particular key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetInt64(cluster *db.Cluster, key string) (int64, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return 0, err
-	}
-
-	return config.m.GetInt64(key), nil
-}
-
-func configGet(cluster *db.Cluster) (*Config, error) {
-	var config *Config
-	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		config, err = Load(tx)
-		return err
-	})
-	return config, err
 }
 
 // ConfigSchema defines available server configuration keys.

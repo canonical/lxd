@@ -98,18 +98,13 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
+	d.events.SetLocalLocation(d.State().ServerName)
+
 	var excludeLocations []string
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err := tx.GetLocalNodeName()
-		if err != nil {
-			return err
-		}
-
-		d.events.SetLocalLocation(serverName)
-
 		if isClusterNotification(r) {
 			ctx := r.Context()
 

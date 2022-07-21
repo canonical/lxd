@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
@@ -100,10 +99,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
-				autoUpdate, err = clusterConfig.GetBool(d.db.Cluster, "images.auto_update_cached")
-				if err != nil {
-					return err
-				}
+				autoUpdate = d.State().GlobalConfig.ImagesAutoUpdateCached()
 			}
 
 			// Detect image type based on instance type requested.
@@ -514,14 +510,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 	// When clustered, use the node name, otherwise use the hostname.
 	if clustered {
-		var serverName string
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			serverName, err = tx.GetLocalNodeName()
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
+		serverName := d.State().ServerName
 
 		if serverName != source.Location() {
 			// Check if we are copying from a ceph-based container.

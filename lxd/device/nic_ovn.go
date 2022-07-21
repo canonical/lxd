@@ -8,7 +8,6 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
@@ -57,16 +56,6 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 	}
 
 	return []string{"security.acls"}
-}
-
-// getIntegrationBridgeName returns the OVS integration bridge to use.
-func (d *nicOVN) getIntegrationBridgeName() (string, error) {
-	integrationBridge, err := clusterConfig.GetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
-	if err != nil {
-		return "", fmt.Errorf("Failed to get OVN integration bridge name: %w", err)
-	}
-
-	return integrationBridge, nil
 }
 
 // validateConfig checks the supplied config for correctness.
@@ -243,10 +232,7 @@ func (d *nicOVN) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	integrationBridge, err := d.getIntegrationBridgeName()
-	if err != nil {
-		return err
-	}
+	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", integrationBridge)) {
 		return fmt.Errorf("OVS integration bridge device %q doesn't exist", integrationBridge)
@@ -295,10 +281,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			}
 		}
 
-		integrationBridge, err := d.getIntegrationBridgeName()
-		if err != nil {
-			return nil, err
-		}
+		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 		// Find free VF exclusively.
 		network.SRIOVVirtualFunctionMutex.Lock()
@@ -522,17 +505,13 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	// as if the instance is being migrated, this can cause port conflicts in OVN if the instance comes up on
 	// another LXD host later.
 	if d.config["host_name"] != "" {
-		integrationBridge, err := d.getIntegrationBridgeName()
-		if err == nil {
-			// Detach host-side end of veth pair from OVS integration bridge.
-			err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
-			if err != nil {
-				// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
-				d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
-			}
-		} else {
-			// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
-			d.logger.Error("Failed getting OVS integration bridge name to remove bridge port", logger.Ctx{"err": err})
+		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
+
+		// Detach host-side end of veth pair from OVS integration bridge.
+		err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
+		if err != nil {
+			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
+			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
 		}
 	}
 
@@ -794,10 +773,7 @@ func (d *nicOVN) setupHostNIC(hostName string, uplink *api.Network) (revert.Hook
 	})
 
 	// Attach host side veth interface to bridge.
-	integrationBridge, err := d.getIntegrationBridgeName()
-	if err != nil {
-		return nil, err
-	}
+	integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 	ovs := openvswitch.NewOVS()
 	err = ovs.BridgePortAdd(integrationBridge, hostName, true)

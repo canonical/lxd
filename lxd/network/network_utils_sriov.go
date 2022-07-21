@@ -38,15 +38,9 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	defer sriovReservedDevicesMutex.Unlock()
 
 	var err error
-	var localNode string
 	var projectNetworks map[string]map[int64]api.Network
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localNode, err = tx.GetLocalNodeName()
-		if err != nil {
-			return fmt.Errorf("Failed to get local member name: %w", err)
-		}
-
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
@@ -60,7 +54,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	}
 
 	filter := cluster.InstanceFilter{
-		Node: &localNode,
+		Node: &s.ServerName,
 	}
 
 	reservedDevices := map[string]struct{}{}

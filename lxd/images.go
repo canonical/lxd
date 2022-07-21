@@ -30,7 +30,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
@@ -300,10 +299,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		if p.Config["images.compression_algorithm"] != "" {
 			compress = p.Config["images.compression_algorithm"]
 		} else {
-			compress, err = clusterConfig.GetString(d.db.Cluster, "images.compression_algorithm")
-			if err != nil {
-				return nil, err
-			}
+			compress = d.State().GlobalConfig.ImagesCompressionAlgorithm()
 		}
 	}
 
@@ -1922,10 +1918,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 				return nil, fmt.Errorf("Unable to fetch project configuration: %w", err)
 			}
 		} else {
-			interval, err = clusterConfig.GetInt64(d.db.Cluster, "images.auto_update_interval")
-			if err != nil {
-				return nil, fmt.Errorf("Unable to fetch cluster configuration: %w", err)
-			}
+			interval = d.State().GlobalConfig.ImagesAutoUpdateIntervalHours()
 		}
 
 		// Check if we're supposed to auto update at all (0 disables it)
@@ -2280,10 +2273,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 			return fmt.Errorf("Unable to fetch project configuration: %w", err)
 		}
 	} else {
-		expiry, err = clusterConfig.GetInt64(d.db.Cluster, "images.remote_cache_expiry")
-		if err != nil {
-			return fmt.Errorf("Unable to fetch cluster configuration: %w", err)
-		}
+		expiry = d.State().GlobalConfig.ImagesRemoteCacheExpiryDays()
 	}
 
 	// Check if we're supposed to prune at all

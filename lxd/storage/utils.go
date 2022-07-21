@@ -790,24 +790,10 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 		return nil, nil
 	}
 
-	// Get local member name so we can check if the volume is attached to a remote node.
-	var localNode string
-	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localNode, err = tx.GetLocalNodeName()
-		if err != nil {
-			return fmt.Errorf("Failed to get local member name: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	// Find if volume is attached to a remote instance.
 	var remoteInstance *db.InstanceArgs
 	err = VolumeUsedByInstanceDevices(s, poolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		if dbInst.Node != localNode {
+		if dbInst.Node != s.ServerName {
 			remoteInstance = &dbInst
 			return db.ErrInstanceListStop // Stop the search, this volume is attached to a remote instance.
 		}

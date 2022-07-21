@@ -315,6 +315,7 @@ func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 }
 
 // GetLocalNodeName returns the name of the node this method is invoked on.
+// Usually you should not use this function directly but instead use the cached State.ServerName value.
 func (c *ClusterTx) GetLocalNodeName() (string, error) {
 	stmt := "SELECT name FROM nodes WHERE id=?"
 	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)

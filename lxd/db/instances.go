@@ -315,6 +315,10 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 		filter = &cluster.InstanceFilter{}
 	}
 
+	if filter.Type != nil && *filter.Type == instancetype.Any {
+		filter.Type = nil
+	}
+
 	// instanceConfig function loads config for all specified instanceIDs in a single query and then updates
 	// the entries in the instances map.
 	instanceConfig := func(tx *ClusterTx, instanceIDs []int) error {
