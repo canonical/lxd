@@ -30,7 +30,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
@@ -2215,10 +2214,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 			return fmt.Errorf("Unable to fetch project configuration: %w", err)
 		}
 	} else {
-		expiry, err = clusterConfig.GetInt64(d.db.Cluster, "images.remote_cache_expiry")
-		if err != nil {
-			return fmt.Errorf("Unable to fetch cluster configuration: %w", err)
-		}
+		expiry = d.State().GlobalConfig.ImagesRemoteCacheExpiryDays()
 	}
 
 	// Check if we're supposed to prune at all
