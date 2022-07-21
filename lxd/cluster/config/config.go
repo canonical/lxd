@@ -242,20 +242,6 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	return changed, nil
 }
 
-// GetInt64 is a convenience for loading the cluster configuration and
-// returning the value of a particular key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetInt64(cluster *db.Cluster, key string) (int64, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return 0, err
-	}
-
-	return config.m.GetInt64(key), nil
-}
-
 func configGet(cluster *db.Cluster) (*Config, error) {
 	var config *Config
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
