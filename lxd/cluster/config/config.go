@@ -156,6 +156,11 @@ func (c *Config) MaxStandBy() int64 {
 	return c.m.GetInt64("cluster.max_standby")
 }
 
+// NetworkOVNIntegrationBridge returns the integration OVS bridge to use for OVN networks.
+func (c *Config) NetworkOVNIntegrationBridge() string {
+	return c.m.GetString("network.ovn.integration_bridge")
+}
+
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
 // before LXD server shut down.
 func (c *Config) ShutdownTimeout() time.Duration {
