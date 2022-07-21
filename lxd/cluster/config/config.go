@@ -193,6 +193,11 @@ func (c *Config) ImagesAutoUpdateIntervalHours() int64 {
 	return c.m.GetInt64("images.auto_update_interval")
 }
 
+// ImagesRemoteCacheExpiryDays returns the number of days after which an unused cached remote image will be flushed.
+func (c *Config) ImagesRemoteCacheExpiryDays() int64 {
+	return c.m.GetInt64("images.remote_cache_expiry")
+}
+
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
