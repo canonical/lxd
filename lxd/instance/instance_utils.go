@@ -562,17 +562,26 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 	return instances, nil
 }
 
-// LoadNodeAll loads all instances of this nodes.
+// LoadNodeAll loads all instances on this server.
 func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, error) {
-	// Get all the container arguments
-	var insts []cluster.Instance
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		filter := db.InstanceTypeFilter(instanceType)
-		insts, err = tx.GetLocalInstancesInProject(ctx, filter)
+	var err error
+	var instances []Instance
+
+	filter := cluster.InstanceFilter{
+		Type: &instanceType,
+	}
+
+	if s.ServerName != "" {
+		filter.Node = &s.ServerName
+	}
+
+	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
+		inst, err := Load(s, dbInst, dbInst.Profiles)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
 		}
+
+		instances = append(instances, inst)
 
 		return nil
 	})
@@ -580,7 +589,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 		return nil, err
 	}
 
-	return LoadAllInternal(s, insts)
+	return instances, nil
 }
 
 // LoadFromBackup loads from a mounted instance's backup file.
