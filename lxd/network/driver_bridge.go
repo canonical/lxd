@@ -2663,22 +2663,8 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 			// If we are the first forward on this bridge, enable hairpin mode on active NIC ports.
 			if len(listenAddresses) <= 1 {
-				var localNode string
-
-				err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					localNode, err = tx.GetLocalNodeName()
-					if err != nil {
-						return fmt.Errorf("Failed to get local member name: %w", err)
-					}
-
-					return err
-				})
-				if err != nil {
-					return err
-				}
-
 				filter := dbCluster.InstanceFilter{
-					Node: &localNode,
+					Node: &n.state.ServerName,
 				}
 
 				err = n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
