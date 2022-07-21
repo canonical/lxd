@@ -591,7 +591,10 @@ func (d *qemu) onStop(target string) error {
 	_ = op.Reset() // Reset timeout to default.
 
 	// Record power state.
-	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
+	err = d.VolatileSet(map[string]string{
+		"volatile.last_state.power": "STOPPED",
+		"volatile.last_state.ready": "false",
+	})
 	if err != nil {
 		// Don't return an error here as we still want to cleanup the instance even if DB not available.
 		d.logger.Error("Failed recording last power state", logger.Ctx{"err": err})
