@@ -18,37 +18,37 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
-//go:generate mapper stmt -e instance objects version=2
-//go:generate mapper stmt -e instance objects-by-ID version=2
-//go:generate mapper stmt -e instance objects-by-Project version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Type version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Node version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Node-and-Name version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Name version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Name version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Name-and-Node version=2
-//go:generate mapper stmt -e instance objects-by-Project-and-Node version=2
-//go:generate mapper stmt -e instance objects-by-Type version=2
-//go:generate mapper stmt -e instance objects-by-Type-and-Name version=2
-//go:generate mapper stmt -e instance objects-by-Type-and-Name-and-Node version=2
-//go:generate mapper stmt -e instance objects-by-Type-and-Node version=2
-//go:generate mapper stmt -e instance objects-by-Node version=2
-//go:generate mapper stmt -e instance objects-by-Node-and-Name version=2
-//go:generate mapper stmt -e instance objects-by-Name version=2
-//go:generate mapper stmt -e instance id version=2
-//go:generate mapper stmt -e instance create version=2
-//go:generate mapper stmt -e instance rename version=2
-//go:generate mapper stmt -e instance delete-by-Project-and-Name version=2
-//go:generate mapper stmt -e instance update version=2
+//go:generate mapper stmt -e instance objects
+//go:generate mapper stmt -e instance objects-by-ID
+//go:generate mapper stmt -e instance objects-by-Project
+//go:generate mapper stmt -e instance objects-by-Project-and-Type
+//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Node
+//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Node-and-Name
+//go:generate mapper stmt -e instance objects-by-Project-and-Type-and-Name
+//go:generate mapper stmt -e instance objects-by-Project-and-Name
+//go:generate mapper stmt -e instance objects-by-Project-and-Name-and-Node
+//go:generate mapper stmt -e instance objects-by-Project-and-Node
+//go:generate mapper stmt -e instance objects-by-Type
+//go:generate mapper stmt -e instance objects-by-Type-and-Name
+//go:generate mapper stmt -e instance objects-by-Type-and-Name-and-Node
+//go:generate mapper stmt -e instance objects-by-Type-and-Node
+//go:generate mapper stmt -e instance objects-by-Node
+//go:generate mapper stmt -e instance objects-by-Node-and-Name
+//go:generate mapper stmt -e instance objects-by-Name
+//go:generate mapper stmt -e instance id
+//go:generate mapper stmt -e instance create
+//go:generate mapper stmt -e instance rename
+//go:generate mapper stmt -e instance delete-by-Project-and-Name
+//go:generate mapper stmt -e instance update
 //
-//go:generate mapper method -i -e instance GetMany references=Config,Device version=2
-//go:generate mapper method -i -e instance GetOne version=2
-//go:generate mapper method -i -e instance ID version=2
-//go:generate mapper method -i -e instance Exists version=2
-//go:generate mapper method -i -e instance Create references=Config,Device version=2
-//go:generate mapper method -i -e instance Rename version=2
-//go:generate mapper method -i -e instance DeleteOne-by-Project-and-Name version=2
-//go:generate mapper method -i -e instance Update references=Config,Device version=2
+//go:generate mapper method -i -e instance GetMany references=Config,Device
+//go:generate mapper method -i -e instance GetOne
+//go:generate mapper method -i -e instance ID
+//go:generate mapper method -i -e instance Exists
+//go:generate mapper method -i -e instance Create references=Config,Device
+//go:generate mapper method -i -e instance Rename
+//go:generate mapper method -i -e instance DeleteOne-by-Project-and-Name
+//go:generate mapper method -i -e instance Update references=Config,Device
 
 // Instance is a value object holding db-related details about an instance.
 type Instance struct {

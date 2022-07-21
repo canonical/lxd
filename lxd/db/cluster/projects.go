@@ -26,13 +26,13 @@ import (
 //go:generate mapper stmt -e project update struct=Project
 //go:generate mapper stmt -e project delete-by-Name
 //
-//go:generate mapper method -i -e project GetMany references=Config version=2
-//go:generate mapper method -i -e project GetOne struct=Project version=2
-//go:generate mapper method -i -e project Exists struct=Project version=2
-//go:generate mapper method -i -e project Create references=Config version=2
-//go:generate mapper method -i -e project ID struct=Project version=2
-//go:generate mapper method -i -e project Rename version=2
-//go:generate mapper method -i -e project DeleteOne-by-Name version=2
+//go:generate mapper method -i -e project GetMany references=Config
+//go:generate mapper method -i -e project GetOne struct=Project
+//go:generate mapper method -i -e project Exists struct=Project
+//go:generate mapper method -i -e project Create references=Config
+//go:generate mapper method -i -e project ID struct=Project
+//go:generate mapper method -i -e project Rename
+//go:generate mapper method -i -e project DeleteOne-by-Name
 
 // Project represents a LXD project.
 type Project struct {
