@@ -165,15 +165,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 // Like doProfileUpdate but does not update the database, since it was already
 // updated by doProfileUpdate itself, called on the notifying node.
 func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.ProfilePut) error {
-	nodeName := ""
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		nodeName, err = tx.GetLocalNodeName()
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to query local cluster member name: %w", err)
-	}
+	serverName := d.State().ServerName
 
 	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, name)
 	if err != nil {
@@ -183,7 +175,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 	failures := map[*db.InstanceArgs]error{}
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
-		err := doProfileUpdateInstance(d, name, old, nodeName, inst)
+		err := doProfileUpdateInstance(d, name, old, serverName, inst)
 		if err != nil {
 			failures[&inst] = err
 		}
