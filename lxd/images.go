@@ -1860,10 +1860,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 				return nil, fmt.Errorf("Unable to fetch project configuration: %w", err)
 			}
 		} else {
-			interval, err = clusterConfig.GetInt64(d.db.Cluster, "images.auto_update_interval")
-			if err != nil {
-				return nil, fmt.Errorf("Unable to fetch cluster configuration: %w", err)
-			}
+			interval = d.State().GlobalConfig.ImagesAutoUpdateIntervalHours()
 		}
 
 		// Check if we're supposed to auto update at all (0 disables it)
