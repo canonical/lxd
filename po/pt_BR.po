@@ -3417,8 +3417,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -6669,8 +6669,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:420
@@ -6739,19 +6739,19 @@ msgstr "sim"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Criar perfis"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Aceitar certificado"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "par de chave=valor inválido %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Aceitar certificado"
 
@@ -6767,7 +6767,7 @@ msgstr "sim"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Criar novas redes"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Versão do cliente: %s\n"
 
@@ -6793,6 +6793,7 @@ msgstr "sim"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado do cliente armazenado no servidor: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Não é possível ler stdin: %s"
 
@@ -6800,7 +6801,7 @@ msgstr "sim"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nome de membro do cluster"
 

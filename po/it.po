@@ -3356,8 +3356,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -6652,8 +6652,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:420
@@ -6723,19 +6723,19 @@ msgstr "si"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Creazione del container in corso"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Accetta certificato"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Proprietà errata: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Accetta certificato"
 
@@ -6832,6 +6832,7 @@ msgstr "si"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificato del client salvato dal server: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Impossible leggere da stdin: %s"
 
@@ -6839,7 +6840,7 @@ msgstr "si"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Il nome del container è: %s"
 
@@ -6911,3 +6912,7 @@ msgstr "si"
 #~ "###   size: \"61203283968\"\n"
 #~ "###   source: /home/chb/mnt/lxd_test/default.img\n"
 #~ "###   zfs.pool_name: default"
+
+#, fuzzy
+#~ msgid "[<remote>:]<network> <listen_address> [<default_target_address>]"
+#~ msgstr "Creazione del container in corso"
