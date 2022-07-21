@@ -183,6 +183,11 @@ func (c *Config) ImagesCompressionAlgorithm() string {
 	return c.m.GetString("images.compression_algorithm")
 }
 
+// ImagesAutoUpdateCached returns whether or not to auto update cached images.
+func (c *Config) ImagesAutoUpdateCached() bool {
+	return c.m.GetBool("images.auto_update_cached")
+}
+
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
