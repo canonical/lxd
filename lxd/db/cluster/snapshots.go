@@ -14,22 +14,22 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t snapshots.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 
-//go:generate mapper stmt -e instance_snapshot objects version=2
-//go:generate mapper stmt -e instance_snapshot objects-by-ID version=2
-//go:generate mapper stmt -e instance_snapshot objects-by-Project-and-Instance version=2
-//go:generate mapper stmt -e instance_snapshot objects-by-Project-and-Instance-and-Name version=2
-//go:generate mapper stmt -e instance_snapshot id version=2
-//go:generate mapper stmt -e instance_snapshot create references=Config,Devices version=2
-//go:generate mapper stmt -e instance_snapshot rename version=2
-//go:generate mapper stmt -e instance_snapshot delete-by-Project-and-Instance-and-Name version=2
+//go:generate mapper stmt -e instance_snapshot objects
+//go:generate mapper stmt -e instance_snapshot objects-by-ID
+//go:generate mapper stmt -e instance_snapshot objects-by-Project-and-Instance
+//go:generate mapper stmt -e instance_snapshot objects-by-Project-and-Instance-and-Name
+//go:generate mapper stmt -e instance_snapshot id
+//go:generate mapper stmt -e instance_snapshot create references=Config,Devices
+//go:generate mapper stmt -e instance_snapshot rename
+//go:generate mapper stmt -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
-//go:generate mapper method -i -e instance_snapshot GetMany references=Config,Device version=2
-//go:generate mapper method -i -e instance_snapshot GetOne version=2
-//go:generate mapper method -i -e instance_snapshot ID version=2
-//go:generate mapper method -i -e instance_snapshot Exists version=2
-//go:generate mapper method -i -e instance_snapshot Create references=Config,Device version=2
-//go:generate mapper method -i -e instance_snapshot Rename version=2
-//go:generate mapper method -i -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name version=2
+//go:generate mapper method -i -e instance_snapshot GetMany references=Config,Device
+//go:generate mapper method -i -e instance_snapshot GetOne
+//go:generate mapper method -i -e instance_snapshot ID
+//go:generate mapper method -i -e instance_snapshot Exists
+//go:generate mapper method -i -e instance_snapshot Create references=Config,Device
+//go:generate mapper method -i -e instance_snapshot Rename
+//go:generate mapper method -i -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {

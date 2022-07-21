@@ -26,14 +26,14 @@ import (
 //go:generate mapper stmt -e certificate delete-by-Name-and-Type
 //go:generate mapper stmt -e certificate update struct=Certificate
 //
-//go:generate mapper method -i -e certificate GetMany version=2
-//go:generate mapper method -i -e certificate GetOne version=2
-//go:generate mapper method -i -e certificate ID struct=Certificate version=2
-//go:generate mapper method -i -e certificate Exists struct=Certificate version=2
-//go:generate mapper method -i -e certificate Create struct=Certificate version=2
-//go:generate mapper method -i -e certificate DeleteOne-by-Fingerprint version=2
-//go:generate mapper method -i -e certificate DeleteMany-by-Name-and-Type version=2
-//go:generate mapper method -i -e certificate Update struct=Certificate version=2
+//go:generate mapper method -i -e certificate GetMany
+//go:generate mapper method -i -e certificate GetOne
+//go:generate mapper method -i -e certificate ID struct=Certificate
+//go:generate mapper method -i -e certificate Exists struct=Certificate
+//go:generate mapper method -i -e certificate Create struct=Certificate
+//go:generate mapper method -i -e certificate DeleteOne-by-Fingerprint
+//go:generate mapper method -i -e certificate DeleteMany-by-Name-and-Type
+//go:generate mapper method -i -e certificate Update struct=Certificate
 
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
