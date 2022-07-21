@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
@@ -175,10 +174,7 @@ type OVNRouterPeering struct {
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
-	nbConnection, err := clusterConfig.GetString(s.DB.Cluster, "network.ovn.northbound_connection")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get OVN northbound connection string: %w", err)
-	}
+	nbConnection := s.GlobalConfig.NetworkOVNNorthboundConnection()
 
 	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
