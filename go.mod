@@ -7,7 +7,7 @@ replace google.golang.org/grpc/naming => google.golang.org/grpc v1.29.1
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
-	github.com/canonical/candid v1.12.0
+	github.com/canonical/candid v1.12.1
 	github.com/canonical/go-dqlite v1.11.1
 	github.com/digitalocean/go-qemu v0.0.0-20210326154740-ac9e0b687001
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
@@ -23,7 +23,7 @@ require (
 	github.com/jaypipes/pcidb v1.0.0
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
-	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9
+	github.com/juju/persistent-cookiejar v1.0.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/lxc/go-lxc v0.0.0-20220627182551-ad3d9f7cb822
 	github.com/mattn/go-colorable v0.1.12
@@ -37,12 +37,12 @@ require (
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/sftp v1.13.5
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467
 	golang.org/x/text v0.3.7
 	google.golang.org/protobuf v1.28.0
@@ -67,12 +67,12 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
-	github.com/juju/collections v0.0.0-20220203020748-febd7cad8a7a // indirect
-	github.com/juju/errors v0.0.0-20220622220526-54a94488269b // indirect
+	github.com/juju/collections v1.0.0 // indirect
+	github.com/juju/errors v1.0.0 // indirect
 	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
-	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4 // indirect
-	github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 // indirect
-	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989 // indirect
+	github.com/juju/loggo v1.0.0 // indirect
+	github.com/juju/mgo/v2 v2.0.2 // indirect
+	github.com/juju/schema v1.0.1 // indirect
 	github.com/juju/utils/v2 v2.0.0-20210305225158-eedbe7b6b3e2 // indirect
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/juju/webbrowser v1.0.0 // indirect
@@ -92,7 +92,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spf13/afero v1.8.2 // indirect
+	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
@@ -102,11 +102,11 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.0.0-20220630215102-69896b714898 // indirect
+	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.org/x/tools v0.1.11 // indirect
-	google.golang.org/genproto v0.0.0-20220630174209-ad1d48641aa7 // indirect
-	google.golang.org/grpc v1.47.0 // indirect
+	google.golang.org/genproto v0.0.0-20220720214146-176da50484ac // indirect
+	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
