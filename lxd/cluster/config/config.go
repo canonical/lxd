@@ -188,6 +188,11 @@ func (c *Config) ImagesAutoUpdateCached() bool {
 	return c.m.GetBool("images.auto_update_cached")
 }
 
+// ImagesAutoUpdateIntervalHours returns interval in hours at which to look for update to cached images.
+func (c *Config) ImagesAutoUpdateIntervalHours() int64 {
+	return c.m.GetInt64("images.auto_update_interval")
+}
+
 // InstancesNICHostname returns hostname mode to use for instance NICs.
 func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
