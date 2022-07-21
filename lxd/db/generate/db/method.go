@@ -464,12 +464,14 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("if !rows.Next() {")
 	buf.L(`        return -1, api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
 	buf.L("}")
+	buf.N()
 	buf.L("var id int64")
 	buf.L("err = rows.Scan(&id)")
 	m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Failed to scan ID: %w\", err)")
 	buf.L("if rows.Next() {")
 	buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
 	buf.L("}")
+	buf.N()
 	buf.L("err = rows.Err()")
 	m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Result set failure: %w\", err)")
 	buf.L("return id, nil")
@@ -503,6 +505,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 	buf.L("        if api.StatusErrorCheck(err, http.StatusNotFound) {")
 	buf.L("                return false, nil")
 	buf.L("        }")
+	buf.N()
 	buf.L("        return false, err")
 	buf.L("}")
 	buf.N()
@@ -874,7 +877,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 
 	if isInterface {
 		buf.N()
-		buf.L("// %sGenerated is an interface of generated methods for %s", lex.Camel(m.entity), lex.Camel(m.entity))
+		buf.L("// %sGenerated is an interface of generated methods for %s.", lex.Camel(m.entity), lex.Camel(m.entity))
 		buf.L("type %sGenerated interface {", lex.Camel(m.entity))
 		defer m.end(buf)
 	}
