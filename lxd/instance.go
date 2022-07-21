@@ -394,16 +394,25 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 
 // Load all instances of this nodes under the given project.
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
-	// Get all the container arguments
-	var cts []dbCluster.Instance
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		filter := db.InstanceTypeFilter(instanceType)
-		filter.Project = &project
-		cts, err = tx.GetLocalInstancesInProject(ctx, filter)
+	var err error
+	var instances []instance.Instance
+
+	filter := dbCluster.InstanceFilter{
+		Type:    &instanceType,
+		Project: &project,
+	}
+
+	if s.ServerName != "" {
+		filter.Node = &s.ServerName
+	}
+
+	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
+		inst, err := instance.Load(s, dbInst, dbInst.Profiles)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
 		}
+
+		instances = append(instances, inst)
 
 		return nil
 	})
@@ -411,7 +420,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 		return nil, err
 	}
 
-	return instance.LoadAllInternal(s, cts)
+	return instances, nil
 }
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
