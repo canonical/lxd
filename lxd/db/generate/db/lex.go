@@ -26,29 +26,9 @@ func entityTable(entity string, override string) string {
 	return strings.Join(tableParts, "_")
 }
 
-// Return Go type of the given database entity.
-func entityType(pkg string, entity string) string {
-	typ := lex.Camel(entity)
-	if pkg != "db" {
-		typ = pkg + "." + typ
-	}
-
-	return typ
-}
-
 // Return the name of the Filter struct for the given database entity.
 func entityFilter(entity string) string {
 	return fmt.Sprintf("%sFilter", lex.Camel(entity))
-}
-
-// Return the name of the Post struct for the given entity.
-func entityPost(entity string) string {
-	return fmt.Sprintf("%sPost", lex.Capital(lex.Plural(entity)))
-}
-
-// Return the name of the Put struct for the given entity.
-func entityPut(entity string) string {
-	return fmt.Sprintf("%sPut", lex.Capital(entity))
 }
 
 // Return the name of the global variable holding the registration code for
@@ -97,11 +77,6 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 	}
 
 	return expr
-}
-
-// Return the transaction type name for the given database.
-func dbTxType(db string) string {
-	return fmt.Sprintf("*%sTx", lex.Capital(db))
 }
 
 // Return the code for a "dest" function, to be passed as parameter to
