@@ -244,7 +244,6 @@ msgstr ""
 "configuration keys can be changed."
 
 #: lxc/network_forward.go:497
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network forward.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -275,7 +274,8 @@ msgstr ""
 "###\n"
 "### An example would look like:\n"
 "### listen_address: 192.0.2.1\n"
-"### target_address: 198.51.100.2\n"
+"### config:\n"
+"###   target_address: 198.51.100.2\n"
 "### description: test desc\n"
 "### port:\n"
 "### - description: port forward\n"
@@ -730,7 +730,6 @@ msgstr ""
 "protocol=simplestreams\n"
 
 #: lxc/config_trust.go:87
-#, fuzzy
 msgid "Add new trusted client"
 msgstr "新たに信頼済みのクライアントを追加します"
 
@@ -750,6 +749,17 @@ msgid ""
 "can be\n"
 "restricted to one or more projects.\n"
 msgstr ""
+"新たに信頼済みクライアントを追加します\n"
+"\n"
+"次の証明書タイプがサポートされます:\n"
+"- client（デフォルト）\n"
+"- metrics\n"
+"\n"
+"証明書が省略された場合、トークンが生成されて返されます。\n"
+"有効なトークンを提供したクライアントは、そのクライアント証明書が信頼済みリス"
+"トに追加され、\n"
+"使ったトークンは無効化されます。\n"
+"証明書と同様に、トークンも 1 つ以上のプロジェクトに制限できます。\n"
 
 #: lxc/network_forward.go:706 lxc/network_forward.go:707
 msgid "Add ports to a forward"
@@ -1307,6 +1317,17 @@ msgid ""
 "The pull transfer mode is the default as it is compatible with all LXD "
 "versions.\n"
 msgstr ""
+"LXD サーバー内、または LXD サーバー間でインスタンスをコピーする\n"
+"\n"
+"転送モード（--mode）:\n"
+" - pull: コピー先サーバーがコピー元サーバーからデータを取得する（コピー元は"
+"ネットワークをリッスンしている必要がある）\n"
+" - push: コピー元サーバーがコピー先サーバーにデータをプッシュする（コピー先は"
+"ネットワークをリッスンしている必要がある）\n"
+" - relay: CLI がコピー元と先のサーバーに接続し、データを中継する（コピー元と"
+"先両方がネットワークをリッスンしている必要がある）\n"
+"\n"
+"すべての LXD バージョンとの互換性のため、pull 転送モードがデフォルトです。\n"
 
 #: lxc/config_device.go:351 lxc/config_device.go:352
 msgid "Copy profile inherited devices and override configuration keys"
@@ -1357,9 +1378,9 @@ msgid "Cores:"
 msgstr "コア:"
 
 #: lxc/remote.go:447
-#, fuzzy, c-format
+#, c-format
 msgid "Could not close server cert file %q: %w"
-msgstr "サーバ証明書格納用のディレクトリを作成できません"
+msgstr "サーバ証明書ファイル %q をクローズできません: %w"
 
 #: lxc/remote.go:187 lxc/remote.go:431
 msgid "Could not create server cert dir"
@@ -1391,9 +1412,9 @@ msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr "リモート '%s' に対する新しいリモート証明書がエラーで書き込めません: %v"
 
 #: lxc/remote.go:442
-#, fuzzy, c-format
+#, c-format
 msgid "Could not write server cert file %q: %w"
-msgstr "サーバ証明書格納用のディレクトリを作成できません"
+msgstr "サーバ証明書ファイル %q を書き込めません: %w"
 
 #: lxc/network_zone.go:1251
 msgid "Couldn't find a matching entry"
@@ -2138,14 +2159,14 @@ msgid "Failed accepting channel client %q: %v"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
 
 #: lxc/utils.go:205
-#, fuzzy, c-format
+#, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
-msgstr "インスタンスの SFTP への接続に失敗しました: %w"
+msgstr "インスタンスの存在確認に失敗しました \"%s:%s\": %w"
 
 #: lxc/utils.go:197
-#, fuzzy, c-format
+#, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
-msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
+msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
 
 #: lxc/file.go:1258
 #, c-format
@@ -2178,9 +2199,9 @@ msgid "Failed parsing SSH host key: %w"
 msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
 
 #: lxc/console.go:357
-#, fuzzy, c-format
+#, c-format
 msgid "Failed starting command: %w"
-msgstr "sshfs の起動に失敗しました: %w"
+msgstr "コマンドの実行に失敗しました: %w"
 
 #: lxc/file.go:1069
 #, c-format
@@ -2197,9 +2218,9 @@ msgid "Failed to add remote"
 msgstr "リモートの追加に失敗しました"
 
 #: lxc/remote.go:204
-#, fuzzy, c-format
+#, c-format
 msgid "Failed to close server cert file %q: %w"
-msgstr "証明書の作成に失敗しました: %w"
+msgstr "サーバー証明書ファイル %q のクローズに失敗しました: %w"
 
 #: lxc/move.go:285 lxc/move.go:361 lxc/move.go:413
 #, c-format
@@ -2251,9 +2272,9 @@ msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
 
 #: lxc/remote.go:199
-#, fuzzy, c-format
+#, c-format
 msgid "Failed to write server cert file %q: %w"
-msgstr "証明書の作成に失敗しました: %w"
+msgstr "サーバー証明書 %q の書き込みに失敗しました: %w"
 
 #: lxc/list.go:135
 msgid "Fast mode (same as --columns=nsacPt)"
@@ -2271,7 +2292,7 @@ msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/cluster.go:1071
 msgid "Force a particular evacuation action"
-msgstr ""
+msgstr "特定の待避アクションを強制します"
 
 #: lxc/cluster.go:1098
 msgid "Force evacuation without user confirmation"
@@ -3542,8 +3563,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -3814,6 +3835,17 @@ msgid ""
 "The pull transfer mode is the default as it is compatible with all LXD "
 "versions.\n"
 msgstr ""
+"LXD サーバー内、または LXD サーバー間でインスタンスを移動する\n"
+"\n"
+"転送モード（--mode）:\n"
+" - pull: 移動先サーバーが移動元サーバーからデータを取得する（移動元はネット"
+"ワークをリッスンしている必要がある）\n"
+" - push: 移動元サーバーが移動先サーバーにデータをプッシュする（移動先はネット"
+"ワークをリッスンしている必要がある）\n"
+" - relay: CLI が移動元と先のサーバーに接続し、データを中継する（移動元と先両"
+"方がネットワークをリッスンしている必要がある）\n"
+"\n"
+"すべての LXD バージョンとの互換性のため、pull 転送モードがデフォルトです。\n"
 
 #: lxc/storage_volume.go:1536 lxc/storage_volume.go:1537
 msgid "Move storage volumes between pools"
@@ -4306,9 +4338,8 @@ msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
 
 #: lxc/image.go:159
-#, fuzzy
 msgid "Profile to apply to the new image"
-msgstr "新しいインスタンスに適用するプロファイル"
+msgstr "新しいイメージに適用するプロファイル"
 
 #: lxc/copy.go:55 lxc/init.go:49
 msgid "Profile to apply to the new instance"
@@ -4557,7 +4588,6 @@ msgid "Remove rules from an ACL"
 msgstr "ACL からルールを削除します"
 
 #: lxc/config_trust.go:517 lxc/config_trust.go:518
-#, fuzzy
 msgid "Remove trusted client"
 msgstr "信頼済みクライアントを削除します"
 
@@ -5520,14 +5550,13 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:384
-#, fuzzy
 msgid ""
 "To start your first container, try: lxc launch ubuntu:22.04\n"
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
 msgstr ""
-"初めてコンテナを起動するには、\"lxc launch ubuntu:20.04\" と実行してみてくだ"
+"初めてコンテナを起動するには、\"lxc launch ubuntu:22.04\" と実行してみてくだ"
 "さい\n"
-"仮想マシンの場合は \"lxc launch ubuntu:20.04 --vm\" と実行してみてください"
+"仮想マシンの場合は \"lxc launch ubuntu:22.04 --vm\" と実行してみてください"
 
 #: lxc/config.go:288 lxc/config.go:428 lxc/config.go:578 lxc/config.go:664
 #: lxc/copy.go:129 lxc/info.go:338 lxc/network.go:800 lxc/storage.go:431
@@ -5537,9 +5566,9 @@ msgstr ""
 "りません"
 
 #: lxc/storage_volume.go:1230
-#, fuzzy, c-format
+#, c-format
 msgid "Total: %s"
-msgstr "合計: %v"
+msgstr "合計: %s"
 
 #: lxc/info.go:372 lxc/info.go:383 lxc/info.go:388 lxc/info.go:394
 #, c-format
@@ -5564,14 +5593,12 @@ msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
 #: lxc/copy.go:57
-#, fuzzy
 msgid "Transfer mode. One of pull, push or relay"
-msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
+msgstr "転送モード。pull, push, relay のいずれか"
 
 #: lxc/move.go:63
-#, fuzzy
 msgid "Transfer mode. One of pull, push or relay."
-msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
+msgstr "転送モード。pull, push, relay のいずれか。"
 
 #: lxc/image.go:768
 #, c-format
@@ -6374,19 +6401,16 @@ msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 
 #: lxc/storage_volume.go:1339
-#, fuzzy
 msgid "[<remote>:]<pool> [<filter>...]"
-msgstr "[<remote>:] [<filter>...]"
+msgstr "[<remote>:]<pool> [<filter>...]"
 
 #: lxc/storage_volume.go:1534
-#, fuzzy
 msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
-msgstr "[<remote>:]<profile> [<remote>:]<profile>"
+msgstr "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
 
 #: lxc/storage_volume.go:328
-#, fuzzy
 msgid "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
-msgstr "<pool>/<volume>[/<snapshot>] <pool>/<volume>"
+msgstr "[<remote>:]<pool>/<volume>[/<snapshot>] [<remote>:]<pool>/<volume>"
 
 #: lxc/config_device.go:286 lxc/config_device.go:660 lxc/profile.go:308
 #: lxc/profile.go:361 lxc/profile.go:412 lxc/profile.go:833
@@ -6578,7 +6602,6 @@ msgstr ""
 "    \"foo\" を \"default\" クラスタグループのみ使用するように再設定します。"
 
 #: lxc/config_device.go:82
-#, fuzzy
 msgid ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=/opt\n"
@@ -6590,7 +6613,12 @@ msgid ""
 msgstr ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+"    ホストの /share/c1 をインスタンス内の /opt にマウントします。\n"
+"\n"
+"lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool "
+"source=some-volume path=/opt\n"
+"    some-pool 上の some-volume ボリュームをインスタンス内の /opt にマウントし"
+"ます。"
 
 #: lxc/config.go:94
 msgid ""
@@ -6693,20 +6721,18 @@ msgstr ""
 "    LXD サーバの情報を表示します。"
 
 #: lxc/init.go:41
-#, fuzzy
 msgid ""
 "lxc init ubuntu:22.04 u1\n"
 "\n"
 "lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    Create the instance with configuration from config.yaml"
 msgstr ""
-"lxc init ubuntu:20.04 u1\n"
+"lxc init ubuntu:22.04 u1\n"
 "\n"
-"lxc init ubuntu:20.04 u1 < config.yaml\n"
+"lxc init ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成します"
 
 #: lxc/launch.go:27
-#, fuzzy
 msgid ""
 "lxc launch ubuntu:22.04 u1\n"
 "\n"
@@ -6716,12 +6742,12 @@ msgid ""
 "lxc launch ubuntu:22.04 v1 --vm\n"
 "    Create and start a virtual machine"
 msgstr ""
-"lxc launch ubuntu:20.04 u1\n"
+"lxc launch ubuntu:22.04 u1\n"
 "\n"
-"lxc launch ubuntu:20.04 u1 < config.yaml\n"
+"lxc launch ubuntu:22.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成し、起動します\n"
 "\n"
-"lxc launch ubuntu:20.04 v1 --vm\n"
+"lxc launch ubuntu:22.04 v1 --vm\n"
 "    仮想マシンを作成し、起動します"
 
 #: lxc/list.go:123
@@ -6823,7 +6849,6 @@ msgstr ""
 "    \"foo\" からすべてのプロファイルを削除します。"
 
 #: lxc/config_device.go:90
-#, fuzzy
 msgid ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=/opt\n"
@@ -6835,7 +6860,12 @@ msgid ""
 msgstr ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
+"    ホストの /share/c1 をインスタンス内の /opt にマウントします。\n"
+"\n"
+"lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool "
+"source=some-volume path=/opt\n"
+"    some-pool 上の some-volume ボリュームをインスタンスの /opt にマウントしま"
+"す。"
 
 #: lxc/profile.go:416
 msgid ""
@@ -6914,8 +6944,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -7013,7 +7043,7 @@ msgstr "yes"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
@@ -7053,16 +7083,18 @@ msgstr "yes"
 #~ "lxc launch ubuntu:20.04 v1 --vm\n"
 #~ "    仮想マシンを作成し、起動します"
 
+#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
+#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -7079,7 +7111,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -8626,8 +8658,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect "
-#~ "\"custom\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect \"custom"
+#~ "\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
@@ -9179,7 +9211,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -9187,6 +9219,7 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -9244,6 +9277,7 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
+#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 
