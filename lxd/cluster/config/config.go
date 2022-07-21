@@ -232,20 +232,6 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	return changed, nil
 }
 
-// GetBool is a convenience for loading the cluster configuration and
-// returning the value of a particular boolean key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetBool(cluster *db.Cluster, key string) (bool, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return false, err
-	}
-
-	return config.m.GetBool(key), nil
-}
-
 // GetInt64 is a convenience for loading the cluster configuration and
 // returning the value of a particular key.
 //
