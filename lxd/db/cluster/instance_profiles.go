@@ -13,15 +13,15 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instance_profiles.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
-//go:generate mapper stmt -e instance_profile objects-by-ProfileID version=2
-//go:generate mapper stmt -e instance_profile objects-by-InstanceID version=2
-//go:generate mapper stmt -e instance_profile create version=2
-//go:generate mapper stmt -e instance_profile delete-by-InstanceID version=2
+//go:generate mapper stmt -e instance_profile objects-by-ProfileID
+//go:generate mapper stmt -e instance_profile objects-by-InstanceID
+//go:generate mapper stmt -e instance_profile create
+//go:generate mapper stmt -e instance_profile delete-by-InstanceID
 //
-//go:generate mapper method -i -e instance_profile GetMany struct=Profile version=2
-//go:generate mapper method -i -e instance_profile GetMany struct=Instance version=2
-//go:generate mapper method -i -e instance_profile Create struct=Instance version=2
-//go:generate mapper method -i -e instance_profile DeleteMany struct=Instance version=2
+//go:generate mapper method -i -e instance_profile GetMany struct=Profile
+//go:generate mapper method -i -e instance_profile GetMany struct=Instance
+//go:generate mapper method -i -e instance_profile Create struct=Instance
+//go:generate mapper method -i -e instance_profile DeleteMany struct=Instance
 
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.

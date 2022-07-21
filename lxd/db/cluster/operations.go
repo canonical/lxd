@@ -11,18 +11,18 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t operations.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
-//go:generate mapper stmt -e operation objects version=2 version=2
-//go:generate mapper stmt -e operation objects-by-NodeID version=2
-//go:generate mapper stmt -e operation objects-by-ID version=2
-//go:generate mapper stmt -e operation objects-by-UUID version=2
-//go:generate mapper stmt -e operation create-or-replace version=2
-//go:generate mapper stmt -e operation delete-by-UUID version=2
-//go:generate mapper stmt -e operation delete-by-NodeID version=2
+//go:generate mapper stmt -e operation objects
+//go:generate mapper stmt -e operation objects-by-NodeID
+//go:generate mapper stmt -e operation objects-by-ID
+//go:generate mapper stmt -e operation objects-by-UUID
+//go:generate mapper stmt -e operation create-or-replace
+//go:generate mapper stmt -e operation delete-by-UUID
+//go:generate mapper stmt -e operation delete-by-NodeID
 //
-//go:generate mapper method -i -e operation GetMany version=2
-//go:generate mapper method -i -e operation CreateOrReplace version=2
-//go:generate mapper method -i -e operation DeleteOne-by-UUID version=2
-//go:generate mapper method -i -e operation DeleteMany-by-NodeID version=2
+//go:generate mapper method -i -e operation GetMany
+//go:generate mapper method -i -e operation CreateOrReplace
+//go:generate mapper method -i -e operation DeleteOne-by-UUID
+//go:generate mapper method -i -e operation DeleteMany-by-NodeID
 
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
