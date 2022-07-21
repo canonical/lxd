@@ -7,7 +7,7 @@ import (
 	"database/sql"
 )
 
-// WarningGenerated is an interface of generated methods for Warning
+// WarningGenerated is an interface of generated methods for Warning.
 type WarningGenerated interface {
 	// GetWarnings returns all available warnings.
 	// generator: warning GetMany

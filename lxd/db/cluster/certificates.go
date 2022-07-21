@@ -18,6 +18,7 @@ import (
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e certificate objects
+//go:generate mapper stmt -e certificate objects-by-ID
 //go:generate mapper stmt -e certificate objects-by-Fingerprint
 //go:generate mapper stmt -e certificate id
 //go:generate mapper stmt -e certificate create struct=Certificate
@@ -46,6 +47,7 @@ type Certificate struct {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
+	ID          *int
 	Fingerprint *string
 	Name        *string
 	Type        *CertificateType
