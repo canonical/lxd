@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/client"
+	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/vsock"
 	lxdshared "github.com/lxc/lxd/shared"
@@ -69,7 +70,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) response.Response {
-	var data api.API10Put
+	var data agentAPI.API10Put
 
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
