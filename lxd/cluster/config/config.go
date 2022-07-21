@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -240,16 +239,6 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	}
 
 	return changed, nil
-}
-
-func configGet(cluster *db.Cluster) (*Config, error) {
-	var config *Config
-	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		config, err = Load(tx)
-		return err
-	})
-	return config, err
 }
 
 // ConfigSchema defines available server configuration keys.
