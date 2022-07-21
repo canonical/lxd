@@ -161,6 +161,11 @@ func (c *Config) NetworkOVNIntegrationBridge() string {
 	return c.m.GetString("network.ovn.integration_bridge")
 }
 
+// NetworkOVNNorthboundConnection returns the OVN northbound database connection string for OVN networks.
+func (c *Config) NetworkOVNNorthboundConnection() string {
+	return c.m.GetString("network.ovn.northbound_connection")
+}
+
 // ShutdownTimeout returns the number of minutes to wait for running operation to complete
 // before LXD server shut down.
 func (c *Config) ShutdownTimeout() time.Duration {
