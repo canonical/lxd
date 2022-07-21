@@ -227,20 +227,6 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 	return changed, nil
 }
 
-// GetString is a convenience for loading the cluster configuration and
-// returning the value of a particular key.
-//
-// It's a deprecated API meant to be used by call sites that are not
-// interacting with the database in a transactional way.
-func GetString(cluster *db.Cluster, key string) (string, error) {
-	config, err := configGet(cluster)
-	if err != nil {
-		return "", err
-	}
-
-	return config.m.GetString(key), nil
-}
-
 // GetBool is a convenience for loading the cluster configuration and
 // returning the value of a particular boolean key.
 //
