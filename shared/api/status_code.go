@@ -18,6 +18,7 @@ const (
 	Frozen           StatusCode = 110
 	Thawed           StatusCode = 111
 	Error            StatusCode = 112
+	Ready            StatusCode = 113
 
 	Success StatusCode = 200
 
@@ -44,6 +45,7 @@ func (o StatusCode) String() string {
 		Frozen:           "Frozen",
 		Thawed:           "Thawed",
 		Error:            "Error",
+		Ready:            "Ready",
 	}[o]
 }
 
