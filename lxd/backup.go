@@ -11,7 +11,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
-	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
@@ -95,10 +94,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		if p.Config["backups.compression_algorithm"] != "" {
 			compress = p.Config["backups.compression_algorithm"]
 		} else {
-			compress, err = clusterConfig.GetString(s.DB.Cluster, "backups.compression_algorithm")
-			if err != nil {
-				return err
-			}
+			compress = s.GlobalConfig.BackupsCompressionAlgorithm()
 		}
 	}
 
@@ -400,10 +396,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if backupRow.CompressionAlgorithm != "" {
 		compress = backupRow.CompressionAlgorithm
 	} else {
-		compress, err = clusterConfig.GetString(s.DB.Cluster, "backups.compression_algorithm")
-		if err != nil {
-			return err
-		}
+		compress = s.GlobalConfig.BackupsCompressionAlgorithm()
 	}
 
 	// Create the target path if needed.
