@@ -145,14 +145,14 @@ func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
 
 func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		warnings, err := tx.GetWarnings(db.WarningFilter{})
+		warnings, err := dbCluster.GetWarnings(ctx, tx.Tx(), dbCluster.WarningFilter{})
 		if err != nil {
 			return err
 		}
 
 		for _, w := range warnings {
 			if w.Node == "" {
-				err = tx.DeleteWarning(w.UUID)
+				err = dbCluster.DeleteWarning(ctx, tx.Tx(), w.UUID)
 				if err != nil {
 					return err
 				}
