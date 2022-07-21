@@ -510,14 +510,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 	// When clustered, use the node name, otherwise use the hostname.
 	if clustered {
-		var serverName string
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			serverName, err = tx.GetLocalNodeName()
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
+		serverName := d.State().ServerName
 
 		if serverName != source.Location() {
 			// Check if we are copying from a ceph-based container.
