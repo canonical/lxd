@@ -5874,6 +5874,10 @@ func (d *qemu) statusCode() api.StatusCode {
 		}
 
 		if op.Action() == "stop" {
+			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+				return api.Ready
+			}
+
 			return api.Running
 		}
 	}
@@ -5909,6 +5913,10 @@ func (d *qemu) statusCode() api.StatusCode {
 	}
 
 	if status == "running" {
+		if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+			return api.Ready
+		}
+
 		return api.Running
 	} else if status == "paused" {
 		return api.Frozen

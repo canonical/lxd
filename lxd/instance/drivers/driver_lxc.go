@@ -6700,7 +6700,13 @@ func (d *lxc) statusCode() api.StatusCode {
 		return api.Error
 	}
 
-	return lxcStatusCode(state)
+	statusCode := lxcStatusCode(state)
+
+	if statusCode == api.Running && shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+		return api.Ready
+	}
+
+	return statusCode
 }
 
 // State returns instance state.
