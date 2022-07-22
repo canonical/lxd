@@ -1690,3 +1690,6 @@ IP addresses that can be forwarded to one or more internal IP(s) inside their re
 
 ## `vsock_api`
 This introduces a bidirectional `vsock` interface which allows the `lxd-agent` and the LXD server to communicate better.
+
+## `instance_ready_state`
+This introduces a new `Ready` state for instances which can be set using `devlxd`.
