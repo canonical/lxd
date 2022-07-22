@@ -89,6 +89,33 @@ EOF
 
   kill -9 "${client_websocket}"
   kill -9 "${client_stream}"
+
+  # Test instance Ready state
+  lxc info devlxd | grep -q 'Status: RUNNING'
+  lxc exec devlxd devlxd-client ready-state true
+  [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
+
+  lxc info devlxd | grep -q 'Status: READY'
+  lxc exec devlxd devlxd-client ready-state false
+  [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
+
+  lxc info devlxd | grep -q 'Status: RUNNING'
+
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
+  # volatile.last_state.ready should be unset during daemon init
+  [ -z "$(lxc config get devlxd volatile.last_state.ready)" ]
+
+  lxc exec devlxd devlxd-client ready-state true
+  [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
+  lxc stop -f devlxd
+  [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
+
+  lxc start devlxd
+  lxc exec devlxd devlxd-client ready-state true
+  [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
+
   lxc delete devlxd --force
 
   [ "${MATCH}" = "1" ] || false
