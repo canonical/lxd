@@ -7,6 +7,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,10 +15,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"gopkg.in/yaml.v2"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 type devLxdDialer struct {
@@ -110,6 +114,44 @@ func devlxdMonitorWebsocket(c http.Client) {
 	}
 }
 
+func devlxdState(ready bool) {
+	client := http.Client{
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", "/dev/lxd/sock")
+			},
+		},
+	}
+
+	var body bytes.Buffer
+	payload := struct {
+		State string `json:"state"`
+	}{}
+
+	if ready {
+		payload.State = api.Ready.String()
+	} else {
+		payload.State = api.Started.String()
+	}
+
+	err := json.NewEncoder(&body).Encode(&payload)
+	if err != nil {
+		return
+	}
+
+	req, err := http.NewRequest("PATCH", "http://unix/1.0", &body)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	_, err = client.Do(req)
+	if err != nil {
+		return
+	}
+}
+
 func main() {
 	c := http.Client{Transport: devLxdTransport}
 	raw, err := c.Get("http://meshuggah-rocks/")
@@ -148,6 +190,17 @@ func main() {
 
 		if os.Args[1] == "monitor-stream" {
 			devlxdMonitorStream()
+			os.Exit(0)
+		}
+
+		if os.Args[1] == "ready-state" {
+			ready, err := strconv.ParseBool(os.Args[2])
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			devlxdState(ready)
 			os.Exit(0)
 		}
 
