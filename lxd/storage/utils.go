@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -526,7 +527,8 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed a maliciously
 		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GB
 		// address space and 2 seconds CPU time, which ought to be more than enough for real world images.
-		imgJSON, err := shared.RunCommand("prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath)
+		cmd := []string{"prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath}
+		imgJSON, err := apparmor.QemuImg(sysOS, cmd, imgPath, "")
 		if err != nil {
 			return -1, fmt.Errorf("Failed reading image info %q: %w", dstPath, err)
 		}
@@ -580,7 +582,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Convert the qcow2 format to a raw block device.
 		l.Debug("Converting qcow2 image to raw disk", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath})
 
-		cmd := []string{
+		cmd = []string{
 			"nice", "-n19", // Run with low priority to reduce CPU impact on other processes.
 			"qemu-img", "convert", "-f", "qcow2", "-O", "raw",
 		}
@@ -605,7 +607,8 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 		cmd = append(cmd, imgPath, dstPath)
 
-		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
+		_, err = apparmor.QemuImg(sysOS, cmd, imgPath, dstPath)
+
 		if err != nil {
 			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)
 		}
