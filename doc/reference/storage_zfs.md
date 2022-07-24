@@ -29,7 +29,7 @@ The `zfs` driver in LXD uses ZFS filesystems and ZFS volumes for images and cust
 By default, LXD enables compression when creating a ZFS pool.
 
 LXD assumes that it has full control over the ZFS pool and dataset.
-Therefore, you should never maintain any datasets or file system entities that are not owned by LXD in a LXD ZFS pool or dataset, because LXD might delete them.
+Therefore, you should never maintain any datasets or file system entities that are not owned by LXD in a ZFS pool or dataset, because LXD might delete them.
 
 Due to the way copy-on-write works in ZFS, parent ZFS filesystems can't be removed until all children are gone.
 As a result, LXD automatically renames any objects that are removed but still referenced.
