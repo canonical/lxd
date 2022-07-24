@@ -21,7 +21,7 @@ Another type is a *volume snapshot*, which captures a specific state of a logica
 The `lvm` driver in LXD uses logical volumes for images, and volume snapshots for instances and snapshots.
 
 LXD assumes that it has full control over the volume group.
-Therefore, you should never maintain any file system entities that are not owned by LXD in a LXD volume group, because LXD might delete them.
+Therefore, you should never maintain any file system entities that are not owned by LXD in an LVM volume group, because LXD might delete them.
 
 By default, LVM storage pools use an LVM thin pool and create logical volumes for all LXD storage entities (images, instances and custom volumes) in there.
 This behavior can be changed by setting {ref}`lvm.use_thinpool <storage-lvm-pool-config>` to `false` when you create the pool.
