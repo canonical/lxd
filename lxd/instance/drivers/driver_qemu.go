@@ -5328,7 +5328,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	cmd = append(cmd, mountInfo.DiskPath, fPath)
 
-	_, err = shared.RunCommand(cmd[0], cmd[1:]...)
+	_, err = apparmor.QemuImg(d.state.OS, cmd, mountInfo.DiskPath, fPath)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
 	}
