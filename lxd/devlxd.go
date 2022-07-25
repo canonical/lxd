@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -30,7 +31,13 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+type devlxdPut struct {
+	State string `json:"state" yaml:"state"`
+}
+
 type devlxdGet struct {
+	devlxdPut
+
 	APIVersion   string `json:"api_version" yaml:"api_version"`
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
 	Location     string `json:"location" yaml:"location"`
