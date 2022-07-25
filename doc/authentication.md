@@ -90,6 +90,17 @@ You can also add new clients by using tokens. This is a safer way than using the
 
 To use this method, generate a token for each client by calling `lxc config trust add`, which will prompt for the client name.
 The clients can then add their certificates to the server's trust store by providing the generated token when prompted for the trust password.
+
+```{note}
+If your LXD server is behind NAT, you must specify its external public address when adding it as a remote for a client:
+
+    lxc remote add <name> <IP_address>
+
+When generating the token on the server, LXD includes a list of IP addresses that the client can use to access the server.
+However, if the server is behind NAT, these addresses might be local addresses that the client cannot connect to.
+In this case, you must specify the external address manually.
+```
+
 Alternatively, the clients can provide the token directly when adding the remote: `lxc remote add <name> <token>`.
 
 ### Using a PKI system
