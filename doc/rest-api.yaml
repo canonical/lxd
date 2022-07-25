@@ -5184,6 +5184,170 @@ definitions:
     title: StatusCode represents a valid LXD operation and container status.
     type: integer
     x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucket:
+    description: StorageBucket represents the fields of a LXD storage pool bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      name:
+        description: Bucket name
+        example: foo
+        type: string
+        x-go-name: Name
+      s3_url:
+        description: Bucket S3 URL
+        example: https://127.0.0.1:8080/foo
+        type: string
+        x-go-name: S3URL
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKey:
+    description: StorageBucketKey represents the fields of a LXD storage pool bucket
+      key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      name:
+        description: Key name
+        example: my-read-only-key
+        type: string
+        x-go-name: Name
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKeyPut:
+    description: StorageBucketKeyPut represents the modifiable fields of a LXD storage
+      pool bucket key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKeysPost:
+    description: StorageBucketKeysPost represents the fields of a new LXD storage
+      pool bucket key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      name:
+        description: Key name
+        example: my-read-only-key
+        type: string
+        x-go-name: Name
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketPut:
+    description: StorageBucketPut represents the modifiable fields of a LXD storage
+      pool bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketsPost:
+    description: StorageBucketsPost represents the fields of a new LXD storage pool
+      bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+      name:
+        description: Bucket name
+        example: foo
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   StoragePool:
     properties:
       config:
