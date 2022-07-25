@@ -5184,6 +5184,170 @@ definitions:
     title: StatusCode represents a valid LXD operation and container status.
     type: integer
     x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucket:
+    description: StorageBucket represents the fields of a LXD storage pool bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      name:
+        description: Bucket name
+        example: foo
+        type: string
+        x-go-name: Name
+      s3_url:
+        description: Bucket S3 URL
+        example: https://127.0.0.1:8080/foo
+        type: string
+        x-go-name: S3URL
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKey:
+    description: StorageBucketKey represents the fields of a LXD storage pool bucket
+      key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      name:
+        description: Key name
+        example: my-read-only-key
+        type: string
+        x-go-name: Name
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKeyPut:
+    description: StorageBucketKeyPut represents the modifiable fields of a LXD storage
+      pool bucket key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketKeysPost:
+    description: StorageBucketKeysPost represents the fields of a new LXD storage
+      pool bucket key
+    properties:
+      access-key:
+        description: Access key
+        example: 33UgkaIBLBIxb7O1
+        type: string
+        x-go-name: AccessKey
+      description:
+        description: Description of the storage bucket key
+        example: My read-only bucket key
+        type: string
+        x-go-name: Description
+      name:
+        description: Key name
+        example: my-read-only-key
+        type: string
+        x-go-name: Name
+      role:
+        description: Whether the key can perform write actions or not.
+        example: read-only
+        type: string
+        x-go-name: Role
+      secret-key:
+        description: Secret key
+        example: kDQD6AOgwHgaQI1UIJBJpPaiLgZuJbq0
+        type: string
+        x-go-name: SecretKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketPut:
+    description: StorageBucketPut represents the modifiable fields of a LXD storage
+      pool bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  StorageBucketsPost:
+    description: StorageBucketsPost represents the fields of a new LXD storage pool
+      bucket
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Storage bucket configuration map
+        example:
+          size: 50GiB
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the storage bucket
+        example: My custom bucket
+        type: string
+        x-go-name: Description
+      name:
+        description: Bucket name
+        example: foo
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   StoragePool:
     properties:
       config:
@@ -12521,6 +12685,178 @@ paths:
       summary: Update the storage pool
       tags:
       - storage
+  /1.0/storage-pools/{name}/buckets/{bucketName}:
+    delete:
+      description: Removes the storage bucket.
+      operationId: storage_pool_bucket_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the storage bucket
+      tags:
+      - storage
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the storage bucket configuration.
+      operationId: storage_pool_bucket_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage bucket configuration
+        in: body
+        name: storage bucket
+        required: true
+        schema:
+          $ref: '#/definitions/StorageBucketPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the storage bucket.
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire storage bucket configuration.
+      operationId: storage_pool_bucket_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage bucket configuration
+        in: body
+        name: storage bucket
+        required: true
+        schema:
+          $ref: '#/definitions/StorageBucketPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the storage bucket
+      tags:
+      - storage
+  /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName}:
+    delete:
+      description: Removes the storage bucket key.
+      operationId: storage_pool_bucket_key_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the storage bucket key
+      tags:
+      - storage
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire storage bucket key configuration.
+      operationId: storage_pool_bucket_key_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
+      - description: Storage bucket key configuration
+        in: body
+        name: storage bucket
+        required: true
+        schema:
+          $ref: '#/definitions/StorageBucketKeyPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the storage bucket key
+      tags:
+      - storage
   /1.0/storage-pools/{name}/resources:
     get:
       description: Gets the usage information for the storage pool.
@@ -13680,6 +14016,330 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Get the storage volumes
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets:
+    get:
+      description: Returns a list of storage pool buckets (URLs).
+      operationId: storage_pool_buckets_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/default/buckets/foo",
+                    "/1.0/storage-pools/default/buckets/bar",
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool buckets
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage pool bucket.
+      operationId: storage_pool_bucket_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Bucket
+        in: body
+        name: bucket
+        required: true
+        schema:
+          $ref: '#/definitions/StorageBucketsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a storage pool bucket.
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets/{bucketName}:
+    get:
+      description: Gets a specific storage pool bucket.
+      operationId: storage_pool_bucket_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage pool bucket
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StorageBucket'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool bucket
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys:
+    get:
+      description: Returns a list of storage pool bucket keys (URLs).
+      operationId: storage_pool_bucket_keys_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/storage-pools/default/buckets/foo/keys/my-read-only-key",
+                    "/1.0/storage-pools/default/buckets/bar/keys/admin",
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool bucket keys
+      tags:
+      - storage
+    post:
+      consumes:
+      - application/json
+      description: Creates a new storage pool bucket key.
+      operationId: storage_pool_bucket_key_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: Bucket
+        in: body
+        name: bucket
+        required: true
+        schema:
+          $ref: '#/definitions/StorageBucketKeysPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a storage pool bucket key.
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName}:
+    get:
+      description: Gets a specific storage pool bucket key.
+      operationId: storage_pool_bucket_key_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Storage pool bucket key
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/StorageBucketKey'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool bucket key
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys?recursion=1:
+    get:
+      description: Returns a list of storage pool bucket keys (structs).
+      operationId: storage_pool_bucket_keys_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage pool bucket keys
+                items:
+                  $ref: '#/definitions/StorageBucketKey'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool bucket keys
+      tags:
+      - storage
+  /1.0/storage-pools/{poolName}/buckets?recursion=1:
+    get:
+      description: Returns a list of storage pool buckets (structs).
+      operationId: storage_pool_buckets_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of storage pool buckets
+                items:
+                  $ref: '#/definitions/StorageBucket'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the storage pool buckets
       tags:
       - storage
   /1.0/storage-pools?recursion=1:
