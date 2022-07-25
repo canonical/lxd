@@ -1140,6 +1140,27 @@ func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) 
 	return poolName, err
 }
 
+// DeleteReadyStateFromLocalInstances deletes the volatile.last_state.ready config key
+// from all local instances.
+func (c *Cluster) DeleteReadyStateFromLocalInstances() error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		nodeID := tx.GetNodeID()
+
+		_, err := tx.Tx().Exec(`
+DELETE FROM instances_config
+WHERE instances_config.id IN (
+	SELECT instances_config.id FROM instances_config
+	JOIN instances ON instances_config.instance_id=instances.id
+	JOIN nodes ON instances.node_id=nodes.id
+	WHERE key="volatile.last_state.ready" AND nodes.id=?
+)`, nodeID)
+
+		return err
+	})
+
+	return err
+}
+
 // CreateInstanceConfig inserts a new config for the instance with the given ID.
 func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
