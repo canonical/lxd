@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	driver "github.com/canonical/go-dqlite/driver"
@@ -186,14 +187,14 @@ INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) 
 			}
 
 			// Default project
-			stmt = `
-INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.networks', 'true');
-`
-			_, err = tx.Exec(stmt)
+			var defaultProjectStmt strings.Builder
+			_, _ = defaultProjectStmt.WriteString("INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');")
+
+			for _, key := range ProjectFeaturesDefaults {
+				_, _ = defaultProjectStmt.WriteString(fmt.Sprintf("INSERT INTO projects_config (project_id, key, value) VALUES (1, '%s', 'true');", key))
+			}
+
+			_, err = tx.Exec(defaultProjectStmt.String())
 			if err != nil {
 				return err
 			}
