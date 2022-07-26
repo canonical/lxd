@@ -167,7 +167,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
 		if m.db == "" {
-			buf.L("stmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+			buf.L("stmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
 		} else {
 			buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
 		}
@@ -192,7 +192,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 
 	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
 	if m.db == "" {
-		buf.L("stmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+		buf.L("stmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
 	} else {
 		buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
 	}
@@ -279,7 +279,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	} else if mapping.Type == AssociationTable {
 		filter := m.config["struct"] + "ID"
 		if m.db == "" {
-			buf.L("sqlStmt := stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter))
+			buf.L("sqlStmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter))
 		} else {
 			buf.L("sqlStmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter))
 		}
@@ -302,7 +302,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
 			if m.db == "" {
-				buf.L("sqlStmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+				buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
 			} else {
 				buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
 			}
@@ -328,7 +328,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
 		if m.db == "" {
-			buf.L("sqlStmt = stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+			buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
 		} else {
 			buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
 		}
@@ -584,7 +584,7 @@ func (m *Method) id(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	if m.db == "" {
-		buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "ID"))
+		buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "ID"))
 	} else {
 		buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "ID"))
 	}
@@ -753,7 +753,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		buf.L("// Prepared statement to use. ")
 		if m.db == "" {
-			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, kind))
+			buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, kind))
 		} else {
 			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, kind))
 		}
@@ -893,7 +893,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	if m.db == "" {
-		buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "rename"))
+		buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "rename"))
 	} else {
 		buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "rename"))
 	}
@@ -1013,7 +1013,7 @@ func (m *Method) update(buf *file.Buffer) error {
 		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 		m.ifErrNotNil(buf, true, "err")
 		if m.db == "" {
-			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "update"))
+			buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "update"))
 		} else {
 			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "update"))
 		}
@@ -1100,7 +1100,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	defer m.end(buf)
 	if mapping.Type == AssociationTable {
 		if m.db == "" {
-			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
+			buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		} else {
 			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		}
@@ -1123,7 +1123,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
 		if m.db == "" {
-			buf.L("stmt := stmt(tx, %s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+			buf.L("stmt := Stmt(tx, %s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		} else {
 			buf.L("stmt := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		}
