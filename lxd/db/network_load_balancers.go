@@ -447,7 +447,7 @@ func (c *Cluster) GetNetworkLoadBalancers(networkID int64, memberSpecific bool) 
 	`)
 
 	if memberSpecific {
-		q.WriteString("AND (networks_load_balancers.node_id = ? OR networks_load_balancersnode_id IS NULL) ")
+		q.WriteString("AND (networks_load_balancers.node_id = ? OR networks_load_balancers.node_id IS NULL) ")
 		args = append(args, c.nodeID)
 	}
 
