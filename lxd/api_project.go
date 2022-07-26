@@ -32,14 +32,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// projectFeatures are the features available to projects.
-var projectFeatures = []string{"features.images", "features.profiles", "features.storage.volumes", "features.networks"}
-
-// projectFeaturesDefaults are the features enabled by default on new projects.
-// The features.networks won't be enabled by default until it becomes clear whether it is practical to run OVN on
-// every system.
-var projectFeaturesDefaults = []string{"features.images", "features.profiles", "features.storage.volumes"}
-
 var projectsCmd = APIEndpoint{
 	Path: "projects",
 
@@ -285,7 +277,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		project.Config = map[string]string{}
 	}
 
-	for _, feature := range projectFeaturesDefaults {
+	for _, feature := range cluster.ProjectFeaturesDefaults {
 		_, ok := project.Config[feature]
 		if !ok {
 			project.Config[feature] = "true"
@@ -670,7 +662,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 
 	// Flag indicating if any feature has changed.
 	featuresChanged := false
-	for _, featureKey := range projectFeatures {
+	for _, featureKey := range cluster.ProjectFeatures {
 		if shared.StringInSlice(featureKey, configChanged) {
 			featuresChanged = true
 			break
