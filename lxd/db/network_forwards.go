@@ -173,7 +173,7 @@ func (c *Cluster) DeleteNetworkForward(networkID int64, forwardID int64) error {
 // GetNetworkForward returns the Network Forward ID and info for the given network ID and listen address.
 // If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
 // all members.
-func (c *Cluster) GetNetworkForward(networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkForward, error) {
+func (c *Cluster) GetNetworkForward(ctx context.Context, networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkForward, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{networkID, listenAddress}
 
@@ -200,7 +200,7 @@ func (c *Cluster) GetNetworkForward(networkID int64, memberSpecific bool, listen
 	var forward api.NetworkForward
 	var portsJSON string
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		var rowCount int
 
 		err = tx.tx.QueryRow(q.String(), args...).Scan(&forwardID, &forward.ListenAddress, &forward.Description, &forward.Location, &portsJSON, &rowCount)
@@ -406,7 +406,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[strin
 // GetNetworkForwards returns map of Network Forwards for the given network ID keyed on Forward ID.
 // If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
 // all members.
-func (c *Cluster) GetNetworkForwards(networkID int64, memberSpecific bool) (map[int64]*api.NetworkForward, error) {
+func (c *Cluster) GetNetworkForwards(ctx context.Context, networkID int64, memberSpecific bool) (map[int64]*api.NetworkForward, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{networkID}
 
@@ -430,7 +430,7 @@ func (c *Cluster) GetNetworkForwards(networkID int64, memberSpecific bool) (map[
 	var err error
 	forwards := make(map[int64]*api.NetworkForward)
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var portsJSON string
