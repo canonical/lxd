@@ -212,7 +212,7 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 	args[11] = object.Count
 
 	// Prepared statement to use.
-	stmt := c.stmt(warningCreate)
+	stmt := cluster.Stmt(c.tx, warningCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
