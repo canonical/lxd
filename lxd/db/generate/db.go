@@ -143,18 +143,9 @@ func newDbMapperMethod() *cobra.Command {
 				return err
 			}
 
-			// FIXME: Transition every entity to using V2, and then replace V1 with it.
-			var method file.Snippet
-			if config["version"] != "" {
-				method, err = db.NewMethodV2(database, pkg, entity, kind, config)
-				if err != nil {
-					return err
-				}
-			} else {
-				method, err = db.NewMethod(database, pkg, entity, kind, config)
-				if err != nil {
-					return err
-				}
+			method, err := db.NewMethod(database, pkg, entity, kind, config)
+			if err != nil {
+				return err
 			}
 
 			return file.Append(entity, target, method, iface)

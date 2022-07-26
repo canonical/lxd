@@ -22,6 +22,12 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   ORDER BY projects.id, images.fingerprint
 `)
 
+var imageObjectsByID = RegisterStmt(`
+SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
+  FROM images JOIN projects ON images.project_id = projects.id
+  WHERE images.id = ? ORDER BY projects.id, images.fingerprint
+`)
+
 var imageObjectsByProject = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
@@ -70,39 +76,44 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 	var sqlStmt *sql.Stmt
 	var args []any
 
-	if filter.Project != nil && filter.Public != nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+	if filter.Project != nil && filter.Public != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjectsByProjectAndPublic)
 		args = []any{
 			filter.Project,
 			filter.Public,
 		}
-	} else if filter.Project != nil && filter.Cached != nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
+	} else if filter.Project != nil && filter.Cached != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjectsByProjectAndCached)
 		args = []any{
 			filter.Project,
 			filter.Cached,
 		}
-	} else if filter.Project != nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+	} else if filter.Project != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjectsByProject)
 		args = []any{
 			filter.Project,
 		}
-	} else if filter.Fingerprint != nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+	} else if filter.ID != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+		sqlStmt = stmt(tx, imageObjectsByID)
+		args = []any{
+			filter.ID,
+		}
+	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjectsByFingerprint)
 		args = []any{
 			filter.Fingerprint,
 		}
-	} else if filter.Cached != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
+	} else if filter.Cached != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjectsByCached)
 		args = []any{
 			filter.Cached,
 		}
-	} else if filter.AutoUpdate != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
+	} else if filter.AutoUpdate != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
 		sqlStmt = stmt(tx, imageObjectsByAutoUpdate)
 		args = []any{
 			filter.AutoUpdate,
 		}
-	} else if filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+	} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		sqlStmt = stmt(tx, imageObjects)
 		args = []any{}
 	} else {

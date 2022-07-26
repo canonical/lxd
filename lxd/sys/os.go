@@ -14,7 +14,7 @@ import (
 	"github.com/mdlayher/vsock"
 
 	"github.com/lxc/lxd/lxd/cgroup"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -120,8 +120,8 @@ func DefaultOS() *OS {
 }
 
 // Init our internal data structures.
-func (s *OS) Init() ([]db.Warning, error) {
-	var dbWarnings []db.Warning
+func (s *OS) Init() ([]cluster.Warning, error) {
+	var dbWarnings []cluster.Warning
 
 	err := s.initDirs()
 	if err != nil {

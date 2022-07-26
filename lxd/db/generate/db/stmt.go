@@ -26,7 +26,7 @@ type Stmt struct {
 // query against the given database entity.
 func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stmt, error) {
 	var pkgPath string
-	if pkg != "" && config["version"] == "2" {
+	if pkg != "" {
 		importPkg, err := build.Import(pkg, "", build.FindOnly)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid import path %q: %w", pkg, err)

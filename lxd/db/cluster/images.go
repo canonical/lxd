@@ -12,16 +12,17 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t images.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
-//go:generate mapper stmt -e image objects version=2
-//go:generate mapper stmt -e image objects-by-Project version=2
-//go:generate mapper stmt -e image objects-by-Project-and-Cached version=2
-//go:generate mapper stmt -e image objects-by-Project-and-Public version=2
-//go:generate mapper stmt -e image objects-by-Fingerprint version=2
-//go:generate mapper stmt -e image objects-by-Cached version=2
-//go:generate mapper stmt -e image objects-by-AutoUpdate version=2
+//go:generate mapper stmt -e image objects
+//go:generate mapper stmt -e image objects-by-ID
+//go:generate mapper stmt -e image objects-by-Project
+//go:generate mapper stmt -e image objects-by-Project-and-Cached
+//go:generate mapper stmt -e image objects-by-Project-and-Public
+//go:generate mapper stmt -e image objects-by-Fingerprint
+//go:generate mapper stmt -e image objects-by-Cached
+//go:generate mapper stmt -e image objects-by-AutoUpdate
 //
-//go:generate mapper method -i -e image GetMany version=2
-//go:generate mapper method -i -e image GetOne version=2
+//go:generate mapper method -i -e image GetMany
+//go:generate mapper method -i -e image GetOne
 
 // Image is a value object holding db-related details about an image.
 type Image struct {
@@ -43,6 +44,7 @@ type Image struct {
 
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
+	ID          *int
 	Project     *string
 	Fingerprint *string
 	Public      *bool

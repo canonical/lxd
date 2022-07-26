@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -243,89 +244,89 @@ func (info *Info) Supports(resource Resource, cgroup *CGroup) bool {
 }
 
 // Warnings returns a list of CGroup warnings.
-func (info *Info) Warnings() []db.Warning {
-	warnings := []db.Warning{}
+func (info *Info) Warnings() []cluster.Warning {
+	warnings := []cluster.Warning{}
 
 	if !info.Supports(Blkio, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupBlkio,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupBlkio,
 			LastMessage: "disk I/O limits will be ignored",
 		})
 	}
 
 	if !info.Supports(BlkioWeight, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupBlkioWeight,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupBlkioWeight,
 			LastMessage: "disk priority will be ignored",
 		})
 	}
 
 	if !info.Supports(CPU, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupCPUController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupCPUController,
 			LastMessage: "CPU time limits will be ignored",
 		})
 	}
 
 	if !info.Supports(CPUAcct, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupCPUacctController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupCPUacctController,
 			LastMessage: "CPU accounting will not be available",
 		})
 	}
 
 	if !info.Supports(CPUSet, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupCPUController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupCPUController,
 			LastMessage: "CPU pinning will be ignored",
 		})
 	}
 
 	if !info.Supports(Devices, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupDevicesController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupDevicesController,
 			LastMessage: "device access control won't work",
 		})
 	}
 
 	if !info.Supports(Freezer, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupFreezerController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupFreezerController,
 			LastMessage: "pausing/resuming containers won't work",
 		})
 	}
 
 	if !info.Supports(Hugetlb, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupHugetlbController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupHugetlbController,
 			LastMessage: "hugepage limits will be ignored",
 		})
 	}
 
 	if !info.Supports(Memory, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupMemoryController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupMemoryController,
 			LastMessage: "memory limits will be ignored",
 		})
 	}
 
 	if !info.Supports(NetPrio, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupNetworkPriorityController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupNetworkPriorityController,
 			LastMessage: "network priority will be ignored",
 		})
 	}
 
 	if !info.Supports(Pids, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupPidsController,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupPidsController,
 			LastMessage: "process limits will be ignored",
 		})
 	}
 
 	if !info.Supports(MemorySwap, nil) {
-		warnings = append(warnings, db.Warning{
-			TypeCode:    db.WarningMissingCGroupMemorySwapAccounting,
+		warnings = append(warnings, cluster.Warning{
+			TypeCode:    warningtype.MissingCGroupMemorySwapAccounting,
 			LastMessage: "swap limits will be ignored",
 		})
 	}

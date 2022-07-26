@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +13,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
@@ -165,39 +168,34 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the project field
 	projectName := queryParam(r, "project")
 
-	var dbWarnings []db.Warning
-
+	var warnings []api.Warning
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := db.WarningFilter{}
+		filter := cluster.WarningFilter{}
 
 		if projectName != "" {
 			filter.Project = &projectName
 		}
 
-		dbWarnings, err = tx.GetWarnings(filter)
-		if err != nil {
-			return err
-		}
-
+		dbWarnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed to get warnings: %w", err)
+		}
+
+		warnings = make([]api.Warning, len(dbWarnings))
+		for i, w := range dbWarnings {
+			warning := w.ToAPI()
+			warning.EntityURL, err = getWarningEntityURL(ctx, tx.Tx(), &w)
+			if err != nil {
+				return err
+			}
+
+			warnings[i] = warning
 		}
 
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	warnings := make([]api.Warning, len(dbWarnings))
-
-	for i, w := range dbWarnings {
-		warning, err := w.ToAPI(d.db.Cluster)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		warnings[i] = warning
 	}
 
 	if recursion == 0 {
@@ -255,21 +253,21 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var dbWarning *db.Warning
-
+	var resp api.Warning
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbWarning, err = tx.GetWarning(id)
+		dbWarning, err := cluster.GetWarning(ctx, tx.Tx(), id)
+		if err != nil {
+			return err
+		}
+
+		resp := dbWarning.ToAPI()
+		resp.EntityURL, err = getWarningEntityURL(ctx, tx.Tx(), dbWarning)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	resp, err := dbWarning.ToAPI(d.db.Cluster)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -349,13 +347,13 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Currently, we only allow changing the status to acknowledged or new.
-	status, ok := db.WarningStatusTypes[req.Status]
+	status, ok := warningtype.StatusTypes[req.Status]
 	if !ok {
 		// Invalid status
 		return response.BadRequest(fmt.Errorf("Invalid warning type %q", req.Status))
 	}
 
-	if status != db.WarningStatusAcknowledged && status != db.WarningStatusNew {
+	if status != warningtype.StatusAcknowledged && status != warningtype.StatusNew {
 		return response.Forbidden(fmt.Errorf(`Status may only be set to "acknowledge" or "new"`))
 	}
 
@@ -371,7 +369,7 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if status == db.WarningStatusAcknowledged {
+	if status == warningtype.StatusAcknowledged {
 		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningAcknowledged.Event(id, request.CreateRequestor(r), nil))
 	} else {
 		d.State().Events.SendLifecycle(project.Default, lifecycle.WarningReset.Event(id, request.CreateRequestor(r), nil))
@@ -401,7 +399,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		err := tx.DeleteWarning(id)
+		err := cluster.DeleteWarning(ctx, tx.Tx(), id)
 		if err != nil {
 			return err
 		}
@@ -445,12 +443,12 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Retrieve warnings by resolved status.
-		statusResolved := db.WarningStatusResolved
-		filter := db.WarningFilter{
+		statusResolved := warningtype.StatusResolved
+		filter := cluster.WarningFilter{
 			Status: &statusResolved,
 		}
 
-		warnings, err := tx.GetWarnings(filter)
+		warnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
 		if err != nil {
 			return fmt.Errorf("Failed to get resolved warnings: %w", err)
 		}
@@ -458,7 +456,7 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 		for _, w := range warnings {
 			// Delete the warning if it has been resolved for at least 24 hours
 			if time.Since(w.UpdatedDate) >= 24*time.Hour {
-				err = tx.DeleteWarning(w.UUID)
+				err = cluster.DeleteWarning(ctx, tx.Tx(), w.UUID)
 				if err != nil {
 					return err
 				}
@@ -472,4 +470,84 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// getWarningEntityURL fetches the entity corresponding to the warning from the database, and generates a URL.
+func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warning) (string, error) {
+	if warning.EntityID == -1 || warning.EntityTypeCode == -1 {
+		return "", nil
+	}
+
+	_, ok := cluster.EntityNames[warning.EntityTypeCode]
+	if !ok {
+		return "", fmt.Errorf("Unknown entity type")
+	}
+
+	var url string
+	switch warning.EntityTypeCode {
+	case cluster.TypeImage:
+		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiImage := api.Image{Fingerprint: entities[0].Fingerprint}
+		url = apiImage.URL(version.APIVersion, entities[0].Project).String()
+	case cluster.TypeProfile:
+		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiProfile := api.Profile{Name: entities[0].Name}
+		url = apiProfile.URL(version.APIVersion, entities[0].Project).String()
+	case cluster.TypeProject:
+		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiProject := api.Project{Name: entities[0].Name}
+		url = apiProject.URL(version.APIVersion).String()
+	case cluster.TypeCertificate:
+		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiCertificate := api.Certificate{Fingerprint: entities[0].Fingerprint}
+		url = apiCertificate.URL(version.APIVersion).String()
+	case cluster.TypeContainer:
+		fallthrough
+	case cluster.TypeInstance:
+		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: &warning.EntityID})
+		if err != nil {
+			return "", err
+		}
+
+		if len(entities) == 0 {
+			return "", db.ErrUnknownEntityID
+		}
+
+		apiInstance := api.Instance{Name: entities[0].Name}
+		url = apiInstance.URL(version.APIVersion, entities[0].Project).String()
+	}
+
+	return url, nil
 }
