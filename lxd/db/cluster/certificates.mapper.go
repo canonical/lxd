@@ -71,17 +71,17 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 	var args []any
 
 	if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, certificateObjectsByID)
+		sqlStmt = Stmt(tx, certificateObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, certificateObjectsByFingerprint)
+		sqlStmt = Stmt(tx, certificateObjectsByFingerprint)
 		args = []any{
 			filter.Fingerprint,
 		}
 	} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, certificateObjects)
+		sqlStmt = Stmt(tx, certificateObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -133,7 +133,7 @@ func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certi
 // GetCertificateID return the ID of the certificate with the given key.
 // generator: certificate ID
 func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
-	stmt := stmt(tx, certificateID)
+	stmt := Stmt(tx, certificateID)
 	rows, err := stmt.Query(fingerprint)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"certificates\" ID: %w", err)
@@ -202,7 +202,7 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 	args[4] = object.Restricted
 
 	// Prepared statement to use.
-	stmt := stmt(tx, certificateCreate)
+	stmt := Stmt(tx, certificateCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -221,7 +221,7 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 // DeleteCertificate deletes the certificate matching the given key parameters.
 // generator: certificate DeleteOne-by-Fingerprint
 func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) error {
-	stmt := stmt(tx, certificateDeleteByFingerprint)
+	stmt := Stmt(tx, certificateDeleteByFingerprint)
 	result, err := stmt.Exec(fingerprint)
 	if err != nil {
 		return fmt.Errorf("Delete \"certificates\": %w", err)
@@ -244,7 +244,7 @@ func DeleteCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) erro
 // DeleteCertificates deletes the certificate matching the given key parameters.
 // generator: certificate DeleteMany-by-Name-and-Type
 func DeleteCertificates(ctx context.Context, tx *sql.Tx, name string, certificateType CertificateType) error {
-	stmt := stmt(tx, certificateDeleteByNameAndType)
+	stmt := Stmt(tx, certificateDeleteByNameAndType)
 	result, err := stmt.Exec(name, certificateType)
 	if err != nil {
 		return fmt.Errorf("Delete \"certificates\": %w", err)
@@ -266,7 +266,7 @@ func UpdateCertificate(ctx context.Context, tx *sql.Tx, fingerprint string, obje
 		return err
 	}
 
-	stmt := stmt(tx, certificateUpdate)
+	stmt := Stmt(tx, certificateUpdate)
 	result, err := stmt.Exec(object.Fingerprint, object.Type, object.Name, object.Certificate, object.Restricted, id)
 	if err != nil {
 		return fmt.Errorf("Update \"certificates\" entry failed: %w", err)
