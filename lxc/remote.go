@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"sort"
@@ -153,12 +154,9 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.CertificateAddToken) error {
 	conf := c.global.conf
 
-	var certificate *x509.Certificate
-	var err error
-
 	if !conf.HasClientCertificate() {
 		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
-		err = conf.GenerateClientCertificate()
+		err := conf.GenerateClientCertificate()
 		if err != nil {
 			return err
 		}
@@ -167,72 +165,107 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 	for _, addr := range rawToken.Addresses {
 		addr = fmt.Sprintf("https://%s", addr)
 
-		conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
-
-		_, err = conf.GetInstanceServer(server)
+		err := c.addRemoteFromToken(addr, server, token, rawToken.Fingerprint)
 		if err != nil {
-			certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
-			if err != nil {
+			if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
 				continue
 			}
 
-			certDigest := shared.CertFingerprint(certificate)
-			if rawToken.Fingerprint != certDigest {
-				return fmt.Errorf(i18n.G("Certificate fingerprint mismatch between certificate token and server %q"), addr)
-			}
-
-			dnam := conf.ConfigPath("servercerts")
-			err := os.MkdirAll(dnam, 0750)
-			if err != nil {
-				return fmt.Errorf(i18n.G("Could not create server cert dir"))
-			}
-
-			certf := conf.ServerCertPath(server)
-
-			certOut, err := os.Create(certf)
-			if err != nil {
-				return fmt.Errorf(i18n.G("Failed to create %q: %w"), certf, err)
-			}
-
-			err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-			if err != nil {
-				return fmt.Errorf(i18n.G("Failed to write server cert file %q: %w"), certf, err)
-			}
-
-			err = certOut.Close()
-			if err != nil {
-				return fmt.Errorf(i18n.G("Failed to close server cert file %q: %w"), certf, err)
-			}
+			return err
 		}
 
-		d, err := conf.GetInstanceServer(server)
-		if err != nil {
-			continue
-		}
-
-		req := api.CertificatesPost{
-			Password: token,
-		}
-
-		err = d.CreateCertificate(req)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
-		}
-
-		// Handle project.
-		remote := conf.Remotes[server]
-		project, err := c.findProject(d, c.flagProject)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
-		}
-
-		remote.Project = project
-		conf.Remotes[server] = remote
-
-		return conf.SaveConfig(c.global.confPath)
+		return nil
 	}
 
-	return fmt.Errorf(i18n.G("Failed to add remote"))
+	fmt.Println(i18n.G("All server addresses are unavailable"))
+	fmt.Printf(i18n.G("Please provide an alternate server address (empty to abort):") + " ")
+
+	line, err := shared.ReadStdin()
+	if err != nil {
+		return err
+	}
+
+	if len(line) == 0 {
+		return fmt.Errorf(i18n.G("Failed to add remote"))
+	}
+
+	err = c.addRemoteFromToken(string(line), server, token, rawToken.Fingerprint)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *cmdRemoteAdd) addRemoteFromToken(addr string, server string, token string, fingerprint string) error {
+	conf := c.global.conf
+
+	var certificate *x509.Certificate
+	var err error
+
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+
+	_, err = conf.GetInstanceServer(server)
+	if err != nil {
+		certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
+		if err != nil {
+			return api.StatusErrorf(http.StatusServiceUnavailable, i18n.G("Unavailable remote server")+": %v", err)
+		}
+
+		certDigest := shared.CertFingerprint(certificate)
+		if fingerprint != certDigest {
+			return fmt.Errorf(i18n.G("Certificate fingerprint mismatch between certificate token and server %q"), addr)
+		}
+
+		dnam := conf.ConfigPath("servercerts")
+		err := os.MkdirAll(dnam, 0750)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not create server cert dir"))
+		}
+
+		certf := conf.ServerCertPath(server)
+
+		certOut, err := os.Create(certf)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to create %q: %w"), certf, err)
+		}
+
+		err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to write server cert file %q: %w"), certf, err)
+		}
+
+		err = certOut.Close()
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to close server cert file %q: %w"), certf, err)
+		}
+	}
+
+	d, err := conf.GetInstanceServer(server)
+	if err != nil {
+		return api.StatusErrorf(http.StatusServiceUnavailable, i18n.G("Unavailable remote server")+": %v", err)
+	}
+
+	req := api.CertificatesPost{
+		Password: token,
+	}
+
+	err = d.CreateCertificate(req)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
+	}
+
+	// Handle project.
+	remote := conf.Remotes[server]
+	project, err := c.findProject(d, c.flagProject)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
+	}
+
+	remote.Project = project
+	conf.Remotes[server] = remote
+
+	return conf.SaveConfig(c.global.confPath)
 }
 
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
