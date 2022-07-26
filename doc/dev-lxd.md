@@ -70,6 +70,19 @@ Return value:
     "api_version": "1.0"
 }
 ```
+
+#### PATCH
+ * Description: Update instance state (valid states are `Ready` and `Started`)
+ * Return: none
+
+ Input:
+
+ ```json
+ {
+    "state": "Ready"
+ }
+```
+
 #### `/1.0/config`
 ##### GET
  * Description: List of configuration keys
