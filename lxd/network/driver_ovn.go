@@ -611,7 +611,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Check any existing network load balancer backend addresses are suitable for this network's subnet.
-	loadBalancers, err := n.state.DB.Cluster.GetNetworkLoadBalancers(n.ID(), memberSpecific)
+	loadBalancers, err := n.state.DB.Cluster.GetNetworkLoadBalancers(context.TODO(), n.ID(), memberSpecific)
 	if err != nil {
 		return fmt.Errorf("Failed loading network load balancers: %w", err)
 	}
@@ -4419,7 +4419,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 		memberSpecific := false // OVN doesn't support per-member load balancers.
 
 		// Check if there is an existing load balancer using the same listen address.
-		_, _, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, loadBalancer.ListenAddress)
+		_, _, err := n.state.DB.Cluster.GetNetworkLoadBalancer(context.TODO(), n.ID(), memberSpecific, loadBalancer.ListenAddress)
 		if err == nil {
 			return api.StatusErrorf(http.StatusConflict, "A load balancer for that listen address already exists")
 		}
@@ -4553,7 +4553,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member load balancers.
-		curLoadBalancerID, curLoadBalancer, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, listenAddress)
+		curLoadBalancerID, curLoadBalancer, err := n.state.DB.Cluster.GetNetworkLoadBalancer(context.TODO(), n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return err
 		}
@@ -4641,7 +4641,7 @@ func (n *ovn) LoadBalancerUpdate(listenAddress string, req api.NetworkLoadBalanc
 func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.ClientType) error {
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
-		loadBalancerID, forward, err := n.state.DB.Cluster.GetNetworkLoadBalancer(n.ID(), memberSpecific, listenAddress)
+		loadBalancerID, forward, err := n.state.DB.Cluster.GetNetworkLoadBalancer(context.TODO(), n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return err
 		}
