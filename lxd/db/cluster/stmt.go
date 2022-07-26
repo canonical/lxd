@@ -41,8 +41,8 @@ var stmts = map[int]string{} // Statement code to statement SQL text.
 // PreparedStmts is a placeholder for transitioning to package-scoped transaction functions.
 var PreparedStmts = map[int]*sql.Stmt{}
 
-// stmt prepares the in-memory prepared statement for the transaction.
-func stmt(tx *sql.Tx, code int) *sql.Stmt {
+// Stmt prepares the in-memory prepared statement for the transaction.
+func Stmt(tx *sql.Tx, code int) *sql.Stmt {
 	stmt, ok := PreparedStmts[code]
 	if !ok {
 		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
