@@ -5,6 +5,7 @@ type Info struct {
 	Name                  string
 	Version               string
 	VolumeTypes           []VolumeType // Supported volume types.
+	Buckets               bool         // Buckets supported.
 	Remote                bool         // Whether the driver uses a remote backing store.
 	VolumeMultiNode       bool         // Whether volumes can be used on multiple nodes concurrently.
 	OptimizedImages       bool         // Whether driver stores images as separate volume.
