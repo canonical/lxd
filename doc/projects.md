@@ -26,6 +26,7 @@ Key                                  | Type      | Condition             | Defau
 `features.images`                    | bool      | -                     | `true`                    | Separate set of images and image aliases for the project
 `features.networks`                  | bool      | -                     | `false`                   | Separate set of networks for the project
 `features.profiles`                  | bool      | -                     | `true`                    | Separate set of profiles for the project
+`features.storage.buckets`           | bool      | -                     | `true`                    | Separate set of storage buckets for the project
 `features.storage.volumes`           | bool      | -                     | `true`                    | Separate set of storage volumes for the project
 `images.auto_update_cached`          | bool      | -                     | -                         | Whether to automatically update any image that LXD caches
 `images.auto_update_interval`        | integer   | -                     | -                         | Interval in hours at which to look for update to cached images (0 disables it)
