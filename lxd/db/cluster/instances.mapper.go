@@ -155,7 +155,7 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 	var args []any
 
 	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
 		args = []any{
 			filter.Project,
 			filter.Type,
@@ -163,96 +163,96 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndTypeAndNode)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
 		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndTypeAndName)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
 		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
-		sqlStmt = stmt(tx, instanceObjectsByTypeAndNameAndNode)
+		sqlStmt = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
 		args = []any{
 			filter.Type,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndNameAndNode)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
 		args = []any{
 			filter.Project,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndType)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndType)
 		args = []any{
 			filter.Project,
 			filter.Type,
 		}
 	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, instanceObjectsByTypeAndNode)
+		sqlStmt = Stmt(tx, instanceObjectsByTypeAndNode)
 		args = []any{
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
-		sqlStmt = stmt(tx, instanceObjectsByTypeAndName)
+		sqlStmt = Stmt(tx, instanceObjectsByTypeAndName)
 		args = []any{
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndNode)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndNode)
 		args = []any{
 			filter.Project,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProjectAndName)
+		sqlStmt = Stmt(tx, instanceObjectsByProjectAndName)
 		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByNodeAndName)
+		sqlStmt = Stmt(tx, instanceObjectsByNodeAndName)
 		args = []any{
 			filter.Node,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt = stmt(tx, instanceObjectsByType)
+		sqlStmt = Stmt(tx, instanceObjectsByType)
 		args = []any{
 			filter.Type,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByProject)
+		sqlStmt = Stmt(tx, instanceObjectsByProject)
 		args = []any{
 			filter.Project,
 		}
 	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByNode)
+		sqlStmt = Stmt(tx, instanceObjectsByNode)
 		args = []any{
 			filter.Node,
 		}
 	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByName)
+		sqlStmt = Stmt(tx, instanceObjectsByName)
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjectsByID)
+		sqlStmt = Stmt(tx, instanceObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = stmt(tx, instanceObjects)
+		sqlStmt = Stmt(tx, instanceObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -348,7 +348,7 @@ func GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (
 // GetInstanceID return the ID of the instance with the given key.
 // generator: instance ID
 func GetInstanceID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error) {
-	stmt := stmt(tx, instanceID)
+	stmt := Stmt(tx, instanceID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
@@ -423,7 +423,7 @@ func CreateInstance(ctx context.Context, tx *sql.Tx, object Instance) (int64, er
 	args[10] = object.ExpiryDate
 
 	// Prepared statement to use.
-	stmt := stmt(tx, instanceCreate)
+	stmt := Stmt(tx, instanceCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -479,7 +479,7 @@ func CreateInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int64, con
 // RenameInstance renames the instance matching the given key parameters.
 // generator: instance Rename
 func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string, to string) error {
-	stmt := stmt(tx, instanceRename)
+	stmt := Stmt(tx, instanceRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
 		return fmt.Errorf("Rename Instance failed: %w", err)
@@ -500,7 +500,7 @@ func RenameInstance(ctx context.Context, tx *sql.Tx, project string, name string
 // DeleteInstance deletes the instance matching the given key parameters.
 // generator: instance DeleteOne-by-Project-and-Name
 func DeleteInstance(ctx context.Context, tx *sql.Tx, project string, name string) error {
-	stmt := stmt(tx, instanceDeleteByProjectAndName)
+	stmt := Stmt(tx, instanceDeleteByProjectAndName)
 	result, err := stmt.Exec(project, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"instances\": %w", err)
@@ -528,7 +528,7 @@ func UpdateInstance(ctx context.Context, tx *sql.Tx, project string, name string
 		return err
 	}
 
-	stmt := stmt(tx, instanceUpdate)
+	stmt := Stmt(tx, instanceUpdate)
 	result, err := stmt.Exec(object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
 	if err != nil {
 		return fmt.Errorf("Update \"instances\" entry failed: %w", err)

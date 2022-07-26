@@ -38,7 +38,7 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 	// Result slice.
 	objects := make([]CertificateProject, 0)
 
-	sqlStmt := stmt(tx, certificateProjectObjectsByCertificateID)
+	sqlStmt := Stmt(tx, certificateProjectObjectsByCertificateID)
 	args := []any{certificateID}
 
 	// Dest function for scanning a row.
@@ -72,7 +72,7 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 // DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
 // generator: certificate_project DeleteMany
 func DeleteCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) error {
-	stmt := stmt(tx, certificateProjectDeleteByCertificateID)
+	stmt := Stmt(tx, certificateProjectDeleteByCertificateID)
 	result, err := stmt.Exec(int(certificateID))
 	if err != nil {
 		return fmt.Errorf("Delete \"certificates_projects\" entry failed: %w", err)
@@ -97,7 +97,7 @@ func CreateCertificateProjects(ctx context.Context, tx *sql.Tx, objects []Certif
 		args[1] = object.ProjectID
 
 		// Prepared statement to use.
-		stmt := stmt(tx, certificateProjectCreate)
+		stmt := Stmt(tx, certificateProjectCreate)
 
 		// Execute the statement.
 		_, err := stmt.Exec(args...)
