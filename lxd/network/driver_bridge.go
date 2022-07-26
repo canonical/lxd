@@ -2583,7 +2583,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	memberSpecific := true // bridge supports per-member forwards.
 
 	// Check if there is an existing forward using the same listen address.
-	_, _, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+	_, _, err := n.state.DB.Cluster.GetNetworkForward(context.TODO(), n.ID(), memberSpecific, forward.ListenAddress)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
 	}
@@ -2724,7 +2724,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 // ForwardUpdate updates a network forward.
 func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
-	curForwardID, curForward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	curForwardID, curForward, err := n.state.DB.Cluster.GetNetworkForward(context.TODO(), n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return err
 	}
@@ -2779,7 +2779,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 // ForwardDelete deletes a network forward.
 func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
-	forwardID, forward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	forwardID, forward, err := n.state.DB.Cluster.GetNetworkForward(context.TODO(), n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return err
 	}
@@ -2821,7 +2821,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 // forwardSetupFirewall applies all network address forwards defined for this network and this member.
 func (n *bridge) forwardSetupFirewall() error {
 	memberSpecific := true // Get all forwards for this cluster member.
-	forwards, err := n.state.DB.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
+	forwards, err := n.state.DB.Cluster.GetNetworkForwards(context.TODO(), n.ID(), memberSpecific)
 	if err != nil {
 		return fmt.Errorf("Failed loading network forwards: %w", err)
 	}
