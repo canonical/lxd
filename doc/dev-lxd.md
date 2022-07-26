@@ -67,7 +67,10 @@ Return value:
 
 ```json
 {
-    "api_version": "1.0"
+    "api_version": "1.0",
+    "location": "none",
+    "instance_type": "container",
+    "state": "Started",
 }
 ```
 
