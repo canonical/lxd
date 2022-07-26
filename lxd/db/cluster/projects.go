@@ -34,6 +34,14 @@ import (
 //go:generate mapper method -i -e project Rename
 //go:generate mapper method -i -e project DeleteOne-by-Name
 
+// ProjectFeaturesDefaults are the features enabled by default on new projects.
+// The features.networks won't be enabled by default until it becomes clear whether it is practical to run OVN on
+// every system.
+var ProjectFeaturesDefaults = []string{"features.images", "features.profiles", "features.storage.volumes"}
+
+// ProjectFeatures are the features available to projects.
+var ProjectFeatures = append(ProjectFeaturesDefaults, "features.networks")
+
 // Project represents a LXD project.
 type Project struct {
 	ID          int
