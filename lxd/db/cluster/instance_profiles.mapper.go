@@ -44,7 +44,7 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
 
-	sqlStmt := stmt(tx, instanceProfileObjectsByProfileID)
+	sqlStmt := Stmt(tx, instanceProfileObjectsByProfileID)
 	args := []any{profileID}
 
 	// Dest function for scanning a row.
@@ -84,7 +84,7 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
 
-	sqlStmt := stmt(tx, instanceProfileObjectsByInstanceID)
+	sqlStmt := Stmt(tx, instanceProfileObjectsByInstanceID)
 	args := []any{instanceID}
 
 	// Dest function for scanning a row.
@@ -128,7 +128,7 @@ func CreateInstanceProfiles(ctx context.Context, tx *sql.Tx, objects []InstanceP
 		args[2] = object.ApplyOrder
 
 		// Prepared statement to use.
-		stmt := stmt(tx, instanceProfileCreate)
+		stmt := Stmt(tx, instanceProfileCreate)
 
 		// Execute the statement.
 		_, err := stmt.Exec(args...)
@@ -144,7 +144,7 @@ func CreateInstanceProfiles(ctx context.Context, tx *sql.Tx, objects []InstanceP
 // DeleteInstanceProfiles deletes the instance_profile matching the given key parameters.
 // generator: instance_profile DeleteMany
 func DeleteInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) error {
-	stmt := stmt(tx, instanceProfileDeleteByInstanceID)
+	stmt := Stmt(tx, instanceProfileDeleteByInstanceID)
 	result, err := stmt.Exec(int(instanceID))
 	if err != nil {
 		return fmt.Errorf("Delete \"instances_profiles\" entry failed: %w", err)

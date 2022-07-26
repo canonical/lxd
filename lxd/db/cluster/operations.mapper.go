@@ -66,22 +66,22 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	var args []any
 
 	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-		sqlStmt = stmt(tx, operationObjectsByUUID)
+		sqlStmt = Stmt(tx, operationObjectsByUUID)
 		args = []any{
 			filter.UUID,
 		}
 	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
-		sqlStmt = stmt(tx, operationObjectsByNodeID)
+		sqlStmt = Stmt(tx, operationObjectsByNodeID)
 		args = []any{
 			filter.NodeID,
 		}
 	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = stmt(tx, operationObjectsByID)
+		sqlStmt = Stmt(tx, operationObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = stmt(tx, operationObjects)
+		sqlStmt = Stmt(tx, operationObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -121,7 +121,7 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	args[3] = object.Type
 
 	// Prepared statement to use.
-	stmt := stmt(tx, operationCreateOrReplace)
+	stmt := Stmt(tx, operationCreateOrReplace)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -140,7 +140,7 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 // DeleteOperation deletes the operation matching the given key parameters.
 // generator: operation DeleteOne-by-UUID
 func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
-	stmt := stmt(tx, operationDeleteByUUID)
+	stmt := Stmt(tx, operationDeleteByUUID)
 	result, err := stmt.Exec(uuid)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)
@@ -163,7 +163,7 @@ func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 // DeleteOperations deletes the operation matching the given key parameters.
 // generator: operation DeleteMany-by-NodeID
 func DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
-	stmt := stmt(tx, operationDeleteByNodeID)
+	stmt := Stmt(tx, operationDeleteByNodeID)
 	result, err := stmt.Exec(nodeID)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)

@@ -71,17 +71,17 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Proje
 	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
-		sqlStmt = stmt(tx, projectObjectsByName)
+		sqlStmt = Stmt(tx, projectObjectsByName)
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Name == nil {
-		sqlStmt = stmt(tx, projectObjectsByID)
+		sqlStmt = Stmt(tx, projectObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, projectObjects)
+		sqlStmt = Stmt(tx, projectObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -178,7 +178,7 @@ func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, erro
 	args[1] = object.Name
 
 	// Prepared statement to use.
-	stmt := stmt(tx, projectCreate)
+	stmt := Stmt(tx, projectCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -218,7 +218,7 @@ func CreateProjectConfig(ctx context.Context, tx *sql.Tx, projectID int64, confi
 // GetProjectID return the ID of the project with the given key.
 // generator: project ID
 func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
-	stmt := stmt(tx, projectID)
+	stmt := Stmt(tx, projectID)
 	rows, err := stmt.Query(name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
@@ -252,7 +252,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 // RenameProject renames the project matching the given key parameters.
 // generator: project Rename
 func RenameProject(ctx context.Context, tx *sql.Tx, name string, to string) error {
-	stmt := stmt(tx, projectRename)
+	stmt := Stmt(tx, projectRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
 		return fmt.Errorf("Rename Project failed: %w", err)
@@ -273,7 +273,7 @@ func RenameProject(ctx context.Context, tx *sql.Tx, name string, to string) erro
 // DeleteProject deletes the project matching the given key parameters.
 // generator: project DeleteOne-by-Name
 func DeleteProject(ctx context.Context, tx *sql.Tx, name string) error {
-	stmt := stmt(tx, projectDeleteByName)
+	stmt := Stmt(tx, projectDeleteByName)
 	result, err := stmt.Exec(name)
 	if err != nil {
 		return fmt.Errorf("Delete \"projects\": %w", err)
