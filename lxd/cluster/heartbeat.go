@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/task"
@@ -178,7 +179,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			heartbeatData.Unlock()
 			logger.Debug("Successful heartbeat", logger.Ctx{"remote": address})
 
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", db.WarningOfflineClusterMember, cluster.TypeNode, int(nodeID))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", warningtype.OfflineClusterMember, cluster.TypeNode, int(nodeID))
 			if err != nil {
 				logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
@@ -186,7 +187,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			logger.Warn("Failed heartbeat", logger.Ctx{"remote": address, "err": err})
 
 			if ctx.Err() == nil {
-				err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
+				err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), warningtype.OfflineClusterMember, err.Error())
 				if err != nil {
 					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}

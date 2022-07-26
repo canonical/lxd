@@ -11,10 +11,10 @@ package cluster
 //go:generate mapper stmt -e certificate_project create struct=CertificateProject
 //go:generate mapper stmt -e certificate_project delete-by-CertificateID
 //
-//go:generate mapper method -i -e certificate_project GetMany struct=Certificate version=2
-//go:generate mapper method -i -e certificate_project DeleteMany struct=Certificate version=2
-//go:generate mapper method -i -e certificate_project Create struct=Certificate version=2
-//go:generate mapper method -i -e certificate_project Update struct=Certificate version=2
+//go:generate mapper method -i -e certificate_project GetMany struct=Certificate
+//go:generate mapper method -i -e certificate_project DeleteMany struct=Certificate
+//go:generate mapper method -i -e certificate_project Create struct=Certificate
+//go:generate mapper method -i -e certificate_project Update struct=Certificate
 
 // CertificateProject is an association table struct that associates
 // Certificates to Projects.
