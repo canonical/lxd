@@ -187,7 +187,7 @@ func (c *Cluster) DeleteNetworkLoadBalancer(networkID int64, loadBalancerID int6
 // GetNetworkLoadBalancer returns the Network Load Balancer ID and info for the given network ID and listen address.
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
 // to all members.
-func (c *Cluster) GetNetworkLoadBalancer(networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkLoadBalancer, error) {
+func (c *Cluster) GetNetworkLoadBalancer(ctx context.Context, networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkLoadBalancer, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{networkID, listenAddress}
 
@@ -215,7 +215,7 @@ func (c *Cluster) GetNetworkLoadBalancer(networkID int64, memberSpecific bool, l
 	var loadBalancer api.NetworkLoadBalancer
 	var backendsJSON, portsJSON string
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		var rowCount int
 
 		err = tx.tx.QueryRow(q.String(), args...).Scan(&loadBalancerID, &loadBalancer.ListenAddress, &loadBalancer.Description, &loadBalancer.Location, &backendsJSON, &portsJSON, &rowCount)
@@ -429,7 +429,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember() (map[
 // GetNetworkLoadBalancers returns map of Network Load Balancers for the given network ID keyed on Load Balancer ID.
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
 // to all members.
-func (c *Cluster) GetNetworkLoadBalancers(networkID int64, memberSpecific bool) (map[int64]*api.NetworkLoadBalancer, error) {
+func (c *Cluster) GetNetworkLoadBalancers(ctx context.Context, networkID int64, memberSpecific bool) (map[int64]*api.NetworkLoadBalancer, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{networkID}
 
@@ -454,7 +454,7 @@ func (c *Cluster) GetNetworkLoadBalancers(networkID int64, memberSpecific bool) 
 	var err error
 	loadBalancers := make(map[int64]*api.NetworkLoadBalancer)
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var backendsJSON, portsJSON string
