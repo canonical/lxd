@@ -20,9 +20,8 @@ type NodeTx struct {
 // It wraps low-level sql.Tx objects and offers a high-level API to fetch and
 // update data.
 type ClusterTx struct {
-	tx     *sql.Tx           // Handle to a transaction in the cluster dqlite database.
-	nodeID int64             // Node ID of this LXD instance.
-	stmts  map[int]*sql.Stmt // Prepared statements by code.
+	tx     *sql.Tx // Handle to a transaction in the cluster dqlite database.
+	nodeID int64   // Node ID of this LXD instance.
 }
 
 // Tx retrieves the underlying transaction on the cluster database.
@@ -38,15 +37,6 @@ func (c *ClusterTx) NodeID(id int64) {
 // GetNodeID gets the ID of the node associated with this cluster transaction.
 func (c *ClusterTx) GetNodeID() int64 {
 	return c.nodeID
-}
-
-func (c *ClusterTx) stmt(code int) *sql.Stmt {
-	stmt, ok := c.stmts[code]
-	if !ok {
-		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
-	}
-
-	return c.tx.Stmt(stmt)
 }
 
 // prepare prepares a new statement from a SQL string.
