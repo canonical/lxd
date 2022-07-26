@@ -79,12 +79,12 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(clusterGroupObjectsByName)
+		stmt = cluster.Stmt(c.tx, clusterGroupObjectsByName)
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(clusterGroupObjects)
+		stmt = cluster.Stmt(c.tx, clusterGroupObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -141,7 +141,7 @@ func (c *ClusterTx) GetClusterGroup(name string) (*ClusterGroup, error) {
 // GetClusterGroupID return the ID of the ClusterGroup with the given key.
 // generator: ClusterGroup ID
 func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
-	stmt := c.stmt(clusterGroupID)
+	stmt := cluster.Stmt(c.tx, clusterGroupID)
 	rows, err := stmt.Query(name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get cluster group ID: %w", err)
@@ -207,7 +207,7 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 	args[1] = object.Description
 
 	// Prepared statement to use.
-	stmt := c.stmt(clusterGroupCreate)
+	stmt := cluster.Stmt(c.tx, clusterGroupCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -232,7 +232,7 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 // RenameClusterGroup renames the ClusterGroup matching the given key parameters.
 // generator: ClusterGroup Rename
 func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
-	stmt := c.stmt(clusterGroupRename)
+	stmt := cluster.Stmt(c.tx, clusterGroupRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
 		return fmt.Errorf("Failed to rename cluster group: %w", err)
@@ -253,7 +253,7 @@ func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
 // DeleteClusterGroup deletes the ClusterGroup matching the given key parameters.
 // generator: ClusterGroup DeleteOne-by-Name
 func (c *ClusterTx) DeleteClusterGroup(name string) error {
-	stmt := c.stmt(clusterGroupDeleteByName)
+	stmt := cluster.Stmt(c.tx, clusterGroupDeleteByName)
 	result, err := stmt.Exec(name)
 	if err != nil {
 		return fmt.Errorf("Failed to delete cluster group: %w", err)
@@ -279,7 +279,7 @@ func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
 		return fmt.Errorf("Failed to get cluster group: %w", err)
 	}
 
-	stmt := c.stmt(clusterGroupUpdate)
+	stmt := cluster.Stmt(c.tx, clusterGroupUpdate)
 	result, err := stmt.Exec(object.Name, object.Description, id)
 	if err != nil {
 		return fmt.Errorf("Failed to update cluster group: %w", err)
@@ -295,7 +295,7 @@ func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
 	}
 
 	// Delete current nodes.
-	stmt = c.stmt(clusterGroupDeleteNodesRef)
+	stmt = cluster.Stmt(c.tx, clusterGroupDeleteNodesRef)
 	_, err = stmt.Exec(id)
 	if err != nil {
 		return fmt.Errorf("Failed to delete current nodes: %w", err)
