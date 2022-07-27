@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // ConfigAction represents a lifecycle event action for the server configuration.
@@ -14,11 +15,11 @@ const (
 
 // Event creates the lifecycle event for an action on the server configuration.
 func (a ConfigAction) Event(requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := "/1.0"
+	u := api.NewURL().Path(version.APIVersion)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}
