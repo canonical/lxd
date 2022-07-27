@@ -1,12 +1,9 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Internal copy of the volume interface.
@@ -29,18 +26,7 @@ const (
 
 // Event creates the lifecycle event for an action on a storage volume.
 func (a StorageVolumeAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/storage-pools/%s/volumes", url.PathEscape(v.Pool()))
-	if volumeType != "" {
-		u = fmt.Sprintf("%s/%s", u, url.PathEscape(volumeType))
-	}
-
-	if v.Name() != "" {
-		u = fmt.Sprintf("%s/%s", u, url.PathEscape(v.Name()))
-	}
-
-	if projectName != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(projectName))
-	}
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", v.Pool(), "volumes", volumeType, v.Name()).Project(projectName)
 
 	var requestor *api.EventLifecycleRequestor
 	if op != nil {
@@ -49,7 +35,7 @@ func (a StorageVolumeAction) Event(v volume, volumeType string, projectName stri
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}
