@@ -3,10 +3,10 @@
 Check the following guidelines before contributing to the project.
 
 ## Pull requests
-Changes to this project should be proposed as pull requests on Github
-at: <https://github.com/lxc/lxd>
+Changes to this project should be proposed as pull requests on GitHub
+at: [`https://github.com/lxc/lxd`](https://github.com/lxc/lxd)
 
-Proposed changes will then go through code review there and once acked,
+Proposed changes will then go through code review there and once approved,
 be merged in the main branch.
 
 ## Commit structure
@@ -26,11 +26,11 @@ and depending on complexity, things may be split into even smaller chunks.
 
 When updating strings in the CLI tool (`lxc/`), you may need a commit to update the templates:
 
- - make i18n
- - git commit -a -s -m "i18n: Update translation templates" po/
+    make i18n
+    git commit -a -s -m "i18n: Update translation templates" po/
 
 This structure makes it easier for contributions to be reviewed and also
-greatly simplifies the process of backporting fixes to stable branches.
+greatly simplifies the process of back-porting fixes to stable branches.
 
 ## License and copyright
 By default, any contribution to this project is made under the Apache
@@ -98,7 +98,7 @@ even when part of a larger set. You may find `git commit -s` useful.
 
 ## Code of Conduct
 
-When contributing, you must adhere to the Code of Conduct, which is available at: https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md
+When contributing, you must adhere to the Code of Conduct, which is available at: [`https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md`](https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md)
 
 <!-- Include end contributing -->
 
