@@ -42,4 +42,4 @@ git push myfork [name_of_your_new_branch]
 - Binaries compiled from your source will be generated in the `$(go env GOPATH)/bin` directory by default.
     - You will need to explicitly invoke these binaries (not the global `lxd` you may have installed) when testing your changes.
     - You may choose to create an alias in your `~/.bashrc` to call these binaries with the appropriate flags more conveniently.
-- If you have a systemd service configured to run the LXD daemon from a previous installation of LXD, you may want to disable it to avoid version conflicts.
+- If you have a `systemd` service configured to run the LXD daemon from a previous installation of LXD, you may want to disable it to avoid version conflicts.
