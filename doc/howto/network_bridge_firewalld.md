@@ -5,7 +5,7 @@ discourse: 10034,9953
 (network-bridge-firewall)=
 # How to configure your firewall
 
-Linux firewalls are based on netfilter.
+Linux firewalls are based on `netfilter`.
 LXD uses the same subsystem, which can lead to connectivity issues.
 
 If you run a firewall on your system, you might need to configure it to allow network traffic between the managed LXD bridge and the host.
@@ -14,17 +14,17 @@ Otherwise, some network functionality (DHCP, DNS and external network access) mi
 You might also see conflicts between the rules defined by your firewall (or another application) and the firewall rules that LXD adds.
 For example, your firewall might erase LXD rules if it is started after the LXD daemon, which might interrupt network connectivity to the instance.
 
-## xtables vs. nftables
+## `xtables` vs. `nftables`
 
-There are different userspace commands to add rules to netfilter: xtables (iptables for IPv4 and ip6tables for IPv6) and nftables.
+There are different userspace commands to add rules to `netfilter`: `xtables` (`iptables` for IPv4 and `ip6tables` for IPv6) and `nftables`.
 
-Xtables provides an ordered list of rules, which might cause issues if multiple systems add and remove entries from the list.
-Nftables adds the ability to separate rules into namespaces, which helps to separate rules from different applications.
+`xtables` provides an ordered list of rules, which might cause issues if multiple systems add and remove entries from the list.
+`nftables` adds the ability to separate rules into namespaces, which helps to separate rules from different applications.
 However, if a packet is blocked in one namespace, it is not possible for another namespace to allow it.
 Therefore, rules in one namespace can still affect rules in another namespace, and firewall applications can still impact LXD network functionality.
 
-If your system supports and uses nftables, LXD detects this and switches to nftables mode.
-In this mode, LXD adds its rules into the nftables, using its own nftables namespace.
+If your system supports and uses `nftables`, LXD detects this and switches to `nftables` mode.
+In this mode, LXD adds its rules into the `nftables`, using its own `nftables` namespace.
 
 ## Use LXD's firewall
 
@@ -39,7 +39,7 @@ Firewall rules added by other applications might interfere with the firewall rul
 Therefore, if you use another firewall, you should disable LXD's firewall rules.
 You must also configure your firewall to allow network traffic between the instances and the LXD bridge, so that the LXD instances can access the DHCP and DNS server that LXD runs on the host.
 
-See the following sections for instructions on how to disable LXD's firewall rules and how to properly configure firewalld and UFW, respectively.
+See the following sections for instructions on how to disable LXD's firewall rules and how to properly configure `firewalld` and UFW, respectively.
 
 ### Disable LXD's firewall rules
 
@@ -48,9 +48,9 @@ Run the following commands to prevent LXD from setting firewall rules for a spec
     lxc network set <network_bridge> ipv6.firewall false
     lxc network set <network_bridge> ipv4.firewall false
 
-### Firewalld: Add the bridge to the trusted zone
+### `firewalld`: Add the bridge to the trusted zone
 
-To allow traffic to and from the LXD bridge in firewalld, add the bridge interface to the `trusted` zone.
+To allow traffic to and from the LXD bridge in `firewalld`, add the bridge interface to the `trusted` zone.
 To do this permanently (so that it persists after a reboot), run the following commands:
 
     sudo firewall-cmd --zone=trusted --change-interface=<network_bridge> --permanent
