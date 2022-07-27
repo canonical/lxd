@@ -334,8 +334,9 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
-	resp := response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "networks", req.Name)
+
+	resp := response.SyncResponseLocation(true, nil, u.String())
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
@@ -1090,7 +1091,9 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": name}))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
+	u := api.NewURL().Path(version.APIVersion, "networks", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation PUT /1.0/networks/{name} networks network_put

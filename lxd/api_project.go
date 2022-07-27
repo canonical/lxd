@@ -343,7 +343,9 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, requestor, nil))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
+	u := api.NewURL().Path(version.APIVersion, "projects", project.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // Create the default profile of a project.

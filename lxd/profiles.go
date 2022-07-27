@@ -320,7 +320,9 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileCreated.Event(req.Name, projectName, requestor, nil))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
+	u := api.NewURL().Path(version.APIVersion, "profiles", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation GET /1.0/profiles/{name} profiles profile_get
@@ -732,7 +734,9 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name}))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
+	u := api.NewURL().Path(version.APIVersion, "profiles", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation DELETE /1.0/profiles/{name} profiles profile_delete

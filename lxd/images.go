@@ -2971,7 +2971,9 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasCreated.Event(req.Name, projectName, requestor, logger.Ctx{"target": req.Target}))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
+	u := api.NewURL().Path(version.APIVersion, "images", "aliases", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation GET /1.0/images/aliases images images_aliases_get
@@ -3482,7 +3484,9 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name}))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
+	u := api.NewURL().Path(version.APIVersion, "images", "aliases", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation GET /1.0/images/{fingerprint}/export?public images image_export_get_untrusted
