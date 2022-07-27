@@ -164,7 +164,7 @@ func UpdateProject(ctx context.Context, tx *sql.Tx, name string, object api.Proj
 		return fmt.Errorf("Fetch project ID: %w", err)
 	}
 
-	stmt := stmt(tx, projectUpdate)
+	stmt := Stmt(tx, projectUpdate)
 	result, err := stmt.Exec(object.Description, id)
 	if err != nil {
 		return fmt.Errorf("Update project: %w", err)

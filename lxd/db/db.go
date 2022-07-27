@@ -115,7 +115,6 @@ type Cluster struct {
 	db         *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
 	nodeID     int64   // Node ID of this LXD instance.
 	mu         sync.RWMutex
-	stmts      map[int]*sql.Stmt // Prepared statements by code.
 	closingCtx context.Context
 }
 
@@ -226,7 +225,6 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 	if !nodesVersionsMatch {
 		cluster := &Cluster{
 			db:         db,
-			stmts:      map[int]*sql.Stmt{},
 			closingCtx: closingCtx,
 		}
 
@@ -242,7 +240,6 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	clusterDB := &Cluster{
 		db:         db,
-		stmts:      stmts,
 		closingCtx: closingCtx,
 	}
 
@@ -313,7 +310,6 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 	}
 
 	cluster.PreparedStmts = stmts
-	c.stmts = stmts
 
 	return c, nil
 }
@@ -367,7 +363,6 @@ func (c *Cluster) ExitExclusive(ctx context.Context, f func(context.Context, *Cl
 func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
-		stmts:  c.stmts,
 	}
 
 	return c.retry(func() error {
@@ -407,7 +402,7 @@ func (c *Cluster) NodeID(id int64) {
 
 // Close the database facade.
 func (c *Cluster) Close() error {
-	for _, stmt := range c.stmts {
+	for _, stmt := range cluster.PreparedStmts {
 		_ = stmt.Close()
 	}
 

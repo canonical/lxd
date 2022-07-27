@@ -84,7 +84,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 	var args []any
 
 	if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
 		args = []any{
 			filter.Node,
 			filter.TypeCode,
@@ -93,35 +93,35 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 			filter.EntityID,
 		}
 	} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
+		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
 		args = []any{
 			filter.Node,
 			filter.TypeCode,
 			filter.Project,
 		}
 	} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjectsByNodeAndTypeCode)
+		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCode)
 		args = []any{
 			filter.Node,
 			filter.TypeCode,
 		}
 	} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjectsByUUID)
+		sqlStmt = Stmt(tx, warningObjectsByUUID)
 		args = []any{
 			filter.UUID,
 		}
 	} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
-		sqlStmt = stmt(tx, warningObjectsByStatus)
+		sqlStmt = Stmt(tx, warningObjectsByStatus)
 		args = []any{
 			filter.Status,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjectsByProject)
+		sqlStmt = Stmt(tx, warningObjectsByProject)
 		args = []any{
 			filter.Project,
 		}
 	} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = stmt(tx, warningObjects)
+		sqlStmt = Stmt(tx, warningObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -180,7 +180,7 @@ func GetWarning(ctx context.Context, tx *sql.Tx, uuid string) (*Warning, error) 
 // DeleteWarning deletes the warning matching the given key parameters.
 // generator: warning DeleteOne-by-UUID
 func DeleteWarning(ctx context.Context, tx *sql.Tx, uuid string) error {
-	stmt := stmt(tx, warningDeleteByUUID)
+	stmt := Stmt(tx, warningDeleteByUUID)
 	result, err := stmt.Exec(uuid)
 	if err != nil {
 		return fmt.Errorf("Delete \"warnings\": %w", err)
@@ -203,7 +203,7 @@ func DeleteWarning(ctx context.Context, tx *sql.Tx, uuid string) error {
 // DeleteWarnings deletes the warning matching the given key parameters.
 // generator: warning DeleteMany-by-EntityTypeCode-and-EntityID
 func DeleteWarnings(ctx context.Context, tx *sql.Tx, entityTypeCode int, entityID int) error {
-	stmt := stmt(tx, warningDeleteByEntityTypeCodeAndEntityID)
+	stmt := Stmt(tx, warningDeleteByEntityTypeCodeAndEntityID)
 	result, err := stmt.Exec(entityTypeCode, entityID)
 	if err != nil {
 		return fmt.Errorf("Delete \"warnings\": %w", err)
@@ -220,7 +220,7 @@ func DeleteWarnings(ctx context.Context, tx *sql.Tx, entityTypeCode int, entityI
 // GetWarningID return the ID of the warning with the given key.
 // generator: warning ID
 func GetWarningID(ctx context.Context, tx *sql.Tx, uuid string) (int64, error) {
-	stmt := stmt(tx, warningID)
+	stmt := Stmt(tx, warningID)
 	rows, err := stmt.Query(uuid)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"warnings\" ID: %w", err)
