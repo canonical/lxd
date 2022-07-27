@@ -1,11 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // StoragePoolAction represents a lifecycle event action for storage pools.
@@ -20,14 +17,11 @@ const (
 
 // Event creates the lifecycle event for an action on an storage pool.
 func (a StoragePoolAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/storage-pools/%s", url.PathEscape(name))
-	if projectName != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(projectName))
-	}
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", name).Project(projectName)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

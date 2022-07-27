@@ -1,10 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // ClusterAction represents a lifecycle event action for clusters.
@@ -20,11 +18,11 @@ const (
 
 // Event creates the lifecycle event for an action on a cluster.
 func (a ClusterAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/cluster/%s", url.PathEscape(name))
+	u := api.NewURL().Path(version.APIVersion, "cluster", name)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}
