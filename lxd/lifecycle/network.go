@@ -1,11 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Internal copy of the network interface.
@@ -27,14 +24,11 @@ const (
 
 // Event creates the lifecycle event for an action on a network device.
 func (a NetworkAction) Event(n network, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.Name()))
-	if n.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.Project()))
-	}
+	u := api.NewURL().Path(version.APIVersion, "networks", n.Name()).Project(n.Project())
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

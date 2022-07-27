@@ -1,11 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // ImageAliasAction represents a lifecycle event action for image aliases.
@@ -21,14 +18,11 @@ const (
 
 // Event creates the lifecycle event for an action on an image alias.
 func (a ImageAliasAction) Event(image string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/images/aliases/%s", url.PathEscape(image))
-	if projectName != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(projectName))
-	}
+	u := api.NewURL().Path(version.APIVersion, "images", "aliases", image).Project(projectName)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

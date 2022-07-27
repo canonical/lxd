@@ -1,11 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Internal copy of the network acl interface.
@@ -27,14 +24,11 @@ const (
 
 // Event creates the lifecycle event for an action on a network acl.
 func (a NetworkACLAction) Event(n networkACL, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/network-acls/%s", url.PathEscape(n.Info().Name))
-	if n.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.Project()))
-	}
+	u := api.NewURL().Path(version.APIVersion, "network-acls", n.Info().Name).Project(n.Project())
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

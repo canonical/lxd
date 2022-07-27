@@ -1,12 +1,9 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // InstanceSnapshotAction represents a lifecycle event action for instance snapshots.
@@ -22,12 +19,9 @@ const (
 
 // Event creates the lifecycle event for an action on an instance snapshot.
 func (a InstanceSnapshotAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
-	parentName, instanceName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
 
-	u := fmt.Sprintf("/1.0/instances/%s/snapshots/%s", url.PathEscape(parentName), url.PathEscape(instanceName))
-	if inst.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
-	}
+	u := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(inst.Project())
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
@@ -36,7 +30,7 @@ func (a InstanceSnapshotAction) Event(inst instance, ctx map[string]any) api.Eve
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

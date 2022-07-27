@@ -1,10 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // CertificateAction represents a lifecycle event action for Certificates.
@@ -19,11 +17,11 @@ const (
 
 // Event creates the lifecycle event for an action on a Certificate.
 func (a CertificateAction) Event(fingerprint string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/certificates/%s", url.PathEscape(fingerprint))
+	u := api.NewURL().Path(version.APIVersion, "certificates", fingerprint)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}
