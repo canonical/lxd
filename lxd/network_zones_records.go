@@ -235,8 +235,9 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordCreated.Event(netzone, req.Name, request.CreateRequestor(r), nil))
 
-	url := fmt.Sprintf("/%s/network-zones/%s/records/%s", version.APIVersion, zoneName, req.Name)
-	return response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "network-zones", zoneName, "records", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation DELETE /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_delete
