@@ -105,7 +105,7 @@ Alternatively, the clients can provide the token directly when adding the remote
 
 ### Using a PKI system
 
-In a {abbr}`PKI (Public key infrastructure)` setup, a system administrator manages a central PKI that issues client certificates for all the lxc clients and server certificates for all the LXD daemons.
+In a {abbr}`PKI (Public key infrastructure)` setup, a system administrator manages a central PKI that issues client certificates for all the LXD clients and server certificates for all the LXD daemons.
 
 To enable PKI mode, complete the following steps:
 
@@ -117,7 +117,7 @@ To enable PKI mode, complete the following steps:
 1. Restart the server.
 
 In that mode, any connection to a LXD daemon will be done using the
-preseeded CA certificate.
+pre-seeded CA certificate.
 
 If the server certificate isn't signed by the CA, the connection will simply go through the normal authentication mechanism.
 If the server certificate is valid and signed by the CA, then the connection continues without prompting the user for the certificate.
