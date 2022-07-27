@@ -253,8 +253,9 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkForwardCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil))
 
-	url := fmt.Sprintf("/%s/networks/%s/forwards/%s", version.APIVersion, url.PathEscape(n.Name()), url.PathEscape(req.ListenAddress))
-	return response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "forwards", req.ListenAddress)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
