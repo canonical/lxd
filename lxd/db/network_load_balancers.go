@@ -187,74 +187,21 @@ func (c *Cluster) DeleteNetworkLoadBalancer(networkID int64, loadBalancerID int6
 // GetNetworkLoadBalancer returns the Network Load Balancer ID and info for the given network ID and listen address.
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
 // to all members.
-func (c *Cluster) GetNetworkLoadBalancer(networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkLoadBalancer, error) {
-	var q *strings.Builder = &strings.Builder{}
-	args := []any{networkID, listenAddress}
-
-	q.WriteString(`
-	SELECT
-		IFNULL(networks_load_balancers.id, -1) ,
-		IFNULL(networks_load_balancers.listen_address, ""),
-		IFNULL(networks_load_balancers.description, ""),
-		IFNULL(nodes.name, "") as location,
-		IFNULL(networks_load_balancers.backends, ""),
-		IFNULL(networks_load_balancers.ports, ""),
-		COUNT(networks_load_balancers.id) as rowCount
-	FROM networks_load_balancers
-	LEFT JOIN nodes ON nodes.id = networks_load_balancers.node_id
-	WHERE networks_load_balancers.network_id = ? AND networks_load_balancers.listen_address = ?
-	`)
-
-	if memberSpecific {
-		q.WriteString("AND (networks_load_balancers.node_id = ? OR networks_load_balancers.node_id IS NULL) ")
-		args = append(args, c.nodeID)
-	}
-
-	var err error
-	var loadBalancerID int64 = int64(-1)
-	var loadBalancer api.NetworkLoadBalancer
-	var backendsJSON, portsJSON string
-
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var rowCount int
-
-		err = tx.tx.QueryRow(q.String(), args...).Scan(&loadBalancerID, &loadBalancer.ListenAddress, &loadBalancer.Description, &loadBalancer.Location, &backendsJSON, &portsJSON, &rowCount)
-		if (err == nil && rowCount <= 0) || errors.Is(err, sql.ErrNoRows) {
-			return api.StatusErrorf(http.StatusNotFound, "Network load balancer not found")
-		} else if err == nil && rowCount > 1 {
-			return api.StatusErrorf(http.StatusConflict, "Network load balancer found on more than one cluster member. Please target a specific member")
-		} else if err != nil {
-			return err
-		}
-
-		err = networkLoadBalancerConfig(tx, loadBalancerID, &loadBalancer)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
+func (c *Cluster) GetNetworkLoadBalancer(ctx context.Context, networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkLoadBalancer, error) {
+	loadBalancers, err := c.GetNetworkLoadBalancers(ctx, networkID, memberSpecific, listenAddress)
+	if (err == nil && len(loadBalancers) <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return -1, nil, api.StatusErrorf(http.StatusNotFound, "Network load balancer not found")
+	} else if err == nil && len(loadBalancers) > 1 {
+		return -1, nil, api.StatusErrorf(http.StatusConflict, "Network load balancer found on more than one cluster member. Please target a specific member")
+	} else if err != nil {
 		return -1, nil, err
 	}
 
-	loadBalancer.Ports = []api.NetworkLoadBalancerPort{}
-	if portsJSON != "" {
-		err = json.Unmarshal([]byte(portsJSON), &loadBalancer.Ports)
-		if err != nil {
-			return -1, nil, fmt.Errorf("Failed unmarshalling ports: %w", err)
-		}
+	for loadBalancerID, loadBalancer := range loadBalancers {
+		return loadBalancerID, loadBalancer, nil // Only single load balancer in map.
 	}
 
-	loadBalancer.Backends = []api.NetworkLoadBalancerBackend{}
-	if backendsJSON != "" {
-		err = json.Unmarshal([]byte(backendsJSON), &loadBalancer.Backends)
-		if err != nil {
-			return -1, nil, fmt.Errorf("Failed unmarshalling backends: %w", err)
-		}
-	}
-
-	return loadBalancerID, &loadBalancer, nil
+	return -1, nil, fmt.Errorf("Unexpected load balancer list size")
 }
 
 // networkLoadBalancerConfig populates the config map of the Network Load Balancer with the given ID.
@@ -428,8 +375,8 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember() (map[
 
 // GetNetworkLoadBalancers returns map of Network Load Balancers for the given network ID keyed on Load Balancer ID.
 // If memberSpecific is true, then the search is restricted to load balancers that belong to this member or belong
-// to all members.
-func (c *Cluster) GetNetworkLoadBalancers(networkID int64, memberSpecific bool) (map[int64]*api.NetworkLoadBalancer, error) {
+// to all members. Can optionally retrieve only specific network load balancers by listen address.
+func (c *Cluster) GetNetworkLoadBalancers(ctx context.Context, networkID int64, memberSpecific bool, listenAddresses ...string) (map[int64]*api.NetworkLoadBalancer, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{networkID}
 
@@ -447,14 +394,21 @@ func (c *Cluster) GetNetworkLoadBalancers(networkID int64, memberSpecific bool) 
 	`)
 
 	if memberSpecific {
-		q.WriteString("AND (networks_load_balancers.node_id = ? OR networks_load_balancersnode_id IS NULL) ")
+		q.WriteString("AND (networks_load_balancers.node_id = ? OR networks_load_balancers.node_id IS NULL) ")
 		args = append(args, c.nodeID)
+	}
+
+	if len(listenAddresses) > 0 {
+		q.WriteString(fmt.Sprintf("AND networks_forwards.listen_address IN (%s) ", generateInClauseParams(len(listenAddresses))))
+		for _, listenAddress := range listenAddresses {
+			args = append(args, listenAddress)
+		}
 	}
 
 	var err error
 	loadBalancers := make(map[int64]*api.NetworkLoadBalancer)
 
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var backendsJSON, portsJSON string
