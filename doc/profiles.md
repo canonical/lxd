@@ -19,7 +19,7 @@ specify a different profiles list.
 As profiles aren't specific to containers or virtual machines, they may
 contain configuration and devices that are valid for either type.
 
-This differs from the behavior when applying those config/devices
+This differs from the behavior when applying those configurations/devices
 directly to an instance where its type is then taken into consideration
 and keys that aren't allowed result in an error.
 
