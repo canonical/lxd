@@ -241,8 +241,9 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r), nil))
 
-	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
-	return response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "network-acls", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acl_delete
@@ -547,8 +548,9 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), logger.Ctx{"old_name": aclName}))
 
-	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
-	return response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "network-acls", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation GET /1.0/network-acls/{name}/log network-acls network_acl_log_get

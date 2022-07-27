@@ -1,11 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // InstanceLogAction represents a lifecycle event action for instance logs.
@@ -19,14 +16,11 @@ const (
 
 // Event creates the lifecycle event for an action on an instance log.
 func (a InstanceLogAction) Event(file string, inst instance, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/instance/%s/logs/%s", url.PathEscape(inst.Name()), file)
-	if inst.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
-	}
+	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "backups", file).Project(inst.Project())
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

@@ -411,7 +411,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			return fmt.Errorf("Create volume backup: %w", err)
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), logger.Ctx{"type": volumeTypeName}))
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, args.Name, projectName, op.Requestor(), logger.Ctx{"type": volumeTypeName}))
 
 		return nil
 	}
@@ -648,7 +648,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), logger.Ctx{"old_name": backupName}))
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, newName, projectName, op.Requestor(), logger.Ctx{"old_name": oldName}))
 
 		return nil
 	}
@@ -759,7 +759,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 			return err
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupDeleted.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), nil))
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupDeleted.Event(poolName, volumeTypeName, fullName, projectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -865,7 +865,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		Path: shared.VarPath("backups", "custom", poolName, project.StorageVolume(projectName, fullName)),
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, volumeName, projectName, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, fullName, projectName, request.CreateRequestor(r), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }

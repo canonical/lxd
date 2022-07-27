@@ -1,10 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // WarningAction represents a lifecycle event action for warnings.
@@ -19,11 +17,11 @@ const (
 
 // Event creates the lifecycle event for an action on a warning.
 func (a WarningAction) Event(id string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/warnings/%s", url.PathEscape(id))
+	u := api.NewURL().Path(version.APIVersion, "warnings", id)
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

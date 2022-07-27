@@ -760,7 +760,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil))
 
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
+	u := api.NewURL().Path(version.APIVersion, "certificates", fingerprint)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation GET /1.0/certificates/{fingerprint} certificates certificate_get

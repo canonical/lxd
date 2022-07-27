@@ -260,8 +260,9 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No driver provided"))
 	}
 
-	url := fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name)
-	resp := response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", req.Name)
+
+	resp := response.SyncResponseLocation(true, nil, u.String())
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 

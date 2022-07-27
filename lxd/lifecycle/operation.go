@@ -1,10 +1,8 @@
 package lifecycle
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Internal copy of the operation interface.
@@ -22,11 +20,11 @@ const (
 
 // Event creates the lifecycle event for an action on an operation.
 func (a OperationAction) Event(op operation, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := fmt.Sprintf("/1.0/operations/%s", url.PathEscape(op.ID()))
+	u := api.NewURL().Path(version.APIVersion, "operations", op.ID())
 
 	return api.EventLifecycle{
 		Action:    string(a),
-		Source:    u,
+		Source:    u.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}

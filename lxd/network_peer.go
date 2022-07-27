@@ -249,8 +249,9 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r), nil))
 
-	url := fmt.Sprintf("/%s/networks/%s/peers/%s", version.APIVersion, url.PathEscape(n.Name()), url.PathEscape(req.Name))
-	return response.SyncResponseLocation(true, nil, url)
+	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "peers", req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_delete
