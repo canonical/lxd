@@ -36,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -226,7 +227,24 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 	return nil
 }
 
-// GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config,.
+// GetBucket returns a drivers.Bucket containing copies of the supplied bucket config and the pools config.
+func (b *lxdBackend) GetBucket(bucketName string, bucketconfig map[string]string) drivers.Bucket {
+	// Copy the config map to avoid internal modifications affecting external state.
+	newConfig := make(map[string]string, len(bucketconfig))
+	for k, v := range bucketconfig {
+		newConfig[k] = v
+	}
+
+	// Copy the pool config map to avoid internal modifications affecting external state.
+	newPoolConfig := make(map[string]string, len(b.db.Config))
+	for k, v := range b.db.Config {
+		newPoolConfig[k] = v
+	}
+
+	return drivers.NewBucket(b.driver, b.name, bucketName, newConfig, newPoolConfig)
+}
+
+// GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config.
 func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
 	newConfig := make(map[string]string, len(volConfig))
@@ -3244,6 +3262,381 @@ func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[stri
 	defer l.Debug("UpdateImage finished")
 
 	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig, op)
+}
+
+// CreateBucket creates an object bucket.
+func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsPost, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucket.Name, "desc": bucket.Description, "config": bucket.Config})
+	l.Debug("CreateBucket started")
+	defer l.Debug("CreateBucket finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	// Validate config.
+	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+
+	err = b.driver.ValidateBucket(storageBucket)
+	if err != nil {
+		return err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	bucketID, err := b.state.DB.Cluster.CreateStoragePoolBucket(context.TODO(), b.id, projectName, memberSpecific, bucket)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucket(context.TODO(), b.id, bucketID) })
+
+	// Create the bucket on the storage device.
+	err = b.driver.CreateBucket(storageBucket, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+// UpdateBucket updates an object bucket.
+func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucketName, "desc": bucket.Description, "config": bucket.Config})
+	l.Debug("UpdateBucket started")
+	defer l.Debug("UpdateBucket finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	// Get current config to compare what has changed.
+	var curBucket *db.StorageBucket
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		curBucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	curStorageBucket := b.GetBucket(curBucket.Name, curBucket.Config)
+
+	// Validate config.
+	newStorageBucket := b.GetBucket(curBucket.Name, bucket.Config)
+
+	err = b.driver.ValidateBucket(newStorageBucket)
+	if err != nil {
+		return err
+	}
+
+	curBucketEtagHash, err := util.EtagHash(curBucket.Etag())
+	if err != nil {
+		return err
+	}
+
+	newBucket := api.StorageBucket{
+		Name:             curBucket.Name,
+		StorageBucketPut: bucket,
+	}
+
+	newBucketEtagHash, err := util.EtagHash(newBucket.Etag())
+	if err != nil {
+		return err
+	}
+
+	if curBucketEtagHash == newBucketEtagHash {
+		return nil // Nothing has changed.
+	}
+
+	changedConfig, userOnly := b.detectChangedConfig(curBucket.Config, bucket.Config)
+	if len(changedConfig) > 0 && !userOnly {
+		err = b.driver.UpdateBucket(curStorageBucket, changedConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update the database record.
+	err = b.state.DB.Cluster.UpdateStoragePoolBucket(context.TODO(), b.id, curBucket.ID, &bucket)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteBucket deletes an object bucket.
+func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucketName})
+	l.Debug("DeleteBucket started")
+	defer l.Debug("DeleteBucket finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	var bucket *db.StorageBucket
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+
+	err = b.driver.DeleteBucket(storageBucket, op)
+	if err != nil {
+		return err
+	}
+
+	err = b.state.DB.Cluster.DeleteStoragePoolBucket(context.TODO(), b.id, bucket.ID)
+	if err != nil {
+		return fmt.Errorf("Failed deleting bucket from database: %w", err)
+	}
+
+	return nil
+}
+
+// CreateBucketKey creates an object bucket key.
+func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error) {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": key.Name, "desc": key.Description, "role": key.Role})
+	l.Debug("CreateBucketKey started")
+	defer l.Debug("CreateBucketKey finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return nil, fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	var bucket *db.StorageBucket
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+
+	err = b.driver.ValidateBucket(storageBucket)
+	if err != nil {
+		return nil, err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create the bucket key on the storage device.
+	creds := drivers.S3Credentials{
+		AccessKey: key.AccessKey,
+		SecretKey: key.SecretKey,
+	}
+
+	err = b.driver.ValidateBucketKey(key.Name, creds, key.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	newCreds, err := b.driver.CreateBucketKey(storageBucket, key.Name, creds, key.Role, op)
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Add(func() { _ = b.driver.DeleteBucketKey(storageBucket, key.Name, op) })
+
+	key.AccessKey = newCreds.AccessKey
+	key.SecretKey = newCreds.SecretKey
+
+	newKey := api.StorageBucketKey{
+		Name: key.Name,
+		StorageBucketKeyPut: api.StorageBucketKeyPut{
+			Description: key.Description,
+			Role:        key.Role,
+			AccessKey:   key.AccessKey,
+			SecretKey:   key.SecretKey,
+		},
+	}
+
+	_, err = b.state.DB.Cluster.CreateStoragePoolBucketKey(context.TODO(), bucket.ID, key)
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Success()
+	return &newKey, err
+}
+
+func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": keyName, "desc": key.Description, "role": key.Role})
+	l.Debug("UpdateBucketKey started")
+	defer l.Debug("UpdateBucketKey finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	// Get current config to compare what has changed.
+	var bucket *db.StorageBucket
+	var curBucketKey *db.StorageBucketKey
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		if err != nil {
+			return err
+		}
+
+		curBucketKey, err = tx.GetStoragePoolBucketKey(bucket.ID, keyName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	curBucketKeyEtagHash, err := util.EtagHash(curBucketKey.Etag())
+	if err != nil {
+		return err
+	}
+
+	newBucketKey := api.StorageBucketKey{
+		Name:                curBucketKey.Name,
+		StorageBucketKeyPut: key,
+	}
+
+	newBucketKeyEtagHash, err := util.EtagHash(newBucketKey.Etag())
+	if err != nil {
+		return err
+	}
+
+	if curBucketKeyEtagHash == newBucketKeyEtagHash {
+		return nil // Nothing has changed.
+	}
+
+	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+	err = b.driver.ValidateBucket(storageBucket)
+	if err != nil {
+		return err
+	}
+
+	creds := drivers.S3Credentials{
+		AccessKey: newBucketKey.AccessKey,
+		SecretKey: newBucketKey.SecretKey,
+	}
+
+	err = b.driver.ValidateBucketKey(keyName, creds, key.Role)
+	if err != nil {
+		return err
+	}
+
+	newCreds, err := b.driver.UpdateBucketKey(storageBucket, keyName, creds, key.Role, op)
+	if err != nil {
+		return err
+	}
+
+	key.AccessKey = newCreds.AccessKey
+	key.SecretKey = newCreds.SecretKey
+
+	// Update the database record.
+	err = b.state.DB.Cluster.UpdateStoragePoolBucketKey(context.TODO(), bucket.ID, curBucketKey.ID, &key)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteBucketKey deletes an object bucket key.
+func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "bucketName": bucketName, "keyName": keyName})
+	l.Debug("DeleteBucketKey started")
+	defer l.Debug("DeleteBucketKey finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
+
+	if !b.Driver().Info().Buckets {
+		return fmt.Errorf("Storage pool does not support buckets")
+	}
+
+	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
+
+	var bucket *db.StorageBucket
+	var bucketKey *db.StorageBucketKey
+	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		if err != nil {
+			return err
+		}
+
+		bucketKey, err = tx.GetStoragePoolBucketKey(bucket.ID, keyName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+
+	// Delete the bucket key from the storage device.
+	err = b.driver.DeleteBucketKey(storageBucket, keyName, op)
+	if err != nil {
+		return err
+	}
+
+	err = b.state.DB.Cluster.DeleteStoragePoolBucketKey(context.TODO(), bucket.ID, bucketKey.ID)
+	if err != nil {
+		return fmt.Errorf("Failed deleting bucket key from database: %w", err)
+	}
+
+	return nil
 }
 
 // CreateCustomVolume creates an empty custom volume.
