@@ -37,7 +37,7 @@ See the following sections for syntax help and conventions.
 Adhere to the following conventions:
 
 - Do not use consecutive headings without intervening text.
-- Use sentence style for headings (capitalise only the first word).
+- Use sentence style for headings (capitalize only the first word).
 - Do not skip levels (for example, always follow an H2 with an H3, not an H4).
 
 ## Inline formatting
@@ -131,7 +131,7 @@ For external links, use only the URL, or Markdown syntax if you want to override
 * - Input
   - Output
 * - `https://linuxcontainers.org`
-  - https://linuxcontainers.org
+  - [{spellexception}`https://linuxcontainers.org`](https://linuxcontainers.org)
 * - `[Linux Containers](https://linuxcontainers.org)`
   - [Linux Containers](https://linuxcontainers.org)
 ```
@@ -144,7 +144,7 @@ To display a URL as text and prevent it from being linked, add a `<span></span>`
 * - Input
   - Output
 * - `https:/<span></span>/linuxcontainers.org`
-  - https:/<span></span>/linuxcontainers.org
+  - {spellexception}`https:/<span></span>/linuxcontainers.org`
 
 ```
 
@@ -360,7 +360,7 @@ Both markups result in the following output:
   - Header 2
 * - Cell 1
 
-    2nd paragraph cell 1
+    Second paragraph cell 1
   - Cell 2
 * - Cell 3
   - Cell 4
