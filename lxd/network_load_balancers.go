@@ -254,7 +254,8 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil))
 
-	u := api.NewURL().Path(version.APIVersion, n.Name(), "load-balancers", req.ListenAddress)
+	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "load-balancers", req.ListenAddress)
+
 	return response.SyncResponseLocation(true, nil, u.String())
 }
 
