@@ -247,9 +247,9 @@ func (d *lvm) HasVolume(vol Volume) bool {
 // FillVolumeConfig populate volume with default config.
 func (d *lvm) FillVolumeConfig(vol Volume) error {
 	// Copy volume.* configuration options from pool.
-	// Exclude 'block.filesystem' and 'block.mount_options'
-	// as this ones are handled below in this function and depends from volume type
-	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options")
+	// Exclude "block.filesystem" and "block.mount_options" as they depend on volume type (handled below).
+	// Exclude "lvm.stripes", "lvm.stripes.size" as they only work on non-thin storage pools (handled below).
+	err := d.fillVolumeConfig(&vol, "block.filesystem", "block.mount_options", "lvm.stripes", "lvm.stripes.size")
 	if err != nil {
 		return err
 	}
@@ -277,6 +277,17 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 		if vol.config["block.mount_options"] == "" {
 			// Unchangeable volume property: Set unconditionally.
 			vol.config["block.mount_options"] = "discard"
+		}
+	}
+
+	// Inherit stripe settings from pool if not set and not using thin pool.
+	if !d.usesThinpool() {
+		if vol.config["lvm.stripes"] == "" {
+			vol.config["lvm.stripes"] = d.config["volume.lvm.stripes"]
+		}
+
+		if vol.config["lvm.stripes.size"] == "" {
+			vol.config["lvm.stripes.size"] = d.config["lvm.stripes.size"]
 		}
 	}
 
