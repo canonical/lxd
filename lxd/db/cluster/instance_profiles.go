@@ -55,7 +55,7 @@ func UpdateInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, pro
 	}
 
 	applyOrder := 1
-	stmt := stmt(tx, instanceProfileCreate)
+	stmt := Stmt(tx, instanceProfileCreate)
 
 	for _, name := range profiles {
 		profileID, err := GetProfileID(ctx, tx, project, name)

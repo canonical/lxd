@@ -71,25 +71,25 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 	var args []any
 
 	if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
+		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
+		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
 		args = []any{
 			filter.Project,
 			filter.Instance,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, instanceSnapshotObjectsByID)
+		sqlStmt = Stmt(tx, instanceSnapshotObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		sqlStmt = stmt(tx, instanceSnapshotObjects)
+		sqlStmt = Stmt(tx, instanceSnapshotObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -182,7 +182,7 @@ func GetInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instan
 // GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.
 // generator: instance_snapshot ID
 func GetInstanceSnapshotID(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (int64, error) {
-	stmt := stmt(tx, instanceSnapshotID)
+	stmt := Stmt(tx, instanceSnapshotID)
 	rows, err := stmt.Query(project, instance, name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
@@ -253,7 +253,7 @@ func CreateInstanceSnapshot(ctx context.Context, tx *sql.Tx, object InstanceSnap
 	args[6] = object.ExpiryDate
 
 	// Prepared statement to use.
-	stmt := stmt(tx, instanceSnapshotCreate)
+	stmt := Stmt(tx, instanceSnapshotCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -309,7 +309,7 @@ func CreateInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnaps
 // RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
 // generator: instance_snapshot Rename
 func RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string, to string) error {
-	stmt := stmt(tx, instanceSnapshotRename)
+	stmt := Stmt(tx, instanceSnapshotRename)
 	result, err := stmt.Exec(to, project, instance, name)
 	if err != nil {
 		return fmt.Errorf("Rename InstanceSnapshot failed: %w", err)
@@ -330,7 +330,7 @@ func RenameInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, ins
 // DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
 // generator: instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 func DeleteInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) error {
-	stmt := stmt(tx, instanceSnapshotDeleteByProjectAndInstanceAndName)
+	stmt := Stmt(tx, instanceSnapshotDeleteByProjectAndInstanceAndName)
 	result, err := stmt.Exec(project, instance, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"instances_snapshots\": %w", err)

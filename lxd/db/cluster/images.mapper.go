@@ -77,44 +77,44 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 	var args []any
 
 	if filter.Project != nil && filter.Public != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByProjectAndPublic)
+		sqlStmt = Stmt(tx, imageObjectsByProjectAndPublic)
 		args = []any{
 			filter.Project,
 			filter.Public,
 		}
 	} else if filter.Project != nil && filter.Cached != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByProjectAndCached)
+		sqlStmt = Stmt(tx, imageObjectsByProjectAndCached)
 		args = []any{
 			filter.Project,
 			filter.Cached,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByProject)
+		sqlStmt = Stmt(tx, imageObjectsByProject)
 		args = []any{
 			filter.Project,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByID)
+		sqlStmt = Stmt(tx, imageObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByFingerprint)
+		sqlStmt = Stmt(tx, imageObjectsByFingerprint)
 		args = []any{
 			filter.Fingerprint,
 		}
 	} else if filter.Cached != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjectsByCached)
+		sqlStmt = Stmt(tx, imageObjectsByCached)
 		args = []any{
 			filter.Cached,
 		}
 	} else if filter.AutoUpdate != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
-		sqlStmt = stmt(tx, imageObjectsByAutoUpdate)
+		sqlStmt = Stmt(tx, imageObjectsByAutoUpdate)
 		args = []any{
 			filter.AutoUpdate,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = stmt(tx, imageObjects)
+		sqlStmt = Stmt(tx, imageObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
