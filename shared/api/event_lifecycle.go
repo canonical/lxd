@@ -96,7 +96,7 @@ const (
 	EventLifecycleStoragePoolCreated                = "storage-pool-created"
 	EventLifecycleStoragePoolDeleted                = "storage-pool-deleted"
 	EventLifecycleStoragePoolUpdated                = "storage-pool-updated"
-	EventLifecycleStorageVolumCreated               = "storage-volume-created"
+	EventLifecycleStorageVolumeCreated              = "storage-volume-created"
 	EventLifecycleStorageVolumeBackupCreated        = "storage-volume-backup-created"
 	EventLifecycleStorageVolumeBackupDeleted        = "storage-volume-backup-deleted"
 	EventLifecycleStorageVolumeBackupRenamed        = "storage-volume-backup-renamed"
