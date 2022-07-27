@@ -1170,7 +1170,10 @@ func storagePoolVolumeTypePostRename(d *Daemon, r *http.Request, poolName string
 	}
 
 	revert.Success()
-	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, pool.Name(), db.StoragePoolVolumeTypeNameCustom))
+
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", db.StoragePoolVolumeTypeNameCustom, req.Name)
+
+	return response.SyncResponseLocation(true, nil, u.String())
 }
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
