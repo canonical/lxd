@@ -230,11 +230,10 @@ func networkZonesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneCreated.Event(netzone, request.CreateRequestor(r), nil))
+	lc := lifecycle.NetworkZoneCreated.Event(netzone, request.CreateRequestor(r), nil)
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "network-zones", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation DELETE /1.0/network-zones/{name} network-zones network_zone_delete

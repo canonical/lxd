@@ -758,11 +758,10 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	updateCertificateCache(d)
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil))
+	lc := lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil)
+	d.State().Events.SendLifecycle(project.Default, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "certificates", fingerprint)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation GET /1.0/certificates/{fingerprint} certificates certificate_get

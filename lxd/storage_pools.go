@@ -260,9 +260,15 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No driver provided"))
 	}
 
-	u := api.NewURL().Path(version.APIVersion, "storage-pools", req.Name)
+	ctx := logger.Ctx{}
 
-	resp := response.SyncResponseLocation(true, nil, u.String())
+	targetNode := queryParam(r, "target")
+	if targetNode != "" {
+		ctx["target"] = targetNode
+	}
+
+	lc := lifecycle.StoragePoolCreated.Event(req.Name, request.CreateRequestor(r), ctx)
+	resp := response.SyncResponseLocation(true, nil, lc.Source)
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
@@ -288,7 +294,6 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	targetNode := queryParam(r, "target")
 	if targetNode != "" {
 		// A targetNode was specified, let's just define the node's storage without actually creating it.
 		// The only legal key values for the storage config are the ones in NodeSpecificStorageConfig.
@@ -329,34 +334,22 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
-	requestor := request.CreateRequestor(r)
-
-	ctx := logger.Ctx{}
-	if targetNode != "" {
-		ctx["target"] = targetNode
-	}
-
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
-	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
+	// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
 		err = storagePoolsPostCluster(d, pool, req, clientType)
 		if err != nil {
 			return response.InternalError(err)
 		}
-
-		d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
-
-		return resp
+	} else {
+		// Create new single node storage pool.
+		err = storagePoolCreateGlobal(d.State(), req, clientType)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	// Create new single node storage pool.
-	err = storagePoolCreateGlobal(d.State(), req, clientType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
+	d.State().Events.SendLifecycle(project.Default, lc)
 
 	return resp
 }
@@ -746,7 +739,6 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	response := doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
 
-	projectName := projectParam(r)
 	requestor := request.CreateRequestor(r)
 
 	ctx := logger.Ctx{}
@@ -754,7 +746,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolUpdated.Event(pool.Name(), projectName, requestor, ctx))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
 
 	return response
 }
@@ -906,7 +898,6 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
@@ -930,6 +921,8 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Only perform the deletion of remote volumes on the server handling the request.
 	if !clusterNotification || !pool.Driver().Info().Remote {
+		projectName := projectParam(r)
+
 		// Only image volumes should remain now.
 		volumeNames, err := d.db.Cluster.GetStoragePoolVolumesNames(pool.ID())
 		if err != nil {
@@ -981,7 +974,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolDeleted.Event(pool.Name(), projectName, requestor, nil))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse
 }
