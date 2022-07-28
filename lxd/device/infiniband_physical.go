@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -17,10 +19,6 @@ type infinibandPhysical struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *infinibandPhysical) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
-		return ErrUnsupportedDevType
-	}
-
 	requiredFields := []string{"parent"}
 	optionalFields := []string{
 		"name",
@@ -67,6 +65,19 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 
+	// pciIOMMUGroup, used for VM physical passthrough.
+	var pciIOMMUGroup uint64
+
+	// If VM, then try and load the vfio-pci module first.
+	if d.inst.Type() == instancetype.VM {
+		err = util.LoadModule("vfio-pci")
+		if err != nil {
+			return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
+		}
+	}
+
+	runConf := deviceConfig.RunConfig{}
+
 	// Load network interface info.
 	nics, err := resources.GetNetwork()
 	if err != nil {
@@ -82,35 +93,58 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData["host_name"] = ibDev.ID
 
-	// Record hwaddr and mtu before potentially modifying them.
-	err = networkSnapshotPhysicalNIC(saveData["host_name"], saveData)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set the MAC address.
-	if d.config["hwaddr"] != "" {
-		err := infinibandSetDevMAC(saveData["host_name"], d.config["hwaddr"])
+	if d.inst.Type() == instancetype.Container {
+		// Record hwaddr and mtu before potentially modifying them.
+		err = networkSnapshotPhysicalNIC(saveData["host_name"], saveData)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+			return nil, err
 		}
-	}
 
-	// Set the MTU.
-	if d.config["mtu"] != "" {
-		link := &ip.Link{Name: saveData["host_name"]}
-		err := link.SetMTU(d.config["mtu"])
+		// Set the MAC address.
+		if d.config["hwaddr"] != "" {
+			err := infinibandSetDevMAC(saveData["host_name"], d.config["hwaddr"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+			}
+		}
+
+		// Set the MTU.
+		if d.config["mtu"] != "" {
+			link := &ip.Link{Name: saveData["host_name"]}
+			err := link.SetMTU(d.config["mtu"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
+			}
+		}
+
+		// Configure runConf with infiniband setup instructions.
+		err = infinibandAddDevices(d.state, d.inst.DevicesPath(), d.name, ibDev, &runConf)
 		if err != nil {
-			return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
+			return nil, err
 		}
-	}
+	} else if d.inst.Type() == instancetype.VM {
+		// Get PCI information about the network interface.
+		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
+		pciDev, err := pcidev.ParseUeventFile(ueventPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", saveData["host_name"], err)
+		}
 
-	runConf := deviceConfig.RunConfig{}
+		saveData["last_state.pci.slot.name"] = pciDev.SlotName
+		saveData["last_state.pci.driver"] = pciDev.Driver
 
-	// Configure runConf with infiniband setup instructions.
-	err = infinibandAddDevices(d.state, d.inst.DevicesPath(), d.name, ibDev, &runConf)
-	if err != nil {
-		return nil, err
+		err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
+		if err != nil {
+			return nil, err
+		}
+
+		pciIOMMUGroup, err = pcidev.DeviceIOMMUGroup(saveData["last_state.pci.slot.name"])
+		if err != nil {
+			return nil, err
+		}
+
+		// Record original driver used by device for restore.
+		saveData["last_state.pci.driver"] = pciDev.Driver
 	}
 
 	err = d.volatileSet(saveData)
@@ -129,6 +163,8 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
+				{Key: "pciSlotName", Value: saveData["last_state.pci.slot.name"]},
+				{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
 			}...)
 	}
 
@@ -145,9 +181,11 @@ func (d *infinibandPhysical) Stop() (*deviceConfig.RunConfig, error) {
 		},
 	}
 
-	err := unixDeviceRemove(d.inst.DevicesPath(), IBDevPrefix, d.name, "", &runConf)
-	if err != nil {
-		return nil, err
+	if d.inst.Type() == instancetype.Container {
+		err := unixDeviceRemove(d.inst.DevicesPath(), IBDevPrefix, d.name, "", &runConf)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &runConf, nil
@@ -157,20 +195,42 @@ func (d *infinibandPhysical) Stop() (*deviceConfig.RunConfig, error) {
 func (d *infinibandPhysical) postStop() error {
 	defer func() {
 		_ = d.volatileSet(map[string]string{
-			"host_name":         "",
-			"last_state.hwaddr": "",
-			"last_state.mtu":    "",
+			"host_name":                "",
+			"last_state.hwaddr":        "",
+			"last_state.mtu":           "",
+			"last_state.pci.slot.name": "",
+			"last_state.pci.driver":    "",
 		})
 	}()
 
-	// Remove infiniband host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
-	if err != nil {
-		return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+	v := d.volatileGet()
+
+	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
+	if d.inst.Type() == instancetype.VM && v["last_state.pci.slot.name"] != "" {
+		vfioDev := pcidev.Device{
+			Driver:   "vfio-pci",
+			SlotName: v["last_state.pci.slot.name"],
+		}
+
+		// Unbind device from the host so that the restored settings will take effect when we rebind it.
+		err := pcidev.DeviceUnbind(vfioDev)
+		if err != nil {
+			return err
+		}
+
+		err = pcidev.DeviceDriverOverride(vfioDev, v["last_state.pci.driver"])
+		if err != nil {
+			return err
+		}
+	} else if d.inst.Type() == instancetype.Container {
+		// Remove infiniband host files for this device.
+		err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
+		if err != nil {
+			return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
+		}
 	}
 
-	// Restpre hwaddr and mtu.
-	v := d.volatileGet()
+	// Restore hwaddr and mtu.
 	if v["host_name"] != "" {
 		err := networkRestorePhysicalNIC(v["host_name"], v)
 		if err != nil {
