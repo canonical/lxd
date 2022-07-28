@@ -36,6 +36,10 @@ func vpdKnownKey(name string) bool {
 }
 
 func vpdReadInt(buf []byte, length int) ([]byte, int) {
+	if length > len(buf) {
+		return []byte{}, 0
+	}
+
 	value := 0
 	for i, n := range buf[:length] {
 		value += int(n) << (i * 8)
