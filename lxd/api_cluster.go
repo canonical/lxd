@@ -3177,11 +3177,10 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(project.Default, lifecycle.ClusterGroupCreated.Event(req.Name, requestor, nil))
+	lc := lifecycle.ClusterGroupCreated.Event(req.Name, requestor, nil)
+	s.Events.SendLifecycle(project.Default, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "cluster", "groups", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation GET /1.0/cluster/groups cluster-groups cluster_groups_get
@@ -3461,11 +3460,10 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(project.Default, lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
+	lc := lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name})
+	s.Events.SendLifecycle(project.Default, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "cluster", "groups", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation PUT /1.0/cluster/groups/{name} cluster-groups cluster_group_put

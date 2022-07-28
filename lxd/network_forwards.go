@@ -251,11 +251,10 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkForwardCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil))
+	lc := lifecycle.NetworkForwardCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil)
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "forwards", req.ListenAddress)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
