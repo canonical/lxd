@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -384,7 +385,7 @@ func (c *Cluster) GetNetworkForwards(ctx context.Context, networkID int64, membe
 	}
 
 	if len(listenAddresses) > 0 {
-		q.WriteString(fmt.Sprintf("AND networks_forwards.listen_address IN (%s) ", generateInClauseParams(len(listenAddresses))))
+		q.WriteString(fmt.Sprintf("AND networks_forwards.listen_address IN %s ", query.Params(len(listenAddresses))))
 		for _, listenAddress := range listenAddresses {
 			args = append(args, listenAddress)
 		}
