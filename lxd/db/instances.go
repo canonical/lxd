@@ -244,7 +244,7 @@ func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, f
 	var filters strings.Builder
 
 	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN (%s)", generateInClauseParams(len(projects))))
+	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
 	for _, project := range projects {
 		args = append(args, project)
 	}
