@@ -739,7 +739,6 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	response := doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
 
-	projectName := projectParam(r)
 	requestor := request.CreateRequestor(r)
 
 	ctx := logger.Ctx{}
@@ -747,7 +746,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolUpdated.Event(pool.Name(), projectName, requestor, ctx))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
 
 	return response
 }
@@ -899,7 +898,6 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
@@ -923,6 +921,8 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Only perform the deletion of remote volumes on the server handling the request.
 	if !clusterNotification || !pool.Driver().Info().Remote {
+		projectName := projectParam(r)
+
 		// Only image volumes should remain now.
 		volumeNames, err := d.db.Cluster.GetStoragePoolVolumesNames(pool.ID())
 		if err != nil {
@@ -974,7 +974,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolDeleted.Event(pool.Name(), projectName, requestor, nil))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolDeleted.Event(pool.Name(), requestor, nil))
 
 	return response.EmptySyncResponse
 }
