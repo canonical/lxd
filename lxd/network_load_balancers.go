@@ -252,11 +252,10 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating load balancer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil))
+	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil)
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "load-balancers", req.ListenAddress)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_delete
