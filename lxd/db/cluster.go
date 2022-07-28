@@ -380,14 +380,7 @@ func (c *ClusterTx) AddNodeToClusterGroup(groupName string, nodeName string) err
 		return fmt.Errorf("Failed to get node info: %w", err)
 	}
 
-	q := `INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(?, ?);`
-
-	stmt, err := c.prepare(q)
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(nodeInfo.ID, groupID)
+	_, err = c.tx.Exec(`INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(?, ?);`, nodeInfo.ID, groupID)
 	if err != nil {
 		return err
 	}
@@ -407,14 +400,7 @@ func (c *ClusterTx) RemoveNodeFromClusterGroup(groupName string, nodeName string
 		return fmt.Errorf("Failed to get node info: %w", err)
 	}
 
-	q := `DELETE FROM nodes_cluster_groups WHERE node_id = ? AND group_id = ?`
-
-	stmt, err := c.prepare(q)
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(nodeInfo.ID, groupID)
+	_, err = c.tx.Exec(`DELETE FROM nodes_cluster_groups WHERE node_id = ? AND group_id = ?`, nodeInfo.ID, groupID)
 	if err != nil {
 		return err
 	}
