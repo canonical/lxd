@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1379,4 +1382,26 @@ func (d *common) devicesRemove(inst instance.Instance) {
 			}
 		}
 	}
+}
+
+func (d *common) connectConsoleSocket(path string, protocol string) (*os.File, chan error, error) {
+	// Disconnection notification.
+	chDisconnect := make(chan error, 1)
+
+	// Open the console socket.
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Connect to console socket %q: %w", path, err)
+	}
+
+	file, err := (conn.(*net.UnixConn)).File()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Get socket file: %w", err)
+	}
+
+	_ = conn.Close()
+
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
+
+	return file, chDisconnect, nil
 }

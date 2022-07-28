@@ -5416,25 +5416,7 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 		return nil, nil, fmt.Errorf("Unknown protocol %q", protocol)
 	}
 
-	// Disconnection notification.
-	chDisconnect := make(chan error, 1)
-
-	// Open the console socket.
-	conn, err := net.Dial("unix", path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Connect to console socket %q: %w", path, err)
-	}
-
-	file, err := (conn.(*net.UnixConn)).File()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Get socket file: %w", err)
-	}
-
-	_ = conn.Close()
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
-
-	return file, chDisconnect, nil
+	return d.connectConsoleSocket(path, protocol)
 }
 
 // Exec a command inside the instance.
