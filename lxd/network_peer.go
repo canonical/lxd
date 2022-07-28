@@ -247,11 +247,10 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating peer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r), nil))
+	lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r), nil)
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "networks", n.Name(), "peers", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation DELETE /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_delete

@@ -1089,11 +1089,10 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": name}))
+	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": name})
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "networks", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation PUT /1.0/networks/{name} networks network_put

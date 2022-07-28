@@ -318,11 +318,10 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileCreated.Event(req.Name, projectName, requestor, nil))
+	lc := lifecycle.ProfileCreated.Event(req.Name, projectName, requestor, nil)
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "profiles", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation GET /1.0/profiles/{name} profiles profile_get
@@ -732,11 +731,10 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name}))
+	lc := lifecycle.ProfileRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name})
+	d.State().Events.SendLifecycle(projectName, lc)
 
-	u := api.NewURL().Path(version.APIVersion, "profiles", req.Name)
-
-	return response.SyncResponseLocation(true, nil, u.String())
+	return response.SyncResponseLocation(true, nil, lc.Source)
 }
 
 // swagger:operation DELETE /1.0/profiles/{name} profiles profile_delete
