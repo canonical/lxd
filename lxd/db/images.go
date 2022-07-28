@@ -571,40 +571,40 @@ WHERE images.fingerprint LIKE ?
 	sql += `ORDER BY projects.id, images.fingerprint
 `
 
-	objects := []cluster.Image{}
-	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, cluster.Image{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].Project,
-			&objects[i].Fingerprint,
-			&objects[i].Type,
-			&objects[i].Filename,
-			&objects[i].Size,
-			&objects[i].Public,
-			&objects[i].Architecture,
-			&objects[i].CreationDate,
-			&objects[i].ExpiryDate,
-			&objects[i].UploadDate,
-			&objects[i].Cached,
-			&objects[i].LastUseDate,
-			&objects[i].AutoUpdate,
+	images := make([]cluster.Image, 0)
+
+	err := c.QueryScan(sql, func(scan func(dest ...any) error) error {
+		var img cluster.Image
+
+		err := scan(
+			&img.ID,
+			&img.Project,
+			&img.Fingerprint,
+			&img.Type,
+			&img.Filename,
+			&img.Size,
+			&img.Public,
+			&img.Architecture,
+			&img.CreationDate,
+			&img.ExpiryDate,
+			&img.UploadDate,
+			&img.Cached,
+			&img.LastUseDate,
+			&img.AutoUpdate,
+		)
+		if err != nil {
+			return err
 		}
-	}
 
-	stmt, err := c.prepare(sql)
-	if err != nil {
-		return nil, err
-	}
+		images = append(images, img)
 
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
+		return nil
+	}, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch images: %w", err)
 	}
 
-	return objects, nil
+	return images, nil
 }
 
 // LocateImage returns the address of an online node that has a local copy of
