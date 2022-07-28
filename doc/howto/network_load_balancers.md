@@ -36,11 +36,11 @@ Network load balancers have the following properties:
 
 Property         | Type         | Required | Description
 :--              | :--          | :--      | :--
-listen\_address  | string       | yes      | IP address to listen on
-description      | string       | no       | Description of the network load balancer
-config           | string set   | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
-backends         | backend list | no       | List of {ref}`backend specifications <network-load-balancers-backend-specifications>`
-ports            | port list    | no       | List of {ref}`port specifications <network-load-balancers-port-specifications>`
+`listen_address` | string       | yes      | IP address to listen on
+`description`    | string       | no       | Description of the network load balancer
+`config`         | string set   | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
+`backends`       | backend list | no       | List of {ref}`backend specifications <network-load-balancers-backend-specifications>`
+`ports`          | port list    | no       | List of {ref}`port specifications <network-load-balancers-port-specifications>`
 
 (network-load-balancers-listen-addresses)=
 ### Requirements for listen addresses
@@ -76,10 +76,10 @@ Network load balancer backends have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
-name              | string     | yes      | Name of the backend
-target\_address   | string     | yes      | IP address to forward to
-target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as the {ref}`port <network-load-balancers-port-specifications>`'s `listen_port` if empty
-description       | string     | no       | Description of backend
+`name`            | string     | yes      | Name of the backend
+`target_address`  | string     | yes      | IP address to forward to
+`target_port`     | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as the {ref}`port <network-load-balancers-port-specifications>`'s `listen_port` if empty
+`description`     | string     | no       | Description of backend
 
 (network-load-balancers-port-specifications)=
 ## Configure ports
@@ -101,10 +101,10 @@ Network load balancer ports have the following properties:
 
 Property          | Type         | Required | Description
 :--               | :--          | :--      | :--
-protocol          | string       | yes      | Protocol for the port(s) (`tcp` or `udp`)
-listen\_port      | string       | yes      | Listen port(s) (e.g. `80,90-100`)
-target\_backend   | backend list | yes      | Backend name(s) to forward to
-description       | string       | no       | Description of port(s)
+`protocol`        | string       | yes      | Protocol for the port(s) (`tcp` or `udp`)
+`listen_port`     | string       | yes      | Listen port(s) (e.g. `80,90-100`)
+`target_backend`  | backend list | yes      | Backend name(s) to forward to
+`description`     | string       | no       | Description of port(s)
 
 ## Edit a network load balancer
 

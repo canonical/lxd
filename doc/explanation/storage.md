@@ -11,12 +11,12 @@ If required, you can create additional storage pools later (see {ref}`storage-cr
 Each storage pool uses a storage driver.
 The following storage drivers are supported:
 
-- {ref}`storage-dir`
-- {ref}`storage-btrfs`
-- {ref}`storage-lvm`
-- {ref}`storage-zfs`
-- {ref}`storage-ceph`
-- {ref}`storage-cephfs`
+- [Directory - `dir`](storage-dir)
+- [Btrfs - `btrfs`](storage-btrfs)
+- [LVM - `lvm`](storage-lvm)
+- [ZFS - `zfs`](storage-zfs)
+- [Ceph RBD - `ceph`](storage-ceph)
+- [CephFS - `cephfs`](storage-cephfs)
 
 (storage-location)=
 ### Data storage location

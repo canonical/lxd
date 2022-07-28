@@ -9,9 +9,9 @@ discourse: 9076,11330,12716
 
 LXD can be run in clustering mode, where any number of LXD servers
 share the same distributed database and can be managed uniformly using
-the lxc client or the REST API.
+the `lxc` client or the REST API.
 
-Note that this feature was introduced as part of the API extension 
+Note that this feature was introduced as part of the API extension
 "clustering".
 
 ## Forming a cluster
@@ -27,10 +27,10 @@ networks. The only configuration that can be node-specific are the
 `source` and `size` keys for storage pools and the
 `bridge.external_interfaces` key for networks.
 
-It is strongly recommended that the number of nodes in the cluster be 
-at least three, so the cluster can survive the loss of at least one node 
+It is strongly recommended that the number of nodes in the cluster be
+at least three, so the cluster can survive the loss of at least one node
 and still be able to establish quorum for its distributed state (which is
-kept in a SQLite database replicated using the Raft algorithm). If the 
+kept in a SQLite database replicated using the Raft algorithm). If the
 number of nodes is less than three, then only one node in the cluster
 will store the SQLite database. When the third node joins the cluster,
 both the second and third nodes will receive a replica of the database.
@@ -93,7 +93,7 @@ Those typically cover:
  - Source device for a storage pool (leaving empty would create a loop)
  - Name for a ZFS zpool (defaults to the name of the LXD pool)
  - External interfaces for a bridged network (empty would add none)
- - Name of the parent network device for managed physical or macvlan networks (must be set)
+ - Name of the parent network device for managed `physical` or `macvlan` networks (must be set)
 
 It's possible to lookup the questions ahead of time (useful for scripting) by querying the `/1.0/cluster` API endpoint.
 This can be done through `lxc query /1.0/cluster` or through other API clients.
@@ -138,7 +138,7 @@ Then run `cat <preseed-file> | lxd init --preseed` and your first node
 should be bootstrapped.
 
 Now create a bootstrap file for another node. You only need to fill in the
-``cluster`` section with data and config values that are specific to the joining
+``cluster`` section with data and configuration values that are specific to the joining
 node.
 
 Be sure to include the address and certificate of the target bootstrap node. To
@@ -176,10 +176,10 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 When joining a cluster using a cluster join token, the following fields can be omitted:
 
- - server\_name
- - cluster\_address
- - cluster\_certificate
- - cluster\_password
+ - `server_name`
+ - `cluster_address`
+ - `cluster_certificate`
+ - `cluster_password`
 
 And instead the full token be passed through the `cluster_token` field.
 
@@ -200,8 +200,8 @@ The currently supported keys are:
 
 | Key                   | Type      | Default | Description |
 | :-------------------- | :-------- | :------ | :---------- |
-| scheduler.instance    | string    | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. If `group` then instances will only target members in the group provided using `--target=@<group>` |
-| user.\*               | string    | -       | Free form user key/value storage (can be used in search) |
+| `scheduler.instance`  | string    | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. If `group` then instances will only target members in the group provided using `--target=@<group>` |
+| `user.*`             | string    | -       | Free form user key/value storage (can be used in search) |
 
 ### Cluster member roles
 
@@ -210,11 +210,11 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 
 | Role                  | Automatic     | Description |
 | :---                  | :--------     | :---------- |
-| database              | yes           | Voting member of the distributed database |
-| database-leader       | yes           | Current leader of the distributed database |
-| database-standby      | yes           | Stand-by (non-voting) member of the distributed database |
-| event-hub             | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
-| ovn-chassis           | no            | Uplink gateway candidate for OVN networks |
+| `database`            | yes           | Voting member of the distributed database |
+| `database-leader`     | yes           | Current leader of the distributed database |
+| `database-standby`    | yes           | Stand-by (non-voting) member of the distributed database |
+| `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
+| `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
 ### Voting and stand-by members
 
@@ -283,15 +283,15 @@ The minimum value is 10 seconds.
 To upgrade a cluster you need to upgrade all of its nodes, making sure
 that they all upgrade to the same version of LXD.
 
-To upgrade a single node, simply upgrade the lxd/lxc binaries on the
-host (via snap or other packaging systems) and restart the lxd daemon.
+To upgrade a single node, simply upgrade the `lxd`/`lxc` binaries on the
+host (via snap or other packaging systems) and restart the LXD daemon.
 
 If the new version of the daemon has database schema or API changes,
 the restarted node might transition into a Blocked state. That happens
 if there are still nodes in the cluster that have not been upgraded
 and that are running an older version. When a node is in the
 Blocked state it will not serve any LXD API requests (in particular,
-lxc commands on that node will not work, although any running
+`lxc` commands on that node will not work, although any running
 instance will continue to run).
 
 You can see if some nodes are blocked by running `lxc cluster list` on
@@ -373,8 +373,8 @@ run the command:
 lxc cluster remove <name> --force
 ```
 
-Note that this time you have to use the regular ``lxc`` command line tool, not
-``lxd``.
+Note that this time you have to use the regular `lxc` command line tool, not
+`lxd`.
 
 ### Recover cluster members with changed addresses
 
@@ -388,7 +388,7 @@ On each member of the cluster, with LXD not running, run the following command:
 lxd cluster edit
 ```
 
-Note that all commands in this section will use ``lxd`` instead of ``lxc``.
+Note that all commands in this section will use `lxd` instead of `lxc`.
 
 This will present a YAML representation of this node's last recorded information
 about the rest of the cluster:
@@ -434,7 +434,7 @@ lxc launch --target node2 ubuntu:22.04 c1
 
 will launch an Ubuntu 22.04 container on node2.
 
-When you launch an instance without defining a target, the instance will be 
+When you launch an instance without defining a target, the instance will be
 launched on the server which has the lowest number of instances.
 If all the servers have the same amount of instances, it will choose one at random.
 
@@ -464,7 +464,7 @@ occurred.
 
 For example if you have a cluster member that was removed uncleanly it might not
 show up in `lxc cluster list` but still be part of the Raft configuration (you
-can see that with `lxd sql local "SELECT * FROM raft_nodes").
+can see that with `lxd sql local "SELECT * FROM raft_nodes"`).
 
 In that case you can run:
 
@@ -495,7 +495,7 @@ lxc config set cluster.images_minimal_replica 1
 
 As mentioned above, all nodes must have identical storage pools. The
 only difference between pools on different nodes might be their
-`source`, `size` or `zfs.pool\_name` configuration keys.
+`source`, `size` or `zfs.pool_name` configuration keys.
 
 To create a new storage pool, you first have to define it across all
 nodes, for example:
@@ -587,7 +587,7 @@ and for internal traffic between the nodes of your cluster (for example in order
 to use a virtual address for your REST API, with DNS round robin).
 
 To do that, you need to bootstrap the first node of the cluster using the
-```cluster.https_address``` config key. For example, when using preseed:
+`cluster.https_address` configuration key. For example, when using preseed:
 
 ```yaml
 config:
@@ -600,7 +600,7 @@ config:
 (the rest of the preseed YAML is the same as above).
 
 To join a new node, first set its REST API address, for instance using the
-```lxc``` client:
+`lxc` client:
 
 ```bash
 lxc config set core.https_address my.lxd.cluster:8443

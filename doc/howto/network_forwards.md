@@ -43,10 +43,10 @@ Network forwards have the following properties:
 
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
-listen\_address  | string     | yes      | IP address to listen on
-description      | string     | no       | Description of the network forward
-config           | string set | no       | Configuration options as key/value pairs (only `target_address` and `user.*` custom keys supported)
-ports            | port list  | no       | List of {ref}`port specifications <network-forwards-port-specifications>`
+`listen_address` | string     | yes      | IP address to listen on
+`description`    | string     | no       | Description of the network forward
+`config`         | string set | no       | Configuration options as key/value pairs (only `target_address` and `user.*` custom keys supported)
+`ports`          | port list  | no       | List of {ref}`port specifications <network-forwards-port-specifications>`
 
 (network-forwards-listen-addresses)=
 ### Requirements for listen addresses
@@ -86,11 +86,11 @@ Network forward ports have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
-protocol          | string     | yes      | Protocol for the port(s) (`tcp` or `udp`)
-listen\_port      | string     | yes      | Listen port(s) (e.g. `80,90-100`)
-target\_address   | string     | yes      | IP address to forward to
-target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
-description       | string     | no       | Description of port(s)
+`protocol`        | string     | yes      | Protocol for the port(s) (`tcp` or `udp`)
+`listen_port`     | string     | yes      | Listen port(s) (e.g. `80,90-100`)
+`target_address`  | string     | yes      | IP address to forward to
+`target_port`     | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
+`description`     | string     | no       | Description of port(s)
 
 ## Edit a network forward
 

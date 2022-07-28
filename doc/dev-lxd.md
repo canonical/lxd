@@ -24,7 +24,7 @@ reaching the FD limit.
 ## Authentication
 Queries on `/dev/lxd/sock` will only return information related to the
 requesting instance. To figure out where a request comes from, LXD will
-extract the initial socket ucred and compare that to the list of
+extract the initial socket's user credentials and compare that to the list of
 instances it manages.
 
 ## Protocol
@@ -36,14 +36,14 @@ authentication support in the `/dev/lxd/sock` API.
 
 ## REST-API
 ### API structure
- * /
-   * /1.0
-     * /1.0/config
-       * /1.0/config/{key}
-     * /1.0/devices
-     * /1.0/events
-     * /1.0/images/{fingerprint}/export
-     * /1.0/meta-data
+ * `/`
+   * `/1.0`
+     * `/1.0/config`
+       * `/1.0/config/{key}`
+     * `/1.0/devices`
+     * `/1.0/events`
+     * `/1.0/images/{fingerprint}/export`
+     * `/1.0/meta-data`
 
 ### API details
 #### `/`
@@ -76,7 +76,7 @@ Return value:
  * Return: list of configuration keys URL
 
 Note that the configuration key names match those in the instance
-config, however not all configuration namespaces will be exported to
+configuration, however not all configuration namespaces will be exported to
 `/dev/lxd/sock`.
 Currently only the `cloud-init.*` and `user.*` keys are accessible to the instance.
 
@@ -123,17 +123,17 @@ Return value:
 
 #### `/1.0/events`
 ##### GET
- * Description: websocket upgrade
+ * Description: WebSocket upgrade
  * Return: none (never ending flow of events)
 
 Supported arguments are:
 
- * type: comma separated list of notifications to subscribe to (defaults to all)
+ * type: comma-separated list of notifications to subscribe to (defaults to all)
 
 The notification types are:
 
- * config (changes to any of the user.\* config keys)
- * device (any device addition, change or removal)
+ * `config` (changes to any of the `user.*` configuration keys)
+ * `device` (any device addition, change or removal)
 
 This never returns. Each notification is sent as a separate JSON dict:
 
@@ -168,7 +168,7 @@ This never returns. Each notification is sent as a separate JSON dict:
 ##### GET
  * Description: Download a public/cached image from the host
  * Return: raw image or error
- * Access: Requires security.devlxd.images set to true
+ * Access: Requires `security.devlxd.images` set to true
 
 Return value:
 

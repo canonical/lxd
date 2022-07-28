@@ -6,7 +6,7 @@
 By default, the LXD server is not accessible from the network as it only listens
 on a local Unix socket. You can make LXD available from the network by specifying
 additional addresses to listen to. This is done with the `core.https_address`
-config variable.
+configuration variable.
 
 To see the current server configuration, run:
 
@@ -24,7 +24,7 @@ lxc config set core.https_address 192.168.1.15
 
 Also see {ref}`security_remote_access`.
 
-### When I do a `lxc remote add` over https, it asks for a password?
+### When I do a `lxc remote add` over HTTPS, it asks for a password?
 By default, LXD has no password for security reasons, so you can't do a remote
 add this way. To set a password, enter the following command on the host LXD is
 running on:
@@ -62,7 +62,7 @@ lxc move host1:SOME-NAME host2:SOME-NAME
 
 This should migrate your container. Be aware though that migration is still in
 experimental stages and might not work for all workloads. Please report bugs on
-lxc-devel, and we can escalate to CRIU lists as necessary.
+`lxc-devel`, and we can escalate to CRIU lists as necessary.
 
 ### Can I bind-mount my home directory in a container?
 Yes. This can be done using a disk device:
@@ -73,7 +73,7 @@ lxc config device add container-name home disk source=/home/${USER} path=/home/u
 
 For unprivileged containers, you will also need one of:
 
- - Pass `shift=true` to the `lxc config device add` call. This depends on `shiftfs` being supported (see `lxc info`)
+ - Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
  - raw.idmap entry (see [Idmaps for user namespace](userns-idmap.md))
  - Recursive POSIX ACLs placed on your home directory
 
@@ -130,12 +130,12 @@ file systems automatically _if it can_.
 The [container requirements](container-environment.md) specify that
 every container must come with an empty `/dev`, `/proc` and `/sys`
 folder, as well as `/sbin/init` existing.  If those folders don't
-exist, LXD will be unable to mount to them, and systemd will then
-try to. As this is an unprivileged container, systemd does not have
+exist, LXD will be unable to mount to them, and `systemd` will then
+try to. As this is an unprivileged container, `systemd` does not have
 the ability to do this, and it then freezes.
 
 So you can see the environment before anything is changed, you can
-explicitly change the init in a container using the `raw.lxc` configuration
+explicitly change the init system in a container using the `raw.lxc` configuration
 parameter.  This is equivalent to setting `init=/bin/bash` on the Linux
 kernel command line.
 
@@ -173,16 +173,16 @@ files**.
 
 In a larger [Production Environment](production-setup.md), it is common to have
 multiple VLANs and have LXD clients attached directly to those VLANs. Be aware that
-if you are using netplan and systemd-networkd, you will encounter some bugs that
+if you are using `netplan` and `systemd-networkd`, you will encounter some bugs that
 could cause catastrophic issues.
 
-### Do not use systemd-networkd with netplan and bridges based on VLANs
+### Do not use `systemd-networkd` with `netplan` and bridges based on VLANs
 
-At time of writing (2019-03-05), netplan cannot assign a random MAC address to
+At time of writing (2019-03-05), `netplan` cannot assign a random MAC address to
 a bridge attached to a VLAN. It always picks the same MAC address, which causes
 layer2 issues when you have more than one machine on the same network segment.
 It also has difficulty creating multiple bridges.  Make sure you use
-`network-manager` instead. An example config is below, with a management
+`network-manager` instead. An example configuration is below, with a management
 address of 10.61.0.25, and VLAN102 being used for client traffic.
 
     network:
@@ -222,9 +222,9 @@ address of 10.61.0.25, and VLAN102 being used for client traffic.
 
 #### Things to note
 
-* eth0 is the Management interface, with the default gateway.
-* vlan102 uses eth1.
-* br102 uses vlan102, and _has a bogus /32 IP address assigned to it_
+* `eth0` is the Management interface, with the default gateway.
+* `vlan102` uses `eth1`.
+* `br102` uses `vlan102`, and has a bogus /32 IP address assigned to it.
 
 The other important thing is to set `stp: false`, otherwise the bridge will sit
 in `learning` state for up to 10 seconds, which is longer than most DHCP requests
@@ -236,8 +236,8 @@ safe to do.
 Many switches do *not* allow MAC address changes, and will either drop traffic
 with an incorrect MAC or disable the port totally. If you can ping a LXD instance
 from the host, but are not able to ping it from a _different_ host, this could be
-the cause.  The way to diagnose this is to run a tcpdump on the uplink (in this case,
-eth1), and you will see either "ARP Who has xx.xx.xx.xx tell yy.yy.yy.yy, with you
+the cause.  The way to diagnose this is to run a `tcpdump` on the uplink (in this case,
+`eth1`), and you will see either "ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy`, with you
 sending responses but them not getting acknowledged, or ICMP packets going in and
 out successfully, but never being received by the other host.
 

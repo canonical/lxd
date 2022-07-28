@@ -11,7 +11,7 @@ Enabling of specific system call interception options is done on a
 per-container basis through container configuration options.
 
 ## Available system calls
-### mknod / mknodat
+### `mknod` / `mknodat`
 The `mknod` and `mknodat` system calls can be used to create a variety of special files.
 
 Most commonly inside containers, they may be called to create block or character devices.
@@ -26,13 +26,13 @@ inside an unprivileged containers.
 The devices which are currently allowed are:
 
  - overlayfs whiteout (char 0:0)
- - /dev/console (char 5:1)
- - /dev/full (char 1:7)
- - /dev/null (char 1:3)
- - /dev/random (char 1:8)
- - /dev/tty (char 5:0)
- - /dev/urandom (char 1:9)
- - /dev/zero (char 1:5)
+ - `/dev/console` (char 5:1)
+ - `/dev/full` (char 1:7)
+ - `/dev/null` (char 1:3)
+ - `/dev/random` (char 1:8)
+ - `/dev/tty` (char 5:0)
+ - `/dev/urandom` (char 1:9)
+ - `/dev/zero` (char 1:5)
 
 All file types other than character devices are currently sent to the
 kernel as usual, so enabling this feature doesn't change their behavior
@@ -40,11 +40,11 @@ at all.
 
 This can be enabled by setting `security.syscalls.intercept.mknod` to `true`.
 
-### bpf
+### `bpf`
 The `bpf` system call is used to manage eBPF programs in the kernel.
 Those can be attached to a variety of kernel subsystems.
 
-In general, loading of untrusted eBPF program can be problematic as it
+In general, loading of eBPF programs that are not trusted can be problematic as it
 can facilitate timing based attacks.
 
 LXD's eBPF support is currently restricted to programs managing devices
@@ -52,52 +52,52 @@ cgroup entries. To enable it, you need to set both
 `security.syscalls.intercept.bpf` and
 `security.syscalls.intercept.bpf.devices` to true.
 
-### mount
-The `mount` system call allows for mounting both physical and virtual filesystems.
+### `mount`
+The `mount` system call allows for mounting both physical and virtual file systems.
 By default, unprivileged containers are restricted by the kernel to just
-a handful of virtual and network filesystems.
+a handful of virtual and network file systems.
 
-To allow mounting physical filesystems, system call interception can be used.
+To allow mounting physical file systems, system call interception can be used.
 LXD offers a variety of options to handle this.
 
 `security.syscalls.intercept.mount` is used to control the entire
 feature and needs to be turned on for any of the other options to work.
 
 `security.syscalls.intercept.mount.allowed` allows specifying a list of
-filesystems which can be directly mounted in the container. This is the
-most dangerous option as it allows the user to feed untrusted data at
+file systems which can be directly mounted in the container. This is the
+most dangerous option as it allows the user to feed data that is not trusted at
 the kernel. This can easily be used to crash the host system or to
 attack it. It should only ever be used in trusted environments.
 
 `security.syscalls.intercept.mount.shift` can be set on top of that so
 the resulting mount is shifted to the UID/GID map used by the container.
-This is needed to avoid everything showing up as nobody/nogroup inside
+This is needed to avoid everything showing up as `nobody`/`nogroup` inside
 of unprivileged containers.
 
 
 The much safer alternative to those is
 `security.syscalls.intercept.mount.fuse` which can be set to pairs of
-filesystem name and FUSE handler. When this is set, an attempt at
-mounting one of the configured filesystems will be transparently
-redirected to instead calling the FUSE equivalent of that filesystem.
+file-system name and FUSE handler. When this is set, an attempt at
+mounting one of the configured file systems will be transparently
+redirected to instead calling the FUSE equivalent of that file system.
 
 As this is all running as the caller, it avoids the entire issue around
 the kernel attack surface and so is generally considered to be safe,
 though you should keep in mind that any kind of system call interception
 makes for an easy way to overload the host system.
 
-### sched\_setscheduler
+### `sched_setscheduler`
 The `sched_setscheduler` system call is used to manage process priority.
 
 Granting this may allow a user to significantly increase the priority of
 their processes, potentially taking a lot of system resources.
 
-It also allows access to schedulers like SCHED\_FIFO which are generally
+It also allows access to schedulers like `SCHED_FIFO` which are generally
 considered to be flawed and can significantly impact overall system
 stability. This is why under normal conditions, only the real root user
-(or global CAP\_SYS\_NICE) would allow its use.
+(or global `CAP_SYS_NICE`) would allow its use.
 
-### setxattr
+### `setxattr`
 The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:
@@ -112,7 +112,7 @@ previously allowed by the kernel.
 
 This can be enabled by setting `security.syscalls.intercept.setxattr` to `true`.
 
-## sysinfo
+## `sysinfo`
 
 The `sysinfo` system call is used by some distributions instead of `/proc/` entries to report on resource usage.
 

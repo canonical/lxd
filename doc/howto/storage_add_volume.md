@@ -59,7 +59,7 @@ If you want to use a different device name, you can add it to the command:
 ## Configure I/O limits
 
 When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.
-To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits (in IOp/s or MB/s).
+To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits.
 See the {ref}`instance_device_type_disk` reference for more information.
 
 The limits are applied through the Linux `blkio` cgroup controller, which makes it possible to restrict I/O at the disk level (but nothing finer grained than that).
@@ -67,11 +67,11 @@ The limits are applied through the Linux `blkio` cgroup controller, which makes 
 ```{note}
 Because the limits apply to a whole physical disk rather than a partition or path, the following restrictions apply:
 
-- Limits will not apply to filesystems that are backed by virtual devices (for example, device mapper).
-- If a filesystem is backed by multiple block devices, each device will get the same limit.
+- Limits will not apply to file systems that are backed by virtual devices (for example, device mapper).
+- If a file system is backed by multiple block devices, each device will get the same limit.
 - If two disk devices that are backed by the same disk are attached to the same instance, the limits of the two devices will be averaged.
 ```
 
 All I/O limits only apply to actual block device access.
-Therefore, consider the filesystem's own overhead when setting limits.
+Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.

@@ -1,5 +1,5 @@
 (network-bridge-resolved)=
-# How to integrate with systemd-resolved
+# How to integrate with `systemd-resolved`
 
 If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify resolved of the domains that LXD can resolve.
 To do so, add the DNS servers and domains provided by a LXD network bridge to the resolved configuration.
@@ -52,7 +52,7 @@ For example:
 
 ```{note}
 Alternatively, you can use the `systemd-resolve` command.
-This command has been deprecated in newer releases of systemd, but it is still provided for backwards compatibility.
+This command has been deprecated in newer releases of `systemd`, but it is still provided for backwards compatibility.
 
     systemd-resolve --interface <network_bridge> --set-domain <dns_domain> --set-dns <dns_address>
 ```
@@ -64,7 +64,7 @@ You must repeat the commands after each reboot and after LXD is restarted, or ma
 
 You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
 
-To do so, create a systemd unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
+To do so, create a `systemd` unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
 
 ```
 [Unit]

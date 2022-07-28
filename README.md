@@ -11,9 +11,9 @@ and is built around a very powerful, yet pretty simple, REST API.
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
-- Release announcements: https://linuxcontainers.org/lxd/news/
-- Release tarballs: https://linuxcontainers.org/lxd/downloads/
-- Documentation: https://linuxcontainers.org/lxd/docs/latest/
+- Release announcements: [`https://linuxcontainers.org/lxd/news/`](https://linuxcontainers.org/lxd/news/)
+- Release tarballs: [`https://linuxcontainers.org/lxd/downloads/`](https://linuxcontainers.org/lxd/downloads/)
+- Documentation: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
 
 <!-- Include end LXD intro -->
 
@@ -34,9 +34,9 @@ The LXD daemon only works on Linux but the client tool (`lxc`) is available on m
 
 OS                  | Format                                            | Command
 ---                 | ---                                               | ---
-Linux               | [Snap](https://snapcraft.io/lxd)                  | snap install lxd
-Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | choco install lxc
-MacOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | brew install lxc
+Linux               | [Snap](https://snapcraft.io/lxd)                  | `snap install lxd`
+Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | `choco install lxc`
+macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew install lxc`
 
 More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 <!-- Include end installing -->
@@ -60,7 +60,7 @@ See [Security](https://linuxcontainers.org/lxd/docs/latest/security/) for detail
 
 **IMPORTANT:**
 <!-- Include start security note -->
-Local access to LXD through the UNIX socket always grants full access to LXD.
+Local access to LXD through the Unix socket always grants full access to LXD.
 This includes the ability to attach file system paths or devices to any instance as well as tweak the security features on any instance.
 
 Therefore, you should only give such access to users who you'd trust with root access to your system.
@@ -72,24 +72,24 @@ Therefore, you should only give such access to users who you'd trust with root a
 The following channels are available for you to interact with the LXD community.
 
 ### Bug reports
-You can file bug reports and feature requests at: https://github.com/lxc/lxd/issues/new
+You can file bug reports and feature requests at: [`https://github.com/lxc/lxd/issues/new`](https://github.com/lxc/lxd/issues/new)
 
 ### Forum
-A discussion forum is available at: https://discuss.linuxcontainers.org
+A discussion forum is available at: [`https://discuss.linuxcontainers.org`](https://discuss.linuxcontainers.org)
 
 ### Mailing lists
 We use the LXC mailing lists for developer and user discussions. You can
-find and subscribe to those at: https://lists.linuxcontainers.org
+find and subscribe to those at: [`https://lists.linuxcontainers.org`](https://lists.linuxcontainers.org)
 
 ### IRC
-If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
+If you prefer live discussions, you can find us in [`#lxc`](https://kiwiirc.com/client/irc.libera.chat/#lxc) on `irc.libera.chat`. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
 ### Commercial support
 
 Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
 
 ## Documentation
-The official documentation is available at: https://linuxcontainers.org/lxd/docs/latest/
+The official documentation is available at: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
 
 You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
 

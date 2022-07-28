@@ -15,30 +15,32 @@ To use ZFS, make sure you have `zfsutils-linux` installed on your machine.
 
 ZFS creates logical units based on physical storage devices.
 These logical units are called *ZFS pools* or *zpools*.
-Each zpool is then divided into a number of *datasets*.
-These datasets can be of different types:
-- A *ZFS filesystem* can be seen as a partition or a mounted file system.
+Each zpool is then divided into a number of *{spellexception}`datasets`*.
+These {spellexception}`datasets` can be of different types:
+- A *{spellexception}`ZFS filesystem`* can be seen as a partition or a mounted file system.
 - A *ZFS volume* represents a block device.
-- A *ZFS snapshot* captures a specific state of either a ZFS filesystem or a ZFS volume.
+- A *ZFS snapshot* captures a specific state of either a {spellexception}`ZFS filesystem` or a ZFS volume.
   ZFS snapshots are read-only.
 - A *ZFS clone* is a writable copy of a ZFS snapshot.
 
+
+
 ## `zfs` driver in LXD
 
-The `zfs` driver in LXD uses ZFS filesystems and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.
+The `zfs` driver in LXD uses {spellexception}`ZFS filesystems` and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.
 By default, LXD enables compression when creating a ZFS pool.
 
-LXD assumes that it has full control over the ZFS pool and dataset.
-Therefore, you should never maintain any datasets or file system entities that are not owned by LXD in a ZFS pool or dataset, because LXD might delete them.
+LXD assumes that it has full control over the ZFS pool and {spellexception}`dataset`.
+Therefore, you should never maintain any {spellexception}`datasets` or file system entities that are not owned by LXD in a ZFS pool or {spellexception}`dataset`, because LXD might delete them.
 
-Due to the way copy-on-write works in ZFS, parent ZFS filesystems can't be removed until all children are gone.
+Due to the way copy-on-write works in ZFS, parent {spellexception}`ZFS filesystems` can't be removed until all children are gone.
 As a result, LXD automatically renames any objects that are removed but still referenced.
 Such objects are kept at a random `deleted/` path until all references are gone and the object can safely be removed.
 Note that this method might have ramifications for restoring snapshots.
 See {ref}`storage-zfs-limitations` below.
 
 LXD automatically enables trimming support on all newly created pools on ZFS 0.8 or later.
-This increases the lifetime of SSDs by allowing better block re-use by the controller, and it also allows to free space on the root filesystem when using a loop-backed ZFS pool.
+This increases the lifetime of SSDs by allowing better block re-use by the controller, and it also allows to free space on the root file system when using a loop-backed ZFS pool.
 If you are running a ZFS version earlier than 0.8 and want to enable trimming, upgrade to at least version 0.8.
 Then use the following commands to make sure that trimming is automatically enabled for the ZFS pool in the future and trim all currently unused space:
 
@@ -62,27 +64,27 @@ Restoring from older snapshots
   After determining the correct snapshot, you can {ref}`remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
 
   Alternatively, you can configure LXD to automatically discard the newer snapshots during restore.
-  To do so, set the {ref}`zfs.remove_snapshots <storage-zfs-vol-config>` configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
+  To do so, set the [`zfs.remove_snapshots`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
 
-  Note, however, that if {ref}`zfs.clone_copy <storage-zfs-pool-config>` is set to `true`, instance copies use ZFS snapshots too.
+  Note, however, that if [`zfs.clone_copy`](storage-zfs-pool-config) is set to `true`, instance copies use ZFS snapshots too.
   In that case, you cannot restore an instance to a snapshot taken before the last copy without having to also delete all its descendants.
   If this is not an option, you can copy the wanted snapshot into a new instance and then delete the old instance.
   You will, however, lose any other snapshots the instance might have had.
 
 Observing I/O quotas
-: I/O quotas are unlikely to affect ZFS filesystems very much.
+: I/O quotas are unlikely to affect {spellexception}`ZFS filesystems` very much.
   That's because ZFS is a port of a Solaris module (using SPL) and not a native Linux file system using the Linux VFS API, which is where I/O limits are applied.
 
 ### Quotas
 
 ZFS provides two different quota properties: `quota` and `refquota`.
-`quota` restricts the total size of a dataset, including its snapshots and clones.
-`refquota` restricts only the size of the data in the dataset, not its snapshots and clones.
+`quota` restricts the total size of a {spellexception}`dataset`, including its snapshots and clones.
+`refquota` restricts only the size of the data in the {spellexception}`dataset`, not its snapshots and clones.
 
 By default, LXD uses the `quota` property when you set up a quota for your storage volume.
-If you want to use the `refquota` property instead, set the {ref}`zfs.use_refquota <storage-zfs-vol-config>` configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
+If you want to use the `refquota` property instead, set the [`zfs.use_refquota`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
 
-You can also set the {ref}`zfs.use_reserve_space <storage-zfs-vol-config>` (or `volume.zfs.use_reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
+You can also set the [`zfs.use_reserve_space`](storage-zfs-vol-config) (or `volume.zfs.use_reserve_space`) configuration to use ZFS `reservation` or `refreservation` along with `quota` or `refquota`.
 
 ## Configuration options
 
@@ -92,25 +94,25 @@ The following configuration options are available for storage pools that use the
 ### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-size                          | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
-source                        | string                        | -                                       | Path to block device or loop file or file system entry
-zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (Boolean), or `rebase` to copy based on the initial image
-zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
-zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
+`size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
+`source`                      | string                        | -                                       | Path to block device or loop file or file system entry
+`zfs.clone_copy`              | string                        | true                                    | Whether to use ZFS lightweight clones rather than full {spellexception}`dataset` copies (Boolean), or `rebase` to copy based on the initial image
+`zfs.export`                  | bool                          | true                                    | Disable zpool export while unmount performed
+`zfs.pool_name`               | string                        | name of the pool                        | Name of the zpool
 
 {{volume_configuration}}
 
 (storage-zfs-vol-config)=
 ### Storage volume configuration
-Key                     | Type      | Condition                 | Default                                     | Description
-:--                     | :---      | :--------                 | :------                                     | :----------
-security.shifted        | bool      | custom volume             | same as volume.security.shifted or false    | {{enable_ID_shifting}}
-security.unmapped       | bool      | custom volume             | same as volume.security.unmapped or false   | Disable ID mapping for the volume
-size                    | string    | appropriate driver        | same as volume.size                         | Size/quota of the storage volume
-snapshots.expiry        | string    | custom volume             | same as volume.snapshots.expiry             | {{snapshot_expiry_format}}
-snapshots.pattern       | string    | custom volume             | same as volume.snapshots.pattern or snap%d  | {{snapshot_pattern_format}}
-snapshots.schedule      | string    | custom volume             | same as snapshots.schedule                  | {{snapshot_schedule_format}}
-zfs.blocksize           | string    | ZFS driver                | same as volume.zfs.blocksize                | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
-zfs.remove\_snapshots   | string    | ZFS driver                | same as volume.zfs.remove\_snapshots        | Remove snapshots as needed
-zfs.use\_refquota       | string    | ZFS driver                | same as volume.zfs.use\_refquota            | Use `refquota` instead of `quota` for space
-zfs.reserve\_space      | string    | ZFS driver                | same as volume.zfs.reserve\_space or false  | Use `reservation`/`refreservation` along with `quota`/`refquota`
+Key                     | Type      | Condition                 | Default                                        | Description
+:--                     | :---      | :--------                 | :------                                        | :----------
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false     | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false    | Disable ID mapping for the volume
+`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
+`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
+`snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
+`snapshots.schedule`    | string    | custom volume             | same as `snapshots.schedule`                   | {{snapshot_schedule_format}}
+`zfs.blocksize`         | string    | ZFS driver                | same as `volume.zfs.blocksize`                 | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
+`zfs.remove_snapshots`  | string    | ZFS driver                | same as `volume.zfs.remove_snapshots`          | Remove snapshots as needed
+`zfs.use_refquota`      | string    | ZFS driver                | same as `volume.zfs.use_refquota`              | Use `refquota` instead of `quota` for space
+`zfs.reserve_space`     | string    | ZFS driver                | same as `volume.zfs.reserve_space` or false    | Use `reservation`/`refreservation` along with `quota`/`refquota`
