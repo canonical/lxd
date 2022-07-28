@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -243,7 +244,7 @@ func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, f
 	var filters strings.Builder
 
 	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN (%s)", generateInClauseParams(len(projects))))
+	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
 	for _, project := range projects {
 		args = append(args, project)
 	}
@@ -322,21 +323,30 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 	// instanceConfig function loads config for all specified instanceIDs in a single query and then updates
 	// the entries in the instances map.
 	instanceConfig := func(tx *ClusterTx, instanceIDs []int) error {
-		q := `
-		SELECT
+		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+		// that means that >255 query parameters causes partial result sets. See #10705
+		// This is safe as the inputs are ints.
+		var q strings.Builder
+
+		q.WriteString(`SELECT
 			instance_id,
 			key,
 			value
 		FROM instances_config
-		WHERE instance_id IN
-		` + query.Params(len(instanceIDs))
+		WHERE instance_id IN (`)
+		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
 
-		args := make([]any, 0, len(instanceIDs))
-		for _, instanceID := range instanceIDs {
-			args = append(args, instanceID)
+		for i := range instanceIDs {
+			if i > 0 {
+				q.WriteString(",")
+			}
+
+			q.WriteString(strconv.Itoa(instanceIDs[i]))
 		}
 
-		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+		q.WriteString(`)`)
+
+		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var instanceID int
 			var key, value string
 
@@ -364,13 +374,18 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			instances[instanceID].Config[key] = value
 
 			return nil
-		}, args...)
+		})
 	}
 
 	// instanceDevices loads the device config for all instanceIDs specified in a single query and then updates
 	// the entries in the instances map.
 	instanceDevices := func(tx *ClusterTx, instanceIDs []int) error {
-		q := `
+		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+		// that means that >255 query parameters causes partial result sets. See #10705
+		// This is safe as the inputs are ints.
+		var q strings.Builder
+
+		q.WriteString(`
 		SELECT
 			instances_devices.instance_id AS instance_id,
 			instances_devices.name AS device_name,
@@ -379,15 +394,21 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			instances_devices_config.value
 		FROM instances_devices_config
 		JOIN instances_devices ON instances_devices.id = instances_devices_config.instance_device_id
-		WHERE instances_devices.instance_id IN
-		` + query.Params(len(instanceIDs))
+		WHERE instances_devices.instance_id IN (`)
 
-		args := make([]any, 0, len(instanceIDs))
-		for _, instanceID := range instanceIDs {
-			args = append(args, instanceID)
+		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
+
+		for i := range instanceIDs {
+			if i > 0 {
+				q.WriteString(",")
+			}
+
+			q.WriteString(strconv.Itoa(instanceIDs[i]))
 		}
 
-		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+		q.WriteString(`)`)
+
+		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var instanceID int
 			var deviceType cluster.DeviceType
 			var deviceName, key, value string
@@ -425,27 +446,38 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			instances[instanceID].Devices[deviceName][key] = value
 
 			return nil
-		}, args...)
+		})
 	}
 
 	// instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
 	// instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
 	instanceProfiles := func(tx *ClusterTx, instanceIDs []int) error {
-		instanceProjectProfilesSQL := `
+		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+		// that means that >255 query parameters causes partial result sets. See #10705
+		// This is safe as the inputs are ints.
+		var q strings.Builder
+
+		q.WriteString(`
 		SELECT
 			instances_profiles.instance_id AS instance_id,
 			instances_profiles.profile_id AS profile_id
 		FROM instances_profiles
-		WHERE instances_profiles.instance_id IN
-		` + query.Params(len(instanceIDs)) +
-			`ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`
+		WHERE instances_profiles.instance_id IN (`)
 
-		args := make([]any, 0, len(instanceIDs))
-		for _, instanceID := range instanceIDs {
-			args = append(args, instanceID)
+		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
+
+		for i := range instanceIDs {
+			if i > 0 {
+				q.WriteString(",")
+			}
+
+			q.WriteString(strconv.Itoa(instanceIDs[i]))
 		}
 
-		return tx.QueryScan(instanceProjectProfilesSQL, func(scan func(dest ...any) error) error {
+		q.WriteString(`)
+		ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`)
+
+		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var instanceID int64
 			var profileID int
 
@@ -463,7 +495,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			}
 
 			return nil
-		}, args...)
+		})
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
@@ -605,7 +637,7 @@ func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter cluste
 	var filters strings.Builder
 
 	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN (%s)", generateInClauseParams(len(projects))))
+	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
 	for _, project := range projects {
 		args = append(args, project)
 	}
@@ -918,7 +950,7 @@ SELECT storage_pools.name FROM storage_pools
   JOIN projects ON projects.id=instances.project_id
  WHERE projects.name=?
    AND storage_volumes_all.name=?
-   AND storage_volumes_all.type IN(?,?)
+   AND storage_volumes_all.type IN (?,?)
    AND storage_volumes_all.project_id = instances.project_id
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
 	inargs := []any{projectName, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, c.nodeID}
@@ -1159,14 +1191,4 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	}
 
 	return nil
-}
-
-// Generates '?' signs for sql IN clause.
-func generateInClauseParams(length int) string {
-	result := []string{}
-	for i := 0; i < length; i++ {
-		result = append(result, "?")
-	}
-
-	return strings.Join(result, ",")
 }

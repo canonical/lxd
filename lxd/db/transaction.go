@@ -4,7 +4,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 // NodeTx models a single interaction with a LXD node-local database.
@@ -37,16 +36,6 @@ func (c *ClusterTx) NodeID(id int64) {
 // GetNodeID gets the ID of the node associated with this cluster transaction.
 func (c *ClusterTx) GetNodeID() int64 {
 	return c.nodeID
-}
-
-// prepare prepares a new statement from a SQL string.
-func (c *ClusterTx) prepare(sql string) (*sql.Stmt, error) {
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to prepare statement with error: %w", err)
-	}
-
-	return stmt, nil
 }
 
 // QueryScan runs a query with inArgs and provides the rowFunc with the scan function for each row.
