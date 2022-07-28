@@ -334,7 +334,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	u := api.NewURL().Path(version.APIVersion, "networks", req.Name)
+	u := api.NewURL().Path(version.APIVersion, "networks", req.Name).Project(projectName)
 
 	resp := response.SyncResponseLocation(true, nil, u.String())
 
