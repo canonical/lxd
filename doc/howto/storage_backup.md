@@ -113,7 +113,7 @@ If the output file (`backup.tar.gz` or the specified file path) already exists, 
 You can add any of the following flags to the command:
 
 `--compression`
-: By default, the output file uses gzip compression.
+: By default, the output file uses `gzip` compression.
   You can specify a different compression algorithm (for example, `bzip2`) or turn off compression with `--compression=none`.
 
 `--optimized-storage`

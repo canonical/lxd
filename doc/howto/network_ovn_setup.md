@@ -46,12 +46,12 @@ Complete the following steps to create a standalone OVN network that is connecte
 
 Complete the following steps to set up a LXD cluster that uses an OVN network.
 
-Just like LXD, OVN's distributed database must be run on a cluster that consists of an odd number of members.
+Just like LXD, the distributed database for OVN must be run on a cluster that consists of an odd number of members.
 The following instructions use the minimum of three servers, which run both the distributed database for OVN and the OVN controller.
 In addition, you can add any number of servers to the LXD cluster that run only the OVN controller.
 See the linked YouTube video for the complete tutorial using four machines.
 
-1. Complete the following steps on the three machines that you want to run OVN's distributed database:
+1. Complete the following steps on the three machines that you want to run the distributed database for OVN:
 
    1. Install the OVN tools:
 

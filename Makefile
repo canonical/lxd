@@ -134,6 +134,10 @@ doc-incremental:
 doc-serve:
 	cd doc/html; python3 -m http.server 8001
 
+.PHONY: doc-spellcheck
+doc-spellcheck: doc
+	. $(SPHINXENV) ; python3 -m pyspelling -c .sphinx/.spellcheck.yaml
+
 .PHONY: debug
 debug:
 ifeq "$(TAG_SQLITE3)" ""

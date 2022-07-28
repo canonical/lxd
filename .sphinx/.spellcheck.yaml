@@ -1,0 +1,24 @@
+matrix:
+- name: Markdown files
+  aspell:
+    lang: en
+    d: en_US
+  dictionary:
+    wordlists:
+    - .sphinx/.wordlist.txt
+    output: .sphinx/.wordlist.dic
+  sources:
+  - doc/html/**/*.html
+  pipeline:
+  - pyspelling.filters.html:
+      comments: false
+      attributes:
+      - title
+      - alt
+      ignores:
+      - code
+      - pre
+      - spellexception
+      - link
+      - title
+      - div.relatedlinks

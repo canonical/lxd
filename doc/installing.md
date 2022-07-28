@@ -15,25 +15,25 @@ The easiest way to install LXD is to install one of the available packages, but 
 
 (installing_from_source)=
 ## Installing LXD from source
-We recommend having the latest versions of liblxc (>= 4.0.0 required)
+We recommend having the latest versions of `liblxc` (>= 4.0.0 required)
 available for LXD development. Additionally, LXD requires Golang 1.18 or
-later to work. On ubuntu, you can get those with:
+later to work. On Ubuntu, you can get those with:
 
 ```bash
 sudo apt update
 sudo apt install acl attr autoconf automake dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
 ```
 
-There are a few storage backends for LXD besides the default "directory" backend.
+There are a few storage drivers for LXD besides the default directory driver.
 Installing these tools adds a bit to initramfs and may slow down your
-host boot, but are needed if you'd like to use a particular backend:
+host boot, but are needed if you'd like to use a particular driver:
 
 ```bash
 sudo apt install lvm2 thin-provisioning-tools
 sudo apt install btrfs-progs
 ```
 
-To run the testsuite, you'll also need:
+To run the test suite, you'll also need:
 
 ```bash
 sudo apt install curl gettext jq sqlite3 socat bind9-dnsutils
@@ -57,7 +57,7 @@ Then proceed to the instructions below to actually build and install LXD.
 ### From Source: Building a Release
 
 The LXD release tarballs bundle a complete dependency tree as well as a
-local copy of libraft and libdqlite for LXD's database setup.
+local copy of `libraft` and `libdqlite` for LXD's database setup.
 
 ```bash
 tar zxvf lxd-4.18.tar.gz
@@ -114,4 +114,6 @@ group to talk to LXD; you can create your own group if you want):
 sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group sudo
 ```
 
-*Note: If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M uid/gid.*
+```{note}
+If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
+```

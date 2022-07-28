@@ -32,4 +32,5 @@ sphinx-reredirects
 linkify-it-py
 furo
 sphinxext-opengraph>=0.6.1
-lxd-sphinx-extensions
+git+https://github.com/ru-fu/lxd-sphinx-extensions@spell-exception-role#egg=lxd-sphinx-extensions
+pyspelling

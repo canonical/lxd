@@ -21,7 +21,7 @@ You can configure the network device in one of the following ways:
 
         lxc config device add <instance_name> <device_name> nic nictype=<nic_type> ...
 
-  See {ref}`instance_device_type_nic` for a list of available NIC types and their configuration properties.
+  See [Type: `nic`](instance_device_type_nic) for a list of available NIC types and their configuration properties.
 
   For example, you could add a pre-existing Linux bridge (`br0`) with the following command:
 
@@ -93,7 +93,7 @@ LXD supports the following network types:
       :end-before: <!-- Include end macvlan intro -->
   ```
 
-  In LXD context, the `macvlan` network type provides a preset configuration to use when connecting instances to a parent Macvlan interface.
+  In LXD context, the `macvlan` network type provides a preset configuration to use when connecting instances to a parent macvlan interface.
 
 {ref}`network-sriov`
 : % Include content from [../reference/network_sriov.md](../reference/network_sriov.md)

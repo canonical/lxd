@@ -62,7 +62,7 @@ Note that in a LXD cluster, the address may be different on each cluster member.
 ```{note}
 The built-in DNS server supports only zone transfers through AXFR.
 It cannot be directly queried for DNS records.
-Therefore, the built-in DNS server must be used in combination with an external DNS server (bind9, nsd, ...), which will transfer the entire zone from LXD, refresh it upon expiry and provide authoritative answers to DNS requests.
+Therefore, the built-in DNS server must be used in combination with an external DNS server (`bind9`, `nsd`, ...), which will transfer the entire zone from LXD, refresh it upon expiry and provide authoritative answers to DNS requests.
 
 Authentication for zone transfers is configured on a per-zone basis, with peers defined in the zone configuration and a combination of IP address matching and TSIG-key based authentication.
 ```
@@ -106,11 +106,11 @@ The following configuration options are available for network zones:
 
 Key                 | Type       | Required | Default | Description
 :--                 | :--        | :--      | -       | :--
-peers.NAME.address  | string     | no       | -       | IP address of a DNS server
-peers.NAME.key      | string     | no       | -       | TSIG key for the server
-dns.nameservers     | string set | no       | -       | Comma-separated list of DNS server FQDNs (for NS records)
-network.nat         | bool       | no       | true    | Whether to generate records for NAT-ed subnets
-user.*              | *          | no       | -       | User-provided free-form key/value pairs
+`peers.NAME.address`| string     | no       | -       | IP address of a DNS server
+`peers.NAME.key`    | string     | no       | -       | TSIG key for the server
+`dns.nameservers`   | string set | no       | -       | Comma-separated list of DNS server FQDNs (for NS records)
+`network.nat`       | bool       | no       | true    | Whether to generate records for NAT-ed subnets
+`user.*`            | *          | no       | -       | User-provided free-form key/value pairs
 
 ## Add a network zone to a network
 
@@ -152,10 +152,10 @@ Records have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
-name              | string     | yes      | Unique name of the record
-description       | string     | no       | Description of the record
-entries           | entry list | no       | A list of DNS entries
-config            | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
+`name`            | string     | yes      | Unique name of the record
+`description`     | string     | no       | Description of the record
+`entries`         | entry list | no       | A list of DNS entries
+`config`          | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
 
 ### Add or remove entries
 
