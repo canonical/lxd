@@ -719,7 +719,7 @@ those will be registered as static assignments in MAAS too.
 
 #### Type: `infiniband`
 
-Supported instance types: container
+Supported instance types: container, VM
 
 LXD supports two different kind of network types for InfiniBand devices:
 
