@@ -1171,7 +1171,7 @@ func storagePoolVolumeTypePostRename(d *Daemon, r *http.Request, poolName string
 
 	revert.Success()
 
-	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", db.StoragePoolVolumeTypeNameCustom, req.Name)
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "volumes", db.StoragePoolVolumeTypeNameCustom, req.Name).Project(projectName)
 
 	return response.SyncResponseLocation(true, nil, u.String())
 }
