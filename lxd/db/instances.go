@@ -1192,13 +1192,3 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 
 	return nil
 }
-
-// Generates '?' signs for sql IN clause.
-func generateInClauseParams(length int) string {
-	result := []string{}
-	for i := 0; i < length; i++ {
-		result = append(result, "?")
-	}
-
-	return strings.Join(result, ",")
-}
