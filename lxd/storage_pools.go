@@ -335,7 +335,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
-	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
+	// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
 		err = storagePoolsPostCluster(d, pool, req, clientType)
 		if err != nil {
