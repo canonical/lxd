@@ -16,8 +16,8 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an storage pool.
-func (a StoragePoolAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := api.NewURL().Path(version.APIVersion, "storage-pools", name).Project(projectName)
+func (a StoragePoolAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
+	u := api.NewURL().Path(version.APIVersion, "storage-pools", name)
 
 	return api.EventLifecycle{
 		Action:    string(a),
