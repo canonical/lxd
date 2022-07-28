@@ -462,10 +462,6 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if post.Type == instance.ConsoleTypeVGA && inst.Type() != instancetype.VM {
-		return response.BadRequest(fmt.Errorf("VGA console is only supported by virtual machines"))
-	}
-
 	if !inst.IsRunning() {
 		return response.BadRequest(fmt.Errorf("Instance is not running"))
 	}

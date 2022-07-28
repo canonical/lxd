@@ -5558,12 +5558,7 @@ func (d *lxc) stopForkfile() {
 	_ = unix.Kill(int(pid), unix.SIGINT)
 }
 
-// Console attaches to the instance console.
-func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
-	if protocol != instance.ConsoleTypeConsole {
-		return nil, nil, fmt.Errorf("Container instances don't support %q output", protocol)
-	}
-
+func (d *lxc) consolePty() (*os.File, chan error, error) {
 	chDisconnect := make(chan error, 1)
 
 	args := []string{
@@ -5623,6 +5618,69 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
 
 	return ptx, chDisconnect, nil
+}
+
+func (d *lxc) consoleVga() (*os.File, chan error, error) {
+	devicesOrig := d.LocalDevices()
+	proxyDeviceName := "spiceproxy"
+	path := d.proxySpicePath()
+	proxyListen := fmt.Sprintf("unix:%s", d.proxySpicePath())
+
+	proxyDevice, exists := devicesOrig[proxyDeviceName]
+
+	if !exists {
+		newDevices := deviceConfig.Devices{}
+		for k, v := range devicesOrig {
+			newDevices[k] = v
+		}
+
+		proxyDevice = deviceConfig.Device{
+			"type":    "proxy",
+			"bind":    "host",
+			"listen":  proxyListen,
+			"connect": "unix:/run/lxd-spice.unix",
+		}
+		newDevices[proxyDeviceName] = proxyDevice
+
+		updateArgs := db.InstanceArgs{
+			Architecture: d.Architecture(),
+			Config:       d.LocalConfig(),
+			Description:  d.Description(),
+			Devices:      newDevices,
+			Ephemeral:    d.IsEphemeral(),
+			Profiles:     d.Profiles(),
+			Project:      d.Project(),
+			Type:         d.Type(),
+			Snapshot:     d.IsSnapshot(),
+		}
+		d.Update(updateArgs, false)
+	}
+
+	if proxyDevice["type"] != "proxy" {
+		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"type\" must be \"proxy\"")
+	}
+
+	if proxyDevice["bind"] != "host" {
+		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"bind\" must be \"host\"")
+	}
+
+	if proxyDevice["listen"] != proxyListen {
+		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"listen\" must be \"%s\"", proxyListen)
+	}
+
+	return d.connectConsoleSocket(path, instance.ConsoleTypeVGA)
+}
+
+// Console attaches to the instance console.
+func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
+	switch protocol {
+	case instance.ConsoleTypeConsole:
+		return d.consolePty()
+	case instance.ConsoleTypeVGA:
+		return d.consoleVga()
+	default:
+		return nil, nil, fmt.Errorf("Unknown protocol %q", protocol)
+	}
 }
 
 // ConsoleLog returns console log.
@@ -6708,6 +6766,11 @@ func (d *lxc) State() string {
 // LogFilePath log file path.
 func (d *lxc) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "lxc.log")
+}
+
+// Path to xspice proxy.
+func (d *lxc) proxySpicePath() string {
+	return filepath.Join(d.LogPath(), "lxd.spice")
 }
 
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {
