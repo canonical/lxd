@@ -240,29 +240,31 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 }
 
 // Query the db for information about instances associated with the given profile.
-func getProfileInstancesInfo(dbCluster *db.Cluster, projectName string, profileName string) ([]db.InstanceArgs, error) {
+func getProfileInstancesInfo(dbCluster *db.Cluster, projectName string, profileName string) (map[int]db.InstanceArgs, error) {
 	// Query the db for information about instances associated with the given profile.
 	projectInstNames, err := dbCluster.GetInstancesWithProfile(projectName, profileName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query instances with profile %q: %w", profileName, err)
 	}
 
-	instances := []db.InstanceArgs{}
+	var instances map[int]db.InstanceArgs
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var dbInstances []cluster.Instance
+
 		for instProject, instNames := range projectInstNames {
 			for _, instName := range instNames {
-				inst, err := cluster.GetInstance(ctx, tx.Tx(), instProject, instName)
+				dbInst, err := cluster.GetInstance(ctx, tx.Tx(), instProject, instName)
 				if err != nil {
 					return err
 				}
 
-				args, err := db.InstanceToArgs(ctx, tx.Tx(), inst)
-				if err != nil {
-					return err
-				}
-
-				instances = append(instances, *args)
+				dbInstances = append(dbInstances, *dbInst)
 			}
+		}
+
+		instances, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		if err != nil {
+			return err
 		}
 
 		return nil
