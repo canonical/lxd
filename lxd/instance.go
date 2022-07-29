@@ -590,7 +590,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 					instances[instanceKey] = instance
 				}
 
-				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance))
+				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture))
 			}
 
 			return nil
