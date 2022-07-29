@@ -423,18 +423,21 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	return instances, nil
 }
 
-func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
-		dbInstances := []dbCluster.Instance{}
 
-		// Get instances.
-		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var instanceArgs map[int]db.InstanceArgs
+
+		// Get eligible instances.
+		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all projects.
 			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
+
+			dbInstances := []dbCluster.Instance{}
 
 			// Filter projects that aren't allowed to have snapshots.
 			for _, p := range allProjects {
@@ -455,37 +458,42 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				dbInstances = append(dbInstances, entries...)
 			}
 
+			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		})
 		if err != nil {
 			return
 		}
 
-		// Load the instances.
-		allInstances, err := instance.LoadAllInternal(s, dbInstances)
-		if err != nil {
-			return
-		}
+		// Figure out which need snapshotting (if any).
+		instances := make([]instance.Instance, 0)
+		for _, instArg := range instanceArgs {
+			inst, err := instance.Load(s, instArg, nil)
+			if err != nil {
+				logger.Error("Failed loading instance for snapshot task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+				continue
+			}
 
-		// Figure out which need snapshotting (if any)
-		instances := []instance.Instance{}
-		for _, c := range allInstances {
-			schedule, ok := c.ExpandedConfig()["snapshots.schedule"]
+			schedule, ok := inst.ExpandedConfig()["snapshots.schedule"]
 			if !ok || schedule == "" {
 				continue
 			}
 
-			// Check if snapshot is scheduled
-			if !snapshotIsScheduledNow(schedule, int64(c.ID())) {
+			// Check if snapshot is scheduled.
+			if !snapshotIsScheduledNow(schedule, int64(inst.ID())) {
 				continue
 			}
 
-			// Check if the instance is running
-			if shared.IsFalseOrEmpty(c.ExpandedConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
+			// Check if the instance is running.
+			if shared.IsFalseOrEmpty(inst.ExpandedConfig()["snapshots.schedule.stopped"]) && !inst.IsRunning() {
 				continue
 			}
 
-			instances = append(instances, c)
+			instances = append(instances, inst)
 		}
 
 		if len(instances) == 0 {
@@ -493,7 +501,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoCreateContainerSnapshots(ctx, d, instances)
+			return autoCreateInstanceSnapshots(ctx, d, instances)
 		}
 
 		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
@@ -502,15 +510,15 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Info("Creating scheduled container snapshots")
+		logger.Info("Creating scheduled instance snapshots")
 
 		err = op.Start()
 		if err != nil {
-			logger.Error("Failed to create scheduled container snapshots", logger.Ctx{"err": err})
+			logger.Error("Failed creating scheduled instance snapshots", logger.Ctx{"err": err})
 		}
 
 		_, _ = op.Wait(ctx)
-		logger.Info("Done creating scheduled container snapshots")
+		logger.Info("Done creating scheduled instance snapshots")
 	}
 
 	first := true
@@ -528,32 +536,34 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
-	// Make the snapshots
-	for _, c := range instances {
+func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
+	// Make the snapshots.
+	for _, inst := range instances {
 		ch := make(chan error)
-		go func() {
-			snapshotName, err := instance.NextSnapshotName(d.State(), c, "snap%d")
+		go func(inst instance.Instance) {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+
+			snapshotName, err := instance.NextSnapshotName(d.State(), inst, "snap%d")
 			if err != nil {
-				logger.Error("Error retrieving next snapshot name", logger.Ctx{"err": err, "container": c})
+				l.Error("Error retrieving next snapshot name", logger.Ctx{"err": err})
 				ch <- nil
 				return
 			}
 
-			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.ExpandedConfig()["snapshots.expiry"])
+			expiry, err := shared.GetSnapshotExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
-				logger.Error("Error getting expiry date", logger.Ctx{"err": err, "container": c})
+				logger.Error("Error getting expiry date")
 				ch <- nil
 				return
 			}
 
-			err = c.Snapshot(snapshotName, expiry, false)
+			err = inst.Snapshot(snapshotName, expiry, false)
 			if err != nil {
-				logger.Error("Error creating snapshots", logger.Ctx{"err": err, "container": c})
+				logger.Error("Error creating snapshots", logger.Ctx{"err": err})
 			}
 
 			ch <- nil
-		}()
+		}(inst)
 		select {
 		case <-ctx.Done():
 			return nil
