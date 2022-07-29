@@ -701,7 +701,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		if err != nil {
 			err := response.InternalError(err).Render(w)
 			if err != nil {
-				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "error": err})
+				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "err": err})
 			}
 		}
 	})

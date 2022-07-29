@@ -1183,7 +1183,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return nil
 		})
 		if err != nil {
-			logger.Error("Failed to schedule local auto custom volume snapshot,", logger.Ctx{"error": err})
+			logger.Error("Failed to schedule local auto custom volume snapshot,", logger.Ctx{"err": err})
 			return
 		}
 
