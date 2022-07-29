@@ -696,7 +696,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			brief = &snap
+			brief = snap
 			if c.flagExpanded {
 				brief.(*api.InstanceSnapshot).Config = snap.ExpandedConfig
 				brief.(*api.InstanceSnapshot).Devices = snap.ExpandedDevices
