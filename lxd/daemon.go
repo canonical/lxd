@@ -1490,6 +1490,12 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Remove volatile.last_state.ready key as LXD doesn't know if the instances are ready.
+	err = d.db.Cluster.DeleteReadyStateFromLocalInstances()
+	if err != nil {
+		return fmt.Errorf("Failed deleting volatile.last_state.ready: %w", err)
+	}
+
 	close(d.setupChan)
 
 	// Create warnings that have been collected

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -30,7 +31,13 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+type devlxdPut struct {
+	State string `json:"state" yaml:"state"`
+}
+
 type devlxdGet struct {
+	devlxdPut
+
 	APIVersion   string `json:"api_version" yaml:"api_version"`
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
 	Location     string `json:"location" yaml:"location"`
@@ -166,18 +173,51 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	return resp
 }}
 
-var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
-	location := "none"
-	clustered, err := cluster.Enabled(d.db.Node)
-	if err != nil {
-		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
+var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if r.Method == "GET" {
+		location := "none"
+		clustered, err := cluster.Enabled(d.db.Node)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
+		}
+
+		if clustered {
+			location = c.Location()
+		}
+
+		var state api.StatusCode
+
+		if shared.IsTrue(c.LocalConfig()["volatile.last_state.ready"]) {
+			state = api.Ready
+		} else {
+			state = api.Started
+		}
+
+		return response.DevLxdResponse(http.StatusOK, devlxdGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), devlxdPut: devlxdPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
+	} else if r.Method == "PATCH" {
+		req := devlxdPut{}
+
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusBadRequest, err.Error()), c.Type() == instancetype.VM)
+		}
+
+		state := api.StatusCodeFromString(req.State)
+
+		if state != api.Started && state != api.Ready {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusBadRequest, "Invalid state %q", req.State), c.Type() == instancetype.VM)
+		}
+
+		err = c.VolatileSet(map[string]string{"volatile.last_state.ready": strconv.FormatBool(state == api.Ready)})
+		if err != nil {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, err.Error()), c.Type() == instancetype.VM)
+		}
+
+		return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
 	}
 
-	if clustered {
-		location = c.Location()
-	}
+	return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusMethodNotAllowed, fmt.Sprintf("method %q not allowed", r.Method)), c.Type() == instancetype.VM)
 
-	return response.DevLxdResponse(http.StatusOK, devlxdGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
@@ -188,7 +228,7 @@ var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 		return response.DevLxdResponse(http.StatusOK, []string{"/1.0"}, "json", c.Type() == instancetype.VM)
 	}},
-	devlxdAPIGet,
+	devlxdAPIHandler,
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
 	devlxdMetadataGet,
