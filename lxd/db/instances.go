@@ -385,7 +385,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 
 // instanceConfigFill function loads config for all specified instances in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceConfigFill(instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -393,12 +393,21 @@ func (c *ClusterTx) instanceConfigFill(instanceArgs *map[int]InstanceArgs) error
 	// This is safe as the inputs are ints.
 	var q strings.Builder
 
-	q.WriteString(`SELECT
+	if snapshotsMode {
+		q.WriteString(`SELECT
+			instance_snapshot_id,
+			key,
+			value
+		FROM instances_snapshots_config
+		WHERE instance_snapshot_id IN (`)
+	} else {
+		q.WriteString(`SELECT
 			instance_id,
 			key,
 			value
 		FROM instances_config
 		WHERE instance_id IN (`)
+	}
 
 	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
 
@@ -448,7 +457,7 @@ func (c *ClusterTx) instanceConfigFill(instanceArgs *map[int]InstanceArgs) error
 
 // instanceDevicesFill loads the device config for all instances specified in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceDevicesFill(instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -456,7 +465,19 @@ func (c *ClusterTx) instanceDevicesFill(instanceArgs *map[int]InstanceArgs) erro
 	// This is safe as the inputs are ints.
 	var q strings.Builder
 
-	q.WriteString(`
+	if snapshotsMode {
+		q.WriteString(`
+		SELECT
+			instances_snapshots_devices.instance_snapshot_id AS instance_snapshot_id,
+			instances_snapshots_devices.name AS device_name,
+			instances_snapshots_devices.type AS device_type,
+			instances_snapshots_devices_config.key,
+			instances_snapshots_devices_config.value
+		FROM instances_snapshots_devices_config
+		JOIN instances_snapshots_devices ON instances_snapshots_devices.id = instances_snapshots_devices_config.instance_snapshot_device_id
+		WHERE instances_snapshots_devices.instance_snapshot_id IN (`)
+	} else {
+		q.WriteString(`
 		SELECT
 			instances_devices.instance_id AS instance_id,
 			instances_devices.name AS device_name,
@@ -466,6 +487,7 @@ func (c *ClusterTx) instanceDevicesFill(instanceArgs *map[int]InstanceArgs) erro
 		FROM instances_devices_config
 		JOIN instances_devices ON instances_devices.id = instances_devices_config.instance_device_id
 		WHERE instances_devices.instance_id IN (`)
+	}
 
 	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
 
@@ -626,9 +648,17 @@ func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) err
 
 // InstancesToInstanceArgs converts many cluster.Instance to a map of InstanceArgs in as few queries as possible.
 func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+	var instanceCount, snapshotCount uint
+
 	// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated yet).
 	instanceArgs := make(map[int]InstanceArgs, len(instances))
 	for _, instance := range instances {
+		if instance.Snapshot {
+			snapshotCount++
+		} else {
+			instanceCount++
+		}
+
 		args := InstanceArgs{
 			ID:           instance.ID,
 			Project:      instance.Project,
@@ -648,22 +678,29 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cl
 		instanceArgs[instance.ID] = args
 	}
 
+	if instanceCount > 0 && snapshotCount > 0 {
+		return nil, fmt.Errorf("Cannot use InstancesToInstanceArgs with mixed instance and instance snapshots")
+	}
+
 	// Populate instance config.
-	err := c.instanceConfigFill(&instanceArgs)
+	err := c.instanceConfigFill(snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance config: %w", err)
 	}
 
 	// Populate instance devices.
-	err = c.instanceDevicesFill(&instanceArgs)
+	err = c.instanceDevicesFill(snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
 	}
 
 	// Populate instance profiles.
-	err = c.instanceProfilesFill(&instanceArgs)
-	if err != nil {
-		return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
+	// This cannot be done for snapshots as they use their parent's profiles.
+	if snapshotCount == 0 {
+		err = c.instanceProfilesFill(&instanceArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
+		}
 	}
 
 	return instanceArgs, nil
