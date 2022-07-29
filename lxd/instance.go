@@ -587,6 +587,10 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return err
 			}
 
+			if len(snapshots) == 0 {
+				return nil
+			}
+
 			expiredSnapshots := make([]dbCluster.Instance, 0, len(snapshots))
 			instances := make(map[string]*dbCluster.Instance, 0)
 
@@ -605,30 +609,31 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture))
 			}
 
-			// Skip if no expired snapshots.
-			if len(expiredSnapshots) == 0 {
-				return nil
-			}
-
 			snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, expiredSnapshots...)
 			if err != nil {
-				logger.Error("Failed loading expired instance snapshots", logger.Ctx{"err": err})
-				return nil
+				return fmt.Errorf("Failed loading expired instance snapshots: %w", err)
 			}
 
 			expiredSnapshotInstances = make([]instance.Instance, 0)
-			for _, instArg := range snapshotArgs {
-				inst, err := instance.Load(s, instArg, nil)
+			for _, snapshotArg := range snapshotArgs {
+				inst, err := instance.Load(s, snapshotArg, nil)
 				if err != nil {
 					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 					continue
 				}
+
+				expiredSnapshotInstances = append(expiredSnapshotInstances, inst)
 			}
 
 			return nil
 		})
 		if err != nil {
-			logger.Error("Failed to get expired instance snapshots", logger.Ctx{"err": err})
+			logger.Error("Failed getting expired instance snapshots", logger.Ctx{"err": err})
+			return
+		}
+
+		// Skip if no expired snapshots.
+		if len(expiredSnapshotInstances) == 0 {
 			return
 		}
 
@@ -683,6 +688,8 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []i
 		if err != nil {
 			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project(), err)
 		}
+
+		logger.Debug("Deleted instance snapshot", logger.Ctx{"project": snapshot.Project(), "snapshot": snapshot.Name()})
 	}
 
 	return nil
