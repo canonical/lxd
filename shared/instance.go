@@ -166,6 +166,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"volatile.evacuate.origin":        validate.IsAny,
 	"volatile.last_state.idmap":       validate.IsAny,
 	"volatile.last_state.power":       validate.IsAny,
+	"volatile.last_state.ready":       validate.IsBool,
 	"volatile.idmap.base":             validate.IsAny,
 	"volatile.idmap.current":          validate.IsAny,
 	"volatile.idmap.next":             validate.IsAny,
@@ -363,6 +364,10 @@ func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value st
 
 		if strings.HasSuffix(key, ".uuid") {
 			return validate.IsAny, nil
+		}
+
+		if strings.HasSuffix(key, ".last_state.ready") {
+			return validate.IsBool, nil
 		}
 	}
 
