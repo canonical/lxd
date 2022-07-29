@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -52,15 +53,15 @@ type InstanceSnapshotFilter struct {
 }
 
 // ToInstance converts an instance snapshot to a database Instance, filling in extra fields from the parent instance.
-func (s *InstanceSnapshot) ToInstance(instance *Instance) Instance {
+func (s *InstanceSnapshot) ToInstance(parentName string, parentNode string, parentType instancetype.Type, parentArch int) Instance {
 	return Instance{
 		ID:           s.ID,
 		Project:      s.Project,
-		Name:         instance.Name + shared.SnapshotDelimiter + s.Name,
-		Node:         instance.Node,
-		Type:         instance.Type,
+		Name:         parentName + shared.SnapshotDelimiter + s.Name,
+		Node:         parentNode,
+		Type:         parentType,
 		Snapshot:     true,
-		Architecture: instance.Architecture,
+		Architecture: parentArch,
 		Ephemeral:    false,
 		CreationDate: s.CreationDate,
 		Stateful:     s.Stateful,
