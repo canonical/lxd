@@ -404,9 +404,10 @@ type lxc struct {
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	c        *liblxc.Container
-	cConfig  bool
-	idmapset *idmap.IdmapSet
+	c            *liblxc.Container
+	cConfig      bool
+	idmapset     *idmap.IdmapSet
+	proxyStarted bool
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
@@ -5621,51 +5622,25 @@ func (d *lxc) consolePty() (*os.File, chan error, error) {
 }
 
 func (d *lxc) consoleVga() (*os.File, chan error, error) {
-	devicesOrig := d.LocalDevices()
-	proxyDeviceName := "spiceproxy"
 	path := d.proxySpicePath()
-	proxyListen := fmt.Sprintf("unix:%s", d.proxySpicePath())
 
-	proxyDevice, exists := devicesOrig[proxyDeviceName]
-
-	if !exists {
-		newDevices := deviceConfig.Devices{}
-		for k, v := range devicesOrig {
-			newDevices[k] = v
-		}
-
-		proxyDevice = deviceConfig.Device{
+	if !d.proxyStarted {
+		d.proxyStarted = true
+		proxyListen := fmt.Sprintf("unix:%s", path)
+		addDevices := deviceConfig.Devices{}
+		addDevices["vgaConsoleSpiceProxy"] = deviceConfig.Device{
 			"type":    "proxy",
 			"bind":    "host",
 			"listen":  proxyListen,
 			"connect": "unix:/run/lxd-spice.unix",
 		}
-		newDevices[proxyDeviceName] = proxyDevice
 
-		updateArgs := db.InstanceArgs{
-			Architecture: d.Architecture(),
-			Config:       d.LocalConfig(),
-			Description:  d.Description(),
-			Devices:      newDevices,
-			Ephemeral:    d.IsEphemeral(),
-			Profiles:     d.Profiles(),
-			Project:      d.Project(),
-			Type:         d.Type(),
-			Snapshot:     d.IsSnapshot(),
+		empty := deviceConfig.Devices{}
+		err := d.devicesUpdate(d, empty, addDevices, empty, empty, true, false)
+
+		if err != nil {
+			return nil, nil, fmt.Errorf("devicesUpdate failed")
 		}
-		d.Update(updateArgs, false)
-	}
-
-	if proxyDevice["type"] != "proxy" {
-		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"type\" must be \"proxy\"")
-	}
-
-	if proxyDevice["bind"] != "host" {
-		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"bind\" must be \"host\"")
-	}
-
-	if proxyDevice["listen"] != proxyListen {
-		return nil, nil, fmt.Errorf("Invalid spiceproxy device options: \"listen\" must be \"%s\"", proxyListen)
 	}
 
 	return d.connectConsoleSocket(path, instance.ConsoleTypeVGA)
