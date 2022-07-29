@@ -24,7 +24,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 
 	// Update all instances that are using the volume with a local (non-expanded) device.
 	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		inst, err := instance.Load(s, dbInst, dbInst.Profiles)
+		inst, err := instance.Load(s, dbInst, nil)
 		if err != nil {
 			return err
 		}
