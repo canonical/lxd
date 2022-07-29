@@ -1573,8 +1573,8 @@ func (d *Daemon) Ready() error {
 		// Remove expired container backups (hourly)
 		d.tasks.Add(pruneExpiredContainerBackupsTask(d))
 
-		// Take snapshot of containers (minutely check of configurable cron expression)
-		d.tasks.Add(autoCreateContainerSnapshotsTask(d))
+		// Take snapshot of instances (minutely check of configurable cron expression)
+		d.tasks.Add(autoCreateInstanceSnapshotsTask(d))
 
 		// Remove expired instance snapshots (minutely)
 		d.tasks.Add(pruneExpiredInstanceSnapshotsTask(d))
