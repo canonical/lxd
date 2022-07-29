@@ -902,7 +902,7 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 
 	instances := make([]cluster.Instance, len(snapshots))
 	for i, snapshot := range snapshots {
-		instances[i] = snapshot.ToInstance(instance)
+		instances[i] = snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 	}
 
 	return instances, nil

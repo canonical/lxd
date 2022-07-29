@@ -402,7 +402,7 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 			return nil, fmt.Errorf("Failed to fetch snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
 		}
 
-		c := snapshot.ToInstance(instance)
+		c := snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 		container = &c
 	} else {
 		container, err = cluster.GetInstance(ctx, tx.Tx(), project, name)
@@ -1087,13 +1087,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				return fmt.Errorf("Fetch created snapshot from the database: %w", err)
 			}
 
-			dbInst = s.ToInstance(instance)
+			dbInst = s.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 			newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
 			if err != nil {
 				return err
 			}
 
-			dbInst = s.ToInstance(instance)
 			args = *newArgs
 
 			return nil
