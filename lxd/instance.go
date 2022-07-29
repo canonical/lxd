@@ -578,16 +578,18 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		s := d.State()
 
-		// Load local expired snapshots.
-		expiredSnapshots := []dbCluster.Instance{}
+		var expiredSnapshotInstances []instance.Instance
 
+		// Load local expired snapshots.
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			snapshots, err := tx.GetLocalExpiredInstanceSnapshots(ctx)
 			if err != nil {
 				return err
 			}
 
-			instances := map[string]*dbCluster.Instance{}
+			expiredSnapshots := make([]dbCluster.Instance, 0, len(snapshots))
+			instances := make(map[string]*dbCluster.Instance, 0)
+
 			for _, snapshot := range snapshots {
 				instanceKey := snapshot.Project + "/" + snapshot.Instance
 				instance, ok := instances[instanceKey]
@@ -603,6 +605,26 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture))
 			}
 
+			// Skip if no expired snapshots.
+			if len(expiredSnapshots) == 0 {
+				return nil
+			}
+
+			snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, expiredSnapshots...)
+			if err != nil {
+				logger.Error("Failed loading expired instance snapshots", logger.Ctx{"err": err})
+				return nil
+			}
+
+			expiredSnapshotInstances = make([]instance.Instance, 0)
+			for _, instArg := range snapshotArgs {
+				inst, err := instance.Load(s, instArg, nil)
+				if err != nil {
+					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+					continue
+				}
+			}
+
 			return nil
 		})
 		if err != nil {
@@ -610,20 +632,8 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		// Skip if no expired snapshots.
-		if len(expiredSnapshots) == 0 {
-			return
-		}
-
-		// Load all the instance snapshot structs.
-		snapshots, err := instance.LoadAllInternal(s, expiredSnapshots)
-		if err != nil {
-			logger.Error("Failed to load expired instance snapshots", logger.Ctx{"err": err})
-			return
-		}
-
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredInstanceSnapshots(ctx, d, snapshots)
+			return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshotInstances)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
