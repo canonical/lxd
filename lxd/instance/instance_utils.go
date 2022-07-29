@@ -536,32 +536,6 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 	return LoadAllInternal(s, cts)
 }
 
-// LoadFromAllProjects loads all instances across all projects.
-func LoadFromAllProjects(s *state.State) ([]Instance, error) {
-	var projects []string
-
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		projects, err = cluster.GetProjectNames(context.Background(), tx.Tx())
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []Instance{}
-	for _, project := range projects {
-		projectInstances, err := LoadByProject(s, project)
-		if err != nil {
-			return nil, fmt.Errorf("Load instances in project %s: %w", project, nil)
-		}
-
-		instances = append(instances, projectInstances...)
-	}
-
-	return instances, nil
-}
-
 // LoadNodeAll loads all instances on this server.
 func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, error) {
 	var err error
