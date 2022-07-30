@@ -84,7 +84,7 @@ Use the existing ZFS dataset `my-tank/slice` for `pool4`:
 
 Create a pool named `pool5` on `/dev/sdX` (the ZFS zpool will also be called `pool5`):
 
-    lxc storage create pool1 zfs source=/dev/sdX
+    lxc storage create pool5 zfs source=/dev/sdX
 
 Create a pool named `pool6` on `/dev/sdX` with the ZFS zpool name `my-tank`:
 
