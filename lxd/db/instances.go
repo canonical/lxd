@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -308,9 +307,7 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
 func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project) error) error {
 	projectsByName := make(map[string]*api.Project)
-	profilesByID := make(map[int]*api.Profile)
 	var instances map[int]InstanceArgs
-	instanceApplyProfileIDs := make(map[int64][]int)
 
 	if filter == nil {
 		filter = &cluster.InstanceFilter{}
@@ -318,184 +315,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 
 	if filter.Type != nil && *filter.Type == instancetype.Any {
 		filter.Type = nil
-	}
-
-	// instanceConfig function loads config for all specified instanceIDs in a single query and then updates
-	// the entries in the instances map.
-	instanceConfig := func(tx *ClusterTx, instanceIDs []int) error {
-		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
-		// that means that >255 query parameters causes partial result sets. See #10705
-		// This is safe as the inputs are ints.
-		var q strings.Builder
-
-		q.WriteString(`SELECT
-			instance_id,
-			key,
-			value
-		FROM instances_config
-		WHERE instance_id IN (`)
-		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
-
-		for i := range instanceIDs {
-			if i > 0 {
-				q.WriteString(",")
-			}
-
-			q.WriteString(strconv.Itoa(instanceIDs[i]))
-		}
-
-		q.WriteString(`)`)
-
-		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
-			var instanceID int
-			var key, value string
-
-			err := scan(&instanceID, &key, &value)
-			if err != nil {
-				return err
-			}
-
-			_, found := instances[instanceID]
-			if !found {
-				return fmt.Errorf("Failed loading instance config, referenced instance %d not loaded", instanceID)
-			}
-
-			if instances[instanceID].Config == nil {
-				inst := instances[instanceID]
-				inst.Config = make(map[string]string)
-				instances[instanceID] = inst
-			}
-
-			_, found = instances[instanceID].Config[key]
-			if found {
-				return fmt.Errorf("Duplicate config row found for key %q for instance ID %d", key, instanceID)
-			}
-
-			instances[instanceID].Config[key] = value
-
-			return nil
-		})
-	}
-
-	// instanceDevices loads the device config for all instanceIDs specified in a single query and then updates
-	// the entries in the instances map.
-	instanceDevices := func(tx *ClusterTx, instanceIDs []int) error {
-		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
-		// that means that >255 query parameters causes partial result sets. See #10705
-		// This is safe as the inputs are ints.
-		var q strings.Builder
-
-		q.WriteString(`
-		SELECT
-			instances_devices.instance_id AS instance_id,
-			instances_devices.name AS device_name,
-			instances_devices.type AS device_type,
-			instances_devices_config.key,
-			instances_devices_config.value
-		FROM instances_devices_config
-		JOIN instances_devices ON instances_devices.id = instances_devices_config.instance_device_id
-		WHERE instances_devices.instance_id IN (`)
-
-		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
-
-		for i := range instanceIDs {
-			if i > 0 {
-				q.WriteString(",")
-			}
-
-			q.WriteString(strconv.Itoa(instanceIDs[i]))
-		}
-
-		q.WriteString(`)`)
-
-		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
-			var instanceID int
-			var deviceType cluster.DeviceType
-			var deviceName, key, value string
-
-			err := scan(&instanceID, &deviceName, &deviceType, &key, &value)
-			if err != nil {
-				return err
-			}
-
-			_, found := instances[instanceID]
-			if !found {
-				return fmt.Errorf("Failed loading instance device, referenced instance %d not loaded", instanceID)
-			}
-
-			if instances[instanceID].Devices == nil {
-				inst := instances[instanceID]
-				inst.Devices = make(deviceConfig.Devices)
-				instances[instanceID] = inst
-			}
-
-			_, found = instances[instanceID].Devices[deviceName]
-			if !found {
-				instances[instanceID].Devices[deviceName] = deviceConfig.Device{
-					"type": deviceType.String(), // Map instances_devices type to config field.
-				}
-			}
-
-			_, found = instances[instanceID].Devices[deviceName][key]
-			if found && key != "type" {
-				// For legacy reasons the type value is in both the instances_devices and
-				// instances_devices_config tables. We use the one from the instances_devices.
-				return fmt.Errorf("Duplicate device row found for device %q key %q for instance ID %d", deviceName, key, instanceID)
-			}
-
-			instances[instanceID].Devices[deviceName][key] = value
-
-			return nil
-		})
-	}
-
-	// instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
-	// instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
-	instanceProfiles := func(tx *ClusterTx, instanceIDs []int) error {
-		// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
-		// that means that >255 query parameters causes partial result sets. See #10705
-		// This is safe as the inputs are ints.
-		var q strings.Builder
-
-		q.WriteString(`
-		SELECT
-			instances_profiles.instance_id AS instance_id,
-			instances_profiles.profile_id AS profile_id
-		FROM instances_profiles
-		WHERE instances_profiles.instance_id IN (`)
-
-		q.Grow(len(instanceIDs) * 2) // We know the minimum length of the separators and integers.
-
-		for i := range instanceIDs {
-			if i > 0 {
-				q.WriteString(",")
-			}
-
-			q.WriteString(strconv.Itoa(instanceIDs[i]))
-		}
-
-		q.WriteString(`)
-		ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`)
-
-		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
-			var instanceID int64
-			var profileID int
-
-			err := scan(&instanceID, &profileID)
-			if err != nil {
-				return err
-			}
-
-			instanceApplyProfileIDs[instanceID] = append(instanceApplyProfileIDs[instanceID], profileID)
-
-			// Record that this profile is referenced by at least one instance in the list.
-			_, ok := profilesByID[profileID]
-			if !ok {
-				profilesByID[profileID] = nil
-			}
-
-			return nil
-		})
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
@@ -512,34 +331,18 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			return fmt.Errorf("Failed loading instances: %w", err)
 		}
 
-		// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated).
-		instances = make(map[int]InstanceArgs, len(dbInstances))
-		instanceIDs := make([]int, 0, len(dbInstances))
-		for _, instance := range dbInstances {
-			args := InstanceArgs{
-				ID:           instance.ID,
-				Project:      instance.Project,
-				Name:         instance.Name,
-				Node:         instance.Node,
-				Type:         instance.Type,
-				Snapshot:     instance.Snapshot,
-				Architecture: instance.Architecture,
-				Ephemeral:    instance.Ephemeral,
-				CreationDate: instance.CreationDate,
-				Stateful:     instance.Stateful,
-				LastUsedDate: instance.LastUseDate.Time,
-				Description:  instance.Description,
-				ExpiryDate:   instance.ExpiryDate.Time,
-			}
+		// Fill instances with config, devices and profiles.
+		instances, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		if err != nil {
+			return err
+		}
 
-			// Record that this project is referenced by at least one instance in the list.
+		// Record which projects are referenced by at least one instance in the list.
+		for _, instance := range instances {
 			_, ok := projectsByName[instance.Project]
 			if !ok {
 				projectsByName[instance.Project] = nil
 			}
-
-			instances[instance.ID] = args
-			instanceIDs = append(instanceIDs, instance.ID)
 		}
 
 		// Populate projectsByName map entry for referenced projects.
@@ -552,45 +355,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			}
 
 			projectsByName[project.Name], err = project.ToAPI(ctx, tx.tx)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Populate instance config.
-		err = instanceConfig(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance config: %w", err)
-		}
-
-		// Populate instance devices.
-		err = instanceDevices(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed loading instance devices: %w", err)
-		}
-
-		// Get all profiles.
-		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
-		if err != nil {
-			return fmt.Errorf("Failed loading profiles: %w", err)
-		}
-
-		// Get profiles applied to instances (in order they are applied).
-		err = instanceProfiles(tx, instanceIDs)
-		if err != nil {
-			return fmt.Errorf("Failed getting instance profiles: %w", err)
-		}
-
-		// Populate profilesByID map entry for referenced profiles.
-		// This way we only call ToAPI() on the profiles actually referenced by the instances in
-		// the list, which can reduce the number of queries run.
-		for _, profile := range profiles {
-			_, ok := profilesByID[profile.ID]
-			if !ok {
-				continue
-			}
-
-			profilesByID[profile.ID], err = profile.ToAPI(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
@@ -610,17 +374,6 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 			return fmt.Errorf("Instance references %d project %q that isn't loaded", instance.ID, instance.Project)
 		}
 
-		// Populate instance profiles list before calling instanceFunc.
-		instance.Profiles = make([]api.Profile, 0, len(instance.Profiles))
-		for _, applyProfileID := range instanceApplyProfileIDs[int64(instance.ID)] {
-			profile := profilesByID[applyProfileID]
-			if profile == nil {
-				return fmt.Errorf("Instance %d references profile %d that isn't loaded", instance.ID, applyProfileID)
-			}
-
-			instance.Profiles = append(instance.Profiles, *profile)
-		}
-
 		err = instanceFunc(instance, *project)
 		if err != nil {
 			return err
@@ -628,6 +381,329 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 	}
 
 	return nil
+}
+
+// instanceConfigFill function loads config for all specified instances in a single query and then updates
+// the entries in the instances map.
+func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+	instances := *instanceArgs
+
+	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+	// that means that >255 query parameters causes partial result sets. See #10705
+	// This is safe as the inputs are ints.
+	var q strings.Builder
+
+	if snapshotsMode {
+		q.WriteString(`SELECT
+			instance_snapshot_id,
+			key,
+			value
+		FROM instances_snapshots_config
+		WHERE instance_snapshot_id IN (`)
+	} else {
+		q.WriteString(`SELECT
+			instance_id,
+			key,
+			value
+		FROM instances_config
+		WHERE instance_id IN (`)
+	}
+
+	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
+
+	first := true
+	for instanceID := range instances {
+		if !first {
+			q.WriteString(",")
+		}
+
+		first = false
+
+		q.WriteString(fmt.Sprintf("%d", instanceID))
+	}
+
+	q.WriteString(`)`)
+
+	return c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		var instanceID int
+		var key, value string
+
+		err := scan(&instanceID, &key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := instances[instanceID]
+		if !found {
+			return fmt.Errorf("Failed loading instance config, referenced instance %d not loaded", instanceID)
+		}
+
+		if instances[instanceID].Config == nil {
+			inst := instances[instanceID]
+			inst.Config = make(map[string]string)
+			instances[instanceID] = inst
+		}
+
+		_, found = instances[instanceID].Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for instance ID %d", key, instanceID)
+		}
+
+		instances[instanceID].Config[key] = value
+
+		return nil
+	})
+}
+
+// instanceDevicesFill loads the device config for all instances specified in a single query and then updates
+// the entries in the instances map.
+func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+	instances := *instanceArgs
+
+	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+	// that means that >255 query parameters causes partial result sets. See #10705
+	// This is safe as the inputs are ints.
+	var q strings.Builder
+
+	if snapshotsMode {
+		q.WriteString(`
+		SELECT
+			instances_snapshots_devices.instance_snapshot_id AS instance_snapshot_id,
+			instances_snapshots_devices.name AS device_name,
+			instances_snapshots_devices.type AS device_type,
+			instances_snapshots_devices_config.key,
+			instances_snapshots_devices_config.value
+		FROM instances_snapshots_devices_config
+		JOIN instances_snapshots_devices ON instances_snapshots_devices.id = instances_snapshots_devices_config.instance_snapshot_device_id
+		WHERE instances_snapshots_devices.instance_snapshot_id IN (`)
+	} else {
+		q.WriteString(`
+		SELECT
+			instances_devices.instance_id AS instance_id,
+			instances_devices.name AS device_name,
+			instances_devices.type AS device_type,
+			instances_devices_config.key,
+			instances_devices_config.value
+		FROM instances_devices_config
+		JOIN instances_devices ON instances_devices.id = instances_devices_config.instance_device_id
+		WHERE instances_devices.instance_id IN (`)
+	}
+
+	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
+
+	first := true
+	for instanceID := range instances {
+		if !first {
+			q.WriteString(",")
+		}
+
+		first = false
+
+		q.WriteString(fmt.Sprintf("%d", instanceID))
+	}
+
+	q.WriteString(`)`)
+
+	return c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		var instanceID int
+		var deviceType cluster.DeviceType
+		var deviceName, key, value string
+
+		err := scan(&instanceID, &deviceName, &deviceType, &key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := instances[instanceID]
+		if !found {
+			return fmt.Errorf("Failed loading instance device, referenced instance %d not loaded", instanceID)
+		}
+
+		if instances[instanceID].Devices == nil {
+			inst := instances[instanceID]
+			inst.Devices = make(deviceConfig.Devices)
+			instances[instanceID] = inst
+		}
+
+		_, found = instances[instanceID].Devices[deviceName]
+		if !found {
+			instances[instanceID].Devices[deviceName] = deviceConfig.Device{
+				"type": deviceType.String(), // Map instances_devices type to config field.
+			}
+		}
+
+		_, found = instances[instanceID].Devices[deviceName][key]
+		if found && key != "type" {
+			// For legacy reasons the type value is in both the instances_devices and
+			// instances_devices_config tables. We use the one from the instances_devices.
+			return fmt.Errorf("Duplicate device row found for device %q key %q for instance ID %d", deviceName, key, instanceID)
+		}
+
+		instances[instanceID].Devices[deviceName][key] = value
+
+		return nil
+	})
+}
+
+// instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
+// instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
+func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) error {
+	instances := *instanceArgs
+
+	// Get profiles referenced by instances.
+	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
+	// that means that >255 query parameters causes partial result sets. See #10705
+	// This is safe as the inputs are ints.
+	var q strings.Builder
+
+	q.WriteString(`
+		SELECT
+			instances_profiles.instance_id AS instance_id,
+			instances_profiles.profile_id AS profile_id
+		FROM instances_profiles
+		WHERE instances_profiles.instance_id IN (`)
+
+	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
+
+	first := true
+	for instanceID := range instances {
+		if !first {
+			q.WriteString(",")
+		}
+
+		first = false
+
+		q.WriteString(fmt.Sprintf("%d", instanceID))
+	}
+
+	q.WriteString(`)
+		ORDER BY instances_profiles.instance_id, instances_profiles.apply_order`)
+
+	profilesByID := make(map[int]*api.Profile)
+	instanceApplyProfileIDs := make(map[int64][]int, len(instances))
+
+	err := c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		var instanceID int64
+		var profileID int
+
+		err := scan(&instanceID, &profileID)
+		if err != nil {
+			return err
+		}
+
+		instanceApplyProfileIDs[instanceID] = append(instanceApplyProfileIDs[instanceID], profileID)
+
+		// Record that this profile is referenced by at least one instance in the list.
+		_, ok := profilesByID[profileID]
+		if !ok {
+			profilesByID[profileID] = nil
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get all profiles.
+	profiles, err := cluster.GetProfiles(context.TODO(), c.Tx(), cluster.ProfileFilter{})
+	if err != nil {
+		return fmt.Errorf("Failed loading profiles: %w", err)
+	}
+
+	// Populate profilesByID map entry for referenced profiles.
+	// This way we only call ToAPI() on the profiles actually referenced by the instances in
+	// the list, which can reduce the number of queries run.
+	for _, profile := range profiles {
+		_, ok := profilesByID[profile.ID]
+		if !ok {
+			continue
+		}
+
+		profilesByID[profile.ID], err = profile.ToAPI(context.TODO(), c.tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Populate instance profiles list in apply order.
+	for instanceID := range instances {
+		inst := instances[instanceID]
+
+		inst.Profiles = make([]api.Profile, 0, len(inst.Profiles))
+		for _, applyProfileID := range instanceApplyProfileIDs[int64(inst.ID)] {
+			profile := profilesByID[applyProfileID]
+			if profile == nil {
+				return fmt.Errorf("Instance %d references profile %d that isn't loaded", inst.ID, applyProfileID)
+			}
+
+			inst.Profiles = append(inst.Profiles, *profile)
+		}
+
+		instances[instanceID] = inst
+	}
+
+	return nil
+}
+
+// InstancesToInstanceArgs converts many cluster.Instance to a map of InstanceArgs in as few queries as possible.
+func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+	var instanceCount, snapshotCount uint
+
+	// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated yet).
+	instanceArgs := make(map[int]InstanceArgs, len(instances))
+	for _, instance := range instances {
+		if instance.Snapshot {
+			snapshotCount++
+		} else {
+			instanceCount++
+		}
+
+		args := InstanceArgs{
+			ID:           instance.ID,
+			Project:      instance.Project,
+			Name:         instance.Name,
+			Node:         instance.Node,
+			Type:         instance.Type,
+			Snapshot:     instance.Snapshot,
+			Architecture: instance.Architecture,
+			Ephemeral:    instance.Ephemeral,
+			CreationDate: instance.CreationDate,
+			Stateful:     instance.Stateful,
+			LastUsedDate: instance.LastUseDate.Time,
+			Description:  instance.Description,
+			ExpiryDate:   instance.ExpiryDate.Time,
+		}
+
+		instanceArgs[instance.ID] = args
+	}
+
+	if instanceCount > 0 && snapshotCount > 0 {
+		return nil, fmt.Errorf("Cannot use InstancesToInstanceArgs with mixed instance and instance snapshots")
+	}
+
+	// Populate instance config.
+	err := c.instanceConfigFill(snapshotCount > 0, &instanceArgs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading instance config: %w", err)
+	}
+
+	// Populate instance devices.
+	err = c.instanceDevicesFill(snapshotCount > 0, &instanceArgs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
+	}
+
+	// Populate instance profiles.
+	// This cannot be done for snapshots as they use their parent's profiles.
+	if snapshotCount == 0 {
+		err = c.instanceProfilesFill(&instanceArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
+		}
+	}
+
+	return instanceArgs, nil
 }
 
 // GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
@@ -902,7 +978,7 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 
 	instances := make([]cluster.Instance, len(snapshots))
 	for i, snapshot := range snapshots {
-		instances[i] = snapshot.ToInstance(instance)
+		instances[i] = snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 	}
 
 	return instances, nil

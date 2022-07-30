@@ -30,7 +30,6 @@ import (
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -2927,21 +2926,22 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			}
 		}
 
-		// Get all the instances.
-		instances, err := instance.LoadByProject(n.state, projectName)
-		if err != nil {
-			return nil, err
+		// Get all the instances in project.
+		filter := dbCluster.InstanceFilter{
+			Project: &projectName,
 		}
 
-		for _, inst := range instances {
+		err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+			devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+
 			// Go through all its devices (including profiles).
-			for k, dev := range inst.ExpandedDevices() {
+			for k, dev := range devices {
 				// Skip uninteresting entries.
 				if dev["type"] != "nic" {
 					continue
 				}
 
-				nicType, err := nictype.NICType(n.state, inst.Project(), dev)
+				nicType, err := nictype.NICType(n.state, inst.Project, dev)
 				if err != nil || nicType != "bridged" {
 					continue
 				}
@@ -2957,7 +2957,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 				// Fill in the hwaddr from volatile.
 				if dev["hwaddr"] == "" {
-					dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
+					dev["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", k)]
 				}
 
 				// Record the MAC.
@@ -2968,21 +2968,21 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				// Add the lease.
 				if dev["ipv4.address"] != "" {
 					leases = append(leases, api.NetworkLease{
-						Hostname: inst.Name(),
+						Hostname: inst.Name,
 						Address:  dev["ipv4.address"],
 						Hwaddr:   dev["hwaddr"],
 						Type:     "static",
-						Location: inst.Location(),
+						Location: inst.Node,
 					})
 				}
 
 				if dev["ipv6.address"] != "" {
 					leases = append(leases, api.NetworkLease{
-						Hostname: inst.Name(),
+						Hostname: inst.Name,
 						Address:  dev["ipv6.address"],
 						Hwaddr:   dev["hwaddr"],
 						Type:     "static",
-						Location: inst.Location(),
+						Location: inst.Node,
 					})
 				}
 
@@ -2995,16 +2995,21 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 						ipv6, err := eui64.ParseMAC(netAddress.IP, hwAddr)
 						if err == nil {
 							leases = append(leases, api.NetworkLease{
-								Hostname: inst.Name(),
+								Hostname: inst.Name,
 								Address:  ipv6.String(),
 								Hwaddr:   dev["hwaddr"],
 								Type:     "dynamic",
-								Location: inst.Location(),
+								Location: inst.Node,
 							})
 						}
 					}
 				}
 			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 
