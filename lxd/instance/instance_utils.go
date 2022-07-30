@@ -402,7 +402,7 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 			return nil, fmt.Errorf("Failed to fetch snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
 		}
 
-		c := snapshot.ToInstance(instance)
+		c := snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 		container = &c
 	} else {
 		container, err = cluster.GetInstance(ctx, tx.Tx(), project, name)
@@ -438,128 +438,6 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	}
 
 	return inst, nil
-}
-
-// LoadAllInternal loads a list of db instances into a list of instances.
-func LoadAllInternal(s *state.State, dbInstances []cluster.Instance) ([]Instance, error) {
-	instances := []Instance{}
-	instanceArgs := make([]db.InstanceArgs, 0, len(dbInstances))
-	profiles := map[string]map[string][]api.Profile{}
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profilesByProjectAndInstance := map[string]map[string][]cluster.Profile{}
-		profilesByProjectAndName := map[string]map[string]api.Profile{}
-		for _, instance := range dbInstances {
-			_, ok := profiles[instance.Project]
-			if !ok {
-				profiles[instance.Project] = map[string][]api.Profile{}
-			}
-
-			_, ok = profilesByProjectAndInstance[instance.Project]
-			if !ok {
-				profilesByProjectAndInstance[instance.Project] = map[string][]cluster.Profile{}
-			}
-
-			_, ok = profilesByProjectAndName[instance.Project]
-			if !ok {
-				profilesByProjectAndName[instance.Project] = map[string]api.Profile{}
-			}
-
-			dbProfiles, err := cluster.GetInstanceProfiles(ctx, tx.Tx(), instance.ID)
-			if err != nil {
-				return err
-			}
-
-			profilesByProjectAndInstance[instance.Project][instance.Name] = dbProfiles
-			apiProfiles := make([]api.Profile, 0, len(dbProfiles))
-			for _, profile := range dbProfiles {
-				_, ok := profilesByProjectAndName[instance.Project][profile.Name]
-				if !ok {
-					apiProfile, err := profile.ToAPI(ctx, tx.Tx())
-					if err != nil {
-						return err
-					}
-
-					profilesByProjectAndName[instance.Project][profile.Name] = *apiProfile
-				}
-
-				apiProfiles = append(apiProfiles, profilesByProjectAndName[instance.Project][profile.Name])
-			}
-
-			profiles[instance.Project][instance.Name] = apiProfiles
-			args, err := db.InstanceToArgs(ctx, tx.Tx(), &instance)
-			if err != nil {
-				return err
-			}
-
-			instanceArgs = append(instanceArgs, *args)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, instance := range instanceArgs {
-		inst, err := Load(s, instance, profiles[instance.Project][instance.Name])
-		if err != nil {
-			return nil, err
-		}
-
-		instances = append(instances, inst)
-	}
-
-	return instances, nil
-}
-
-// LoadByProject loads all instances in a project.
-func LoadByProject(s *state.State, project string) ([]Instance, error) {
-	// Get all the instances.
-	var cts []cluster.Instance
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := cluster.InstanceFilter{
-			Project: &project,
-		}
-
-		var err error
-		cts, err = cluster.GetInstances(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return LoadAllInternal(s, cts)
-}
-
-// LoadFromAllProjects loads all instances across all projects.
-func LoadFromAllProjects(s *state.State) ([]Instance, error) {
-	var projects []string
-
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		projects, err = cluster.GetProjectNames(context.Background(), tx.Tx())
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []Instance{}
-	for _, project := range projects {
-		projectInstances, err := LoadByProject(s, project)
-		if err != nil {
-			return nil, fmt.Errorf("Load instances in project %s: %w", project, nil)
-		}
-
-		instances = append(instances, projectInstances...)
-	}
-
-	return instances, nil
 }
 
 // LoadNodeAll loads all instances on this server.
@@ -1087,13 +965,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 				return fmt.Errorf("Fetch created snapshot from the database: %w", err)
 			}
 
-			dbInst = s.ToInstance(instance)
+			dbInst = s.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
 			newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
 			if err != nil {
 				return err
 			}
 
-			dbInst = s.ToInstance(instance)
 			args = *newArgs
 
 			return nil

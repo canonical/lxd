@@ -472,6 +472,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 
 						c, _, err := inst.RenderFull()
 						if err != nil {
+							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
 							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 						} else {
 							resultFullListAppend(projectInstance, *c, err)

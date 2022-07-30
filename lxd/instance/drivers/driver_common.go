@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -238,16 +239,30 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	var snaps []dbCluster.Instance
-
 	if d.snapshot {
 		return []instance.Instance{}, nil
 	}
 
-	// Get all the snapshots
+	var snapshotArgs map[int]db.InstanceArgs
+
+	// Get all the snapshots for instance.
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(ctx, d.project, d.name)
+		filter := dbCluster.InstanceSnapshotFilter{
+			Project:  &d.project,
+			Instance: &d.name,
+		}
+
+		dbSnapshots, err := dbCluster.GetInstanceSnapshots(ctx, tx.Tx(), filter)
+		if err != nil {
+			return err
+		}
+
+		dbInstances := make([]dbCluster.Instance, len(dbSnapshots))
+		for i, s := range dbSnapshots {
+			dbInstances[i] = s.ToInstance(d.name, d.node, d.dbType, d.architecture)
+		}
+
+		snapshotArgs, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
 		if err != nil {
 			return err
 		}
@@ -258,18 +273,22 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 		return nil, err
 	}
 
-	// Build the snapshot list
-	snapshots, err := instance.LoadAllInternal(d.state, snaps)
-	if err != nil {
-		return nil, err
+	snapshots := make([]instance.Instance, 0, len(snapshotArgs))
+	for _, snapshotArg := range snapshotArgs {
+		snapshotArg.Profiles = d.profiles
+		snapInst, err := instance.Load(d.state, snapshotArg, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		snapshots = append(snapshots, instance.Instance(snapInst))
 	}
 
-	instances := make([]instance.Instance, len(snapshots))
-	for k, v := range snapshots {
-		instances[k] = instance.Instance(v)
-	}
+	sort.Slice(snapshots, func(i, j int) bool {
+		return snapshots[i].CreationDate().Before(snapshots[j].CreationDate())
+	})
 
-	return instances, nil
+	return snapshots, nil
 }
 
 // VolatileSet sets one or more volatile config keys.

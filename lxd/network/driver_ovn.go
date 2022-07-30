@@ -4688,33 +4688,33 @@ func (n *ovn) LoadBalancerDelete(listenAddress string, clientType request.Client
 func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	leases := []api.NetworkLease{}
 
-	// Get all the instances.
-	instances, err := instance.LoadByProject(n.state, projectName)
-	if err != nil {
-		return nil, err
+	filter := dbCluster.InstanceFilter{
+		Project: &projectName,
 	}
 
-	for _, inst := range instances {
-		// Get the instance UUID.
-		instanceUUID := inst.LocalConfig()["volatile.uuid"]
+	err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+
+		// Get the instance UUID needed for OVN port name generation.
+		instanceUUID := inst.Config["volatile.uuid"]
 		if instanceUUID == "" {
-			continue
+			return nil
 		}
 
 		// Get the instances IPs.
-		for devName, dev := range inst.ExpandedDevices() {
+		for devName, dev := range devices {
 			if dev["type"] != "nic" || dev["network"] != n.name {
 				continue
 			}
 
 			devIPs, err := n.InstanceDevicePortDynamicIPs(instanceUUID, devName)
 			if err != nil {
-				return nil, err
+				continue // There is likely no active port and so no leases.
 			}
 
 			// Fill in the hwaddr from volatile.
 			if dev["hwaddr"] == "" {
-				dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+				dev["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)]
 			}
 
 			// Add the leases.
@@ -4725,14 +4725,19 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 				}
 
 				leases = append(leases, api.NetworkLease{
-					Hostname: inst.Name(),
+					Hostname: inst.Name,
 					Address:  ip.String(),
 					Hwaddr:   dev["hwaddr"],
 					Type:     leaseType,
-					Location: inst.Location(),
+					Location: inst.Node,
 				})
 			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return leases, nil
