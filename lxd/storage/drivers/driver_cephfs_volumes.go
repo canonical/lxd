@@ -237,11 +237,6 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 	return nil
 }
 
-// RefreshVolume updates an existing volume to match the state of another.
-func (d *cephfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
-	return ErrNotImplemented
-}
-
 // DeleteVolume destroys the on-disk state of a volume.
 func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	snapshots, err := d.VolumeSnapshots(vol, op)
