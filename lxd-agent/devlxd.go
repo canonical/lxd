@@ -166,19 +166,30 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 
 	defer client.Disconnect()
 
-	resp, _, err := client.RawQuery("GET", "/1.0", nil, "")
-	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	if r.Method == "GET" {
+		resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
+		if err != nil {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+
+		var instanceData agentAPI.DevLXDGet
+
+		err = resp.MetadataAsStruct(&instanceData)
+		if err != nil {
+			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		}
+
+		return okResponse(instanceData, "json")
+	} else if r.Method == "PATCH" {
+		_, _, err := client.RawQuery(r.Method, "/1.0", r.Body, "")
+		if err != nil {
+			return &devLxdResponse{err.Error(), http.StatusInternalServerError, "raw"}
+		}
+
+		return okResponse("", "raw")
 	}
 
-	var instanceData agentAPI.DevLXDGet
-
-	err = resp.MetadataAsStruct(&instanceData)
-	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
-	}
-
-	return okResponse(instanceData, "json")
+	return &devLxdResponse{fmt.Sprintf("method %q not allowed", r.Method), http.StatusBadRequest, "raw"}
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
