@@ -971,12 +971,16 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			}
 
 			dbInst = s.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
-			newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
+
+			newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
 			if err != nil {
 				return err
 			}
 
-			args = *newArgs
+			// Populate profile info that was already loaded.
+			newInstArgs := newArgs[dbInst.ID]
+			newInstArgs.Profiles = args.Profiles
+			args = newInstArgs
 
 			return nil
 		}
@@ -1034,12 +1038,15 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return fmt.Errorf("Unexpected instance database ID %d: %w", dbInst.ID, err)
 		}
 
-		newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
+		newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
 		if err != nil {
 			return err
 		}
 
-		args = *newArgs
+		// Populate profile info that was already loaded.
+		newInstArgs := newArgs[dbInst.ID]
+		newInstArgs.Profiles = args.Profiles
+		args = newInstArgs
 
 		return nil
 	})
