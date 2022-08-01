@@ -25,7 +25,7 @@ The following configuration options are available for the `macvlan` network type
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
-`gvrp`                          | bool      | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
+`gvrp`                          | bool      | -                     | `false`                   | Register VLAN using GARP VLAN Registration Protocol
 `mtu`                           | integer   | -                     | -                         | The MTU of the new interface
 `parent`                        | string    | -                     | -                         | Parent interface to create `macvlan` NICs on
 `vlan`                          | integer   | -                     | -                         | The VLAN ID to attach to
