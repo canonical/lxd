@@ -19,80 +19,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
-func InstanceToArgs(ctx context.Context, tx *sql.Tx, inst *cluster.Instance) (*InstanceArgs, error) {
-	args := InstanceArgs{
-		ID:           inst.ID,
-		Project:      inst.Project,
-		Name:         inst.Name,
-		Node:         inst.Node,
-		Type:         inst.Type,
-		Snapshot:     inst.Snapshot,
-		Architecture: inst.Architecture,
-		Ephemeral:    inst.Ephemeral,
-		CreationDate: inst.CreationDate,
-		Stateful:     inst.Stateful,
-		LastUsedDate: inst.LastUseDate.Time,
-		Description:  inst.Description,
-		ExpiryDate:   inst.ExpiryDate.Time,
-	}
-
-	// Get the underlying instance ID if this is a snapshot.
-	instanceID := inst.ID
-	if inst.Snapshot {
-		instanceName := strings.Split(inst.Name, shared.SnapshotDelimiter)[0]
-		id, err := cluster.GetInstanceID(ctx, tx, inst.Project, instanceName)
-		if err != nil {
-			return nil, err
-		}
-
-		instanceID = int(id)
-
-		devices, err := cluster.GetInstanceSnapshotDevices(ctx, tx, inst.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
-		args.Config, err = cluster.GetInstanceSnapshotConfig(ctx, tx, inst.ID)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		devices, err := cluster.GetInstanceDevices(ctx, tx, inst.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		args.Devices = deviceConfig.NewDevices(cluster.DevicesToAPI(devices))
-		args.Config, err = cluster.GetInstanceConfig(ctx, tx, inst.ID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if args.Devices == nil {
-		args.Devices = deviceConfig.Devices{}
-	}
-
-	profiles, err := cluster.GetInstanceProfiles(ctx, tx, instanceID)
-	if err != nil {
-		return nil, err
-	}
-
-	args.Profiles = make([]api.Profile, 0, len(profiles))
-	for _, profile := range profiles {
-		apiProfile, err := profile.ToAPI(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-
-		args.Profiles = append(args.Profiles, *apiProfile)
-	}
-
-	return &args, nil
-}
-
 // InstanceArgs is a value object holding all db-related details about an instance.
 type InstanceArgs struct {
 	// Don't set manually
@@ -332,7 +258,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 		}
 
 		// Fill instances with config, devices and profiles.
-		instances, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		instances, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
 		if err != nil {
 			return err
 		}
@@ -547,7 +473,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 // instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
 // instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
-func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Get profiles referenced by instances.
@@ -556,12 +482,22 @@ func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) err
 	// This is safe as the inputs are ints.
 	var q strings.Builder
 
-	q.WriteString(`
+	if snapshotsMode {
+		q.WriteString(`
+		SELECT
+			instances_snapshots.id AS snapshot_id,
+			instances_profiles.profile_id AS profile_id
+		FROM instances_profiles
+		JOIN instances_snapshots ON instances_snapshots.instance_id = instances_profiles.instance_id
+		WHERE instances_snapshots.id IN (`)
+	} else {
+		q.WriteString(`
 		SELECT
 			instances_profiles.instance_id AS instance_id,
 			instances_profiles.profile_id AS profile_id
 		FROM instances_profiles
 		WHERE instances_profiles.instance_id IN (`)
+	}
 
 	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
 
@@ -647,7 +583,10 @@ func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) err
 }
 
 // InstancesToInstanceArgs converts many cluster.Instance to a map of InstanceArgs in as few queries as possible.
-func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+// Accepts fillProfiles argument that controls whether or not the returned InstanceArgs have their Profiles field
+// populated. This avoids the need to load profile info from the database if it is already available in the
+// caller's context and can be populated afterwards.
+func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bool, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
 	var instanceCount, snapshotCount uint
 
 	// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated yet).
@@ -694,10 +633,9 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cl
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
 	}
 
-	// Populate instance profiles.
-	// This cannot be done for snapshots as they use their parent's profiles.
-	if snapshotCount == 0 {
-		err = c.instanceProfilesFill(&instanceArgs)
+	// Populate instance profiles if requested.
+	if fillProfiles {
+		err = c.instanceProfilesFill(snapshotCount > 0, &instanceArgs)
 		if err != nil {
 			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
 		}

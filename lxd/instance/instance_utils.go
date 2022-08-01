@@ -417,14 +417,19 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 // LoadByProjectAndName loads an instance by project and name.
 func LoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
 	// Get the DB record
-	var args *db.InstanceArgs
+	var args db.InstanceArgs
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		container, err := LoadInstanceDatabaseObject(ctx, tx, project, name)
+		inst, err := LoadInstanceDatabaseObject(ctx, tx, project, name)
 		if err != nil {
 			return err
 		}
 
-		args, err = db.InstanceToArgs(ctx, tx.Tx(), container)
+		instArgs, err := tx.InstancesToInstanceArgs(ctx, true, *inst)
+		if err != nil {
+			return err
+		}
+
+		args = instArgs[inst.ID]
 
 		return err
 	})
@@ -432,7 +437,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 		return nil, err
 	}
 
-	inst, err := Load(s, *args, nil)
+	inst, err := Load(s, args, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load instance: %w", err)
 	}
@@ -966,12 +971,16 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			}
 
 			dbInst = s.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture)
-			newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
+
+			newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
 			if err != nil {
 				return err
 			}
 
-			args = *newArgs
+			// Populate profile info that was already loaded.
+			newInstArgs := newArgs[dbInst.ID]
+			newInstArgs.Profiles = args.Profiles
+			args = newInstArgs
 
 			return nil
 		}
@@ -1029,12 +1038,15 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 			return fmt.Errorf("Unexpected instance database ID %d: %w", dbInst.ID, err)
 		}
 
-		newArgs, err := db.InstanceToArgs(ctx, tx.Tx(), &dbInst)
+		newArgs, err := tx.InstancesToInstanceArgs(ctx, false, dbInst)
 		if err != nil {
 			return err
 		}
 
-		args = *newArgs
+		// Populate profile info that was already loaded.
+		newInstArgs := newArgs[dbInst.ID]
+		newInstArgs.Profiles = args.Profiles
+		args = newInstArgs
 
 		return nil
 	})
