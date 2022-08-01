@@ -353,6 +353,13 @@ func (d *btrfs) Mount() (bool, error) {
 		mntSrc = fmt.Sprintf("/dev/disk/by-uuid/%s", d.config["source"])
 	}
 
+	if shared.IsBlockdevPath(mntSrc) {
+		_, err := shared.RunCommand("btrfs", "device", "scan", mntSrc)
+		if err != nil {
+			return false, fmt.Errorf("Failed scanning device %q for BTRFS filesystem: %w", mntSrc, err)
+		}
+	}
+
 	// Get the custom mount flags/options.
 	mntFlags, mntOptions := resolveMountOptions(d.getMountOptions())
 
