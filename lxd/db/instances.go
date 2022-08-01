@@ -657,7 +657,10 @@ func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[i
 }
 
 // InstancesToInstanceArgs converts many cluster.Instance to a map of InstanceArgs in as few queries as possible.
-func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
+// Accepts fillProfiles argument that controls whether or not the returned InstanceArgs have their Profiles field
+// populated. This avoids the need to load profile info from the database if it is already available in the
+// caller's context and can be populated afterwards.
+func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bool, instances ...cluster.Instance) (map[int]InstanceArgs, error) {
 	var instanceCount, snapshotCount uint
 
 	// Convert instances to partial InstanceArgs slice (Config, Devices and Profiles not populated yet).
@@ -704,10 +707,9 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, instances ...cl
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
 	}
 
-	// Populate instance profiles.
-	// This cannot be done for snapshots as they use their parent's profiles.
-	if snapshotCount == 0 {
-		err = c.instanceProfilesFill(&instanceArgs)
+	// Populate instance profiles if requested.
+	if fillProfiles {
+		err = c.instanceProfilesFill(snapshotCount > 0, &instanceArgs)
 		if err != nil {
 			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
 		}
