@@ -458,7 +458,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				dbInstances = append(dbInstances, entries...)
 			}
 
-			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
 			if err != nil {
 				return err
 			}
@@ -609,7 +609,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				expiredSnapshots = append(expiredSnapshots, snapshot.ToInstance(instance.Name, instance.Node, instance.Type, instance.Architecture))
 			}
 
-			snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, expiredSnapshots...)
+			snapshotArgs, err := tx.InstancesToInstanceArgs(ctx, true, expiredSnapshots...)
 			if err != nil {
 				return fmt.Errorf("Failed loading expired instance snapshots: %w", err)
 			}
