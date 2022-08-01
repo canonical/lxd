@@ -262,7 +262,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 			dbInstances[i] = s.ToInstance(d.name, d.node, d.dbType, d.architecture)
 		}
 
-		snapshotArgs, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		snapshotArgs, err = tx.InstancesToInstanceArgs(ctx, false, dbInstances...)
 		if err != nil {
 			return err
 		}
@@ -275,7 +275,9 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 
 	snapshots := make([]instance.Instance, 0, len(snapshotArgs))
 	for _, snapshotArg := range snapshotArgs {
+		// Populate profile info that was already loaded.
 		snapshotArg.Profiles = d.profiles
+
 		snapInst, err := instance.Load(d.state, snapshotArg, nil)
 		if err != nil {
 			return nil, err
