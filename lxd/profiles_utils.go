@@ -262,7 +262,7 @@ func getProfileInstancesInfo(dbCluster *db.Cluster, projectName string, profileN
 			}
 		}
 
-		instances, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		instances, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
 		if err != nil {
 			return err
 		}
