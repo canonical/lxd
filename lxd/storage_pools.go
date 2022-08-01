@@ -18,6 +18,7 @@ import (
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -175,6 +176,11 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 
 			poolAPI := pool.ToAPI()
 			poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
+
+			if !rbac.UserIsAdmin(r) {
+				// Don't allow non-admins to see pool config as sensitive info can be stored there.
+				poolAPI.Config = nil
+			}
 
 			// If no member is specified and the daemon is clustered, we omit the node-specific fields.
 			if clustered {
@@ -603,6 +609,11 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 
 	poolAPI := pool.ToAPI()
 	poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
+
+	if !rbac.UserIsAdmin(r) {
+		// Don't allow non-admins to see pool config as sensitive info can be stored there.
+		poolAPI.Config = nil
+	}
 
 	// If no member is specified and the daemon is clustered, we omit the node-specific fields.
 	if allNodes {
