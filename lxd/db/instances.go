@@ -547,7 +547,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 // instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
 // instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
-func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Get profiles referenced by instances.
@@ -556,12 +556,22 @@ func (c *ClusterTx) instanceProfilesFill(instanceArgs *map[int]InstanceArgs) err
 	// This is safe as the inputs are ints.
 	var q strings.Builder
 
-	q.WriteString(`
+	if snapshotsMode {
+		q.WriteString(`
+		SELECT
+			instances_snapshots.id AS snapshot_id,
+			instances_profiles.profile_id AS profile_id
+		FROM instances_profiles
+		JOIN instances_snapshots ON instances_snapshots.instance_id = instances_profiles.instance_id
+		WHERE instances_snapshots.id IN (`)
+	} else {
+		q.WriteString(`
 		SELECT
 			instances_profiles.instance_id AS instance_id,
 			instances_profiles.profile_id AS profile_id
 		FROM instances_profiles
 		WHERE instances_profiles.instance_id IN (`)
+	}
 
 	q.Grow(len(instances) * 2) // We know the minimum length of the separators and integers.
 
