@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
@@ -814,13 +815,17 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 	if n != nil {
 		apiNet.Managed = true
 		apiNet.Description = n.Description()
-		apiNet.Config = n.Config()
 		apiNet.Type = n.Type()
 
-		// If no member is specified, we omit the node-specific fields.
-		if allNodes {
-			for _, key := range db.NodeSpecificNetworkConfig {
-				delete(apiNet.Config, key)
+		if rbac.UserIsAdmin(r) {
+			// Only allow admins to see network config as sensitive info can be stored there.
+			apiNet.Config = n.Config()
+
+			// If no member is specified, we omit the node-specific fields.
+			if allNodes {
+				for _, key := range db.NodeSpecificNetworkConfig {
+					delete(apiNet.Config, key)
+				}
 			}
 		}
 	} else if osInfo != nil && shared.IsLoopback(osInfo) {
