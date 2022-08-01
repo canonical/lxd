@@ -520,6 +520,15 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
+		// If config being updated via "patch" method, then merge all existing config with the keys that
+		// are present in the request config.
+		for k, v := range loadBalancer.Config {
+			_, ok := req.Config[k]
+			if !ok {
+				req.Config[k] = v
+			}
+		}
+
 		// If load balancer being updated via "patch" method and backends not specified, then merge
 		// existing backends into load balancer.
 		if req.Backends == nil {
