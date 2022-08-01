@@ -332,7 +332,7 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 		}
 
 		// Fill instances with config, devices and profiles.
-		instances, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+		instances, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
 		if err != nil {
 			return err
 		}
