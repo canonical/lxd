@@ -23,10 +23,10 @@ currently supported:
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
 `backups.compression_algorithm`      | string    | -                     | -                         | Compression algorithm to use for backups (`bzip2`, `gzip`, `lzma`, `xz` or `none`) in the project
-`features.images`                    | bool      | -                     | true                      | Separate set of images and image aliases for the project
-`features.networks`                  | bool      | -                     | false                     | Separate set of networks for the project
-`features.profiles`                  | bool      | -                     | true                      | Separate set of profiles for the project
-`features.storage.volumes`           | bool      | -                     | true                      | Separate set of storage volumes for the project
+`features.images`                    | bool      | -                     | `true`                    | Separate set of images and image aliases for the project
+`features.networks`                  | bool      | -                     | `false`                   | Separate set of networks for the project
+`features.profiles`                  | bool      | -                     | `true`                    | Separate set of profiles for the project
+`features.storage.volumes`           | bool      | -                     | `true`                    | Separate set of storage volumes for the project
 `images.auto_update_cached`          | bool      | -                     | -                         | Whether to automatically update any image that LXD caches
 `images.auto_update_interval`        | integer   | -                     | -                         | Interval in hours at which to look for update to cached images (0 disables it)
 `images.compression_algorithm`       | string    | -                     | -                         | Compression algorithm to use for images (`bzip2`, `gzip`, `lzma`, `xz` or `none`) in the project
@@ -40,7 +40,7 @@ Key                                  | Type      | Condition             | Defau
 `limits.networks`                    | integer   | -                     | -                         | Maximum value for the number of networks this project can have
 `limits.processes`                   | integer   | -                     | -                         | Maximum value for the sum of individual `limits.processes` configurations set on the instances of the project
 `limits.virtual-machines`            | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
-`restricted`                         | bool      | -                     | false                     | Block access to security-sensitive features (this must be enabled to allow the `restricted.*` keys to take effect, this is so it can be temporarily disabled if needed without having to clear the related keys)
+`restricted`                         | bool      | -                     | `false`                   | Block access to security-sensitive features (this must be enabled to allow the `restricted.*` keys to take effect, this is so it can be temporarily disabled if needed without having to clear the related keys)
 `restricted.backups`                 | string    | -                     | `block`                   | Prevents the creation of any instance or volume backups.
 `restricted.cluster.groups`          | string    | -                     | -                         | Prevents targeting cluster groups other than the provided ones.
 `restricted.cluster.target`          | string    | -                     | `block`                   | Prevents direct targeting of cluster members when creating or moving instances.
@@ -65,7 +65,7 @@ Key                                  | Type      | Condition             | Defau
 `restricted.networks.uplinks`        | string    | -                     | `block`                   | Comma-delimited list of network names that can be used as uplink for networks in this project
 `restricted.networks.zones`          | string    | -                     | `block`                   | Comma-delimited list of network zones that can be used (or something under them) in this project
 `restricted.snapshots`               | string    | -                     | `block`                   | Prevents the creation of any instance or volume snapshots.
-`restricted.virtual-machines.lowlevel`| string  | -                     | `block`                   | Prevents use of low-level virtual-machine options like `raw.qemu`, `volatile` etc.
+`restricted.virtual-machines.lowlevel`| string   | -                     | `block`                   | Prevents use of low-level virtual-machine options like `raw.qemu`, `volatile` etc.
 
 Those keys can be set using the `lxc` tool with:
 
