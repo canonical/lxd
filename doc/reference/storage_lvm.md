@@ -42,12 +42,12 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `lvm.thinpool_name`           | string                        | `LXDThinPool`                           | Thin pool where volumes are created
-`lvm.thinpool_metadata_size`  | string                        | 0 (auto)                                | The size of the thin pool metadata volume (the default is to let LVM calculate an appropriate size)
-`lvm.use_thinpool`            | bool                          | true                                    | Whether the storage pool uses a thin pool for logical volumes
-`lvm.vg.force_reuse`          | bool                          | false                                   | Force using an existing non-empty volume group
+`lvm.thinpool_metadata_size`  | string                        | `0` (auto)                                | The size of the thin pool metadata volume (the default is to let LVM calculate an appropriate size)
+`lvm.use_thinpool`            | bool                          | `true`                                  | Whether the storage pool uses a thin pool for logical volumes
+`lvm.vg.force_reuse`          | bool                          | `false`                                 | Force using an existing non-empty volume group
 `lvm.vg_name`                 | string                        | name of the pool                        | Name of the volume group to create
-`rsync.bwlimit`               | string                        | 0 (no limit)                            | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
-`rsync.compression`           | bool                          | true                                    | Whether to use compression while migrating storage pools
+`rsync.bwlimit`               | string                        | `0` (no limit)                            | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
+`rsync.compression`           | bool                          | `true`                                  | Whether to use compression while migrating storage pools
 `size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 `source`                      | string                        | -                                       | Path to block device or loop file or file system entry
 
@@ -61,8 +61,8 @@ Key                     | Type      | Condition                 | Default       
 `block.mount_options`   | string    | block based driver        | same as `volume.block.mount_options`           | Mount options for block devices
 `lvm.stripes`           | string    | LVM driver                | same as `volume.lvm.stripes`                   | Number of stripes to use for new volumes (or thin pool volume)
 `lvm.stripes.size`      | string    | LVM driver                | same as `volume.lvm.stripes.size`              | Size of stripes to use (at least 4096 bytes and multiple of 512 bytes)
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false     | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false    | Disable ID mapping for the volume
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
 `size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
 `snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
