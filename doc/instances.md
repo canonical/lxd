@@ -46,21 +46,21 @@ The currently supported keys are:
 
 Key                                             | Type      | Default           | Live update   | Condition                 | Description
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
-`agent.nic_config`                              | bool      | false             | n/a           | virtual machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
+`agent.nic_config`                              | bool      | `false`           | n/a           | virtual machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
 `boot.autostart`                                | bool      | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
-`boot.autostart.delay`                          | integer   | 0                 | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
-`boot.autostart.priority`                       | integer   | 0                 | n/a           | -                         | What order to start the instances in (starting with highest)
-`boot.host_shutdown_timeout`                    | integer   | 30                | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
-`boot.stop.priority`                            | integer   | 0                 | n/a           | -                         | What order to shutdown the instances (starting with highest)
+`boot.autostart.delay`                          | integer   | `0`               | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
+`boot.autostart.priority`                       | integer   | `0`               | n/a           | -                         | What order to start the instances in (starting with highest)
+`boot.host_shutdown_timeout`                    | integer   | `30`              | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
+`boot.stop.priority`                            | integer   | `0`               | n/a           | -                         | What order to shutdown the instances (starting with highest)
 `cloud-init.network-config`                     | string    | `DHCP on eth0`    | no            | -                         | Cloud-init `network-config`, content is used as seed value
 `cloud-init.user-data`                          | string    | `#cloud-config`   | no            | -                         | Cloud-init `user-data`, content is used as seed value
 `cloud-init.vendor-data`                        | string    | `#cloud-config`   | no            | -                         | Cloud-init `vendor-data`, content is used as seed value
 `cluster.evacuate`                              | string    | `auto`            | n/a           | -                         | What to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
 `environment.*`                                 | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
 `limits.cpu`                                    | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
-`limits.cpu.allowance`                          | string    | 100%              | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
-`limits.cpu.priority`                           | integer   | 10 (maximum)      | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
-`limits.disk.priority`                          | integer   | 5 (medium)        | yes           | -                         | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
+`limits.cpu.allowance`                          | string    | `100%`            | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
+`limits.cpu.priority`                           | integer   | `10` (maximum)    | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
+`limits.disk.priority`                          | integer   | `5` (medium)      | yes           | -                         | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
 `limits.hugepages.64KB`                         | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 64 KB huge pages (Available huge-page sizes are architecture dependent.)
 `limits.hugepages.1MB`                          | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 1 MB huge pages (Available huge-page sizes are architecture dependent.)
 `limits.hugepages.2MB`                          | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) to limit number of 2 MB huge pages (Available huge-page sizes are architecture dependent.)
@@ -68,19 +68,19 @@ Key                                             | Type      | Default           
 `limits.kernel.*`                               | string    | -                 | no            | container                 | This limits kernel resources per instance (e.g. number of open files)
 `limits.memory`                                 | string    | -                 | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see {ref}`instances-limit-units`) (defaults to 1GiB for VMs)
 `limits.memory.enforce`                         | string    | `hard`            | yes           | container                 | If `hard`, instance can't exceed its memory limit. If `soft`, the instance can exceed its memory limit when extra host memory is available
-`limits.memory.hugepages`                       | bool      | false             | no            | virtual machine           | Controls whether to back the instance using huge pages rather than regular system memory
-`limits.memory.swap`                            | bool      | true              | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
-`limits.memory.swap.priority`                   | integer   | 10 (maximum)      | yes           | container                 | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
-`limits.network.priority`                       | integer   | 0 (minimum)       | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
+`limits.memory.hugepages`                       | bool      | `false`           | no            | virtual machine           | Controls whether to back the instance using huge pages rather than regular system memory
+`limits.memory.swap`                            | bool      | `true`            | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
+`limits.memory.swap.priority`                   | integer   | `10` (maximum)    | yes           | container                 | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
+`limits.network.priority`                       | integer   | `0` (minimum)     | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
 `limits.processes`                              | integer   | - (max)           | yes           | container                 | Maximum number of processes that can run in the instance
 `linux.kernel_modules`                          | string    | -                 | yes           | container                 | Comma-separated list of kernel modules to load before starting the instance
 `linux.sysctl.*`                                | string    | -                 | no            | container                 | Allow for modify `sysctl` settings
-`migration.incremental.memory`                  | bool      | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
-`migration.incremental.memory.goal`             | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
-`migration.incremental.memory.iterations`       | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
-`migration.stateful`                            | bool      | false             | no            | virtual machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
-`nvidia.driver.capabilities`                    | string    | compute,utility   | no            | container                 | What driver capabilities the instance needs (sets `libnvidia-container` `NVIDIA_DRIVER_CAPABILITIES`)
-`nvidia.runtime`                                | bool      | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
+`migration.incremental.memory`                  | bool      | `false`           | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
+`migration.incremental.memory.goal`             | integer   | `70`              | yes           | container                 | Percentage of memory to have in sync before stopping the instance
+`migration.incremental.memory.iterations`       | integer   | `10`              | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
+`migration.stateful`                            | bool      | `false`           | no            | virtual machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
+`nvidia.driver.capabilities`                    | string    | `compute,utility` | no            | container                 | What driver capabilities the instance needs (sets `libnvidia-container` `NVIDIA_DRIVER_CAPABILITIES`)
+`nvidia.runtime`                                | bool      | `false`           | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
 `nvidia.require.cuda`                           | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets `libnvidia-container` `NVIDIA_REQUIRE_CUDA`)
 `nvidia.require.driver`                         | string    | -                 | no            | container                 | Version expression for the required driver version (sets `libnvidia-container` `NVIDIA_REQUIRE_DRIVER`)
 `raw.apparmor`                                  | blob      | -                 | yes           | -                         | AppArmor profile entries to be appended to the generated profile
@@ -89,33 +89,33 @@ Key                                             | Type      | Default           
 `raw.qemu`                                      | blob      | -                 | no            | virtual machine           | Raw QEMU configuration to be appended to the generated command line
 `raw.qemu.conf`                                 | blob      | -                 | no            | virtual machine           | Addition/override to the generated `qemu.conf` file
 `raw.seccomp`                                   | blob      | -                 | no            | container                 | Raw Seccomp configuration
-`security.devlxd`                               | bool      | true              | no            | -                         | Controls the presence of `/dev/lxd` in the instance
-`security.devlxd.images`                        | bool      | false             | no            | container                 | Controls the availability of the `/1.0/images` API over `devlxd`
+`security.devlxd`                               | bool      | `true`            | no            | -                         | Controls the presence of `/dev/lxd` in the instance
+`security.devlxd.images`                        | bool      | `false`           | no            | container                 | Controls the availability of the `/1.0/images` API over `devlxd`
 `security.idmap.base`                           | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
-`security.idmap.isolated`                       | bool      | false             | no            | unprivileged container    | Use an idmap for this instance that is unique among instances with isolated set
+`security.idmap.isolated`                       | bool      | `false`           | no            | unprivileged container    | Use an idmap for this instance that is unique among instances with isolated set
 `security.idmap.size`                           | integer   | -                 | no            | unprivileged container    | The size of the idmap to use
-`security.nesting`                              | bool      | false             | yes           | container                 | Support running LXD (nested) inside the instance
-`security.privileged`                           | bool      | false             | no            | container                 | Runs the instance in privileged mode
-`security.protection.delete`                    | bool      | false             | yes           | -                         | Prevents the instance from being deleted
-`security.protection.shift`                     | bool      | false             | yes           | container                 | Prevents the instance's file system from being UID/GID shifted on startup
-`security.agent.metrics`                        | bool      | true              | no            | virtual machine           | Controls whether the `lxd-agent` is queried for state information and metrics
-`security.secureboot`                           | bool      | true              | no            | virtual machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
+`security.nesting`                              | bool      | `false`           | yes           | container                 | Support running LXD (nested) inside the instance
+`security.privileged`                           | bool      | `false`           | no            | container                 | Runs the instance in privileged mode
+`security.protection.delete`                    | bool      | `false`           | yes           | -                         | Prevents the instance from being deleted
+`security.protection.shift`                     | bool      | `false`           | yes           | container                 | Prevents the instance's file system from being UID/GID shifted on startup
+`security.agent.metrics`                        | bool      | `true`            | no            | virtual machine           | Controls whether the `lxd-agent` is queried for state information and metrics
+`security.secureboot`                           | bool      | `true`            | no            | virtual machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
 `security.syscalls.allow`                       | string    | -                 | no            | container                 | A '\n' separated list of syscalls to allow (mutually exclusive with `security.syscalls.deny*`)
 `security.syscalls.deny`                        | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
-`security.syscalls.deny_compat`                 | bool      | false             | no            | container                 | On x86_64 this enables blocking of `compat_*` syscalls, it is a no-op on other arches
-`security.syscalls.deny_default`                | bool      | true              | no            | container                 | Enables the default syscall deny
-`security.syscalls.intercept.bpf`               | bool      | false             | no            | container                 | Handles the `bpf` system call
-`security.syscalls.intercept.bpf.devices`       | bool      | false             | no            | container                 | Allows `bpf` programs for the devices cgroup in the unified hierarchy to be loaded.
-`security.syscalls.intercept.mknod`             | bool      | false             | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
-`security.syscalls.intercept.mount`             | bool      | false             | no            | container                 | Handles the `mount` system call
+`security.syscalls.deny_compat`                 | bool      | `false`           | no            | container                 | On x86_64 this enables blocking of `compat_*` syscalls, it is a no-op on other arches
+`security.syscalls.deny_default`                | bool      | `true`            | no            | container                 | Enables the default syscall deny
+`security.syscalls.intercept.bpf`               | bool      | `false`           | no            | container                 | Handles the `bpf` system call
+`security.syscalls.intercept.bpf.devices`       | bool      | `false`           | no            | container                 | Allows `bpf` programs for the devices cgroup in the unified hierarchy to be loaded.
+`security.syscalls.intercept.mknod`             | bool      | `false`           | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
+`security.syscalls.intercept.mount`             | bool      | `false`           | no            | container                 | Handles the `mount` system call
 `security.syscalls.intercept.mount.allowed`     | string    | -                 | yes           | container                 | Specify a comma-separated list of file systems that are safe to mount for processes inside the instance
 `security.syscalls.intercept.mount.fuse`        | string    | -                 | yes           | container                 | Whether to redirect mounts of a given file system to their fuse implementation (e.g. `ext4=fuse2fs`)
-`security.syscalls.intercept.mount.shift`       | bool      | false             | yes           | container                 | Whether to mount shiftfs on top of file systems handled through mount syscall interception
-`security.syscalls.intercept.sched_setscheduler`| bool      | false             | no            | container                 | Handles the `sched_setscheduler` system call (allows increasing process priority)
-`security.syscalls.intercept.setxattr`          | bool      | false             | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
-`security.syscalls.intercept.sysinfo`           | bool      | false             | no            | container                 | Handles the `sysinfo` system call (to get cgroup-based resource usage information)
+`security.syscalls.intercept.mount.shift`       | bool      | `false`           | yes           | container                 | Whether to mount shiftfs on top of file systems handled through mount syscall interception
+`security.syscalls.intercept.sched_setscheduler`| bool      | `false`           | no            | container                 | Handles the `sched_setscheduler` system call (allows increasing process priority)
+`security.syscalls.intercept.setxattr`          | bool      | `false`           | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
+`security.syscalls.intercept.sysinfo`           | bool      | `false`           | no            | container                 | Handles the `sysinfo` system call (to get cgroup-based resource usage information)
 `snapshots.schedule`                            | string    | -                 | no            | -                         | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma-separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup> <@never>`
-`snapshots.schedule.stopped`                    | bool      | false             | no            | -                         | Controls whether to automatically snapshot stopped instances
+`snapshots.schedule.stopped`                    | bool      | `false`           | no            | -                         | Controls whether to automatically snapshot stopped instances
 `snapshots.pattern`                             | string    | `snap%d`          | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 `snapshots.expiry`                              | string    | -                 | no            | -                         | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 `user.*`                                        | string    | -                 | n/a           | -                         | Free form user key/value storage (can be used in search)
@@ -373,15 +373,15 @@ Key                      | Type    | Default           | Required | Managed | De
 `ipv6.routes`            | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to add on host to NIC
 `ipv4.routes.external`   | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network (BGP)
 `ipv6.routes.external`   | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network (BGP)
-`security.mac_filtering` | bool    | false             | no       | no      | Prevent the instance from spoofing another instance's MAC address
-`security.ipv4_filtering`| bool    | false             | no       | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `mac_filtering`)
-`security.ipv6_filtering`| bool    | false             | no       | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `mac_filtering`)
+`security.mac_filtering` | bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
+`security.ipv4_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `mac_filtering`)
+`security.ipv6_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `mac_filtering`)
 `maas.subnet.ipv4`       | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`       | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
 `boot.priority`          | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 `vlan`                   | integer | -                 | no       | no      | The VLAN ID to use for non-tagged traffic (Can be `none` to remove port from default VLAN)
 `vlan.tagged`            | integer | -                 | no       | no      | Comma-delimited list of VLAN IDs or VLAN ranges to join for tagged traffic
-`security.port_isolation`| bool    | false             | no       | no      | Prevent the NIC from communicating with other NICs in the network that have port isolation enabled
+`security.port_isolation`| bool    | `false`           | no       | no      | Prevent the NIC from communicating with other NICs in the network that have port isolation enabled
 
 ##### `nic`: `macvlan`
 
@@ -401,7 +401,7 @@ Key                     | Type    | Default           | Required | Managed | Des
 `mtu`                   | integer | parent MTU        | no       | yes     | The MTU of the new interface
 `hwaddr`                | string  | randomly assigned | no       | no      | The MAC address of the new interface
 `vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
-`gvrp`                  | bool    | false             | no       | no      | Register VLAN using GARP VLAN Registration Protocol
+`gvrp`                  | bool    | `false`           | no       | no      | Register VLAN using GARP VLAN Registration Protocol
 `maas.subnet.ipv4`      | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
 `boot.priority`         | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
@@ -423,7 +423,7 @@ Key                     | Type    | Default           | Required | Managed | Des
 `name`                  | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
 `mtu`                   | integer | kernel assigned   | no       | yes     | The MTU of the new interface
 `hwaddr`                | string  | randomly assigned | no       | no      | The MAC address of the new interface
-`security.mac_filtering`| bool    | false             | no       | no      | Prevent the instance from spoofing another instance's MAC address
+`security.mac_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
 `vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
 `maas.subnet.ipv4`      | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
@@ -457,8 +457,8 @@ Key                                  | Type    | Default           | Required | 
 `security.acls`                      | string  | -                 | no       | no      | Comma-separated list of Network ACLs to apply
 `security.acls.default.ingress.action`| string | `reject`          | no       | no      | Action to use for ingress traffic that doesn't match any ACL rule
 `security.acls.default.egress.action` | string | `reject`          | no       | no      | Action to use for egress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.logged`| bool   | false             | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
-`security.acls.default.egress.logged` | bool   | false             | no       | no      | Whether to log egress traffic that doesn't match any ACL rule
+`security.acls.default.ingress.logged`| bool   | `false`           | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
+`security.acls.default.egress.logged` | bool   | `false`           | no       | no      | Whether to log egress traffic that doesn't match any ACL rule
 
 SR-IOV hardware acceleration:
 
@@ -510,7 +510,7 @@ Key                     | Type    | Default           | Required | Description
 `mtu`                   | integer | parent MTU        | no       | The MTU of the new interface
 `hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
 `vlan`                  | integer | -                 | no       | The VLAN ID to attach to
-`gvrp`                  | bool    | false             | no       | Register VLAN using GARP VLAN Registration Protocol
+`gvrp`                  | bool    | `false`           | no       | Register VLAN using GARP VLAN Registration Protocol
 `maas.subnet.ipv4`      | string  | -                 | no       | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | MAAS IPv6 subnet to register the instance in
 `boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
@@ -560,7 +560,7 @@ Key                     | Type    | Default            | Required | Description
 `ipv6.gateway`          | string  | `auto` (`l3s`), - (`l2`) | no       | In `l3s` mode, whether to add an automatic default IPv6 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv6 address of the gateway.
 `ipv6.host_table`       | integer | -                  | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
 `vlan`                  | integer | -                  | no       | The VLAN ID to attach to
-`gvrp`                  | bool    | false              | no       | Register VLAN using GARP VLAN Registration Protocol
+`gvrp`                  | bool    | `false`            | no       | Register VLAN using GARP VLAN Registration Protocol
 
 ##### `nic`: `p2p`
 
@@ -656,15 +656,15 @@ Key                     | Type    | Default           | Required | Description
 `ipv4.gateway`          | string  | `auto`            | no       | Whether to add an automatic default IPv4 gateway, can be `auto` or `none`
 `ipv4.host_address`     | string  | `169.254.0.1`     | no       | The IPv4 address to add to the host-side `veth` interface
 `ipv4.host_table`       | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table)
-`ipv4.neighbor_probe`   | bool    | true              | no       | Whether to probe the parent network for IP address availability.
+`ipv4.neighbor_probe`   | bool    | `true`            | no       | Whether to probe the parent network for IP address availability.
 `ipv6.address`          | string  | -                 | no       | Comma-delimited list of IPv6 static addresses to add to the instance
 `ipv6.routes`           | string  | -                 | no       | Comma-delimited list of IPv6 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 `ipv6.gateway`          | string  | `auto`            | no       | Whether to add an automatic default IPv6 gateway, can be `auto` or `none`
 `ipv6.host_address`     | string  | `fe80::1`         | no       | The IPv6 address to add to the host-side `veth` interface
 `ipv6.host_table`       | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table)
-`ipv6.neighbor_probe`   | bool    | true              | no       | Whether to probe the parent network for IP address availability.
+`ipv6.neighbor_probe`   | bool    | `true`            | no       | Whether to probe the parent network for IP address availability.
 `vlan`                  | integer | -                 | no       | The VLAN ID to attach to
-`gvrp`                  | bool    | false             | no       | Register VLAN using GARP VLAN Registration Protocol
+`gvrp`                  | bool    | `false`           | no       | Register VLAN using GARP VLAN Registration Protocol
 
 ##### `bridged`, `macvlan` or `ipvlan` for connection to physical network
 
@@ -795,14 +795,14 @@ Key                 | Type      | Default   | Required  | Description
 `limits.max`        | string    | -         | no        | Same as modifying both limits.read and limits.write
 `path`              | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
 `source`            | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
-`required`          | bool      | true      | no        | Controls whether to fail if the source doesn't exist
-`readonly`          | bool      | false     | no        | Controls whether to make the mount read-only
+`required`          | bool      | `true`    | no        | Controls whether to fail if the source doesn't exist
+`readonly`          | bool      | `false`   | no        | Controls whether to make the mount read-only
 `size`              | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the rootfs (/).
 `size.state`        | string    | -         | no        | Same as size above but applies to the file-system volume used for saving runtime state in virtual machines.
-`recursive`         | bool      | false     | no        | Whether or not to recursively mount the source path
+`recursive`         | bool      | `false`   | no        | Whether or not to recursively mount the source path
 `pool`              | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
 `propagation`       | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation) <!-- wokeignore:rule=slave -->
-`shift`             | bool      | false     | no        | Set up a shifting overlay to translate the source UID/GID to match the instance (only for containers)
+`shift`             | bool      | `false`   | no        | Set up a shifting overlay to translate the source UID/GID to match the instance (only for containers)
 `raw.mount.options` | string    | -         | no        | File system specific mount options
 `ceph.user_name`    | string    | `admin`   | no        | If source is Ceph or CephFS then Ceph `user_name` must be specified by user for proper mount
 `ceph.cluster_name` | string    | `ceph`    | no        | If source is Ceph or CephFS then Ceph `cluster_name` must be specified by user for proper mount
@@ -823,10 +823,10 @@ Key         | Type      | Default           | Required  | Description
 `path`      | string    | -                 | no        | Path inside the instance (one of `source` and `path` must be set)
 `major`     | int       | device on host    | no        | Device major number
 `minor`     | int       | device on host    | no        | Device minor number
-`uid`       | int       | 0                 | no        | UID of the device owner in the instance
-`gid`       | int       | 0                 | no        | GID of the device owner in the instance
-`mode`      | int       | 0660              | no        | Mode of the device in the instance
-`required`  | bool      | true              | no        | Whether or not this device is required to start the instance
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance
+`mode`      | int       | `0660`            | no        | Mode of the device in the instance
+`required`  | bool      | `true`            | no        | Whether or not this device is required to start the instance
 
 #### Type: `unix-block`
 
@@ -843,10 +843,10 @@ Key         | Type      | Default           | Required  | Description
 `path`      | string    | -                 | no        | Path inside the instance (one of `source` and `path` must be set)
 `major`     | int       | device on host    | no        | Device major number
 `minor`     | int       | device on host    | no        | Device minor number
-`uid`       | int       | 0                 | no        | UID of the device owner in the instance
-`gid`       | int       | 0                 | no        | GID of the device owner in the instance
-`mode`      | int       | 0660              | no        | Mode of the device in the instance
-`required`  | bool      | true              | no        | Whether or not this device is required to start the instance
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance
+`mode`      | int       | `0660`            | no        | Mode of the device in the instance
+`required`  | bool      | `true`            | no        | Whether or not this device is required to start the instance
 
 #### Type: `usb`
 
@@ -861,10 +861,10 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 `vendorid`  | string    | -                 | no        | The vendor ID of the USB device
 `productid` | string    | -                 | no        | The product ID of the USB device
-`uid`       | int       | 0                 | no        | UID of the device owner in the instance
-`gid`       | int       | 0                 | no        | GID of the device owner in the instance
-`mode`      | int       | 0660              | no        | Mode of the device in the instance
-`required`  | bool      | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance
+`mode`      | int       | `0660`            | no        | Mode of the device in the instance
+`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
 
 #### Type: `gpu`
 
@@ -901,9 +901,9 @@ Key         | Type      | Default           | Required  | Description
 `productid` | string    | -                 | no        | The product ID of the GPU device
 `id`        | string    | -                 | no        | The card ID of the GPU device
 `pci`       | string    | -                 | no        | The PCI address of the GPU device
-`uid`       | int       | 0                 | no        | UID of the device owner in the instance (container only)
-`gid`       | int       | 0                 | no        | GID of the device owner in the instance (container only)
-`mode`      | int       | 0660              | no        | Mode of the device in the instance (container only)
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance (container only)
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance (container only)
+`mode`      | int       | `0660`            | no        | Mode of the device in the instance (container only)
 
 ##### `gpu`: `mdev`
 
@@ -1012,13 +1012,13 @@ Key             | Type      | Default       | Required  | Description
 `listen`        | string    | -             | yes       | The address and port to bind and listen (`<type>:<addr>:<port>[-<port>][,<port>]`)
 `connect`       | string    | -             | yes       | The address and port to connect to (`<type>:<addr>:<port>[-<port>][,<port>]`)
 `bind`          | string    | `host`        | no        | Which side to bind on (`host`/`instance`)
-`uid`           | int       | 0             | no        | UID of the owner of the listening Unix socket
-`gid`           | int       | 0             | no        | GID of the owner of the listening Unix socket
-`mode`          | int       | 0644          | no        | Mode for the listening Unix socket
-`nat`           | bool      | false         | no        | Whether to optimize proxying via NAT (requires instance NIC has static IP address)
-`proxy_protocol`| bool      | false         | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
-`security.uid`  | int       | 0             | no        | What UID to drop privilege to
-`security.gid`  | int       | 0             | no        | What GID to drop privilege to
+`uid`           | int       | `0`           | no        | UID of the owner of the listening Unix socket
+`gid`           | int       | `0`           | no        | GID of the owner of the listening Unix socket
+`mode`          | int       | `0644`        | no        | Mode for the listening Unix socket
+`nat`           | bool      | `false`       | no        | Whether to optimize proxying via NAT (requires instance NIC has static IP address)
+`proxy_protocol`| bool      | `false`       | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
+`security.uid`  | int       | `0`           | no        | What UID to drop privilege to
+`security.gid`  | int       | `0`           | no        | What GID to drop privilege to
 
 ```
 lxc config device add <instance> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance>
@@ -1038,10 +1038,10 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 `vendorid`  | string    | -                 | no        | The vendor ID of the Unix device
 `productid` | string    | -                 | no        | The product ID of the Unix device
-`uid`       | int       | 0                 | no        | UID of the device owner in the instance
-`gid`       | int       | 0                 | no        | GID of the device owner in the instance
-`mode`      | int       | 0660              | no        | Mode of the device in the instance
-`required`  | bool      | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance
+`mode`      | int       | `0660`            | no        | Mode of the device in the instance
+`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
 
 
 #### Type: `tpm`

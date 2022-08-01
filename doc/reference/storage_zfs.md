@@ -96,8 +96,8 @@ Key                           | Type                          | Default         
 :--                           | :---                          | :------                                 | :----------
 `size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 `source`                      | string                        | -                                       | Path to block device or loop file or file system entry
-`zfs.clone_copy`              | string                        | true                                    | Whether to use ZFS lightweight clones rather than full {spellexception}`dataset` copies (Boolean), or `rebase` to copy based on the initial image
-`zfs.export`                  | bool                          | true                                    | Disable zpool export while unmount performed
+`zfs.clone_copy`              | string                        | `true`                                  | Whether to use ZFS lightweight clones rather than full {spellexception}`dataset` copies (Boolean), or `rebase` to copy based on the initial image
+`zfs.export`                  | bool                          | `true`                                  | Disable zpool export while unmount performed
 `zfs.pool_name`               | string                        | name of the pool                        | Name of the zpool
 
 {{volume_configuration}}
@@ -106,8 +106,8 @@ Key                           | Type                          | Default         
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false     | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false    | Disable ID mapping for the volume
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
 `size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
 `snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
@@ -115,4 +115,4 @@ Key                     | Type      | Condition                 | Default       
 `zfs.blocksize`         | string    | ZFS driver                | same as `volume.zfs.blocksize`                 | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
 `zfs.remove_snapshots`  | string    | ZFS driver                | same as `volume.zfs.remove_snapshots`          | Remove snapshots as needed
 `zfs.use_refquota`      | string    | ZFS driver                | same as `volume.zfs.use_refquota`              | Use `refquota` instead of `quota` for space
-`zfs.reserve_space`     | string    | ZFS driver                | same as `volume.zfs.reserve_space` or false    | Use `reservation`/`refreservation` along with `quota`/`refquota`
+`zfs.reserve_space`     | string    | ZFS driver                | same as `volume.zfs.reserve_space` or `false`  | Use `reservation`/`refreservation` along with `quota`/`refquota`
