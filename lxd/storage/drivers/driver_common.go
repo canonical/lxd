@@ -2,12 +2,17 @@ package drivers
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -296,4 +301,130 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller, all
 	filler.Size = volSize
 
 	return nil
+}
+
+// CreateVolume creates a new storage volume on disk.
+func (d *common) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// CreateVolumeFromBackup re-creates a volume from its exported state.
+func (d *common) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+	return nil, nil, ErrNotSupported
+}
+
+// CreateVolumeFromCopy copies an existing storage volume (with or without snapshots) into a new volume.
+func (d *common) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
+func (d *common) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// RefreshVolume updates an existing volume to match the state of another.
+func (d *common) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, allowInconsistent bool, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// DeleteVolume destroys the on-disk state of a volume.
+func (d *common) DeleteVolume(vol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// HasVolume indicates whether a specific volume exists on the storage pool.
+func (d *common) HasVolume(vol Volume) bool {
+	return false
+}
+
+// ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
+func (d *common) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	return ErrNotSupported
+}
+
+// UpdateVolume applies the driver specific changes of a volume configuration change.
+func (d *common) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+	return ErrNotSupported
+}
+
+// GetVolumeUsage returns the disk space usage of a volume.
+func (d *common) GetVolumeUsage(vol Volume) (int64, error) {
+	return -1, ErrNotSupported
+}
+
+// SetVolumeQuota applies a size limit on volume.
+func (d *common) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// GetVolumeDiskPath returns the location of a root disk block device.
+func (d *common) GetVolumeDiskPath(vol Volume) (string, error) {
+	return "", ErrNotSupported
+}
+
+// ListVolumes returns a list of LXD volumes in storage pool.
+func (d *common) ListVolumes() ([]Volume, error) {
+	return nil, ErrNotSupported
+}
+
+// MountVolume sets up the volume for use.
+func (d *common) MountVolume(vol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// UnmountVolume clears any runtime state for the volume.
+// As driver doesn't have volumes to unmount it returns false indicating the volume was already unmounted.
+func (d *common) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
+	return false, ErrNotSupported
+}
+
+// RenameVolume renames the volume and all related filesystem entries.
+func (d *common) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// MigrateVolume streams the volume (with or without snapshots).
+func (d *common) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// BackupVolume creates an exported version of a volume.
+func (d *common) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// CreateVolumeSnapshot creates a new snapshot.
+func (d *common) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// DeleteVolumeSnapshot deletes a snapshot.
+func (d *common) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// MountVolumeSnapshot makes the snapshot available for use.
+func (d *common) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// UnmountVolumeSnapshot clears any runtime state for the snapshot.
+func (d *common) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	return false, ErrNotSupported
+}
+
+// VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
+func (d *common) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+	return nil, ErrNotSupported
+}
+
+// RestoreVolume resets a volume to its snapshotted state.
+func (d *common) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// RenameVolumeSnapshot renames a snapshot.
+func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+	return ErrNotSupported
 }
