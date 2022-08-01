@@ -60,19 +60,19 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `cephfs.cluster_name`         | string                        | `ceph`                                  | Name of the Ceph cluster that contains the CephFS file system
-`cephfs.fscache`              | bool                          | false                                   | Enable use of kernel `fscache` and `cachefilesd`
+`cephfs.fscache`              | bool                          | `false`                                 | Enable use of kernel `fscache` and `cachefilesd`
 `cephfs.path`                 | string                        | `/`                                     | The base path for the CephFS mount
 `cephfs.user.name`            | string                        | `admin`                                 | The Ceph user to use
 `source`                      | string                        | -                                       | Existing CephFS file system or file system path to use
-`volatile.pool.pristine`      | string                        | true                                    | Whether the CephFS file system was empty on creation time
+`volatile.pool.pristine`      | string                        | `true`                                  | Whether the CephFS file system was empty on creation time
 
 {{volume_configuration}}
 
 ### Storage volume configuration
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false     | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false    | Disable ID mapping for the volume
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false`  | Disable ID mapping for the volume
 `size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage volume
 `snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
