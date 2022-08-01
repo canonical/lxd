@@ -62,10 +62,10 @@ Key                             | Type      | Default                    | Descr
 {{volume_configuration}}
 
 ### Storage volume configuration
-Key                     | Type      | Condition                 | Default                                     | Description
-:--                     | :---      | :--------                 | :------                                     | :----------
-`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or false    | {{enable_ID_shifting}}
-`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or false   | Disable ID mapping for the volume
+Key                     | Type      | Condition                 | Default                                       | Description
+:--                     | :---      | :--------                 | :------                                       | :----------
+`security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`  | {{enable_ID_shifting}}
+`security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false` | Disable ID mapping for the volume
 `size`                  | string    | appropriate driver        | same as `volume.size`                         | Size/quota of the storage volume
 `snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry `            | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d`| {{snapshot_pattern_format}}
