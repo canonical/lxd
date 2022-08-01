@@ -458,7 +458,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				dbInstances = append(dbInstances, entries...)
 			}
 
-			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, dbInstances...)
+			instanceArgs, err = tx.InstancesToInstanceArgs(ctx, true, dbInstances...)
 			if err != nil {
 				return err
 			}
