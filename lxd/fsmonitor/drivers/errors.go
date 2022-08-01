@@ -4,9 +4,6 @@ import (
 	"fmt"
 )
 
-// ErrNotImplemented is the "Not implemented" error.
-var ErrNotImplemented = fmt.Errorf("Not implemented")
-
 // ErrInvalidFunction is the "Invalid function" error.
 var ErrInvalidFunction = fmt.Errorf("Invalid function")
 
