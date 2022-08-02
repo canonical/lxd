@@ -1652,7 +1652,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	s := d.State()
 
 	var err error
-	var instances []instance.Instance // If this is left as nil this indicates an error loading instances.
+	var instances []instance.Instance
+	var instancesLoaded bool // If this is left as false this indicates an error loading instances.
 
 	if d.db.Cluster != nil {
 		instances, err = instance.LoadNodeAll(s, instancetype.Any)
@@ -1667,6 +1668,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// Make all future queries fail fast as DB is not available.
 			d.gateway.Kill()
 			_ = d.db.Cluster.Close()
+		}
+
+		if err == nil {
+			instancesLoaded = true
 		}
 	}
 
@@ -1745,7 +1750,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	trackError(d.clusterTasks.Stop(3*time.Second), "Stop cluster tasks") // Give tasks a bit of time to cleanup.
 
 	n := d.numRunningInstances(instances)
-	shouldUnmount := instances != nil && n <= 0
+	shouldUnmount := instancesLoaded && n <= 0
 
 	if d.db.Cluster != nil {
 		logger.Info("Closing the database")
