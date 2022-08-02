@@ -666,7 +666,15 @@ func ExitStatus(err error) (int, error) {
 		return 0, err // No error exit status.
 	}
 
-	exitErr, isExitError := err.(*exec.ExitError)
+	checkErr := err
+
+	// Detect and extract RunError to check the embedded error.
+	runErr, isRunError := checkErr.(RunError)
+	if isRunError {
+		checkErr = runErr.Err
+	}
+
+	exitErr, isExitError := checkErr.(*exec.ExitError)
 	if isExitError {
 		// If the process was signaled, extract the signal.
 		status, isWaitStatus := exitErr.Sys().(unix.WaitStatus)
