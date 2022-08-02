@@ -321,21 +321,20 @@ func (d *btrfs) Mount() (bool, error) {
 		return false, nil
 	}
 
+	var err error
+
 	// Setup mount options.
 	loopPath := loopFilePath(d.name)
 	mntSrc := ""
 	mntDst := GetPoolMountPath(d.name)
 	mntFilesystem := "btrfs"
 	if d.config["source"] == loopPath {
-		// Bring up the loop device.
-		loopF, err := PrepareLoopDev(d.config["source"], LoFlagsAutoclear|LoFlagsDirectIO)
+		mntSrc, err = loopDeviceSetup(d.config["source"])
 		if err != nil {
 			return false, err
 		}
 
-		defer func() { _ = loopF.Close() }()
-
-		mntSrc = loopF.Name()
+		defer func() { _ = loopDeviceAutoDetach(mntSrc) }()
 	} else if filepath.IsAbs(d.config["source"]) {
 		// Bring up an existing device or path.
 		mntSrc = shared.HostPath(d.config["source"])
@@ -351,13 +350,6 @@ func (d *btrfs) Mount() (bool, error) {
 	} else {
 		// Mount using UUID.
 		mntSrc = fmt.Sprintf("/dev/disk/by-uuid/%s", d.config["source"])
-	}
-
-	if shared.IsBlockdevPath(mntSrc) {
-		_, err := shared.RunCommand("btrfs", "device", "scan", mntSrc)
-		if err != nil {
-			return false, fmt.Errorf("Failed scanning device %q for BTRFS filesystem: %w", mntSrc, err)
-		}
 	}
 
 	// Get the custom mount flags/options.
@@ -387,7 +379,7 @@ func (d *btrfs) Mount() (bool, error) {
 	}
 
 	// Handle traditional mounts.
-	err := TryMount(mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
+	err = TryMount(mntSrc, mntDst, mntFilesystem, mntFlags, mntOptions)
 	if err != nil {
 		return false, err
 	}
@@ -401,12 +393,6 @@ func (d *btrfs) Unmount() (bool, error) {
 	ourUnmount, err := forceUnmount(GetPoolMountPath(d.name))
 	if err != nil {
 		return false, err
-	}
-
-	// If loop backed, force release the loop device.
-	loopPath := loopFilePath(d.name)
-	if d.config["source"] == loopPath {
-		_ = releaseLoopDev(loopPath)
 	}
 
 	return ourUnmount, nil
