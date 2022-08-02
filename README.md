@@ -2,11 +2,15 @@
 
 <!-- Include start LXD intro -->
 # LXD
-LXD is a next generation system container and virtual machine manager.
-It offers a unified user experience around full Linux systems running inside containers or virtual machines.
+LXD is a modern, secure and powerful system container and virtual machine manager.
 
-It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)
-and is built around a very powerful, yet pretty simple, REST API.
+It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supplies images for a [wide number of Linux distributions](https://images.linuxcontainers.org) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
+
+LXD allows you to easily set up a system that feels like a small private cloud. You can run any type of workload in an efficient way while keeping your resources optimized.
+
+You should consider using LXD if you want to containerize different environments or run virtual machines, or in general run and manage your infrastructure in a cost-effective way.
+
+## Get started
 
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
