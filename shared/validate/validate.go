@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/url"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -854,6 +855,20 @@ func IsDeviceName(name string) error {
 
 	if !match {
 		return fmt.Errorf("Name can only contain alphanumeric, forward slash, hyphen, colon, underscore and full stop characters")
+	}
+
+	return nil
+}
+
+// IsRequestURL checks value is a valid HTTP/HTTPS request URL.
+func IsRequestURL(value string) error {
+	if value == "" {
+		return fmt.Errorf("Empty URL")
+	}
+
+	_, err := url.ParseRequestURI(value)
+	if err != nil {
+		return fmt.Errorf("Invalid URL: %w", err)
 	}
 
 	return nil
