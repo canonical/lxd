@@ -148,15 +148,15 @@ func (d *lvm) Create() error {
 		revert.Add(func() { _ = os.Remove(d.config["source"]) })
 
 		// Open the loop file.
-		loopFile, err := d.openLoopFile(d.config["source"])
+		loopDevPath, err := d.openLoopFile(d.config["source"])
 		if err != nil {
 			return err
 		}
 
-		defer func() { _ = loopFile.Close() }()
+		defer func() { _ = loopDeviceAutoDetach(loopDevPath) }()
 
 		// Check if the physical volume already exists.
-		pvName = loopFile.Name()
+		pvName = loopDevPath
 		pvExists, err = d.pysicalVolumeExists(pvName)
 		if err != nil {
 			return err
@@ -332,16 +332,16 @@ func (d *lvm) Create() error {
 // Delete removes the storage pool from the storage device.
 func (d *lvm) Delete(op *operations.Operation) error {
 	var err error
-	var loopFile *os.File
+	var loopDevPath string
 
 	// Open the loop file if needed.
 	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
-		loopFile, err = d.openLoopFile(d.config["source"])
+		loopDevPath, err = d.openLoopFile(d.config["source"])
 		if err != nil {
 			return err
 		}
 
-		defer func() { _ = loopFile.Close() }()
+		defer func() { _ = loopDeviceAutoDetach(loopDevPath) }()
 	}
 
 	vgExists, vgTags, err := d.volumeGroupExists(d.config["lvm.vg_name"])
@@ -417,22 +417,17 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	}
 
 	// If we have removed the volume group and this is a loop file, lets clean up the physical volume too.
-	if removeVg && loopFile != nil {
-		err = SetAutoclearOnLoopDev(int(loopFile.Fd()))
-		if err != nil {
-			d.logger.Warn("Failed to set LO_FLAGS_AUTOCLEAR on loop device, manual cleanup needed", logger.Ctx{"dev": loopFile.Name(), "err": err})
-		}
-
-		_, err := shared.TryRunCommand("pvremove", "-f", loopFile.Name())
+	if removeVg && loopDevPath != "" {
+		_, err := shared.TryRunCommand("pvremove", "-f", loopDevPath)
 		if err != nil {
 			d.logger.Warn("Failed to destroy the physical volume for the lvm storage pool", logger.Ctx{"err": err})
 		}
 
-		d.logger.Debug("Physical volume removed", logger.Ctx{"pv_name": loopFile.Name()})
+		d.logger.Debug("Physical volume removed", logger.Ctx{"pv_name": loopDevPath})
 
-		err = loopFile.Close()
+		err = loopDeviceAutoDetach(loopDevPath)
 		if err != nil {
-			return err
+			d.logger.Warn("Failed to set LO_FLAGS_AUTOCLEAR on loop device, manual cleanup needed", logger.Ctx{"dev": loopDevPath, "err": err})
 		}
 
 		// This is a loop file so deconfigure the associated loop device.
@@ -537,18 +532,18 @@ func (d *lvm) Mount() (bool, error) {
 
 	waitDuration := time.Second * time.Duration(5)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Open the loop file if the source points to a non-block device file.
 	// This ensures that auto clear isn't enabled on the loop file.
 	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
-		loopFile, err := d.openLoopFile(d.config["source"])
+		loopDevPath, err := d.openLoopFile(d.config["source"])
 		if err != nil {
 			return false, err
 		}
 
-		err = loopFile.Close()
-		if err != nil {
-			return false, err
-		}
+		revert.Add(func() { _ = loopDeviceAutoDetach(loopDevPath) })
 
 		// Wait for volume group to be detected if wasn't detected before.
 		if !vgExists {
@@ -587,6 +582,7 @@ func (d *lvm) Mount() (bool, error) {
 		}
 	}
 
+	revert.Success()
 	return ourMount, nil
 }
 
