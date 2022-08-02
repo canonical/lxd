@@ -48,33 +48,25 @@ func (d *lvm) thinpoolName() string {
 	return lvmThinpoolDefaultName
 }
 
-// openLoopFile opens a loopback file and disable auto detach.
-func (d *lvm) openLoopFile(source string) (*os.File, error) {
+// openLoopFile opens a loop device and returns the the device path.
+func (d *lvm) openLoopFile(source string) (string, error) {
 	if source == "" {
-		return nil, fmt.Errorf("No source property found for the storage pool")
+		return "", fmt.Errorf("No source property found for the storage pool")
 	}
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
 		unlock := locking.Lock(OperationLockName("openLoopFile", d.name, "", "", ""))
 		defer unlock()
 
-		// Try to prepare new loop device.
-		loopF, err := PrepareLoopDev(source, LoFlagsDirectIO)
+		loopDeviceName, err := loopDeviceSetup(source)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
-		// Make sure that LO_FLAGS_AUTOCLEAR is unset, so that the loopback device will not
-		// autodestruct on last close.
-		err = UnsetAutoclearOnLoopDev(int(loopF.Fd()))
-		if err != nil {
-			return nil, err
-		}
-
-		return loopF, nil
+		return loopDeviceName, nil
 	}
 
-	return nil, fmt.Errorf("Source is not loop file")
+	return "", fmt.Errorf("Source is not loop file")
 }
 
 // isLVMNotFoundExitError checks whether the supplied error is an exit error from an LVM command
