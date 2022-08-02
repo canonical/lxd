@@ -891,3 +891,27 @@ func loopFileSizeDefault() (uint64, error) {
 
 	return defaultSize, nil
 }
+
+// loopFileSetup sets up a loop device for the provided sourcePath.
+// It tries to enable direct I/O if supported.
+func loopDeviceSetup(sourcePath string) (string, error) {
+	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
+	if err != nil {
+		if strings.Contains(err.Error(), "direct io") {
+			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=off", "--show", sourcePath)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	}
+
+	return strings.TrimSpace(out), nil
+}
+
+// loopFileAutoDetach enables auto detach mode for a loop device.
+func loopDeviceAutoDetach(loopDevPath string) error {
+	_, err := shared.RunCommand("losetup", "--detach", loopDevPath)
+	return err
+}
