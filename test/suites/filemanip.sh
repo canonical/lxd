@@ -128,6 +128,8 @@ test_filemanip() {
   lxc delete filemanip -f
   [ "$output" = "foo" ]
 
+  rm "${TEST_DIR}"/source/baz
+  rm -rf "${TEST_DIR}/dest"
   lxc project switch default
   lxc project delete test
 }
