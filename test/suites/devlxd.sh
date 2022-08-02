@@ -2,9 +2,9 @@ test_devlxd() {
   ensure_import_testimage
 
   (
-    # shellcheck disable=SC2164
-    cd "${TEST_DIR}"
-    go build -tags netgo -a -installsuffix devlxd ../deps/devlxd-client.go
+    cd devlxd-client || return
+    # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
+    go build -tags netgo -v -buildvcs=false ./...
   )
 
   lxc launch testimage devlxd -c security.devlxd=false
@@ -12,7 +12,7 @@ test_devlxd() {
   ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
-  lxc file push "${TEST_DIR}/devlxd-client" devlxd/bin/
+  lxc file push "devlxd-client/devlxd-client" devlxd/bin/
 
   lxc exec devlxd chmod +x /bin/devlxd-client
 
