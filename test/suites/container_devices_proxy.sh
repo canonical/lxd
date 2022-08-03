@@ -88,7 +88,7 @@ container_devices_proxy_tcp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -312,7 +312,7 @@ container_devices_proxy_unix() {
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -395,7 +395,7 @@ container_devices_proxy_tcp_unix() {
     exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -465,7 +465,7 @@ container_devices_proxy_unix_tcp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -531,7 +531,7 @@ container_devices_proxy_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - udp:127.0.0.1:"${HOST_UDP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -595,7 +595,7 @@ container_devices_proxy_unix_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - unix:"${HOST_SOCK#"$(pwd)"/}")
   kill "${NSENTER_PID}" 2>/dev/null || true
@@ -661,7 +661,7 @@ container_devices_proxy_tcp_udp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat udp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 0.5
+  sleep 1
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
   kill "${NSENTER_PID}" 2>/dev/null || true
