@@ -26,7 +26,7 @@ Key                           | Type                          | Default         
 :--                           | :---                          | :------                                 | :----------
 `rsync.bwlimit`               | string                        | `0` (no limit)                          | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
 `rsync.compression`           | bool                          | `true`                                  | Whether to use compression while migrating storage pools
-`source`                      | string                        | -                                       | Path to block device or loop file or file system entry
+`source`                      | string                        | -                                       | Path to an existing block device, loop file or file system entry
 
 {{volume_configuration}}
 
