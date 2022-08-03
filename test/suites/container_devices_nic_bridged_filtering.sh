@@ -208,7 +208,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check DHCPv4 allocation still works.
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
-  lxc exec "${ctPrefix}A" -- udhcpc -i eth0 -n -q
+  lxc exec "${ctPrefix}A" -- udhcpc -f -i eth0 -n -q -t5
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
@@ -462,7 +462,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   if [ "$busyboxUdhcpc6" = "1" ]; then
-      lxc exec "${ctPrefix}A" -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
+      lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0

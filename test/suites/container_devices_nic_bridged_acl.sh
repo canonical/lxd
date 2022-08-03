@@ -113,7 +113,7 @@ test_container_devices_nic_bridged_acl() {
   lxc start "${ctPrefix}A"
 
   # Check DHCP works for baseline rules.
-  lxc exec "${ctPrefix}A" -- udhcpc -i eth0 -n -q 2>&1 | grep 'obtained'
+  lxc exec "${ctPrefix}A" -- udhcpc -f -i eth0 -n -q -t5 2>&1 | grep 'obtained'
 
   # Request DHCPv6 lease (if udhcpc6 is in busybox image).
   busyboxUdhcpc6=1
@@ -122,7 +122,7 @@ test_container_devices_nic_bridged_acl() {
   fi
 
   if [ "$busyboxUdhcpc6" = "1" ]; then
-    lxc exec "${ctPrefix}A" -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
+    lxc exec "${ctPrefix}A" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
   # Add static IPs to container.

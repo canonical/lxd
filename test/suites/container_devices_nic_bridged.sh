@@ -342,7 +342,7 @@ test_container_devices_nic_bridged() {
   lxc launch testimage "${ctName}" -p "${ctName}"
 
   # Request DHCPv4 lease with custom name (to check managed name is allocated instead).
-  lxc exec "${ctName}" -- udhcpc -i eth0 -n -q -F "${ctName}custom"
+  lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5 -F "${ctName}custom"
 
   # Check DHCPv4 lease is allocated.
   if ! grep -i "${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
@@ -363,7 +363,7 @@ test_container_devices_nic_bridged() {
   fi
 
   if [ "$busyboxUdhcpc6" = "1" ]; then
-        lxc exec "${ctName}" -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
+        lxc exec "${ctName}" -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
   # Delete container, check LXD releases lease.
@@ -421,7 +421,7 @@ test_container_devices_nic_bridged() {
   # Check dnsmasq leases file removed if DHCP disabled and that device can be removed.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
   lxc start "${ctName}"
-  lxc exec "${ctName}" -- udhcpc -i eth0 -n -q
+  lxc exec "${ctName}" -- udhcpc -f -i eth0 -n -q -t5
   lxc network set "${brName}" ipv4.address none
   lxc network set "${brName}" ipv6.address none
 
