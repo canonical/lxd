@@ -42,14 +42,14 @@ The following configuration options are available for storage pools that use the
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `lvm.thinpool_name`           | string                        | `LXDThinPool`                           | Thin pool where volumes are created
-`lvm.thinpool_metadata_size`  | string                        | `0` (auto)                                | The size of the thin pool metadata volume (the default is to let LVM calculate an appropriate size)
+`lvm.thinpool_metadata_size`  | string                        | `0` (auto)                              | The size of the thin pool metadata volume (the default is to let LVM calculate an appropriate size)
 `lvm.use_thinpool`            | bool                          | `true`                                  | Whether the storage pool uses a thin pool for logical volumes
 `lvm.vg.force_reuse`          | bool                          | `false`                                 | Force using an existing non-empty volume group
 `lvm.vg_name`                 | string                        | name of the pool                        | Name of the volume group to create
-`rsync.bwlimit`               | string                        | `0` (no limit)                            | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
+`rsync.bwlimit`               | string                        | `0` (no limit)                          | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
 `rsync.compression`           | bool                          | `true`                                  | Whether to use compression while migrating storage pools
 `size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
-`source`                      | string                        | -                                       | Path to block device or loop file or file system entry
+`source`                      | string                        | -                                       | Path to an existing block device, loop file or LVM volume group
 
 {{volume_configuration}}
 
