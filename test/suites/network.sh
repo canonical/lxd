@@ -73,7 +73,7 @@ test_network() {
   fi
 
   if [ "$busyboxUdhcpc6" = "1" ]; then
-    lxc exec nettest -- udhcpc6 -i eth0 -n -q 2>&1 | grep 'IPv6 obtained'
+    lxc exec nettest -- udhcpc6 -f -i eth0 -n -q -t5 2>&1 | grep 'IPv6 obtained'
   fi
 
   lxc delete nettest -f
