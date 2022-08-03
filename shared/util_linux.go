@@ -658,7 +658,7 @@ again:
 }
 
 // ExitStatus extracts the exit status from the error returned by exec.Cmd.
-// If a nil err is provided then an exist status of 0 is returned along with the nil error.
+// If a nil err is provided then an exit status of 0 is returned along with the nil error.
 // If a valid exit status can be extracted from err then it is returned along with a nil error.
 // If no valid exit status can be extracted then a -1 exit status is returned along with the err provided.
 func ExitStatus(err error) (int, error) {
@@ -666,7 +666,15 @@ func ExitStatus(err error) (int, error) {
 		return 0, err // No error exit status.
 	}
 
-	exitErr, isExitError := err.(*exec.ExitError)
+	checkErr := err
+
+	// Detect and extract RunError to check the embedded error.
+	runErr, isRunError := checkErr.(RunError)
+	if isRunError {
+		checkErr = runErr.Err
+	}
+
+	exitErr, isExitError := checkErr.(*exec.ExitError)
 	if isExitError {
 		// If the process was signaled, extract the signal.
 		status, isWaitStatus := exitErr.Sys().(unix.WaitStatus)
