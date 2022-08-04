@@ -206,7 +206,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 
 	for _, instance := range instances {
 		apiInstance := api.Instance{Name: instance.Name}
-		usedBy = append(usedBy, apiInstance.URL(version.Version, project.Name).String())
+		usedBy = append(usedBy, apiInstance.URL(version.APIVersion, project.Name).String())
 	}
 
 	for _, profile := range profiles {
