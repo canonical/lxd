@@ -362,7 +362,7 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 
 	uris := make([]string, len(names))
 	for i, name := range names {
-		uris[i] = api.NewURL().Path(version.APIVersion, "cluster/groups", name).String()
+		uris[i] = api.NewURL().Path(version.APIVersion, "cluster", "groups", name).String()
 	}
 
 	return uris, nil
