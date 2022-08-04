@@ -1159,11 +1159,11 @@ func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address
 		}
 
 		if node.Schema != schema {
-			return fmt.Errorf("The joining server version doesn't (expected %s with DB schema %v)", version.Version, schema)
+			return fmt.Errorf("The joining server version doesn't match (expected %s with DB schema %v)", version.Version, schema)
 		}
 
 		if node.APIExtensions != api {
-			return fmt.Errorf("The joining server version doesn't (expected %s with API count %v)", version.Version, api)
+			return fmt.Errorf("The joining server version doesn't match (expected %s with API count %v)", version.Version, api)
 		}
 	}
 

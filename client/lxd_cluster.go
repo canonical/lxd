@@ -55,7 +55,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 		params += "?force=1"
 	}
 
-	_, err := r.queryStruct("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "", nil)
+	_, _, err := r.query("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "")
 	if err != nil {
 		return err
 	}
