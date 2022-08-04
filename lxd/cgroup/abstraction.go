@@ -864,7 +864,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	case V1:
 		val, err := cg.rw.Get(version, "blkio", "blkio.throttle.io_service_bytes_recursive")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed getting blkio.throttle.io_service_bytes_recursive: %w", err)
 		}
 
 		scanner := bufio.NewScanner(strings.NewReader(val))
@@ -888,13 +888,13 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			}
 
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed parsing %q (%q) of blkio.throttle.io_service_bytes_recursive: %w", fields[1], fields[2], err)
 			}
 		}
 
 		val, err = cg.rw.Get(version, "blkio", "blkio.throttle.io_serviced_recursive")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed getting blkio.throttle.io_serviced_recursive: %w", err)
 		}
 
 		scanner = bufio.NewScanner(strings.NewReader(val))
@@ -918,7 +918,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 			}
 
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed parsing %q (%q) of blkio.throttle.io_serviced_recursive: %w", fields[1], fields[2], err)
 			}
 		}
 
@@ -926,7 +926,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	case V2:
 		val, err := cg.rw.Get(version, "io", "io.stat")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed getting io.stat: %w", err)
 		}
 
 		scanner := bufio.NewScanner(strings.NewReader(val))
@@ -943,7 +943,7 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 
 			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, &readBytes, &writtenBytes, &readsCompleted, &writesCompleted, &discardBytes)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed parsing io.stat (%q): %w", scanner.Text(), err)
 			}
 
 			ioMap[partMap[devID]] = &IOStats{
