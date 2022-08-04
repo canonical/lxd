@@ -515,19 +515,20 @@ test_basic_usage() {
   lxc launch testimage foo -e
   OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
 
-  # Wait for init to be ready and signal a reboot
-  sleep 3
-  lxc exec foo reboot || true
-
   REBOOTED="false"
 
   # shellcheck disable=SC2034
   for i in $(seq 60); do
     NEW_INIT=$(lxc info foo | awk '/^PID:/ {print $2}' || true)
 
-    if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
-      REBOOTED="true"
-      break
+    # If init process is running, check if is old or new process.
+    if [ -n "${NEW_INIT}" ]; then
+      if [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
+        REBOOTED="true"
+        break
+      else
+        lxc exec foo reboot || true  # Signal to running old init processs to reboot if not rebooted yet.
+      fi
     fi
 
     sleep 0.5
