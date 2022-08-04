@@ -1133,8 +1133,7 @@ func (c *ClusterTx) GetStorageVolumeURIs(project string) ([]string, error) {
 
 	uris := []string{}
 	for _, info := range volInfo {
-		volPath := fmt.Sprintf("%s/volumes/custom/%s", info.PoolName, info.Name)
-		uri := api.NewURL().Path(version.APIVersion, "storage-pools", volPath).Project(project)
+		uri := api.NewURL().Path(version.APIVersion, "storage-pools", info.PoolName, "volumes", "custom", info.Name).Project(project)
 
 		// Skip checking nodes if node_id is NULL.
 		if info.NodeID != -1 {
