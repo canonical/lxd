@@ -232,7 +232,7 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 		Description:  inst.Description(),
 		Devices:      inst.LocalDevices(),
 		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     inst.Profiles(), // List of profile names to load from DB.
+		Profiles:     inst.Profiles(),
 		Project:      inst.Project(),
 		Type:         inst.Type(),
 		Snapshot:     inst.IsSnapshot(),
