@@ -529,7 +529,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 				exitCodeFSModified := false
 				runErr, ok := err.(shared.RunError)
 				if ok {
-					exitError, ok := runErr.Err.(*exec.ExitError)
+					exitError, ok := runErr.Unwrap().(*exec.ExitError)
 					if ok {
 						if exitError.ExitCode() == 1 {
 							exitCodeFSModified = true
