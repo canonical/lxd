@@ -47,7 +47,7 @@ func (o *OVS) BridgeExists(bridgeName string) (bool, error) {
 	if err != nil {
 		runErr, ok := err.(shared.RunError)
 		if ok {
-			exitError, ok := runErr.Err.(*exec.ExitError)
+			exitError, ok := runErr.Unwrap().(*exec.ExitError)
 
 			// ovs-vsctl manpage says that br-exists exits with code 2 if bridge doesn't exist.
 			if ok && exitError.ExitCode() == 2 {

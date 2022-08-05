@@ -273,7 +273,7 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 
 	runErr, ok := err.(shared.RunError)
 	if ok {
-		exitError, ok := runErr.Err.(*exec.ExitError)
+		exitError, ok := runErr.Unwrap().(*exec.ExitError)
 		if ok {
 			// sgdisk manpage says exit status 3 means:
 			// "Non-GPT disk detected and no -g option, but operation requires a write action".

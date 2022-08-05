@@ -222,13 +222,18 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		// We can't create char/block devices in unpriv containers so ignore related errors.
 		if sysOS.RunningInUserNS && command == "unsquashfs" {
 			runError, ok := err.(shared.RunError)
-			if !ok || runError.Stderr == "" {
+			if !ok {
+				return err
+			}
+
+			stdErr := runError.StdErr().String()
+			if stdErr == "" {
 				return err
 			}
 
 			// Confirm that all errors are related to character or block devices.
 			found := false
-			for _, line := range strings.Split(runError.Stderr, "\n") {
+			for _, line := range strings.Split(stdErr, "\n") {
 				line = strings.TrimSpace(line)
 				if line == "" {
 					continue
