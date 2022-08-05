@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -295,7 +296,7 @@ func (d *ceph) Unmount() (bool, error) {
 func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	var stdout bytes.Buffer
 
-	err := shared.RunCommandWithFds(nil, &stdout,
+	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout,
 		"ceph",
 		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
 		"--cluster", d.config["ceph.cluster_name"],
