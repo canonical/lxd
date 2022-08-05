@@ -509,22 +509,20 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 }
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
-func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.DB.Cluster.GetInstanceSnapshotsNames(projectName, instanceName)
+func DeleteSnapshots(inst Instance) error {
+	snapInsts, err := inst.Snapshots()
 	if err != nil {
 		return err
 	}
 
-	for _, snapName := range results {
-		snapInst, err := LoadByProjectAndName(s, projectName, snapName)
-		if err != nil {
-			logger.Error("DeleteSnapshots: Failed to load the snapshot", logger.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
-			continue
-		}
+	snapInstsCount := len(snapInsts)
 
-		err = snapInst.Delete(true)
+	for k := range snapInsts {
+		// Delete the snapshots in reverse order.
+		k = snapInstsCount - 1 - k
+		err = snapInsts[k].Delete(true)
 		if err != nil {
-			logger.Error("DeleteSnapshots: Failed to delete the snapshot", logger.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
+			logger.Error("Failed deleting snapshot", logger.Ctx{"project": snapInsts[k].Project(), "instance": snapInsts[k].Name(), "err": err})
 		}
 	}
 
