@@ -900,15 +900,46 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	return s
 }
 
+// RunError is the error from the RunCommand family of functions.
 type RunError struct {
-	Msg    string
-	Err    error
-	Stdout string
-	Stderr string
+	cmd    string
+	args   []string
+	err    error
+	stdout *bytes.Buffer
+	stderr *bytes.Buffer
 }
 
 func (e RunError) Error() string {
-	return e.Msg
+	if e.stderr.Len() == 0 {
+		return fmt.Sprintf("Failed to run: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
+	}
+
+	return fmt.Sprintf("Failed to run: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
+}
+
+func (e RunError) Unwrap() error {
+	return e.err
+}
+
+// StdOut returns the stdout buffer.
+func (e RunError) StdOut() *bytes.Buffer {
+	return e.stdout
+}
+
+// StdErr returns the stdout buffer.
+func (e RunError) StdErr() *bytes.Buffer {
+	return e.stderr
+}
+
+// NewRunError returns new RunError.
+func NewRunError(cmd string, args []string, err error, stdout *bytes.Buffer, stderr *bytes.Buffer) error {
+	return RunError{
+		cmd:    cmd,
+		args:   args,
+		err:    err,
+		stdout: stdout,
+		stderr: stderr,
+	}
 }
 
 // RunCommandSplit runs a command with a supplied environment and optional arguments and returns the
