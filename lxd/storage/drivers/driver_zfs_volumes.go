@@ -346,9 +346,9 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if hdr.Name == srcFile {
 				// Extract the backup.
 				if v.ContentType() == ContentTypeBlock {
-					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-F", target)
+					err = shared.RunCommandWithFds(context.TODO(), tr, nil, "zfs", "receive", "-F", target)
 				} else {
-					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
+					err = shared.RunCommandWithFds(context.TODO(), tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
 				}
 
 				if err != nil {
@@ -2194,7 +2194,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
 
 		// Write the subvolume to the file.
-		err = shared.RunCommandWithFds(nil, tmpFile, "zfs", args...)
+		err = shared.RunCommandWithFds(context.TODO(), nil, tmpFile, "zfs", args...)
 		if err != nil {
 			return err
 		}

@@ -1726,7 +1726,7 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 
 			ueventArray[5] = fmt.Sprintf("%d", length)
 			ueventArray = append(ueventArray, eventParts...)
-			_, _, err := shared.RunCommandSplit(nil, []*os.File{pidFd}, d.state.OS.ExecPath, ueventArray...)
+			_, _, err := shared.RunCommandSplit(context.TODO(), nil, []*os.File{pidFd}, d.state.OS.ExecPath, ueventArray...)
 			if err != nil {
 				return err
 			}
@@ -5891,6 +5891,7 @@ func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
 
 		// Get the network state from the container
 		out, _, err := shared.RunCommandSplit(
+			context.TODO(),
 			nil,
 			[]*os.File{pidFd},
 			d.state.OS.ExecPath,
@@ -6134,6 +6135,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	}
 
 	_, err = shared.RunCommandInheritFds(
+		context.TODO(),
 		[]*os.File{pidFd},
 		d.state.OS.ExecPath,
 		"forkmount",
@@ -6226,6 +6228,7 @@ func (d *lxc) removeMount(mount string) error {
 		}
 
 		_, err := shared.RunCommandInheritFds(
+			context.TODO(),
 			[]*os.File{pidFd},
 			d.state.OS.ExecPath,
 			"forkmount",
