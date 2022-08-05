@@ -3615,7 +3615,7 @@ func (d *lxc) Delete(force bool) error {
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
 			// calling its Delete function.
-			err := instance.DeleteSnapshots(d.state, d.Project(), d.Name())
+			err := instance.DeleteSnapshots(d)
 			if err != nil {
 				d.logger.Error("Failed to delete instance snapshots", logger.Ctx{"err": err})
 				return err
