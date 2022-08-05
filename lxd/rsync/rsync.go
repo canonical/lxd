@@ -67,7 +67,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
-			exitError, ok := runError.Err.(*exec.ExitError)
+			exitError, ok := runError.Unwrap().(*exec.ExitError)
 			if ok {
 				if exitError.ExitCode() == 24 {
 					return msg, nil

@@ -900,23 +900,54 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 	return s
 }
 
+// RunError is the error from the RunCommand family of functions.
 type RunError struct {
-	Msg    string
-	Err    error
-	Stdout string
-	Stderr string
+	cmd    string
+	args   []string
+	err    error
+	stdout *bytes.Buffer
+	stderr *bytes.Buffer
 }
 
 func (e RunError) Error() string {
-	return e.Msg
+	if e.stderr.Len() == 0 {
+		return fmt.Sprintf("Failed to run: %s %s: %v", e.cmd, strings.Join(e.args, " "), e.err)
+	}
+
+	return fmt.Sprintf("Failed to run: %s %s: %v (%s)", e.cmd, strings.Join(e.args, " "), e.err, strings.TrimSpace(e.stderr.String()))
+}
+
+func (e RunError) Unwrap() error {
+	return e.err
+}
+
+// StdOut returns the stdout buffer.
+func (e RunError) StdOut() *bytes.Buffer {
+	return e.stdout
+}
+
+// StdErr returns the stdout buffer.
+func (e RunError) StdErr() *bytes.Buffer {
+	return e.stderr
+}
+
+// NewRunError returns new RunError.
+func NewRunError(cmd string, args []string, err error, stdout *bytes.Buffer, stderr *bytes.Buffer) error {
+	return RunError{
+		cmd:    cmd,
+		args:   args,
+		err:    err,
+		stdout: stdout,
+		stderr: stderr,
+	}
 }
 
 // RunCommandSplit runs a command with a supplied environment and optional arguments and returns the
 // resulting stdout and stderr output as separate variables. If the supplied environment is nil then
 // the default environment is used. If the command fails to start or returns a non-zero exit code
 // then an error is returned containing the output of stderr too.
-func RunCommandSplit(env []string, filesInherit []*os.File, name string, arg ...string) (string, string, error) {
-	cmd := exec.Command(name, arg...)
+func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File, name string, arg ...string) (string, string, error) {
+	cmd := exec.CommandContext(ctx, name, arg...)
 
 	if env != nil {
 		cmd.Env = env
@@ -933,23 +964,24 @@ func RunCommandSplit(env []string, filesInherit []*os.File, name string, arg ...
 
 	err := cmd.Run()
 	if err != nil {
-		err := RunError{
-			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(stderr.String())),
-			Stdout: stdout.String(),
-			Stderr: stderr.String(),
-			Err:    err,
-		}
-
-		return stdout.String(), stderr.String(), err
+		return stdout.String(), stderr.String(), NewRunError(name, arg, err, &stdout, &stderr)
 	}
 
 	return stdout.String(), stderr.String(), nil
 }
 
+// RunCommandContext runs a command with optional arguments and returns stdout. If the command fails to
+// start or returns a non-zero exit code then an error is returned containing the output of stderr.
+func RunCommandContext(ctx context.Context, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, nil, name, arg...)
+	return stdout, err
+}
+
 // RunCommand runs a command with optional arguments and returns stdout. If the command fails to
 // start or returns a non-zero exit code then an error is returned containing the output of stderr.
+// Deprecated: Use RunCommandContext.
 func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(nil, nil, name, arg...)
+	stdout, _, err := RunCommandSplit(context.TODO(), nil, nil, name, arg...)
 	return stdout, err
 }
 
@@ -957,8 +989,8 @@ func RunCommand(name string, arg ...string) (string, error) {
 // of file descriptors to the newly created process, returning stdout. If the
 // command fails to start or returns a non-zero exit code then an error is
 // returned containing the output of stderr.
-func RunCommandInheritFds(filesInherit []*os.File, name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(nil, filesInherit, name, arg...)
+func RunCommandInheritFds(ctx context.Context, filesInherit []*os.File, name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(ctx, nil, filesInherit, name, arg...)
 	return stdout, err
 }
 
@@ -966,12 +998,13 @@ func RunCommandInheritFds(filesInherit []*os.File, name string, arg ...string) (
 // returns stdout. If the command fails to start or returns a non-zero exit code then an error is
 // returned containing the output of stderr.
 func RunCommandCLocale(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(append(os.Environ(), "LANG=C.UTF-8"), nil, name, arg...)
+	stdout, _, err := RunCommandSplit(context.TODO(), append(os.Environ(), "LANG=C.UTF-8"), nil, name, arg...)
 	return stdout, err
 }
 
-func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...string) error {
-	cmd := exec.Command(name, arg...)
+// RunCommandWithFds runs a command with supplied file descriptors.
+func RunCommandWithFds(ctx context.Context, stdin io.Reader, stdout io.Writer, name string, arg ...string) error {
+	cmd := exec.CommandContext(ctx, name, arg...)
 
 	if stdin != nil {
 		cmd.Stdin = stdin
@@ -986,13 +1019,7 @@ func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...st
 
 	err := cmd.Run()
 	if err != nil {
-		err := RunError{
-			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(buffer.String())),
-			Stderr: buffer.String(),
-			Err:    err,
-		}
-
-		return err
+		return NewRunError(name, arg, err, nil, &buffer)
 	}
 
 	return nil
