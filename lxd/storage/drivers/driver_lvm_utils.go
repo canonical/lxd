@@ -74,7 +74,7 @@ func (d *lvm) openLoopFile(source string) (string, error) {
 func (d *lvm) isLVMNotFoundExitError(err error) bool {
 	runErr, ok := err.(shared.RunError)
 	if ok {
-		exitError, ok := runErr.Err.(*exec.ExitError)
+		exitError, ok := runErr.Unwrap().(*exec.ExitError)
 		if ok {
 			if exitError.ExitCode() == 5 {
 				return true

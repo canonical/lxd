@@ -3,6 +3,7 @@
 package seccomp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1228,6 +1229,7 @@ func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state
 	}
 
 	_, stderr, err := shared.RunCommandSplit(
+		context.TODO(),
 		nil,
 		[]*os.File{pidFd},
 		util.GetExecPath(),
@@ -1536,6 +1538,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	}
 
 	_, stderr, err := shared.RunCommandSplit(
+		context.TODO(),
 		nil,
 		[]*os.File{pidFd},
 		util.GetExecPath(),
@@ -1687,6 +1690,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	args.schedPriority = schedParamArgs.sched_priority
 
 	_, stderr, err := shared.RunCommandSplit(
+		context.TODO(),
 		nil,
 		[]*os.File{pidFd},
 		util.GetExecPath(),
@@ -2165,6 +2169,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		ctx["fuse_target"] = args.target
 		ctx["fuse_opts"] = fuseOpts
 		_, _, err = shared.RunCommandSplit(
+			context.TODO(),
 			nil,
 			[]*os.File{pidFd},
 			util.GetExecPath(),
@@ -2182,6 +2187,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 			fuseOpts)
 	} else {
 		_, _, err = shared.RunCommandSplit(
+			context.TODO(),
 			nil,
 			[]*os.File{pidFd},
 			util.GetExecPath(),

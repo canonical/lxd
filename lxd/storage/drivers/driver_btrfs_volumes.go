@@ -1521,7 +1521,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 		// Write the subvolume to the file.
 		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "parent": parent, "file": tmpFile.Name(), "name": fileName})
-		err = shared.RunCommandWithFds(nil, tmpFile, "btrfs", args...)
+		err = shared.RunCommandWithFds(context.TODO(), nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err
 		}
@@ -1806,7 +1806,7 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
 	stdout := bytes.Buffer{}
 
-	err := shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
+	err := shared.RunCommandWithFds(context.TODO(), nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
 	if err != nil {
 		return nil, err
 	}

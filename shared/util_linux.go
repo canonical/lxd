@@ -5,6 +5,7 @@ package shared
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -666,16 +667,10 @@ func ExitStatus(err error) (int, error) {
 		return 0, err // No error exit status.
 	}
 
-	checkErr := err
+	var exitErr *exec.ExitError
 
-	// Detect and extract RunError to check the embedded error.
-	runErr, isRunError := checkErr.(RunError)
-	if isRunError {
-		checkErr = runErr.Err
-	}
-
-	exitErr, isExitError := checkErr.(*exec.ExitError)
-	if isExitError {
+	// Detect and extract ExitError to check the embedded exit status.
+	if errors.As(err, &exitErr) {
 		// If the process was signaled, extract the signal.
 		status, isWaitStatus := exitErr.Sys().(unix.WaitStatus)
 		if isWaitStatus && status.Signaled() {
