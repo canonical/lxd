@@ -208,7 +208,7 @@ again:
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
-			exitError, ok := runError.Err.(*exec.ExitError)
+			exitError, ok := runError.Unwrap().(*exec.ExitError)
 			if ok {
 				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped)
