@@ -964,14 +964,7 @@ func RunCommandSplit(ctx context.Context, env []string, filesInherit []*os.File,
 
 	err := cmd.Run()
 	if err != nil {
-		err := RunError{
-			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(stderr.String())),
-			Stdout: stdout.String(),
-			Stderr: stderr.String(),
-			Err:    err,
-		}
-
-		return stdout.String(), stderr.String(), err
+		return stdout.String(), stderr.String(), NewRunError(name, arg, err, &stdout, &stderr)
 	}
 
 	return stdout.String(), stderr.String(), nil
@@ -1026,13 +1019,7 @@ func RunCommandWithFds(ctx context.Context, stdin io.Reader, stdout io.Writer, n
 
 	err := cmd.Run()
 	if err != nil {
-		err := RunError{
-			Msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(buffer.String())),
-			Stderr: buffer.String(),
-			Err:    err,
-		}
-
-		return err
+		return NewRunError(name, arg, err, nil, &buffer)
 	}
 
 	return nil
