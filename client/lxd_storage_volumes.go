@@ -33,6 +33,28 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 	return urlsToResourceNames(baseURL, urls...)
 }
 
+// GetStoragePoolVolumeNamesAllProjects returns the names of all volumes in a pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) ([]string, error) {
+	if !r.HasExtension("storage") {
+		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
+	if !r.HasExtension("storage_volumes_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required %q", "storage_volumes_all_projects")
+	}
+
+	// Fetch the raw URL values.
+	urls := []string{}
+	baseURL := api.NewURL().Path("storage-pools", pool, "volumes").WithQuery("all-projects", "true").String()
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
+}
+
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool.
 func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, error) {
 	if !r.HasExtension("storage") {
@@ -43,6 +65,31 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 
 	// Fetch the raw value
 	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?recursion=1", url.PathEscape(pool)), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// GetStoragePoolVolumesAllProjects returns a list of StorageVolume entries for the provided pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumesAllProjects(pool string) ([]api.StorageVolume, error) {
+	if !r.HasExtension("storage") {
+		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
+	if !r.HasExtension("storage_volumes_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required %q", "storage_volumes_all_projects")
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-pools", pool, "volumes").
+		WithQuery("recursion", "1").
+		WithQuery("all-projects", "true")
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +110,32 @@ func (r *ProtocolLXD) GetStoragePoolVolumesWithFilter(pool string, filters []str
 	v.Set("filter", parseFilters(filters))
 	// Fetch the raw value
 	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?%s", url.PathEscape(pool), v.Encode()), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// GetStoragePoolVolumesWithFilterAllProjects returns a filtered list of StorageVolume entries for the provided pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumesWithFilterAllProjects(pool string, filters []string) ([]api.StorageVolume, error) {
+	if !r.HasExtension("storage") {
+		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
+	if !r.HasExtension("storage_volumes_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required %q", "storage_volumes_all_projects")
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-pools", pool, "volumes").
+		WithQuery("recursion", "1").
+		WithQuery("filter", parseFilters(filters)).
+		WithQuery("all-projects", "true")
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
