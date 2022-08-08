@@ -1328,8 +1328,9 @@ type cmdStorageVolumeList struct {
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
 
-	flagFormat  string
-	flagColumns string
+	flagFormat      string
+	flagColumns     string
+	flagAllProjects bool
 
 	defaultColumns string
 }
@@ -1340,8 +1341,9 @@ func (c *cmdStorageVolumeList) Command() *cobra.Command {
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List storage volumes")
 
-	c.defaultColumns = "tndcuL"
+	c.defaultColumns = "tndcuLp"
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", c.defaultColumns, i18n.G("Columns")+"``")
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("All projects")+"``")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List storage volumes
 
@@ -1392,7 +1394,13 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		filters = append(filters, args[1:]...)
 	}
 
-	volumes, err := resource.server.GetStoragePoolVolumesWithFilter(resource.name, filters)
+	var volumes []api.StorageVolume
+	if c.flagAllProjects {
+		volumes, err = resource.server.GetStoragePoolVolumesWithFilterAllProjects(resource.name, filters)
+	} else {
+		volumes, err = resource.server.GetStoragePoolVolumesWithFilter(resource.name, filters)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -1460,6 +1468,12 @@ func (c *cmdStorageVolumeList) parseColumns(clustered bool) ([]volumeColumn, err
 		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
 	}
 
+	if c.flagAllProjects {
+		columnsShorthandMap['p'] = volumeColumn{Name: i18n.G("PROJECT"), Data: c.projectColumnData}
+	} else {
+		c.flagColumns = strings.Replace(c.flagColumns, "p", "", -1)
+	}
+
 	columnList := strings.Split(c.flagColumns, ",")
 
 	columns := []volumeColumn{}
@@ -1519,6 +1533,10 @@ func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.
 	}
 
 	return ""
+}
+
+func (c *cmdStorageVolumeList) projectColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
+	return vol.Project
 }
 
 // Move.
