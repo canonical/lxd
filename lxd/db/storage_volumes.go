@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -106,6 +107,30 @@ WHERE storage_volumes.id = ?
 	response.TypeName = StoragePoolVolumeTypeNames[response.Type]
 
 	return response, nil
+}
+
+func (c *Cluster) GetStoragePoolVolumesAllProjects(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+	var projects []cluster.Project
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		var err error
+		projects, err = cluster.GetProjects(ctx, tx.Tx(), cluster.ProjectFilter{})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var allVolumes []*api.StorageVolume
+	for _, project := range projects {
+		projectVolumes, err := c.GetStoragePoolVolumes(project.Name, poolID, volumeTypes)
+		if err != nil {
+			return nil, err
+		}
+
+		allVolumes = append(allVolumes, projectVolumes...)
+	}
+
+	return allVolumes, nil
 }
 
 // GetStoragePoolVolumes returns all storage volumes attached to a given
@@ -415,6 +440,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	storageVolume.Config = volumeConfig
 	storageVolume.Location = volumeNode
 	storageVolume.ContentType = volumeContentTypeName
+	storageVolume.Project = project
 
 	return volumeID, &storageVolume, nil
 }
