@@ -180,6 +180,8 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
+	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+
 	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -203,44 +205,53 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
-	volumes, err := d.db.Cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.SmartError(err)
-	}
+	var volumes []*api.StorageVolume
+	if allProjects {
+		// Get all instance volumes currently attached to the storage pool by ID of the pool.
+		volumes, err = d.db.Cluster.GetStoragePoolVolumesAllProjects(poolID, supportedVolumeTypes)
+		if err != nil && !response.IsNotFoundError(err) {
+			return response.SmartError(err)
+		}
+	} else {
+		// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
+		volumes, err = d.db.Cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
+		if err != nil && !response.IsNotFoundError(err) {
+			return response.SmartError(err)
+		}
 
-	// The project name used for custom volumes varies based on whether the project has the
-	// featues.storage.volumes feature enabled.
-	customVolProjectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectName, db.StoragePoolVolumeTypeCustom)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		// The project name used for custom volumes varies based on whether the project has the
+		// featues.storage.volumes feature enabled.
+		customVolProjectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectName, db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
-	custVolumes, err := d.db.Cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.SmartError(err)
-	}
+		// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
+		custVolumes, err := d.db.Cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
+		if err != nil && !response.IsNotFoundError(err) {
+			return response.SmartError(err)
+		}
 
-	volumes = append(volumes, custVolumes...)
+		volumes = append(volumes, custVolumes...)
 
-	// We exclude volumes of type image, since those are special: they are stored using the storage_volumes
-	// table, but are effectively a cache which is not tied to projects, so we always link the to the default
-	// project. This means that we want to filter image volumes and return only the ones that have fingerprint
-	// matching images actually in use by the project.
-	imageVolumes, err := d.db.Cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.SmartError(err)
-	}
+		// We exclude volumes of type image, since those are special: they are stored using the storage_volumes
+		// table, but are effectively a cache which is not tied to projects, so we always link the to the default
+		// project. This means that we want to filter image volumes and return only the ones that have fingerprint
+		// matching images actually in use by the project.
+		imageVolumes, err := d.db.Cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
+		if err != nil && !response.IsNotFoundError(err) {
+			return response.SmartError(err)
+		}
 
-	projectImages, err := d.db.Cluster.GetImagesFingerprints(projectName, false)
-	if err != nil {
-		return response.SmartError(err)
-	}
+		projectImages, err := d.db.Cluster.GetImagesFingerprints(projectName, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	for _, volume := range imageVolumes {
-		if shared.StringInSlice(volume.Name, projectImages) {
-			volumes = append(volumes, volume)
+		for _, volume := range imageVolumes {
+			if shared.StringInSlice(volume.Name, projectImages) {
+				volumes = append(volumes, volume)
+			}
 		}
 	}
 
@@ -251,28 +262,28 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			volName, snapName, ok := shared.InstanceGetParentAndSnapshotName(volume.Name)
 			if ok {
-				if projectName == project.Default {
+				if volume.Project == project.Default {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",
 							version.APIVersion, poolName, volume.Type, volName, snapName))
 				} else {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
-							version.APIVersion, poolName, volume.Type, volName, snapName, projectName))
+							version.APIVersion, poolName, volume.Type, volName, snapName, volume.Project))
 				}
 			} else {
-				if projectName == project.Default {
+				if volume.Project == project.Default {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s",
 							version.APIVersion, poolName, volume.Type, volume.Name))
 				} else {
 					resultString = append(resultString,
 						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s?project=%s",
-							version.APIVersion, poolName, volume.Type, volume.Name, projectName))
+							version.APIVersion, poolName, volume.Type, volume.Name, volume.Project))
 				}
 			}
 		} else {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), volume.Project, poolName, volume)
 			if err != nil {
 				return response.InternalError(err)
 			}
