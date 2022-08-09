@@ -130,7 +130,7 @@ exclude_patterns = ['html', 'README.md']
 
 # Open Graph configuration
 
-ogp_site_url = "https://linuxcontainers.org/lxd/docs/latest/"
+ogp_site_url = "https://linuxcontainers.org/lxd/docs/stable-5.0/"
 ogp_site_name = "LXD documentation"
 ogp_image = "https://linuxcontainers.org/static/img/containers.png"
 

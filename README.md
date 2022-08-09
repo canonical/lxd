@@ -13,7 +13,7 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 
 - Release announcements: [`https://linuxcontainers.org/lxd/news/`](https://linuxcontainers.org/lxd/news/)
 - Release tarballs: [`https://linuxcontainers.org/lxd/downloads/`](https://linuxcontainers.org/lxd/downloads/)
-- Documentation: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
+- Documentation: [`https://linuxcontainers.org/lxd/docs/stable-5.0/`](https://linuxcontainers.org/lxd/docs/stable-5.0/)
 
 <!-- Include end LXD intro -->
 
@@ -41,7 +41,7 @@ macOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | `brew 
 More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 <!-- Include end installing -->
 
-To install LXD from source, see [Installing LXD](https://linuxcontainers.org/lxd/docs/latest/installing/) in the documentation.
+To install LXD from source, see [Installing LXD](https://linuxcontainers.org/lxd/docs/stable-5.0/installing/) in the documentation.
 
 ## Security
 
@@ -56,7 +56,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-See [Security](https://linuxcontainers.org/lxd/docs/latest/security/) for detailed information.
+See [Security](https://linuxcontainers.org/lxd/docs/stable-5.0/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -89,7 +89,7 @@ If you prefer live discussions, you can find us in [`#lxc`](https://kiwiirc.com/
 Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
 
 ## Documentation
-The official documentation is available at: [`https://linuxcontainers.org/lxd/docs/latest/`](https://linuxcontainers.org/lxd/docs/latest/)
+The official documentation is available at: [`https://linuxcontainers.org/lxd/docs/stable-5.0/`](https://linuxcontainers.org/lxd/docs/stable-5.0/)
 
 You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
 

@@ -104,4 +104,4 @@ When contributing, you must adhere to the Code of Conduct, which is available at
 
 ## More information
 
-For more information, see [Contributing](https://linuxcontainers.org/lxd/docs/latest/contributing/) in the documentation.
+For more information, see [Contributing](https://linuxcontainers.org/lxd/docs/stable-5.0/contributing/) in the documentation.
