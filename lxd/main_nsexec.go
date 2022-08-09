@@ -207,7 +207,7 @@ int pidfd_nsfd(int pidfd, pid_t pid)
 	if (pidfd >= 0) {
 		// Verify that the pid has not been recycled and our /proc/<pid> handle
 		// is still valid.
-		ret = pidfd_send_signal(pidfd, 0, NULL, 0);
+		ret = lxd_pidfd_send_signal(pidfd, 0, NULL, 0);
 		if (ret && errno != EPERM)
 			return -errno;
 	}
@@ -304,12 +304,12 @@ int mount_detach_idmap(const char *path, int fd_userns)
 	};
 	int ret;
 
-	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	fd_tree = lxd_open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
 	if (fd_tree < 0)
 		return -errno;
 
 	attr.userns_fd = fd_userns;
-	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	ret = lxd_mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
 	if (ret < 0)
 		return -errno;
 

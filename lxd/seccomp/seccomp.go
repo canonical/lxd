@@ -336,7 +336,7 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 
 	*bpf_prog_type = attr.prog_type;
 
-	pidfd = pidfd_open(tgid, 0);
+	pidfd = lxd_pidfd_open(tgid, 0);
 	if (pidfd < 0)
 		return -errno;
 

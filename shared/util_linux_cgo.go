@@ -78,7 +78,7 @@ func unCloexec(fd int) error {
 }
 
 func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
-	pidFd, errno := C.pidfd_open(C.int(Pid), C.uint32_t(Flags))
+	pidFd, errno := C.lxd_pidfd_open(C.int(Pid), C.uint32_t(Flags))
 	if errno != nil {
 		return nil, errno
 	}
@@ -92,7 +92,7 @@ func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
 }
 
 func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
-	ret, errno := C.pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
+	ret, errno := C.lxd_pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
 	if ret != 0 {
 		return errno
 	}
