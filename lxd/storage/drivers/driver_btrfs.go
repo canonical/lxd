@@ -117,7 +117,7 @@ func (d *btrfs) Create() error {
 				return err
 			}
 
-			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
+			d.config["size"] = fmt.Sprintf("%dGiB", defaultSize)
 		}
 
 		// Create the loop file itself.
