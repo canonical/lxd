@@ -849,7 +849,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 						return fmt.Errorf("Couldn't statfs %s: %w", shared.VarPath(), err)
 					}
 
-					/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
+					/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
 					defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
 					if defaultSize > 30 {
 						defaultSize = 30
@@ -860,10 +860,10 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 					}
 
 					pool.Config["size"], err = cli.AskString(
-						fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize),
-						fmt.Sprintf("%dGB", defaultSize),
+						fmt.Sprintf("Size in GiB of the new loop device (1GiB minimum) [default=%dGiB]: ", defaultSize),
+						fmt.Sprintf("%dGiB", defaultSize),
 						func(input string) error {
-							input = strings.Split(input, "GB")[0]
+							input = strings.Split(input, "GiB")[0]
 
 							result, err := strconv.ParseInt(input, 10, 64)
 							if err != nil {
@@ -871,7 +871,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 							}
 
 							if result < 1 {
-								return fmt.Errorf("Minimum size is 1GB")
+								return fmt.Errorf("Minimum size is 1GiB")
 							}
 
 							return nil
@@ -881,8 +881,8 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 						return err
 					}
 
-					if !strings.HasSuffix(pool.Config["size"], "GB") {
-						pool.Config["size"] = fmt.Sprintf("%sGB", pool.Config["size"])
+					if !strings.HasSuffix(pool.Config["size"], "GiB") {
+						pool.Config["size"] = fmt.Sprintf("%sGiB", pool.Config["size"])
 					}
 				}
 			}
