@@ -96,6 +96,8 @@ If your LXD server is behind NAT, you must specify its external public address w
 
     lxc remote add <name> <IP_address>
 
+When you are prompted for the admin password, specify the generated token.
+
 When generating the token on the server, LXD includes a list of IP addresses that the client can use to access the server.
 However, if the server is behind NAT, these addresses might be local addresses that the client cannot connect to.
 In this case, you must specify the external address manually.
