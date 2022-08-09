@@ -285,7 +285,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, map[string]any{
+			"type": api.InstanceTypeVM,
+		}))
 	}
 
 	cleanup := revert.Clone().Fail
