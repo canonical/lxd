@@ -170,13 +170,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		if m.db == "" {
-			buf.L("sqlStmt, err := prepare(tx, fmt.Sprintf(%s, fillParent...))", stmtLocal)
-		} else {
-			buf.L("sqlStmt, err := %s.Prepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		}
-
-		m.ifErrNotNil(buf, true, "nil", "err")
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		buf.L("args := []any{}")
 	} else if mapping.Type == AssociationTable {
 		filter := m.config["struct"] + "ID"
@@ -260,6 +254,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
 		buf.L("}")
 		buf.N()
+	} else if mapping.Type == MapTable || mapping.Type == ReferenceTable {
+		buf.L("// Select.")
+		buf.L("err = query.QueryObjects(tx, queryStr, dest, args...)")
 	} else {
 		buf.L("// Select.")
 		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
@@ -608,8 +605,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("stmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		m.ifErrNotNil(buf, true, "err")
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		createParams := ""
 		columnFields := mapping.ColumnFields("ID")
 		if mapping.Type == ReferenceTable {
@@ -625,10 +621,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
-			buf.L("_, err = stmt.Exec(%s)", createParams)
+			buf.L("_, err := tx.Exec(queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
-			buf.L("result, err := stmt.Exec(%s)", createParams)
+			buf.L("result, err := tx.Exec(queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
@@ -1035,9 +1031,8 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("stmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		m.ifErrNotNil(buf, true, "err")
-		buf.L("result, err := stmt.Exec(referenceID)")
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
+		buf.L("result, err := tx.Exec(queryStr, referenceID)")
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
