@@ -51,6 +51,16 @@ func Stmt(tx *sql.Tx, code int) *sql.Stmt {
 	return tx.Stmt(stmt)
 }
 
+// StmtString returns the in-memory query string with the given code.
+func StmtString(code int) string {
+	stmt, ok := stmts[code]
+	if !ok {
+		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
+	}
+
+	return stmt
+}
+
 // prepare prepares a new statement from a SQL string.
 func prepare(tx *sql.Tx, sql string) (*sql.Stmt, error) {
 	stmt, err := tx.Prepare(sql)
