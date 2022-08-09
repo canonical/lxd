@@ -1,10 +1,13 @@
 package storage
 
 import (
+	"context"
 	"os"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -115,4 +118,22 @@ func CreateSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	}
 
 	return nil
+}
+
+// UsedBy returns list of API resources using storage pool. Accepts firstOnly argument to indicate that only the
+// first resource using network should be returned. This can help to quickly check if the storage pool is in use.
+func UsedBy(ctx context.Context, s *state.State, poolName string, firstOnly bool, allNodes bool) ([]string, error) {
+	var err error
+	var usedBy []string
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		usedBy, err = tx.GetStoragePoolUsedBy(poolName, allNodes)
+
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return usedBy, nil
 }
