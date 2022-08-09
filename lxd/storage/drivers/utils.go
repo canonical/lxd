@@ -879,7 +879,7 @@ func loopFileSizeDefault() (uint64, error) {
 		return 0, fmt.Errorf("Couldn't statfs %q: %w", shared.VarPath(), err)
 	}
 
-	/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
+	/* choose 5 GiB < x < 30GiB, where x is 20% of the disk size */
 	defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
 	if defaultSize > 30 {
 		defaultSize = 30
