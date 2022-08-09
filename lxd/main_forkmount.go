@@ -222,7 +222,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	}
 
 	if (fd_tree >= 0) {
-		ret = move_mount(fd_tree, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
+		ret = lxd_move_mount(fd_tree, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
 		if (ret) {
 			fprintf(stderr, "Failed to move detached mount to target from %d to %s: %s\n", fd_tree, dest, strerror(errno));
 			_exit(1);
