@@ -481,7 +481,7 @@ static void mount_emulate(void)
 		if (!acquire_final_creds(pid, nsuid, nsgid, nsfsuid, nsfsgid))
 			die("error: failed to acquire final creds");
 
-		ret = move_mount(fd_tree, "", -EBADF, target, MOVE_MOUNT_F_EMPTY_PATH);
+		ret = lxd_move_mount(fd_tree, "", -EBADF, target, MOVE_MOUNT_F_EMPTY_PATH);
 		if (ret)
 			die("error: failed to attach detached mount");
 	} else if (strcmp(shiftfs, "shiftfs") == 0) {
