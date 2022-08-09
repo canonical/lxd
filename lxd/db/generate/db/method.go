@@ -188,54 +188,61 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 		buf.L("args := []any{%sID}", lex.Minuscule(m.config["struct"]))
 	} else {
-		filters, ignoredFilters := FiltersFromStmt(m.pkg, "objects", m.entity, mapping.Filters)
+		stmtVarFilters, ignoredFilters := FiltersFromStmt(m.pkg, "objects", m.entity, mapping.Filters)
 		buf.N()
 		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 		buf.L("var sqlStmt *sql.Stmt")
-		buf.L("var args []any")
+		buf.L("var queryStr string")
+		buf.L("args := make([]any, 0, DqliteMaxParams)")
 		buf.N()
 
-		for i, filter := range filters {
+		for i, filters := range stmtVarFilters {
 			branch := "if"
 			if i > 0 {
 				branch = "} else if"
 			}
 
-			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
+			buf.L("%s %s {", branch, activeCriteria(filters, ignoredFilters[i], "0"))
 
+			for _, name := range filters {
+				buf.L("for _, field := range filter.%s {", name)
+				buf.L("args = append(args, field)")
+				buf.L("}")
+				buf.N()
+			}
+
+			buf.L("if %s {", activeCriteria(nil, filters, "1"))
 			if m.db == "" {
-				buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
+				buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filters...))
 			} else {
-				buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+				buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filters...))
+			}
+			buf.L("} else {")
+			if m.db == "" {
+				buf.L("queryStr = StmtString(%s)", stmtCodeVar(m.entity, "objects", filters...))
+			} else {
+				buf.L("queryStr = %s.StmtString(%s)", m.db, stmtCodeVar(m.entity, "objects", filters...))
 			}
 
-			buf.L("args = []any{")
-
-			for _, name := range filter {
-				if name == "Parent" {
-					buf.L("len(filter.Parent)+1,")
-					buf.L("filter.%s+\"/\",", name)
-				} else {
-					buf.L("filter.%s,", name)
-				}
+			for _, filter := range filters {
+				varName := lex.Minuscule(filter)
+				buf.L("queryStr = strings.Replace(queryStr, \"%s = ?\", fmt.Sprintf(\"%s IN (?%%s)\", strings.Repeat(\", ?\", len(filter.%s)-1)), -1)", varName, varName, filter)
 			}
-
 			buf.L("}")
 		}
 
 		branch := "if"
-		if len(filters) > 0 {
+		if len(stmtVarFilters) > 0 {
 			branch = "} else if"
 		}
 
-		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
+		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters), "0"))
 		if m.db == "" {
 			buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
 		} else {
 			buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
 		}
 
-		buf.L("args = []any{}")
 		buf.L("} else {")
 		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
 		buf.L("}")
@@ -245,8 +252,18 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.L("// Dest function for scanning a row.")
 	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
 	buf.N()
-	buf.L("// Select.")
-	buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
+	if mapping.Type == EntityTable {
+		buf.L("// Select.")
+		buf.L("if queryStr != \"\" {")
+		buf.L("err = query.QueryObjects(tx, queryStr, dest, args...)")
+		buf.L("} else {")
+		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
+		buf.L("}")
+		buf.N()
+	} else {
+		buf.L("// Select.")
+		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
+	}
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
@@ -339,7 +356,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
 		buf.L("result := make([]%s, len(objects))", ref)
 		buf.L("for i, object := range objects {")
-		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
+		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: []int{object.%sID}})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
 
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("result[i] = %s[0]", lex.Minuscule(ref))
@@ -441,7 +458,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 
 	buf.L("filter := %s{}", entityFilter(m.entity))
 	for _, field := range nk {
-		buf.L("filter.%s = &%s", field.Name, lex.Minuscule(field.Name))
+		buf.L("filter.%s = []%s{%s}", field.Name, field.Type.Name, lex.Minuscule(field.Name))
 	}
 
 	buf.N()

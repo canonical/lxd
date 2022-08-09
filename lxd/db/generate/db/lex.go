@@ -58,14 +58,14 @@ func activeFilters(kind string) []string {
 
 // Return an expression evaluating if a filter should be used (based on active
 // criteria).
-func activeCriteria(filter []string, ignoredFilter []string) string {
+func activeCriteria(filter []string, ignoredFilter []string, value string) string {
 	expr := ""
 	for i, name := range filter {
 		if i > 0 {
 			expr += " && "
 		}
 
-		expr += fmt.Sprintf("filter.%s != nil", name)
+		expr += fmt.Sprintf("len(filter.%s) > %s", name, value)
 	}
 
 	for _, name := range ignoredFilter {
@@ -73,7 +73,7 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 			expr += " && "
 		}
 
-		expr += fmt.Sprintf("filter.%s == nil", name)
+		expr += fmt.Sprintf("len(filter.%s) == %s", name, value)
 	}
 
 	return expr

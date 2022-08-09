@@ -122,8 +122,8 @@ func (m *Mapping) FieldColumnName(name string, table string) string {
 func (m *Mapping) FilterFieldByName(name string) (*Field, error) {
 	for _, filter := range m.Filters {
 		if name == filter.Name {
-			if filter.Type.Code != TypeColumn {
-				return nil, fmt.Errorf("Unknown filter %q not a column", name)
+			if filter.Type.Code != TypeSlice {
+				return nil, fmt.Errorf("Unknown filter %q not a slice", name)
 			}
 
 			return filter, nil
@@ -252,13 +252,8 @@ func (f *Field) IsPrimary() bool {
 	return f.Config.Get("primary") != "" || f.Name == "Name"
 }
 
-// Column returns the name of the database column the field maps to. The type
-// code of the field must be TypeColumn.
+// Column returns the name of the database column the field maps to.
 func (f *Field) Column() string {
-	if f.Type.Code != TypeColumn {
-		panic("attempt to get column name of non-column field")
-	}
-
 	column := lex.Snake(f.Name)
 
 	join := f.Config.Get("join")
