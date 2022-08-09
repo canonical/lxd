@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-25 15:02+0200\n"
+"POT-Creation-Date: 2022-08-09 10:13-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -811,7 +811,7 @@ msgstr "Expire : %s"
 
 #: lxc/remote.go:558
 #, fuzzy, c-format
-msgid "Admin password for %s:"
+msgid "Admin password (or token) for %s:"
 msgstr "Mot de passe administrateur pour %s : "
 
 #: lxc/alias.go:80 lxc/alias.go:177
@@ -3592,8 +3592,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -7612,8 +7612,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -7707,7 +7707,7 @@ msgstr "oui"
 #~ "\n"
 #~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
@@ -7718,18 +7718,18 @@ msgstr "oui"
 #~ msgstr ""
 #~ "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Clé de configuration invalide"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #~ msgid "Ips:"
 #~ msgstr "IPs :"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Échec lors de la génération de 'lxc.1': %v"
 
@@ -7756,11 +7756,11 @@ msgstr "oui"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Nom du réseau"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to create alias %s"
 #~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Profil %s ajouté à %s"
 
@@ -9226,7 +9226,7 @@ msgstr "oui"
 #~ "\n"
 #~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "Échec lors de la génération de 'lxc.1': %v"
 
@@ -9234,7 +9234,6 @@ msgstr "oui"
 #~ msgid "Remote disconnected"
 #~ msgstr "Mot de passe de l'administrateur distant"
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Impossible de lire depuis stdin : %s"
 
@@ -9250,7 +9249,7 @@ msgstr "oui"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 

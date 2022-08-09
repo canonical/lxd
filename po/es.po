@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-25 15:02+0200\n"
+"POT-Creation-Date: 2022-08-09 10:13-0400\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -782,7 +782,7 @@ msgstr "Expira: %s"
 
 #: lxc/remote.go:558
 #, fuzzy, c-format
-msgid "Admin password for %s:"
+msgid "Admin password (or token) for %s:"
 msgstr "Contraseña admin para %s: "
 
 #: lxc/alias.go:80 lxc/alias.go:177
@@ -3366,8 +3366,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -6670,8 +6670,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -6740,19 +6740,19 @@ msgstr ""
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "No se puede proveer el nombre del container a la lista"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Acepta certificado"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Nombre del contenedor es: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Acepta certificado"
 
@@ -6840,7 +6840,6 @@ msgstr ""
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado del cliente almacenado en el servidor: "
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "No se peude leer desde stdin: %s"
 
@@ -6848,7 +6847,7 @@ msgstr ""
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nombre del Miembro del Cluster"
 

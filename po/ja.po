@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-25 15:02+0200\n"
+"POT-Creation-Date: 2022-08-09 10:13-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -788,8 +788,8 @@ msgid "Address: %s"
 msgstr "アドレス: %s"
 
 #: lxc/remote.go:558
-#, c-format
-msgid "Admin password for %s:"
+#, fuzzy, c-format
+msgid "Admin password (or token) for %s:"
 msgstr "%s の管理者パスワード:"
 
 #: lxc/alias.go:80 lxc/alias.go:177
@@ -3567,8 +3567,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -6958,8 +6958,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -7057,7 +7057,7 @@ msgstr "yes"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
@@ -7097,18 +7097,16 @@ msgstr "yes"
 #~ "lxc launch ubuntu:20.04 v1 --vm\n"
 #~ "    仮想マシンを作成し、起動します"
 
-#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
-#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -7125,7 +7123,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -8669,8 +8667,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect "
-#~ "\"custom\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect \"custom"
+#~ "\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
@@ -9222,7 +9220,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -9230,7 +9228,6 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -9288,7 +9285,6 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
-#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 
