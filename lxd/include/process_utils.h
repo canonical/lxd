@@ -18,20 +18,20 @@
 #include "memory_utils.h"
 #include "syscall_numbers.h"
 
-static inline int pidfd_open(pid_t pid, unsigned int flags)
+static inline int lxd_pidfd_open(pid_t pid, unsigned int flags)
 {
 	return syscall(__NR_pidfd_open, pid, flags);
 }
 
-static inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
-				    unsigned int flags)
+static inline int lxd_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
+					unsigned int flags)
 {
 	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
 static inline bool process_still_alive(int pidfd)
 {
-	return pidfd_send_signal(pidfd, 0, NULL, 0) == 0;
+	return lxd_pidfd_send_signal(pidfd, 0, NULL, 0) == 0;
 }
 
 static inline int wait_for_pid(pid_t pid)
