@@ -318,7 +318,7 @@ static int create_detached_idmapped_mount(const char *path)
 	};
 	int ret;
 
-	fd_tree = open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	fd_tree = lxd_open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
 	if (fd_tree < 0)
 		return -errno;
 
@@ -328,7 +328,7 @@ static int create_detached_idmapped_mount(const char *path)
 
 	attr.userns_fd = fd_userns;
 
-	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	ret = lxd_mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
 	if (ret < 0)
 		return -errno;
 
