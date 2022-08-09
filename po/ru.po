@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-25 15:02+0200\n"
+"POT-Creation-Date: 2022-08-09 10:13-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -16,8 +16,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
 #: lxc/storage.go:229
@@ -797,7 +797,7 @@ msgstr ""
 
 #: lxc/remote.go:558
 #, fuzzy, c-format
-msgid "Admin password for %s:"
+msgid "Admin password (or token) for %s:"
 msgstr "Пароль администратора для %s: "
 
 #: lxc/alias.go:80 lxc/alias.go:177
@@ -3413,8 +3413,8 @@ msgstr "Копирование образа: %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -7131,8 +7131,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -7221,19 +7221,19 @@ msgstr "да"
 #~ "\n"
 #~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Принять сертификат"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Имя контейнера: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Принять сертификат"
 
@@ -7452,7 +7452,6 @@ msgstr "да"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Сертификат клиента хранится на сервере: "
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Невозможно прочитать из стандартного ввода: %s"
 
@@ -7460,7 +7459,7 @@ msgstr "да"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Копирование образа: %s"
 
