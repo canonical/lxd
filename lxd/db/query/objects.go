@@ -31,6 +31,31 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 	return nil
 }
 
+// QueryObjects executes a query from a SQL string which must yield rows with
+// a specific columns schema. It invokes the given Dest hook for each yielded row.
+func QueryObjects(tx *sql.Tx, stmt string, dest Dest, args ...any) error {
+	rows, err := tx.Query(stmt, args...)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for i := 0; rows.Next(); i++ {
+		err := rows.Scan(dest(i)...)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Dest is a function that is expected to return the objects to pass to the
 // 'dest' argument of sql.Rows.Scan(). It is invoked by SelectObjects once per
 // yielded row, and it will be passed the index of the row being scanned.
