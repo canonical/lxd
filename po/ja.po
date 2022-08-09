@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-07-27 21:22-0400\n"
+"POT-Creation-Date: 2022-08-09 18:36-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -723,8 +723,8 @@ msgid "Address: %s"
 msgstr "アドレス: %s"
 
 #: lxc/remote.go:558
-#, c-format
-msgid "Admin password for %s:"
+#, fuzzy, c-format
+msgid "Admin password (or token) for %s:"
 msgstr "%s の管理者パスワード:"
 
 #: lxc/alias.go:80 lxc/alias.go:177
