@@ -286,7 +286,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 		snapshots = append(snapshots, instance.Instance(snapInst))
 	}
 
-	sort.Slice(snapshots, func(i, j int) bool {
+	sort.SliceStable(snapshots, func(i, j int) bool {
 		return snapshots[i].CreationDate().Before(snapshots[j].CreationDate())
 	})
 

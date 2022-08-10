@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
@@ -203,33 +205,41 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
-	volumes, err := d.db.Cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.SmartError(err)
-	}
+	var projectsVolumes map[string]map[int64]*api.StorageVolume
 
-	// The project name used for custom volumes varies based on whether the project has the
-	// featues.storage.volumes feature enabled.
-	customVolProjectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectName, db.StoragePoolVolumeTypeCustom)
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err := dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		volTypesProjects := make(map[int]string)
+		for _, instanceType := range supportedVolumeTypesInstances {
+			volTypesProjects[instanceType] = projectName
+		}
+
+		// The project name used for custom volumes varies based on whether the project has the
+		// featues.storage.volumes feature enabled.
+		customVolProjectName := project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
+		volTypesProjects[db.StoragePoolVolumeTypeCustom] = customVolProjectName
+
+		// Image volumes are effectively a cache and so are always linked to default project.
+		// We filter the ones relevant to requested project below.
+		volTypesProjects[db.StoragePoolVolumeTypeImage] = project.Default
+
+		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects)
+		if err != nil {
+			return fmt.Errorf("Failed loading volumes: %w", err)
+		}
+
+		return err
+	})
 	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
-	custVolumes, err := d.db.Cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
-	if err != nil && !response.IsNotFoundError(err) {
-		return response.SmartError(err)
-	}
-
-	volumes = append(volumes, custVolumes...)
-
-	// We exclude volumes of type image, since those are special: they are stored using the storage_volumes
-	// table, but are effectively a cache which is not tied to projects, so we always link the to the default
-	// project. This means that we want to filter image volumes and return only the ones that have fingerprint
-	// matching images actually in use by the project.
-	imageVolumes, err := d.db.Cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
-	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
@@ -238,51 +248,49 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	for _, volume := range imageVolumes {
-		if shared.StringInSlice(volume.Name, projectImages) {
+	var volumes []*api.StorageVolume
+
+	for _, projectVolumes := range projectsVolumes {
+		for _, volume := range projectVolumes {
+			// Filter out image volumes that are not used by this project.
+			if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, projectImages) {
+				continue
+			}
+
 			volumes = append(volumes, volume)
 		}
 	}
 
+	// Sort by type then volume name.
+	sort.SliceStable(volumes, func(i, j int) bool {
+		volA := volumes[i]
+		volB := volumes[j]
+
+		if volA.Type != volB.Type {
+			return volumes[i].Type < volumes[j].Type
+		}
+
+		return volA.Name < volB.Name
+	})
+
 	volumes = filterVolumes(volumes, clauses)
 
-	resultString := []string{}
-	for _, volume := range volumes {
+	var urls []string
+	for _, vol := range volumes {
 		if !recursion {
-			volName, snapName, ok := shared.InstanceGetParentAndSnapshotName(volume.Name)
-			if ok {
-				if projectName == project.Default {
-					resultString = append(resultString,
-						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",
-							version.APIVersion, poolName, volume.Type, volName, snapName))
-				} else {
-					resultString = append(resultString,
-						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
-							version.APIVersion, poolName, volume.Type, volName, snapName, projectName))
-				}
-			} else {
-				if projectName == project.Default {
-					resultString = append(resultString,
-						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s",
-							version.APIVersion, poolName, volume.Type, volume.Name))
-				} else {
-					resultString = append(resultString,
-						fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s?project=%s",
-							version.APIVersion, poolName, volume.Type, volume.Name, projectName))
-				}
-			}
+			urls = append(urls, vol.URL(version.APIVersion, poolName, projectName).String())
 		} else {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, volume)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
 			if err != nil {
 				return response.InternalError(err)
 			}
 
-			volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 		}
 	}
 
 	if !recursion {
-		return response.SyncResponse(true, resultString)
+		return response.SyncResponse(true, urls)
 	}
 
 	return response.SyncResponse(true, volumes)
@@ -1323,7 +1331,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
