@@ -69,11 +69,11 @@ type Instance struct {
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
-	ID      *int
-	Project *string
-	Name    *string
-	Node    *string
-	Type    *instancetype.Type
+	ID      []int
+	Project []string
+	Name    []string
+	Node    []string
+	Type    []instancetype.Type
 }
 
 // ToAPI converts the database Instance to API type.

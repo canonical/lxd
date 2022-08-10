@@ -44,10 +44,10 @@ type Image struct {
 
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
-	ID          *int
-	Project     *string
-	Fingerprint *string
-	Public      *bool
-	Cached      *bool
-	AutoUpdate  *bool
+	ID          []int
+	Project     []string
+	Fingerprint []string
+	Public      []bool
+	Cached      []bool
+	AutoUpdate  []bool
 }

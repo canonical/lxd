@@ -46,10 +46,10 @@ type InstanceSnapshot struct {
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
-	ID       *int
-	Project  *string
-	Instance *string
-	Name     *string
+	ID       []int
+	Project  []string
+	Instance []string
+	Name     []string
 }
 
 // ToInstance converts an instance snapshot to a database Instance, filling in extra fields from the parent instance.

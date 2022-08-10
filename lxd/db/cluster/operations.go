@@ -37,7 +37,7 @@ type Operation struct {
 
 // OperationFilter specifies potential query parameter fields.
 type OperationFilter struct {
-	ID     *int64
-	NodeID *int64
-	UUID   *string
+	ID     []int64
+	NodeID []int64
+	UUID   []string
 }

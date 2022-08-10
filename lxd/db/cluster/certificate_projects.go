@@ -25,6 +25,6 @@ type CertificateProject struct {
 
 // CertificateProjectFilter specifies potential query parameter fields.
 type CertificateProjectFilter struct {
-	CertificateID *int
-	ProjectID     *int
+	CertificateID []int
+	ProjectID     []int
 }

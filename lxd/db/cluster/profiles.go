@@ -46,9 +46,9 @@ type Profile struct {
 
 // ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
-	ID      *int
-	Project *string
-	Name    *string
+	ID      []int
+	Project []string
+	Name    []string
 }
 
 // ToAPI returns a cluster Profile as an API struct.

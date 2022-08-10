@@ -51,8 +51,8 @@ type Project struct {
 
 // ProjectFilter specifies potential query parameter fields.
 type ProjectFilter struct {
-	ID   *int
-	Name *string `db:"omit=update"` // If non-empty, return only the project with this name.
+	ID   []int
+	Name []string `db:"omit=update"` // If non-empty, return only the project with this name.
 }
 
 // ToAPI converts the database Project struct to an api.Project entry.

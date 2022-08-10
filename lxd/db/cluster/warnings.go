@@ -51,14 +51,14 @@ type Warning struct {
 
 // WarningFilter specifies potential query parameter fields.
 type WarningFilter struct {
-	ID             *int
-	UUID           *string
-	Project        *string
-	Node           *string
-	TypeCode       *warningtype.Type
-	EntityTypeCode *int
-	EntityID       *int
-	Status         *warningtype.Status
+	ID             []int
+	UUID           []string
+	Project        []string
+	Node           []string
+	TypeCode       []warningtype.Type
+	EntityTypeCode []int
+	EntityID       []int
+	Status         []warningtype.Status
 }
 
 // ToAPI returns a LXD API entry.

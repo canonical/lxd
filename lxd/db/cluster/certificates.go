@@ -47,10 +47,10 @@ type Certificate struct {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
-	ID          *int
-	Fingerprint *string
-	Name        *string
-	Type        *CertificateType
+	ID          []int
+	Fingerprint []string
+	Name        []string
+	Type        []CertificateType
 }
 
 // CertificateType indicates the type of the certificate.

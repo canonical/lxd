@@ -33,8 +33,8 @@ type InstanceProfile struct {
 
 // InstanceProfileFilter specifies potential query parameter fields.
 type InstanceProfileFilter struct {
-	InstanceID *int
-	ProfileID  *int
+	InstanceID []int
+	ProfileID  []int
 }
 
 // UpdateInstanceProfiles updates the profiles of an instance in the order they are given.
