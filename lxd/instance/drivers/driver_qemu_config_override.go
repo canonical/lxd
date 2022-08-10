@@ -26,7 +26,7 @@ func sortedConfigKeys(cfgMap configMap) []rawConfigKey {
 		rv = append(rv, k)
 	}
 
-	sort.Slice(rv, func(i, j int) bool {
+	sort.SliceStable(rv, func(i, j int) bool {
 		return rv[i].sectionName < rv[j].sectionName ||
 			rv[i].index < rv[j].index ||
 			rv[i].entryKey < rv[j].entryKey
@@ -227,7 +227,7 @@ func appendSections(newCfg []cfgSection, cfgMap configMap) []cfgSection {
 	}
 
 	// Sort to have deterministic output in the appended sections
-	sort.Slice(rawSections, func(i, j int) bool {
+	sort.SliceStable(rawSections, func(i, j int) bool {
 		return rawSections[i].sectionName < rawSections[j].sectionName ||
 			rawSections[i].index < rawSections[j].index
 	})

@@ -120,6 +120,17 @@ type StorageVolume struct {
 	ContentType string `json:"content_type" yaml:"content_type"`
 }
 
+// URL returns the URL for the volume.
+func (v *StorageVolume) URL(apiVersion string, poolName string, projectName string) *URL {
+	u := NewURL()
+	volName, snapName, isSnap := GetParentAndSnapshotName(v.Name)
+	if isSnap {
+		return u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName, "snapshots", snapName).Project(projectName)
+	}
+
+	return u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName).Project(projectName)
+}
+
 // StorageVolumePut represents the modifiable fields of a LXD storage volume
 //
 // swagger:model
