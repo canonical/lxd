@@ -65,10 +65,17 @@ func StorageVolumeParts(projectStorageVolumeName string) (string, string) {
 }
 
 // StorageVolumeProject returns the project name to use to for the volume based on the requested project.
+// For image volume types the default project is always returned.
 // For custom volume type, if the project specified has the "features.storage.volumes" flag enabled then the
-// project name is returned, otherwise the default project name is returned. For all other volume types the
-// supplied project name is returned.
+// project name is returned, otherwise the default project name is returned.
+// For all other volume types the supplied project name is returned.
 func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (string, error) {
+	// Image volumes are effectively a cache and so are always linked to default project.
+	// Optimisation to avoid loading project record.
+	if volumeType == db.StoragePoolVolumeTypeImage {
+		return Default, nil
+	}
+
 	// Non-custom volumes always use the project specified. Optimisation to avoid loading project record.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return projectName, nil
@@ -93,10 +100,16 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 }
 
 // StorageVolumeProjectFromRecord returns the project name to use to for the volume based on the supplied project.
+// For image volume types the default project is always returned.
 // For custom volume type, if the project supplied has the "features.storage.volumes" flag enabled then the
-// project name is returned, otherwise the default project name is returned. For all other volume types the
-// supplied project's name is returned.
+// project name is returned, otherwise the default project name is returned.
+// For all other volume types the supplied project's name is returned.
 func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
+	// Image volumes are effectively a cache and so are always linked to default project.
+	if volumeType == db.StoragePoolVolumeTypeImage {
+		return Default
+	}
+
 	// Non-custom volumes always use the project specified.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return p.Name
