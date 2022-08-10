@@ -1,8 +1,19 @@
 package api
 
 import (
+	"strings"
 	"time"
 )
+
+// GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
+func GetParentAndSnapshotName(name string) (string, string, bool) {
+	fields := strings.SplitN(name, "/", 2)
+	if len(fields) == 1 {
+		return name, "", false
+	}
+
+	return fields[0], fields[1], true
+}
 
 // InstanceType represents the type if instance being returned or requested via the API.
 type InstanceType string
