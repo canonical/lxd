@@ -108,70 +108,102 @@ WHERE storage_volumes.id = ?
 	return response, nil
 }
 
-// GetStoragePoolVolumes returns all storage volumes attached to a given
-// storage pool on any node. If there are no volumes, it returns an
-// empty list and no error.
-func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
-	var nodeIDs []int
+// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool on all cluster members keyed
+// on project and volume type. If there are no volumes, it returns an empty list and no error.
+// Accepts a volumeTypesProject argument that allows filtering by specific volume types in specific project names.
+// If volumeTypesProject is empty then all volumes are returned. If the project name for a specific volume type is
+// empty then all volumes of that type across all projects are included.
+func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[int]string) (map[string]map[int64]*api.StorageVolume, error) {
+	var q *strings.Builder = &strings.Builder{}
+	args := []any{poolID}
 
-	remoteDrivers := StorageRemoteDriverNames()
+	q.WriteString(`
+		SELECT
+			projects.name as project,
+			storage_volumes_all.id,
+			storage_volumes_all.name,
+			IFNULL(nodes.name, "") as location,
+			storage_volumes_all.type,
+			storage_volumes_all.content_type,
+			storage_volumes_all.description
+		FROM storage_volumes_all
+		JOIN projects ON projects.id = storage_volumes_all.project_id
+		LEFT JOIN nodes ON nodes.id = storage_volumes_all.node_id
+		WHERE storage_volumes_all.storage_pool_id = ?
+	`)
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var err error
-		// Exclude storage volumes residing on ceph and cephfs as their node ID is null, and SelectIntegers() cannot deal with that.
+	if len(volumeTypesProject) > 0 {
+		q.WriteString(" AND (")
+		i := 0
 
-		s := fmt.Sprintf(`
-SELECT DISTINCT node_id
-  FROM storage_volumes_all
-  JOIN projects ON projects.id = storage_volumes_all.project_id
-  JOIN storage_pools ON storage_pools.id = storage_volumes_all.storage_pool_id
- WHERE (projects.name=? OR storage_volumes_all.type=?) AND storage_volumes_all.storage_pool_id=? AND storage_pools.driver NOT IN %s`, query.Params(len(remoteDrivers)))
+		for volumeType, projectName := range volumeTypesProject {
+			if i > 0 {
+				q.WriteString(" OR ")
+			}
 
-		args := []any{project, StoragePoolVolumeTypeCustom, poolID}
+			q.WriteString("(storage_volumes_all.type = ?")
+			args = append(args, volumeType)
 
-		for _, driver := range remoteDrivers {
-			args = append(args, driver)
+			if projectName != "" {
+				q.WriteString(" AND projects.name = ?")
+				args = append(args, projectName)
+			}
+
+			q.WriteString(")")
+			i++
 		}
 
-		nodeIDs, err = query.SelectIntegers(tx.tx, s, args...)
-		return err
-	})
+		q.WriteString(")")
+	}
+
+	var err error
+	projectsVolumes := make(map[string]map[int64]*api.StorageVolume)
+
+	err = c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		var projectName string
+		var volumeID int64 = int64(-1)
+		var volumeType int = int(-1)
+		var contentType int = int(-1)
+		var vol api.StorageVolume
+
+		err := scan(&projectName, &volumeID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
+		if err != nil {
+			return err
+		}
+
+		vol.Type, err = storagePoolVolumeTypeToName(volumeType)
+		if err != nil {
+			return err
+		}
+
+		vol.ContentType, err = storagePoolVolumeContentTypeToName(contentType)
+		if err != nil {
+			return err
+		}
+
+		if projectsVolumes[projectName] == nil {
+			projectsVolumes[projectName] = make(map[int64]*api.StorageVolume)
+		}
+
+		projectsVolumes[projectName][volumeID] = &vol
+
+		return nil
+	}, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	volumes := []*api.StorageVolume{}
-
-	for _, nodeID := range nodeIDs {
-		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				continue
-			}
-
-			return nil, err
-		}
-
-		volumes = append(volumes, nodeVolumes...)
-	}
-
-	isRemoteStorage, err := c.IsRemoteStorage(poolID)
-	if err != nil {
-		return nil, err
-	}
-
-	if isRemoteStorage {
-		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
-		if err != nil {
-			if !api.StatusErrorCheck(err, http.StatusNotFound) {
-				return nil, err
+	// Populate config.
+	for _, projectVolumes := range projectsVolumes {
+		for volumeID, volume := range projectVolumes {
+			volume.Config, err = c.storageVolumeConfigGet(volumeID, shared.IsSnapshot(volume.Name))
+			if err != nil {
+				return nil, fmt.Errorf("Failed loading volume config for %q: %w", volume.Name, err)
 			}
 		}
-
-		volumes = append(volumes, nodeVolumes...)
 	}
 
-	return volumes, nil
+	return projectsVolumes, nil
 }
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
