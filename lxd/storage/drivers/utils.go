@@ -898,7 +898,7 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 	out, err := shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=on", "--show", sourcePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "direct io") {
-			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--direct-io=off", "--show", sourcePath)
+			out, err = shared.RunCommand("losetup", "--find", "--nooverlap", "--show", sourcePath)
 			if err != nil {
 				return "", err
 			}

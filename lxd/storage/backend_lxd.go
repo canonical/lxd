@@ -255,12 +255,7 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 // IsUsed returns whether the storage pool is used by any volumes or profiles (excluding image volumes).
 func (b *lxdBackend) IsUsed() (bool, error) {
 	// Get all users of the storage pool.
-	var err error
-	poolUsedBy := []string{}
-	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		poolUsedBy, err = tx.GetStoragePoolUsedBy(b.name, false)
-		return err
-	})
+	poolUsedBy, err := UsedBy(context.TODO(), b.state, b.name, false, false)
 	if err != nil {
 		return false, err
 	}

@@ -166,7 +166,7 @@ kill_lxd() {
 
         echo "==> Deleting all storage pools"
         for storage in $(timeout -k 2 2 lxc storage list --force-local --format csv | cut -d, -f1); do
-            timeout -k 10 10 lxc storage delete "${storage}" --force-local || true
+            timeout -k 20 20 lxc storage delete "${storage}" --force-local || true
         done
 
         echo "==> Checking for locked DB tables"
