@@ -458,11 +458,11 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			socket.Frequency = coreFrequency / coreFrequencyCount
 		}
 
-		sort.Slice(socket.Cores, func(i int, j int) bool { return socket.Cores[i].Core < socket.Cores[j].Core })
+		sort.SliceStable(socket.Cores, func(i int, j int) bool { return socket.Cores[i].Core < socket.Cores[j].Core })
 		cpu.Sockets = append(cpu.Sockets, *socket)
 	}
 
-	sort.Slice(cpu.Sockets, func(i int, j int) bool { return cpu.Sockets[i].Socket < cpu.Sockets[j].Socket })
+	sort.SliceStable(cpu.Sockets, func(i int, j int) bool { return cpu.Sockets[i].Socket < cpu.Sockets[j].Socket })
 
 	// Set the architecture name
 	uname := unix.Utsname{}
