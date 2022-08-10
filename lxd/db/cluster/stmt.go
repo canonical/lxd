@@ -5,6 +5,8 @@ package cluster
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/canonical/go-dqlite/driver"
 )
 
 // RegisterStmt register a SQL statement.
@@ -40,6 +42,10 @@ var stmts = map[int]string{} // Statement code to statement SQL text.
 
 // PreparedStmts is a placeholder for transitioning to package-scoped transaction functions.
 var PreparedStmts = map[int]*sql.Stmt{}
+
+// DqliteMaxParams is the maximum amount of SQL query parameters that are supported by dqlite.
+// See: https://github.com/canonical/dqlite/issues/377
+const DqliteMaxParams = driver.MaxTupleParams
 
 // Stmt prepares the in-memory prepared statement for the transaction.
 func Stmt(tx *sql.Tx, code int) *sql.Stmt {
