@@ -80,8 +80,6 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	}
 
 	switch operation(m.kind) {
-	case "URIs":
-		return m.uris(buf)
 	case "GetMany":
 		return m.getMany(buf)
 	case "GetOne":
@@ -128,102 +126,6 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 	}
 
 	return m.signature(buf, true)
-}
-
-func (m *Method) uris(buf *file.Buffer) error {
-	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return fmt.Errorf("Parse entity struct: %w", err)
-	}
-
-	// Go type name the objects to return (e.g. api.Foo).
-	typ := lex.Camel(m.entity)
-
-	err = m.signature(buf, false)
-	if err != nil {
-		return err
-	}
-
-	defer m.end(buf)
-
-	buf.L("var err error")
-	buf.N()
-	buf.L("// Result slice.")
-	buf.L("objects := make(%s, 0)", lex.Slice(typ))
-	buf.N()
-	filters, ignoredFilters := FiltersFromStmt(m.pkg, "objects", m.entity, mapping.Filters)
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []any")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-
-		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
-
-		if m.db == "" {
-			buf.L("stmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter...))
-		} else {
-			buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
-		}
-
-		buf.L("args = []any{")
-		for _, name := range filter {
-			if name == "Parent" {
-				buf.L("len(filter.Parent)+1,")
-				buf.L("filter.%s+\"/\",", name)
-			} else {
-				buf.L("filter.%s,", name)
-			}
-		}
-
-		buf.L("}")
-	}
-
-	branch := "if"
-	if len(filters) > 0 {
-		branch = "} else if"
-	}
-
-	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-	if m.db == "" {
-		buf.L("stmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
-	} else {
-		buf.L("stmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
-	}
-
-	buf.L("args = []any{}")
-	buf.L("} else {")
-	buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
-	buf.L("}")
-	buf.N()
-	buf.L("// Dest function for scanning a row.")
-	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
-	buf.N()
-	buf.L("// Select.")
-	buf.L("err = query.SelectObjects(stmt, dest, args...)")
-	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf("fmt.Errorf(\"Failed to fetch from \\\"%s\\\" table: %%w\", err)", entityTable(m.entity, m.config["table"])))
-	buf.L("uris := make([]string, len(objects))")
-	buf.L("for i := range objects {")
-	name := mapping.Identifier().Name
-	buf.L("uri := api.NewURL().Path(version.APIVersion, \"%s\", objects[i].%s)", lex.Plural(m.entity), name)
-	for _, field := range mapping.NaturalKey() {
-		if field.Name != name {
-			buf.L("uri.%s(objects[i].%s)", field.Name, field.Name)
-		}
-	}
-	buf.N()
-	buf.L("uris[i] = uri.String()")
-	buf.L("}")
-	buf.N()
-	buf.L("return uris, nil")
-
-	return nil
 }
 
 func (m *Method) getMany(buf *file.Buffer) error {
