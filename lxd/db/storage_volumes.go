@@ -788,10 +788,6 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 		return nil, err
 	}
 
-	if len(nodes) == 0 {
-		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
-	}
-
 	for _, node := range nodes {
 		// Volume is defined without a cluster member.
 		if node.ID == 0 {
