@@ -511,9 +511,10 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 
 	if recursion == 1 {
 		// Sort the result list by name.
-		sort.Slice(resultList, func(i, j int) bool {
+		sort.SliceStable(resultList, func(i, j int) bool {
 			return resultList[i].Name < resultList[j].Name
 		})
+
 		if clauses != nil {
 			resultList = instance.Filter(resultList, clauses)
 		}
@@ -522,7 +523,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	}
 
 	// Sort the result list by name.
-	sort.Slice(resultFullList, func(i, j int) bool {
+	sort.SliceStable(resultFullList, func(i, j int) bool {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
