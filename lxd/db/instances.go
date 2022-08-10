@@ -912,7 +912,9 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 		return nil, err
 	}
 
-	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
+	sort.SliceStable(snapshots, func(i, j int) bool {
+		return snapshots[i].CreationDate.Before(snapshots[j].CreationDate)
+	})
 
 	instances := make([]cluster.Instance, len(snapshots))
 	for i, snapshot := range snapshots {
