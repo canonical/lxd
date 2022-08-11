@@ -436,13 +436,15 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime u
 			Enabled:     true,
 			MultihopTtl: 255,
 		},
+	}
 
-		// Configure peer holdtime.
-		Timers: &bgpAPI.Timers{
+	// Add hold time if configured.
+	if holdTime > 0 {
+		n.Timers = &bgpAPI.Timers{
 			Config: &bgpAPI.TimersConfig{
 				HoldTime: holdTime,
 			},
-		},
+		}
 	}
 
 	// Setup peer for dual-stack.
