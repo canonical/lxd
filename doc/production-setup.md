@@ -54,7 +54,7 @@ Parameter                           | Value      | Default   | Description
 Then, reboot the server.
 
 
-[1]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[1]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [2]: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
 
 ### Prevent container name leakage
