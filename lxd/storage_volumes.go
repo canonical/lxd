@@ -283,6 +283,14 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
+
+	targetMember := queryParam(r, "target")
+	memberSpecific := targetMember != ""
+
 	projectName := projectParam(r)
 
 	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -359,7 +367,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects)
+		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects, memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading volumes: %w", err)
 		}
