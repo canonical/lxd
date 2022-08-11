@@ -13,7 +13,7 @@ They are implemented through the use of `liblxc` (LXC).
 See [instance configuration](instances.md) for valid configuration options.
 
 ## Live migration
-LXD supports live migration of containers using [CRIU](http://criu.org). In
+LXD supports live migration of containers using [CRIU](https://criu.org). In
 order to optimize the memory transfer for a container LXD can be instructed to
 make use of the pre-copy features in CRIU by setting the
 `migration.incremental.memory` property to `true`. This means LXD will request
