@@ -194,14 +194,14 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 }
 
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
-func (c *Cluster) GetImagesFingerprints(project string, public bool) ([]string, error) {
+func (c *Cluster) GetImagesFingerprints(project string, publicOnly bool) ([]string, error) {
 	q := `
 SELECT fingerprint
   FROM images
   JOIN projects ON projects.id = images.project_id
  WHERE projects.name = ?
 `
-	if public {
+	if publicOnly {
 		q += " AND public=1"
 	}
 
