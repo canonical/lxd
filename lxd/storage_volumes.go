@@ -51,7 +51,7 @@ var storagePoolVolumesCmd = APIEndpoint{
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{name}/volumes/{type}",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
 	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
@@ -179,148 +179,6 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //     $ref: "#/responses/Forbidden"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
-	projectName := projectParam(r)
-
-	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	recursion := util.IsRecursionRequest(r)
-
-	filterStr := r.FormValue("filter")
-	var clauses []filter.Clause
-	if filterStr != "" {
-		var err error
-		clauses, err = filter.Parse(filterStr)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
-		}
-	}
-
-	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var projectsVolumes map[string]map[int64]*api.StorageVolume
-
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
-		if err != nil {
-			return err
-		}
-
-		p, err := dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		volTypesProjects := make(map[int]string)
-		for _, instanceType := range supportedVolumeTypesInstances {
-			volTypesProjects[instanceType] = projectName
-		}
-
-		// The project name used for custom volumes varies based on whether the project has the
-		// featues.storage.volumes feature enabled.
-		customVolProjectName := project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
-		volTypesProjects[db.StoragePoolVolumeTypeCustom] = customVolProjectName
-
-		// Image volumes are effectively a cache and so are always linked to default project.
-		// We filter the ones relevant to requested project below.
-		volTypesProjects[db.StoragePoolVolumeTypeImage] = project.Default
-
-		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects)
-		if err != nil {
-			return fmt.Errorf("Failed loading volumes: %w", err)
-		}
-
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	projectImages, err := d.db.Cluster.GetImagesFingerprints(projectName, false)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	var volumes []*api.StorageVolume
-
-	for _, projectVolumes := range projectsVolumes {
-		for _, volume := range projectVolumes {
-			// Filter out image volumes that are not used by this project.
-			if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, projectImages) {
-				continue
-			}
-
-			volumes = append(volumes, volume)
-		}
-	}
-
-	// Sort by type then volume name.
-	sort.SliceStable(volumes, func(i, j int) bool {
-		volA := volumes[i]
-		volB := volumes[j]
-
-		if volA.Type != volB.Type {
-			return volumes[i].Type < volumes[j].Type
-		}
-
-		return volA.Name < volB.Name
-	})
-
-	volumes = filterVolumes(volumes, clauses)
-
-	var urls []string
-	for _, vol := range volumes {
-		if !recursion {
-			urls = append(urls, vol.URL(version.APIVersion, poolName, projectName).String())
-		} else {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
-		}
-	}
-
-	if !recursion {
-		return response.SyncResponse(true, urls)
-	}
-
-	return response.SyncResponse(true, volumes)
-}
-
-// filterVolumes returns a filtered list of volumes that match the given clauses.
-func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api.StorageVolume {
-	// FilterStorageVolume is for filtering purpose only.
-	// It allows to filter snapshots by using default filter mechanism.
-	type FilterStorageVolume struct {
-		api.StorageVolume `yaml:",inline"`
-		Snapshot          string `yaml:"snapshot"`
-	}
-
-	filtered := []*api.StorageVolume{}
-	for _, volume := range volumes {
-		tmpVolume := FilterStorageVolume{
-			StorageVolume: *volume,
-			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
-		}
-
-		if !filter.Match(tmpVolume, clauses) {
-			continue
-		}
-
-		filtered = append(filtered, volume)
-	}
-
-	return filtered
-}
 
 // swagger:operation GET /1.0/storage-pools/{name}/volumes/{type} storage storage_pool_volumes_type_get
 //
@@ -424,6 +282,173 @@ func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api
 //     $ref: "#/responses/Forbidden"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
+func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
+	projectName := projectParam(r)
+
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get the name of the volume type.
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Convert volume type name to internal integer representation if requested.
+	var volumeType int
+	if volumeTypeName != "" {
+		volumeType, err = storagePools.VolumeTypeNameToDBType(volumeTypeName)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
+	recursion := util.IsRecursionRequest(r)
+
+	filterStr := r.FormValue("filter")
+	var clauses []filter.Clause
+	if filterStr != "" {
+		var err error
+		clauses, err = filter.Parse(filterStr)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
+		}
+	}
+
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
+	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var projectsVolumes map[string]map[int64]*api.StorageVolume
+
+	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err := dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		volTypesProjects := make(map[int]string)
+
+		for _, supportedVolType := range supportedVolumeTypes {
+			if volumeTypeName != "" && supportedVolType != volumeType {
+				continue // Only include the requested type if specified.
+			}
+
+			switch supportedVolType {
+			case db.StoragePoolVolumeTypeCustom:
+				// The project name used for custom volumes varies based on whether the project
+				// has the featues.storage.volumes feature enabled.
+				customVolProjectName := project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
+				volTypesProjects[db.StoragePoolVolumeTypeCustom] = customVolProjectName
+			case db.StoragePoolVolumeTypeImage:
+				// Image volumes are effectively a cache and are always linked to default project.
+				// We filter the ones relevant to requested project below.
+				volTypesProjects[db.StoragePoolVolumeTypeImage] = project.Default
+			default:
+				// Include instance volume types using the specified project.
+				volTypesProjects[supportedVolType] = projectName
+			}
+		}
+
+		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects)
+		if err != nil {
+			return fmt.Errorf("Failed loading volumes: %w", err)
+		}
+
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	projectImages, err := d.db.Cluster.GetImagesFingerprints(projectName, false)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var volumes []*api.StorageVolume
+
+	for _, projectVolumes := range projectsVolumes {
+		for _, volume := range projectVolumes {
+			// Filter out image volumes that are not used by this project.
+			if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, projectImages) {
+				continue
+			}
+
+			volumes = append(volumes, volume)
+		}
+	}
+
+	// Sort by type then volume name.
+	sort.SliceStable(volumes, func(i, j int) bool {
+		volA := volumes[i]
+		volB := volumes[j]
+
+		if volA.Type != volB.Type {
+			return volumes[i].Type < volumes[j].Type
+		}
+
+		return volA.Name < volB.Name
+	})
+
+	volumes = filterVolumes(volumes, clauses)
+
+	var urls []string
+	for _, vol := range volumes {
+		if !recursion {
+			urls = append(urls, vol.URL(version.APIVersion, poolName, projectName).String())
+		} else {
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+		}
+	}
+
+	if !recursion {
+		return response.SyncResponse(true, urls)
+	}
+
+	return response.SyncResponse(true, volumes)
+}
+
+// filterVolumes returns a filtered list of volumes that match the given clauses.
+func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api.StorageVolume {
+	// FilterStorageVolume is for filtering purpose only.
+	// It allows to filter snapshots by using default filter mechanism.
+	type FilterStorageVolume struct {
+		api.StorageVolume `yaml:",inline"`
+		Snapshot          string `yaml:"snapshot"`
+	}
+
+	filtered := []*api.StorageVolume{}
+	for _, volume := range volumes {
+		tmpVolume := FilterStorageVolume{
+			StorageVolume: *volume,
+			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
+		}
+
+		if !filter.Match(tmpVolume, clauses) {
+			continue
+		}
+
+		filtered = append(filtered, volume)
+	}
+
+	return filtered
+}
+
 func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
