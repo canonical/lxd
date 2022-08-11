@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -152,108 +153,272 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Node,
-			filter.Name,
+	if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Node,
+
+		for _, arg := range filter.Type {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Name,
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
 		}
-	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
-		args = []any{
-			filter.Type,
-			filter.Name,
-			filter.Node,
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
-		args = []any{
-			filter.Project,
-			filter.Name,
-			filter.Node,
+
+		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndTypeAndNodeAndName)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndType)
-		args = []any{
-			filter.Project,
-			filter.Type,
+	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByTypeAndNode)
-		args = []any{
-			filter.Type,
-			filter.Node,
+
+		for _, arg := range filter.Type {
+			args = append(args, arg)
 		}
-	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByTypeAndName)
-		args = []any{
-			filter.Type,
-			filter.Name,
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndNode)
-		args = []any{
-			filter.Project,
-			filter.Node,
+
+		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndTypeAndNode)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
 		}
-	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProjectAndName)
-		args = []any{
-			filter.Project,
-			filter.Name,
+	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByNodeAndName)
-		args = []any{
-			filter.Node,
-			filter.Name,
+
+		for _, arg := range filter.Type {
+			args = append(args, arg)
 		}
-	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByType)
-		args = []any{
-			filter.Type,
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByProject)
-		args = []any{
-			filter.Project,
+
+		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndTypeAndName)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
 		}
-	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByNode)
-		args = []any{
-			filter.Node,
+	} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 {
+		for _, arg := range filter.Type {
+			args = append(args, arg)
 		}
-	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByName)
-		args = []any{
-			filter.Name,
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
 		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, instanceObjectsByID)
-		args = []any{
-			filter.ID,
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
 		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+
+		if len(filter.Type) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByTypeAndNameAndNode)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndNameAndNode)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Type {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 && len(filter.Type) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndType)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndType)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+		}
+	} else if len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
+		for _, arg := range filter.Type {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		if len(filter.Type) == 1 && len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByTypeAndNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByTypeAndNode)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+		}
+	} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 {
+		for _, arg := range filter.Type {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		if len(filter.Type) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByTypeAndName)
+		} else {
+			queryStr = StmtString(instanceObjectsByTypeAndName)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 && len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndNode)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProjectAndName)
+		} else {
+			queryStr = StmtString(instanceObjectsByProjectAndName)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+		}
+	} else if len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		if len(filter.Node) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByNodeAndName)
+		} else {
+			queryStr = StmtString(instanceObjectsByNodeAndName)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+		}
+	} else if len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
+		for _, arg := range filter.Type {
+			args = append(args, arg)
+		}
+
+		if len(filter.Type) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByType)
+		} else {
+			queryStr = StmtString(instanceObjectsByType)
+			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByProject)
+		} else {
+			queryStr = StmtString(instanceObjectsByProject)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+		}
+	} else if len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		if len(filter.Node) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByNode)
+		} else {
+			queryStr = StmtString(instanceObjectsByNode)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+		}
+	} else if len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		if len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByName)
+		} else {
+			queryStr = StmtString(instanceObjectsByName)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+		}
+	} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.ID {
+			args = append(args, arg)
+		}
+
+		if len(filter.ID) == 1 {
+			sqlStmt = Stmt(tx, instanceObjectsByID)
+		} else {
+			queryStr = StmtString(instanceObjectsByID)
+			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
 		sqlStmt = Stmt(tx, instanceObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -278,7 +443,12 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
@@ -288,8 +458,8 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 
 // GetInstanceDevices returns all available Instance Devices
 // generator: instance GetMany
-func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]Device, error) {
-	instanceDevices, err := GetDevices(ctx, tx, "instance")
+func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filter DeviceFilter) (map[string]Device, error) {
+	instanceDevices, err := GetDevices(ctx, tx, "instance", filter)
 	if err != nil {
 		return nil, err
 	}
@@ -309,8 +479,8 @@ func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[st
 
 // GetInstanceConfig returns all available Instance Config
 // generator: instance GetMany
-func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]string, error) {
-	instanceConfig, err := GetConfig(ctx, tx, "instance")
+func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filter ConfigFilter) (map[string]string, error) {
+	instanceConfig, err := GetConfig(ctx, tx, "instance", filter)
 	if err != nil {
 		return nil, err
 	}
@@ -327,8 +497,8 @@ func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int) (map[str
 // generator: instance GetOne
 func GetInstance(ctx context.Context, tx *sql.Tx, project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
-	filter.Project = &project
-	filter.Name = &name
+	filter.Project = []string{project}
+	filter.Name = []string{name}
 
 	objects, err := GetInstances(ctx, tx, filter)
 	if err != nil {

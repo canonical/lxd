@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -74,48 +75,98 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.Project != nil && filter.Public != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProjectAndPublic)
-		args = []any{
-			filter.Project,
-			filter.Public,
+	if len(filter.Project) > 0 && len(filter.Public) > 0 && len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Cached) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Cached != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProjectAndCached)
-		args = []any{
-			filter.Project,
-			filter.Cached,
+
+		for _, arg := range filter.Public {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProject)
-		args = []any{
-			filter.Project,
+
+		if len(filter.Project) == 1 && len(filter.Public) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByProjectAndPublic)
+		} else {
+			queryStr = StmtString(imageObjectsByProjectAndPublic)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "public = ?", fmt.Sprintf("public IN (?%s)", strings.Repeat(", ?", len(filter.Public)-1)), -1)
 		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByID)
-		args = []any{
-			filter.ID,
+	} else if len(filter.Project) > 0 && len(filter.Cached) > 0 && len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByFingerprint)
-		args = []any{
-			filter.Fingerprint,
+
+		for _, arg := range filter.Cached {
+			args = append(args, arg)
 		}
-	} else if filter.Cached != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByCached)
-		args = []any{
-			filter.Cached,
+
+		if len(filter.Project) == 1 && len(filter.Cached) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByProjectAndCached)
+		} else {
+			queryStr = StmtString(imageObjectsByProjectAndCached)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "cached = ?", fmt.Sprintf("cached IN (?%s)", strings.Repeat(", ?", len(filter.Cached)-1)), -1)
 		}
-	} else if filter.AutoUpdate != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
-		sqlStmt = Stmt(tx, imageObjectsByAutoUpdate)
-		args = []any{
-			filter.AutoUpdate,
+	} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.Cached) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+
+		if len(filter.Project) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByProject)
+		} else {
+			queryStr = StmtString(imageObjectsByProject)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+		}
+	} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.Cached) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.ID {
+			args = append(args, arg)
+		}
+
+		if len(filter.ID) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByID)
+		} else {
+			queryStr = StmtString(imageObjectsByID)
+			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+		}
+	} else if len(filter.Fingerprint) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Public) == 0 && len(filter.Cached) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.Fingerprint {
+			args = append(args, arg)
+		}
+
+		if len(filter.Fingerprint) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByFingerprint)
+		} else {
+			queryStr = StmtString(imageObjectsByFingerprint)
+			queryStr = strings.Replace(queryStr, "fingerprint = ?", fmt.Sprintf("fingerprint IN (?%s)", strings.Repeat(", ?", len(filter.Fingerprint)-1)), -1)
+		}
+	} else if len(filter.Cached) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.AutoUpdate) == 0 {
+		for _, arg := range filter.Cached {
+			args = append(args, arg)
+		}
+
+		if len(filter.Cached) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByCached)
+		} else {
+			queryStr = StmtString(imageObjectsByCached)
+			queryStr = strings.Replace(queryStr, "cached = ?", fmt.Sprintf("cached IN (?%s)", strings.Repeat(", ?", len(filter.Cached)-1)), -1)
+		}
+	} else if len(filter.AutoUpdate) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.Cached) == 0 {
+		for _, arg := range filter.AutoUpdate {
+			args = append(args, arg)
+		}
+
+		if len(filter.AutoUpdate) == 1 {
+			sqlStmt = Stmt(tx, imageObjectsByAutoUpdate)
+		} else {
+			queryStr = StmtString(imageObjectsByAutoUpdate)
+			queryStr = strings.Replace(queryStr, "autoUpdate = ?", fmt.Sprintf("autoUpdate IN (?%s)", strings.Repeat(", ?", len(filter.AutoUpdate)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Fingerprint) == 0 && len(filter.Public) == 0 && len(filter.Cached) == 0 && len(filter.AutoUpdate) == 0 {
 		sqlStmt = Stmt(tx, imageObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -142,7 +193,12 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
@@ -154,8 +210,8 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 // generator: image GetOne
 func GetImage(ctx context.Context, tx *sql.Tx, project string, fingerprint string) (*Image, error) {
 	filter := ImageFilter{}
-	filter.Project = &project
-	filter.Fingerprint = &fingerprint
+	filter.Project = []string{project}
+	filter.Fingerprint = []string{fingerprint}
 
 	objects, err := GetImages(ctx, tx, filter)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 type ProjectGenerated interface {
 	// GetProjectConfig returns all available Project Config
 	// generator: project GetMany
-	GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int) (map[string]string, error)
+	GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int, filter ConfigFilter) (map[string]string, error)
 
 	// GetProjects returns all available projects.
 	// generator: project GetMany

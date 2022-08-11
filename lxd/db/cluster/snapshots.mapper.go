@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -68,29 +69,59 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
-		args = []any{
-			filter.Project,
-			filter.Instance,
-			filter.Name,
+	if len(filter.Project) > 0 && len(filter.Instance) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
-		args = []any{
-			filter.Project,
-			filter.Instance,
+
+		for _, arg := range filter.Instance {
+			args = append(args, arg)
 		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByID)
-		args = []any{
-			filter.ID,
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
 		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+
+		if len(filter.Project) == 1 && len(filter.Instance) == 1 && len(filter.Name) == 1 {
+			sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
+		} else {
+			queryStr = StmtString(instanceSnapshotObjectsByProjectAndInstanceAndName)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "instance = ?", fmt.Sprintf("instance IN (?%s)", strings.Repeat(", ?", len(filter.Instance)-1)), -1)
+			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.Instance) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Instance {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 && len(filter.Instance) == 1 {
+			sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
+		} else {
+			queryStr = StmtString(instanceSnapshotObjectsByProjectAndInstance)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "instance = ?", fmt.Sprintf("instance IN (?%s)", strings.Repeat(", ?", len(filter.Instance)-1)), -1)
+		}
+	} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Instance) == 0 && len(filter.Name) == 0 {
+		for _, arg := range filter.ID {
+			args = append(args, arg)
+		}
+
+		if len(filter.ID) == 1 {
+			sqlStmt = Stmt(tx, instanceSnapshotObjectsByID)
+		} else {
+			queryStr = StmtString(instanceSnapshotObjectsByID)
+			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Instance) == 0 && len(filter.Name) == 0 {
 		sqlStmt = Stmt(tx, instanceSnapshotObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -111,7 +142,12 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
@@ -121,8 +157,8 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 
 // GetInstanceSnapshotDevices returns all available InstanceSnapshot Devices
 // generator: instance_snapshot GetMany
-func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]Device, error) {
-	instanceSnapshotDevices, err := GetDevices(ctx, tx, "instance_snapshot")
+func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filter DeviceFilter) (map[string]Device, error) {
+	instanceSnapshotDevices, err := GetDevices(ctx, tx, "instance_snapshot", filter)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +178,8 @@ func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapsho
 
 // GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
 // generator: instance_snapshot GetMany
-func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]string, error) {
-	instanceSnapshotConfig, err := GetConfig(ctx, tx, "instance_snapshot")
+func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filter ConfigFilter) (map[string]string, error) {
+	instanceSnapshotConfig, err := GetConfig(ctx, tx, "instance_snapshot", filter)
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +196,9 @@ func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshot
 // generator: instance_snapshot GetOne
 func GetInstanceSnapshot(ctx context.Context, tx *sql.Tx, project string, instance string, name string) (*InstanceSnapshot, error) {
 	filter := InstanceSnapshotFilter{}
-	filter.Project = &project
-	filter.Instance = &instance
-	filter.Name = &name
+	filter.Project = []string{project}
+	filter.Instance = []string{instance}
+	filter.Name = []string{name}
 
 	objects, err := GetInstanceSnapshots(ctx, tx, filter)
 	if err != nil {

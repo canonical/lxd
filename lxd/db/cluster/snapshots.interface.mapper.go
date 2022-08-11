@@ -11,11 +11,11 @@ import (
 type InstanceSnapshotGenerated interface {
 	// GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
 	// generator: instance_snapshot GetMany
-	GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]string, error)
+	GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filter ConfigFilter) (map[string]string, error)
 
 	// GetInstanceSnapshotDevices returns all available InstanceSnapshot Devices
 	// generator: instance_snapshot GetMany
-	GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]Device, error)
+	GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filter DeviceFilter) (map[string]Device, error)
 
 	// GetInstanceSnapshots returns all available instance_snapshots.
 	// generator: instance_snapshot GetMany

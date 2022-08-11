@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -68,21 +69,33 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, certificateObjectsByID)
-		args = []any{
-			filter.ID,
+	if len(filter.ID) > 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.ID {
+			args = append(args, arg)
 		}
-	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt = Stmt(tx, certificateObjectsByFingerprint)
-		args = []any{
-			filter.Fingerprint,
+
+		if len(filter.ID) == 1 {
+			sqlStmt = Stmt(tx, certificateObjectsByID)
+		} else {
+			queryStr = StmtString(certificateObjectsByID)
+			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
 		}
-	} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+	} else if len(filter.Fingerprint) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+		for _, arg := range filter.Fingerprint {
+			args = append(args, arg)
+		}
+
+		if len(filter.Fingerprint) == 1 {
+			sqlStmt = Stmt(tx, certificateObjectsByFingerprint)
+		} else {
+			queryStr = StmtString(certificateObjectsByFingerprint)
+			queryStr = strings.Replace(queryStr, "fingerprint = ?", fmt.Sprintf("fingerprint IN (?%s)", strings.Repeat(", ?", len(filter.Fingerprint)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
 		sqlStmt = Stmt(tx, certificateObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -101,7 +114,12 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
 	}
@@ -113,7 +131,7 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 // generator: certificate GetOne
 func GetCertificate(ctx context.Context, tx *sql.Tx, fingerprint string) (*Certificate, error) {
 	filter := CertificateFilter{}
-	filter.Fingerprint = &fingerprint
+	filter.Fingerprint = []string{fingerprint}
 
 	objects, err := GetCertificates(ctx, tx, filter)
 	if err != nil {

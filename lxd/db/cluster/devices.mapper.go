@@ -27,7 +27,7 @@ const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
 // GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
-func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Device, error) {
+func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filter DeviceFilter) (map[int][]Device, error) {
 	var err error
 
 	// Result slice.
@@ -39,12 +39,28 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	sqlStmt, err := prepare(tx, fmt.Sprintf(deviceObjectsLocal, fillParent...))
-	if err != nil {
-		return nil, err
+	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
+	parts := strings.Split(queryStr, "ORDER BY")
+	args := make([]any, 0, DqliteMaxParams)
+	if len(filter.Name) > 0 {
+		parts[0] += "WHERE "
+		parts[0] += fmt.Sprintf("name IN (?%s)\n", strings.Repeat(", ?", len(filter.Name)))
 	}
 
-	args := []any{}
+	for _, arg := range filter.Name {
+		args = append(args, arg)
+	}
+
+	if len(filter.Type) > 0 {
+		parts[0] += "AND "
+		parts[0] += fmt.Sprintf("type IN (?%s)\n", strings.Repeat(", ?", len(filter.Type)))
+	}
+
+	for _, arg := range filter.Type {
+		args = append(args, arg)
+	}
+
+	queryStr = strings.Join(parts, "ORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(i int) []any {
@@ -58,12 +74,12 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.QueryObjects(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
 
-	config, err := GetConfig(ctx, tx, parent+"_device")
+	config, err := GetConfig(ctx, tx, parent+"_device", filter.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -99,13 +115,9 @@ func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[s
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceCreateLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
+	queryStr := fmt.Sprintf(deviceCreateLocal, fillParent...)
 	for _, object := range objects {
-		result, err := stmt.Exec(object.ReferenceID, object.Name, object.Type)
+		result, err := tx.Exec(queryStr, object.ReferenceID, object.Name, object.Type)
 		if err != nil {
 			return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
 		}
@@ -165,12 +177,8 @@ func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceDeleteLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	result, err := stmt.Exec(referenceID)
+	queryStr := fmt.Sprintf(deviceDeleteLocal, fillParent...)
+	result, err := tx.Exec(queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_device\" failed: %w", parent, err)
 	}

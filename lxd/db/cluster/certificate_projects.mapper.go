@@ -58,7 +58,7 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 
 	result := make([]Project, len(objects))
 	for i, object := range objects {
-		project, err := GetProjects(ctx, tx, ProjectFilter{ID: &object.ProjectID})
+		project, err := GetProjects(ctx, tx, ProjectFilter{ID: []int{object.ProjectID}})
 		if err != nil {
 			return nil, err
 		}

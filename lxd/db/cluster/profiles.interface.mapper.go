@@ -19,11 +19,11 @@ type ProfileGenerated interface {
 
 	// GetProfileConfig returns all available Profile Config
 	// generator: profile GetMany
-	GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int) (map[string]string, error)
+	GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int, filter ConfigFilter) (map[string]string, error)
 
 	// GetProfileDevices returns all available Profile Devices
 	// generator: profile GetMany
-	GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[string]Device, error)
+	GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int, filter DeviceFilter) (map[string]Device, error)
 
 	// GetProfiles returns all available profiles.
 	// generator: profile GetMany

@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -63,26 +64,44 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByUUID)
-		args = []any{
-			filter.UUID,
+	if len(filter.UUID) > 0 && len(filter.ID) == 0 && len(filter.NodeID) == 0 {
+		for _, arg := range filter.UUID {
+			args = append(args, arg)
 		}
-	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByNodeID)
-		args = []any{
-			filter.NodeID,
+
+		if len(filter.UUID) == 1 {
+			sqlStmt = Stmt(tx, operationObjectsByUUID)
+		} else {
+			queryStr = StmtString(operationObjectsByUUID)
+			queryStr = strings.Replace(queryStr, "uuid = ?", fmt.Sprintf("uuid IN (?%s)", strings.Repeat(", ?", len(filter.UUID)-1)), -1)
 		}
-	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByID)
-		args = []any{
-			filter.ID,
+	} else if len(filter.NodeID) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 {
+		for _, arg := range filter.NodeID {
+			args = append(args, arg)
 		}
-	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+
+		if len(filter.NodeID) == 1 {
+			sqlStmt = Stmt(tx, operationObjectsByNodeID)
+		} else {
+			queryStr = StmtString(operationObjectsByNodeID)
+			queryStr = strings.Replace(queryStr, "nodeID = ?", fmt.Sprintf("nodeID IN (?%s)", strings.Repeat(", ?", len(filter.NodeID)-1)), -1)
+		}
+	} else if len(filter.ID) > 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
+		for _, arg := range filter.ID {
+			args = append(args, arg)
+		}
+
+		if len(filter.ID) == 1 {
+			sqlStmt = Stmt(tx, operationObjectsByID)
+		} else {
+			queryStr = StmtString(operationObjectsByID)
+			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
 		sqlStmt = Stmt(tx, operationObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -101,7 +120,12 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
 	}

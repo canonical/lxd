@@ -65,7 +65,7 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 
 	result := make([]Instance, len(objects))
 	for i, object := range objects {
-		instance, err := GetInstances(ctx, tx, InstanceFilter{ID: &object.InstanceID})
+		instance, err := GetInstances(ctx, tx, InstanceFilter{ID: []int{object.InstanceID}})
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 
 	result := make([]Profile, len(objects))
 	for i, object := range objects {
-		profile, err := GetProfiles(ctx, tx, ProfileFilter{ID: &object.ProfileID})
+		profile, err := GetProfiles(ctx, tx, ProfileFilter{ID: []int{object.ProfileID}})
 		if err != nil {
 			return nil, err
 		}

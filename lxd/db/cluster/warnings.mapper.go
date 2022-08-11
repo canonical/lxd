@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -81,48 +82,112 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	var queryStr string
+	args := make([]any, 0, DqliteMaxParams)
 
-	if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
-		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
-			filter.Project,
-			filter.EntityTypeCode,
-			filter.EntityID,
+	if len(filter.Node) > 0 && len(filter.TypeCode) > 0 && len(filter.Project) > 0 && len(filter.EntityTypeCode) > 0 && len(filter.EntityID) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.Status) == 0 {
+		for _, arg := range filter.Node {
+			args = append(args, arg)
 		}
-	} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
-			filter.Project,
+
+		for _, arg := range filter.TypeCode {
+			args = append(args, arg)
 		}
-	} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCode)
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
+
+		for _, arg := range filter.Project {
+			args = append(args, arg)
 		}
-	} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = Stmt(tx, warningObjectsByUUID)
-		args = []any{
-			filter.UUID,
+
+		for _, arg := range filter.EntityTypeCode {
+			args = append(args, arg)
 		}
-	} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
-		sqlStmt = Stmt(tx, warningObjectsByStatus)
-		args = []any{
-			filter.Status,
+
+		for _, arg := range filter.EntityID {
+			args = append(args, arg)
 		}
-	} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt = Stmt(tx, warningObjectsByProject)
-		args = []any{
-			filter.Project,
+
+		if len(filter.Node) == 1 && len(filter.TypeCode) == 1 && len(filter.Project) == 1 && len(filter.EntityTypeCode) == 1 && len(filter.EntityID) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+		} else {
+			queryStr = StmtString(warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+			queryStr = strings.Replace(queryStr, "typeCode = ?", fmt.Sprintf("typeCode IN (?%s)", strings.Repeat(", ?", len(filter.TypeCode)-1)), -1)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+			queryStr = strings.Replace(queryStr, "entityTypeCode = ?", fmt.Sprintf("entityTypeCode IN (?%s)", strings.Repeat(", ?", len(filter.EntityTypeCode)-1)), -1)
+			queryStr = strings.Replace(queryStr, "entityID = ?", fmt.Sprintf("entityID IN (?%s)", strings.Repeat(", ?", len(filter.EntityID)-1)), -1)
 		}
-	} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+	} else if len(filter.Node) > 0 && len(filter.TypeCode) > 0 && len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 && len(filter.Status) == 0 {
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.TypeCode {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		if len(filter.Node) == 1 && len(filter.TypeCode) == 1 && len(filter.Project) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
+		} else {
+			queryStr = StmtString(warningObjectsByNodeAndTypeCodeAndProject)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+			queryStr = strings.Replace(queryStr, "typeCode = ?", fmt.Sprintf("typeCode IN (?%s)", strings.Repeat(", ?", len(filter.TypeCode)-1)), -1)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+		}
+	} else if len(filter.Node) > 0 && len(filter.TypeCode) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.Project) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 && len(filter.Status) == 0 {
+		for _, arg := range filter.Node {
+			args = append(args, arg)
+		}
+
+		for _, arg := range filter.TypeCode {
+			args = append(args, arg)
+		}
+
+		if len(filter.Node) == 1 && len(filter.TypeCode) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByNodeAndTypeCode)
+		} else {
+			queryStr = StmtString(warningObjectsByNodeAndTypeCode)
+			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+			queryStr = strings.Replace(queryStr, "typeCode = ?", fmt.Sprintf("typeCode IN (?%s)", strings.Repeat(", ?", len(filter.TypeCode)-1)), -1)
+		}
+	} else if len(filter.UUID) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.TypeCode) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 && len(filter.Status) == 0 {
+		for _, arg := range filter.UUID {
+			args = append(args, arg)
+		}
+
+		if len(filter.UUID) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByUUID)
+		} else {
+			queryStr = StmtString(warningObjectsByUUID)
+			queryStr = strings.Replace(queryStr, "uuid = ?", fmt.Sprintf("uuid IN (?%s)", strings.Repeat(", ?", len(filter.UUID)-1)), -1)
+		}
+	} else if len(filter.Status) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.TypeCode) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 {
+		for _, arg := range filter.Status {
+			args = append(args, arg)
+		}
+
+		if len(filter.Status) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByStatus)
+		} else {
+			queryStr = StmtString(warningObjectsByStatus)
+			queryStr = strings.Replace(queryStr, "status = ?", fmt.Sprintf("status IN (?%s)", strings.Repeat(", ?", len(filter.Status)-1)), -1)
+		}
+	} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.Node) == 0 && len(filter.TypeCode) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 && len(filter.Status) == 0 {
+		for _, arg := range filter.Project {
+			args = append(args, arg)
+		}
+
+		if len(filter.Project) == 1 {
+			sqlStmt = Stmt(tx, warningObjectsByProject)
+		} else {
+			queryStr = StmtString(warningObjectsByProject)
+			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+		}
+	} else if len(filter.ID) == 0 && len(filter.UUID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.TypeCode) == 0 && len(filter.EntityTypeCode) == 0 && len(filter.EntityID) == 0 && len(filter.Status) == 0 {
 		sqlStmt = Stmt(tx, warningObjects)
-		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
@@ -148,7 +213,12 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if queryStr != "" {
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	} else {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"warnings\" table: %w", err)
 	}
@@ -160,7 +230,7 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 // generator: warning GetOne-by-UUID
 func GetWarning(ctx context.Context, tx *sql.Tx, uuid string) (*Warning, error) {
 	filter := WarningFilter{}
-	filter.UUID = &uuid
+	filter.UUID = []string{uuid}
 
 	objects, err := GetWarnings(ctx, tx, filter)
 	if err != nil {

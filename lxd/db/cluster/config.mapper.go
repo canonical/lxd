@@ -27,7 +27,7 @@ const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
 // GetConfig returns all available config.
 // generator: config GetMany
-func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[string]string, error) {
+func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filter ConfigFilter) (map[int]map[string]string, error) {
 	var err error
 
 	// Result slice.
@@ -39,12 +39,28 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	sqlStmt, err := prepare(tx, fmt.Sprintf(configObjectsLocal, fillParent...))
-	if err != nil {
-		return nil, err
+	queryStr := fmt.Sprintf(configObjectsLocal, fillParent...)
+	parts := strings.Split(queryStr, "ORDER BY")
+	args := make([]any, 0, DqliteMaxParams)
+	if len(filter.Key) > 0 {
+		parts[0] += "WHERE "
+		parts[0] += fmt.Sprintf("key IN (?%s)\n", strings.Repeat(", ?", len(filter.Key)))
 	}
 
-	args := []any{}
+	for _, arg := range filter.Key {
+		args = append(args, arg)
+	}
+
+	if len(filter.Value) > 0 {
+		parts[0] += "AND "
+		parts[0] += fmt.Sprintf("value IN (?%s)\n", strings.Repeat(", ?", len(filter.Value)))
+	}
+
+	for _, arg := range filter.Value {
+		args = append(args, arg)
+	}
+
+	queryStr = strings.Join(parts, "ORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(i int) []any {
@@ -58,7 +74,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.QueryObjects(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
 	}
@@ -90,12 +106,8 @@ func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config)
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(configCreateLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(object.ReferenceID, object.Key, object.Value)
+	queryStr := fmt.Sprintf(configCreateLocal, fillParent...)
+	_, err := tx.Exec(queryStr, object.ReferenceID, object.Key, object.Value)
 	if err != nil {
 		return fmt.Errorf("Insert failed for \"%s_config\" table: %w", parent, err)
 	}
@@ -138,12 +150,8 @@ func DeleteConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(configDeleteLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	result, err := stmt.Exec(referenceID)
+	queryStr := fmt.Sprintf(configDeleteLocal, fillParent...)
+	result, err := tx.Exec(queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_config\" failed: %w", parent, err)
 	}
