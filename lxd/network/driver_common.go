@@ -551,6 +551,8 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 			rules[k] = validate.Optional(validate.IsInRange(1, 4294967294))
 		case "password":
 			rules[k] = validate.Optional(validate.IsAny)
+		case "holdtime":
+			rules[k] = validate.Optional(validate.IsInRange(9, 65535))
 		}
 	}
 
@@ -649,7 +651,12 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 			return err
 		}
 
-		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2])
+		holdTime, err := strconv.ParseUint(fields[3], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime)
 		if err != nil {
 			return err
 		}
@@ -749,9 +756,15 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 		peerAddress := config[fmt.Sprintf("bgp.peers.%s.address", peerName)]
 		peerASN := config[fmt.Sprintf("bgp.peers.%s.asn", peerName)]
 		peerPassword := config[fmt.Sprintf("bgp.peers.%s.password", peerName)]
+		peerHoldTime := config[fmt.Sprintf("bgp.peers.%s.holdtime", peerName)]
 
-		if peerAddress != "" && peerASN != "" {
-			peers = append(peers, fmt.Sprintf("%s,%s,%s", peerAddress, peerASN, peerPassword))
+		// If hold time not found in configuration use default value.
+		if peerHoldTime == "" {
+			peerHoldTime = "180"
+		}
+
+		if peerAddress != "" && peerASN != "" && peerHoldTime != "" {
+			peers = append(peers, fmt.Sprintf("%s,%s,%s,%s", peerAddress, peerASN, peerPassword, peerHoldTime))
 		}
 	}
 
