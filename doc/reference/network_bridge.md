@@ -54,6 +54,7 @@ Key                                  | Type      | Condition             | Defau
 `bgp.peers.NAME.address`             | string    | BGP server            | -                         | Peer address (IPv4 or IPv6)
 `bgp.peers.NAME.asn`                 | integer   | BGP server            | -                         | Peer AS number
 `bgp.peers.NAME.password`            | string    | BGP server            | - (no password)           | Peer session password (optional)
+`bgp.peers.NAME.holdtime`            | integer   | BGP server            | `180`                     | Peer session hold time (in seconds; optional)
 `bgp.ipv4.nexthop`                   | string    | BGP server            | local address             | Override the next-hop for advertised prefixes
 `bgp.ipv6.nexthop`                   | string    | BGP server            | local address             | Override the next-hop for advertised prefixes
 `bridge.driver`                      | string    | -                     | `native`                  | Bridge driver: `native` or `openvswitch`
