@@ -651,9 +651,12 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 			return err
 		}
 
-		holdTime, err := strconv.ParseUint(fields[3], 10, 32)
-		if err != nil {
-			return err
+		var holdTime uint64
+		if fields[3] != "" {
+			holdTime, err = strconv.ParseUint(fields[3], 10, 32)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = n.state.BGP.AddPeer(net.ParseIP(fields[0]), uint32(asn), fields[2], holdTime)
@@ -757,11 +760,6 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 		peerASN := config[fmt.Sprintf("bgp.peers.%s.asn", peerName)]
 		peerPassword := config[fmt.Sprintf("bgp.peers.%s.password", peerName)]
 		peerHoldTime := config[fmt.Sprintf("bgp.peers.%s.holdtime", peerName)]
-
-		// If hold time not found in configuration use default value.
-		if peerHoldTime == "" {
-			peerHoldTime = "180"
-		}
 
 		if peerAddress != "" && peerASN != "" && peerHoldTime != "" {
 			peers = append(peers, fmt.Sprintf("%s,%s,%s,%s", peerAddress, peerASN, peerPassword, peerHoldTime))
