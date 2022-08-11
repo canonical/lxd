@@ -36,6 +36,7 @@ Key                             | Type      | Condition             | Default   
 `bgp.peers.NAME.address`        | string    | BGP server            | -                         | Peer address (IPv4 or IPv6) for use by `ovn` downstream networks
 `bgp.peers.NAME.asn`            | integer   | BGP server            | -                         | Peer AS number for use by `ovn` downstream networks
 `bgp.peers.NAME.password`       | string    | BGP server            | - (no password)           | Peer session password (optional) for use by `ovn` downstream networks
+`bgp.peers.NAME.holdtime`       | integer   | BGP server            | `180`                     | Peer session hold time (in seconds; optional)
 `dns.nameservers`               | string    | standard mode         | -                         | List of DNS server IPs on `physical` network
 `ipv4.gateway`                  | string    | standard mode         | -                         | IPv4 address for the gateway and network (CIDR)
 `ipv4.ovn.ranges`               | string    | -                     | -                         | Comma-separated list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
