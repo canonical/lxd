@@ -28,6 +28,7 @@ type DebugInfoPeer struct {
 	ASN      uint32 `json:"asn" yaml:"asn"`
 	Password string `json:"password" yaml:"password"`
 	Count    int    `json:"count" yaml:"count"`
+	HoldTime uint64 `json:"holdtime" yaml:"holdtime"`
 }
 
 // Debug returns a dump of the current configuration.
@@ -56,6 +57,7 @@ func (s *Server) debug() DebugInfo {
 		entry.ASN = peer.asn
 		entry.Password = peer.password
 		entry.Count = peer.count
+		entry.HoldTime = peer.holdtime
 
 		debug.Peers = append(debug.Peers, entry)
 	}
