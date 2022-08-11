@@ -1164,9 +1164,9 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	// profiles from the default project.
 	defaultProject := Default
 	if projectName == Default || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = &projectName
+		profilesFilter.Project = []string{projectName}
 	} else {
-		profilesFilter.Project = &defaultProject
+		profilesFilter.Project = []string{defaultProject}
 	}
 
 	dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), profilesFilter)
@@ -1184,7 +1184,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		profiles = append(profiles, *apiProfile)
 	}
 
-	dbInstances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &projectName})
+	dbInstances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: []string{projectName}})
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project instances from database: %w", err)
 	}

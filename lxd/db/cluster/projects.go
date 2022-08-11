@@ -65,7 +65,7 @@ func (p *Project) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Project, error) {
 	}
 
 	var err error
-	apiProject.Config, err = GetProjectConfig(ctx, tx, p.ID)
+	apiProject.Config, err = GetProjectConfig(ctx, tx, p.ID, ConfigFilter{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading project config: %w", err)
 	}
@@ -147,7 +147,7 @@ func ProjectHasImages(ctx context.Context, tx *sql.Tx, name string) (bool, error
 		return false, fmt.Errorf("fetch project: %w", err)
 	}
 
-	config, err := GetProjectConfig(ctx, tx, project.ID)
+	config, err := GetProjectConfig(ctx, tx, project.ID, ConfigFilter{})
 	if err != nil {
 		return false, err
 	}

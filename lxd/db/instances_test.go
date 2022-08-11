@@ -44,9 +44,9 @@ func TestContainerList(t *testing.T) {
 	assert.Len(t, containers, 3)
 
 	c1 := containers[0]
-	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID)
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
-	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID)
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "c1", c1.Name)
@@ -55,9 +55,9 @@ func TestContainerList(t *testing.T) {
 	assert.Len(t, c1Devices, 0)
 
 	c2 := containers[1]
-	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c2.ID)
+	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c2.ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
-	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c2.ID)
+	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c2.ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, "c2", c2.Name)
 	assert.Equal(t, map[string]string{"x": "y"}, c2Config)
@@ -67,9 +67,9 @@ func TestContainerList(t *testing.T) {
 	assert.Equal(t, "nic", c2Devices["eth0"].Type.String())
 
 	c3 := containers[2]
-	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c3.ID)
+	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c3.ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
-	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c3.ID)
+	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c3.ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, "c3", c3.Name)
 	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c3Config)
@@ -96,8 +96,8 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	filter := db.InstanceTypeFilter(instancetype.Container)
 	project := "default"
 	node := "node2"
-	filter.Project = &project
-	filter.Node = &node
+	filter.Project = []string{project}
+	filter.Node = []string{node}
 
 	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
@@ -318,10 +318,10 @@ func TestCreateInstance(t *testing.T) {
 	c1, err := cluster.GetInstance(context.TODO(), tx.Tx(), "default", "c1")
 	require.NoError(t, err)
 
-	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID)
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), c1.ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 
-	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID)
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), c1.ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
 
 	c1Profiles, err := cluster.GetInstanceProfiles(context.TODO(), tx.Tx(), c1.ID)
@@ -531,24 +531,24 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	assert.Equal(t, "none", containers[1].Node)
 	assert.Equal(t, "none", containers[2].Node)
 
-	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[0].ID)
+	c1Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[0].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[0].ID)
+	c1Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[0].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"x": "y"}, c1Config)
 	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, cluster.DevicesToAPI(c1Devices))
 
-	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[1].ID)
+	c2Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[1].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[1].ID)
+	c2Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[1].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c2Config)
 	assert.Len(t, c2Devices, 0)
 
-	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[2].ID)
+	c3Config, err := cluster.GetInstanceConfig(context.TODO(), tx.Tx(), containers[2].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[2].ID)
+	c3Devices, err := cluster.GetInstanceDevices(context.TODO(), tx.Tx(), containers[2].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 	assert.Len(t, c3Config, 0)
 	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, cluster.DevicesToAPI(c3Devices))

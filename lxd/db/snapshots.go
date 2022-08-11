@@ -85,7 +85,7 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]clu
 	snapshots := make([]cluster.InstanceSnapshot, len(snapshotIDs))
 
 	for i, id := range snapshotIDs {
-		snap, err := cluster.GetInstanceSnapshots(ctx, c.tx, cluster.InstanceSnapshotFilter{ID: &id})
+		snap, err := cluster.GetInstanceSnapshots(ctx, c.tx, cluster.InstanceSnapshotFilter{ID: []int{id}})
 		if err != nil {
 			return nil, err
 		}

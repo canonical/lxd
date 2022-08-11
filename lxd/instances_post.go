@@ -135,7 +135,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 				return err
 			}
 		} else {
-			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: &projectName})
+			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: []string{projectName}})
 			if err != nil {
 				return err
 			}
@@ -280,7 +280,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			profileProject = "default"
 		}
 
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &profileProject})
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: []string{profileProject}})
 		if err != nil {
 			return err
 		}

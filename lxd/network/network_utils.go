@@ -163,7 +163,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 		}
 
 		for _, profile := range profiles {
-			profileDevices, err := cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID)
+			profileDevices, err := cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID, cluster.DeviceFilter{})
 			if err != nil {
 				return err
 			}

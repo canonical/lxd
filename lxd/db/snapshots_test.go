@@ -38,9 +38,9 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 3)
 
-	s1Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[0].ID)
+	s1Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[0].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	s1Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[0].ID)
+	s1Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[0].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 
 	s1 := snapshots[0]
@@ -49,9 +49,9 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Equal(t, map[string]string{}, s1Config)
 	assert.Len(t, s1Devices, 0)
 
-	s2Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[1].ID)
+	s2Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[1].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	s2Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[1].ID)
+	s2Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[1].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 
 	s2 := snapshots[1]
@@ -63,9 +63,9 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Equal(t, "nic", s2Devices["eth0"].Type.String())
 	assert.Equal(t, map[string]string{}, s2Devices["eth0"].Config)
 
-	s3Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[2].ID)
+	s3Config, err := cluster.GetInstanceSnapshotConfig(context.TODO(), tx.Tx(), snapshots[2].ID, cluster.ConfigFilter{})
 	require.NoError(t, err)
-	s3Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[2].ID)
+	s3Devices, err := cluster.GetInstanceSnapshotDevices(context.TODO(), tx.Tx(), snapshots[2].ID, cluster.DeviceFilter{})
 	require.NoError(t, err)
 
 	s3 := snapshots[2]
@@ -92,7 +92,7 @@ func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 
 	project := "default"
 	instance := "c2"
-	filter := cluster.InstanceSnapshotFilter{Project: &project, Instance: &instance}
+	filter := cluster.InstanceSnapshotFilter{Project: []string{project}, Instance: []string{instance}}
 	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 2)
@@ -165,7 +165,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 
 	instance := "i1"
 	project := "p1"
-	filter := cluster.InstanceSnapshotFilter{Project: &project, Instance: &instance}
+	filter := cluster.InstanceSnapshotFilter{Project: []string{project}, Instance: []string{instance}}
 	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
 

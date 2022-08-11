@@ -48,7 +48,7 @@ type InstanceArgs struct {
 // or an empty filter if instance type is 'Any'.
 func InstanceTypeFilter(instanceType instancetype.Type) cluster.InstanceFilter {
 	if instanceType != instancetype.Any {
-		return cluster.InstanceFilter{Type: &instanceType}
+		return cluster.InstanceFilter{Type: []instancetype.Type{instanceType}}
 	}
 
 	return cluster.InstanceFilter{}
@@ -79,9 +79,13 @@ func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter
 	args = append(args, project)
 
 	// Instance type filter.
-	if filter.Type != nil {
+	if len(filter.Type) > 0 {
+		if len(filter.Type) > 1 {
+			return "", fmt.Errorf("Specified more than one instance type")
+		}
+
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, *filter.Type)
+		args = append(args, filter.Type[0])
 	}
 
 	if strings.Contains(name, shared.SnapshotDelimiter) {
@@ -175,9 +179,13 @@ func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, f
 	}
 
 	// Instance type filter.
-	if filter.Type != nil {
+	if len(filter.Type) > 0 {
+		if len(filter.Type) > 1 {
+			return nil, fmt.Errorf("Specified more than one instance type")
+		}
+
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, *filter.Type)
+		args = append(args, filter.Type[0])
 	}
 
 	stmt := fmt.Sprintf(`
@@ -239,8 +247,14 @@ func (c *Cluster) InstanceList(filter *cluster.InstanceFilter, instanceFunc func
 		filter = &cluster.InstanceFilter{}
 	}
 
-	if filter.Type != nil && *filter.Type == instancetype.Any {
-		filter.Type = nil
+	if len(filter.Type) > 0 {
+		if len(filter.Type) > 1 {
+			return fmt.Errorf("Specified more than one instance type")
+		}
+
+		if filter.Type[0] == instancetype.Any {
+			filter.Type = nil
+		}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
@@ -657,9 +671,13 @@ func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter cluste
 	}
 
 	// Instance type filter.
-	if filter.Type != nil {
+	if len(filter.Type) > 0 {
+		if len(filter.Type) > 1 {
+			return nil, fmt.Errorf("Specified more than one instance type")
+		}
+
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, *filter.Type)
+		args = append(args, filter.Type[0])
 	}
 
 	stmt := fmt.Sprintf(`
@@ -782,7 +800,7 @@ func (c *ClusterTx) GetLocalInstancesInProject(ctx context.Context, filter clust
 	}
 
 	if node != "" {
-		filter.Node = &node
+		filter.Node = []string{node}
 	}
 
 	return cluster.GetInstances(ctx, c.tx, filter)
@@ -903,8 +921,8 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 	}
 
 	filter := cluster.InstanceSnapshotFilter{
-		Project:  &project,
-		Instance: &name,
+		Project:  []string{project},
+		Instance: []string{name},
 	}
 
 	snapshots, err := cluster.GetInstanceSnapshots(ctx, c.tx, filter)

@@ -233,7 +233,7 @@ func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]str
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		cached := true
-		images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{Cached: &cached, Project: &project})
+		images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{Cached: []bool{cached}, Project: []string{project}})
 		return err
 	})
 	if err != nil {
@@ -451,19 +451,23 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 		return -1, nil, errors.New("No fingerprint prefix specified for the image")
 	}
 
-	if filter.Project == nil {
+	if len(filter.Project) == 0 {
 		return -1, nil, errors.New("No project specified for the image")
 	}
 
-	profileProject := *filter.Project
-	enabled, err := cluster.ProjectHasImages(ctx, c.tx, *filter.Project)
+	if len(filter.Project) > 1 {
+		return -1, nil, errors.New("Specified more than one project")
+	}
+
+	profileProject := filter.Project[0]
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, profileProject)
 	if err != nil {
 		return -1, nil, fmt.Errorf("Check if project has images: %w", err)
 	}
 
 	if !enabled {
 		project := "default"
-		filter.Project = &project
+		filter.Project = []string{project}
 	}
 
 	images, err := c.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
@@ -555,17 +559,21 @@ FROM images
 JOIN projects ON images.project_id = projects.id
 WHERE images.fingerprint LIKE ?
 `
+	if len(filter.Project) > 1 {
+		return nil, errors.New("Specified more than one project")
+	}
+
 	args := []any{fingerprintPrefix + "%"}
 	if filter.Project != nil {
 		sql += `AND project = ?
 	`
-		args = append(args, *filter.Project)
+		args = append(args, filter.Project[0])
 	}
 
 	if filter.Public != nil {
 		sql += `AND images.public = ?
 	`
-		args = append(args, *filter.Public)
+		args = append(args, filter.Public[0])
 	}
 
 	sql += `ORDER BY projects.id, images.fingerprint
@@ -673,7 +681,7 @@ WHERE images.fingerprint = ?
 // AddImageToLocalNode creates a new entry in the images_nodes table for
 // tracking that the local member has the given image.
 func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
-	imageID, _, err := c.GetImage(fingerprint, cluster.ImageFilter{Project: &project})
+	imageID, _, err := c.GetImage(fingerprint, cluster.ImageFilter{Project: []string{project}})
 	if err != nil {
 		return err
 	}

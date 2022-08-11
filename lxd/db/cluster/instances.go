@@ -95,7 +95,7 @@ func (i *Instance) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Instance, error)
 		profileNames = append(profileNames, p.Name)
 	}
 
-	devices, err := GetInstanceDevices(ctx, tx, i.ID)
+	devices, err := GetInstanceDevices(ctx, tx, i.ID, DeviceFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (i *Instance) ToAPI(ctx context.Context, tx *sql.Tx) (*api.Instance, error)
 	apiDevices := DevicesToAPI(devices)
 	expandedDevices := ExpandInstanceDevices(config.NewDevices(apiDevices), apiProfiles)
 
-	config, err := GetInstanceConfig(ctx, tx, i.ID)
+	config, err := GetInstanceConfig(ctx, tx, i.ID, ConfigFilter{})
 	if err != nil {
 		return nil, err
 	}

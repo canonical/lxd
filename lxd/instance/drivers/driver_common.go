@@ -248,8 +248,8 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots for instance.
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.InstanceSnapshotFilter{
-			Project:  &d.project,
-			Instance: &d.name,
+			Project:  []string{d.project},
+			Instance: []string{d.name},
 		}
 
 		dbSnapshots, err := dbCluster.GetInstanceSnapshots(ctx, tx.Tx(), filter)

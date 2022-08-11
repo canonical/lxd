@@ -173,7 +173,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 		filter := cluster.WarningFilter{}
 
 		if projectName != "" {
-			filter.Project = &projectName
+			filter.Project = []string{projectName}
 		}
 
 		dbWarnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
@@ -445,7 +445,7 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 		// Retrieve warnings by resolved status.
 		statusResolved := warningtype.StatusResolved
 		filter := cluster.WarningFilter{
-			Status: &statusResolved,
+			Status: []warningtype.Status{statusResolved},
 		}
 
 		warnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
@@ -486,7 +486,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 	var url string
 	switch warning.EntityTypeCode {
 	case cluster.TypeImage:
-		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: &warning.EntityID})
+		entities, err := cluster.GetImages(ctx, tx, cluster.ImageFilter{ID: []int{warning.EntityID}})
 		if err != nil {
 			return "", err
 		}
@@ -498,7 +498,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 		apiImage := api.Image{Fingerprint: entities[0].Fingerprint}
 		url = apiImage.URL(version.APIVersion, entities[0].Project).String()
 	case cluster.TypeProfile:
-		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: &warning.EntityID})
+		entities, err := cluster.GetProfiles(ctx, tx, cluster.ProfileFilter{ID: []int{warning.EntityID}})
 		if err != nil {
 			return "", err
 		}
@@ -510,7 +510,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 		apiProfile := api.Profile{Name: entities[0].Name}
 		url = apiProfile.URL(version.APIVersion, entities[0].Project).String()
 	case cluster.TypeProject:
-		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: &warning.EntityID})
+		entities, err := cluster.GetProjects(ctx, tx, cluster.ProjectFilter{ID: []int{warning.EntityID}})
 		if err != nil {
 			return "", err
 		}
@@ -522,7 +522,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 		apiProject := api.Project{Name: entities[0].Name}
 		url = apiProject.URL(version.APIVersion).String()
 	case cluster.TypeCertificate:
-		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: &warning.EntityID})
+		entities, err := cluster.GetCertificates(ctx, tx, cluster.CertificateFilter{ID: []int{warning.EntityID}})
 		if err != nil {
 			return "", err
 		}
@@ -536,7 +536,7 @@ func getWarningEntityURL(ctx context.Context, tx *sql.Tx, warning *cluster.Warni
 	case cluster.TypeContainer:
 		fallthrough
 	case cluster.TypeInstance:
-		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: &warning.EntityID})
+		entities, err := cluster.GetInstances(ctx, tx, cluster.InstanceFilter{ID: []int{warning.EntityID}})
 		if err != nil {
 			return "", err
 		}

@@ -190,7 +190,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 		}
 
 		for _, profile := range profiles {
-			profileDevices, err := cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID)
+			profileDevices, err := cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID, cluster.DeviceFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading profile devices: %w", err)
 			}

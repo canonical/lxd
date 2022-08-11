@@ -72,7 +72,7 @@ func TestGetImage(t *testing.T) {
 	require.NoError(t, err)
 
 	// 'public' is ignored if 'false'
-	id, img, err := dbCluster.GetImage("a", cluster.ImageFilter{Project: &project})
+	id, img, err := dbCluster.GetImage("a", cluster.ImageFilter{Project: []string{project}})
 	require.NoError(t, err)
 	assert.Equal(t, img.Public, true)
 	assert.NotEqual(t, id, -1)
@@ -86,11 +86,11 @@ func TestGetImage(t *testing.T) {
 	require.Error(t, err)
 
 	// 'public' is ignored if 'false', returning both entries
-	_, _, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: &project})
+	_, _, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: []string{project}})
 	require.Error(t, err)
 
 	public := true
-	id, img, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: &project, Public: &public})
+	id, img, err = dbCluster.GetImage("a", cluster.ImageFilter{Project: []string{project}, Public: []bool{public}})
 	require.NoError(t, err)
 	assert.Equal(t, img.Public, true)
 	assert.NotEqual(t, id, -1)

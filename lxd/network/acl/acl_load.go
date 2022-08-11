@@ -123,7 +123,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		}
 
 		for _, profile := range profiles {
-			profileDevices[profile.Name], err = cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID)
+			profileDevices[profile.Name], err = cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID, cluster.DeviceFilter{})
 			if err != nil {
 				return err
 			}

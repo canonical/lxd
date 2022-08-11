@@ -151,7 +151,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	var result any
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.ProfileFilter{
-			Project: &projectName,
+			Project: []string{projectName},
 		}
 
 		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)

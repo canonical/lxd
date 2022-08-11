@@ -4689,7 +4689,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 	leases := []api.NetworkLease{}
 
 	filter := dbCluster.InstanceFilter{
-		Project: &projectName,
+		Project: []string{projectName},
 	}
 
 	err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {

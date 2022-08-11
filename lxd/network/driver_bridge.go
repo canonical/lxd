@@ -2664,7 +2664,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 			// If we are the first forward on this bridge, enable hairpin mode on active NIC ports.
 			if len(listenAddresses) <= 1 {
 				filter := dbCluster.InstanceFilter{
-					Node: &n.state.ServerName,
+					Node: []string{n.state.ServerName},
 				}
 
 				err = n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
@@ -2928,7 +2928,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 		// Get all the instances in project.
 		filter := dbCluster.InstanceFilter{
-			Project: &projectName,
+			Project: []string{projectName},
 		}
 
 		err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {

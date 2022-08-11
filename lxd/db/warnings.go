@@ -60,11 +60,11 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		filter := cluster.WarningFilter{
-			TypeCode:       &typeCode,
-			Node:           &nodeName,
-			Project:        &projectName,
-			EntityTypeCode: &entityTypeCode,
-			EntityID:       &entityID,
+			TypeCode:       []warningtype.Type{typeCode},
+			Node:           []string{nodeName},
+			Project:        []string{projectName},
+			EntityTypeCode: []int{entityTypeCode},
+			EntityID:       []int{entityID},
 		}
 
 		warnings, err := cluster.GetWarnings(ctx, tx.tx, filter)

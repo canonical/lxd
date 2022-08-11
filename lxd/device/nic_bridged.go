@@ -360,7 +360,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 func (d *nicBridged) checkAddressConflict() error {
 	node := d.inst.Location()
 	filter := cluster.InstanceFilter{
-		Node: &node, // Managed bridge networks have a per-server DHCP daemon.
+		Node: []string{node}, // Managed bridge networks have a per-server DHCP daemon.
 	}
 
 	ourNICIPs := make(map[string]net.IP, 2)

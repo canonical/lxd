@@ -54,7 +54,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	}
 
 	filter := cluster.InstanceFilter{
-		Node: &s.ServerName,
+		Node: []string{s.ServerName},
 	}
 
 	reservedDevices := map[string]struct{}{}

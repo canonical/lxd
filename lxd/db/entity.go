@@ -259,7 +259,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			id := int64(entityID)
-			filter := cluster.OperationFilter{ID: &id}
+			filter := cluster.OperationFilter{ID: []int64{id}}
 			ops, err := cluster.GetOperations(ctx, tx.tx, filter)
 			if err != nil {
 				return err

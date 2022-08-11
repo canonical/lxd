@@ -189,7 +189,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var result *api.Image
 	project := "default"
 
-	_, result, err = s.db.GetImage("fingerprint", cluster.ImageFilter{Project: &project})
+	_, result, err = s.db.GetImage("fingerprint", cluster.ImageFilter{Project: []string{project}})
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -202,7 +202,7 @@ func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	project := "default"
 	var err error
 
-	_, _, err = s.db.GetImage("unknown", cluster.ImageFilter{Project: &project})
+	_, _, err = s.db.GetImage("unknown", cluster.ImageFilter{Project: []string{project}})
 	s.True(api.StatusErrorCheck(err, http.StatusNotFound))
 }
 
@@ -250,7 +250,7 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 	project := "default"
-	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: &project})
+	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: []string{project}})
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
@@ -263,7 +263,7 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 	project := "default"
-	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: &project})
+	imageID, _, err := s.db.GetImage("fingerprint", cluster.ImageFilter{Project: []string{project}})
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")

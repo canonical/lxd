@@ -356,7 +356,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		nodeID := tx.GetNodeID()
-		filter := cluster.OperationFilter{NodeID: &nodeID}
+		filter := cluster.OperationFilter{NodeID: []int64{nodeID}}
 		operations, err = cluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err

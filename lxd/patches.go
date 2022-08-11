@@ -427,7 +427,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 			}
 
 			for _, snap := range snaps {
-				config, err := dbCluster.GetInstanceConfig(ctx, tx.Tx(), snap.ID)
+				config, err := dbCluster.GetInstanceConfig(ctx, tx.Tx(), snap.ID, dbCluster.ConfigFilter{})
 				if err != nil {
 					return err
 				}

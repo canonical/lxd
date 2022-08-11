@@ -451,11 +451,11 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	var instances []Instance
 
 	filter := cluster.InstanceFilter{
-		Type: &instanceType,
+		Type: []instancetype.Type{instanceType},
 	}
 
 	if s.ServerName != "" {
-		filter.Node = &s.ServerName
+		filter.Node = []string{s.ServerName}
 	}
 
 	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
@@ -597,7 +597,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 
 		var image *api.Image
 		for _, imageHash := range hashes {
-			_, img, err := s.DB.Cluster.GetImage(imageHash, cluster.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(imageHash, cluster.ImageFilter{Project: []string{project}})
 			if err != nil {
 				continue
 			}
@@ -681,7 +681,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.DB.Cluster.GetImage(hash, cluster.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(hash, cluster.ImageFilter{Project: []string{project}})
 			if err != nil {
 				return nil, err
 			}

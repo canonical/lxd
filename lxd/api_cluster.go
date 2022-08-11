@@ -2713,7 +2713,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 	var dbInstances []dbCluster.Instance
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
-		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Node: &nodeName})
+		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{Node: []string{nodeName}})
 		if err != nil {
 			return fmt.Errorf("Failed to get instances: %w", err)
 		}

@@ -189,17 +189,17 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 // storage volumes, networks, and acls that use this project.
 func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Project) ([]string, error) {
 	usedBy := []string{}
-	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
+	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: []string{project.Name}})
 	if err != nil {
 		return nil, err
 	}
 
-	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
+	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: []string{project.Name}})
 	if err != nil {
 		return nil, err
 	}
 
-	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
+	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: []string{project.Name}})
 	if err != nil {
 		return nil, err
 	}
@@ -973,7 +973,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 
 // Check if a project is empty.
 func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.ClusterTx) (bool, error) {
-	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: &project.Name})
+	instances, err := cluster.GetInstances(ctx, tx.Tx(), cluster.InstanceFilter{Project: []string{project.Name}})
 	if err != nil {
 		return false, err
 	}
@@ -982,7 +982,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: &project.Name})
+	images, err := cluster.GetImages(ctx, tx.Tx(), cluster.ImageFilter{Project: []string{project.Name}})
 	if err != nil {
 		return false, err
 	}
@@ -991,7 +991,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: &project.Name})
+	profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{Project: []string{project.Name}})
 	if err != nil {
 		return false, err
 	}

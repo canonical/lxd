@@ -94,7 +94,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	var img *api.Image
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, dbCluster.ImageFilter{Project: &args.Project})
+		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, dbCluster.ImageFilter{Project: []string{args.Project}})
 		if err != nil {
 			return fmt.Errorf("Fetch image %s from database: %w", hash, err)
 		}
@@ -398,12 +398,12 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	var instances []instance.Instance
 
 	filter := dbCluster.InstanceFilter{
-		Type:    &instanceType,
-		Project: &project,
+		Type:    []instancetype.Type{instanceType},
+		Project: []string{project},
 	}
 
 	if s.ServerName != "" {
-		filter.Node = &s.ServerName
+		filter.Node = []string{s.ServerName}
 	}
 
 	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
@@ -448,7 +448,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 				// Get instances.
 				filter := db.InstanceTypeFilter(instancetype.Any)
-				filter.Project = &p.Name
+				filter.Project = []string{p.Name}
 
 				entries, err := tx.GetLocalInstancesInProject(ctx, filter)
 				if err != nil {

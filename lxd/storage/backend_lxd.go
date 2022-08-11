@@ -1870,7 +1870,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 			if fingerprint != "" {
 				// Confirm that the image is present in the project.
-				_, _, err = b.state.DB.Cluster.GetImage(fingerprint, cluster.ImageFilter{Project: &projectName})
+				_, _, err = b.state.DB.Cluster.GetImage(fingerprint, cluster.ImageFilter{Project: []string{projectName}})
 				if err != nil && !response.IsNotFoundError(err) {
 					return err
 				}
