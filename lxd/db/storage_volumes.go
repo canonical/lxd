@@ -113,7 +113,9 @@ WHERE storage_volumes.id = ?
 // Accepts a volumeTypesProject argument that allows filtering by specific volume types in specific project names.
 // If volumeTypesProject is empty then all volumes are returned. If the project name for a specific volume type is
 // empty then all volumes of that type across all projects are included.
-func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[int]string) (map[string]map[int64]*api.StorageVolume, error) {
+// If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
+// all members.
+func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[int]string, memberSpecific bool) (map[string]map[int64]*api.StorageVolume, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{poolID}
 
@@ -132,8 +134,13 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[i
 		WHERE storage_volumes_all.storage_pool_id = ?
 	`)
 
+	if memberSpecific {
+		q.WriteString("AND (storage_volumes_all.node_id = ? OR storage_volumes_all.node_id IS NULL) ")
+		args = append(args, c.nodeID)
+	}
+
 	if len(volumeTypesProject) > 0 {
-		q.WriteString(" AND (")
+		q.WriteString("AND (")
 		i := 0
 
 		for volumeType, projectName := range volumeTypesProject {
