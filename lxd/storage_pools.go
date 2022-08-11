@@ -165,7 +165,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool.Name(), false, true)
+			poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool, false, false)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -582,9 +582,9 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	allNodes := false
-	if clustered && queryParam(r, "target") == "" {
-		allNodes = true
+	memberSpecific := false
+	if queryParam(r, "target") != "" {
+		memberSpecific = true
 	}
 
 	// Get the existing storage pool.
@@ -594,7 +594,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), poolName, false, allNodes)
+	poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool, false, memberSpecific)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -608,12 +608,12 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If no member is specified and the daemon is clustered, we omit the node-specific fields.
-	if allNodes {
+	if clustered && !memberSpecific {
 		for _, key := range db.NodeSpecificStorageConfig {
 			delete(poolAPI.Config, key)
 		}
 	} else {
-		// Use local status if not clustered. To allow seeing unavailable pools.
+		// Use local status if not clustered or memberSpecific. To allow seeing unavailable pools.
 		poolAPI.Status = pool.LocalStatus()
 	}
 

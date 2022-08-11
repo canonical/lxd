@@ -194,14 +194,14 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 }
 
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
-func (c *Cluster) GetImagesFingerprints(project string, public bool) ([]string, error) {
+func (c *Cluster) GetImagesFingerprints(project string, publicOnly bool) ([]string, error) {
 	q := `
 SELECT fingerprint
   FROM images
   JOIN projects ON projects.id = images.project_id
  WHERE projects.name = ?
 `
-	if public {
+	if publicOnly {
 		q += " AND public=1"
 	}
 
@@ -1310,4 +1310,33 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdat
 		return err
 	})
 	return addresses, err
+}
+
+// GetProjectsUsingImage get the project names using an image by fingerprint.
+func (c *ClusterTx) GetProjectsUsingImage(fingerprint string) ([]string, error) {
+	var err error
+	var imgProjectNames []string
+
+	q := `
+		SELECT projects.name
+		FROM images
+		JOIN projects ON projects.id=images.project_id
+		WHERE fingerprint = ?
+	`
+	err = c.QueryScan(q, func(scan func(dest ...any) error) error {
+		var imgProjectName string
+		err = scan(&imgProjectName)
+		if err != nil {
+			return err
+		}
+
+		imgProjectNames = append(imgProjectNames, imgProjectName)
+
+		return nil
+	}, fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	return imgProjectNames, nil
 }

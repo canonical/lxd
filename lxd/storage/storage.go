@@ -2,13 +2,18 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sort"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // InstancePath returns the directory of an instance or snapshot.
@@ -122,18 +127,101 @@ func CreateSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 
 // UsedBy returns list of API resources using storage pool. Accepts firstOnly argument to indicate that only the
 // first resource using network should be returned. This can help to quickly check if the storage pool is in use.
-func UsedBy(ctx context.Context, s *state.State, poolName string, firstOnly bool, allNodes bool) ([]string, error) {
+// If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
+// all members. The ignoreVolumeType argument can be used to exclude certain volume type(s) from the list.
+func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memberSpecific bool, ignoreVolumeType ...string) ([]string, error) {
 	var err error
 	var usedBy []string
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
-		usedBy, err = tx.GetStoragePoolUsedBy(poolName, allNodes)
+		// Get all the volumes using the storage pool.
+		projectsVolumes, err := tx.GetStoragePoolVolumes(pool.ID(), nil, memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading volumes: %w", err)
+		}
+
+		for projectName, projectVolumes := range projectsVolumes {
+			for _, vol := range projectVolumes {
+				var u *api.URL
+
+				if shared.StringInSlice(vol.Type, ignoreVolumeType) {
+					continue
+				}
+
+				// Generate URL for volume based on types that map to other entities.
+				if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
+					volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+					if isSnap {
+						u = api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(projectName)
+					} else {
+						u = api.NewURL().Path(version.APIVersion, "instances", volName).Project(projectName)
+					}
+
+					usedBy = append(usedBy, u.String())
+				} else if vol.Type == db.StoragePoolVolumeTypeNameImage {
+					imgProjectNames, err := tx.GetProjectsUsingImage(vol.Name)
+					if err != nil {
+						return fmt.Errorf("Failed loading projects using image %q: %w", vol.Name, err)
+					}
+
+					if len(imgProjectNames) > 0 {
+						for _, imgProjectName := range imgProjectNames {
+							u = api.NewURL().Path(version.APIVersion, "images", vol.Name).Project(imgProjectName).Target(vol.Location)
+							usedBy = append(usedBy, u.String())
+						}
+					} else {
+						// Handle orphaned image volumes that are not associated to an image.
+						u = vol.URL(version.APIVersion, pool.Name(), projectName)
+						usedBy = append(usedBy, u.String())
+					}
+				} else {
+					u = vol.URL(version.APIVersion, pool.Name(), projectName)
+					usedBy = append(usedBy, u.String())
+				}
+
+				if firstOnly {
+					return nil
+				}
+			}
+		}
+
+		// Get all the profiles using the storage pool.
+		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		if err != nil {
+			return fmt.Errorf("Failed loading profiles: %w", err)
+		}
+
+		for _, profile := range profiles {
+			profileDevices, err := cluster.GetProfileDevices(ctx, tx.Tx(), profile.ID)
+			if err != nil {
+				return fmt.Errorf("Failed loading profile devices: %w", err)
+			}
+
+			for _, device := range profileDevices {
+				if device.Type != cluster.TypeDisk {
+					continue
+				}
+
+				if device.Config["pool"] != pool.Name() {
+					continue
+				}
+
+				u := api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(profile.Project)
+				usedBy = append(usedBy, u.String())
+
+				if firstOnly {
+					return nil
+				}
+			}
+		}
 
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	sort.Strings(usedBy)
 
 	return usedBy, nil
 }
