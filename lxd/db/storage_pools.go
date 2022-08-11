@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -44,137 +42,6 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 	}
 
 	return pools, nil
-}
-
-// GetStoragePoolUsedBy looks up all users of a storage pool.
-func (c *ClusterTx) GetStoragePoolUsedBy(name string, allNodes bool) ([]string, error) {
-	usedby := []string{}
-
-	// Get the pool ID.
-	id, err := c.GetStoragePoolID(name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the cluster nodes.
-	nodes, err := c.GetNodes()
-	if err != nil {
-		return nil, err
-	}
-
-	nodesName := map[int64]string{}
-
-	for _, node := range nodes {
-		nodesName[node.ID] = node.Name
-	}
-
-	// Get all the storage volumes on this node.
-	type vol struct {
-		volName     string
-		volType     int64
-		projectName string
-		nodeID      *int64
-	}
-
-	var vols []vol
-	dest := func(i int) []any {
-		vols = append(vols, vol{})
-
-		return []any{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
-	}
-
-	nodePredicate := "node_id=?"
-	if allNodes {
-		nodePredicate = "node_id IS NOT NULL"
-	}
-
-	s := fmt.Sprintf(`
-SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id
-  FROM storage_volumes
-  JOIN projects ON projects.id=storage_volumes.project_id
-  JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
-  WHERE storage_pool_id=? AND ((%s OR node_id IS NULL) OR storage_volumes.type == 2)
-  ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC`, nodePredicate)
-
-	stmt, err := c.tx.Prepare(s)
-	if err != nil {
-		return nil, err
-	}
-
-	args := []any{id}
-	if !allNodes {
-		args = append(args, c.nodeID)
-	}
-
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	appendVolume := func(r vol, u *api.URL) {
-		if allNodes && r.nodeID != nil {
-			u.Target(nodesName[*r.nodeID])
-		}
-
-		usedby = append(usedby, u.String())
-	}
-
-	for _, r := range vols {
-		// Handle instances.
-		if r.volType == StoragePoolVolumeTypeContainer || r.volType == StoragePoolVolumeTypeVM {
-			appendVolume(r, api.NewURL().Path("1.0", "instances", r.volName).Project(r.projectName))
-		}
-
-		// Handle images.
-		if r.volType == StoragePoolVolumeTypeImage {
-			// Get the projects using an image.
-			stmt := "SELECT projects.name FROM images JOIN projects ON projects.id=images.project_id WHERE fingerprint=?"
-			projects, err := query.SelectStrings(c.tx, stmt, r.volName)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, project := range projects {
-				appendVolume(r, api.NewURL().Path("1.0", "images", r.volName).Project(project))
-			}
-		}
-
-		// Handle custom storage volumes.
-		if r.volType == StoragePoolVolumeTypeCustom {
-			appendVolume(r, api.NewURL().Path("1.0", "storage-pools", name, "volumes", "custom", r.volName).Project(r.projectName))
-		}
-	}
-
-	// Get all the profiles using the storage pool.
-	profiles, err := cluster.GetProfiles(context.TODO(), c.tx, cluster.ProfileFilter{})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, profile := range profiles {
-		profileDevices, err := cluster.GetProfileDevices(context.TODO(), c.tx, profile.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, device := range profileDevices {
-			if device.Type != cluster.TypeDisk {
-				continue
-			}
-
-			if device.Config["pool"] != name {
-				continue
-			}
-
-			u := api.NewURL().Path("1.0", "profiles", profile.Name).Project(profile.Project)
-			usedby = append(usedby, u.String())
-		}
-	}
-
-	// Sort the output.
-	sort.Strings(usedby)
-
-	return usedby, nil
 }
 
 // GetStoragePoolID returns the ID of the pool with the given name.
