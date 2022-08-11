@@ -123,12 +123,15 @@ type StorageVolume struct {
 // URL returns the URL for the volume.
 func (v *StorageVolume) URL(apiVersion string, poolName string, projectName string) *URL {
 	u := NewURL()
+
 	volName, snapName, isSnap := GetParentAndSnapshotName(v.Name)
 	if isSnap {
-		return u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName, "snapshots", snapName).Project(projectName)
+		u = u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName, "snapshots", snapName)
+	} else {
+		u = u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName)
 	}
 
-	return u.Path(apiVersion, "storage-pools", poolName, "volumes", v.Type, volName).Project(projectName)
+	return u.Project(projectName).Target(v.Location)
 }
 
 // StorageVolumePut represents the modifiable fields of a LXD storage volume
