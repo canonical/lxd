@@ -165,7 +165,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool.Name(), false, true)
+			poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool, false, false)
 			if err != nil {
 				return response.SmartError(err)
 			}
