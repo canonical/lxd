@@ -254,22 +254,12 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 
 // IsUsed returns whether the storage pool is used by any volumes or profiles (excluding image volumes).
 func (b *lxdBackend) IsUsed() (bool, error) {
-	// Get all users of the storage pool.
-	poolUsedBy, err := UsedBy(context.TODO(), b.state, b.name, false, false)
+	usedBy, err := UsedBy(context.TODO(), b.state, b, true, true, db.StoragePoolVolumeTypeNameImage)
 	if err != nil {
 		return false, err
 	}
 
-	for _, entry := range poolUsedBy {
-		// Images are never considered a user of the pool.
-		if strings.HasPrefix(entry, "/1.0/images/") {
-			continue
-		}
-
-		return true, nil
-	}
-
-	return false, nil
+	return len(usedBy) > 0, nil
 }
 
 // Update updates the pool config.
