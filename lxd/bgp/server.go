@@ -41,6 +41,7 @@ type peer struct {
 	address  net.IP
 	asn      uint32
 	password string
+	holdtime uint64
 	count    int
 }
 
@@ -132,7 +133,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 
 	// Add any existing peers.
 	for _, peer := range s.peers {
-		err := s.addPeer(peer.address, peer.asn, peer.password)
+		err := s.addPeer(peer.address, peer.asn, peer.password, peer.holdtime)
 		if err != nil {
 			return err
 		}
@@ -389,15 +390,15 @@ func (s *Server) removePrefixByUUID(pathUUID string) error {
 }
 
 // AddPeer adds a new BGP peer.
-func (s *Server) AddPeer(address net.IP, asn uint32, password string) error {
+func (s *Server) AddPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
 	// Locking.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.addPeer(address, asn, password)
+	return s.addPeer(address, asn, password, holdTime)
 }
 
-func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
+func (s *Server) addPeer(address net.IP, asn uint32, password string, holdTime uint64) error {
 	// Look for an existing peer.
 	bgpPeer, bgpPeerExists := s.peers[address.String()]
 	if bgpPeerExists {
@@ -435,6 +436,15 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
 			Enabled:     true,
 			MultihopTtl: 255,
 		},
+	}
+
+	// Add hold time if configured.
+	if holdTime > 0 {
+		n.Timers = &bgpAPI.Timers{
+			Config: &bgpAPI.TimersConfig{
+				HoldTime: holdTime,
+			},
+		}
 	}
 
 	// Setup peer for dual-stack.
@@ -478,6 +488,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
 			address:  address,
 			asn:      asn,
 			password: password,
+			holdtime: holdTime,
 			count:    1,
 		}
 	}

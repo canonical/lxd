@@ -68,6 +68,7 @@ Set the following configuration options on the uplink network:
 - `bgp.peers.<name>.address` - the peer address to be used by the downstream networks
 - `bgp.peers.<name>.asn` - the {abbr}`ASN (Autonomous System Number)` for the local server
 - `bgp.peers.<name>.password` - an optional password for the peer session
+- `bgp.peers.<name>.holdtime` - an optional hold time for the peer session (in seconds)
 
 Once the uplink network is configured, downstream OVN networks will get their external subnets and addresses announced over BGP.
 The next-hop is set to the address of the OVN router on the uplink network.
