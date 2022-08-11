@@ -558,7 +558,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !req.Source.Refresh {
-			return response.Conflict(fmt.Errorf("Volume name %q already exists.", req.Name))
+			return response.Conflict(fmt.Errorf("Volume name %q already exists", req.Name))
 		}
 	}
 
