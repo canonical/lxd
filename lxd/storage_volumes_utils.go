@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -87,33 +85,21 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	return nil
 }
 
-// volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct)).
+// storagePoolVolumeUsedByGet returns a list of URL resources that use the volume.
 func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName string, vol *api.StorageVolume) ([]string, error) {
 	// Handle instance volumes.
 	if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
-		cName, sName, snap := api.GetParentAndSnapshotName(vol.Name)
-		if snap {
-			if projectName == project.Default {
-				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
-			}
-
-			return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cName, sName, projectName)}, nil
+		volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+		if isSnap {
+			return []string{api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(projectName).String()}, nil
 		}
 
-		if projectName == project.Default {
-			return []string{fmt.Sprintf("/%s/instances/%s", version.APIVersion, cName)}, nil
-		}
-
-		return []string{fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, cName, projectName)}, nil
+		return []string{api.NewURL().Path(version.APIVersion, "instances", volName).Project(projectName).String()}, nil
 	}
 
 	// Handle image volumes.
 	if vol.Type == db.StoragePoolVolumeTypeNameImage {
-		if projectName == project.Default {
-			return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, vol.Name)}, nil
-		}
-
-		return []string{fmt.Sprintf("/%s/images/%s?project=%s", version.APIVersion, vol.Name, projectName)}, nil
+		return []string{api.NewURL().Path(version.APIVersion, "images", vol.Name).Project(projectName).Target(vol.Location).String()}, nil
 	}
 
 	// Check if the daemon itself is using it.
@@ -123,7 +109,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	}
 
 	if used {
-		return []string{fmt.Sprintf("/%s", version.APIVersion)}, nil
+		return []string{api.NewURL().Path(version.APIVersion).String()}, nil
 	}
 
 	// Look for instances using this volume.
@@ -132,12 +118,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	// Pass false to expandDevices, as we only want to see instances directly using a volume, rather than their
 	// profiles using a volume.
 	err = storagePools.VolumeUsedByInstanceDevices(s, poolName, projectName, vol, false, func(inst db.InstanceArgs, p api.Project, usedByDevices []string) error {
-		if inst.Project == project.Default {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name))
-		} else {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/instances/%s?project=%s", version.APIVersion, inst.Name, inst.Project))
-		}
-
+		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 		return nil
 	})
 	if err != nil {
@@ -145,12 +126,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 	}
 
 	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profileID int64, profile api.Profile, p cluster.Project, usedByDevices []string) error {
-		if p.Name == project.Default {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name))
-		} else {
-			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s?project=%s", version.APIVersion, profile.Name, p.Name))
-		}
-
+		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(p.Name).String())
 		return nil
 	})
 	if err != nil {
