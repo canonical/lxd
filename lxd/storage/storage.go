@@ -183,6 +183,21 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 			}
 		}
 
+		// Get all buckets using the storage pool.
+		buckets, err := tx.GetStoragePoolBuckets(pool.ID(), memberSpecific)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage buckets: %w", err)
+		}
+
+		for _, bucket := range buckets {
+			u := bucket.URL(version.APIVersion, pool.Name(), bucket.Project)
+			usedBy = append(usedBy, u.String())
+
+			if firstOnly {
+				return nil
+			}
+		}
+
 		// Get all the profiles using the storage pool.
 		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
 		if err != nil {
