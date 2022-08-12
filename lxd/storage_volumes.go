@@ -313,8 +313,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	recursion := util.IsRecursionRequest(r)
-
 	filterStr := r.FormValue("filter")
 	var clauses []filter.Clause
 	if filterStr != "" {
@@ -397,53 +395,47 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
-	for _, dbVolume := range dbVolumes {
-		// Filter out image volumes that are not used by this project.
-		if dbVolume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(dbVolume.Name, projectImages) {
-			continue
-		}
-
-		volumes = append(volumes, &dbVolume.StorageVolume)
-	}
+	dbVolumes = filterVolumes(dbVolumes, clauses, projectImages)
 
 	// Sort by type then volume name.
-	sort.SliceStable(volumes, func(i, j int) bool {
-		volA := volumes[i]
-		volB := volumes[j]
+	sort.SliceStable(dbVolumes, func(i, j int) bool {
+		volA := dbVolumes[i]
+		volB := dbVolumes[j]
 
 		if volA.Type != volB.Type {
-			return volumes[i].Type < volumes[j].Type
+			return dbVolumes[i].Type < dbVolumes[j].Type
 		}
 
 		return volA.Name < volB.Name
 	})
 
-	volumes = filterVolumes(volumes, clauses)
+	if util.IsRecursionRequest(r) {
+		volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
+		for _, dbVol := range dbVolumes {
+			vol := &dbVol.StorageVolume
 
-	var urls []string
-	for _, vol := range volumes {
-		if !recursion {
-			urls = append(urls, vol.URL(version.APIVersion, poolName, projectName).String())
-		} else {
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
 			if err != nil {
 				return response.InternalError(err)
 			}
 
 			vol.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
+			volumes = append(volumes, vol)
 		}
+
+		return response.SyncResponse(true, volumes)
 	}
 
-	if !recursion {
-		return response.SyncResponse(true, urls)
+	urls := make([]string, 0, len(dbVolumes))
+	for _, dbVol := range dbVolumes {
+		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion, poolName, projectName).String())
 	}
 
-	return response.SyncResponse(true, volumes)
+	return response.SyncResponse(true, urls)
 }
 
 // filterVolumes returns a filtered list of volumes that match the given clauses.
-func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api.StorageVolume {
+func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, filterProjectImages []string) []*db.StorageVolume {
 	// FilterStorageVolume is for filtering purpose only.
 	// It allows to filter snapshots by using default filter mechanism.
 	type FilterStorageVolume struct {
@@ -451,10 +443,15 @@ func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api
 		Snapshot          string `yaml:"snapshot"`
 	}
 
-	filtered := []*api.StorageVolume{}
+	filtered := []*db.StorageVolume{}
 	for _, volume := range volumes {
+		// Filter out image volumes that are not used by this project.
+		if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, filterProjectImages) {
+			continue
+		}
+
 		tmpVolume := FilterStorageVolume{
-			StorageVolume: *volume,
+			StorageVolume: volume.StorageVolume,
 			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
 		}
 
