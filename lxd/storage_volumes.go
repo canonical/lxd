@@ -1747,8 +1747,19 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// isImageURL checks whether the provided usedByURL represents an image resource for the fingerprint.
+	isImageURL := func(usedByURL string, fingerprint string) bool {
+		usedBy, _ := url.Parse(usedByURL)
+		if usedBy == nil {
+			return false
+		}
+
+		img := api.NewURL().Path(version.APIVersion, "images", fingerprint)
+		return usedBy.Path == img.URL.Path
+	}
+
 	if len(volumeUsedBy) > 0 {
-		if len(volumeUsedBy) != 1 || volumeType != db.StoragePoolVolumeTypeImage || volumeUsedBy[0] != fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName) {
+		if len(volumeUsedBy) != 1 || volumeType != db.StoragePoolVolumeTypeImage || !isImageURL(volumeUsedBy[0], dbVolume.Name) {
 			return response.BadRequest(fmt.Errorf("The storage volume is still in use"))
 		}
 	}
