@@ -40,28 +40,20 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
+	// Detect project mode.
+	projectName := queryParam(r, "project")
 	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
-	projectQueryParam := queryParam(r, "project")
-	if allProjects && projectQueryParam != "" {
-		response.BadRequest(fmt.Errorf("Cannot specify a project when requesting events for all projects"))
-		return nil
+
+	if allProjects && projectName != "" {
+		return api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects")
+	} else if !allProjects && projectName == "" {
+		projectName = project.Default
 	}
 
-	var projectName string
-	if !allProjects {
-		if projectQueryParam == "" {
-			projectName = project.Default
-		} else {
-			projectName = projectQueryParam
-
-			_, err := d.db.GetProject(context.Background(), projectName)
-			if err != nil {
-				if response.IsNotFoundError(err) {
-					_ = response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
-				}
-
-				return err
-			}
+	if !allProjects && projectName != project.Default {
+		_, err := d.db.GetProject(context.Background(), projectName)
+		if err != nil {
+			return err
 		}
 	}
 
