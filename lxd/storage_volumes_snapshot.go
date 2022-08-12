@@ -379,7 +379,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
 	for _, volume := range volumes {
-		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(volume.Name)
+		_, snapshotName, _ := api.GetParentAndSnapshotName(volume.Name)
 
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
@@ -1387,7 +1387,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
+		_, snapOnlyName, _ := api.GetParentAndSnapshotName(snap.Name)
 
 		if snapOnlyName == pattern {
 			snapshotExists = true

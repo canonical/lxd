@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
@@ -826,7 +827,7 @@ func (d *lvm) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *lvm) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, snapVol.config, snapVol.poolConfig)
 	snapPath := snapVol.MountPath()
 
@@ -911,7 +912,7 @@ func (d *lvm) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	err = deleteParentSnapshotDirIfEmpty(d.name, snapVol.volType, parentName)
 	if err != nil {
 		return err
@@ -1319,7 +1320,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 func (d *lvm) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	newSnapVolName := GetSnapshotVolumeName(parentName, newSnapshotName)
 	newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, newSnapVolName)
 	err := d.renameLogicalVolume(volDevPath, newVolDevPath)

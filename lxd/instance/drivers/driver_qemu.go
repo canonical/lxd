@@ -4170,7 +4170,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	if d.IsSnapshot() {
-		_, newSnapName, _ := shared.InstanceGetParentAndSnapshotName(newName)
+		_, newSnapName, _ := api.GetParentAndSnapshotName(newName)
 		err = pool.RenameInstanceSnapshot(d, newSnapName, nil)
 		if err != nil {
 			return fmt.Errorf("Rename instance snapshot: %w", err)
@@ -5006,7 +5006,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// If dealing with a snapshot, refresh the backup file on the parent.
 	if d.IsSnapshot() {
-		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 
 		// Load the parent.
 		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
@@ -5093,7 +5093,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		// Get the instance's architecture.
 		var arch string
 		if d.IsSnapshot() {
-			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+			parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
 			if err != nil {
 				_ = tarWriter.Close()

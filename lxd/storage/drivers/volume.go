@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/refcount"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -191,7 +192,7 @@ func (v Volume) EnsureMountPath() error {
 	if !shared.PathExists(volPath) {
 		if v.IsSnapshot() {
 			// Create the parent directory if needed.
-			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(v.name)
+			parentName, _, _ := api.GetParentAndSnapshotName(v.name)
 			err := createParentSnapshotDirIfMissing(v.pool, v.volType, parentName)
 			if err != nil {
 				return err

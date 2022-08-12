@@ -1,7 +1,6 @@
 package lifecycle
 
 import (
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -19,7 +18,7 @@ const (
 
 // Event creates the lifecycle event for an action on an instance snapshot.
 func (a InstanceSnapshotAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
-	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	parentName, snapName, _ := api.GetParentAndSnapshotName(inst.Name())
 
 	u := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(inst.Project())
 
