@@ -173,6 +173,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		buf.L("parts := strings.Split(queryStr, \"ORDER BY\")")
 		buf.L("args := make([]any, 0, DqliteMaxParams)")
+		buf.L("for i, filter := range filters {")
+		buf.L("cond := \"( \"")
 		for i, filter := range mapping.Filters {
 			// Skip over filter fields that are themselves filters for a referenced table.
 			found := false
@@ -188,13 +190,11 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			}
 
 			buf.L("if len(filter.%s) > 0 {", filter.Name)
-			where := "WHERE"
 			if i > 0 {
-				where = "AND"
+				buf.L("cond += \"AND \"")
 			}
 
-			buf.L("parts[0] += \"%s \"", where)
-			buf.L("parts[0] += fmt.Sprintf(\"%s IN (?%%s)\\n\", strings.Repeat(\", ?\", len(filter.%s)))", lex.Minuscule(filter.Name), filter.Name)
+			buf.L("cond += fmt.Sprintf(\"%s IN (?%%s) \", strings.Repeat(\", ?\", len(filter.%s)))", lex.Minuscule(filter.Name), filter.Name)
 			buf.L("}")
 			buf.N()
 			buf.L("for _, arg := range filter.%s {", filter.Name)
@@ -203,7 +203,19 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.N()
 		}
 
-		buf.L("queryStr = strings.Join(parts, \"ORDER BY\")")
+		buf.L("cond += \")\"")
+		buf.L("if cond != \"( )\" {")
+		buf.L("if i > 0 {")
+		buf.L("parts[0] += \" OR \"")
+		buf.L("} else {")
+		buf.L("parts[0] += \"WHERE \"")
+		buf.L("}")
+		buf.N()
+		buf.L("parts[0] += cond")
+		buf.L("}")
+		buf.L("}")
+		buf.N()
+		buf.L("queryStr = strings.Join(parts, \"\\nORDER BY\")")
 	} else if mapping.Type == AssociationTable {
 		filter := m.config["struct"] + "ID"
 		if m.db == "" {
@@ -222,6 +234,17 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("args := make([]any, 0, DqliteMaxParams)")
 		buf.N()
 
+		buf.L("if len(filters) == 0 {")
+		if m.db == "" {
+			buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
+		} else {
+			buf.L("sqlStmt = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+		}
+
+		buf.L("}")
+		buf.N()
+
+		buf.L("for i, filter := range filters {")
 		for i, filters := range stmtVarFilters {
 			branch := "if"
 			if i > 0 {
@@ -237,7 +260,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 				buf.N()
 			}
 
-			buf.L("if %s {", activeCriteria(nil, filters, "1"))
+			buf.L("if len(filters) == 1 && %s {", activeCriteria(nil, filters, "1"))
 			if m.db == "" {
 				buf.L("sqlStmt = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filters...))
 			} else {
@@ -246,15 +269,28 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 			buf.L("} else {")
 			if m.db == "" {
-				buf.L("queryStr = StmtString(%s)", stmtCodeVar(m.entity, "objects", filters...))
+				buf.L("query := StmtString(%s)", stmtCodeVar(m.entity, "objects", filters...))
 			} else {
-				buf.L("queryStr = %s.StmtString(%s)", m.db, stmtCodeVar(m.entity, "objects", filters...))
+				buf.L("query := %s.StmtString(%s)", m.db, stmtCodeVar(m.entity, "objects", filters...))
 			}
+
+			buf.L("queryWhere, orderBy, _ := strings.Cut(query, \"ORDER BY\")")
+			buf.L("queryPlain, where, _ := strings.Cut(queryWhere, \"WHERE\")")
+			buf.L("where = fmt.Sprintf(\" (%%s) \", where)")
 
 			for _, filter := range filters {
 				varName := lex.Minuscule(filter)
-				buf.L("queryStr = strings.Replace(queryStr, \"%s = ?\", fmt.Sprintf(\"%s IN (?%%s)\", strings.Repeat(\", ?\", len(filter.%s)-1)), -1)", varName, varName, filter)
+				buf.L("where = strings.Replace(where, \"%s = ?\", fmt.Sprintf(\"%s IN (?%%s)\", strings.Repeat(\", ?\", len(filter.%s)-1)), -1)", varName, varName, filter)
 			}
+
+			buf.N()
+			buf.L("if i == 0 {")
+			buf.L("queryStr = queryPlain + \"WHERE\" + where")
+			buf.L("} else if i == len(filters) - 1 {")
+			buf.L("queryStr += \"OR\" + where + \"ORDER BY\" + orderBy")
+			buf.L("} else {")
+			buf.L("queryStr += \"OR\" + where")
+			buf.L("}")
 
 			buf.L("}")
 		}
@@ -273,6 +309,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 		buf.L("} else {")
 		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
+		buf.L("}")
 		buf.L("}")
 	}
 
@@ -335,12 +372,18 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("}")
 			buf.L("}")
 		case ReferenceTable:
+			filterSlice := lex.Plural(lex.Minuscule(entityFilter(refStruct)))
+			buf.L("%s := make([]%s, 0, len(filters))", filterSlice, entityFilter(refStruct))
+			buf.L("for _, filter := range filters {")
+			buf.L("%s = append(%s, filter.%s)", filterSlice, filterSlice, refStruct)
+			buf.L("}")
+			buf.N()
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\", filter.%s)", refSlice, lex.Plural(refStruct), m.entity, refStruct)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\", %s...)", refSlice, lex.Plural(refStruct), m.entity, filterSlice)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := Get%s(ctx, tx, \"%s\", filter.%s)", refSlice, lex.Plural(refStruct), m.entity, refStruct)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\", %s...)", refSlice, lex.Plural(refStruct), m.entity, filterSlice)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -361,12 +404,18 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 			buf.L("}")
 		case MapTable:
+			filterSlice := lex.Plural(lex.Minuscule(entityFilter(refStruct)))
+			buf.L("%s := make([]%s, 0, len(filters))", filterSlice, entityFilter(refStruct))
+			buf.L("for _, filter := range filters {")
+			buf.L("%s = append(%s, filter.%s)", filterSlice, filterSlice, refStruct)
+			buf.L("}")
+			buf.N()
 			if mapping.Type == ReferenceTable {
 				// A reference table should let its child reference know about its parent.
-				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\", filter.%s)", refSlice, lex.Plural(refStruct), m.entity, refStruct)
+				buf.L("%s, err := Get%s(ctx, tx, parent+\"_%s\", %s...)", refSlice, lex.Plural(refStruct), m.entity, filterSlice)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			} else {
-				buf.L("%s, err := Get%s(ctx, tx, \"%s\", filter.%s)", refSlice, lex.Plural(refStruct), m.entity, refStruct)
+				buf.L("%s, err := Get%s(ctx, tx, \"%s\", %s...)", refSlice, lex.Plural(refStruct), m.entity, filterSlice)
 				m.ifErrNotNil(buf, true, "nil", "err")
 			}
 
@@ -1145,7 +1194,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s for the parent entity.", lex.Plural(m.entity))
-			args += fmt.Sprintf("parent string, filter %s", entityFilter(mapping.Name))
+			args += fmt.Sprintf("parent string, filters ...%s", entityFilter(mapping.Name))
 			rets = fmt.Sprintf("(map[int][]%s, error)", mapping.Name)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
@@ -1167,7 +1216,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-			args += fmt.Sprintf("parent string, filter %s", entityFilter(mapping.Name))
+			args += fmt.Sprintf("parent string, filters ...%s", entityFilter(mapping.Name))
 			rets = "(map[int]map[string]string, error)"
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
@@ -1194,7 +1243,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		case "GetMany":
 			if m.ref == "" {
 				comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-				args += fmt.Sprintf("filter %s", entityFilter(m.entity))
+				args += fmt.Sprintf("filters ...%s", entityFilter(m.entity))
 				rets = fmt.Sprintf("(%s, error)", lex.Slice(lex.Camel(m.entity)))
 			} else {
 				comment = fmt.Sprintf("returns all available %s %s", mapping.Name, lex.Plural(m.ref))
