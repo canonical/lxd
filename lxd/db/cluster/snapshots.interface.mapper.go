@@ -19,7 +19,7 @@ type InstanceSnapshotGenerated interface {
 
 	// GetInstanceSnapshots returns all available instance_snapshots.
 	// generator: instance_snapshot GetMany
-	GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapshotFilter) ([]InstanceSnapshot, error)
+	GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSnapshotFilter) ([]InstanceSnapshot, error)
 
 	// GetInstanceSnapshot returns the instance_snapshot with the given key.
 	// generator: instance_snapshot GetOne

@@ -122,7 +122,7 @@ func ProfileExists(ctx context.Context, tx *sql.Tx, project string, name string)
 
 // GetProfiles returns all available profiles.
 // generator: profile GetMany
-func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profile, error) {
+func GetProfiles(ctx context.Context, tx *sql.Tx, filters ...ProfileFilter) ([]Profile, error) {
 	var err error
 
 	// Result slice.
@@ -133,59 +133,109 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 	var queryStr string
 	args := make([]any, 0, DqliteMaxParams)
 
-	if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, profileObjectsByProjectAndName)
-		} else {
-			queryStr = StmtString(profileObjectsByProjectAndName)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 {
-			sqlStmt = Stmt(tx, profileObjectsByProject)
-		} else {
-			queryStr = StmtString(profileObjectsByProject)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-		}
-	} else if len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 {
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, profileObjectsByName)
-		} else {
-			queryStr = StmtString(profileObjectsByName)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
-		for _, arg := range filter.ID {
-			args = append(args, arg)
-		}
-
-		if len(filter.ID) == 1 {
-			sqlStmt = Stmt(tx, profileObjectsByID)
-		} else {
-			queryStr = StmtString(profileObjectsByID)
-			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
-		}
-	} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, profileObjects)
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByProjectAndName)
+			} else {
+				query := StmtString(profileObjectsByProjectAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByProject)
+			} else {
+				query := StmtString(profileObjectsByProject)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 {
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByName)
+			} else {
+				query := StmtString(profileObjectsByName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
+			for _, arg := range filter.ID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.ID) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByID)
+			} else {
+				query := StmtString(profileObjectsByID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
+			sqlStmt = Stmt(tx, profileObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.

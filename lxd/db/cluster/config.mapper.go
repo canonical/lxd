@@ -27,7 +27,7 @@ const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
 // GetConfig returns all available config.
 // generator: config GetMany
-func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filter ConfigFilter) (map[int]map[string]string, error) {
+func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...ConfigFilter) (map[int]map[string]string, error) {
 	var err error
 
 	// Result slice.
@@ -42,25 +42,38 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filter ConfigFilt
 	queryStr := fmt.Sprintf(configObjectsLocal, fillParent...)
 	parts := strings.Split(queryStr, "ORDER BY")
 	args := make([]any, 0, DqliteMaxParams)
-	if len(filter.Key) > 0 {
-		parts[0] += "WHERE "
-		parts[0] += fmt.Sprintf("key IN (?%s)\n", strings.Repeat(", ?", len(filter.Key)))
+	for i, filter := range filters {
+		cond := "( "
+		if len(filter.Key) > 0 {
+			cond += fmt.Sprintf("key IN (?%s) ", strings.Repeat(", ?", len(filter.Key)))
+		}
+
+		for _, arg := range filter.Key {
+			args = append(args, arg)
+		}
+
+		if len(filter.Value) > 0 {
+			cond += "AND "
+			cond += fmt.Sprintf("value IN (?%s) ", strings.Repeat(", ?", len(filter.Value)))
+		}
+
+		for _, arg := range filter.Value {
+			args = append(args, arg)
+		}
+
+		cond += ")"
+		if cond != "( )" {
+			if i > 0 {
+				parts[0] += " OR "
+			} else {
+				parts[0] += "WHERE "
+			}
+
+			parts[0] += cond
+		}
 	}
 
-	for _, arg := range filter.Key {
-		args = append(args, arg)
-	}
-
-	if len(filter.Value) > 0 {
-		parts[0] += "AND "
-		parts[0] += fmt.Sprintf("value IN (?%s)\n", strings.Repeat(", ?", len(filter.Value)))
-	}
-
-	for _, arg := range filter.Value {
-		args = append(args, arg)
-	}
-
-	queryStr = strings.Join(parts, "ORDER BY")
+	queryStr = strings.Join(parts, "\nORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(i int) []any {

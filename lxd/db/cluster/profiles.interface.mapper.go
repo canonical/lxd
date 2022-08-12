@@ -27,7 +27,7 @@ type ProfileGenerated interface {
 
 	// GetProfiles returns all available profiles.
 	// generator: profile GetMany
-	GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profile, error)
+	GetProfiles(ctx context.Context, tx *sql.Tx, filters ...ProfileFilter) ([]Profile, error)
 
 	// GetProfile returns the profile with the given key.
 	// generator: profile GetOne

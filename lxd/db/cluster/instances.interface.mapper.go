@@ -19,7 +19,7 @@ type InstanceGenerated interface {
 
 	// GetInstances returns all available instances.
 	// generator: instance GetMany
-	GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Instance, error)
+	GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error)
 
 	// GetInstance returns the instance with the given key.
 	// generator: instance GetOne

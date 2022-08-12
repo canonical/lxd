@@ -56,7 +56,7 @@ DELETE FROM operations WHERE node_id = ?
 
 // GetOperations returns all available operations.
 // generator: operation GetMany
-func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]Operation, error) {
+func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error) {
 	var err error
 
 	// Result slice.
@@ -67,43 +67,82 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	var queryStr string
 	args := make([]any, 0, DqliteMaxParams)
 
-	if len(filter.UUID) > 0 && len(filter.ID) == 0 && len(filter.NodeID) == 0 {
-		for _, arg := range filter.UUID {
-			args = append(args, arg)
-		}
-
-		if len(filter.UUID) == 1 {
-			sqlStmt = Stmt(tx, operationObjectsByUUID)
-		} else {
-			queryStr = StmtString(operationObjectsByUUID)
-			queryStr = strings.Replace(queryStr, "uuid = ?", fmt.Sprintf("uuid IN (?%s)", strings.Repeat(", ?", len(filter.UUID)-1)), -1)
-		}
-	} else if len(filter.NodeID) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 {
-		for _, arg := range filter.NodeID {
-			args = append(args, arg)
-		}
-
-		if len(filter.NodeID) == 1 {
-			sqlStmt = Stmt(tx, operationObjectsByNodeID)
-		} else {
-			queryStr = StmtString(operationObjectsByNodeID)
-			queryStr = strings.Replace(queryStr, "nodeID = ?", fmt.Sprintf("nodeID IN (?%s)", strings.Repeat(", ?", len(filter.NodeID)-1)), -1)
-		}
-	} else if len(filter.ID) > 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
-		for _, arg := range filter.ID {
-			args = append(args, arg)
-		}
-
-		if len(filter.ID) == 1 {
-			sqlStmt = Stmt(tx, operationObjectsByID)
-		} else {
-			queryStr = StmtString(operationObjectsByID)
-			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
-		}
-	} else if len(filter.ID) == 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, operationObjects)
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if len(filter.UUID) > 0 && len(filter.ID) == 0 && len(filter.NodeID) == 0 {
+			for _, arg := range filter.UUID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.UUID) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByUUID)
+			} else {
+				query := StmtString(operationObjectsByUUID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "uuid = ?", fmt.Sprintf("uuid IN (?%s)", strings.Repeat(", ?", len(filter.UUID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.NodeID) > 0 && len(filter.ID) == 0 && len(filter.UUID) == 0 {
+			for _, arg := range filter.NodeID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.NodeID) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByNodeID)
+			} else {
+				query := StmtString(operationObjectsByNodeID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "nodeID = ?", fmt.Sprintf("nodeID IN (?%s)", strings.Repeat(", ?", len(filter.NodeID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) > 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
+			for _, arg := range filter.ID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.ID) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByID)
+			} else {
+				query := StmtString(operationObjectsByID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) == 0 && len(filter.NodeID) == 0 && len(filter.UUID) == 0 {
+			sqlStmt = Stmt(tx, operationObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.

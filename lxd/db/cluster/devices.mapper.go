@@ -27,7 +27,7 @@ const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
 // GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
-func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filter DeviceFilter) (map[int][]Device, error) {
+func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...DeviceFilter) (map[int][]Device, error) {
 	var err error
 
 	// Result slice.
@@ -42,25 +42,38 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filter DeviceFil
 	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
 	parts := strings.Split(queryStr, "ORDER BY")
 	args := make([]any, 0, DqliteMaxParams)
-	if len(filter.Name) > 0 {
-		parts[0] += "WHERE "
-		parts[0] += fmt.Sprintf("name IN (?%s)\n", strings.Repeat(", ?", len(filter.Name)))
+	for i, filter := range filters {
+		cond := "( "
+		if len(filter.Name) > 0 {
+			cond += fmt.Sprintf("name IN (?%s) ", strings.Repeat(", ?", len(filter.Name)))
+		}
+
+		for _, arg := range filter.Name {
+			args = append(args, arg)
+		}
+
+		if len(filter.Type) > 0 {
+			cond += "AND "
+			cond += fmt.Sprintf("type IN (?%s) ", strings.Repeat(", ?", len(filter.Type)))
+		}
+
+		for _, arg := range filter.Type {
+			args = append(args, arg)
+		}
+
+		cond += ")"
+		if cond != "( )" {
+			if i > 0 {
+				parts[0] += " OR "
+			} else {
+				parts[0] += "WHERE "
+			}
+
+			parts[0] += cond
+		}
 	}
 
-	for _, arg := range filter.Name {
-		args = append(args, arg)
-	}
-
-	if len(filter.Type) > 0 {
-		parts[0] += "AND "
-		parts[0] += fmt.Sprintf("type IN (?%s)\n", strings.Repeat(", ?", len(filter.Type)))
-	}
-
-	for _, arg := range filter.Type {
-		args = append(args, arg)
-	}
-
-	queryStr = strings.Join(parts, "ORDER BY")
+	queryStr = strings.Join(parts, "\nORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(i int) []any {
@@ -79,7 +92,12 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filter DeviceFil
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
 
-	config, err := GetConfig(ctx, tx, parent+"_device", filter.Config)
+	configFilters := make([]ConfigFilter, 0, len(filters))
+	for _, filter := range filters {
+		configFilters = append(configFilters, filter.Config)
+	}
+
+	config, err := GetConfig(ctx, tx, parent+"_device", configFilters...)
 	if err != nil {
 		return nil, err
 	}

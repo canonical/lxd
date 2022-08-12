@@ -15,7 +15,7 @@ type ProjectGenerated interface {
 
 	// GetProjects returns all available projects.
 	// generator: project GetMany
-	GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Project, error)
+	GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]Project, error)
 
 	// GetProject returns the project with the given key.
 	// generator: project GetOne

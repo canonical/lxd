@@ -145,7 +145,7 @@ UPDATE instances
 
 // GetInstances returns all available instances.
 // generator: instance GetMany
-func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Instance, error) {
+func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error) {
 	var err error
 
 	// Result slice.
@@ -156,271 +156,453 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 	var queryStr string
 	args := make([]any, 0, DqliteMaxParams)
 
-	if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndTypeAndNodeAndName)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndTypeAndNode)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndTypeAndName)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 {
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Type) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByTypeAndNameAndNode)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndNameAndNode)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Type) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndType)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndType)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-		}
-	} else if len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Type) == 1 && len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByTypeAndNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByTypeAndNode)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 {
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Type) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByTypeAndName)
-		} else {
-			queryStr = StmtString(instanceObjectsByTypeAndName)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndNode)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProjectAndName)
-		} else {
-			queryStr = StmtString(instanceObjectsByProjectAndName)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Node) == 1 && len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByNodeAndName)
-		} else {
-			queryStr = StmtString(instanceObjectsByNodeAndName)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
-		for _, arg := range filter.Type {
-			args = append(args, arg)
-		}
-
-		if len(filter.Type) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByType)
-		} else {
-			queryStr = StmtString(instanceObjectsByType)
-			queryStr = strings.Replace(queryStr, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
-		}
-	} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Project {
-			args = append(args, arg)
-		}
-
-		if len(filter.Project) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByProject)
-		} else {
-			queryStr = StmtString(instanceObjectsByProject)
-			queryStr = strings.Replace(queryStr, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
-		}
-	} else if len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Node {
-			args = append(args, arg)
-		}
-
-		if len(filter.Node) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByNode)
-		} else {
-			queryStr = StmtString(instanceObjectsByNode)
-			queryStr = strings.Replace(queryStr, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
-		}
-	} else if len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Name {
-			args = append(args, arg)
-		}
-
-		if len(filter.Name) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByName)
-		} else {
-			queryStr = StmtString(instanceObjectsByName)
-			queryStr = strings.Replace(queryStr, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
-		}
-	} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.ID {
-			args = append(args, arg)
-		}
-
-		if len(filter.ID) == 1 {
-			sqlStmt = Stmt(tx, instanceObjectsByID)
-		} else {
-			queryStr = StmtString(instanceObjectsByID)
-			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
-		}
-	} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, instanceObjects)
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndTypeAndNodeAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndTypeAndNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Type) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndTypeAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 {
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Type) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
+			} else {
+				query := StmtString(instanceObjectsByTypeAndNameAndNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Name) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndNameAndNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Type) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndType)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndType)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Type) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 {
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Type) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByTypeAndNode)
+			} else {
+				query := StmtString(instanceObjectsByTypeAndNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Type) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 {
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Type) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByTypeAndName)
+			} else {
+				query := StmtString(instanceObjectsByTypeAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndNode)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProjectAndName)
+			} else {
+				query := StmtString(instanceObjectsByProjectAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Node) > 0 && len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Node) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByNodeAndName)
+			} else {
+				query := StmtString(instanceObjectsByNodeAndName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Type) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 {
+			for _, arg := range filter.Type {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Type) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByType)
+			} else {
+				query := StmtString(instanceObjectsByType)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "type = ?", fmt.Sprintf("type IN (?%s)", strings.Repeat(", ?", len(filter.Type)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Project) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Project {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Project) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByProject)
+			} else {
+				query := StmtString(instanceObjectsByProject)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "project = ?", fmt.Sprintf("project IN (?%s)", strings.Repeat(", ?", len(filter.Project)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Node) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Node {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Node) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByNode)
+			} else {
+				query := StmtString(instanceObjectsByNode)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "node = ?", fmt.Sprintf("node IN (?%s)", strings.Repeat(", ?", len(filter.Node)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Name) > 0 && len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Name {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Name) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByName)
+			} else {
+				query := StmtString(instanceObjectsByName)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "name = ?", fmt.Sprintf("name IN (?%s)", strings.Repeat(", ?", len(filter.Name)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) > 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.ID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.ID) == 1 {
+				sqlStmt = Stmt(tx, instanceObjectsByID)
+			} else {
+				query := StmtString(instanceObjectsByID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) == 0 && len(filter.Project) == 0 && len(filter.Name) == 0 && len(filter.Node) == 0 && len(filter.Type) == 0 {
+			sqlStmt = Stmt(tx, instanceObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.

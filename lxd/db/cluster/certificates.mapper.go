@@ -61,7 +61,7 @@ UPDATE certificates
 
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
-func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) ([]Certificate, error) {
+func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
 	var err error
 
 	// Result slice.
@@ -72,32 +72,60 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 	var queryStr string
 	args := make([]any, 0, DqliteMaxParams)
 
-	if len(filter.ID) > 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.ID {
-			args = append(args, arg)
-		}
-
-		if len(filter.ID) == 1 {
-			sqlStmt = Stmt(tx, certificateObjectsByID)
-		} else {
-			queryStr = StmtString(certificateObjectsByID)
-			queryStr = strings.Replace(queryStr, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
-		}
-	} else if len(filter.Fingerprint) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
-		for _, arg := range filter.Fingerprint {
-			args = append(args, arg)
-		}
-
-		if len(filter.Fingerprint) == 1 {
-			sqlStmt = Stmt(tx, certificateObjectsByFingerprint)
-		} else {
-			queryStr = StmtString(certificateObjectsByFingerprint)
-			queryStr = strings.Replace(queryStr, "fingerprint = ?", fmt.Sprintf("fingerprint IN (?%s)", strings.Repeat(", ?", len(filter.Fingerprint)-1)), -1)
-		}
-	} else if len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, certificateObjects)
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if len(filter.ID) > 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.ID {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.ID) == 1 {
+				sqlStmt = Stmt(tx, certificateObjectsByID)
+			} else {
+				query := StmtString(certificateObjectsByID)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "id = ?", fmt.Sprintf("id IN (?%s)", strings.Repeat(", ?", len(filter.ID)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.Fingerprint) > 0 && len(filter.ID) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+			for _, arg := range filter.Fingerprint {
+				args = append(args, arg)
+			}
+
+			if len(filters) == 1 && len(filter.Fingerprint) == 1 {
+				sqlStmt = Stmt(tx, certificateObjectsByFingerprint)
+			} else {
+				query := StmtString(certificateObjectsByFingerprint)
+				queryWhere, orderBy, _ := strings.Cut(query, "ORDER BY")
+				queryPlain, where, _ := strings.Cut(queryWhere, "WHERE")
+				where = fmt.Sprintf(" (%s) ", where)
+				where = strings.Replace(where, "fingerprint = ?", fmt.Sprintf("fingerprint IN (?%s)", strings.Repeat(", ?", len(filter.Fingerprint)-1)), -1)
+
+				if i == 0 {
+					queryStr = queryPlain + "WHERE" + where
+				} else if i == len(filters)-1 {
+					queryStr += "OR" + where + "ORDER BY" + orderBy
+				} else {
+					queryStr += "OR" + where
+				}
+			}
+		} else if len(filter.ID) == 0 && len(filter.Fingerprint) == 0 && len(filter.Name) == 0 && len(filter.Type) == 0 {
+			sqlStmt = Stmt(tx, certificateObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.

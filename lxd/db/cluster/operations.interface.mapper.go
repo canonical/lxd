@@ -11,7 +11,7 @@ import (
 type OperationGenerated interface {
 	// GetOperations returns all available operations.
 	// generator: operation GetMany
-	GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]Operation, error)
+	GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error)
 
 	// CreateOrReplaceOperation adds a new operation to the database.
 	// generator: operation CreateOrReplace
