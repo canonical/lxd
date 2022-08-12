@@ -115,11 +115,19 @@ type StorageVolumeFilter struct {
 	Name    *string
 }
 
-// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool on all cluster members keyed
-// on project and volume type. If there are no volumes, it returns an empty list and no error.
+// StorageVolume represents a database storage volume record.
+type StorageVolume struct {
+	api.StorageVolume
+
+	ID      int64
+	Project string
+}
+
+// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool.
+// If there are no volumes, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to volumes that belong to this member or belong to all members.
-func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeFilter, memberSpecific bool) (map[string]map[int64]*api.StorageVolume, error) {
+func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeFilter, memberSpecific bool) ([]*StorageVolume, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{poolID}
 
@@ -188,16 +196,14 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeF
 	}
 
 	var err error
-	projectsVolumes := make(map[string]map[int64]*api.StorageVolume)
+	var volumes []*StorageVolume
 
 	err = c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
-		var projectName string
-		var volumeID int64 = int64(-1)
 		var volumeType int = int(-1)
 		var contentType int = int(-1)
-		var vol api.StorageVolume
+		var vol StorageVolume
 
-		err := scan(&projectName, &volumeID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
+		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
 		if err != nil {
 			return err
 		}
@@ -212,11 +218,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeF
 			return err
 		}
 
-		if projectsVolumes[projectName] == nil {
-			projectsVolumes[projectName] = make(map[int64]*api.StorageVolume)
-		}
-
-		projectsVolumes[projectName][volumeID] = &vol
+		volumes = append(volumes, &vol)
 
 		return nil
 	}, args...)
@@ -225,16 +227,14 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeF
 	}
 
 	// Populate config.
-	for _, projectVolumes := range projectsVolumes {
-		for volumeID, volume := range projectVolumes {
-			volume.Config, err = c.storageVolumeConfigGet(volumeID, shared.IsSnapshot(volume.Name))
-			if err != nil {
-				return nil, fmt.Errorf("Failed loading volume config for %q: %w", volume.Name, err)
-			}
+	for _, volume := range volumes {
+		volume.Config, err = c.storageVolumeConfigGet(volume.ID, shared.IsSnapshot(volume.Name))
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading volume config for %q: %w", volume.Name, err)
 		}
 	}
 
-	return projectsVolumes, nil
+	return volumes, nil
 }
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
