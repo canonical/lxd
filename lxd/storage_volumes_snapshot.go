@@ -384,9 +384,13 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
 		} else {
-			_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volume.Name, volumeType, poolID)
+			var vol *db.StorageVolume
+			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				vol, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, volume.Name, true)
+				return err
+			})
 			if err != nil {
-				continue
+				return response.SmartError(err)
 			}
 
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol)
