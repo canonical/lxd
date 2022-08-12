@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -235,6 +236,27 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeF
 	}
 
 	return volumes, nil
+}
+
+// GetStoragePoolVolume returns the storage volume attached to a given storage pool.
+func (c *ClusterTx) GetStoragePoolVolume(poolID int64, projectName string, volumeType int, volumeName string, memberSpecific bool) (*StorageVolume, error) {
+	filters := []StorageVolumeFilter{{
+		Project: &projectName,
+		Type:    &volumeType,
+		Name:    &volumeName,
+	}}
+
+	volumes, err := c.GetStoragePoolVolumes(poolID, filters, memberSpecific)
+	volumesLen := len(volumes)
+	if (err == nil && volumesLen <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
+	} else if err == nil && volumesLen > 1 {
+		return nil, api.StatusErrorf(http.StatusConflict, "Storage volume found on more than one cluster member. Please target a specific member")
+	} else if err != nil {
+		return nil, err
+	}
+
+	return volumes[0], nil
 }
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
