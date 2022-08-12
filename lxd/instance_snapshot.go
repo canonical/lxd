@@ -159,7 +159,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, snap := range snaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap)
+			_, snapName, _ := api.GetParentAndSnapshotName(snap)
 			if projectName == project.Default {
 				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
@@ -652,7 +652,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		if reqNew.Live {
-			sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(containerName)
+			sourceName, _, _ := api.GetParentAndSnapshotName(containerName)
 			if sourceName != reqNew.Name {
 				return response.BadRequest(fmt.Errorf(`Copying `+
 					`stateful containers requires that `+

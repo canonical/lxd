@@ -58,9 +58,9 @@ func (b *VolumeBackup) Rename(newName string) error {
 	// Extract the old and new parent backup paths from the old and new backup names rather than use
 	// instance.Name() as this may be in flux if the instance itself is being renamed, whereas the relevant
 	// instance name is encoded into the backup names.
-	oldParentName, _, _ := shared.InstanceGetParentAndSnapshotName(b.name)
+	oldParentName, _, _ := api.GetParentAndSnapshotName(b.name)
 	oldParentBackupsPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, oldParentName))
-	newParentName, _, _ := shared.InstanceGetParentAndSnapshotName(newName)
+	newParentName, _, _ := api.GetParentAndSnapshotName(newName)
 	newParentBackupsPath := shared.VarPath("backups", "custom", b.poolName, project.StorageVolume(b.projectName, newParentName))
 
 	revert := revert.New()

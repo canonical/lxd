@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -31,7 +32,7 @@ const (
 )
 
 func (d *zfs) dataset(vol Volume, deleted bool) string {
-	name, snapName, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
+	name, snapName, _ := api.GetParentAndSnapshotName(vol.name)
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
 	}

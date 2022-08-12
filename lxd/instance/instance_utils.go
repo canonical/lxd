@@ -74,7 +74,7 @@ func CompareSnapshots(source Instance, target Instance) ([]Instance, []Instance,
 
 	// Generate a list of source snapshot creation dates.
 	for _, snap := range sourceSnapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
 
 		sourceSnapshotsTime[snapName] = snap.CreationDate()
 	}
@@ -83,7 +83,7 @@ func CompareSnapshots(source Instance, target Instance) ([]Instance, []Instance,
 	// the snapshot or the creation time is different on the source then add the target snapshot
 	// to the "to delete" list.
 	for _, snap := range targetSnapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
 
 		targetSnapshotsTime[snapName] = snap.CreationDate()
 		existDate, exists := sourceSnapshotsTime[snapName]
@@ -100,7 +100,7 @@ func CompareSnapshots(source Instance, target Instance) ([]Instance, []Instance,
 	// For each of the source snapshots, decide whether it needs to be synced or not based on
 	// whether it already exists in the target and whether the creation dates match.
 	for _, snap := range sourceSnapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
 
 		existDate, exists := targetSnapshotsTime[snapName]
 		if !exists || existDate != snap.CreationDate() {
@@ -775,7 +775,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 // so it takes an argument indicating whether the name is to be used for a snapshot or not.
 func ValidName(instanceName string, isSnapshot bool) error {
 	if isSnapshot {
-		parentName, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
+		parentName, snapshotName, _ := api.GetParentAndSnapshotName(instanceName)
 		err := validate.IsHostname(parentName)
 		if err != nil {
 			return fmt.Errorf("Invalid instance name: %w", err)
@@ -1112,7 +1112,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := api.GetParentAndSnapshotName(snap.Name())
 		if snapOnlyName == pattern {
 			snapshotExists = true
 			break

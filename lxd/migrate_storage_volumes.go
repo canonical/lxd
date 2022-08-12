@@ -349,7 +349,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		snaps, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
 		if err == nil {
 			for _, snap := range snaps {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
+				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name)
 				targetSnapshots = append(targetSnapshots, snapName)
 			}
 		}

@@ -587,7 +587,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 	}
 
 	if req.Stateful {
-		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(source.Name())
+		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
 			return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, req.Name))
 		}
@@ -1251,7 +1251,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 	// Setup websockets
 	var opAPI api.Operation
 	if shared.IsSnapshot(req.Source.Source) {
-		cName, sName, _ := shared.InstanceGetParentAndSnapshotName(req.Source.Source)
+		cName, sName, _ := api.GetParentAndSnapshotName(req.Source.Source)
 
 		pullReq := api.InstanceSnapshotPost{
 			Migration: true,

@@ -512,7 +512,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		}
 
 		for _, srcSnapshot := range srcSnapshots {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
+			_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot.name)
 			newFullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 			newSnapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, newFullSnapName, vol.config, vol.poolConfig)
 
@@ -742,7 +742,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	} else {
 		// Use parent for non-thinpool vols as activating the parent volume also activates its snapshots.
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
 	}
 
@@ -768,7 +768,7 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	} else {
 		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
 
 		if vol.IsSnapshot() {
