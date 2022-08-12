@@ -190,7 +190,7 @@ func instancesExist(resources []remoteResource) error {
 	for _, resource := range resources {
 		// Handle snapshots.
 		if shared.IsSnapshot(resource.name) {
-			parent, snap, _ := shared.InstanceGetParentAndSnapshotName(resource.name)
+			parent, snap, _ := api.GetParentAndSnapshotName(resource.name)
 
 			_, _, err := resource.server.GetInstanceSnapshot(parent, snap)
 			if err != nil {
