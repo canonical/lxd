@@ -331,7 +331,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var projectsVolumes map[string]map[int64]*api.StorageVolume
+	var dbVolumes []*db.StorageVolume
 
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
@@ -381,9 +381,9 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, filters, memberSpecific)
+		dbVolumes, err = tx.GetStoragePoolVolumes(poolID, filters, memberSpecific)
 		if err != nil {
-			return fmt.Errorf("Failed loading volumes: %w", err)
+			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
 
 		return err
@@ -397,17 +397,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var volumes []*api.StorageVolume
-
-	for _, projectVolumes := range projectsVolumes {
-		for _, volume := range projectVolumes {
-			// Filter out image volumes that are not used by this project.
-			if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, projectImages) {
-				continue
-			}
-
-			volumes = append(volumes, volume)
+	volumes := make([]*api.StorageVolume, 0, len(dbVolumes))
+	for _, dbVolume := range dbVolumes {
+		// Filter out image volumes that are not used by this project.
+		if dbVolume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(dbVolume.Name, projectImages) {
+			continue
 		}
+
+		volumes = append(volumes, &dbVolume.StorageVolume)
 	}
 
 	// Sort by type then volume name.
