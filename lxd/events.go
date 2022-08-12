@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.EventTypeLifecycle}
@@ -72,20 +73,21 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// Validate event types.
 	for _, entry := range types {
 		if !shared.StringInSlice(entry, eventTypes) {
-			_ = response.BadRequest(fmt.Errorf("'%s' isn't a supported event type", entry)).Render(w)
-			return nil
+			return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
 		}
 	}
 
 	if shared.StringInSlice(api.EventTypeLogging, types) && !rbac.UserIsAdmin(r) {
-		_ = response.Forbidden(nil).Render(w)
-		return nil
+		return api.StatusErrorf(http.StatusForbidden, "Forbidden")
 	}
+
+	l := logger.AddContext(logger.Log, logger.Ctx{"remote": r.RemoteAddr})
 
 	// Upgrade the connection to websocket
 	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		return err
+		l.Warn("Failed upgrading event connection", logger.Ctx{"err": err})
+		return nil
 	}
 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
@@ -117,7 +119,8 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
+		return nil
 	}
 
 	var recvFunc events.EventHandler
@@ -138,7 +141,8 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	listener, err := d.events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
-		return err
+		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
+		return nil
 	}
 
 	listener.Wait(r.Context())
