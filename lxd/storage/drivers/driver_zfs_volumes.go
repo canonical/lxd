@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -774,7 +775,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 				return err
 			}
 
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+			_, snapName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
 			respSnapshots = append(respSnapshots, ZFSDataset{Name: snapName, GUID: guid})
 		}
@@ -827,7 +828,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			// Delete local snapshots which exist on the target but not on the source.
 			for _, snapVol := range snapshots {
 				targetOnlySnapshot := true
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+				_, snapName, _ := api.GetParentAndSnapshotName(snapVol.name)
 
 				for _, migrationSnap := range migrationHeader.SnapshotDatasets {
 					if snapName == migrationSnap.Name {
@@ -895,7 +896,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 
 		if len(snapshots) > 0 {
 			lastIdenticalSnapshot := snapshots[len(snapshots)-1]
-			_, lastIdenticalSnapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(lastIdenticalSnapshot.Name())
+			_, lastIdenticalSnapshotOnlyName, _ := api.GetParentAndSnapshotName(lastIdenticalSnapshot.Name())
 
 			err = d.RestoreVolume(vol, lastIdenticalSnapshotOnlyName, op)
 			if err != nil {
@@ -1082,7 +1083,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, al
 
 	// This represents the most recent identical snapshot of the source volume and target volume.
 	lastIdenticalSnapshot := targetSnapshots[len(targetSnapshots)-1]
-	_, lastIdenticalSnapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(lastIdenticalSnapshot.Name())
+	_, lastIdenticalSnapshotOnlyName, _ := api.GetParentAndSnapshotName(lastIdenticalSnapshot.Name())
 
 	// Rollback target volume to the latest identical snapshot
 	err = d.RestoreVolume(vol, lastIdenticalSnapshotOnlyName, op)
@@ -2279,7 +2280,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 
 	// Revert handling.
 	revert := revert.New()
@@ -2324,7 +2325,7 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 
 // DeleteVolumeSnapshot removes a snapshot from the storage device.
 func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 
 	// Handle clones.
 	clones, err := d.getClones(d.dataset(vol, false))
@@ -2399,7 +2400,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	} else if snapVol.contentType == ContentTypeBlock {
 		// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the parent volume.
 		// Ensure snap volume parent is activated to avoid issues activating the snapshot volume device.
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
+		parent, _, _ := api.GetParentAndSnapshotName(snapVol.Name())
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 		err = d.MountVolume(parentVol, op)
 		if err != nil {
@@ -2489,7 +2490,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 				return false, ErrInUse
 			}
 
-			parent, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.Name())
+			parent, _, _ := api.GetParentAndSnapshotName(snapVol.Name())
 			parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
 			parentDataset := d.dataset(parentVol, false)
 
@@ -2612,7 +2613,7 @@ func (d *zfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(vol.name)
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, fmt.Sprintf("%s/%s", parentName, newSnapshotName), vol.config, vol.poolConfig)
 
 	// Revert handling.

@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -378,7 +379,7 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	snapName := ""
 	if vol.IsSnapshot() {
-		_, snapName, _ = shared.InstanceGetParentAndSnapshotName(vol.name)
+		_, snapName, _ = api.GetParentAndSnapshotName(vol.name)
 	}
 
 	// Add main root volume to subvolumes list first.

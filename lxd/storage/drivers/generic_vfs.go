@@ -130,7 +130,7 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 		return fmt.Errorf("Volume must be a snapshot")
 	}
 
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	oldPath := snapVol.MountPath()
 	newPath := GetVolumeMountPath(d.Name(), snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
 
@@ -970,7 +970,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (revert.Hook, er
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
 			for _, srcVol := range srcSnapshots {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcVol.name)
+				_, snapName, _ := api.GetParentAndSnapshotName(srcVol.name)
 
 				// Mount the source snapshot and copy it to the target main volume.
 				// A snapshot will then be taken next so it is stored in the correct volume and

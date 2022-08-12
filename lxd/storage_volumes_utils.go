@@ -91,7 +91,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName string, vol *api.StorageVolume) ([]string, error) {
 	// Handle instance volumes.
 	if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
-		cName, sName, snap := shared.InstanceGetParentAndSnapshotName(vol.Name)
+		cName, sName, snap := api.GetParentAndSnapshotName(vol.Name)
 		if snap {
 			if projectName == project.Default {
 				return []string{fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil

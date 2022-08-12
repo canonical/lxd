@@ -1,7 +1,6 @@
 package lifecycle
 
 import (
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -19,7 +18,7 @@ const (
 
 // Event creates the lifecycle event for an action on an instance backup.
 func (a InstanceBackupAction) Event(fullBackupName string, inst instance, ctx map[string]any) api.EventLifecycle {
-	_, backupName, _ := shared.InstanceGetParentAndSnapshotName(fullBackupName)
+	_, backupName, _ := api.GetParentAndSnapshotName(fullBackupName)
 
 	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "backups", backupName).Project(inst.Project())
 

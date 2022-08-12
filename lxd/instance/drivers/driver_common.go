@@ -1022,7 +1022,7 @@ func (d *common) setCoreSched(pids []int) error {
 func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 	devices := d.ExpandedDevices()
 	if d.IsSnapshot() {
-		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 
 		// Load the parent.
 		storageInstance, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
