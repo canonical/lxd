@@ -407,7 +407,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	var srcVol *api.StorageVolume
 
 	// Check if requested storage volume exists.
-	srcVolParentName, srcVolSnapName, srcIsSnapshot := shared.InstanceGetParentAndSnapshotName(srcVolName)
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(srcVolName)
 	srcVol, _, err = srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolParentName)
 	if err != nil {
 		return err
@@ -1611,7 +1611,7 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	if isSnapshot {
 		// Create the storage volume entry
 		vol := api.StorageVolumeSnapshotPost{}
-		dstParentName, dstSnapName, dstIsSnap := shared.InstanceGetParentAndSnapshotName(args[2])
+		dstParentName, dstSnapName, dstIsSnap := api.GetParentAndSnapshotName(args[2])
 
 		if dstParentName != fields[0] {
 			return fmt.Errorf(i18n.G("Invalid new snapshot name, parent volume must be the same as source"))
