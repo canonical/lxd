@@ -118,6 +118,12 @@ type StorageVolume struct {
 	//
 	// API extension: custom_block_volumes
 	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Project containing the volume.
+	// Example: default
+	//
+	// API extension: storage_volumes_all_projects
+	Project string `json:"project" yaml:"project"`
 }
 
 // URL returns the URL for the volume.
