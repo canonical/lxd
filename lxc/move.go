@@ -124,8 +124,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 		if shared.IsSnapshot(sourceName) {
 			// Snapshot rename
-			srcParent, srcSnap, _ := shared.InstanceGetParentAndSnapshotName(sourceName)
-			dstParent, dstSnap, dstIsSnap := shared.InstanceGetParentAndSnapshotName(destName)
+			srcParent, srcSnap, _ := api.GetParentAndSnapshotName(sourceName)
+			dstParent, dstSnap, dstIsSnap := api.GetParentAndSnapshotName(destName)
 
 			if srcParent != dstParent {
 				return fmt.Errorf(i18n.G("Invalid new snapshot name, parent must be the same as source"))
