@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -259,7 +260,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 
 	// unpackVolume unpacks all subvolumes in a LXD volume from a backup tarball file.
 	unpackVolume := func(v Volume, srcFilePrefix string) error {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
+		_, snapName, _ := api.GetParentAndSnapshotName(v.name)
 
 		for _, subVol := range optimizedHeader.Subvolumes {
 			if subVol.Snapshot != snapName {
@@ -599,7 +600,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 
 	// receiveVolume receives all subvolumes in a LXD volume from the source.
 	receiveVolume := func(v Volume, receivePath string) error {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
+		_, snapName, _ := api.GetParentAndSnapshotName(v.name)
 
 		for _, subVol := range subvolumes {
 			if subVol.Snapshot != snapName {
@@ -1309,7 +1310,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 		// Detect if we are sending a snapshot by comparing to main volume name.
 		// We can't only use IsSnapshot() as the main vol may itself be a snapshot.
 		if v.IsSnapshot() && v.name != vol.name {
-			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(v.name)
+			_, snapName, _ = api.GetParentAndSnapshotName(v.name)
 		}
 
 		// Setup progress tracking.
@@ -1388,7 +1389,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 				continue
 			}
 
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.name)
+			_, snapName, _ := api.GetParentAndSnapshotName(snap.name)
 
 			if len(volSrcArgs.Snapshots) > 0 && snapName == volSrcArgs.Snapshots[0] {
 				lastVolPath = snapshots[i-1].MountPath()
@@ -1547,7 +1548,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		// Detect if we are adding a snapshot by comparing to main volume name.
 		// We can't only use IsSnapshot() as the main vol may itself be a snapshot.
 		if v.IsSnapshot() && v.name != vol.name {
-			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(v.name)
+			_, snapName, _ = api.GetParentAndSnapshotName(v.name)
 		}
 
 		sentVols := 0
@@ -1696,7 +1697,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *btrfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 	snapPath := snapVol.MountPath()
 
@@ -1747,7 +1748,7 @@ func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, _, _ := api.GetParentAndSnapshotName(snapVol.name)
 	err = deleteParentSnapshotDirIfEmpty(d.name, snapVol.volType, parentName)
 	if err != nil {
 		return err

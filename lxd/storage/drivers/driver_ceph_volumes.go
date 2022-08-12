@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -394,7 +395,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 				snapshotName = fmt.Sprintf("zombie_snapshot_%s", uuid.New())
 
 				if srcVol.IsSnapshot() {
-					srcParentName, srcSnapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(srcVol.name)
+					srcParentName, srcSnapOnlyName, _ := api.GetParentAndSnapshotName(srcVol.name)
 					snapshotName = fmt.Sprintf("snapshot_%s", srcSnapOnlyName)
 					parentVol = NewVolume(d, d.name, srcVol.volType, srcVol.contentType, srcParentName, nil, nil)
 				} else {
@@ -863,7 +864,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		return -1, err
 	}
 
-	_, snapName, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+	_, snapName, _ := api.GetParentAndSnapshotName(vol.Name())
 	snapName = fmt.Sprintf("snapshot_%s", snapName)
 
 	// rbd du gives the output of all related rbd images, snapshots included.
@@ -1300,7 +1301,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// Before doing a generic volume migration, we need to ensure volume (or snap volume parent) is
 		// activated to avoid issues activating the snapshot volume device.
-		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parent, _, _ := api.GetParentAndSnapshotName(vol.Name())
 		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
 		err := d.MountVolume(parentVol, op)
 		if err != nil {
@@ -1323,7 +1324,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 	}
 
 	if vol.IsSnapshot() {
-		parentName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
+		parentName, snapOnlyName, _ := api.GetParentAndSnapshotName(vol.name)
 		sendName := fmt.Sprintf("%s/snapshots_%s_%s_start_clone", d.name, parentName, snapOnlyName)
 
 		cloneVol := NewVolume(d, d.name, vol.volType, vol.contentType, vol.name, nil, nil)
@@ -1414,7 +1415,7 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 	revert := revert.New()
 	defer revert.Fail()
 
-	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.name)
 	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 	snapshotName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
@@ -1480,7 +1481,7 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 		return nil
 	}
 
-	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.name)
 	snapshotName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
 	parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, nil)
@@ -1538,7 +1539,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 			return err
 		}
 
-		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+		parentName, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.name)
 		prefixedSnapOnlyName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
 		parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, nil)
@@ -1638,7 +1639,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 
 		d.logger.Debug("Unmounted RBD volume snapshot", logger.Ctx{"path": mountPath})
 
-		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+		parentName, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.name)
 		cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)
 		cloneVol := NewVolume(d, d.name, VolumeType("snapshots"), ContentTypeFS, cloneName, nil, nil)
 
@@ -1764,7 +1765,7 @@ func (d *ceph) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *
 	revert := revert.New()
 	defer revert.Fail()
 
-	parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	parentName, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.name)
 	oldSnapOnlyName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 	newSnapOnlyName := fmt.Sprintf("snapshot_%s", newSnapshotName)
 

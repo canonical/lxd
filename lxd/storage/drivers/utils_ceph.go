@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // CephGetRBDImageName returns the RBD image name as it is used in ceph.
@@ -14,7 +14,7 @@ import (
 // A custom block volume named vol1 in project default will return custom_default_vol1.block.
 func CephGetRBDImageName(vol Volume, snapName string, zombie bool) string {
 	var out string
-	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
+	parentName, snapshotName, isSnapshot := api.GetParentAndSnapshotName(vol.name)
 
 	// Only use filesystem suffix on filesystem type image volumes (for all content types).
 	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
