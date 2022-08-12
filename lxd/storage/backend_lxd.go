@@ -526,7 +526,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 		return err
 	}
 
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
+	parentName, _, _ := api.GetParentAndSnapshotName(instanceName)
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Instance(projectName, parentName)
 
@@ -559,7 +559,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 		return err
 	}
 
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
+	parentName, _, _ := api.GetParentAndSnapshotName(instanceName)
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Instance(projectName, parentName)
 
@@ -1182,7 +1182,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 		// Find destination snapshots to delete.
 		for _, destSnapshot := range destSnapshots {
-			_, destSnapshotName, _ := shared.InstanceGetParentAndSnapshotName(destSnapshot.Name)
+			_, destSnapshotName, _ := api.GetParentAndSnapshotName(destSnapshot.Name)
 			found := false
 			for _, srcSnapshot := range srcConfig.VolumeSnapshots {
 				if destSnapshotName == srcSnapshot.Name {
@@ -1204,7 +1204,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		for _, srcSnapshot := range srcConfig.VolumeSnapshots {
 			found := false
 			for _, destSnapshot := range destSnapshots {
-				_, destSnapshotName, _ := shared.InstanceGetParentAndSnapshotName(destSnapshot.Name)
+				_, destSnapshotName, _ := api.GetParentAndSnapshotName(destSnapshot.Name)
 				if destSnapshotName == srcSnapshot.Name {
 					found = true
 					break
@@ -1424,7 +1424,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	for i := range allSnapshots {
 		found := false
 		for _, srcSnapshot := range srcSnapshots {
-			_, srcSnapshotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name())
+			_, srcSnapshotName, _ := api.GetParentAndSnapshotName(srcSnapshot.Name())
 			if srcSnapshotName == allSnapshots[i].Name {
 				found = true
 				break
@@ -1966,7 +1966,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 
 	// Rename each snapshot DB record to have the new parent volume prefix.
 	for _, srcSnapshot := range snapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot)
+		_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newName, snapName)
 		err = b.state.DB.Cluster.RenameStoragePoolVolume(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
 		if err != nil {
@@ -2355,7 +2355,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 		snapNames = make([]string, 0, len(instSnapshots))
 		for _, instSnapshot := range instSnapshots {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(instSnapshot.Name())
+			_, snapName, _ := api.GetParentAndSnapshotName(instSnapshot.Name())
 			snapNames = append(snapNames, snapName)
 		}
 	}
@@ -2675,7 +2675,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 		return err
 	}
 
-	parentName, oldSnapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	parentName, oldSnapshotName, isSnap := api.GetParentAndSnapshotName(inst.Name())
 	if !isSnap {
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
@@ -2725,7 +2725,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	l.Debug("DeleteInstanceSnapshot started")
 	defer l.Debug("DeleteInstanceSnapshot finished")
 
-	parentName, snapName, isSnap := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	parentName, snapName, isSnap := api.GetParentAndSnapshotName(inst.Name())
 	if !inst.IsSnapshot() || !isSnap {
 		return fmt.Errorf("Instance must be a snapshot")
 	}
@@ -2820,7 +2820,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
-	_, snapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(src.Name())
+	_, snapshotName, isSnap := api.GetParentAndSnapshotName(src.Name())
 	if !isSnap {
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
@@ -2860,7 +2860,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 
 			// Go through all the snapshots.
 			for _, snap := range snaps {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
 				if !shared.StringInSlice(snapName, snapErr.Snapshots) {
 					continue
 				}
@@ -3847,7 +3847,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	}
 
 	for _, srcSnapshot := range snapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name)
+		_, snapName, _ := api.GetParentAndSnapshotName(srcSnapshot.Name)
 		newSnapVolName := drivers.GetSnapshotVolumeName(newVolName, snapName)
 		err = b.state.DB.Cluster.RenameStoragePoolVolume(projectName, srcSnapshot.Name, newSnapVolName, db.StoragePoolVolumeTypeCustom, b.ID())
 		if err != nil {
@@ -3867,7 +3867,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 
 	for _, br := range backups {
 		backupRow := br // Local var for revert.
-		_, backupName, _ := shared.InstanceGetParentAndSnapshotName(backupRow.Name)
+		_, backupName, _ := api.GetParentAndSnapshotName(backupRow.Name)
 		newVolBackupName := drivers.GetSnapshotVolumeName(newVolName, backupName)
 		volBackup := backup.NewVolumeBackup(b.state, projectName, b.name, volName, backupRow.ID, backupRow.Name, backupRow.CreationDate, backupRow.ExpiryDate, backupRow.VolumeOnly, backupRow.OptimizedStorage)
 		err = volBackup.Rename(newVolBackupName)
@@ -4093,7 +4093,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	l.Debug("DeleteCustomVolume started")
 	defer l.Debug("DeleteCustomVolume finished")
 
-	_, _, isSnap := shared.InstanceGetParentAndSnapshotName(volName)
+	_, _, isSnap := api.GetParentAndSnapshotName(volName)
 	if isSnap {
 		return fmt.Errorf("Volume name cannot be a snapshot")
 	}
@@ -4399,7 +4399,7 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 	l.Debug("RenameCustomVolumeSnapshot started")
 	defer l.Debug("RenameCustomVolumeSnapshot finished")
 
-	parentName, oldSnapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(volName)
+	parentName, oldSnapshotName, isSnap := api.GetParentAndSnapshotName(volName)
 	if !isSnap {
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
@@ -4626,7 +4626,7 @@ func (b *lxdBackend) GenerateCustomVolumeBackupConfig(projectName string, volNam
 
 		config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
 		for i := range dbVolSnaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+			_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
 			snapshot := api.StorageVolumeSnapshot{
 				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
@@ -4712,7 +4712,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 					return nil, fmt.Errorf("Instance snapshot record missing for %q", dbVolSnaps[i].Name)
 				}
 
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+				_, snapName, _ := api.GetParentAndSnapshotName(dbVolSnaps[i].Name)
 
 				config.VolumeSnapshots = append(config.VolumeSnapshots, &api.StorageVolumeSnapshot{
 					StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
@@ -4832,7 +4832,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 
 	// Check (and optionally delete) snapshots that do not exist in backup config.
 	for _, driverSnapVol := range driverSnapshots {
-		_, driverSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(driverSnapVol.Name())
+		_, driverSnapOnly, _ := api.GetParentAndSnapshotName(driverSnapVol.Name())
 
 		inBackupFile := false
 		for _, backupFileSnap := range backupConf.Snapshots {
@@ -4867,7 +4867,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backupConfig.C
 
 		onStorageDevice := false
 		for _, driverSnapVol := range driverSnapshots {
-			_, driverSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(driverSnapVol.Name())
+			_, driverSnapOnly, _ := api.GetParentAndSnapshotName(driverSnapVol.Name())
 			if driverSnapOnly == backupFileSnapOnly {
 				onStorageDevice = true
 				break
@@ -5337,7 +5337,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 	// Create snapshot mount paths and snapshot symlink if needed.
 	if len(snapshots) > 0 {
 		for _, snapName := range snapshots {
-			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapName)
+			_, snapOnlyName, _ := api.GetParentAndSnapshotName(snapName)
 			l.Debug("Ensuring instance snapshot mount path", logger.Ctx{"snapshot": snapOnlyName})
 
 			snapVol, err := vol.NewSnapshot(snapOnlyName)
@@ -5384,7 +5384,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 
 		snapNames = make([]string, 0, len(volSnaps))
 		for _, volSnap := range volSnaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(volSnap.Name)
+			_, snapName, _ := api.GetParentAndSnapshotName(volSnap.Name)
 			snapNames = append(snapNames, snapName)
 		}
 	}
@@ -5452,7 +5452,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		// Due to a historical bug, the volume snapshot names were sometimes written in their full form
 		// (<parent>/<snap>) rather than the expected snapshot name only form, so we need to handle both.
 		if shared.IsSnapshot(snapshot.Name) {
-			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+			_, snapName, _ = api.GetParentAndSnapshotName(snapshot.Name)
 		}
 
 		fullSnapName := drivers.GetSnapshotVolumeName(srcBackup.Name, snapName)

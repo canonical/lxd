@@ -951,7 +951,7 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (string, error) {
 	// Strip snapshot name if supplied in instanceName, and lookup the storage pool of the parent instance
 	// as that must always be the same as the snapshot's storage pool.
-	instanceName, _, _ = shared.InstanceGetParentAndSnapshotName(instanceName)
+	instanceName, _, _ = api.GetParentAndSnapshotName(instanceName)
 
 	remoteDrivers := StorageRemoteDriverNames()
 

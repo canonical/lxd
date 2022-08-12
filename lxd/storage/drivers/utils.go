@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -244,7 +245,7 @@ func GetVolumeMountPath(poolName string, volType VolumeType, volName string) str
 
 // GetVolumeSnapshotDir gets the snapshot mount directory for the parent volume.
 func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) string {
-	parent, _, _ := shared.InstanceGetParentAndSnapshotName(volName)
+	parent, _, _ := api.GetParentAndSnapshotName(volName)
 	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), parent)
 }
 

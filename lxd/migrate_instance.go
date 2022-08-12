@@ -283,7 +283,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 	}
 
 	// Send the pre-dump.
-	ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
+	ctName, _, _ := api.GetParentAndSnapshotName(s.instance.Name())
 	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
@@ -724,7 +724,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// However assuming we're network bound, there's really no reason to do these in.
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
-		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
+		ctName, _, _ := api.GetParentAndSnapshotName(s.instance.Name())
 		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
@@ -1346,7 +1346,7 @@ func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnap
 	}
 
 	for _, snap := range targetSnapshots {
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
 
 		targetSnapshotsTime[snapName] = snap.CreationDate().Unix()
 		existDate, exists := sourceSnapshotsTime[snapName]
