@@ -344,9 +344,11 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		volTypesProjects := make(map[int]string)
+		filters := make([]db.StorageVolumeFilter, 0)
 
-		for _, supportedVolType := range supportedVolumeTypes {
+		for i := range supportedVolumeTypes {
+			supportedVolType := supportedVolumeTypes[i] // Local variable for use as pointer below.
+
 			if volumeTypeName != "" && supportedVolType != volumeType {
 				continue // Only include the requested type if specified.
 			}
@@ -356,18 +358,30 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 				// The project name used for custom volumes varies based on whether the project
 				// has the featues.storage.volumes feature enabled.
 				customVolProjectName := project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
-				volTypesProjects[db.StoragePoolVolumeTypeCustom] = customVolProjectName
+				volTypeCustom := db.StoragePoolVolumeTypeCustom
+				filters = append(filters, db.StorageVolumeFilter{
+					Type:    &volTypeCustom,
+					Project: &customVolProjectName,
+				})
 			case db.StoragePoolVolumeTypeImage:
 				// Image volumes are effectively a cache and are always linked to default project.
 				// We filter the ones relevant to requested project below.
-				volTypesProjects[db.StoragePoolVolumeTypeImage] = project.Default
+				volTypeImage := db.StoragePoolVolumeTypeImage
+				projectDefault := project.Default
+				filters = append(filters, db.StorageVolumeFilter{
+					Type:    &volTypeImage,
+					Project: &projectDefault,
+				})
 			default:
 				// Include instance volume types using the specified project.
-				volTypesProjects[supportedVolType] = projectName
+				filters = append(filters, db.StorageVolumeFilter{
+					Type:    &supportedVolType,
+					Project: &projectName,
+				})
 			}
 		}
 
-		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, volTypesProjects, memberSpecific)
+		projectsVolumes, err = tx.GetStoragePoolVolumes(poolID, filters, memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading volumes: %w", err)
 		}
