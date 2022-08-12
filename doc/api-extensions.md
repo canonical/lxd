@@ -1696,3 +1696,6 @@ This introduces a new `Ready` state for instances which can be set using `devlxd
 
 ## `network_bgp_holdtime`
 This introduces a new `bgp.peers.<name>.holdtime` configuration key to control the BGP hold time for a particular peer.
+
+## `storage_volumes_all_projects`
+This introduces the ability to list storage volumes from all projects.
