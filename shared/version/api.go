@@ -333,6 +333,7 @@ var APIExtensions = []string{
 	"qemu_raw_conf",
 	"storage_cephfs_fscache",
 	"vsock_api",
+	"storage_volumes_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

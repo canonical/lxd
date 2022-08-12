@@ -1670,3 +1670,6 @@ Add support for `fscache`/`cachefilesd` on CephFS pools through a new `cephfs.fs
 
 ## `vsock_api`
 This introduces a bidirectional `vsock` interface which allows the `lxd-agent` and the LXD server to communicate better.
+
+## `storage_volumes_all_projects`
+This introduces the ability to list storage volumes from all projects.
