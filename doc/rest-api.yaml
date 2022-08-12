@@ -5395,6 +5395,11 @@ definitions:
         example: foo
         type: string
         x-go-name: Name
+      project:
+        description: Project containing the volume.
+        example: default
+        type: string
+        x-go-name: Project
       restore:
         description: Name of a snapshot to restore
         example: snap0
