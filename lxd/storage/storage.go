@@ -135,53 +135,51 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all the volumes using the storage pool.
-		projectsVolumes, err := tx.GetStoragePoolVolumes(pool.ID(), nil, memberSpecific)
+		volumes, err := tx.GetStoragePoolVolumes(pool.ID(), nil, memberSpecific)
 		if err != nil {
-			return fmt.Errorf("Failed loading volumes: %w", err)
+			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
 
-		for projectName, projectVolumes := range projectsVolumes {
-			for _, vol := range projectVolumes {
-				var u *api.URL
+		for _, vol := range volumes {
+			var u *api.URL
 
-				if shared.StringInSlice(vol.Type, ignoreVolumeType) {
-					continue
+			if shared.StringInSlice(vol.Type, ignoreVolumeType) {
+				continue
+			}
+
+			// Generate URL for volume based on types that map to other entities.
+			if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
+				volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
+				if isSnap {
+					u = api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(vol.Project)
+				} else {
+					u = api.NewURL().Path(version.APIVersion, "instances", volName).Project(vol.Project)
 				}
 
-				// Generate URL for volume based on types that map to other entities.
-				if vol.Type == db.StoragePoolVolumeTypeNameContainer || vol.Type == db.StoragePoolVolumeTypeNameVM {
-					volName, snapName, isSnap := api.GetParentAndSnapshotName(vol.Name)
-					if isSnap {
-						u = api.NewURL().Path(version.APIVersion, "instances", volName, "snapshots", snapName).Project(projectName)
-					} else {
-						u = api.NewURL().Path(version.APIVersion, "instances", volName).Project(projectName)
-					}
+				usedBy = append(usedBy, u.String())
+			} else if vol.Type == db.StoragePoolVolumeTypeNameImage {
+				imgProjectNames, err := tx.GetProjectsUsingImage(vol.Name)
+				if err != nil {
+					return fmt.Errorf("Failed loading projects using image %q: %w", vol.Name, err)
+				}
 
-					usedBy = append(usedBy, u.String())
-				} else if vol.Type == db.StoragePoolVolumeTypeNameImage {
-					imgProjectNames, err := tx.GetProjectsUsingImage(vol.Name)
-					if err != nil {
-						return fmt.Errorf("Failed loading projects using image %q: %w", vol.Name, err)
-					}
-
-					if len(imgProjectNames) > 0 {
-						for _, imgProjectName := range imgProjectNames {
-							u = api.NewURL().Path(version.APIVersion, "images", vol.Name).Project(imgProjectName).Target(vol.Location)
-							usedBy = append(usedBy, u.String())
-						}
-					} else {
-						// Handle orphaned image volumes that are not associated to an image.
-						u = vol.URL(version.APIVersion, pool.Name(), projectName)
+				if len(imgProjectNames) > 0 {
+					for _, imgProjectName := range imgProjectNames {
+						u = api.NewURL().Path(version.APIVersion, "images", vol.Name).Project(imgProjectName).Target(vol.Location)
 						usedBy = append(usedBy, u.String())
 					}
 				} else {
-					u = vol.URL(version.APIVersion, pool.Name(), projectName)
+					// Handle orphaned image volumes that are not associated to an image.
+					u = vol.URL(version.APIVersion, pool.Name(), vol.Project)
 					usedBy = append(usedBy, u.String())
 				}
+			} else {
+				u = vol.URL(version.APIVersion, pool.Name(), vol.Project)
+				usedBy = append(usedBy, u.String())
+			}
 
-				if firstOnly {
-					return nil
-				}
+			if firstOnly {
+				return nil
 			}
 		}
 

@@ -5,6 +5,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -108,14 +109,26 @@ WHERE storage_volumes.id = ?
 	return response, nil
 }
 
-// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool on all cluster members keyed
-// on project and volume type. If there are no volumes, it returns an empty list and no error.
-// Accepts a volumeTypesProject argument that allows filtering by specific volume types in specific project names.
-// If volumeTypesProject is empty then all volumes are returned. If the project name for a specific volume type is
-// empty then all volumes of that type across all projects are included.
-// If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
-// all members.
-func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[int]string, memberSpecific bool) (map[string]map[int64]*api.StorageVolume, error) {
+// StorageVolumeFilter used for filtering storage volumes with GetStoragePoolVolumes().
+type StorageVolumeFilter struct {
+	Type    *int
+	Project *string
+	Name    *string
+}
+
+// StorageVolume represents a database storage volume record.
+type StorageVolume struct {
+	api.StorageVolume
+
+	ID      int64
+	Project string
+}
+
+// GetStoragePoolVolumes returns all storage volumes attached to a given storage pool.
+// If there are no volumes, it returns an empty list and no error.
+// Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
+// restricted to volumes that belong to this member or belong to all members.
+func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeFilter, memberSpecific bool) ([]*StorageVolume, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{poolID}
 
@@ -139,41 +152,59 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[i
 		args = append(args, c.nodeID)
 	}
 
-	if len(volumeTypesProject) > 0 {
+	if len(filters) > 0 {
 		q.WriteString("AND (")
-		i := 0
 
-		for volumeType, projectName := range volumeTypesProject {
+		for i, filter := range filters {
+			// Validate filter.
+			if filter.Name != nil && filter.Type == nil {
+				return nil, fmt.Errorf("Cannot filter by volume name if volume type not specified")
+			}
+
+			if filter.Name != nil && filter.Project == nil {
+				return nil, fmt.Errorf("Cannot filter by volume name if volume project not specified")
+			}
+
+			var qFilters []string
+
+			if filter.Type != nil {
+				qFilters = append(qFilters, "storage_volumes_all.type = ?")
+				args = append(args, *filter.Type)
+			}
+
+			if filter.Project != nil {
+				qFilters = append(qFilters, "projects.name = ?")
+				args = append(args, *filter.Project)
+			}
+
+			if filter.Name != nil {
+				qFilters = append(qFilters, "storage_volumes_all.name = ?")
+				args = append(args, *filter.Name)
+			}
+
+			if qFilters == nil {
+				return nil, fmt.Errorf("Invalid storage volume filter")
+			}
+
 			if i > 0 {
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString("(storage_volumes_all.type = ?")
-			args = append(args, volumeType)
-
-			if projectName != "" {
-				q.WriteString(" AND projects.name = ?")
-				args = append(args, projectName)
-			}
-
-			q.WriteString(")")
-			i++
+			q.WriteString(fmt.Sprintf("(%s)", strings.Join(qFilters, " AND ")))
 		}
 
 		q.WriteString(")")
 	}
 
 	var err error
-	projectsVolumes := make(map[string]map[int64]*api.StorageVolume)
+	var volumes []*StorageVolume
 
 	err = c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
-		var projectName string
-		var volumeID int64 = int64(-1)
 		var volumeType int = int(-1)
 		var contentType int = int(-1)
-		var vol api.StorageVolume
+		var vol StorageVolume
 
-		err := scan(&projectName, &volumeID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
+		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
 		if err != nil {
 			return err
 		}
@@ -188,11 +219,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[i
 			return err
 		}
 
-		if projectsVolumes[projectName] == nil {
-			projectsVolumes[projectName] = make(map[int64]*api.StorageVolume)
-		}
-
-		projectsVolumes[projectName][volumeID] = &vol
+		volumes = append(volumes, &vol)
 
 		return nil
 	}, args...)
@@ -201,16 +228,35 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[i
 	}
 
 	// Populate config.
-	for _, projectVolumes := range projectsVolumes {
-		for volumeID, volume := range projectVolumes {
-			volume.Config, err = c.storageVolumeConfigGet(volumeID, shared.IsSnapshot(volume.Name))
-			if err != nil {
-				return nil, fmt.Errorf("Failed loading volume config for %q: %w", volume.Name, err)
-			}
+	for _, volume := range volumes {
+		volume.Config, err = c.storageVolumeConfigGet(volume.ID, shared.IsSnapshot(volume.Name))
+		if err != nil {
+			return nil, fmt.Errorf("Failed loading volume config for %q: %w", volume.Name, err)
 		}
 	}
 
-	return projectsVolumes, nil
+	return volumes, nil
+}
+
+// GetStoragePoolVolume returns the storage volume attached to a given storage pool.
+func (c *ClusterTx) GetStoragePoolVolume(poolID int64, projectName string, volumeType int, volumeName string, memberSpecific bool) (*StorageVolume, error) {
+	filters := []StorageVolumeFilter{{
+		Project: &projectName,
+		Type:    &volumeType,
+		Name:    &volumeName,
+	}}
+
+	volumes, err := c.GetStoragePoolVolumes(poolID, filters, memberSpecific)
+	volumesLen := len(volumes)
+	if (err == nil && volumesLen <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage volume not found")
+	} else if err == nil && volumesLen > 1 {
+		return nil, api.StatusErrorf(http.StatusConflict, "Storage volume found on more than one cluster member. Please target a specific member")
+	} else if err != nil {
+		return nil, err
+	}
+
+	return volumes[0], nil
 }
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
