@@ -108,14 +108,18 @@ WHERE storage_volumes.id = ?
 	return response, nil
 }
 
+// StorageVolumeFilter used for filtering storage volumes with GetStoragePoolVolumes().
+type StorageVolumeFilter struct {
+	Type    *int
+	Project *string
+	Name    *string
+}
+
 // GetStoragePoolVolumes returns all storage volumes attached to a given storage pool on all cluster members keyed
 // on project and volume type. If there are no volumes, it returns an empty list and no error.
-// Accepts a volumeTypesProject argument that allows filtering by specific volume types in specific project names.
-// If volumeTypesProject is empty then all volumes are returned. If the project name for a specific volume type is
-// empty then all volumes of that type across all projects are included.
-// If memberSpecific is true, then the search is restricted to volumes that belong to this member or belong to
-// all members.
-func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[int]string, memberSpecific bool) (map[string]map[int64]*api.StorageVolume, error) {
+// Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
+// restricted to volumes that belong to this member or belong to all members.
+func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, filters []StorageVolumeFilter, memberSpecific bool) (map[string]map[int64]*api.StorageVolume, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{poolID}
 
@@ -139,25 +143,45 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, volumeTypesProject map[i
 		args = append(args, c.nodeID)
 	}
 
-	if len(volumeTypesProject) > 0 {
+	if len(filters) > 0 {
 		q.WriteString("AND (")
-		i := 0
 
-		for volumeType, projectName := range volumeTypesProject {
+		for i, filter := range filters {
+			// Validate filter.
+			if filter.Name != nil && filter.Type == nil {
+				return nil, fmt.Errorf("Cannot filter by volume name if volume type not specified")
+			}
+
+			if filter.Name != nil && filter.Project == nil {
+				return nil, fmt.Errorf("Cannot filter by volume name if volume project not specified")
+			}
+
+			var qFilters []string
+
+			if filter.Type != nil {
+				qFilters = append(qFilters, "storage_volumes_all.type = ?")
+				args = append(args, *filter.Type)
+			}
+
+			if filter.Project != nil {
+				qFilters = append(qFilters, "projects.name = ?")
+				args = append(args, *filter.Project)
+			}
+
+			if filter.Name != nil {
+				qFilters = append(qFilters, "storage_volumes_all.name = ?")
+				args = append(args, *filter.Name)
+			}
+
+			if qFilters == nil {
+				return nil, fmt.Errorf("Invalid storage volume filter")
+			}
+
 			if i > 0 {
 				q.WriteString(" OR ")
 			}
 
-			q.WriteString("(storage_volumes_all.type = ?")
-			args = append(args, volumeType)
-
-			if projectName != "" {
-				q.WriteString(" AND projects.name = ?")
-				args = append(args, projectName)
-			}
-
-			q.WriteString(")")
-			i++
+			q.WriteString(fmt.Sprintf("(%s)", strings.Join(qFilters, " AND ")))
 		}
 
 		q.WriteString(")")
