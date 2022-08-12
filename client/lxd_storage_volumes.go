@@ -33,6 +33,30 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 	return urlsToResourceNames(baseURL, urls...)
 }
 
+// GetStoragePoolVolumeNamesAllProjects returns the names of all volumes in a pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) ([]string, error) {
+	err := r.CheckExtension("storage")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the raw URL values.
+	urls := []string{}
+	u := api.NewURL().Path("storage-pools", pool, "volumes").WithQuery("all-projects", "true")
+	_, err = r.queryStruct("GET", u.String(), nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it.
+	return urlsToResourceNames(u.String(), urls...)
+}
+
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool.
 func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, error) {
 	if !r.HasExtension("storage") {
@@ -43,6 +67,33 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 
 	// Fetch the raw value
 	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?recursion=1", url.PathEscape(pool)), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// GetStoragePoolVolumesAllProjects returns a list of StorageVolume entries for the provided pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumesAllProjects(pool string) ([]api.StorageVolume, error) {
+	err := r.CheckExtension("storage")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-pools", pool, "volumes").
+		WithQuery("recursion", "1").
+		WithQuery("all-projects", "true")
+
+	// Fetch the raw value.
+	_, err = r.queryStruct("GET", url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +114,34 @@ func (r *ProtocolLXD) GetStoragePoolVolumesWithFilter(pool string, filters []str
 	v.Set("filter", parseFilters(filters))
 	// Fetch the raw value
 	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?%s", url.PathEscape(pool), v.Encode()), nil, "", &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}
+
+// GetStoragePoolVolumesWithFilterAllProjects returns a filtered list of StorageVolume entries for the provided pool for all projects.
+func (r *ProtocolLXD) GetStoragePoolVolumesWithFilterAllProjects(pool string, filters []string) ([]api.StorageVolume, error) {
+	err := r.CheckExtension("storage")
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.CheckExtension("storage_volumes_all_projects")
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := []api.StorageVolume{}
+
+	url := api.NewURL().Path("storage-pools", pool, "volumes").
+		WithQuery("recursion", "1").
+		WithQuery("filter", parseFilters(filters)).
+		WithQuery("all-projects", "true")
+
+	// Fetch the raw value.
+	_, err = r.queryStruct("GET", url.String(), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
