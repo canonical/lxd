@@ -327,18 +327,35 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	requestProjectName := projectParam(r)
+	// Detect project mode.
+	requestProjectName := queryParam(r, "project")
+	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+
+	if allProjects && requestProjectName != "" {
+		return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects"))
+	} else if !allProjects && requestProjectName == "" {
+		requestProjectName = project.Default
+	}
+
 	var dbVolumes []*db.StorageVolume
 
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbProject, err := cluster.GetProject(ctx, tx.Tx(), requestProjectName)
-		if err != nil {
-			return err
-		}
+		var customVolProjectName string
 
-		p, err := dbProject.ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
+		if !allProjects {
+			dbProject, err := cluster.GetProject(ctx, tx.Tx(), requestProjectName)
+			if err != nil {
+				return err
+			}
+
+			p, err := dbProject.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return err
+			}
+
+			// The project name used for custom volumes varies based on whether the
+			// project has the featues.storage.volumes feature enabled.
+			customVolProjectName = project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
 		}
 
 		filters := make([]db.StorageVolumeFilter, 0)
@@ -352,29 +369,34 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 			switch supportedVolType {
 			case db.StoragePoolVolumeTypeCustom:
-				// The project name used for custom volumes varies based on whether the project
-				// has the featues.storage.volumes feature enabled.
-				customVolProjectName := project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
 				volTypeCustom := db.StoragePoolVolumeTypeCustom
-				filters = append(filters, db.StorageVolumeFilter{
-					Type:    &volTypeCustom,
-					Project: &customVolProjectName,
-				})
+				filter := db.StorageVolumeFilter{
+					Type: &volTypeCustom,
+				}
+
+				if !allProjects {
+					filter.Project = &customVolProjectName
+				}
+
+				filters = append(filters, filter)
 			case db.StoragePoolVolumeTypeImage:
 				// Image volumes are effectively a cache and are always linked to default project.
-				// We filter the ones relevant to requested project below.
+				// We filter the ones relevant to requested project below after the query has run.
 				volTypeImage := db.StoragePoolVolumeTypeImage
-				projectDefault := project.Default
 				filters = append(filters, db.StorageVolumeFilter{
-					Type:    &volTypeImage,
-					Project: &projectDefault,
+					Type: &volTypeImage,
 				})
 			default:
 				// Include instance volume types using the specified project.
-				filters = append(filters, db.StorageVolumeFilter{
-					Type:    &supportedVolType,
-					Project: &requestProjectName,
-				})
+				filter := db.StorageVolumeFilter{
+					Type: &supportedVolType,
+				}
+
+				if !allProjects {
+					filter.Project = &requestProjectName
+				}
+
+				filters = append(filters, filter)
 			}
 		}
 
@@ -389,12 +411,15 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectImages, err := d.db.Cluster.GetImagesFingerprints(requestProjectName, false)
-	if err != nil {
-		return response.SmartError(err)
+	var projectImages []string
+	if !allProjects {
+		projectImages, err = d.db.Cluster.GetImagesFingerprints(requestProjectName, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	dbVolumes = filterVolumes(dbVolumes, clauses, projectImages)
+	dbVolumes = filterVolumes(dbVolumes, clauses, allProjects, projectImages)
 
 	// Sort by type then volume name.
 	sort.SliceStable(dbVolumes, func(i, j int) bool {
@@ -427,14 +452,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	urls := make([]string, 0, len(dbVolumes))
 	for _, dbVol := range dbVolumes {
-		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion, poolName, requestProjectName).String())
+		urls = append(urls, dbVol.StorageVolume.URL(version.APIVersion, poolName).String())
 	}
 
 	return response.SyncResponse(true, urls)
 }
 
 // filterVolumes returns a filtered list of volumes that match the given clauses.
-func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, filterProjectImages []string) []*db.StorageVolume {
+func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProjects bool, filterProjectImages []string) []*db.StorageVolume {
 	// FilterStorageVolume is for filtering purpose only.
 	// It allows to filter snapshots by using default filter mechanism.
 	type FilterStorageVolume struct {
@@ -445,7 +470,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, filterP
 	filtered := []*db.StorageVolume{}
 	for _, volume := range volumes {
 		// Filter out image volumes that are not used by this project.
-		if volume.Type == db.StoragePoolVolumeTypeNameImage && !shared.StringInSlice(volume.Name, filterProjectImages) {
+		if volume.Type == db.StoragePoolVolumeTypeNameImage && !allProjects && !shared.StringInSlice(volume.Name, filterProjectImages) {
 			continue
 		}
 
