@@ -32,7 +32,12 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	tlsClientKey := string(content)
 
 	// Load the server certificate.
-	content, err = ioutil.ReadFile(shared.VarPath("server.crt"))
+	certPath := shared.VarPath("cluster.crt")
+	if !shared.PathExists(certPath) {
+		certPath = shared.VarPath("server.crt")
+	}
+
+	content, err = ioutil.ReadFile(certPath)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open server certificate: %w", err)
 	}
