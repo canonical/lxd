@@ -120,8 +120,7 @@ type StorageVolumeFilter struct {
 type StorageVolume struct {
 	api.StorageVolume
 
-	ID      int64
-	Project string
+	ID int64
 }
 
 // GetStoragePoolVolumes returns all storage volumes attached to a given storage pool.
