@@ -190,7 +190,7 @@ INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) 
 			var defaultProjectStmt strings.Builder
 			_, _ = defaultProjectStmt.WriteString("INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');")
 
-			for _, key := range ProjectFeaturesDefaults {
+			for _, key := range ProjectFeatures {
 				_, _ = defaultProjectStmt.WriteString(fmt.Sprintf("INSERT INTO projects_config (project_id, key, value) VALUES (1, '%s', 'true');", key))
 			}
 
