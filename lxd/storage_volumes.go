@@ -400,7 +400,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		dbVolumes, err = tx.GetStoragePoolVolumes(poolID, filters, memberSpecific)
+		dbVolumes, err = tx.GetStoragePoolVolumes(poolID, memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
