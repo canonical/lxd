@@ -135,7 +135,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all the volumes using the storage pool.
-		volumes, err := tx.GetStoragePoolVolumes(pool.ID(), nil, memberSpecific)
+		volumes, err := tx.GetStoragePoolVolumes(pool.ID(), memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
