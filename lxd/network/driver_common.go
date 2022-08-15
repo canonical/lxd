@@ -761,7 +761,7 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 		peerPassword := config[fmt.Sprintf("bgp.peers.%s.password", peerName)]
 		peerHoldTime := config[fmt.Sprintf("bgp.peers.%s.holdtime", peerName)]
 
-		if peerAddress != "" && peerASN != "" && peerHoldTime != "" {
+		if peerAddress != "" && peerASN != "" {
 			peers = append(peers, fmt.Sprintf("%s,%s,%s,%s", peerAddress, peerASN, peerPassword, peerHoldTime))
 		}
 	}
