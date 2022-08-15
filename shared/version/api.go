@@ -340,6 +340,7 @@ var APIExtensions = []string{
 	"vsock_api",
 	"instance_ready_state",
 	"network_bgp_holdtime",
+	"storage_volumes_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
