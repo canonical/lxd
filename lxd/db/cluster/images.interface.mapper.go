@@ -11,7 +11,7 @@ import (
 type ImageGenerated interface {
 	// GetImages returns all available images.
 	// generator: image GetMany
-	GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, error)
+	GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image, error)
 
 	// GetImage returns the image with the given key.
 	// generator: image GetOne

@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,19 +26,19 @@ SELECT instances_snapshots.id, projects.name AS project, instances.name AS insta
 var instanceSnapshotObjectsByID = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE instances_snapshots.id = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( instances_snapshots.id = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstance = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE project = ? AND instance = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( project = ? AND instance = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstanceAndName = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE project = ? AND instance = ? AND instances_snapshots.name = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( project = ? AND instance = ? AND instances_snapshots.name = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotID = RegisterStmt(`
@@ -60,7 +61,7 @@ DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM in
 
 // GetInstanceSnapshots returns all available instance_snapshots.
 // generator: instance_snapshot GetMany
-func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
+func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
 	var err error
 
 	// Result slice.
@@ -68,31 +69,67 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := make([]any, 0, DqliteMaxParams)
+	queryParts := [2]string{}
 
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
-		args = []any{
-			filter.Project,
-			filter.Instance,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
-		args = []any{
-			filter.Project,
-			filter.Instance,
-		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, instanceSnapshotObjectsByID)
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, instanceSnapshotObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if filter.Project != nil && filter.Instance != nil && filter.Name != nil && filter.ID == nil {
+			args = append(args, []any{filter.Project, filter.Instance, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstanceAndName)
+				break
+			}
+
+			query := StmtString(instanceSnapshotObjectsByProjectAndInstanceAndName)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Instance != nil && filter.ID == nil && filter.Name == nil {
+			args = append(args, []any{filter.Project, filter.Instance}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, instanceSnapshotObjectsByProjectAndInstance)
+				break
+			}
+
+			query := StmtString(instanceSnapshotObjectsByProjectAndInstance)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, instanceSnapshotObjectsByID)
+				break
+			}
+
+			query := StmtString(instanceSnapshotObjectsByID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Project == nil && filter.Instance == nil && filter.Name == nil {
+			sqlStmt = Stmt(tx, instanceSnapshotObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -111,7 +148,13 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
@@ -121,8 +164,8 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filter InstanceSnapsh
 
 // GetInstanceSnapshotDevices returns all available InstanceSnapshot Devices
 // generator: instance_snapshot GetMany
-func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]Device, error) {
-	instanceSnapshotDevices, err := GetDevices(ctx, tx, "instance_snapshot")
+func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filters ...DeviceFilter) (map[string]Device, error) {
+	instanceSnapshotDevices, err := GetDevices(ctx, tx, "instance_snapshot", filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +185,8 @@ func GetInstanceSnapshotDevices(ctx context.Context, tx *sql.Tx, instanceSnapsho
 
 // GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
 // generator: instance_snapshot GetMany
-func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int) (map[string]string, error) {
-	instanceSnapshotConfig, err := GetConfig(ctx, tx, "instance_snapshot")
+func GetInstanceSnapshotConfig(ctx context.Context, tx *sql.Tx, instanceSnapshotID int, filters ...ConfigFilter) (map[string]string, error) {
+	instanceSnapshotConfig, err := GetConfig(ctx, tx, "instance_snapshot", filters...)
 	if err != nil {
 		return nil, err
 	}

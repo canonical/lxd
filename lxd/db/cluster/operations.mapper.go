@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,19 +26,19 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 var operationObjectsByNodeID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.node_id = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.node_id = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.id = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.id = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.uuid = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.uuid = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
@@ -55,7 +56,7 @@ DELETE FROM operations WHERE node_id = ?
 
 // GetOperations returns all available operations.
 // generator: operation GetMany
-func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]Operation, error) {
+func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error) {
 	var err error
 
 	// Result slice.
@@ -63,28 +64,67 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := make([]any, 0, DqliteMaxParams)
+	queryParts := [2]string{}
 
-	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByUUID)
-		args = []any{
-			filter.UUID,
-		}
-	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByNodeID)
-		args = []any{
-			filter.NodeID,
-		}
-	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByID)
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, operationObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
+			args = append(args, []any{filter.UUID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByUUID)
+				break
+			}
+
+			query := StmtString(operationObjectsByUUID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.NodeID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByNodeID)
+				break
+			}
+
+			query := StmtString(operationObjectsByNodeID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, operationObjectsByID)
+				break
+			}
+
+			query := StmtString(operationObjectsByID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+			sqlStmt = Stmt(tx, operationObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -101,7 +141,13 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
 	}

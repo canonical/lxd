@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,25 +26,25 @@ SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name
 var profileObjectsByID = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
-  WHERE profiles.id = ? ORDER BY projects.id, profiles.name
+  WHERE ( profiles.id = ? ) ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByName = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
-  WHERE profiles.name = ? ORDER BY projects.id, profiles.name
+  WHERE ( profiles.name = ? ) ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProject = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
-  WHERE project = ? ORDER BY projects.id, profiles.name
+  WHERE ( project = ? ) ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProjectAndName = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
-  WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
+  WHERE ( project = ? AND profiles.name = ? ) ORDER BY projects.id, profiles.name
 `)
 
 var profileID = RegisterStmt(`
@@ -121,7 +122,7 @@ func ProfileExists(ctx context.Context, tx *sql.Tx, project string, name string)
 
 // GetProfiles returns all available profiles.
 // generator: profile GetMany
-func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profile, error) {
+func GetProfiles(ctx context.Context, tx *sql.Tx, filters ...ProfileFilter) ([]Profile, error) {
 	var err error
 
 	// Result slice.
@@ -129,34 +130,83 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := make([]any, 0, DqliteMaxParams)
+	queryParts := [2]string{}
 
-	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = Stmt(tx, profileObjectsByProjectAndName)
-		args = []any{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, profileObjectsByProject)
-		args = []any{
-			filter.Project,
-		}
-	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil {
-		sqlStmt = Stmt(tx, profileObjectsByName)
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, profileObjectsByID)
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, profileObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if filter.Project != nil && filter.Name != nil && filter.ID == nil {
+			args = append(args, []any{filter.Project, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByProjectAndName)
+				break
+			}
+
+			query := StmtString(profileObjectsByProjectAndName)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
+			args = append(args, []any{filter.Project}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByProject)
+				break
+			}
+
+			query := StmtString(profileObjectsByProject)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Name != nil && filter.ID == nil && filter.Project == nil {
+			args = append(args, []any{filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByName)
+				break
+			}
+
+			query := StmtString(profileObjectsByName)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, profileObjectsByID)
+				break
+			}
+
+			query := StmtString(profileObjectsByID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
+			sqlStmt = Stmt(tx, profileObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -172,7 +222,13 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
 	}
@@ -182,8 +238,8 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 
 // GetProfileDevices returns all available Profile Devices
 // generator: profile GetMany
-func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[string]Device, error) {
-	profileDevices, err := GetDevices(ctx, tx, "profile")
+func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int, filters ...DeviceFilter) (map[string]Device, error) {
+	profileDevices, err := GetDevices(ctx, tx, "profile", filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +259,8 @@ func GetProfileDevices(ctx context.Context, tx *sql.Tx, profileID int) (map[stri
 
 // GetProfileConfig returns all available Profile Config
 // generator: profile GetMany
-func GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int) (map[string]string, error) {
-	profileConfig, err := GetConfig(ctx, tx, "profile")
+func GetProfileConfig(ctx context.Context, tx *sql.Tx, profileID int, filters ...ConfigFilter) (map[string]string, error) {
+	profileConfig, err := GetConfig(ctx, tx, "profile", filters...)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
 // GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
-func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Device, error) {
+func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...DeviceFilter) (map[int][]Device, error) {
 	var err error
 
 	// Result slice.
@@ -39,12 +39,36 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	sqlStmt, err := prepare(tx, fmt.Sprintf(deviceObjectsLocal, fillParent...))
-	if err != nil {
-		return nil, err
+	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
+	queryParts := strings.SplitN(queryStr, "ORDER BY", 2)
+	args := make([]any, 0, DqliteMaxParams)
+
+	for i, filter := range filters {
+		var cond string
+		if i == 0 {
+			cond = " WHERE ( %s )"
+		} else {
+			cond = " OR ( %s )"
+		}
+
+		entries := []string{}
+		if filter.Name != nil {
+			entries = append(entries, "name = ?")
+			args = append(args, filter.Name)
+		}
+
+		if filter.Type != nil {
+			entries = append(entries, "type = ?")
+			args = append(args, filter.Type)
+		}
+
+		if len(entries) > 0 {
+			queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, " AND "))
+		}
+
 	}
 
-	args := []any{}
+	queryStr = strings.Join(queryParts, " ORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(i int) []any {
@@ -58,12 +82,17 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.QueryObjects(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
 
-	config, err := GetConfig(ctx, tx, parent+"_device")
+	configFilters := make([]ConfigFilter, 0, len(filters))
+	for _, filter := range filters {
+		configFilters = append(configFilters, filter.Config)
+	}
+
+	config, err := GetConfig(ctx, tx, parent+"_device", configFilters...)
 	if err != nil {
 		return nil, err
 	}
@@ -99,13 +128,9 @@ func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[s
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceCreateLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
+	queryStr := fmt.Sprintf(deviceCreateLocal, fillParent...)
 	for _, object := range objects {
-		result, err := stmt.Exec(object.ReferenceID, object.Name, object.Type)
+		result, err := tx.Exec(queryStr, object.ReferenceID, object.Name, object.Type)
 		if err != nil {
 			return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
 		}
@@ -165,12 +190,8 @@ func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceDeleteLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	result, err := stmt.Exec(referenceID)
+	queryStr := fmt.Sprintf(deviceDeleteLocal, fillParent...)
+	result, err := tx.Exec(queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_device\" failed: %w", parent, err)
 	}

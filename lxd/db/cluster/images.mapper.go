@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,48 +26,48 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
 var imageObjectsByID = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE images.id = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( images.id = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProject = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE project = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProjectAndCached = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE project = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? AND images.cached = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProjectAndPublic = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE project = ? AND images.public = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? AND images.public = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByFingerprint = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE images.fingerprint = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( images.fingerprint = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByCached = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE images.cached = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( images.cached = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByAutoUpdate = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE images.auto_update = ? ORDER BY projects.id, images.fingerprint
+  WHERE ( images.auto_update = ? ) ORDER BY projects.id, images.fingerprint
 `)
 
 // GetImages returns all available images.
 // generator: image GetMany
-func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, error) {
+func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image, error) {
 	var err error
 
 	// Result slice.
@@ -74,50 +75,131 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := make([]any, 0, DqliteMaxParams)
+	queryParts := [2]string{}
 
-	if filter.Project != nil && filter.Public != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProjectAndPublic)
-		args = []any{
-			filter.Project,
-			filter.Public,
-		}
-	} else if filter.Project != nil && filter.Cached != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProjectAndCached)
-		args = []any{
-			filter.Project,
-			filter.Cached,
-		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByProject)
-		args = []any{
-			filter.Project,
-		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByID)
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByFingerprint)
-		args = []any{
-			filter.Fingerprint,
-		}
-	} else if filter.Cached != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		sqlStmt = Stmt(tx, imageObjectsByCached)
-		args = []any{
-			filter.Cached,
-		}
-	} else if filter.AutoUpdate != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
-		sqlStmt = Stmt(tx, imageObjectsByAutoUpdate)
-		args = []any{
-			filter.AutoUpdate,
-		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+	if len(filters) == 0 {
 		sqlStmt = Stmt(tx, imageObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	for i, filter := range filters {
+		if filter.Project != nil && filter.Public != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Project, filter.Public}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByProjectAndPublic)
+				break
+			}
+
+			query := StmtString(imageObjectsByProjectAndPublic)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Cached != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Project, filter.Cached}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByProjectAndCached)
+				break
+			}
+
+			query := StmtString(imageObjectsByProjectAndCached)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.ID == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Project}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByProject)
+				break
+			}
+
+			query := StmtString(imageObjectsByProject)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByID)
+				break
+			}
+
+			query := StmtString(imageObjectsByID)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Fingerprint != nil && filter.ID == nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Fingerprint}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByFingerprint)
+				break
+			}
+
+			query := StmtString(imageObjectsByFingerprint)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Cached != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
+			args = append(args, []any{filter.Cached}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByCached)
+				break
+			}
+
+			query := StmtString(imageObjectsByCached)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.AutoUpdate != nil && filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
+			args = append(args, []any{filter.AutoUpdate}...)
+			if len(filters) == 1 {
+				sqlStmt = Stmt(tx, imageObjectsByAutoUpdate)
+				break
+			}
+
+			query := StmtString(imageObjectsByAutoUpdate)
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+			sqlStmt = Stmt(tx, imageObjects)
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -142,7 +224,13 @@ func GetImages(ctx context.Context, tx *sql.Tx, filter ImageFilter) ([]Image, er
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.QueryObjects(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
