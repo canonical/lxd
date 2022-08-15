@@ -15,6 +15,7 @@ Name                            | Default                   | Description
 LXD\_BACKEND                    | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
 LXD\_CEPH\_CLUSTER              | ceph                      | The name of the ceph cluster to create osd pools in
 LXD\_CEPH\_CEPHFS               | ""                        | The cephfs filesystem to use for `cephfs` pools.
+LXD\_CEPH\_CEPHOBJECT\_RADOSGW  | ""                        | The radosgw HTTP endpoint to use for `cephobject` pools.
 LXD\_CONCURRENT                 | 0                         | Run concurrency tests, very CPU intensive
 LXD\_DEBUG                      | 0                         | Run lxd, lxc and the shell in debug mode (very verbose)
 LXD\_INSPECT                    | 0                         | Don't teardown the test environment on failure
