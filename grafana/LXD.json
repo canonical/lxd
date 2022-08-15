@@ -376,6 +376,7 @@
           "exemplar": true,
           "expr": "sum(lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes) - \nsum(topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes))",
           "hide": false,
+          "instant": true,
           "interval": "",
           "legendFormat": "Others",
           "refId": "B"
