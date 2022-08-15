@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var eventTypes = []string{api.EventTypeLogging, api.EventTypeOperation, api.EventTypeLifecycle}
@@ -40,28 +41,20 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
+	// Detect project mode.
+	projectName := queryParam(r, "project")
 	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
-	projectQueryParam := queryParam(r, "project")
-	if allProjects && projectQueryParam != "" {
-		response.BadRequest(fmt.Errorf("Cannot specify a project when requesting events for all projects"))
-		return nil
+
+	if allProjects && projectName != "" {
+		return api.StatusErrorf(http.StatusBadRequest, "Cannot specify a project when requesting all projects")
+	} else if !allProjects && projectName == "" {
+		projectName = project.Default
 	}
 
-	var projectName string
-	if !allProjects {
-		if projectQueryParam == "" {
-			projectName = project.Default
-		} else {
-			projectName = projectQueryParam
-
-			_, err := d.db.GetProject(context.Background(), projectName)
-			if err != nil {
-				if response.IsNotFoundError(err) {
-					_ = response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
-				}
-
-				return err
-			}
+	if !allProjects && projectName != project.Default {
+		_, err := d.db.GetProject(context.Background(), projectName)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -80,20 +73,21 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// Validate event types.
 	for _, entry := range types {
 		if !shared.StringInSlice(entry, eventTypes) {
-			_ = response.BadRequest(fmt.Errorf("'%s' isn't a supported event type", entry)).Render(w)
-			return nil
+			return api.StatusErrorf(http.StatusBadRequest, "%q isn't a supported event type", entry)
 		}
 	}
 
 	if shared.StringInSlice(api.EventTypeLogging, types) && !rbac.UserIsAdmin(r) {
-		_ = response.Forbidden(nil).Render(w)
-		return nil
+		return api.StatusErrorf(http.StatusForbidden, "Forbidden")
 	}
+
+	l := logger.AddContext(logger.Log, logger.Ctx{"remote": r.RemoteAddr})
 
 	// Upgrade the connection to websocket
 	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		return err
+		l.Warn("Failed upgrading event connection", logger.Ctx{"err": err})
+		return nil
 	}
 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
@@ -125,7 +119,8 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		l.Warn("Failed setting up event connection", logger.Ctx{"err": err})
+		return nil
 	}
 
 	var recvFunc events.EventHandler
@@ -146,7 +141,8 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	listener, err := d.events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
-		return err
+		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
+		return nil
 	}
 
 	listener.Wait(r.Context())
