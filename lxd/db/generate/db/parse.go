@@ -170,11 +170,6 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 		Filterable: true,
 	}
 
-	// Reference tables rely on ReferenceID for filtering, instead of a Filter struct.
-	if m.Type == ReferenceTable || m.Type == MapTable {
-		m.Filterable = false
-	}
-
 	if m.Filterable {
 		// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
 		filterName := name + "Filter"
