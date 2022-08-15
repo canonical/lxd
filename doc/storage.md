@@ -19,5 +19,9 @@ View volumes <howto/storage_view_volumes>
 Resize a volume <howto/storage_resize_volume>
 Move or copy a volume <howto/storage_move_volume>
 Back up a volume <howto/storage_backup_volume>
+Create a bucket <howto/storage_create_bucket>
+Configure a bucket <howto/storage_configure_bucket>
+View buckets <howto/storage_view_buckets>
+Resize a bucket <howto/storage_resize_bucket>
 reference/storage_drivers
 ```

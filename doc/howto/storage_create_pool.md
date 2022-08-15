@@ -128,6 +128,14 @@ Use the sub-directory `my-directory` from the `my-filesystem` file system for `p
     lxc storage create pool2 cephfs source=my-filesystem/my-directory
 
 ````
+````{group-tab} Ceph Object
+
+```{note}
+When using the Ceph Object driver, you must have a running Ceph Object Gateway [`radosgw`](https://docs.ceph.com/en/latest/radosgw/) URL available beforehand.
+```
+
+    lxc storage create s3 cephobject cephobject.radosgsw.endpoint=http://<radosgw URL>
+````
 `````
 
 ## Create a storage pool in a cluster
