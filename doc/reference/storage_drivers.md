@@ -16,6 +16,7 @@ storage_lvm
 storage_zfs
 storage_ceph
 storage_cephfs
+storage_cephobject
 ```
 See the corresponding pages for driver-specific information and configuration options.
 
@@ -24,20 +25,21 @@ See the corresponding pages for driver-specific information and configuration op
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
 
-Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph RBD | CephFS
-:---                                        | :---      | :---  | :---  | :--- | :---     | :---
-{ref}`storage-optimized-image-storage`      | no        | yes   | yes   | yes  | yes      | n/a
-Optimized instance creation                 | no        | yes   | yes   | yes  | yes      | n/a
-Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes      | yes
-Optimized image transfer                    | no        | yes   | no    | yes  | yes      | n/a
-{ref}`storage-optimized-instance-transfer`  | no        | yes   | no    | yes  | yes      | n/a
-Copy on write                               | no        | yes   | yes   | yes  | yes      | yes
-Block based                                 | no        | no    | yes   | no   | yes      | no
-Instant cloning                             | no        | yes   | yes   | yes  | yes      | yes
-Storage driver usable inside a container    | yes       | yes   | no    | no   | no       | n/a
-Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes      | yes
-Storage quotas                              | yes<sup>{ref}`* <storage-dir-quotas>`</sup>| yes   | yes   | yes  | yes  | yes
-Available on `lxd init`                     | yes       | yes   | yes   | yes  | yes      | no
+Feature                                     | Directory | Btrfs | LVM   | ZFS  | Ceph RBD | CephFS | Ceph Object
+:---                                        | :---      | :---  | :---  | :--- | :---     | :---   | :---
+{ref}`storage-optimized-image-storage`      | no        | yes   | yes   | yes  | yes      | n/a    | n/a
+Optimized instance creation                 | no        | yes   | yes   | yes  | yes      | n/a    | n/a
+Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes      | yes    | n/a
+Optimized image transfer                    | no        | yes   | no    | yes  | yes      | n/a    | n/a
+{ref}`storage-optimized-instance-transfer`  | no        | yes   | no    | yes  | yes      | n/a    | n/a
+Copy on write                               | no        | yes   | yes   | yes  | yes      | yes    | n/a
+Block based                                 | no        | no    | yes   | no   | yes      | no     | n/a
+Instant cloning                             | no        | yes   | yes   | yes  | yes      | yes    | n/a
+Storage driver usable inside a container    | yes       | yes   | no    | no   | no       | n/a    | n/a
+Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes      | yes    | n/a
+Storage quotas                              | yes<sup>{ref}`* <storage-dir-quotas>`</sup>| yes   | yes   | yes  | yes  | yes    | yes
+Available on `lxd init`                     | yes       | yes   | yes   | yes  | yes      | no     | no
+Object storage                              | no        | no    | no    | no   | no       | no     | yes
 
 (storage-optimized-image-storage)=
 ### Optimized image storage
