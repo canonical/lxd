@@ -136,7 +136,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 	// Now replace any "auto" keys with generated values.
 	err := n.populateAutoConfig(config)
 	if err != nil {
-		return fmt.Errorf("Failed generating auto config")
+		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
 	return nil
