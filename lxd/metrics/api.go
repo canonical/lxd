@@ -60,6 +60,7 @@ type MemoryMetrics struct {
 	SwapBytes           uint64 `json:"memory_swap_bytes" yaml:"memory_swap_bytes"`
 	UnevictableBytes    uint64 `json:"memory_unevictable_bytes" yaml:"memory_unevictable_bytes"`
 	WritebackBytes      uint64 `json:"memory_writeback_bytes" yaml:"memory_writeback_bytes"`
+	OOMKills            uint64 `json:"memory_oom_kills" yaml:"memory_oom_kills"`
 }
 
 // NetworkMetrics represents network metrics for an instance.
