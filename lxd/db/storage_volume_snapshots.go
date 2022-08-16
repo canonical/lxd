@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -173,7 +174,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 	var snapshots []StorageVolumeArgs
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+		return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var snap StorageVolumeArgs
 			var snapName string
 			var volName string
