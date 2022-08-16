@@ -17,28 +17,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// GetStoragePoolVolumesNames gets the names of all storage volumes attached to
-// a given storage pool.
-func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
-	var volumeName string
-	query := "SELECT name FROM storage_volumes_all WHERE storage_pool_id=? AND node_id=?"
-	inargs := []any{poolID, c.nodeID}
-	outargs := []any{volumeName}
-
-	result, err := queryScan(c, query, inargs, outargs)
-	if err != nil {
-		return []string{}, err
-	}
-
-	var out []string
-
-	for _, r := range result {
-		out = append(out, r[0].(string))
-	}
-
-	return out, nil
-}
-
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
 func (c *ClusterTx) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
 	stmt := `
