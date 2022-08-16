@@ -1132,8 +1132,18 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 // MoveTemporaryName returns a name derived from the instance's volatile.uuid, to use when moving an instance
 // across pools or cluster members which can be used for the naming the temporary copy before deleting the original
 // instance and renaming the copy to the original name.
-func MoveTemporaryName(inst Instance) string {
-	return fmt.Sprintf("lxd-move-of-%s", inst.LocalConfig()["volatile.uuid"])
+// If volatile.uuid is not set, a new UUID is generated and stored in the instance's config.
+func MoveTemporaryName(inst Instance) (string, error) {
+	instUUID := inst.LocalConfig()["volatile.uuid"]
+	if instUUID == "" {
+		instUUID = uuid.New()
+		err := inst.VolatileSet(map[string]string{"volatile.uuid": instUUID})
+		if err != nil {
+			return "", fmt.Errorf("Failed generating instance UUID: %w", err)
+		}
+	}
+
+	return fmt.Sprintf("lxd-move-of-%s", instUUID), nil
 }
 
 // IsSameLogicalInstance returns true if the supplied Instance and db.Instance have the same project and name or

@@ -432,7 +432,10 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
 	// to the original name.
 	if newName == inst.Name() {
-		args.Name = instance.MoveTemporaryName(inst)
+		args.Name, err = instance.MoveTemporaryName(inst)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Copy instance to new target instance.
@@ -596,7 +599,10 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// name.
 		if destName == "" || destName == inst.Name() {
 			isSameName = true
-			destName = instance.MoveTemporaryName(inst)
+			destName, err = instance.MoveTemporaryName(inst)
+			if err != nil {
+				return err
+			}
 		}
 
 		// First make a copy on the new node of the container to be moved.
