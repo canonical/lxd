@@ -562,6 +562,7 @@ CREATE TABLE "storage_volumes_snapshots_config" (
     FOREIGN KEY (storage_volume_snapshot_id) REFERENCES "storage_volumes_snapshots" (id) ON DELETE CASCADE,
     UNIQUE (storage_volume_snapshot_id, key)
 );
+CREATE UNIQUE INDEX storage_volumes_unique_storage_pool_id_node_id_project_id_name_type ON "storage_volumes" (storage_pool_id, IFNULL(node_id, -1), project_id, name, type);
 CREATE TABLE "warnings" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	node_id INTEGER,
@@ -582,5 +583,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (62, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (63, strftime("%s"))
 `
