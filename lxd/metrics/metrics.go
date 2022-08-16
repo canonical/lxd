@@ -224,6 +224,7 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 	set.AddSamples(MemorySwapBytes, Sample{Value: float64(metrics.Memory.SwapBytes)})
 	set.AddSamples(MemoryUnevictableBytes, Sample{Value: float64(metrics.Memory.UnevictableBytes)})
 	set.AddSamples(MemoryWritebackBytes, Sample{Value: float64(metrics.Memory.WritebackBytes)})
+	set.AddSamples(MemoryOOMKillsTotal, Sample{Value: float64(metrics.Memory.OOMKills)})
 
 	// Network stats
 	for dev, stats := range metrics.Network {

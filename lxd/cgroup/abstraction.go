@@ -827,6 +827,46 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 	return out, nil
 }
 
+// GetOOMKills returns the number of oom kills.
+func (cg *CGroup) GetOOMKills() (int64, error) {
+	var (
+		err   error
+		stats string
+	)
+
+	version := cgControllers["memory"]
+
+	switch version {
+	case V1:
+		stats, err = cg.rw.Get(version, "memory", "memory.oom_control")
+	case V2:
+		stats, err = cg.rw.Get(version, "memory", "memory.events")
+	default:
+		return -1, ErrControllerMissing
+	}
+
+	if err != nil {
+		return -1, err
+	}
+
+	for _, stat := range strings.Split(stats, "\n") {
+		field := strings.Split(stat, " ")
+		// skip incorrect lines
+		if len(field) != 2 {
+			continue
+		}
+
+		switch field[0] {
+		case "oom_kill":
+			out, _ := strconv.ParseInt(field[1], 10, 64)
+
+			return out, nil
+		}
+	}
+
+	return -1, fmt.Errorf("Failed getting oom_kill")
+}
+
 // GetIOStats returns disk stats.
 func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	partitions, err := ioutil.ReadFile("/proc/partitions")
