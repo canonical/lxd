@@ -216,7 +216,7 @@ func networkLoadBalancerConfig(tx *ClusterTx, loadBalancerID int64, loadBalancer
 	`
 
 	loadBalancer.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -259,7 +259,7 @@ func (c *Cluster) GetNetworkLoadBalancerListenAddresses(networkID int64, memberS
 	loadBalancers := make(map[int64]string)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		return query.QueryScan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var listenAddress string
 
@@ -300,7 +300,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkN
 	`
 	loadBalancers := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -345,7 +345,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember() (map[
 	`
 	loadBalancers := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -410,7 +410,7 @@ func (c *Cluster) GetNetworkLoadBalancers(ctx context.Context, networkID int64, 
 	loadBalancers := make(map[int64]*api.NetworkLoadBalancer)
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
-		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		err = query.QueryScan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var backendsJSON, portsJSON string
 			var loadBalancer api.NetworkLoadBalancer

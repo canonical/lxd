@@ -350,7 +350,7 @@ func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int
 
 	q.WriteString(`)`)
 
-	return c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+	return query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var key, value string
 
@@ -430,7 +430,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 	q.WriteString(`)`)
 
-	return c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+	return query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var deviceType cluster.DeviceType
 		var deviceName, key, value string
@@ -518,7 +518,7 @@ func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[i
 	profilesByID := make(map[int]*api.Profile)
 	instanceApplyProfileIDs := make(map[int64][]int, len(instances))
 
-	err := c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int64
 		var profileID int
 

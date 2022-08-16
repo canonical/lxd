@@ -682,7 +682,7 @@ func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.St
 
 	pool.Config = map[string]string{}
 
-	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

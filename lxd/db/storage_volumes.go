@@ -28,7 +28,7 @@ WHERE storage_volumes.type = ?
 `
 
 	result := []StorageVolumeArgs{}
-	err := c.QueryScan(stmt, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), stmt, func(scan func(dest ...any) error) error {
 		entry := StorageVolumeArgs{}
 
 		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
@@ -176,7 +176,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, memberSpecific bool, fil
 	var err error
 	var volumes []*StorageVolume
 
-	err = c.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+	err = query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var volumeType int = int(-1)
 		var contentType int = int(-1)
 		var vol StorageVolume
@@ -318,7 +318,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// will be returned in the order that the snapshots were created. This is specifically used
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
-	query := fmt.Sprintf(`
+	queryStr := fmt.Sprintf(`
   SELECT
     storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date,
     storage_volumes.content_type
@@ -342,7 +342,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	var snapshots []StorageVolumeArgs
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = tx.QueryScan(query, func(scan func(dest ...any) error) error {
+		err = query.QueryScan(tx.Tx(), queryStr, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
 			var expiryDate sql.NullTime
@@ -394,7 +394,7 @@ func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *
 	q := "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id = ?"
 
 	volume.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -893,15 +893,15 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 
 // Get the config of a storage volume.
 func (c *ClusterTx) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
-	var query string
+	var queryStr string
 	if isSnapshot {
-		query = "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
+		queryStr = "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
 	} else {
-		query = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+		queryStr = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
 	}
 
 	config := map[string]string{}
-	err := c.QueryScan(query, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), queryStr, func(scan func(dest ...any) error) error {
 		var key string
 		var value string
 
