@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.
@@ -53,7 +54,7 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]clu
 	`
 
 	snapshotIDs := []int{}
-	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var id int
 		var expiry sql.NullTime
 
