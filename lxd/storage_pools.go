@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -922,25 +921,37 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Only perform the deletion of remote volumes on the server handling the request.
+	// Only perform the deletion of remote image volumes on the server handling the request.
+	// Otherwise delete local image volumes on each server.
 	if !clusterNotification || !pool.Driver().Info().Remote {
-		projectName := projectParam(r)
+		var removeImgFingerprints []string
 
-		// Only image volumes should remain now.
-		volumeNames, err := d.db.Cluster.GetStoragePoolVolumesNames(pool.ID())
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		for _, volume := range volumeNames {
-			_, imgInfo, err := d.db.Cluster.GetImage(volume, dbCluster.ImageFilter{Project: &projectName})
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get all the volumes using the storage pool on this server.
+			// Only image volumes should remain now.
+			volumes, err := tx.GetStoragePoolVolumes(pool.ID(), true)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Failed getting image info for %q: %w", volume, err))
+				return fmt.Errorf("Failed loading storage volumes: %w", err)
 			}
 
-			err = pool.DeleteImage(imgInfo.Fingerprint, nil)
+			for _, vol := range volumes {
+				if vol.Type != db.StoragePoolVolumeTypeNameImage {
+					return fmt.Errorf("Volume %q of type %q in project %q still exists in storage pool %q", vol.Name, vol.Type, vol.Project, pool.Name())
+				}
+
+				removeImgFingerprints = append(removeImgFingerprints, vol.Name)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, removeImgFingerprint := range removeImgFingerprints {
+			err = pool.DeleteImage(removeImgFingerprint, nil)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Error deleting image %q from storage pool %q: %w", imgInfo.Fingerprint, pool.Name(), err))
+				return response.InternalError(fmt.Errorf("Error deleting image %q from storage pool %q: %w", removeImgFingerprint, pool.Name(), err))
 			}
 		}
 	}
