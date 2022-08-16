@@ -99,6 +99,50 @@ var updates = map[int]schema.Update{
 	60: updateFromV59,
 	61: updateFromV60,
 	62: updateFromV61,
+	63: updateFromV62,
+}
+
+// updateFromV62 adds unique index to storage_volumes that prevents duplicate volumes when using remote storage
+// pool where the node_id column is NULL.
+// Also ensures that the default project has features.networks set to true.
+func updateFromV62(tx *sql.Tx) error {
+	// Find the default project ID, and what it has features.networks config key set to (if at all).
+	rows := tx.QueryRow(`
+		SELECT
+			projects.id,
+			IFNULL(projects_config.key, "") as key,
+			IFNULL(projects_config.value, "") as value
+		FROM projects
+		LEFT JOIN
+			projects_config ON projects_config.project_id = projects.id
+			AND projects_config.key = "features.networks"
+		WHERE projects.name = "default"
+	`)
+
+	var defaultProjectID int64
+	var featureKey, featureValue string
+
+	err := rows.Scan(&defaultProjectID, &featureKey, &featureValue)
+	if err != nil {
+		return fmt.Errorf("Failed scanning default project row: %w", err)
+	}
+
+	// If the features.networks key is missing or not set to true, insert/replace the correct row.
+	if featureKey == "" || featureValue != "true" {
+		_, err = tx.Exec(`INSERT OR REPLACE INTO projects_config (project_id,key,value) VALUES(?,?,?);`, defaultProjectID, "features.networks", "true")
+		if err != nil {
+			return fmt.Errorf("Failed adding features.networks=true to default project: %w", err)
+		}
+	}
+
+	// Create unique index on storage_volumes that protects against duplicate volumes when using remote
+	// storage pool where the node_id field is NULL (which the current unique index doesn't protect against).
+	_, err = tx.Exec(`CREATE UNIQUE INDEX storage_volumes_unique_storage_pool_id_node_id_project_id_name_type ON "storage_volumes" (storage_pool_id, IFNULL(node_id, -1), project_id, name, type);`)
+	if err != nil {
+		return fmt.Errorf("Failed adding storage volumes unique index: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV61 converts config value fields to NOT NULL and config key fields to TEXT (from VARCHAR).
