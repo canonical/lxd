@@ -1157,7 +1157,7 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	}
 
 	cmdArgs := []string{
-		fmt.Sprintf(`records={"%s"="%s"}`, dnsName, strings.Join(dnsIPs, " ")),
+		fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), strings.Join(dnsIPs, " ")),
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	}
