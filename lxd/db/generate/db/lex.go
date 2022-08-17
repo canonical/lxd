@@ -82,24 +82,6 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 // Return the code for a "dest" function, to be passed as parameter to
 // query.SelectObjects in order to scan a single row.
 func destFunc(slice string, typ string, fields []*Field) string {
-	f := fmt.Sprintf(`func(i int) []any {
-                      %s = append(%s, %s{})
-                      return []any{
-`, slice, slice, typ)
-
-	for _, field := range fields {
-		f += fmt.Sprintf("&%s[i].%s,\n", slice, field.Name)
-	}
-
-	f += "        }\n"
-	f += "}"
-
-	return f
-}
-
-// destFuncQueryScan returns code for QueryScan's rowFunc.
-// TODO: Replace the above destFunc with this one once SelectObjects is updated to use the new rowFunc callback.
-func destFuncQueryScan(slice string, typ string, fields []*Field) string {
 	varName := lex.Minuscule(string(typ[0]))
 	args := make([]string, 0, len(fields))
 	for _, field := range fields {
