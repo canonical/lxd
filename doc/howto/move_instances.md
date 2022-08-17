@@ -1,4 +1,5 @@
-# How to migrate existing LXD instances between servers
+(move-instances)=
+# How to move existing LXD instances between servers
 
 To move an instance from one LXD server to another, use the `lxc move` command:
 
