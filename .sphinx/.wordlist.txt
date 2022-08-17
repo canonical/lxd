@@ -16,6 +16,7 @@ balancers
 BGP
 bibi
 bool
+bootable
 Btrfs
 bugfix
 bugfixes
