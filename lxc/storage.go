@@ -70,6 +70,10 @@ func (c *cmdStorage) Command() *cobra.Command {
 	storageUnsetCmd := cmdStorageUnset{global: c.global, storage: c, storageSet: &storageSetCmd}
 	cmd.AddCommand(storageUnsetCmd.Command())
 
+	// Bucket
+	storageBucketCmd := cmdStorageBucket{global: c.global}
+	cmd.AddCommand(storageBucketCmd.Command())
+
 	// Volume
 	storageVolumeCmd := cmdStorageVolume{global: c.global, storage: c}
 	cmd.AddCommand(storageVolumeCmd.Command())

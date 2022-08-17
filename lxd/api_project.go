@@ -1050,6 +1050,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"features.profiles":                    validate.Optional(validate.IsBool),
 		"features.images":                      validate.Optional(validate.IsBool),
 		"features.storage.volumes":             validate.Optional(validate.IsBool),
+		"features.storage.buckets":             validate.Optional(validate.IsBool),
 		"features.networks":                    validate.Optional(validate.IsBool),
 		"images.auto_update_cached":            validate.Optional(validate.IsBool),
 		"images.auto_update_interval":          validate.Optional(validate.IsInt64),

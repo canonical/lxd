@@ -334,6 +334,20 @@ type InstanceServer interface {
 	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
 	DeleteStoragePool(name string) (err error)
 
+	// Storage bucket functions ("storage_buckets" API extension)
+	GetStoragePoolBucketNames(poolName string) ([]string, error)
+	GetStoragePoolBuckets(poolName string) ([]api.StorageBucket, error)
+	GetStoragePoolBucket(poolName string, bucketName string) (bucket *api.StorageBucket, ETag string, err error)
+	CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) error
+	UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) (err error)
+	DeleteStoragePoolBucket(poolName string, bucketName string) (err error)
+	GetStoragePoolBucketKeyNames(poolName string, bucketName string) ([]string, error)
+	GetStoragePoolBucketKeys(poolName string, bucketName string) ([]api.StorageBucketKey, error)
+	GetStoragePoolBucketKey(poolName string, bucketName string, keyName string) (key *api.StorageBucketKey, ETag string, err error)
+	CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (newKey *api.StorageBucketKey, err error)
+	UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) (err error)
+	DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) (err error)
+
 	// Storage volume functions ("storage" API extension)
 	GetStoragePoolVolumeNames(pool string) (names []string, err error)
 	GetStoragePoolVolumeNamesAllProjects(pool string) (names []string, err error)

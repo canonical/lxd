@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"io"
+	"net/url"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
@@ -45,6 +46,17 @@ type Driver interface {
 	Validate(config map[string]string) error
 	Update(changedConfig map[string]string) error
 	ApplyPatch(name string) error
+
+	// Buckets.
+	ValidateBucket(bucket Bucket) error
+	BucketURL(bucketName string) *url.URL
+	CreateBucket(bucket Bucket, op *operations.Operation) error
+	DeleteBucket(bucket Bucket, op *operations.Operation) error
+	UpdateBucket(bucket Bucket, changedConfig map[string]string) error
+	ValidateBucketKey(keyName string, creds S3Credentials, roleName string) error
+	CreateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
+	UpdateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
+	DeleteBucketKey(bucket Bucket, keyName string, op *operations.Operation) error
 
 	// Volumes.
 	FillVolumeConfig(vol Volume) error

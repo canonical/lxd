@@ -100,6 +100,86 @@ var updates = map[int]schema.Update{
 	61: updateFromV60,
 	62: updateFromV61,
 	63: updateFromV62,
+	64: updateFromV63,
+}
+
+// updateFromV63 creates the storage buckets tables and adds features.storage.buckets=true to all projects that
+// have features.storage.volumes=true.
+func updateFromV63(tx *sql.Tx) error {
+	// Find all projects that have features.storage.volumes=true and add features.storage.buckets=true.
+	rows, err := tx.Query(`SELECT project_id FROM projects_config WHERE key = "features.storage.volumes" AND value = "true"`)
+	if err != nil {
+		return fmt.Errorf("Failed getting projects with features.storage.volumes=true: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var projectIDs []int64
+
+	for rows.Next() {
+		var projectID int64
+		err = rows.Scan(&projectID)
+		if err != nil {
+			return fmt.Errorf("Failed scanning project ID row: %w", err)
+		}
+
+		projectIDs = append(projectIDs, projectID)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("Got a row error getting projects with features.storage.volumes=true: %w", err)
+	}
+
+	for _, projectID := range projectIDs {
+		_, err = tx.Exec(`INSERT OR REPLACE INTO projects_config (project_id,key,value) VALUES(?,?,?);`, projectID, "features.storage.buckets", "true")
+		if err != nil {
+			return fmt.Errorf("Failed adding features.storage.buckets=true to projects: %w", err)
+		}
+	}
+
+	// Create storage buckets tables.
+	_, err = tx.Exec(`
+CREATE TABLE IF NOT EXISTS "storage_buckets" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	storage_pool_id INTEGER NOT NULL,
+	node_id INTEGER,
+	description TEXT NOT NULL,
+	project_id INTEGER NOT NULL,
+	UNIQUE (node_id, name),
+	FOREIGN KEY (storage_pool_id) REFERENCES "storage_pools" (id) ON DELETE CASCADE,
+	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX storage_buckets_unique_storage_pool_id_node_id_name ON "storage_buckets" (storage_pool_id, IFNULL(node_id, -1), name);
+
+CREATE TABLE "storage_buckets_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	storage_bucket_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (storage_bucket_id, key),
+	FOREIGN KEY (storage_bucket_id) REFERENCES "storage_buckets" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "storage_buckets_keys" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	storage_bucket_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	access_key TEXT NOT NULL,
+	secret_key TEXT NOT NULL,
+	role TEXT NOT NULL,
+	UNIQUE (storage_bucket_id, name),
+	FOREIGN KEY (storage_bucket_id) REFERENCES "storage_buckets" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed adding storage bucket tables: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV62 adds unique index to storage_volumes that prevents duplicate volumes when using remote storage

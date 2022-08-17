@@ -124,6 +124,48 @@ func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 	return Default
 }
 
+// StorageBucketProject returns the project name to use to for the bucket based on the requested project.
+// If the project specified has the "features.storage.buckets" flag enabled then the project name is returned,
+// otherwise the default project name is returned. The second return value is the project's config if non-default
+// project is being returned, nil if not.
+func StorageBucketProject(ctx context.Context, c *db.Cluster, projectName string) (string, map[string]string, error) {
+	var project *api.Project
+	err := c.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
+
+		return err
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+	}
+
+	projectName = StorageBucketProjectFromRecord(project)
+
+	if projectName != Default {
+		return projectName, project.Config, nil
+	}
+
+	return Default, nil, nil
+}
+
+// StorageBucketProjectFromRecord returns the project name to use to for the bucket based on the supplied project.
+// If the project supplied has the "features.storage.buckets" flag enabled then the project name is returned,
+// otherwise the default project name is returned.
+func StorageBucketProjectFromRecord(p *api.Project) string {
+	// Buckets only use the project specified if the project has the features.storage.buckets feature
+	// enabled, otherwise the default project is used.
+	if shared.IsTrue(p.Config["features.storage.buckets"]) {
+		return p.Name
+	}
+
+	return Default
+}
+
 // NetworkProject returns the project name to use for the network based on the requested project.
 // If the project specified has the "features.networks" flag enabled then the project name is returned,
 // otherwise the default project name is returned. The second return value is the project's config if non-default

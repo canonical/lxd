@@ -6,12 +6,13 @@ import (
 )
 
 var drivers = map[string]func() driver{
-	"btrfs":  func() driver { return &btrfs{} },
-	"cephfs": func() driver { return &cephfs{} },
-	"dir":    func() driver { return &dir{} },
-	"lvm":    func() driver { return &lvm{} },
-	"zfs":    func() driver { return &zfs{} },
-	"ceph":   func() driver { return &ceph{} },
+	"btrfs":      func() driver { return &btrfs{} },
+	"ceph":       func() driver { return &ceph{} },
+	"cephfs":     func() driver { return &cephfs{} },
+	"cephobject": func() driver { return &cephobject{} },
+	"dir":        func() driver { return &dir{} },
+	"lvm":        func() driver { return &lvm{} },
+	"zfs":        func() driver { return &zfs{} },
 }
 
 // Validators contains functions used for validating a drivers's config.

@@ -195,6 +195,7 @@ func lxdSetupUser(uid uint32) error {
 					"features.networks":             "false",
 					"features.profiles":             "true",
 					"features.storage.volumes":      "true",
+					"features.storage.buckets":      "true",
 					"restricted":                    "true",
 					"restricted.containers.nesting": "allow",
 					"restricted.devices.disk":       "allow",

@@ -234,6 +234,30 @@ func (b *mockBackend) UpdateImage(fingerprint, newDesc string, newConfig map[str
 	return nil
 }
 
+func (b *mockBackend) CreateBucket(projectName string, bucket api.StorageBucketsPost, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) UpdateBucket(projectName string, bucketName string, bucket api.StorageBucketPut, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) DeleteBucket(projectName string, bucketName string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error) {
+	return nil, nil
+}
+
+func (b *mockBackend) UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error {
 	return nil
 }
