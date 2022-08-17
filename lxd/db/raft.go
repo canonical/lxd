@@ -36,10 +36,6 @@ const (
 // instance is not running in clustered mode, an empty list is returned.
 func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
-	dest := func(i int) []any {
-		nodes = append(nodes, RaftNode{})
-		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role, &nodes[i].Name}
-	}
 
 	stmt, err := n.tx.Prepare("SELECT id, address, role, name FROM raft_nodes ORDER BY id")
 	if err != nil {
@@ -47,7 +43,17 @@ func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	}
 
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		node := RaftNode{}
+		err := scan(&node.ID, &node.Address, &node.Role, &node.Name)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, node)
+
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch raft nodes: %w", err)
 	}

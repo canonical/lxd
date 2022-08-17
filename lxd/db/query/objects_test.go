@@ -18,7 +18,10 @@ func TestSelectObjects_Error(t *testing.T) {
 		error string
 	}{
 		{
-			func(int) []any { return make([]any, 1) },
+			func(scan func(dest ...any) error) error {
+				var row any
+				return scan(row)
+			},
 			"SELECT id, name FROM test",
 			"sql: expected 2 destination arguments in Scan, not 1",
 		},
@@ -46,9 +49,12 @@ func TestSelectObjects(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []any {
-		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []any{&object.ID, &object.Name}
+	count := 0
+	dest := func(scan func(dest ...any) error) error {
+		require.Equal(t, 0, count, "expected at most one row to be yielded")
+		count++
+
+		return scan(&object.ID, &object.Name)
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
@@ -104,9 +110,12 @@ func TestUpsertObject_Insert(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []any {
-		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []any{&object.ID, &object.Name}
+	count := 0
+	dest := func(scan func(dest ...any) error) error {
+		require.Equal(t, 0, count, "expected at most one row to be yielded")
+		count++
+
+		return scan(&object.ID, &object.Name)
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
@@ -133,9 +142,12 @@ func TestUpsertObject_Update(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []any {
-		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []any{&object.ID, &object.Name}
+	count := 0
+	dest := func(scan func(dest ...any) error) error {
+		require.Equal(t, 0, count, "expected at most one row to be yielded")
+		count++
+
+		return scan(&object.ID, &object.Name)
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
