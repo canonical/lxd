@@ -39,28 +39,12 @@ SELECT images.fingerprint
 // GetImageSource returns the image source with the given ID.
 func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
-	sources := []struct {
+	type imagesSource struct {
 		ID          int
 		Server      string
 		Protocol    int
 		Certificate string
 		Alias       string
-	}{}
-	dest := func(i int) []any {
-		sources = append(sources, struct {
-			ID          int
-			Server      string
-			Protocol    int
-			Certificate string
-			Alias       string
-		}{})
-		return []any{
-			&sources[i].ID,
-			&sources[i].Server,
-			&sources[i].Protocol,
-			&sources[i].Certificate,
-			&sources[i].Alias,
-		}
 	}
 
 	stmt, err := c.tx.Prepare(q)
@@ -70,7 +54,19 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, imageID)
+	sources := []imagesSource{}
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		s := imagesSource{}
+
+		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
+		if err != nil {
+			return err
+		}
+
+		sources = append(sources, s)
+
+		return nil
+	}, imageID)
 	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
@@ -132,16 +128,6 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	image.Properties = properties
 
-	// Get the aliases
-	aliases := []api.ImageAlias{}
-	dest := func(i int) []any {
-		aliases = append(aliases, api.ImageAlias{})
-		return []any{
-			&aliases[i].Name,
-			&aliases[i].Description,
-		}
-	}
-
 	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
 	stmt, err := c.tx.Prepare(q)
 	if err != nil {
@@ -150,7 +136,19 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, id)
+	// Get the aliases
+	aliases := []api.ImageAlias{}
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		alias := api.ImageAlias{}
+
+		err := scan(&alias.Name, &alias.Description)
+		if err != nil {
+			return err
+		}
+
+		aliases = append(aliases, alias)
+		return nil
+	}, id)
 	if err != nil {
 		return err
 	}

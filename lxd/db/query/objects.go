@@ -8,7 +8,7 @@ import (
 
 // SelectObjects executes a statement which must yield rows with a specific
 // columns schema. It invokes the given Dest hook for each yielded row.
-func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
+func SelectObjects(stmt *sql.Stmt, rowFunc Dest, args ...any) error {
 	rows, err := stmt.Query(args...)
 	if err != nil {
 		return err
@@ -16,24 +16,19 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 
 	defer func() { _ = rows.Close() }()
 
-	for i := 0; rows.Next(); i++ {
-		err := rows.Scan(dest(i)...)
+	for rows.Next() {
+		err = rowFunc(rows.Scan)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = rows.Err()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rows.Err()
 }
 
 // QueryScan runs a query with inArgs and provides the rowFunc with the scan function for each row.
 // It handles closing the rows and errors from the result set.
-func QueryScan(tx *sql.Tx, sql string, rowFunc func(scan func(dest ...any) error) error, inArgs ...any) error {
+func QueryScan(tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
 	rows, err := tx.Query(sql, inArgs...)
 	if err != nil {
 		return err
@@ -54,7 +49,7 @@ func QueryScan(tx *sql.Tx, sql string, rowFunc func(scan func(dest ...any) error
 // Dest is a function that is expected to return the objects to pass to the
 // 'dest' argument of sql.Rows.Scan(). It is invoked by SelectObjects once per
 // yielded row, and it will be passed the index of the row being scanned.
-type Dest func(i int) []any
+type Dest func(scan func(dest ...any) error) error
 
 // UpsertObject inserts or replaces a new row with the given column values, to
 // the given table using columns order. For example:

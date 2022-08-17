@@ -90,18 +90,18 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
-	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, ClusterGroup{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].Name,
-			&objects[i].Description,
-		}
-	}
-
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err := query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		group := ClusterGroup{}
+		err := scan(&group.ID, &group.Name, &group.Description)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, group)
+
+		return nil
+	}, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch cluster groups: %w", err)
 	}

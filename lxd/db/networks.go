@@ -46,21 +46,13 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 //
 // Pending networks are skipped.
 func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, error) {
-	networks := []struct {
+	type network struct {
 		id          int64
 		name        string
 		projectName string
-	}{}
-
-	dest := func(i int) []any {
-		networks = append(networks, struct {
-			id          int64
-			name        string
-			projectName string
-		}{})
-		return []any{&networks[i].id, &networks[i].name, &networks[i].projectName}
 	}
 
+	networks := []network{}
 	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
 	if err != nil {
 		return nil, err
@@ -68,7 +60,18 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, networkPending)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		n := network{}
+
+		err = scan(&n.id, &n.name, &n.projectName)
+		if err != nil {
+			return err
+		}
+
+		networks = append(networks, n)
+
+		return nil
+	}, networkPending)
 	if err != nil {
 		return nil, err
 	}
@@ -299,16 +302,6 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		netType NetworkType
 	}{}
 
-	var errConsistency error
-	dest := func(i int) []any {
-		// Ensure that there is at most one network with the given name.
-		if i != 0 {
-			errConsistency = fmt.Errorf("More than one network exists with the given name")
-		}
-
-		return []any{&network.id, &network.state, &network.netType}
-	}
-
 	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?")
 	if err != nil {
 		return err
@@ -316,13 +309,19 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, projectName, name)
+	count := 0
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		// Ensure that there is at most one network with the given name.
+		if count != 0 {
+			return fmt.Errorf("More than one network exists with the given name")
+		}
+
+		count++
+
+		return scan(&network.id, &network.state, &network.netType)
+	}, projectName, name)
 	if err != nil {
 		return err
-	}
-
-	if errConsistency != nil {
-		return errConsistency
 	}
 
 	var networkID = network.id
@@ -358,7 +357,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	}
 
 	// Check that no network entry for this node and network exists yet.
-	count, err := query.Count(c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
+	count, err = query.Count(c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -460,10 +459,6 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 // NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
 func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
 	nodes := []NetworkNode{}
-	dest := func(i int) []any {
-		nodes = append(nodes, NetworkNode{})
-		return []any{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
-	}
 
 	stmt, err := c.tx.Prepare(`
 		SELECT nodes.id, nodes.name, networks_nodes.state FROM nodes
@@ -476,7 +471,18 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, networkID)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		node := NetworkNode{}
+
+		err := scan(&node.ID, &node.Name, &node.State)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, node)
+
+		return nil
+	}, networkID)
 	if err != nil {
 		return nil, err
 	}
