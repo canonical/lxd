@@ -1,6 +1,9 @@
 (storage-cephfs)=
 # CephFS - `cephfs`
 
+```{youtube} https://youtube.com/watch?v=kVLGbvRU98A
+```
+
 % Include content from [storage_ceph.md](storage_ceph.md)
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph intro -->
