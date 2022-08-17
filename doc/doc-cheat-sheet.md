@@ -588,13 +588,13 @@ There is no support for details sections in rST, but you can insert HTML to crea
   - Output
 * - ```
     <details>
-    <summary><a>Details</a></summary>
+    <summary>Details</summary>
 
     Content
     </details>
     ```
   - <details>
-    <summary><a>Details</a></summary>
+    <summary>Details</summary>
 
     Content
     </details>
