@@ -6892,6 +6892,14 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
+	// Get oom kills.
+	oomKills, err := cg.GetOOMKills()
+	if err != nil {
+		d.logger.Warn("Failed to get oom kills", logger.Ctx{"err": err})
+	}
+
+	out.AddSamples(metrics.MemoryOOMKillsTotal, metrics.Sample{Value: float64(oomKills)})
+
 	// Handle swap.
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()

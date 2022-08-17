@@ -70,6 +70,8 @@ const (
 	MemoryUnevictableBytes
 	// MemoryWritebackBytes represents the amount of memory queued for syncing to disk.
 	MemoryWritebackBytes
+	// MemoryOOMKillsTotal represents the amount of oom kills.
+	MemoryOOMKillsTotal
 	// NetworkReceiveBytesTotal represents the amount of received bytes on a given interface.
 	NetworkReceiveBytesTotal
 	// NetworkReceiveDropTotal represents the amount of received dropped bytes on a given interface.
@@ -119,6 +121,7 @@ var MetricNames = map[MetricType]string{
 	MemorySwapBytes:             "lxd_memory_Swap_bytes",
 	MemoryUnevictableBytes:      "lxd_memory_Unevictable_bytes",
 	MemoryWritebackBytes:        "lxd_memory_Writeback_bytes",
+	MemoryOOMKillsTotal:         "lxd_memory_OOM_kills_total",
 	NetworkReceiveBytesTotal:    "lxd_network_receive_bytes_total",
 	NetworkReceiveDropTotal:     "lxd_network_receive_drop_total",
 	NetworkReceiveErrsTotal:     "lxd_network_receive_errs_total",
@@ -159,6 +162,7 @@ var MetricHeaders = map[MetricType]string{
 	MemorySwapBytes:             "# HELP lxd_memory_Swap_bytes The amount of used swap memory.",
 	MemoryUnevictableBytes:      "# HELP lxd_memory_Unevictable_bytes The amount of unevictable memory.",
 	MemoryWritebackBytes:        "# HELP lxd_memory_Writeback_bytes The amount of memory queued for syncing to disk.",
+	MemoryOOMKillsTotal:         "# HELP lxd_memory_OOM_kills_total The number of out of memory kills.",
 	NetworkReceiveBytesTotal:    "# HELP lxd_network_receive_bytes_total The amount of received bytes on a given interface.",
 	NetworkReceiveDropTotal:     "# HELP lxd_network_receive_drop_total The amount of received dropped bytes on a given interface.",
 	NetworkReceiveErrsTotal:     "# HELP lxd_network_receive_errs_total The amount of received errors on a given interface.",
