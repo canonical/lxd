@@ -60,7 +60,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	}
 
 	// Select.
-	err = query.QueryScan(tx, queryStr, dest, args...)
+	err = query.Scan(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
