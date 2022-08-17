@@ -238,9 +238,9 @@ endif
 .PHONY: build-mo
 build-mo: $(MOFILES)
 
-SHELLCHECK_VERSION := $(shell shellcheck --version | grep version: | cut -d ' ' -f2)
 .PHONY: static-analysis
 static-analysis:
+	SHELLCHECK_VERSION=$(shell shellcheck --version | grep version: | cut -d ' ' -f2)
 ifeq ($(shell command -v golangci-lint 2> /dev/null),)
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 endif
