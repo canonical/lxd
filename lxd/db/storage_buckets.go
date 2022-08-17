@@ -94,7 +94,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(poolID int64, memberSpecific bool, fil
 	var err error
 	var buckets []*StorageBucket
 
-	err = query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucket StorageBucket
 
 		err := scan(&bucket.Project, &bucket.ID, &bucket.Name, &bucket.Description, &bucket.Location)
@@ -132,7 +132,7 @@ func storagePoolBucketConfig(tx *ClusterTx, bucketID int64, bucket *api.StorageB
 	`
 
 	bucket.Config = make(map[string]string)
-	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -370,7 +370,7 @@ func (c *ClusterTx) GetStoragePoolBucketKeys(bucketID int64, filters ...StorageB
 	var err error
 	var bucketKeys []*StorageBucketKey
 
-	err = query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucketKey StorageBucketKey
 
 		err := scan(&bucketKey.ID, &bucketKey.Name, &bucketKey.Description, &bucketKey.Role, &bucketKey.AccessKey, &bucketKey.SecretKey)

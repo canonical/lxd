@@ -60,7 +60,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 	}
 
 	// Select.
-	err = query.QueryScan(tx, queryStr, dest, args...)
+	err = query.Scan(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
 	}
