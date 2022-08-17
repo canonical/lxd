@@ -39,7 +39,7 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	sqlStmt, err := prepare(tx, fmt.Sprintf(configObjectsLocal, fillParent...))
+	queryStr := fmt.Sprintf(configObjectsLocal, fillParent...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,18 +47,20 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, Config{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].ReferenceID,
-			&objects[i].Key,
-			&objects[i].Value,
+	dest := func(scan func(dest ...any) error) error {
+		c := Config{}
+		err := scan(&c.ID, &c.ReferenceID, &c.Key, &c.Value)
+		if err != nil {
+			return err
 		}
+
+		objects = append(objects, c)
+
+		return nil
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.QueryScan(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_config\" table: %w", parent, err)
 	}
@@ -90,12 +92,8 @@ func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config)
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(configCreateLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.Exec(object.ReferenceID, object.Key, object.Value)
+	queryStr := fmt.Sprintf(configCreateLocal, fillParent...)
+	_, err := tx.Exec(queryStr, object.ReferenceID, object.Key, object.Value)
 	if err != nil {
 		return fmt.Errorf("Insert failed for \"%s_config\" table: %w", parent, err)
 	}
@@ -138,12 +136,8 @@ func DeleteConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(configDeleteLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	result, err := stmt.Exec(referenceID)
+	queryStr := fmt.Sprintf(configDeleteLocal, fillParent...)
+	result, err := tx.Exec(queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_config\" failed: %w", parent, err)
 	}
