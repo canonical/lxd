@@ -4,13 +4,13 @@ discourse: 10877
 
 # How to move or copy storage volumes
 
-You can {ref}`copy <storage-copy>` or {ref}`move <storage-move>` custom storage volumes from one storage pool to another, or copy or rename them within the same storage pool.
+You can {ref}`copy <storage-copy-volume>` or {ref}`move <storage-move-volume>` custom storage volumes from one storage pool to another, or copy or rename them within the same storage pool.
 
 To move instance storage volumes from one storage pool to another, {ref}`move the corresponding instance <storage-move-instance>` to another pool.
 
 When copying or moving a volume between storage pools that use different drivers, the volume is automatically converted.
 
-(storage-copy)=
+(storage-copy-volume)=
 ## Copy custom storage volumes
 
 Use the following command to copy a custom storage volume:
@@ -25,7 +25,7 @@ You must specify different volume names for source and target in this case.
 
 When copying from one storage pool to another, you can either use the same name for both volumes or rename the new volume.
 
-(storage-move)=
+(storage-move-volume)=
 ## Move or rename custom storage volumes
 
 Before you can move or rename a custom storage volume, all instances that use it must be [stopped](https://linuxcontainers.org/lxd/getting-started-cli/#start-and-stop-an-instance).
