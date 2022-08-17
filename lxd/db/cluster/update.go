@@ -2030,23 +2030,34 @@ ORDER BY storage_volumes.name
 		return fmt.Errorf("Failed to get storage volumes count: %w", err)
 	}
 
-	volumes := make([]struct {
-		ID   int
-		Name string
-	}, count)
-	dest := func(i int) []any {
-		return []any{
-			&volumes[i].ID,
-			&volumes[i].Name,
-		}
+	type volume struct {
+		ID            int
+		Name          string
+		StoragePoolID int
+		NodeID        string
+		Type          int
+		Description   string
+		ProjectID     int
+		ContentType   int
 	}
 
+	volumes := make([]volume, 0, count)
 	stmt, err := tx.Prepare(stmts)
 	if err != nil {
 		return fmt.Errorf("Failed to prepary storage volume query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		vol := volume{}
+		err := scan(&vol.ID, &vol.Name)
+		if err != nil {
+			return err
+		}
+
+		volumes = append(volumes, vol)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch storage volumes with remote storage: %w", err)
 	}
@@ -2089,29 +2100,7 @@ CREATE TABLE storage_volumes_new (
 		return fmt.Errorf("Failed to get storage_volumes count: %w", err)
 	}
 
-	storageVolumes := make([]struct {
-		ID            int
-		Name          string
-		StoragePoolID int
-		NodeID        string
-		Type          int
-		Description   string
-		ProjectID     int
-		ContentType   int
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&storageVolumes[i].ID,
-			&storageVolumes[i].Name,
-			&storageVolumes[i].StoragePoolID,
-			&storageVolumes[i].NodeID,
-			&storageVolumes[i].Type,
-			&storageVolumes[i].Description,
-			&storageVolumes[i].ProjectID,
-			&storageVolumes[i].ContentType,
-		}
-	}
+	storageVolumes := make([]volume, 0, count)
 
 	stmt, err = tx.Prepare(`
 SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id, content_type
@@ -2120,7 +2109,17 @@ FROM storage_volumes`)
 		return fmt.Errorf("Failed to prepare storage volumes query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		vol := volume{}
+		err := scan(&vol.ID, &vol.Name, &vol.StoragePoolID, &vol.NodeID, &vol.Type, &vol.Description, &vol.ProjectID, &vol.ContentType)
+		if err != nil {
+			return err
+		}
+
+		storageVolumes = append(storageVolumes, vol)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch storage volumes: %w", err)
 	}
@@ -2142,28 +2141,30 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return fmt.Errorf("Failed to get storage_volumes_config count: %w", err)
 	}
 
-	storageVolumeConfigs := make([]struct {
+	type volumeConfig struct {
 		ID              int
 		StorageVolumeID int
 		Key             string
 		Value           string
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&storageVolumeConfigs[i].ID,
-			&storageVolumeConfigs[i].StorageVolumeID,
-			&storageVolumeConfigs[i].Key,
-			&storageVolumeConfigs[i].Value,
-		}
 	}
 
+	storageVolumeConfigs := make([]volumeConfig, 0, count)
 	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_config;`)
 	if err != nil {
 		return fmt.Errorf("Failed to prepare storage volumes query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		config := volumeConfig{}
+		err := scan(&config.ID, &config.StorageVolumeID, &config.Key, &config.Value)
+		if err != nil {
+			return err
+		}
+
+		storageVolumeConfigs = append(storageVolumeConfigs, config)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch storage volume configs: %w", err)
 	}
@@ -2174,22 +2175,12 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return fmt.Errorf("Failed to get storage_volumes_snapshots count: %w", err)
 	}
 
-	storageVolumeSnapshots := make([]struct {
+	type volumeSnapshot struct {
 		ID              int
 		StorageVolumeID int
 		Name            string
 		Description     string
 		ExpiryDate      sql.NullTime
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&storageVolumeSnapshots[i].ID,
-			&storageVolumeSnapshots[i].StorageVolumeID,
-			&storageVolumeSnapshots[i].Name,
-			&storageVolumeSnapshots[i].Description,
-			&storageVolumeSnapshots[i].ExpiryDate,
-		}
 	}
 
 	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_snapshots;`)
@@ -2197,7 +2188,18 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return fmt.Errorf("Failed to prepare storage volume snapshots query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	storageVolumeSnapshots := make([]volumeSnapshot, 0, count)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		vol := volumeSnapshot{}
+		err := scan(&vol.ID, &vol.StorageVolumeID, &vol.Name, &vol.Description, &vol.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		storageVolumeSnapshots = append(storageVolumeSnapshots, vol)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch storage volume snapshots: %w", err)
 	}
@@ -2208,28 +2210,31 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		return fmt.Errorf("Failed to get storage_volumes_snapshots_config count: %w", err)
 	}
 
-	storageVolumeSnapshotConfigs := make([]struct {
+	type volumeSnapshotConfig struct {
 		ID                      int
 		StorageVolumeSnapshotID int
 		Key                     string
 		Value                   string
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&storageVolumeSnapshotConfigs[i].ID,
-			&storageVolumeSnapshotConfigs[i].StorageVolumeSnapshotID,
-			&storageVolumeSnapshotConfigs[i].Key,
-			&storageVolumeSnapshotConfigs[i].Value,
-		}
 	}
+
+	storageVolumeSnapshotConfigs := make([]volumeSnapshotConfig, 0, count)
 
 	stmt, err = tx.Prepare(`SELECT * FROM storage_volumes_snapshots_config;`)
 	if err != nil {
 		return fmt.Errorf("Failed to prepare storage volume snapshots query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		config := volumeSnapshotConfig{}
+		err := scan(&config.ID, &config.StorageVolumeSnapshotID, &config.Key, &config.Value)
+		if err != nil {
+			return err
+		}
+
+		storageVolumeSnapshotConfigs = append(storageVolumeSnapshotConfigs, config)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch storage volume snapshot configs: %w", err)
 	}
@@ -2516,8 +2521,7 @@ func updateFromV25(tx *sql.Tx) error {
 		return fmt.Errorf("Failed to volume snapshot count: %w", err)
 	}
 
-	// Fetch all snapshot rows in the storage_volumes table.
-	snapshots := make([]struct {
+	type snapshot struct {
 		ID            int
 		Name          string
 		StoragePoolID int
@@ -2526,18 +2530,8 @@ func updateFromV25(tx *sql.Tx) error {
 		Description   string
 		ProjectID     int
 		Config        map[string]string
-	}, count)
-	dest := func(i int) []any {
-		return []any{
-			&snapshots[i].ID,
-			&snapshots[i].Name,
-			&snapshots[i].StoragePoolID,
-			&snapshots[i].NodeID,
-			&snapshots[i].Type,
-			&snapshots[i].Description,
-			&snapshots[i].ProjectID,
-		}
 	}
+
 	stmt, err := tx.Prepare(`
 SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id
   FROM storage_volumes
@@ -2547,7 +2541,19 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 		return fmt.Errorf("Failed to prepare volume snapshot query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	// Fetch all snapshot rows in the storage_volumes table.
+	snapshots := make([]snapshot, 0, count)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		s := snapshot{}
+		err := scan(&s.ID, &s.Name, &s.StoragePoolID, &s.NodeID, &s.Type, &s.Description, &s.ProjectID)
+		if err != nil {
+			return err
+		}
+
+		snapshots = append(snapshots, s)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch instances: %w", err)
 	}
@@ -3043,7 +3049,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 	}
 
 	// Fetch all rows in the instances table.
-	instances := make([]struct {
+	type instance struct {
 		ID           int
 		Name         string
 		Type         int
@@ -3051,18 +3057,6 @@ CREATE VIEW instances_snapshots_devices_ref (
 		Stateful     bool
 		Description  string
 		ExpiryDate   sql.NullTime
-	}, count)
-
-	dest := func(i int) []any {
-		return []any{
-			&instances[i].ID,
-			&instances[i].Name,
-			&instances[i].Type,
-			&instances[i].CreationDate,
-			&instances[i].Stateful,
-			&instances[i].Description,
-			&instances[i].ExpiryDate,
-		}
 	}
 
 	stmt, err := tx.Prepare(`
@@ -3072,7 +3066,18 @@ SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expir
 		return fmt.Errorf("Failed to prepare instances query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	instances := make([]instance, 0, count)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		inst := instance{}
+		err := scan(&inst.ID, &inst.Name, &inst.Type, &inst.CreationDate, &inst.Stateful, &inst.Description, &inst.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		instances = append(instances, inst)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch instances: %w", err)
 	}
@@ -3097,22 +3102,14 @@ SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expir
 		return fmt.Errorf("Failed to count rows in instances_config table: %w", err)
 	}
 
-	configs := make([]struct {
+	type instanceConfig struct {
 		ID         int
 		InstanceID int
 		Key        string
 		Value      string
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&configs[i].ID,
-			&configs[i].InstanceID,
-			&configs[i].Key,
-			&configs[i].Value,
-		}
 	}
 
+	configs := make([]instanceConfig, 0, count)
 	stmt, err = tx.Prepare(`
 SELECT instances_config.id, instance_id, key, value
   FROM instances_config JOIN instances ON instances_config.instance_id = instances.id
@@ -3122,7 +3119,17 @@ SELECT instances_config.id, instance_id, key, value
 		return fmt.Errorf("Failed to prepare instances_config query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		config := instanceConfig{}
+		err := scan(&config.ID, &config.InstanceID, &config.Key, &config.Value)
+		if err != nil {
+			return err
+		}
+
+		configs = append(configs, config)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch snapshots config: %w", err)
 	}
@@ -3148,22 +3155,14 @@ SELECT instances_config.id, instance_id, key, value
 		return fmt.Errorf("Failed to count rows in instances_devices table: %w", err)
 	}
 
-	devices := make([]struct {
+	type device struct {
 		ID         int
 		InstanceID int
 		Name       string
 		Type       int
-	}, count)
-
-	dest = func(i int) []any {
-		return []any{
-			&devices[i].ID,
-			&devices[i].InstanceID,
-			&devices[i].Name,
-			&devices[i].Type,
-		}
 	}
 
+	devices := make([]device, 0, count)
 	stmt, err = tx.Prepare(`
 SELECT instances_devices.id, instance_id, instances_devices.name, instances_devices.type
   FROM instances_devices JOIN instances ON instances_devices.instance_id = instances.id
@@ -3173,7 +3172,17 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 		return fmt.Errorf("Failed to prepare instances_devices query: %w", err)
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		d := device{}
+		err := scan(&d.ID, &d.InstanceID, &d.Name, &d.Type)
+		if err != nil {
+			return err
+		}
+
+		devices = append(devices, d)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch snapshots devices: %w", err)
 	}
@@ -4098,14 +4107,16 @@ SELECT storage_volumes.id FROM storage_volumes
 	}
 
 	// Fetch all existing ceph volumes.
-	volumes := make([]struct {
+	type volume struct {
 		ID            int
 		Name          string
 		StoragePoolID int
 		NodeID        int
 		Type          int
 		Description   string
-	}, len(volumeIDs))
+	}
+
+	volumes := make([]volume, 0, len(volumeIDs))
 	sql := `
 SELECT
     storage_volumes.id,
@@ -4124,15 +4135,16 @@ FROM storage_volumes
 	}
 
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(i int) []any {
-		return []any{
-			&volumes[i].ID,
-			&volumes[i].Name,
-			&volumes[i].StoragePoolID,
-			&volumes[i].NodeID,
-			&volumes[i].Type,
-			&volumes[i].Description,
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		vol := volume{}
+		err := scan(&vol.ID, &vol.Name, &vol.StoragePoolID, &vol.NodeID, &vol.Type, &vol.Description)
+		if err != nil {
+			return err
 		}
+
+		volumes = append(volumes, vol)
+
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to fetch current volumes: %w", err)

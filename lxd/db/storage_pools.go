@@ -58,7 +58,7 @@ func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
 	case 1:
 		return int64(ids[0]), nil
 	default:
-		return -1, fmt.Errorf("more than one pool has the given name")
+		return -1, fmt.Errorf("More than one pool has the given name")
 	}
 }
 
@@ -76,7 +76,7 @@ func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 	case 1:
 		return drivers[0], nil
 	default:
-		return "", fmt.Errorf("more than one pool has the given id")
+		return "", fmt.Errorf("More than one pool has the given id")
 	}
 }
 
@@ -84,16 +84,9 @@ func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 //
 // Pending storage pools are skipped.
 func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, error) {
-	pools := []struct {
+	type pool struct {
 		id   int64
 		name string
-	}{}
-	dest := func(i int) []any {
-		pools = append(pools, struct {
-			id   int64
-			name string
-		}{})
-		return []any{&pools[i].id, &pools[i].name}
 	}
 
 	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
@@ -101,8 +94,19 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 		return nil, err
 	}
 
+	pools := []pool{}
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest, storagePoolPending)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		var p pool
+		err = scan(&p.id, &p.name)
+		if err != nil {
+			return err
+		}
+
+		pools = append(pools, p)
+
+		return nil
+	}, storagePoolPending)
 	if err != nil {
 		return nil, err
 	}
@@ -273,29 +277,25 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		state  StoragePoolState
 	}{}
 
-	var errConsistency error
-	dest := func(i int) []any {
-		// Ensure that there is at most one pool with the given name.
-		if i != 0 {
-			errConsistency = fmt.Errorf("more than one pool exists with the given name")
-		}
-
-		return []any{&pool.id, &pool.driver, &pool.state}
-	}
-
 	stmt, err := c.tx.Prepare("SELECT id, driver, state FROM storage_pools WHERE name=?")
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest, name)
+	count := 0
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		// Ensure that there is at most one pool with the given name.
+		if count != 0 {
+			return fmt.Errorf("more than one pool exists with the given name")
+		}
+
+		count++
+
+		return scan(&pool.id, &pool.driver, &pool.state)
+	}, name)
 	if err != nil {
 		return err
-	}
-
-	if errConsistency != nil {
-		return errConsistency
 	}
 
 	var poolID = pool.id
@@ -327,7 +327,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	}
 
 	// Check that no storage_pool entry of this node and pool exists yet.
-	count, err := query.Count(
+	count, err = query.Count(
 		c.tx, "storage_pools_nodes", "storage_pool_id=? AND node_id=?", poolID, nodeInfo.ID)
 	if err != nil {
 		return err
@@ -385,11 +385,6 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 // storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
 func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
 	nodes := []StoragePoolNode{}
-	dest := func(i int) []any {
-		nodes = append(nodes, StoragePoolNode{})
-		return []any{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
-	}
-
 	stmt, err := c.tx.Prepare(`
 		SELECT nodes.id, nodes.name, storage_pools_nodes.state FROM nodes
 		JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
@@ -401,7 +396,18 @@ func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, e
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest, poolID)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		node := StoragePoolNode{}
+
+		err := scan(&node.ID, &node.Name, &node.State)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, node)
+
+		return nil
+	}, poolID)
 	if err != nil {
 		return nil, err
 	}

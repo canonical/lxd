@@ -149,16 +149,9 @@ CREATE TABLE certificates (
 // Fix the address of the bootstrap node being set to "0" in the raft_nodes
 // table.
 func updateFromV39(tx *sql.Tx) error {
-	nodes := []struct {
+	type node struct {
 		ID      uint64
 		Address string
-	}{}
-	dest := func(i int) []any {
-		nodes = append(nodes, struct {
-			ID      uint64
-			Address string
-		}{})
-		return []any{&nodes[i].ID, &nodes[i].Address}
 	}
 
 	stmt, err := tx.Prepare("SELECT id, address FROM raft_nodes")
@@ -168,7 +161,19 @@ func updateFromV39(tx *sql.Tx) error {
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest)
+	nodes := []node{}
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		n := node{}
+
+		err := scan(&n.ID, &n.Address)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, n)
+
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to fetch raft nodes: %w", err)
 	}

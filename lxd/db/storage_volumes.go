@@ -792,11 +792,6 @@ type StorageVolumeArgs struct {
 func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 
-	dest := func(i int) []any {
-		nodes = append(nodes, NodeInfo{})
-		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
-	}
-
 	sql := `
 	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress, coalesce(nodes.name,"") AS nodeName
 	FROM storage_volumes_all
@@ -813,7 +808,17 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 	}
 
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		node := NodeInfo{}
+		err := scan(&node.ID, &node.Address, &node.Name)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, node)
+
+		return nil
+	}, poolID, projectName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
@@ -1154,17 +1159,17 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	defer func() { _ = stmt.Close() }()
 
 	volumes := []StorageVolumeArgs{}
-	dest := func(i int) []any {
-		volumes = append(volumes, StorageVolumeArgs{})
-		return []any{
-			&volumes[i].ID,
-			&volumes[i].Name,
-			&volumes[i].PoolName,
-			&volumes[i].NodeID,
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		volume := StorageVolumeArgs{}
+		err := scan(&volume.ID, &volume.Name, &volume.PoolName, &volume.NodeID)
+		if err != nil {
+			return err
 		}
-	}
 
-	err = query.SelectObjects(stmt, dest, StoragePoolVolumeTypeCustom, project)
+		volumes = append(volumes, volume)
+
+		return nil
+	}, StoragePoolVolumeTypeCustom, project)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch custom volumes: %w", err)
 	}

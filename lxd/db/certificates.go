@@ -30,20 +30,11 @@ func (db *DB) UpdateCertificate(ctx context.Context, fingerprint string, cert cl
 
 // GetCertificates returns all available local certificates.
 func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
-	dbCerts := []struct {
+	type cert struct {
 		fingerprint string
 		certType    cluster.CertificateType
 		name        string
 		certificate string
-	}{}
-	dest := func(i int) []any {
-		dbCerts = append(dbCerts, struct {
-			fingerprint string
-			certType    cluster.CertificateType
-			name        string
-			certificate string
-		}{})
-		return []any{&dbCerts[i].fingerprint, &dbCerts[i].certType, &dbCerts[i].name, &dbCerts[i].certificate}
 	}
 
 	stmt, err := n.tx.Prepare("SELECT fingerprint, type, name, certificate FROM certificates")
@@ -53,7 +44,19 @@ func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
 
 	defer func() { _ = stmt.Close() }()
 
-	err = query.SelectObjects(stmt, dest)
+	dbCerts := []cert{}
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+		dbCert := cert{}
+
+		err := scan(&dbCert.fingerprint, &dbCert.certType, &dbCert.name, &dbCert.certificate)
+		if err != nil {
+			return err
+		}
+
+		dbCerts = append(dbCerts, dbCert)
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
