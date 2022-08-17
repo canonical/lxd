@@ -1699,3 +1699,7 @@ This introduces a new `bgp.peers.<name>.holdtime` configuration key to control t
 
 ## `storage_volumes_all_projects`
 This introduces the ability to list storage volumes from all projects.
+
+## `metrics_memory_oom_total`
+This introduces a new `lxd_memory_OOM_kills_total` metric to the `/1.0/metrics` API.
+It reports the number of times the out of memory killer (`OOM`) has been triggered.

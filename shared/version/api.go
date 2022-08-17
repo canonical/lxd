@@ -341,6 +341,7 @@ var APIExtensions = []string{
 	"instance_ready_state",
 	"network_bgp_holdtime",
 	"storage_volumes_all_projects",
+	"metrics_memory_oom_total",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
