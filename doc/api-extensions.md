@@ -1703,3 +1703,6 @@ This introduces the ability to list storage volumes from all projects.
 ## `metrics_memory_oom_total`
 This introduces a new `lxd_memory_OOM_kills_total` metric to the `/1.0/metrics` API.
 It reports the number of times the out of memory killer (`OOM`) has been triggered.
+
+## `storage_buckets`
+This introduces the storage bucket API. It allows the management of S3 object storage buckets for storage pools.

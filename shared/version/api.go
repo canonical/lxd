@@ -342,6 +342,7 @@ var APIExtensions = []string{
 	"network_bgp_holdtime",
 	"storage_volumes_all_projects",
 	"metrics_memory_oom_total",
+	"storage_buckets",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
