@@ -65,7 +65,7 @@ To delete a snapshot, use the following command:
 ### Schedule snapshots of a custom storage volume
 
 You can configure a custom storage volume to automatically create snapshots at specific times.
-To do so, set the `snapshots.schedule` configuration option for the storage volume (see {ref}`storage-configure-volumes`).
+To do so, set the `snapshots.schedule` configuration option for the storage volume (see {ref}`storage-configure-volume`).
 
 For example, to configure daily snapshots, use the following command:
 
