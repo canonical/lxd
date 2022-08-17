@@ -66,38 +66,54 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	var args []any
 
 	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByUUID)
+		sqlStmt, err = Stmt(tx, operationObjectsByUUID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"operationObjectsByUUID\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.UUID,
 		}
 	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByNodeID)
+		sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeID\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.NodeID,
 		}
 	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjectsByID)
+		sqlStmt, err = Stmt(tx, operationObjectsByID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"operationObjectsByID\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt = Stmt(tx, operationObjects)
+		sqlStmt, err = Stmt(tx, operationObjects)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+		}
+
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, Operation{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].UUID,
-			&objects[i].NodeAddress,
-			&objects[i].ProjectID,
-			&objects[i].NodeID,
-			&objects[i].Type,
+	dest := func(scan func(dest ...any) error) error {
+		o := Operation{}
+		err := scan(&o.ID, &o.UUID, &o.NodeAddress, &o.ProjectID, &o.NodeID, &o.Type)
+		if err != nil {
+			return err
 		}
+
+		objects = append(objects, o)
+
+		return nil
 	}
 
 	// Select.
@@ -121,7 +137,10 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 	args[3] = object.Type
 
 	// Prepared statement to use.
-	stmt := Stmt(tx, operationCreateOrReplace)
+	stmt, err := Stmt(tx, operationCreateOrReplace)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"operationCreateOrReplace\" prepared statement: %w", err)
+	}
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -140,7 +159,11 @@ func CreateOrReplaceOperation(ctx context.Context, tx *sql.Tx, object Operation)
 // DeleteOperation deletes the operation matching the given key parameters.
 // generator: operation DeleteOne-by-UUID
 func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
-	stmt := Stmt(tx, operationDeleteByUUID)
+	stmt, err := Stmt(tx, operationDeleteByUUID)
+	if err != nil {
+		return fmt.Errorf("Failed to get \"operationDeleteByUUID\" prepared statement: %w", err)
+	}
+
 	result, err := stmt.Exec(uuid)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)
@@ -163,7 +186,11 @@ func DeleteOperation(ctx context.Context, tx *sql.Tx, uuid string) error {
 // DeleteOperations deletes the operation matching the given key parameters.
 // generator: operation DeleteMany-by-NodeID
 func DeleteOperations(ctx context.Context, tx *sql.Tx, nodeID int64) error {
-	stmt := Stmt(tx, operationDeleteByNodeID)
+	stmt, err := Stmt(tx, operationDeleteByNodeID)
+	if err != nil {
+		return fmt.Errorf("Failed to get \"operationDeleteByNodeID\" prepared statement: %w", err)
+	}
+
 	result, err := stmt.Exec(nodeID)
 	if err != nil {
 		return fmt.Errorf("Delete \"operations\": %w", err)

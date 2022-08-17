@@ -73,7 +73,11 @@ DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE 
 // GetProfileID return the ID of the profile with the given key.
 // generator: profile ID
 func GetProfileID(ctx context.Context, tx *sql.Tx, project string, name string) (int64, error) {
-	stmt := Stmt(tx, profileID)
+	stmt, err := Stmt(tx, profileID)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"profileID\" prepared statement: %w", err)
+	}
+
 	rows, err := stmt.Query(project, name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"profiles\" ID: %w", err)
@@ -132,43 +136,64 @@ func GetProfiles(ctx context.Context, tx *sql.Tx, filter ProfileFilter) ([]Profi
 	var args []any
 
 	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt = Stmt(tx, profileObjectsByProjectAndName)
+		sqlStmt, err = Stmt(tx, profileObjectsByProjectAndName)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"profileObjectsByProjectAndName\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, profileObjectsByProject)
+		sqlStmt, err = Stmt(tx, profileObjectsByProject)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"profileObjectsByProject\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.Project,
 		}
 	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil {
-		sqlStmt = Stmt(tx, profileObjectsByName)
+		sqlStmt, err = Stmt(tx, profileObjectsByName)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"profileObjectsByName\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, profileObjectsByID)
+		sqlStmt, err = Stmt(tx, profileObjectsByID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"profileObjectsByID\" prepared statement: %w", err)
+		}
+
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt = Stmt(tx, profileObjects)
+		sqlStmt, err = Stmt(tx, profileObjects)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"profileObjects\" prepared statement: %w", err)
+		}
+
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, Profile{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].ProjectID,
-			&objects[i].Project,
-			&objects[i].Name,
-			&objects[i].Description,
+	dest := func(scan func(dest ...any) error) error {
+		p := Profile{}
+		err := scan(&p.ID, &p.ProjectID, &p.Project, &p.Name, &p.Description)
+		if err != nil {
+			return err
 		}
+
+		objects = append(objects, p)
+
+		return nil
 	}
 
 	// Select.
@@ -260,7 +285,10 @@ func CreateProfile(ctx context.Context, tx *sql.Tx, object Profile) (int64, erro
 	args[2] = object.Description
 
 	// Prepared statement to use.
-	stmt := Stmt(tx, profileCreate)
+	stmt, err := Stmt(tx, profileCreate)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"profileCreate\" prepared statement: %w", err)
+	}
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -316,7 +344,11 @@ func CreateProfileConfig(ctx context.Context, tx *sql.Tx, profileID int64, confi
 // RenameProfile renames the profile matching the given key parameters.
 // generator: profile Rename
 func RenameProfile(ctx context.Context, tx *sql.Tx, project string, name string, to string) error {
-	stmt := Stmt(tx, profileRename)
+	stmt, err := Stmt(tx, profileRename)
+	if err != nil {
+		return fmt.Errorf("Failed to get \"profileRename\" prepared statement: %w", err)
+	}
+
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
 		return fmt.Errorf("Rename Profile failed: %w", err)
@@ -342,7 +374,11 @@ func UpdateProfile(ctx context.Context, tx *sql.Tx, project string, name string,
 		return err
 	}
 
-	stmt := Stmt(tx, profileUpdate)
+	stmt, err := Stmt(tx, profileUpdate)
+	if err != nil {
+		return fmt.Errorf("Failed to get \"profileUpdate\" prepared statement: %w", err)
+	}
+
 	result, err := stmt.Exec(object.Project, object.Name, object.Description, id)
 	if err != nil {
 		return fmt.Errorf("Update \"profiles\" entry failed: %w", err)
@@ -385,7 +421,11 @@ func UpdateProfileConfig(ctx context.Context, tx *sql.Tx, profileID int64, confi
 // DeleteProfile deletes the profile matching the given key parameters.
 // generator: profile DeleteOne-by-Project-and-Name
 func DeleteProfile(ctx context.Context, tx *sql.Tx, project string, name string) error {
-	stmt := Stmt(tx, profileDeleteByProjectAndName)
+	stmt, err := Stmt(tx, profileDeleteByProjectAndName)
+	if err != nil {
+		return fmt.Errorf("Failed to get \"profileDeleteByProjectAndName\" prepared statement: %w", err)
+	}
+
 	result, err := stmt.Exec(project, name)
 	if err != nil {
 		return fmt.Errorf("Delete \"profiles\": %w", err)

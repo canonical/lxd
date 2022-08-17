@@ -212,7 +212,10 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 	args[11] = object.Count
 
 	// Prepared statement to use.
-	stmt := cluster.Stmt(c.tx, warningCreate)
+	stmt, err := cluster.Stmt(c.tx, warningCreate)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"warningCreate\" prepared statement: %w", err)
+	}
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
