@@ -163,3 +163,8 @@ button.version_select {
 ol.arabic ol.arabic {
   list-style: lower-alpha;
 }
+
+/** Make expandable sections look like links **/
+details summary {
+    color: var(--color-link);
+}

@@ -9,4 +9,5 @@ instance-exec
 production-setup
 remotes
 authentication
+migration
 ```
