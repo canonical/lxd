@@ -4,7 +4,7 @@ There are different ways of backing up your custom storage volumes:
 
 - {ref}`storage-backup-snapshots`
 - {ref}`storage-backup-export`
-- {ref}`storage-copy`
+- {ref}`storage-copy-volume`
 
 Which method to choose depends both on your use case and on the storage driver you use.
 
