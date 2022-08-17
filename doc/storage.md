@@ -8,13 +8,16 @@ discourse: 7735
 :maxdepth: 1
 
 About storage </explanation/storage>
-Create a storage pool <howto/storage_create_pool>
+Create a pool <howto/storage_create_pool>
+Configure a pool <howto/storage_configure_pool>
+View pools <howto/storage_view_pools>
+Resize a pool <howto/storage_resize_pool>
 Create an instance in a pool <howto/storage_create_instance>
-Add a storage volume <howto/storage_add_volume>
-Configure storage settings <howto/storage_configure>
-List pools and volumes <howto/storage_list>
-Move or copy volumes <howto/storage_move>
-Back up storage volumes <howto/storage_backup>
-Resize storage <howto/storage_resize>
+Create a volume <howto/storage_create_volume>
+Configure a volume <howto/storage_configure_volume>
+View volumes <howto/storage_view_volumes>
+Resize a volume <howto/storage_resize_volume>
+Move or copy a volume <howto/storage_move_volume>
+Back up a volume <howto/storage_backup_volume>
 reference/storage_drivers
 ```

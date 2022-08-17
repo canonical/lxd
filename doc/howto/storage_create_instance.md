@@ -10,7 +10,7 @@ For example:
 
     lxc launch <image> <instance_name> --storage <storage_pool>
 
-% Include content from [storage_move.md](storage_move.md)
-```{include} storage_move.md
+% Include content from [storage_move_volume.md](storage_move_volume.md)
+```{include} storage_move_volume.md
     :start-after: (storage-move-instance)=
 ```
