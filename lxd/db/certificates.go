@@ -37,15 +37,9 @@ func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
 		certificate string
 	}
 
-	stmt, err := n.tx.Prepare("SELECT fingerprint, type, name, certificate FROM certificates")
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "SELECT fingerprint, type, name, certificate FROM certificates"
 	dbCerts := []cert{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(n.tx, sql, func(scan func(dest ...any) error) error {
 		dbCert := cert{}
 
 		err := scan(&dbCert.fingerprint, &dbCert.certType, &dbCert.name, &dbCert.certificate)
@@ -82,15 +76,9 @@ func (n *NodeTx) ReplaceCertificates(certs []cluster.Certificate) error {
 		return err
 	}
 
-	stmt, err := n.tx.Prepare("INSERT INTO certificates (fingerprint, type, name, certificate) VALUES(?,?,?,?)")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "INSERT INTO certificates (fingerprint, type, name, certificate) VALUES(?,?,?,?)"
 	for _, cert := range certs {
-		_, err = stmt.Exec(cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
+		_, err = n.tx.Exec(sql, cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
 		if err != nil {
 			return err
 		}

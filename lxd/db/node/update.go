@@ -136,15 +136,9 @@ func updateFromV39(tx *sql.Tx) error {
 		Address string
 	}
 
-	stmt, err := tx.Prepare("SELECT id, address FROM raft_nodes")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "SELECT id, address FROM raft_nodes"
 	nodes := []node{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(tx, sql, func(scan func(dest ...any) error) error {
 		n := node{}
 
 		err := scan(&n.ID, &n.Address)

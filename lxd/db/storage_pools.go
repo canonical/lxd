@@ -89,16 +89,11 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 		name string
 	}
 
-	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
-	if err != nil {
-		return nil, err
-	}
-
+	sql := "SELECT id, name FROM storage_pools WHERE NOT state=?"
 	pools := []pool{}
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		var p pool
-		err = scan(&p.id, &p.name)
+		err := scan(&p.id, &p.name)
 		if err != nil {
 			return err
 		}
@@ -277,14 +272,9 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		state  StoragePoolState
 	}{}
 
-	stmt, err := c.tx.Prepare("SELECT id, driver, state FROM storage_pools WHERE name=?")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
+	sql := "SELECT id, driver, state FROM storage_pools WHERE name=?"
 	count := 0
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		// Ensure that there is at most one pool with the given name.
 		if count != 0 {
 			return fmt.Errorf("more than one pool exists with the given name")
@@ -385,18 +375,13 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 // storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
 func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
 	nodes := []StoragePoolNode{}
-	stmt, err := c.tx.Prepare(`
+	sql := `
 		SELECT nodes.id, nodes.name, storage_pools_nodes.state FROM nodes
 		JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
 		WHERE storage_pools_nodes.storage_pool_id = ?
-	`)
-	if err != nil {
-		return nil, err
-	}
+	`
 
-	defer func() { _ = stmt.Close() }()
-
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		node := StoragePoolNode{}
 
 		err := scan(&node.ID, &node.Name, &node.State)

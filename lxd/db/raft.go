@@ -37,13 +37,8 @@ const (
 func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
 
-	stmt, err := n.tx.Prepare("SELECT id, address, role, name FROM raft_nodes ORDER BY id")
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	sql := "SELECT id, address, role, name FROM raft_nodes ORDER BY id"
+	err := query.Scan(n.tx, sql, func(scan func(dest ...any) error) error {
 		node := RaftNode{}
 		err := scan(&node.ID, &node.Address, &node.Role, &node.Name)
 		if err != nil {

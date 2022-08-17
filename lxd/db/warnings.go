@@ -120,14 +120,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 // UpdateWarningStatus updates the status of the warning with the given UUID.
 func (c *ClusterTx) UpdateWarningStatus(UUID string, status warningtype.Status) error {
 	str := "UPDATE warnings SET status=?, updated_date=? WHERE uuid=?"
-	stmt, err := c.tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	_, err = stmt.Exec(status, time.Now(), UUID)
+	_, err := c.tx.Exec(str, status, time.Now(), UUID)
 	if err != nil {
 		return fmt.Errorf("Failed to update warning status for warning %q: %w", UUID, err)
 	}
@@ -138,16 +131,9 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status warningtype.Status) 
 // UpdateWarningState updates the warning message and status with the given ID.
 func (c *ClusterTx) UpdateWarningState(UUID string, message string, status warningtype.Status) error {
 	str := "UPDATE warnings SET last_message=?, last_seen_date=?, updated_date=?, status = ?, count=count+1 WHERE uuid=?"
-	stmt, err := c.tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
 	now := time.Now()
 
-	_, err = stmt.Exec(message, now, now, status, UUID)
+	_, err := c.tx.Exec(str, message, now, now, status, UUID)
 	if err != nil {
 		return fmt.Errorf("Failed to update warning %q: %w", UUID, err)
 	}
