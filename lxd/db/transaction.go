@@ -37,23 +37,3 @@ func (c *ClusterTx) NodeID(id int64) {
 func (c *ClusterTx) GetNodeID() int64 {
 	return c.nodeID
 }
-
-// QueryScan runs a query with inArgs and provides the rowFunc with the scan function for each row.
-// It handles closing the rows and errors from the result set.
-func (c *ClusterTx) QueryScan(sql string, rowFunc func(scan func(dest ...any) error) error, inArgs ...any) error {
-	rows, err := c.tx.Query(sql, inArgs...)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		err = rowFunc(rows.Scan)
-		if err != nil {
-			return err
-		}
-	}
-
-	return rows.Err()
-}

@@ -573,7 +573,7 @@ WHERE images.fingerprint LIKE ?
 
 	images := make([]cluster.Image, 0)
 
-	err := c.QueryScan(sql, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var img cluster.Image
 
 		err := scan(
@@ -1323,7 +1323,7 @@ func (c *ClusterTx) GetProjectsUsingImage(fingerprint string) ([]string, error) 
 		JOIN projects ON projects.id=images.project_id
 		WHERE fingerprint = ?
 	`
-	err = c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err = query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var imgProjectName string
 		err = scan(&imgProjectName)
 		if err != nil {

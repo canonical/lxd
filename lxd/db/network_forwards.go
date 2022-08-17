@@ -202,7 +202,7 @@ func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkFo
 	`
 
 	forward.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -245,7 +245,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecif
 	forwards := make(map[int64]string)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		return query.QueryScan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var listenAddress string
 
@@ -286,7 +286,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -331,7 +331,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[strin
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -395,7 +395,7 @@ func (c *Cluster) GetNetworkForwards(ctx context.Context, networkID int64, membe
 	forwards := make(map[int64]*api.NetworkForward)
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
-		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
+		err = query.QueryScan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var portsJSON string
 			var forward api.NetworkForward
