@@ -238,16 +238,13 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 	buf.N()
 	buf.L("// Dest function for scanning a row.")
+	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
+	buf.N()
+	buf.L("// Select.")
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		buf.L("dest := %s", destFuncQueryScan("objects", typ, mapping.ColumnFields()))
-		buf.N()
-		buf.L("// Select.")
 		buf.L("err = query.QueryScan(tx, queryStr, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
-		buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
-		buf.N()
-		buf.L("// Select.")
 		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
