@@ -39,7 +39,7 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	sqlStmt, err := prepare(tx, fmt.Sprintf(deviceObjectsLocal, fillParent...))
+	queryStr := fmt.Sprintf(deviceObjectsLocal, fillParent...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,18 +47,20 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Devic
 	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, Device{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].ReferenceID,
-			&objects[i].Name,
-			&objects[i].Type,
+	dest := func(scan func(dest ...any) error) error {
+		d := Device{}
+		err := scan(&d.ID, &d.ReferenceID, &d.Name, &d.Type)
+		if err != nil {
+			return err
 		}
+
+		objects = append(objects, d)
+
+		return nil
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.QueryScan(tx, queryStr, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
@@ -99,13 +101,9 @@ func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[s
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceCreateLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
+	queryStr := fmt.Sprintf(deviceCreateLocal, fillParent...)
 	for _, object := range objects {
-		result, err := stmt.Exec(object.ReferenceID, object.Name, object.Type)
+		result, err := tx.Exec(queryStr, object.ReferenceID, object.Name, object.Type)
 		if err != nil {
 			return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
 		}
@@ -165,12 +163,8 @@ func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
 
-	stmt, err := prepare(tx, fmt.Sprintf(deviceDeleteLocal, fillParent...))
-	if err != nil {
-		return err
-	}
-
-	result, err := stmt.Exec(referenceID)
+	queryStr := fmt.Sprintf(deviceDeleteLocal, fillParent...)
+	result, err := tx.Exec(queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_device\" failed: %w", parent, err)
 	}
