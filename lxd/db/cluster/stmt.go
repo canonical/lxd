@@ -42,11 +42,21 @@ var stmts = map[int]string{} // Statement code to statement SQL text.
 var PreparedStmts = map[int]*sql.Stmt{}
 
 // Stmt prepares the in-memory prepared statement for the transaction.
-func Stmt(tx *sql.Tx, code int) *sql.Stmt {
+func Stmt(tx *sql.Tx, code int) (*sql.Stmt, error) {
 	stmt, ok := PreparedStmts[code]
 	if !ok {
-		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
+		return nil, fmt.Errorf("No prepared statement registered with code %d", code)
 	}
 
-	return tx.Stmt(stmt)
+	return tx.Stmt(stmt), nil
+}
+
+// StmtString returns the in-memory query string with the given code.
+func StmtString(code int) (string, error) {
+	stmt, ok := stmts[code]
+	if !ok {
+		return "", fmt.Errorf("No prepared statement registered with code %d", code)
+	}
+
+	return stmt, nil
 }
