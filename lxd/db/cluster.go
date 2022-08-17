@@ -3,316 +3,18 @@
 package db
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
-// ClusterGroup is a value object holding db-related details about a cluster group.
-type ClusterGroup struct {
-	ID          int
-	Name        string
-	Description string
-	Nodes       []string
-}
-
-// ClusterGroupFilter specifies potential query parameter fields.
-type ClusterGroupFilter struct {
-	ID   *int
-	Name *string
-}
-
-var clusterGroupObjects = cluster.RegisterStmt(`
-SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.description, '')
-  FROM cluster_groups
-  ORDER BY cluster_groups.name
-`)
-
-var clusterGroupObjectsByName = cluster.RegisterStmt(`
-SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.description, '')
-  FROM cluster_groups
-  WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
-`)
-
-var clusterGroupCreate = cluster.RegisterStmt(`
-INSERT INTO cluster_groups (name, description)
-  VALUES (?, ?)
-`)
-
-var clusterGroupID = cluster.RegisterStmt(`
-SELECT cluster_groups.id FROM cluster_groups
-  WHERE cluster_groups.name = ?
-`)
-
-var clusterGroupRename = cluster.RegisterStmt(`
-UPDATE cluster_groups SET name = ? WHERE name = ?
-`)
-
-var clusterGroupDeleteByName = cluster.RegisterStmt(`
-DELETE FROM cluster_groups WHERE name = ?
-`)
-
-var clusterGroupUpdate = cluster.RegisterStmt(`
-UPDATE cluster_groups
-  SET name = ?, description = ?
- WHERE id = ?
-`)
-
-var clusterGroupDeleteNodesRef = cluster.RegisterStmt(`
-DELETE FROM nodes_cluster_groups WHERE group_id = ?
-`)
-
-// GetClusterGroups returns all available ClusterGroups.
-// generator: ClusterGroup GetMany
-func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup, error) {
-	// Result slice.
-	objects := make([]ClusterGroup, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []any
-
-	if filter.Name != nil && filter.ID == nil {
-		stmt = cluster.Stmt(c.tx, clusterGroupObjectsByName)
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID == nil && filter.Name == nil {
-		stmt = cluster.Stmt(c.tx, clusterGroupObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
-		group := ClusterGroup{}
-		err := scan(&group.ID, &group.Name, &group.Description)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, group)
-
-		return nil
-	}, args...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch cluster groups: %w", err)
-	}
-
-	// Get nodes in cluster group.
-	for i := 0; i < len(objects); i++ {
-		objects[i].Nodes, err = c.GetClusterGroupNodes(objects[i].Name)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return objects, nil
-}
-
-// GetClusterGroup returns the ClusterGroup with the given key.
-// generator: ClusterGroup GetOne
-func (c *ClusterTx) GetClusterGroup(name string) (*ClusterGroup, error) {
-	filter := ClusterGroupFilter{}
-	filter.Name = &name
-
-	objects, err := c.GetClusterGroups(filter)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch cluster group: %w", err)
-	}
-
-	switch len(objects) {
-	case 0:
-		return nil, api.StatusErrorf(http.StatusNotFound, "Cluster group not found")
-	case 1:
-		return &objects[0], nil
-	default:
-		return nil, fmt.Errorf("More than one cluster group matches")
-	}
-}
-
-// GetClusterGroupID return the ID of the ClusterGroup with the given key.
-// generator: ClusterGroup ID
-func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
-	stmt := cluster.Stmt(c.tx, clusterGroupID)
-	rows, err := stmt.Query(name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get cluster group ID: %w", err)
-	}
-
-	defer func() { _ = rows.Close() }()
-
-	// Ensure we read one and only one row.
-	if !rows.Next() {
-		return -1, api.StatusErrorf(http.StatusNotFound, "Cluster group not found")
-	}
-
-	var id int64
-	err = rows.Scan(&id)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to scan ID: %w", err)
-	}
-
-	if rows.Next() {
-		return -1, fmt.Errorf("More than one row returned")
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return -1, fmt.Errorf("Result set failure: %w", err)
-	}
-
-	return id, nil
-}
-
-// ClusterGroupExists checks if a ClusterGroup with the given key exists.
-// generator: ClusterGroup Exists
-func (c *ClusterTx) ClusterGroupExists(name string) (bool, error) {
-	_, err := c.GetClusterGroupID(name)
-	if err != nil {
-		if api.StatusErrorCheck(err, http.StatusNotFound) {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
-
-// CreateClusterGroup adds a new ClusterGroup to the database.
-// generator: ClusterGroup Create
-func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
-	// Check if a ClusterGroup with the same key exists.
-	exists, err := c.ClusterGroupExists(object.Name)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
-	}
-
-	if exists {
-		return -1, fmt.Errorf("This cluster group already exists")
-	}
-
-	args := make([]any, 2)
-
-	// Populate the statement arguments.
-	args[0] = object.Name
-	args[1] = object.Description
-
-	// Prepared statement to use.
-	stmt := cluster.Stmt(c.tx, clusterGroupCreate)
-
-	// Execute the statement.
-	result, err := stmt.Exec(args...)
-	if err != nil {
-		return -1, fmt.Errorf("Failed to create cluster group: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch cluster group ID: %w", err)
-	}
-
-	// Insert nodes reference.
-	err = addNodesToClusterGroup(c.tx, int(id), object.Nodes)
-	if err != nil {
-		return -1, fmt.Errorf("Insert nodes for cluster group: %w", err)
-	}
-
-	return id, nil
-}
-
-// RenameClusterGroup renames the ClusterGroup matching the given key parameters.
-// generator: ClusterGroup Rename
-func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
-	stmt := cluster.Stmt(c.tx, clusterGroupRename)
-	result, err := stmt.Exec(to, name)
-	if err != nil {
-		return fmt.Errorf("Failed to rename cluster group: %w", err)
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
-	}
-
-	if n != 1 {
-		return fmt.Errorf("Query affected %d rows instead of 1", n)
-	}
-
-	return nil
-}
-
-// DeleteClusterGroup deletes the ClusterGroup matching the given key parameters.
-// generator: ClusterGroup DeleteOne-by-Name
-func (c *ClusterTx) DeleteClusterGroup(name string) error {
-	stmt := cluster.Stmt(c.tx, clusterGroupDeleteByName)
-	result, err := stmt.Exec(name)
-	if err != nil {
-		return fmt.Errorf("Failed to delete cluster group: %w", err)
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
-	}
-
-	if n != 1 {
-		return fmt.Errorf("Query deleted %d rows instead of 1", n)
-	}
-
-	return nil
-}
-
-// UpdateClusterGroup updates the ClusterGroup matching the given key parameters.
-// generator: ClusterGroup Update
-func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
-	id, err := c.GetClusterGroupID(name)
-	if err != nil {
-		return fmt.Errorf("Failed to get cluster group: %w", err)
-	}
-
-	stmt := cluster.Stmt(c.tx, clusterGroupUpdate)
-	result, err := stmt.Exec(object.Name, object.Description, id)
-	if err != nil {
-		return fmt.Errorf("Failed to update cluster group: %w", err)
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Fetch affected rows: %w", err)
-	}
-
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	// Delete current nodes.
-	stmt = cluster.Stmt(c.tx, clusterGroupDeleteNodesRef)
-	_, err = stmt.Exec(id)
-	if err != nil {
-		return fmt.Errorf("Failed to delete current nodes: %w", err)
-	}
-
-	// Insert nodes reference.
-	err = addNodesToClusterGroup(c.tx, int(id), object.Nodes)
-	if err != nil {
-		return fmt.Errorf("Failed to insert nodes for cluster group: %w", err)
-	}
-
-	return nil
-}
-
 // ClusterGroupToAPI is a convenience to convert a ClusterGroup db struct into
 // an API cluster group struct.
-func ClusterGroupToAPI(clusterGroup *ClusterGroup, nodes []string) *api.ClusterGroup {
+func ClusterGroupToAPI(clusterGroup *cluster.ClusterGroup, nodes []string) *api.ClusterGroup {
 	c := &api.ClusterGroup{
 		ClusterGroupPut: api.ClusterGroupPut{
 			Description: clusterGroup.Description,
@@ -338,7 +40,7 @@ WHERE cluster_groups.name = ?`
 
 // GetClusterGroupURIs returns all available ClusterGroup URIs.
 // generator: ClusterGroup URIs
-func (c *ClusterTx) GetClusterGroupURIs(filter ClusterGroupFilter) ([]string, error) {
+func (c *ClusterTx) GetClusterGroupURIs(filter cluster.ClusterGroupFilter) ([]string, error) {
 	var args []any
 	var sql string
 	if filter.Name != nil && filter.ID == nil {
@@ -370,7 +72,7 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 
 //AddNodeToClusterGroup adds a given node to the given cluster group.
 func (c *ClusterTx) AddNodeToClusterGroup(groupName string, nodeName string) error {
-	groupID, err := c.GetClusterGroupID(groupName)
+	groupID, err := cluster.GetClusterGroupID(context.TODO(), c.tx, groupName)
 	if err != nil {
 		return fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
@@ -390,7 +92,7 @@ func (c *ClusterTx) AddNodeToClusterGroup(groupName string, nodeName string) err
 
 // RemoveNodeFromClusterGroup removes a given node from the given group name.
 func (c *ClusterTx) RemoveNodeFromClusterGroup(groupName string, nodeName string) error {
-	groupID, err := c.GetClusterGroupID(groupName)
+	groupID, err := cluster.GetClusterGroupID(context.TODO(), c.tx, groupName)
 	if err != nil {
 		return fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
@@ -416,47 +118,4 @@ JOIN nodes ON nodes.id = nodes_cluster_groups.node_id
 WHERE nodes.name = ?`
 
 	return query.SelectStrings(c.tx, q, nodeName)
-}
-
-// ToAPI returns a LXD API entry.
-func (c *ClusterGroup) ToAPI() (*api.ClusterGroup, error) {
-	result := api.ClusterGroup{
-		ClusterGroupPut: api.ClusterGroupPut{
-			Description: c.Description,
-			Members:     c.Nodes,
-		},
-		ClusterGroupPost: api.ClusterGroupPost{
-			Name: c.Name,
-		},
-	}
-
-	return &result, nil
-}
-
-// addNodesToClusterGroup adds the given nodes the the cluster group with the given ID.
-func addNodesToClusterGroup(tx *sql.Tx, id int, nodes []string) error {
-	str := `
-INSERT INTO nodes_cluster_groups (group_id, node_id)
-  VALUES (
-    ?,
-    (SELECT nodes.id
-     FROM nodes
-     WHERE nodes.name = ?)
-  )`
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	for _, node := range nodes {
-		_, err = stmt.Exec(id, node)
-		if err != nil {
-			logger.Debugf("Error adding node %q to cluster group: %s", node, err)
-			return err
-		}
-	}
-
-	return nil
 }
