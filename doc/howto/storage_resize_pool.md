@@ -2,13 +2,10 @@
 discourse: 1333
 ---
 
-# How to resize storage
+(storage-resize-pool)=
+# How to resize a storage pool
 
-If you need more storage, you can increase the size of your storage pool or your storage volume.
-In some cases, it is also possible to reduce the size of a storage volume.
-
-(storage-resize-grow-pool)=
-## Grow a storage pool
+If you need more storage, you can increase the size of your storage pool.
 
 To increase the size of a storage pool, follow these general steps:
 
@@ -94,17 +91,3 @@ Replace the following variables:
 ```
 
 ````
-
-## Resize a storage volume
-
-To resize a storage volume, set its size configuration:
-
-    lxc storage volume set <pool_name> <volume_name> size <new_size>
-
-```{important}
-- Growing a storage volume usually works (if the storage pool has sufficient storage).
-- Shrinking a storage volume is only possible for storage volumes with content type `filesystem`.
-  It is not guaranteed to work though, because you cannot shrink storage below its current used size.
-- Shrinking a storage volume with content type `block` is not possible.
-
-```
