@@ -22,17 +22,11 @@ func (c *ClusterTx) UpdateInstanceSnapshotConfig(id int, values map[string]strin
 // instance snapshot with the given ID.
 func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDate time.Time) error {
 	str := "UPDATE instances_snapshots SET description=?, expiry_date=? WHERE id=?"
-	stmt, err := c.tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	var err error
 	if expiryDate.IsZero() {
-		_, err = stmt.Exec(description, "", id)
+		_, err = c.tx.Exec(str, description, "", id)
 	} else {
-		_, err = stmt.Exec(description, expiryDate, id)
+		_, err = c.tx.Exec(str, description, expiryDate, id)
 	}
 
 	if err != nil {

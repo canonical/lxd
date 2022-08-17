@@ -802,13 +802,8 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 		AND storage_volumes_all.name=?
 		AND storage_volumes_all.type=?
 `
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
 
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		node := NodeInfo{}
 		err := scan(&node.ID, &node.Address, &node.Name)
 		if err != nil {
@@ -1151,15 +1146,9 @@ JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ? AND projects.name = ?
 `
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
 
 	volumes := []StorageVolumeArgs{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		volume := StorageVolumeArgs{}
 		err := scan(&volume.ID, &volume.Name, &volume.PoolName, &volume.NodeID)
 		if err != nil {

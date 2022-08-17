@@ -537,16 +537,9 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	sql += "ORDER BY id"
 
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
 	// Process node entries
 	nodes := []NodeInfo{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		node := NodeInfo{}
 		err := scan(&node.ID, &node.Name, &node.Address, &node.Description, &node.Schema, &node.APIExtensions, &node.Heartbeat, &node.Architecture, &node.State)
 		if err != nil {
@@ -842,18 +835,14 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 // GetNodesFailureDomains returns a map associating each node address with its
 // failure domain code.
 func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
-	stmt, err := c.tx.Prepare("SELECT address, coalesce(failure_domain_id, 0) FROM nodes")
-	if err != nil {
-		return nil, err
-	}
-
+	sql := "SELECT address, coalesce(failure_domain_id, 0) FROM nodes"
 	type failureDomain struct {
 		Address         string
 		FailureDomainID int64
 	}
 
 	rows := []failureDomain{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		fd := failureDomain{}
 		err := scan(&fd.Address, &fd.FailureDomainID)
 		if err != nil {
@@ -880,10 +869,7 @@ func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
 // GetFailureDomainsNames return a map associating failure domain IDs to their
 // names.
 func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name FROM nodes_failure_domains")
-	if err != nil {
-		return nil, err
-	}
+	sql := "SELECT id, name FROM nodes_failure_domains"
 
 	type failureDomain struct {
 		ID   int64
@@ -891,7 +877,7 @@ func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
 	}
 
 	rows := []failureDomain{}
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		fd := failureDomain{}
 		err := scan(&fd.ID, &fd.Name)
 		if err != nil {
@@ -981,14 +967,8 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 	}
 
 	images := []image{}
-	stmt, err := c.tx.Prepare(`
-SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	sql := `SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`
+	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		img := image{}
 		err := scan(&img.fingerprint, &img.nodeID)
 		if err != nil {
