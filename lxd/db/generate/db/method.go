@@ -170,12 +170,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		if m.db == "" {
-			buf.L("sqlStmt, err := prepare(tx, fmt.Sprintf(%s, fillParent...))", stmtLocal)
-		} else {
-			buf.L("sqlStmt, err := %s.Prepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		}
-
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("args := []any{}")
 	} else if mapping.Type == AssociationTable {
@@ -243,13 +238,17 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 	buf.N()
 	buf.L("// Dest function for scanning a row.")
-	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
-	buf.N()
-	buf.L("// Select.")
-	buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("dest := %s", destFuncQueryScan("objects", typ, mapping.ColumnFields()))
+		buf.N()
+		buf.L("// Select.")
+		buf.L("err = query.QueryScan(tx, queryStr, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
+		buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
+		buf.N()
+		buf.L("// Select.")
+		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
@@ -591,8 +590,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("stmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		m.ifErrNotNil(buf, true, "err")
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
 		createParams := ""
 		columnFields := mapping.ColumnFields("ID")
 		if mapping.Type == ReferenceTable {
@@ -608,10 +606,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
-			buf.L("_, err = stmt.Exec(%s)", createParams)
+			buf.L("_, err := tx.Exec(queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
-			buf.L("result, err := stmt.Exec(%s)", createParams)
+			buf.L("result, err := tx.Exec(queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
@@ -1018,9 +1016,8 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
-		buf.L("stmt, err := %sprepare(tx, fmt.Sprintf(%s, fillParent...))", m.db, stmtLocal)
-		m.ifErrNotNil(buf, true, "err")
-		buf.L("result, err := stmt.Exec(referenceID)")
+		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
+		buf.L("result, err := tx.Exec(queryStr, referenceID)")
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
