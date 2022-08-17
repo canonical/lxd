@@ -118,10 +118,8 @@ func TestUpsertObject_Insert(t *testing.T) {
 		return scan(&object.ID, &object.Name)
 	}
 
-	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
-	require.NoError(t, err)
-
-	err = query.SelectObjects(stmt, dest, "egg")
+	sql := "SELECT id, name FROM test WHERE name=?"
+	err = query.Scan(tx, sql, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, object.ID)
@@ -150,10 +148,10 @@ func TestUpsertObject_Update(t *testing.T) {
 		return scan(&object.ID, &object.Name)
 	}
 
-	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
+	sql := "SELECT id, name FROM test WHERE name=?"
 	require.NoError(t, err)
 
-	err = query.SelectObjects(stmt, dest, "egg")
+	err = query.Scan(tx, sql, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, object.ID)

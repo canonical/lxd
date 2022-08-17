@@ -53,17 +53,11 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 	}
 
 	networks := []network{}
-	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	sql := "SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?"
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		n := network{}
 
-		err = scan(&n.id, &n.name, &n.projectName)
+		err := scan(&n.id, &n.name, &n.projectName)
 		if err != nil {
 			return err
 		}
@@ -302,15 +296,9 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 		netType NetworkType
 	}{}
 
-	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	count := 0
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		// Ensure that there is at most one network with the given name.
 		if count != 0 {
 			return fmt.Errorf("More than one network exists with the given name")
@@ -460,18 +448,12 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
 	nodes := []NetworkNode{}
 
-	stmt, err := c.tx.Prepare(`
+	sql := `
 		SELECT nodes.id, nodes.name, networks_nodes.state FROM nodes
 		JOIN networks_nodes ON networks_nodes.node_id = nodes.id
 		WHERE networks_nodes.network_id = ?
-	`)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	`
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
 		node := NetworkNode{}
 
 		err := scan(&node.ID, &node.Name, &node.State)
