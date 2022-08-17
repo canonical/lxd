@@ -440,7 +440,12 @@ func (m *Method) getOne(buf *file.Buffer) error {
 
 	buf.L("filter := %s{}", entityFilter(m.entity))
 	for _, field := range nk {
-		buf.L("filter.%s = &%s", field.Name, lex.Minuscule(field.Name))
+		name := lex.Minuscule(field.Name)
+		if name == "type" {
+			name = lex.Minuscule(m.entity) + field.Name
+		}
+
+		buf.L("filter.%s = &%s", field.Name, name)
 	}
 
 	buf.N()
