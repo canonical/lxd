@@ -1,5 +1,4 @@
-(storage-add-volume)=
-# How to add a custom storage volume
+# How to create a custom storage volume
 
 When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
 
