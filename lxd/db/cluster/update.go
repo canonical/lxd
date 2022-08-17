@@ -101,6 +101,33 @@ var updates = map[int]schema.Update{
 	62: updateFromV61,
 	63: updateFromV62,
 	64: updateFromV63,
+	65: updateFromV64,
+}
+
+// updatefromV64 updates nodes_cluster_groups to include an ID field so that it works well with lxd-generate.
+func updateFromV64(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "nodes_cluster_groups_new" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES cluster_groups (id) ON DELETE CASCADE,
+    UNIQUE (node_id, group_id)
+);
+
+INSERT INTO nodes_cluster_groups_new (node_id, group_id)
+    SELECT node_id, group_id FROM nodes_cluster_groups;
+
+DROP TABLE nodes_cluster_groups;
+
+ALTER TABLE nodes_cluster_groups_new RENAME TO nodes_cluster_groups;
+`)
+	if err != nil {
+		return fmt.Errorf("Failed altering nodes_cluster_groups table: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV63 creates the storage buckets tables and adds features.storage.buckets=true to all projects that
