@@ -4,7 +4,6 @@
 :maxdepth: 1
 
 Container environment <container-environment>
-Instance migration <migration>
 daemon-behavior
 database
 debugging
