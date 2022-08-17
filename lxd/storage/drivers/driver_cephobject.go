@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"strings"
 
@@ -120,7 +121,7 @@ func (d *cephobject) Create() error {
 
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
 	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
-	if err != nil {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed getting admin user %q: %w", cephobjectRadosgwAdminUser, err)
 	}
 
