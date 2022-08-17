@@ -3,7 +3,9 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -14,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 type common struct {
@@ -427,4 +430,96 @@ func (d *common) RestoreVolume(vol Volume, snapshotName string, op *operations.O
 // RenameVolumeSnapshot renames a snapshot.
 func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
 	return ErrNotSupported
+}
+
+// ValidateBucket validates the supplied bucket config.
+func (d *common) ValidateBucket(bucket Bucket) error {
+	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucket.name)
+	if err != nil {
+		return err
+	}
+
+	if !match {
+		return fmt.Errorf("Bucket name must be between 3 and 63 lowercase letters, numbers, periods or hyphens and must start with a letter or number")
+	}
+
+	checkedFields := map[string]struct{}{}
+
+	rules := map[string]func(string) error{
+		"size": validate.Optional(validate.IsSize),
+	}
+
+	// Run the validator against each field.
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} //Mark field as checked.
+		err := validator(bucket.config[k])
+		if err != nil {
+			return fmt.Errorf("Invalid value for bucket %q option %q: %w", bucket.name, k, err)
+		}
+	}
+
+	// Look for any unchecked fields, as these are unknown fields and validation should fail.
+	for k := range bucket.config {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// User keys are not validated.
+		if strings.HasPrefix(k, "user.") {
+			continue
+		}
+
+		return fmt.Errorf("Invalid option for bucket %q option %q", bucket.name, k)
+	}
+
+	return nil
+}
+
+// BucketURL returns the URL of the specified bucket.
+func (d *common) BucketURL(bucketName string) *url.URL {
+	return nil
+}
+
+// CreateBucket creates a new bucket.
+func (d *common) CreateBucket(bucket Bucket, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// DeleteBucket deletes an existing bucket.
+func (d *common) DeleteBucket(bucket Bucket, op *operations.Operation) error {
+	return ErrNotSupported
+}
+
+// UpdateBucket updates an existing bucket.
+func (d *common) UpdateBucket(bucket Bucket, changedConfig map[string]string) error {
+	return ErrNotSupported
+}
+
+// ValidateBucketKey validates the supplied bucket key config.
+func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName string) error {
+	if keyName == "" {
+		return fmt.Errorf("Key name is required")
+	}
+
+	validRoles := []string{"admin", "read-only"}
+	if !shared.StringInSlice(roleName, validRoles) {
+		return fmt.Errorf("Invalid key role")
+	}
+
+	return nil
+}
+
+// CreateBucketKey create bucket key.
+func (d *common) CreateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+	return nil, ErrNotSupported
+}
+
+// UpdateBucketKey updates bucket key.
+func (d *common) UpdateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+	return nil, ErrNotSupported
+}
+
+func (d *common) DeleteBucketKey(bucket Bucket, keyName string, op *operations.Operation) error {
+	return nil
 }
