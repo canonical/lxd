@@ -789,7 +789,7 @@ func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.
 
 	network.Config = map[string]string{}
 
-	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

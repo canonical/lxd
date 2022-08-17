@@ -248,7 +248,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Select.")
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		buf.L("err = query.QueryScan(tx, queryStr, dest, args...)")
+		buf.L("err = query.Scan(tx, queryStr, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
 		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")

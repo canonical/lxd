@@ -26,9 +26,9 @@ func SelectObjects(stmt *sql.Stmt, rowFunc Dest, args ...any) error {
 	return rows.Err()
 }
 
-// QueryScan runs a query with inArgs and provides the rowFunc with the scan function for each row.
+// Scan runs a query with inArgs and provides the rowFunc with the scan function for each row.
 // It handles closing the rows and errors from the result set.
-func QueryScan(tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
+func Scan(tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
 	rows, err := tx.Query(sql, inArgs...)
 	if err != nil {
 		return err

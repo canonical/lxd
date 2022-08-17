@@ -28,7 +28,7 @@ WHERE storage_volumes.type = ?
 `
 
 	result := []StorageVolumeArgs{}
-	err := query.QueryScan(c.Tx(), stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), stmt, func(scan func(dest ...any) error) error {
 		entry := StorageVolumeArgs{}
 
 		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
@@ -176,7 +176,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, memberSpecific bool, fil
 	var err error
 	var volumes []*StorageVolume
 
-	err = query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var volumeType int = int(-1)
 		var contentType int = int(-1)
 		var vol StorageVolume
@@ -342,7 +342,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	var snapshots []StorageVolumeArgs
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = query.QueryScan(tx.Tx(), queryStr, func(scan func(dest ...any) error) error {
+		err = query.Scan(tx.Tx(), queryStr, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
 			var expiryDate sql.NullTime
@@ -394,7 +394,7 @@ func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *
 	q := "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id = ?"
 
 	volume.Config = make(map[string]string)
-	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -906,7 +906,7 @@ func (c *ClusterTx) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map
 	}
 
 	config := map[string]string{}
-	err := query.QueryScan(c.Tx(), queryStr, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), queryStr, func(scan func(dest ...any) error) error {
 		var key string
 		var value string
 
