@@ -96,3 +96,28 @@ func destFunc(slice string, typ string, fields []*Field) string {
 
 	return f
 }
+
+// destFuncQueryScan returns code for QueryScan's rowFunc.
+// TODO: Replace the above destFunc with this one once SelectObjects is updated to use the new rowFunc callback.
+func destFuncQueryScan(slice string, typ string, fields []*Field) string {
+	varName := lex.Minuscule(string(typ[0]))
+	args := make([]string, 0, len(fields))
+	for _, field := range fields {
+		arg := fmt.Sprintf("&%s.%s", varName, field.Name)
+		args = append(args, arg)
+	}
+
+	f := fmt.Sprintf(`func(scan func(dest ...any) error) error {
+                      %s := %s{}
+                      err := scan(%s)
+                      if err != nil {
+                        return err
+                      }
+
+                      %s = append(%s, %s)
+
+                      return nil
+                    }
+`, varName, typ, strings.Join(args, ", "), slice, slice, varName)
+	return f
+}

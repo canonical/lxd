@@ -468,7 +468,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 	sql := "SELECT node_id, role FROM nodes_roles"
 
 	nodeRoles := map[int64][]ClusterRole{}
-	err := c.QueryScan(sql, func(scan func(dest ...any) error) error {
+	err := query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var role int
 
@@ -496,7 +496,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	nodeGroups := map[int64][]string{}
 
-	err = c.QueryScan(sql, func(scan func(dest ...any) error) error {
+	err = query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var group string
 

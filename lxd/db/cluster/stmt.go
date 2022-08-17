@@ -50,13 +50,3 @@ func Stmt(tx *sql.Tx, code int) *sql.Stmt {
 
 	return tx.Stmt(stmt)
 }
-
-// prepare prepares a new statement from a SQL string.
-func prepare(tx *sql.Tx, sql string) (*sql.Stmt, error) {
-	stmt, err := tx.Prepare(sql)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to prepare statement with error: %w", err)
-	}
-
-	return stmt, nil
-}

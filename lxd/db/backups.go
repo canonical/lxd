@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -302,7 +303,7 @@ func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName str
 	var backups []StoragePoolVolumeBackup
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
+		return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var b StoragePoolVolumeBackup
 			var expiryTime sql.NullTime
 
