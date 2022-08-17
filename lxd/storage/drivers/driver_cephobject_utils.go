@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // radosgwadmin wrapper around radosgw-admin command.
@@ -28,14 +30,14 @@ func (d *cephobject) radosgwadmin(ctx context.Context, args ...string) (string, 
 }
 
 // radosgwadminGetUser returns credentials for an existing radosgw user (and its sub users).
-// If no user exists returned credentials and error are nil.
+// If no user exists returns api.StatusError with status code set to http.StatusNotFound.
 func (d *cephobject) radosgwadminGetUser(ctx context.Context, user string) (*S3Credentials, map[string]S3Credentials, error) {
 	out, err := d.radosgwadmin(ctx, "user", "info", "--uid", user)
 
 	if err != nil {
 		status, _ := shared.ExitStatus(err)
 		if status == 22 {
-			return nil, nil, err // User not found.
+			return nil, nil, api.StatusErrorf(http.StatusNotFound, "User not found")
 		}
 
 		return nil, nil, fmt.Errorf("Failed getting user %q info: %w", user, err)
