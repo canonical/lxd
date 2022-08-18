@@ -1224,9 +1224,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 		return fmt.Errorf("Asked to setup IPv%d firewalling but %s can't be found", ipVersion, cmd)
 	}
 
-	baseArgs := []string{"-w", "-t", table}
-
-	args := append(baseArgs, []string{method, chain}...)
+	args := []string{"-w", "-t", table, method, chain}
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("%s %s", iptablesCommentPrefix, comment))
 
