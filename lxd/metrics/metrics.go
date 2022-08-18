@@ -71,7 +71,7 @@ func (m *MetricSet) String() string {
 		metricTypeName := ""
 
 		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
-		if metricType == ProcsTotal {
+		if metricType == ProcsTotal || metricType == ProcsLimit {
 			metricTypeName = "gauge"
 		} else if strings.HasSuffix(MetricNames[metricType], "_total") {
 			metricTypeName = "counter"
@@ -242,6 +242,7 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 
 	// Procs stats
 	set.AddSamples(ProcsTotal, Sample{Value: float64(metrics.ProcessesTotal)})
+	set.AddSamples(ProcsLimit, Sample{Value: float64(metrics.ProcessesLimit)})
 
 	return set, nil
 }

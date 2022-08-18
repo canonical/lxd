@@ -8,6 +8,7 @@ type Metrics struct {
 	Memory         MemoryMetrics                `json:"memory" yaml:"memory"`
 	Network        map[string]NetworkMetrics    `json:"network" yaml:"network"`
 	ProcessesTotal uint64                       `json:"procs_total" yaml:"procs_total"`
+	ProcessesLimit uint64                       `json:"procs_limit" yaml:"procs_limit"`
 }
 
 // CPUMetrics represents CPU metrics for an instance.

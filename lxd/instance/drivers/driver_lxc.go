@@ -6970,6 +6970,13 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
 	}
 
+	pidsLimit, err := cg.GetEffectiveLimitProcesses()
+	if err != nil {
+		d.logger.Warn("Failed to get limit of processes", logger.Ctx{"err": err})
+	} else {
+		out.AddSamples(metrics.ProcsLimit, metrics.Sample{Value: float64(pidsLimit)})
+	}
+
 	return out, nil
 }
 

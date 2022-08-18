@@ -4,6 +4,7 @@ package shared
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"unsafe"
@@ -336,6 +338,20 @@ func GetMeminfo(field string) (int64, error) {
 	}
 
 	return -1, fmt.Errorf("Couldn't find %s", field)
+}
+
+func DevicePidMax() (int64, error) {
+	b, err := os.ReadFile("/proc/sys/kernel/pid_max")
+	if err != nil {
+		return -1, err
+	}
+
+	i, err := strconv.ParseInt(string(bytes.TrimSpace(b)), 10, 64)
+	if err != nil {
+		return -1, err
+	}
+
+	return i, nil
 }
 
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.

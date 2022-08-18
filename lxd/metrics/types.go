@@ -90,6 +90,8 @@ const (
 	NetworkTransmitPacketsTotal
 	// ProcsTotal represents the number of running processes.
 	ProcsTotal
+	// ProcsLimit represents the hard limit of processes.
+	ProcsLimit
 )
 
 // MetricNames associates a metric type to its name.
@@ -131,6 +133,7 @@ var MetricNames = map[MetricType]string{
 	NetworkTransmitErrsTotal:    "lxd_network_transmit_errs_total",
 	NetworkTransmitPacketsTotal: "lxd_network_transmit_packets_total",
 	ProcsTotal:                  "lxd_procs_total",
+	ProcsLimit:                  "lxd_procs_limit",
 }
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
@@ -172,4 +175,5 @@ var MetricHeaders = map[MetricType]string{
 	NetworkTransmitErrsTotal:    "# HELP lxd_network_transmit_errs_total The amount of transmitted errors on a given interface.",
 	NetworkTransmitPacketsTotal: "# HELP lxd_network_transmit_packets_total The amount of transmitted packets on a given interface.",
 	ProcsTotal:                  "# HELP lxd_procs_total The number of running processes.",
+	ProcsLimit:                  "# HELP lxd_procs_limit The hard limit of running processes.",
 }

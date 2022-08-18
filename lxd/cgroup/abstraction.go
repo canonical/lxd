@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"strconv"
 	"strings"
 
@@ -1006,19 +1007,7 @@ func (cg *CGroup) GetTotalProcesses() (int64, error) {
 	switch version {
 	case Unavailable:
 		return -1, ErrControllerMissing
-	case V1:
-		val, err := cg.rw.Get(version, "pids", "pids.current")
-		if err != nil {
-			return -1, err
-		}
-
-		n, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
-		}
-
-		return n, nil
-	case V2:
+	case V1, V2:
 		val, err := cg.rw.Get(version, "pids", "pids.current")
 		if err != nil {
 			return -1, err
@@ -1033,4 +1022,49 @@ func (cg *CGroup) GetTotalProcesses() (int64, error) {
 	}
 
 	return -1, ErrUnknownVersion
+}
+
+// GetLimitProcesses returns the limit of processes.
+func (cg *CGroup) GetLimitProcesses() (int64, error) {
+	version := cgControllers["pids"]
+	switch version {
+	case Unavailable:
+		return -1, ErrControllerMissing
+	case V1, V2:
+		val, err := cg.rw.Get(version, "pids", "pids.max")
+		if err != nil {
+			return -1, err
+		}
+
+		// unlimited
+		if val == "max" {
+			return math.MaxInt64, nil
+		}
+
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
+	}
+
+	return -1, ErrUnknownVersion
+}
+
+// GetEffectiveLimitProcesses return the effective hard limit of processes.
+// Returns the cgroup pid limit, or if the cgroup pid limit couldn't be determined or is larger than the
+// total system limit, then the total system limit is returned.
+func (cg *CGroup) GetEffectiveLimitProcesses() (int64, error) {
+	systemLimit, err := shared.DevicePidMax()
+	if err != nil {
+		return -1, fmt.Errorf("Failed getting device pid limit: %w", err)
+	}
+
+	limit, err := cg.GetLimitProcesses()
+	if err != nil || limit > systemLimit {
+		return systemLimit, nil
+	}
+
+	return limit, nil
 }
