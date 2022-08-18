@@ -1706,3 +1706,7 @@ It reports the number of times the out of memory killer (`OOM`) has been trigger
 
 ## `storage_buckets`
 This introduces the storage bucket API. It allows the management of S3 object storage buckets for storage pools.
+
+## `metrics_procs_limit`
+This introduces a new `lxd_procs_limit` metric to the `/1.0/metrics` API.
+It reports the hard limit of processes.
