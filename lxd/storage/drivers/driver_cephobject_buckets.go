@@ -72,8 +72,16 @@ func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
 func (d *cephobject) CreateBucket(bucket Bucket, op *operations.Operation) error {
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
 	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
-	if err != nil {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return fmt.Errorf("Failed getting admin user %q: %w", cephobjectRadosgwAdminUser, err)
+	}
+
+	// Create missing cephobjectRadosgwAdminUser user.
+	if adminUserInfo == nil {
+		adminUserInfo, err = d.radosgwadminUserAdd(context.TODO(), cephobjectRadosgwAdminUser, 0)
+		if err != nil {
+			return fmt.Errorf("Failed added admin user %q: %w", cephobjectRadosgwAdminUser, err)
+		}
 	}
 
 	minioClient, err := d.s3Client(*adminUserInfo)
