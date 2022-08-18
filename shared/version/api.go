@@ -346,6 +346,7 @@ var APIExtensions = []string{
 	"storage_buckets_create_credentials",
 	"metrics_cpu_effective_total",
 	"projects_networks_restricted_access",
+	"storage_buckets_local",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
