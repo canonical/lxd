@@ -231,7 +231,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		if m.db == "" {
 			buf.L("sqlStmt, err = Stmt(tx, %s)", stmtCodeVar(m.entity, "objects"))
 		} else {
-			buf.L("sqlStmt, errr = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
+			buf.L("sqlStmt, err = %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "objects"))
 		}
 
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "objects")))
