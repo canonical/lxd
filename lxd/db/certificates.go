@@ -30,30 +30,27 @@ func (db *DB) UpdateCertificate(ctx context.Context, fingerprint string, cert cl
 
 // GetCertificates returns all available local certificates.
 func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
-	dbCerts := []struct {
+	type cert struct {
 		fingerprint string
 		certType    cluster.CertificateType
 		name        string
 		certificate string
-	}{}
-	dest := func(i int) []any {
-		dbCerts = append(dbCerts, struct {
-			fingerprint string
-			certType    cluster.CertificateType
-			name        string
-			certificate string
-		}{})
-		return []any{&dbCerts[i].fingerprint, &dbCerts[i].certType, &dbCerts[i].name, &dbCerts[i].certificate}
 	}
 
-	stmt, err := n.tx.Prepare("SELECT fingerprint, type, name, certificate FROM certificates")
-	if err != nil {
-		return nil, err
-	}
+	sql := "SELECT fingerprint, type, name, certificate FROM certificates"
+	dbCerts := []cert{}
+	err := query.Scan(n.tx, sql, func(scan func(dest ...any) error) error {
+		dbCert := cert{}
 
-	defer func() { _ = stmt.Close() }()
+		err := scan(&dbCert.fingerprint, &dbCert.certType, &dbCert.name, &dbCert.certificate)
+		if err != nil {
+			return err
+		}
 
-	err = query.SelectObjects(stmt, dest)
+		dbCerts = append(dbCerts, dbCert)
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -79,15 +76,9 @@ func (n *NodeTx) ReplaceCertificates(certs []cluster.Certificate) error {
 		return err
 	}
 
-	stmt, err := n.tx.Prepare("INSERT INTO certificates (fingerprint, type, name, certificate) VALUES(?,?,?,?)")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "INSERT INTO certificates (fingerprint, type, name, certificate) VALUES(?,?,?,?)"
 	for _, cert := range certs {
-		_, err = stmt.Exec(cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
+		_, err = n.tx.Exec(sql, cert.Fingerprint, cert.Type, cert.Name, cert.Certificate)
 		if err != nil {
 			return err
 		}

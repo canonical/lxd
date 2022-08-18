@@ -505,7 +505,7 @@ func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	})
 }
 
-func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, error) {
+func doDbScan(c *Cluster, q string, args []any, outargs []any) ([][]any, error) {
 	result := [][]any{}
 
 	err := c.retry(func() error {
@@ -589,7 +589,7 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
  * of interfaces, containing pointers to the actual output arguments.
  */
 func queryScan(c *Cluster, q string, inargs []any, outfmt []any) ([][]any, error) {
-	return doDbQueryScan(c, q, inargs, outfmt)
+	return doDbScan(c, q, inargs, outfmt)
 }
 
 func exec(c *Cluster, q string, args ...any) error {

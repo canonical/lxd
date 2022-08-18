@@ -468,7 +468,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 	sql := "SELECT node_id, role FROM nodes_roles"
 
 	nodeRoles := map[int64][]ClusterRole{}
-	err := query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var role int
 
@@ -496,7 +496,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	nodeGroups := map[int64][]string{}
 
-	err = query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var group string
 
@@ -518,23 +518,6 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 		return nil, err
 	}
 
-	// Process node entries
-	nodes := []NodeInfo{}
-	dest := func(i int) []any {
-		nodes = append(nodes, NodeInfo{})
-		return []any{
-			&nodes[i].ID,
-			&nodes[i].Name,
-			&nodes[i].Address,
-			&nodes[i].Description,
-			&nodes[i].Schema,
-			&nodes[i].APIExtensions,
-			&nodes[i].Heartbeat,
-			&nodes[i].Architecture,
-			&nodes[i].State,
-		}
-	}
-
 	// Get the node entries
 	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat, arch, state FROM nodes "
 
@@ -554,14 +537,19 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	sql += "ORDER BY id"
 
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
+	// Process node entries
+	nodes := []NodeInfo{}
+	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		node := NodeInfo{}
+		err := scan(&node.ID, &node.Name, &node.Address, &node.Description, &node.Schema, &node.APIExtensions, &node.Heartbeat, &node.Architecture, &node.State)
+		if err != nil {
+			return err
+		}
 
-	defer func() { _ = stmt.Close() }()
+		nodes = append(nodes, node)
 
-	err = query.SelectObjects(stmt, dest, args...)
+		return nil
+	}, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch nodes: %w", err)
 	}
@@ -847,25 +835,24 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 // GetNodesFailureDomains returns a map associating each node address with its
 // failure domain code.
 func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
-	stmt, err := c.tx.Prepare("SELECT address, coalesce(failure_domain_id, 0) FROM nodes")
-	if err != nil {
-		return nil, err
-	}
-
-	rows := []struct {
+	sql := "SELECT address, coalesce(failure_domain_id, 0) FROM nodes"
+	type failureDomain struct {
 		Address         string
 		FailureDomainID int64
-	}{}
-
-	dest := func(i int) []any {
-		rows = append(rows, struct {
-			Address         string
-			FailureDomainID int64
-		}{})
-		return []any{&rows[len(rows)-1].Address, &rows[len(rows)-1].FailureDomainID}
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	rows := []failureDomain{}
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		fd := failureDomain{}
+		err := scan(&fd.Address, &fd.FailureDomainID)
+		if err != nil {
+			return err
+		}
+
+		rows = append(rows, fd)
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -882,25 +869,25 @@ func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
 // GetFailureDomainsNames return a map associating failure domain IDs to their
 // names.
 func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
-	stmt, err := c.tx.Prepare("SELECT id, name FROM nodes_failure_domains")
-	if err != nil {
-		return nil, err
-	}
+	sql := "SELECT id, name FROM nodes_failure_domains"
 
-	rows := []struct {
+	type failureDomain struct {
 		ID   int64
 		Name string
-	}{}
-
-	dest := func(i int) []any {
-		rows = append(rows, struct {
-			ID   int64
-			Name string
-		}{})
-		return []any{&rows[len(rows)-1].ID, &rows[len(rows)-1].Name}
 	}
 
-	err = query.SelectObjects(stmt, dest)
+	rows := []failureDomain{}
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		fd := failureDomain{}
+		err := scan(&fd.ID, &fd.Name)
+		if err != nil {
+			return err
+		}
+
+		rows = append(rows, fd)
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -974,26 +961,24 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 	}
 
 	// Check if the node has any images available only in it.
-	images := []struct {
+	type image struct {
 		fingerprint string
 		nodeID      int64
-	}{}
-	dest := func(i int) []any {
-		images = append(images, struct {
-			fingerprint string
-			nodeID      int64
-		}{})
-		return []any{&images[i].fingerprint, &images[i].nodeID}
 	}
 
-	stmt, err := c.tx.Prepare(`
-SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)
-	if err != nil {
-		return "", err
-	}
+	images := []image{}
+	sql := `SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`
+	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		img := image{}
+		err := scan(&img.fingerprint, &img.nodeID)
+		if err != nil {
+			return err
+		}
 
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest)
+		images = append(images, img)
+
+		return nil
+	})
 	if err != nil {
 		return "", fmt.Errorf("Failed to get image list for node %d: %w", id, err)
 	}
