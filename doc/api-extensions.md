@@ -2047,3 +2047,7 @@ This also introduces a change whereby network access is controlled by the projec
 * If `restricted.devices.nic` is set to `managed` (the default if not specified), only managed networks are accessible.
 * If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
 * If `restricted.devices.nic` is set to `block`, no networks are accessible.
+
+## `storage_buckets_local`
+
+This introduces the ability to use storage buckets on local storage pools by setting the new `core.storage_buckets_address` global configuration setting.
