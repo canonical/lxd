@@ -545,13 +545,13 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommand(cmd, "-t", "filter", "-F", chain)
+		_, err := shared.RunCommand(cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommand(cmd, "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommand(cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
