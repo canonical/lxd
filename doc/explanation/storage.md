@@ -148,3 +148,7 @@ However, unlike storage volumes, storage buckets are not attached to an instance
 Instead, applications can access a storage bucket directly using its URL.
 
 Each storage bucket is assigned one or more access keys, which the applications must use to access it.
+
+Storage buckets can be located on local storage (with `dir`, `btrfs`, `lvm` or `zfs` pools) or on remote storage (with `cephobject` pools).
+
+To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the `core.storage_buckets_address` server setting (see {ref}`server`).

@@ -120,3 +120,11 @@ Key                     | Type      | Condition                 | Default       
 `zfs.remove_snapshots`  | bool      | ZFS driver                | same as `volume.zfs.remove_snapshots` or `false` | Remove snapshots as needed
 `zfs.use_refquota`      | bool      | ZFS driver                | same as `volume.zfs.use_refquota` or `false`   | Use `refquota` instead of `quota` for space
 `zfs.reserve_space`     | bool      | ZFS driver                | same as `volume.zfs.reserve_space` or `false`  | Use `reservation`/`refreservation` along with `quota`/`refquota`
+
+### Storage bucket configuration
+
+To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the `core.storage_buckets_address` server setting (see {ref}`server`).
+
+Key                     | Type      | Condition                 | Default                                        | Description
+:--                     | :---      | :--------                 | :------                                        | :----------
+`size`                  | string    | appropriate driver        | same as `volume.size`                          | Size/quota of the storage bucket

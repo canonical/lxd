@@ -44,3 +44,10 @@ Key                     | Type      | Condition                 | Default       
 `snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`              | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}}
 `snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`            | {{snapshot_schedule_format}}
+
+### Storage bucket configuration
+
+To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the `core.storage_buckets_address` server setting (see {ref}`server`).
+
+Storage buckets do not have any configuration for `dir` pools.
+Unlike the other storage pool drivers, the `dir` driver does not support bucket quotas via the `size` setting.
