@@ -545,13 +545,13 @@ func (d Xtables) NetworkApplyACLRules(networkName string, rules []ACLRule) error
 
 	applyACLRules := func(cmd string, iptRules [][]string) error {
 		// Attempt to flush chain in table.
-		_, err := shared.RunCommand(cmd, "-t", "filter", "-F", chain)
+		_, err := shared.RunCommand(cmd, "-w", "-t", "filter", "-F", chain)
 		if err != nil {
 			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
 
 		// Allow connection tracking.
-		_, err = shared.RunCommand(cmd, "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+		_, err = shared.RunCommand(cmd, "-w", "-t", "filter", "-A", chain, "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
 		if err != nil {
 			return fmt.Errorf("Failed adding connection tracking rules to %q chain %q in table %q: %w", cmd, chain, "filter", err)
 		}
@@ -1224,9 +1224,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 		return fmt.Errorf("Asked to setup IPv%d firewalling but %s can't be found", ipVersion, cmd)
 	}
 
-	baseArgs := []string{"-w", "-t", table}
-
-	args := append(baseArgs, []string{method, chain}...)
+	args := []string{"-w", "-t", table, method, chain}
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("%s %s", iptablesCommentPrefix, comment))
 
@@ -1296,8 +1294,9 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		}
 
 		baseArgs := []string{"-w", "-t", fromTable}
+
 		// List the rules.
-		args := append(baseArgs, "-S")
+		args := append(baseArgs, "--list-rules")
 		output, err := shared.TryRunCommand(cmd, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
