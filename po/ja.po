@@ -3685,8 +3685,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -7241,8 +7241,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -7340,7 +7340,7 @@ msgstr "yes"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
@@ -7380,16 +7380,18 @@ msgstr "yes"
 #~ "lxc launch ubuntu:20.04 v1 --vm\n"
 #~ "    仮想マシンを作成し、起動します"
 
+#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
+#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -7406,7 +7408,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -8950,8 +8952,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect "
-#~ "\"custom\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect \"custom"
+#~ "\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
@@ -9503,7 +9505,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -9511,6 +9513,7 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -9568,6 +9571,7 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
+#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 
@@ -9717,3 +9721,46 @@ msgstr "yes"
 #~ "### location: lxd01\n"
 #~ "###\n"
 #~ "### Note that the listen_address and location cannot be changed."
+
+#~ msgid ""
+#~ "List storage volumes\n"
+#~ "\n"
+#~ "The -c option takes a (optionally comma-separated) list of arguments\n"
+#~ "that control which image attributes to output when displaying in table\n"
+#~ "or csv format.\n"
+#~ "\n"
+#~ "Default column layout is: tndcuL\n"
+#~ "\n"
+#~ "Column shorthand chars:\n"
+#~ "\n"
+#~ "    t - Type of volume (custom, image, container or virtual-machine)\n"
+#~ "    n - Name\n"
+#~ "    d - Description\n"
+#~ "    c - Content type (filesystem or block)\n"
+#~ "    u - Number of references (used by)\n"
+#~ "    L - Location of the instance (e.g. its cluster member)\n"
+#~ "    U - Current disk usage"
+#~ msgstr ""
+#~ "ストレージボリュームをリスト表示します\n"
+#~ "\n"
+#~ "-c オプションは、表もしくは csv 形式で表示する際の、出力するイメージの\n"
+#~ "属性を指定する引数のリスト (カンマ区切りでも OK) を指定します。\n"
+#~ "\n"
+#~ "デフォルトのカラムレイアウトは tndcuL です。\n"
+#~ "\n"
+#~ "カラムの指定文字:\n"
+#~ "\n"
+#~ "    t - ボリュームのタイプ (custom, image, container or virtual-machine)\n"
+#~ "    n - 名前\n"
+#~ "    d - 説明\n"
+#~ "    c - コンテンツタイプ (filesystem or block)\n"
+#~ "    u - （使用中の）リファレンス数\n"
+#~ "    L - インスタンスの場所 (例: its cluster member)\n"
+#~ "    U - 現在のディスク使用量"
+
+#, c-format
+#~ msgid "Admin password for %s:"
+#~ msgstr "%s の管理者パスワード:"
+
+#~ msgid "Path to an alternate server directory"
+#~ msgstr "別のサーバ用設定ディレクトリ"

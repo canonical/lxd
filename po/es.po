@@ -3481,8 +3481,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -6929,8 +6929,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -6999,19 +6999,19 @@ msgstr ""
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "No se puede proveer el nombre del container a la lista"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Acepta certificado"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Nombre del contenedor es: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Acepta certificado"
 
@@ -7099,6 +7099,7 @@ msgstr ""
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado del cliente almacenado en el servidor: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "No se peude leer desde stdin: %s"
 
@@ -7106,7 +7107,7 @@ msgstr ""
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nombre del Miembro del Cluster"
 
@@ -7185,3 +7186,7 @@ msgstr ""
 #, fuzzy
 #~ msgid "[<remote>:]<network> <listen_address> [<default_target_address>]"
 #~ msgstr "No se puede proveer el nombre del container a la lista"
+
+#, fuzzy, c-format
+#~ msgid "Admin password for %s:"
+#~ msgstr "Contraseña admin para %s: "
