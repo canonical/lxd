@@ -350,7 +350,7 @@ func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int
 
 	q.WriteString(`)`)
 
-	return query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var key, value string
 
@@ -430,7 +430,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 	q.WriteString(`)`)
 
-	return query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var deviceType cluster.DeviceType
 		var deviceName, key, value string
@@ -518,7 +518,7 @@ func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[i
 	profilesByID := make(map[int]*api.Profile)
 	instanceApplyProfileIDs := make(map[int64][]int, len(instances))
 
-	err := query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int64
 		var profileID int
 
@@ -861,14 +861,7 @@ func (c *ClusterTx) DeleteInstanceConfigKey(id int64, key string) error {
 func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	// Set the new value
 	str := "INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)"
-	stmt, err := c.tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	_, err = stmt.Exec(id, state)
+	_, err := c.tx.Exec(str, id, state)
 	if err != nil {
 		return err
 	}
@@ -880,14 +873,7 @@ func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 // with the given ID.
 func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	str := `UPDATE instances SET last_use_date=? WHERE id=?`
-	stmt, err := c.tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	_, err = stmt.Exec(date, id)
+	_, err := c.tx.Exec(str, date, id)
 	if err != nil {
 		return err
 	}
@@ -1179,19 +1165,13 @@ WHERE instances_config.id IN (
 
 // CreateInstanceConfig inserts a new config for the instance with the given ID.
 func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
-	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
+	sql := "INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)"
 	for k, v := range config {
 		if v == "" {
 			continue
 		}
 
-		_, err := stmt.Exec(id, k, v)
+		_, err := tx.Exec(sql, id, k, v)
 		if err != nil {
 			return fmt.Errorf("Error adding configuration item %q = %q to instance %d: %w", k, v, id, err)
 		}
@@ -1205,22 +1185,16 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
 	expiryDate time.Time) error {
 	str := "UPDATE instances SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?"
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
 	ephemeralInt := 0
 	if ephemeral {
 		ephemeralInt = 1
 	}
 
+	var err error
 	if expiryDate.IsZero() {
-		_, err = stmt.Exec(description, architecture, ephemeralInt, "", id)
+		_, err = tx.Exec(str, description, architecture, ephemeralInt, "", id)
 	} else {
-		_, err = stmt.Exec(description, architecture, ephemeralInt, expiryDate, id)
+		_, err = tx.Exec(str, description, architecture, ephemeralInt, expiryDate, id)
 	}
 
 	if err != nil {

@@ -39,38 +39,27 @@ SELECT images.fingerprint
 // GetImageSource returns the image source with the given ID.
 func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
-	sources := []struct {
+	type imagesSource struct {
 		ID          int
 		Server      string
 		Protocol    int
 		Certificate string
 		Alias       string
-	}{}
-	dest := func(i int) []any {
-		sources = append(sources, struct {
-			ID          int
-			Server      string
-			Protocol    int
-			Certificate string
-			Alias       string
-		}{})
-		return []any{
-			&sources[i].ID,
-			&sources[i].Server,
-			&sources[i].Protocol,
-			&sources[i].Certificate,
-			&sources[i].Alias,
+	}
+
+	sources := []imagesSource{}
+	err := query.Scan(c.tx, q, func(scan func(dest ...any) error) error {
+		s := imagesSource{}
+
+		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
+		if err != nil {
+			return err
 		}
-	}
 
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return -1, api.ImageSource{}, err
-	}
+		sources = append(sources, s)
 
-	defer func() { _ = stmt.Close() }()
-
-	err = query.SelectObjects(stmt, dest, imageID)
+		return nil
+	}, imageID)
 	if err != nil {
 		return -1, api.ImageSource{}, err
 	}
@@ -132,25 +121,21 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	image.Properties = properties
 
+	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
+
 	// Get the aliases
 	aliases := []api.ImageAlias{}
-	dest := func(i int) []any {
-		aliases = append(aliases, api.ImageAlias{})
-		return []any{
-			&aliases[i].Name,
-			&aliases[i].Description,
+	err = query.Scan(c.tx, q, func(scan func(dest ...any) error) error {
+		alias := api.ImageAlias{}
+
+		err := scan(&alias.Name, &alias.Description)
+		if err != nil {
+			return err
 		}
-	}
 
-	q := "SELECT name, description FROM images_aliases WHERE image_id=?"
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = stmt.Close() }()
-
-	err = query.SelectObjects(stmt, dest, id)
+		aliases = append(aliases, alias)
+		return nil
+	}, id)
 	if err != nil {
 		return err
 	}
@@ -573,7 +558,7 @@ WHERE images.fingerprint LIKE ?
 
 	images := make([]cluster.Image, 0)
 
-	err := query.QueryScan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var img cluster.Image
 
 		err := scan(
@@ -930,14 +915,8 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, auto_update=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = stmt.Close() }()
-
-		_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
+		sql := `UPDATE images SET filename=?, size=?, public=?, auto_update=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`
+		_, err = tx.tx.Exec(sql, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
 		if err != nil {
 			return err
 		}
@@ -947,19 +926,13 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 			return err
 		}
 
-		stmt2, err := tx.tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = stmt2.Close() }()
-
+		sql = `INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`
 		for key, value := range properties {
 			if value == "" {
 				continue
 			}
 
-			_, err = stmt2.Exec(id, 0, key, value)
+			_, err = tx.tx.Exec(sql, id, 0, key, value)
 			if err != nil {
 				return err
 			}
@@ -986,15 +959,9 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 				return err
 			}
 
-			stmt3, err := tx.tx.Prepare(`INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`)
-			if err != nil {
-				return err
-			}
-
-			defer func() { _ = stmt3.Close() }()
-
+			sql = `INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`
 			for _, profileID := range profileIds {
-				_, err = stmt3.Exec(id, profileID)
+				_, err = tx.tx.Exec(sql, id, profileID)
 				if err != nil {
 					return err
 				}
@@ -1047,14 +1014,8 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = stmt.Close() }()
-
-		result, err := stmt.Exec(imageProject, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
+		sql := `INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		result, err := tx.tx.Exec(sql, imageProject, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
 		if err != nil {
 			return err
 		}
@@ -1067,17 +1028,11 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		id := int(id64)
 
 		if len(properties) > 0 {
-			pstmt, err := tx.tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
-			if err != nil {
-				return err
-			}
-
-			defer func() { _ = pstmt.Close() }()
-
+			sql = `INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`
 			for k, v := range properties {
 				// we can assume, that there is just one
 				// value per key
-				_, err = pstmt.Exec(id, k, v)
+				_, err = tx.tx.Exec(sql, id, k, v)
 				if err != nil {
 					return err
 				}
@@ -1085,15 +1040,9 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		}
 
 		if profileIds != nil {
-			profileStmt, err := tx.tx.Prepare(`INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`)
-			if err != nil {
-				return err
-			}
-
-			defer func() { _ = profileStmt.Close() }()
-
+			sql = `INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`
 			for _, profileID := range profileIds {
-				_, err = profileStmt.Exec(id, profileID)
+				_, err = tx.tx.Exec(sql, id, profileID)
 				if err != nil {
 					return err
 				}
@@ -1323,7 +1272,7 @@ func (c *ClusterTx) GetProjectsUsingImage(fingerprint string) ([]string, error) 
 		JOIN projects ON projects.id=images.project_id
 		WHERE fingerprint = ?
 	`
-	err = query.QueryScan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
 		var imgProjectName string
 		err = scan(&imgProjectName)
 		if err != nil {

@@ -28,7 +28,7 @@ WHERE storage_volumes.type = ?
 `
 
 	result := []StorageVolumeArgs{}
-	err := query.QueryScan(c.Tx(), stmt, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), stmt, func(scan func(dest ...any) error) error {
 		entry := StorageVolumeArgs{}
 
 		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
@@ -176,7 +176,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(poolID int64, memberSpecific bool, fil
 	var err error
 	var volumes []*StorageVolume
 
-	err = query.QueryScan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var volumeType int = int(-1)
 		var contentType int = int(-1)
 		var vol StorageVolume
@@ -342,7 +342,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	var snapshots []StorageVolumeArgs
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = query.QueryScan(tx.Tx(), queryStr, func(scan func(dest ...any) error) error {
+		err = query.Scan(tx.Tx(), queryStr, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
 			var expiryDate sql.NullTime
@@ -394,7 +394,7 @@ func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *
 	q := "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id = ?"
 
 	volume.Config = make(map[string]string)
-	return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -792,11 +792,6 @@ type StorageVolumeArgs struct {
 func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 
-	dest := func(i int) []any {
-		nodes = append(nodes, NodeInfo{})
-		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
-	}
-
 	sql := `
 	SELECT coalesce(nodes.id,0) AS nodeID, coalesce(nodes.address,"") AS nodeAddress, coalesce(nodes.name,"") AS nodeName
 	FROM storage_volumes_all
@@ -807,13 +802,18 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 		AND storage_volumes_all.name=?
 		AND storage_volumes_all.type=?
 `
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
 
-	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, dest, poolID, projectName, volumeName, volumeType)
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		node := NodeInfo{}
+		err := scan(&node.ID, &node.Address, &node.Name)
+		if err != nil {
+			return err
+		}
+
+		nodes = append(nodes, node)
+
+		return nil
+	}, poolID, projectName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
@@ -901,7 +901,7 @@ func (c *ClusterTx) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map
 	}
 
 	config := map[string]string{}
-	err := query.QueryScan(c.Tx(), queryStr, func(scan func(dest ...any) error) error {
+	err := query.Scan(c.Tx(), queryStr, func(scan func(dest ...any) error) error {
 		var key string
 		var value string
 
@@ -1146,25 +1146,19 @@ JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ? AND projects.name = ?
 `
-	stmt, err := c.tx.Prepare(sql)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = stmt.Close() }()
 
 	volumes := []StorageVolumeArgs{}
-	dest := func(i int) []any {
-		volumes = append(volumes, StorageVolumeArgs{})
-		return []any{
-			&volumes[i].ID,
-			&volumes[i].Name,
-			&volumes[i].PoolName,
-			&volumes[i].NodeID,
+	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+		volume := StorageVolumeArgs{}
+		err := scan(&volume.ID, &volume.Name, &volume.PoolName, &volume.NodeID)
+		if err != nil {
+			return err
 		}
-	}
 
-	err = query.SelectObjects(stmt, dest, StoragePoolVolumeTypeCustom, project)
+		volumes = append(volumes, volume)
+
+		return nil
+	}, StoragePoolVolumeTypeCustom, project)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch custom volumes: %w", err)
 	}

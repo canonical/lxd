@@ -174,7 +174,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 	var snapshots []StorageVolumeArgs
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.QueryScan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var snap StorageVolumeArgs
 			var snapName string
 			var volName string
