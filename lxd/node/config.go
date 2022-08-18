@@ -130,6 +130,7 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 
 // HTTPSAddress is a convenience for loading the node configuration and
 // returning the value of core.https_address.
+// Deprecated.
 func HTTPSAddress(node *db.Node) (string, error) {
 	var config *Config
 	err := node.Transaction(func(tx *db.NodeTx) error {
@@ -144,40 +145,9 @@ func HTTPSAddress(node *db.Node) (string, error) {
 	return config.HTTPSAddress(), nil
 }
 
-// BGPAddress is a convenience for loading the node configuration and
-// returning the value of core.bgp_address.
-func BGPAddress(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.BGPAddress(), nil
-}
-
-// BGPRouterID is a convenience for loading the node configuration and
-// returning the value of core.bgp_routerid.
-func BGPRouterID(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.BGPRouterID(), nil
-}
-
 // ClusterAddress is a convenience for loading the node configuration and
 // returning the value of cluster.https_address.
+// Deprecated.
 func ClusterAddress(node *db.Node) (string, error) {
 	var config *Config
 	err := node.Transaction(func(tx *db.NodeTx) error {
@@ -190,54 +160,6 @@ func ClusterAddress(node *db.Node) (string, error) {
 	}
 
 	return config.ClusterAddress(), nil
-}
-
-// DebugAddress is a convenience for loading the node configuration and
-// returning the value of core.debug_address.
-func DebugAddress(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.DebugAddress(), nil
-}
-
-// DNSAddress is a convenience for loading the node configuration and
-// returning the value of core.dns_address.
-func DNSAddress(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.DNSAddress(), nil
-}
-
-// MetricsAddress is a convenience for loading the node configuration and
-// returning the value of core.metrics_address.
-func MetricsAddress(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.MetricsAddress(), nil
 }
 
 func (c *Config) update(values map[string]any) (map[string]string, error) {
