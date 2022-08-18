@@ -1073,25 +1073,20 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	address, err := node.HTTPSAddress(d.db.Node)
+	logger.Info("Loading daemon configuration")
+	var daemonConfig *node.Config
+	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+		daemonConfig, err = node.ConfigLoad(tx)
+		return err
+	})
 	if err != nil {
-		return fmt.Errorf("Failed to fetch node address: %w", err)
+		return err
 	}
 
-	clusterAddress, err := node.ClusterAddress(d.db.Node)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch cluster address: %w", err)
-	}
-
-	debugAddress, err := node.DebugAddress(d.db.Node)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch debug address: %w", err)
-	}
-
-	metricsAddress, err := node.MetricsAddress(d.db.Node)
-	if err != nil {
-		return fmt.Errorf("Failed to fetch metrics address: %w", err)
-	}
+	address := daemonConfig.HTTPSAddress()
+	clusterAddress := daemonConfig.ClusterAddress()
+	debugAddress := daemonConfig.DebugAddress()
+	metricsAddress := daemonConfig.MetricsAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1257,8 +1252,8 @@ func (d *Daemon) init() error {
 	}
 
 	// Get daemon configuration.
-	bgpAddress := ""
-	bgpRouterID := ""
+	bgpAddress := daemonConfig.BGPAddress()
+	bgpRouterID := daemonConfig.BGPRouterID()
 	bgpASN := int64(0)
 
 	candidAPIURL := ""
@@ -1266,7 +1261,7 @@ func (d *Daemon) init() error {
 	candidDomains := ""
 	candidExpiry := int64(0)
 
-	dnsAddress := ""
+	dnsAddress := daemonConfig.DNSAddress()
 
 	rbacAPIURL := ""
 	rbacAPIKey := ""
@@ -1278,24 +1273,7 @@ func (d *Daemon) init() error {
 
 	maasAPIURL := ""
 	maasAPIKey := ""
-	maasMachine := ""
-
-	logger.Info("Loading daemon configuration")
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
-		if err != nil {
-			return err
-		}
-
-		maasMachine = config.MAASMachine()
-		bgpAddress = config.BGPAddress()
-		bgpRouterID = config.BGPRouterID()
-		dnsAddress = config.DNSAddress()
-		return nil
-	})
-	if err != nil {
-		return err
-	}
+	maasMachine := daemonConfig.MAASMachine()
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(tx)
