@@ -257,7 +257,6 @@ func (e *Endpoints) up(config *Config) error {
 					return networkAddressErr
 				}
 
-				logger.Infof("Starting cluster handler:")
 				e.serve(cluster)
 			}
 		} else if networkAddressErr != nil {
@@ -296,7 +295,6 @@ func (e *Endpoints) up(config *Config) error {
 			return err
 		}
 
-		logger.Infof("Starting cluster handler:")
 		e.serve(cluster)
 	}
 
@@ -306,7 +304,6 @@ func (e *Endpoints) up(config *Config) error {
 			return err
 		}
 
-		logger.Infof("Starting pprof handler:")
 		e.serve(pprof)
 	}
 
@@ -316,19 +313,15 @@ func (e *Endpoints) up(config *Config) error {
 			return err
 		}
 
-		logger.Infof("Starting metrics handler:")
 		e.serve(metrics)
 	}
 
 	if e.listeners[vsock] != nil {
-		logger.Info("Starting VM socket handler:")
 		e.serve(vsock)
 	}
 
-	logger.Infof("Starting /dev/lxd handler:")
 	e.serve(devlxd)
 
-	logger.Infof("REST API daemon:")
 	e.serve(local)
 	e.serve(network)
 
@@ -341,7 +334,6 @@ func (e *Endpoints) Down() error {
 	defer e.mu.Unlock()
 
 	if e.listeners[network] != nil || e.listeners[local] != nil {
-		logger.Infof("Stopping REST API handler:")
 		err := e.closeListener(network)
 		if err != nil {
 			return err
@@ -354,7 +346,6 @@ func (e *Endpoints) Down() error {
 	}
 
 	if e.listeners[cluster] != nil {
-		logger.Infof("Stopping cluster handler:")
 		err := e.closeListener(cluster)
 		if err != nil {
 			return err
@@ -362,7 +353,6 @@ func (e *Endpoints) Down() error {
 	}
 
 	if e.listeners[devlxd] != nil {
-		logger.Infof("Stopping /dev/lxd handler:")
 		err := e.closeListener(devlxd)
 		if err != nil {
 			return err
@@ -370,7 +360,6 @@ func (e *Endpoints) Down() error {
 	}
 
 	if e.listeners[pprof] != nil {
-		logger.Infof("Stopping pprof handler:")
 		err := e.closeListener(pprof)
 		if err != nil {
 			return err
@@ -378,7 +367,6 @@ func (e *Endpoints) Down() error {
 	}
 
 	if e.listeners[metrics] != nil {
-		logger.Infof("Stopping metrics handler:")
 		err := e.closeListener(metrics)
 		if err != nil {
 			return err
@@ -386,7 +374,6 @@ func (e *Endpoints) Down() error {
 	}
 
 	if e.listeners[vsock] != nil {
-		logger.Infof("Stopping VM socket handler:")
 		err := e.closeListener(vsock)
 		if err != nil {
 			return err
@@ -409,13 +396,12 @@ func (e *Endpoints) serve(kind kind) {
 		return
 	}
 
-	ctx := logger.Ctx{"socket": listener.Addr()}
+	ctx := logger.Ctx{"type": kind.String(), "socket": listener.Addr()}
 	if e.inherited[kind] {
 		ctx["inherited"] = true
 	}
 
-	message := fmt.Sprintf(" - binding %s", descriptions[kind])
-	logger.Info(message, ctx)
+	logger.Info("Binding socket", ctx)
 
 	server := e.servers[kind]
 
@@ -440,7 +426,7 @@ func (e *Endpoints) closeListener(kind kind) error {
 
 	delete(e.listeners, kind)
 
-	logger.Info(" - closing socket", logger.Ctx{"socket": listener.Addr()})
+	logger.Info("Closing socket", logger.Ctx{"type": kind.String(), "socket": listener.Addr()})
 
 	return listener.Close()
 }
@@ -470,6 +456,11 @@ func activatedListeners(systemdListeners []net.Listener, cert *shared.CertInfo) 
 // Numeric code identifying a specific API endpoint type.
 type kind int
 
+// String returns human readable name of endpoint kind.
+func (k kind) String() string {
+	return descriptions[k]
+}
+
 // Numeric codes identifying the various endpoints.
 const (
 	local kind = iota
@@ -483,9 +474,9 @@ const (
 
 // Human-readable descriptions of the various kinds of endpoints.
 var descriptions = map[kind]string{
-	local:   "Unix socket",
+	local:   "REST API Unix socket",
 	devlxd:  "devlxd socket",
-	network: "TCP socket",
+	network: "REST API TCP socket",
 	pprof:   "pprof socket",
 	cluster: "cluster socket",
 	metrics: "metrics socket",
