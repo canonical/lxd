@@ -1294,8 +1294,9 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 		}
 
 		baseArgs := []string{"-w", "-t", fromTable}
+
 		// List the rules.
-		args := append(baseArgs, "-S")
+		args := append(baseArgs, "--list-rules")
 		output, err := shared.TryRunCommand(cmd, args...)
 		if err != nil {
 			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
