@@ -174,11 +174,13 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	var dbBuckets []*db.StorageBucket
 
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		poolID := pool.ID()
 		filters := []db.StorageBucketFilter{{
+			PoolID:  &poolID,
 			Project: &bucketProjectName,
 		}}
 
-		dbBuckets, err = tx.GetStoragePoolBuckets(pool.ID(), memberSpecific, filters...)
+		dbBuckets, err = tx.GetStoragePoolBuckets(memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage buckets: %w", err)
 		}
