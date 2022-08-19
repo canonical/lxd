@@ -200,6 +200,29 @@ func (c *ClusterTx) GetStoragePoolBucket(poolID int64, projectName string, membe
 	return buckets[0], nil
 }
 
+// GetStoragePoolLocalBucket returns the local Storage Bucket for the given bucket name.
+// The search is restricted to buckets that belong to this member.
+func (c *ClusterTx) GetStoragePoolLocalBucket(bucketName string) (*StorageBucket, error) {
+	filters := []StorageBucketFilter{{
+		Name: &bucketName,
+	}}
+
+	buckets, err := c.GetStoragePoolBuckets(true, filters...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	for _, bucket := range buckets {
+		if bucket.Location == "" {
+			continue // Ignore buckets on remote storage pools.
+		}
+
+		return bucket, nil
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket not found")
+}
+
 // CreateStoragePoolBucket creates a new Storage Bucket.
 // If memberSpecific is true, then the storage bucket is associated to the current member, rather than being
 // associated to all members.
