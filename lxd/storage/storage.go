@@ -184,7 +184,12 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 		}
 
 		// Get all buckets using the storage pool.
-		buckets, err := tx.GetStoragePoolBuckets(pool.ID(), memberSpecific)
+		poolID := pool.ID()
+		filters := []db.StorageBucketFilter{{
+			PoolID: &poolID,
+		}}
+
+		buckets, err := tx.GetStoragePoolBuckets(memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage buckets: %w", err)
 		}
