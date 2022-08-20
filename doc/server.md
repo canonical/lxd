@@ -34,7 +34,7 @@ Key                                 | Type      | Scope     | Default           
 `core.debug_address`                | string    | local     | -                                 | Address to bind the pprof debug server to (HTTP)
 `core.dns_address`                  | string    | local     | -                                 | Address to bind the authoritative DNS server to (DNS)
 `core.https_address`                | string    | local     | -                                 | Address to bind for the remote API (HTTPS)
-`core.https_allowed_credentials`    | bool      | global    | -                                 | Whether to set Access-Control-Allow-Credentials HTTP header value to "true"
+`core.https_allowed_credentials`    | bool      | global    | -                                 | Whether to set Access-Control-Allow-Credentials HTTP header value to `true`
 `core.https_allowed_headers`        | string    | global    | -                                 | Access-Control-Allow-Headers HTTP header value
 `core.https_allowed_methods`        | string    | global    | -                                 | Access-Control-Allow-Methods HTTP header value
 `core.https_allowed_origin`         | string    | global    | -                                 | Access-Control-Allow-Origin HTTP header value
@@ -43,7 +43,7 @@ Key                                 | Type      | Scope     | Default           
 `core.metrics_authentication`       | bool      | global    | `true`                            | Whether to enforce authentication on the metrics endpoint
 `core.proxy_https`                  | string    | global    | -                                 | HTTPS proxy to use, if any (falls back to `HTTPS_PROXY` environment variable)
 `core.proxy_http`                   | string    | global    | -                                 | HTTP proxy to use, if any (falls back to `HTTP_PROXY` environment variable)
-`core.proxy_ignore_hosts`           | string    | global    | -                                 | Hosts which don't need the proxy for use (similar format to `NO_PROXY`, e.g. 1.2.3.4,1.2.3.5, falls back to NO_PROXY environment variable)
+`core.proxy_ignore_hosts`           | string    | global    | -                                 | Hosts which don't need the proxy for use (similar format to `NO_PROXY`, e.g. 1.2.3.4,1.2.3.5, falls back to `NO_PROXY` environment variable)
 `core.shutdown_timeout`             | integer   | global    | `5`                               | Number of minutes to wait for running operations to complete before LXD server shut down
 `core.trust_ca_certificates`        | bool      | global    | -                                 | Whether to automatically trust clients signed by the CA
 `core.trust_password`               | string    | global    | -                                 | Password to be provided by clients to set up a trust
