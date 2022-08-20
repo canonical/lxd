@@ -144,7 +144,7 @@ config:
 
 ### Custom network configuration
 
-cloud-init uses the `network-config` data to render the relevant network
+`cloud-init` uses the `network-config` data to render the relevant network
 configuration on the system using either `ifupdown` or `netplan` depending
 on the Ubuntu release.
 
