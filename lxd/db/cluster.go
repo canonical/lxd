@@ -77,21 +77,30 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []any
+	var err error
 
 	if filter.Name != nil && filter.ID == nil {
-		stmt = cluster.Stmt(c.tx, clusterGroupObjectsByName)
+		stmt, err = cluster.Stmt(c.tx, clusterGroupObjectsByName)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to prepare statement: %w", err)
+		}
+
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		stmt = cluster.Stmt(c.tx, clusterGroupObjects)
+		stmt, err = cluster.Stmt(c.tx, clusterGroupObjects)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to prepare statement: %w", err)
+		}
+
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
 		group := ClusterGroup{}
 		err := scan(&group.ID, &group.Name, &group.Description)
 		if err != nil {
@@ -141,7 +150,11 @@ func (c *ClusterTx) GetClusterGroup(name string) (*ClusterGroup, error) {
 // GetClusterGroupID return the ID of the ClusterGroup with the given key.
 // generator: ClusterGroup ID
 func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
-	stmt := cluster.Stmt(c.tx, clusterGroupID)
+	stmt, err := cluster.Stmt(c.tx, clusterGroupID)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to prepare statement: %w", err)
+	}
+
 	rows, err := stmt.Query(name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get cluster group ID: %w", err)
@@ -207,7 +220,10 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 	args[1] = object.Description
 
 	// Prepared statement to use.
-	stmt := cluster.Stmt(c.tx, clusterGroupCreate)
+	stmt, err := cluster.Stmt(c.tx, clusterGroupCreate)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to prepare statement: %w", err)
+	}
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -232,7 +248,11 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 // RenameClusterGroup renames the ClusterGroup matching the given key parameters.
 // generator: ClusterGroup Rename
 func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
-	stmt := cluster.Stmt(c.tx, clusterGroupRename)
+	stmt, err := cluster.Stmt(c.tx, clusterGroupRename)
+	if err != nil {
+		return fmt.Errorf("Failed to prepare statement: %w", err)
+	}
+
 	result, err := stmt.Exec(to, name)
 	if err != nil {
 		return fmt.Errorf("Failed to rename cluster group: %w", err)
@@ -253,7 +273,11 @@ func (c *ClusterTx) RenameClusterGroup(name string, to string) error {
 // DeleteClusterGroup deletes the ClusterGroup matching the given key parameters.
 // generator: ClusterGroup DeleteOne-by-Name
 func (c *ClusterTx) DeleteClusterGroup(name string) error {
-	stmt := cluster.Stmt(c.tx, clusterGroupDeleteByName)
+	stmt, err := cluster.Stmt(c.tx, clusterGroupDeleteByName)
+	if err != nil {
+		return fmt.Errorf("Failed to prepare statement: %w", err)
+	}
+
 	result, err := stmt.Exec(name)
 	if err != nil {
 		return fmt.Errorf("Failed to delete cluster group: %w", err)
@@ -279,7 +303,11 @@ func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
 		return fmt.Errorf("Failed to get cluster group: %w", err)
 	}
 
-	stmt := cluster.Stmt(c.tx, clusterGroupUpdate)
+	stmt, err := cluster.Stmt(c.tx, clusterGroupUpdate)
+	if err != nil {
+		return fmt.Errorf("Failed to prepare statement: %w", err)
+	}
+
 	result, err := stmt.Exec(object.Name, object.Description, id)
 	if err != nil {
 		return fmt.Errorf("Failed to update cluster group: %w", err)
@@ -295,7 +323,11 @@ func (c *ClusterTx) UpdateClusterGroup(name string, object ClusterGroup) error {
 	}
 
 	// Delete current nodes.
-	stmt = cluster.Stmt(c.tx, clusterGroupDeleteNodesRef)
+	stmt, err = cluster.Stmt(c.tx, clusterGroupDeleteNodesRef)
+	if err != nil {
+		return fmt.Errorf("Failed to prepare statement: %w", err)
+	}
+
 	_, err = stmt.Exec(id)
 	if err != nil {
 		return fmt.Errorf("Failed to delete current nodes: %w", err)
