@@ -1661,7 +1661,7 @@ Implements HEAD on `/1.0/instances/NAME/file`.
 ## `instances_nic_host_name`
 This introduces the `instances.nic.host_name` server configuration key that can take a value of either `random` or
 `mac`. The default value for the key if unspecified is `random`. If it is set to random then use the random host interface names.
-If it's set to mac, then generate a name in the form `lxd1122334455`.
+If it's set to `mac`, then generate a name in the form `lxd1122334455`.
 
 ## `image_copy_profile`
 Adds ability to modify the set of profiles when image is copied.
