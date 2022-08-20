@@ -103,9 +103,9 @@ require (
 	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
+	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	google.golang.org/genproto v0.0.0-20220817144833-d7fd3f11b9b1 // indirect
+	google.golang.org/genproto v0.0.0-20220819174105-e9f053255caa // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
