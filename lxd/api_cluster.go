@@ -3159,22 +3159,15 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		obj := dbCluster.ClusterGroup{
+		obj := db.ClusterGroup{
 			Name:        req.Name,
 			Description: req.Description,
 			Nodes:       req.Members,
 		}
 
-		groupID, err := dbCluster.CreateClusterGroup(ctx, tx.Tx(), obj)
+		_, err := tx.CreateClusterGroup(obj)
 		if err != nil {
 			return err
-		}
-
-		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
-			if err != nil {
-				return err
-			}
 		}
 
 		return nil
@@ -3286,21 +3279,9 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if recursion {
-			clusterGroups, err := dbCluster.GetClusterGroups(ctx, tx.Tx(), dbCluster.ClusterGroupFilter{})
+			clusterGroups, err := tx.GetClusterGroups(db.ClusterGroupFilter{})
 			if err != nil {
 				return err
-			}
-
-			for i := range clusterGroups {
-				nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &clusterGroups[i].ID})
-				if err != nil {
-					return err
-				}
-
-				clusterGroups[i].Nodes = make([]string, 0, len(nodeClusterGroups))
-				for _, node := range nodeClusterGroups {
-					clusterGroups[i].Nodes = append(clusterGroups[i].Nodes, node.Node)
-				}
 			}
 
 			apiClusterGroups := make([]*api.ClusterGroup, len(clusterGroups))
@@ -3315,7 +3296,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 			result = apiClusterGroups
 		} else {
-			result, err = tx.GetClusterGroupURIs(dbCluster.ClusterGroupFilter{})
+			result, err = tx.GetClusterGroupURIs(db.ClusterGroupFilter{})
 		}
 
 		return err
@@ -3376,23 +3357,13 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
-	var group *dbCluster.ClusterGroup
+	var group *db.ClusterGroup
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the cluster group.
-		group, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
+		group, err = tx.GetClusterGroup(name)
 		if err != nil {
 			return err
-		}
-
-		nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &group.ID})
-		if err != nil {
-			return err
-		}
-
-		group.Nodes = make([]string, 0, len(nodeClusterGroups))
-		for _, node := range nodeClusterGroups {
-			group.Nodes = append(group.Nodes, node.Node)
 		}
 
 		return nil
@@ -3471,13 +3442,13 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		_, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), req.Name)
+		_, err = tx.GetClusterGroup(req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
 
 		// Rename the cluster group.
-		err = dbCluster.RenameClusterGroup(ctx, tx.Tx(), name, req.Name)
+		err = tx.RenameClusterGroup(name, req.Name)
 		if err != nil {
 			return err
 		}
@@ -3550,36 +3521,19 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		group, err := dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
+		group, err := tx.GetClusterGroup(name)
 		if err != nil {
 			return err
 		}
 
-		obj := dbCluster.ClusterGroup{
+		obj := db.ClusterGroup{
 			Name:        group.Name,
 			Description: req.Description,
 		}
 
-		err = dbCluster.UpdateClusterGroup(ctx, tx.Tx(), name, obj)
+		err = tx.UpdateClusterGroup(name, obj)
 		if err != nil {
 			return err
-		}
-
-		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.DeleteNodeClusterGroup(ctx, tx.Tx(), int(groupID))
-		if err != nil {
-			return err
-		}
-
-		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
-			if err != nil {
-				return err
-			}
 		}
 
 		members, err := tx.GetClusterGroupNodes(name)
@@ -3684,22 +3638,12 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var clusterGroup *api.ClusterGroup
-	var dbClusterGroup *dbCluster.ClusterGroup
+	var dbClusterGroup *db.ClusterGroup
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbClusterGroup, err = dbCluster.GetClusterGroup(ctx, tx.Tx(), name)
+		dbClusterGroup, err = tx.GetClusterGroup(name)
 		if err != nil {
 			return err
-		}
-
-		nodeClusterGroups, err := dbCluster.GetNodeClusterGroups(ctx, tx.Tx(), dbCluster.NodeClusterGroupFilter{GroupID: &dbClusterGroup.ID})
-		if err != nil {
-			return err
-		}
-
-		dbClusterGroup.Nodes = make([]string, 0, len(nodeClusterGroups))
-		for _, node := range nodeClusterGroups {
-			dbClusterGroup.Nodes = append(dbClusterGroup.Nodes, node.Node)
 		}
 
 		return nil
@@ -3733,31 +3677,14 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		obj := dbCluster.ClusterGroup{
+		obj := db.ClusterGroup{
 			Name:        dbClusterGroup.Name,
 			Description: req.Description,
 		}
 
-		err = dbCluster.UpdateClusterGroup(ctx, tx.Tx(), name, obj)
+		err = tx.UpdateClusterGroup(name, obj)
 		if err != nil {
 			return err
-		}
-
-		groupID, err := dbCluster.GetClusterGroupID(ctx, tx.Tx(), obj.Name)
-		if err != nil {
-			return err
-		}
-
-		err = dbCluster.DeleteNodeClusterGroup(ctx, tx.Tx(), int(groupID))
-		if err != nil {
-			return err
-		}
-
-		for _, node := range obj.Nodes {
-			_, err = dbCluster.CreateNodeClusterGroup(ctx, tx.Tx(), dbCluster.NodeClusterGroup{GroupID: int(groupID), Node: node})
-			if err != nil {
-				return err
-			}
 		}
 
 		members, err := tx.GetClusterGroupNodes(name)
@@ -3857,7 +3784,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Only empty cluster groups can be removed")
 		}
 
-		return dbCluster.DeleteClusterGroup(ctx, tx.Tx(), name)
+		return tx.DeleteClusterGroup(name)
 	})
 
 	if err != nil {
