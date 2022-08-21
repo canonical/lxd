@@ -35,7 +35,7 @@ Key                                 | Type      | Scope     | Default           
 `core.debug_address`                | string    | local     | -                                 | Address to bind the pprof debug server to (HTTP)
 `core.dns_address`                  | string    | local     | -                                 | Address to bind the authoritative DNS server to (DNS)
 `core.https_address`                | string    | local     | -                                 | Address to bind for the remote API (HTTPS)
-`core.https_allowed_credentials`    | bool      | global    | -                                 | Whether to set Access-Control-Allow-Credentials HTTP header value to "true"
+`core.https_allowed_credentials`    | bool      | global    | -                                 | Whether to set Access-Control-Allow-Credentials HTTP header value to `true`
 `core.https_allowed_headers`        | string    | global    | -                                 | Access-Control-Allow-Headers HTTP header value
 `core.https_allowed_methods`        | string    | global    | -                                 | Access-Control-Allow-Methods HTTP header value
 `core.https_allowed_origin`         | string    | global    | -                                 | Access-Control-Allow-Origin HTTP header value

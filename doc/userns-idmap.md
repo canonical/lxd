@@ -58,7 +58,7 @@ is available, setting this key will simply fail).
 
 Containers with `security.idmap.size` set will have their ID range set to this
 size. Isolated containers without this property set default to a ID range of
-size 65536; this allows for POSIX compliance and a "nobody" user inside the
+size 65536; this allows for POSIX compliance and a `nobody` user inside the
 container.
 
 To select a specific map, the `security.idmap.base` key will let you
