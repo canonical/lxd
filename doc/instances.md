@@ -110,7 +110,7 @@ Key                                             | Type      | Default           
 `security.syscalls.intercept.mount`             | bool      | `false`           | no            | container                 | Handles the `mount` system call
 `security.syscalls.intercept.mount.allowed`     | string    | -                 | yes           | container                 | Specify a comma-separated list of file systems that are safe to mount for processes inside the instance
 `security.syscalls.intercept.mount.fuse`        | string    | -                 | yes           | container                 | Whether to redirect mounts of a given file system to their FUSE implementation (e.g. `ext4=fuse2fs`)
-`security.syscalls.intercept.mount.shift`       | bool      | `false`           | yes           | container                 | Whether to mount shiftfs on top of file systems handled through mount syscall interception
+`security.syscalls.intercept.mount.shift`       | bool      | `false`           | yes           | container                 | Whether to mount `shiftfs` on top of file systems handled through mount syscall interception
 `security.syscalls.intercept.sched_setscheduler`| bool      | `false`           | no            | container                 | Handles the `sched_setscheduler` system call (allows increasing process priority)
 `security.syscalls.intercept.setxattr`          | bool      | `false`           | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
 `snapshots.schedule`                            | string    | -                 | no            | -                         | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma-separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup> <@never>`
@@ -365,7 +365,7 @@ Key                      | Type    | Default           | Required | Managed | De
 `host_name`              | string  | randomly assigned | no       | no      | The name of the interface inside the host
 `limits.ingress`         | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.egress`          | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`             | string  | -                 | no       | no      | Same as modifying both limits.ingress and limits.egress
+`limits.max`             | string  | -                 | no       | no      | Same as modifying both `limits.ingress` and `limits.egress`
 `ipv4.address`           | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP (Can be `none` to restrict all IPv4 traffic when `security.ipv4_filtering` is set)
 `ipv6.address`           | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP (Can be `none` to restrict all IPv6 traffic when `security.ipv6_filtering` is set)
 `ipv4.routes`            | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to add on host to NIC
@@ -579,7 +579,7 @@ Key                     | Type    | Default           | Required | Description
 `host_name`             | string  | randomly assigned | no       | The name of the interface inside the host
 `limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
+`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
 `ipv4.routes`           | string  | -                 | no       | Comma-delimited list of IPv4 static routes to add on host to NIC
 `ipv6.routes`           | string  | -                 | no       | Comma-delimited list of IPv6 static routes to add on host to NIC
 `boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
@@ -649,7 +649,7 @@ Key                     | Type    | Default           | Required | Description
 `hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
 `limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
 `limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
+`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
 `ipv4.address`          | string  | -                 | no       | Comma-delimited list of IPv4 static addresses to add to the instance
 `ipv4.routes`           | string  | -                 | no       | Comma-delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 `ipv4.gateway`          | string  | `auto`            | no       | Whether to add an automatic default IPv4 gateway, can be `auto` or `none`
@@ -672,10 +672,10 @@ The `bridged`, `macvlan` and `ipvlan` interface types can be used to connect to 
 `macvlan` effectively lets you fork your physical NIC, getting a second interface that's then used by the instance.
 This saves you from creating a bridge device and virtual Ethernet device pairs and usually offers better performance than a bridge.
 
-The downside to this is that macvlan devices while able to communicate between themselves and to the outside, aren't able to talk to their parent device.
-This means that you can't use macvlan if you ever need your instances to talk to the host itself.
+The downside to this is that `macvlan` devices while able to communicate between themselves and to the outside, aren't able to talk to their parent device.
+This means that you can't use `macvlan` if you ever need your instances to talk to the host itself.
 
-In such case, a bridge is preferable. A bridge will also let you use mac filtering and I/O limits which cannot be applied to a macvlan device.
+In such case, a `bridge` is preferable. A bridge will also let you use mac filtering and I/O limits which cannot be applied to a macvlan device.
 
 `ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs statically assigned to it and inherits the parent's MAC address on the network.
 
@@ -782,7 +782,7 @@ Example command.
 lxc config device add <instance> config disk source=cloud-init:config
 ```
 
-Currently only the root disk (path=/) and `config` drive (`source=cloud-init:config`) are supported with virtual machines.
+Currently only the root disk (`path=/`) and `config` drive (`source=cloud-init:config`) are supported with virtual machines.
 
 
 The following properties exist:
@@ -791,12 +791,12 @@ Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
 `limits.read`       | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
 `limits.write`      | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
-`limits.max`        | string    | -         | no        | Same as modifying both limits.read and limits.write
+`limits.max`        | string    | -         | no        | Same as modifying both `limits.read` and `limits.write`
 `path`              | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
 `source`            | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
 `required`          | bool      | `true`    | no        | Controls whether to fail if the source doesn't exist
 `readonly`          | bool      | `false`   | no        | Controls whether to make the mount read-only
-`size`              | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the rootfs (/).
+`size`              | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the `rootfs` (`/`).
 `size.state`        | string    | -         | no        | Same as size above but applies to the file-system volume used for saving runtime state in virtual machines.
 `recursive`         | bool      | `false`   | no        | Whether or not to recursively mount the source path
 `pool`              | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
@@ -863,7 +863,7 @@ Key         | Type      | Default           | Required  | Description
 `uid`       | int       | `0`               | no        | UID of the device owner in the instance
 `gid`       | int       | `0`               | no        | GID of the device owner in the instance
 `mode`      | int       | `0660`            | no        | Mode of the device in the instance
-`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
+`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is `false`, and all devices can be hotplugged)
 
 #### Type: `gpu`
 
@@ -936,7 +936,7 @@ Key         | Type      | Default           | Required  | Description
 `pci`       | string    | -                 | no        | The PCI address of the GPU device
 `mig.ci`    | int       | -                 | no        | Existing MIG compute instance ID
 `mig.gi`    | int       | -                 | no        | Existing MIG GPU instance ID
-`mig.uuid`  | string    | -                 | no        | Existing MIG device UUID ("MIG-" prefix can be omitted)
+`mig.uuid`  | string    | -                 | no        | Existing MIG device UUID (`MIG-` prefix can be omitted)
 
 Note: Either `mig.uuid` (NVIDIA drivers 470+) or both `mig.ci` and `mig.gi` (old NVIDIA drivers) must be set.
 
@@ -1040,7 +1040,7 @@ Key         | Type      | Default           | Required  | Description
 `uid`       | int       | `0`               | no        | UID of the device owner in the instance
 `gid`       | int       | `0`               | no        | GID of the device owner in the instance
 `mode`      | int       | `0660`            | no        | Mode of the device in the instance
-`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is false, and all devices can be hotplugged)
+`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is `false`, and all devices can be hotplugged)
 
 
 #### Type: `tpm`
@@ -1143,9 +1143,9 @@ Note that architectures often expose multiple huge-page sizes. In addition,
 architectures may expose different huge-page sizes than other architectures.
 
 Limiting huge pages is especially useful when LXD is configured to intercept the
-mount syscall for the `hugetlbfs` file system in unprivileged containers. When
-LXD intercepts a `hugetlbfs` mount  syscall, it will mount the `hugetlbfs`
-file system for a container with correct `uid` and `gid` values as mount
+`mount` syscall for the `hugetlbfs` file system in unprivileged containers. When
+LXD intercepts a `hugetlbfs` `mount`  syscall, it will mount the `hugetlbfs`
+file system for a container with correct `uid` and `gid` values as `mount`
 options. This makes it possible to use huge pages from unprivileged containers.
 However, it is recommended to limit the number of huge pages available to the
 container through `limits.hugepages.[size]` to stop the container from being

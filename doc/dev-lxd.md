@@ -168,7 +168,7 @@ This never returns. Each notification is sent as a separate JSON dict:
 ##### GET
  * Description: Download a public/cached image from the host
  * Return: raw image or error
- * Access: Requires `security.devlxd.images` set to true
+ * Access: Requires `security.devlxd.images` set to `true`
 
 Return value:
 

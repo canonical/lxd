@@ -245,8 +245,8 @@ templates:
 ```
 
 The `architecture` and `creation_date` fields are mandatory, the properties
-are just a set of default properties for the image. The OS, release,
-name and description fields while not mandatory in any way, should be
+are just a set of default properties for the image. The `os`, `release`,
+`name` and `description` fields while not mandatory in any way, should be
 pretty common.
 
 For templates, the `when` key can be one or more of:

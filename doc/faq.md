@@ -74,7 +74,7 @@ lxc config device add container-name home disk source=/home/${USER} path=/home/u
 For unprivileged containers, you will also need one of:
 
  - Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
- - raw.idmap entry (see [Idmaps for user namespace](userns-idmap.md))
+ - `raw.idmap` entry (see [Idmaps for user namespace](userns-idmap.md))
  - Recursive POSIX ACLs placed on your home directory
 
 Either of those can be used to allow the user in the container to have working read/write permissions.
@@ -237,7 +237,7 @@ Many switches do *not* allow MAC address changes, and will either drop traffic
 with an incorrect MAC or disable the port totally. If you can ping a LXD instance
 from the host, but are not able to ping it from a _different_ host, this could be
 the cause.  The way to diagnose this is to run a `tcpdump` on the uplink (in this case,
-`eth1`), and you will see either "ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy`, with you
+`eth1`), and you will see either "ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy`", with you
 sending responses but them not getting acknowledged, or ICMP packets going in and
 out successfully, but never being received by the other host.
 
