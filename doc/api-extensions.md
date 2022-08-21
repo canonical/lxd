@@ -626,7 +626,7 @@ you get a separate view of your LXD resources by switching to it.
 ## `candid_config_key`
 This introduces a new `candid.api.key` option which allows for setting
 the expected public key for the endpoint, allowing for safe use of a
-HTTP-only candid server.
+HTTP-only Candid server.
 
 ## `network_vxlan_ttl`
 This adds a new `tunnel.NAME.ttl` network configuration option which
