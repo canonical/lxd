@@ -9,7 +9,7 @@ looking at the `api_extensions` field in `GET /1.0/`.
 ## `storage_zfs_remove_snapshots`
 A `storage.zfs_remove_snapshots` daemon configuration key was introduced.
 
-It's a Boolean that defaults to false and that when set to true instructs LXD
+It's a Boolean that defaults to `false` and that when set to `true` instructs LXD
 to remove any needed snapshot when attempting to restore another.
 
 This is needed as ZFS will only let you restore the latest snapshot.
@@ -142,8 +142,8 @@ server and operate in pull mode.
 
 ## `container_exec_recording`
 Introduces a new Boolean `record-output`, parameter to
-`/1.0/containers/<name>/exec` which when set to "true" and combined with
-with `wait-for-websocket` set to false, will record stdout and stderr to
+`/1.0/containers/<name>/exec` which when set to `true` and combined with
+with `wait-for-websocket` set to `false`, will record stdout and stderr to
 disk and make them available through the logs interface.
 
 The URL to the recorded output is included in the operation metadata
@@ -180,9 +180,9 @@ Enables setting the `security.idmap.isolated` and `security.idmap.isolated`,
 
 ## `network_firewall_filtering`
 Add two new keys, `ipv4.firewall` and `ipv6.firewall` which if set to
-false will turn off the generation of `iptables` FORWARDING rules. NAT
+`false` will turn off the generation of `iptables` FORWARDING rules. NAT
 rules will still be added so long as the matching `ipv4.nat` or
-`ipv6.nat` key is set to true.
+`ipv6.nat` key is set to `true`.
 
 Rules necessary for `dnsmasq` to work (DHCP/DNS) will always be applied if
 `dnsmasq` is enabled on the bridge.
@@ -246,10 +246,10 @@ be set at image creation/import time.
 
 ## `container_stateless_copy`
 This introduces a new `live` attribute in `POST /1.0/containers/<name>`.
-Setting it to false tells LXD not to attempt running state transfer.
+Setting it to `false` tells LXD not to attempt running state transfer.
 
 ## `container_only_migration`
-Introduces a new Boolean `container_only` attribute. When set to true only the
+Introduces a new Boolean `container_only` attribute. When set to `true` only the
 container will be copied or moved.
 
 ## `storage_zfs_clone_copy`
@@ -660,18 +660,18 @@ copy/move of containers between projects.
 ## `clustering_server_address`
 This adds support for configuring a server network address which differs from
 the REST API client network address. When bootstrapping a new cluster, clients
-can set the new ```cluster.https_address``` configuration key to specify the address of
+can set the new `cluster.https_address` configuration key to specify the address of
 the initial server. When joining a new server, clients can set the
-```core.https_address``` configuration key of the joining server to the REST API
-address the joining server should listen at, and set the ```server_address```
-key in the ```PUT /1.0/cluster``` API to the address the joining server should
-use for clustering traffic (the value of ```server_address``` will be
-automatically copied to the ```cluster.https_address``` configuration key of the
+`core.https_address` configuration key of the joining server to the REST API
+address the joining server should listen at, and set the `server_address`
+key in the `PUT /1.0/cluster` API to the address the joining server should
+use for clustering traffic (the value of `server_address` will be
+automatically copied to the `cluster.https_address` configuration key of the
 joining server).
 
 ## `clustering_image_replication`
 Enable image replication across the nodes in the cluster.
-A new cluster.images_minimal_replica configuration key was introduced can be used
+A new `cluster.images_minimal_replica` configuration key was introduced can be used
 to specify to the minimal numbers of nodes for image replication.
 
 ## `container_protection_shift`
@@ -970,8 +970,8 @@ configuration keys: `snapshots.schedule` and
 
 ## `trust_ca_certificates`
 This allows for checking client certificates trusted by the provided CA (`server.ca`).
-It can be enabled by setting `core.trust_ca_certificates` to true.
-If enabled, it will perform the check, and bypass the trusted password if true.
+It can be enabled by setting `core.trust_ca_certificates` to `true`.
+If enabled, it will perform the check, and bypass the trusted password if `true`.
 An exception will be made if the connecting client certificate is in the provided CRL (`ca.crl`).
 In this case, it will ask for the password.
 
@@ -1283,7 +1283,7 @@ This adds an optional `gvrp` property to `macvlan` and `physical` networks,
 and to `ipvlan`, `macvlan`, `routed` and `physical` NIC devices.
 
 When set, this specifies whether the VLAN should be registered using GARP VLAN
-Registration Protocol. Defaults to false.
+Registration Protocol. Defaults to `false`.
 
 ## `instance_pool_move`
 This adds a `pool` field to the `POST /1.0/instances/NAME` API,
@@ -1564,7 +1564,7 @@ This adds `live-migrate` as a configuration option to `cluster.evacuate`, which 
 of instances during cluster evacuation.
 
 ## `instance_allow_inconsistent_copy`
-Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, `rsync` will ignore the
+Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If `true`, `rsync` will ignore the
 `Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy.
 
 ## `network_state_ovn`
@@ -1623,7 +1623,7 @@ Adds the `ipv4.neighbor_probe` and `ipv6.neighbor_probe` NIC settings. Defaultin
 This adds support for `event-hub` cluster member role and the `ServerEventMode` environment field.
 
 ## `agent_nic_config`
-If set to true, on VM start-up the `lxd-agent` will apply NIC configuration to change the names and MTU of the instance NIC
+If set to `true`, on VM start-up the `lxd-agent` will apply NIC configuration to change the names and MTU of the instance NIC
 devices.
 
 ## `projects_restricted_intercept`
@@ -1638,7 +1638,7 @@ client authentication.
 Adds ability to copy image to a project different from the source.
 
 ## `cluster_migration_inconsistent_copy`
-Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to true to allow inconsistent copying between cluster
+Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to `true` to allow inconsistent copying between cluster
 members.
 
 ## `cluster_ovn_chassis`

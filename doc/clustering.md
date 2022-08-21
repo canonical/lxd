@@ -142,7 +142,7 @@ Now create a bootstrap file for another node. You only need to fill in the
 node.
 
 Be sure to include the address and certificate of the target bootstrap node. To
-create a YAML-compatible entry for the ``cluster_certificate`` key you can use a
+create a YAML-compatible entry for the `cluster_certificate` key you can use a
 command like `sed ':a;N;$!ba;s/\n/\n\n/g' /var/lib/lxd/cluster.crt` (or
 `sed ':a;N;$!ba;s/\n/\n\n/g' /var/snap/lxd/common/lxd/cluster.crt` for snap users), which you
 have to run on the bootstrap node. `cluster_certificate_path` key (which should
@@ -521,7 +521,7 @@ and the storage will be instantiated on all nodes. If you didn't
 define it on a particular node, or a node is down, an error will be
 returned.
 
-You can pass to this final ``storage create`` command any configuration key
+You can pass to this final `storage create` command any configuration key
 which is not node-specific (see above).
 
 ## Storage volumes
@@ -578,7 +578,7 @@ lxc network create my-network
 The network will be instantiated on all nodes. If you didn't define it on a particular node, or a node is down,
 an error will be returned.
 
-You can pass to this final ``network create`` command any configuration key which is not node-specific (see above).
+You can pass to this final `network create` command any configuration key which is not node-specific (see above).
 
 ## Separate REST API and clustering networks
 

@@ -112,7 +112,7 @@ lxc config device override <instance> <NIC> security.mac_filtering=true
 Used together, these features can prevent an instance connected to a bridge from spoofing MAC and IP addresses.
 These options are implemented using either `xtables` (`iptables`, `ip6tables` and `ebtables`) or `nftables`, depending on what is available on the host.
 
-It's worth noting that those options effectively prevent nested containers from using the parent network with a different MAC address (i.e using bridged or macvlan NICs).
+It's worth noting that those options effectively prevent nested containers from using the parent network with a different MAC address (i.e using bridged or `macvlan` NICs).
 
 The IP filtering features block ARP and NDP advertisements that contain a spoofed IP, as well as blocking any packets that contain a spoofed source address.
 
