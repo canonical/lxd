@@ -271,6 +271,6 @@ As a general rule, you should never template a file which is owned by a
 package or is otherwise expected to be overwritten by normal operation
 of the instance.
 
-For convenience the following functions are exported to Pongo templates:
+For convenience the following functions are exported to Pongo2 templates:
 
  - `config_get("user.foo", "bar")` => Returns the value of `user.foo` or `"bar"` if unset.
