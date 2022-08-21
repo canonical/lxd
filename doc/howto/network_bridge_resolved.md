@@ -1,20 +1,20 @@
 (network-bridge-resolved)=
 # How to integrate with `systemd-resolved`
 
-If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify resolved of the domains that LXD can resolve.
-To do so, add the DNS servers and domains provided by a LXD network bridge to the resolved configuration.
+If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify `resolved` of the domains that LXD can resolve.
+To do so, add the DNS servers and domains provided by a LXD network bridge to the `resolved` configuration.
 
 ```{note}
 The `dns.mode` option (see {ref}`network-bridge-options`) must be set to `managed` or `dynamic` if you want to use this feature.
 
-Depending on the configured `dns.domain`, you might need to disable DNSSEC in resolved to allow for DNS resolution.
+Depending on the configured `dns.domain`, you might need to disable DNSSEC in `resolved` to allow for DNS resolution.
 This can be done through the `DNSSEC` option in `resolved.conf`.
 ```
 
 (network-bridge-resolved-configure)=
 ## Configure resolved
 
-To add a network bridge to the resolved configuration, specify the DNS addresses and domains for the respective bridge.
+To add a network bridge to the `resolved` configuration, specify the DNS addresses and domains for the respective bridge.
 
 DNS address
 : You can use the IPv4 address, the IPv6 address or both.
@@ -36,11 +36,11 @@ DNS domain
   If this option is not set, the default domain name is `lxd`.
 
   When specifying the DNS domain, prefix the domain name with `~`.
-  The `~` tells resolved to use the respective name server to look up only this domain.
+  The `~` tells `resolved` to use the respective name server to look up only this domain.
 
   Depending on which shell you use, you might need to include the DNS domain in quotes to prevent the `~` from being expanded.
 
-Use the following commands to configure resolved:
+Use the following commands to configure `resolved`:
 
     resolvectl dns <network_bridge> <dns_address>
     resolvectl domain <network_bridge> <dns_domain>
@@ -57,10 +57,10 @@ This command has been deprecated in newer releases of `systemd`, but it is still
     systemd-resolve --interface <network_bridge> --set-domain <dns_domain> --set-dns <dns_address>
 ```
 
-The resolved configuration persists as long as the bridge exists.
+The `resolved` configuration persists as long as the bridge exists.
 You must repeat the commands after each reboot and after LXD is restarted, or make it persistent as described below.
 
-## Make the resolved configuration persistent
+## Make the `resolved` configuration persistent
 
 You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
 
@@ -104,7 +104,7 @@ You should see output similar to the following:
    Main PID: 9434 (code=exited, status=0/SUCCESS)
 ```
 
-To check that resolved has applied the settings, use `sudo resolvectl status <network_bridge>`:
+To check that `resolved` has applied the settings, use `sudo resolvectl status <network_bridge>`:
 
 ```
 Link 6 (lxdbr0)
