@@ -1,6 +1,6 @@
 # How to configure storage bucket settings
 
-See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
+See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver that supports object storage.
 
 Use the following command to set configuration options for a storage bucket:
 
@@ -20,9 +20,13 @@ Use the following command to delete a storage bucket and its keys:
 
 ## How to configure storage bucket keys
 
+Use the following command to add a bucket key (see {ref}`storage_create_bucket_keys` for more information):
+
+    lxc storage bucket key create <pool_name> <bucket_name> <key_name>
+
 Use the following command to edit an existing bucket key:
 
-    lxc storage bucket edit <pool_name> <bucket_name> <key_name>
+    lxc storage bucket key edit <pool_name> <bucket_name> <key_name>
 
 Use the following command to delete an existing bucket key:
 

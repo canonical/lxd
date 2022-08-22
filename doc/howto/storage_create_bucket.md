@@ -1,8 +1,8 @@
 # How to create a storage bucket
 
-Storage buckets provide object storage exposed using the S3 protocol.
+Storage buckets provide access to object storage exposed using the S3 protocol.
 
-Unlike custom storage volumes, storage buckets are not added to an instance, but instead are accessed directly via their URL by applications.
+Unlike custom storage volumes, storage buckets are not added to an instance, but applications can instead access them directly via their URL.
 
 See {ref}`storage-buckets` for detailed information.
 
@@ -12,7 +12,7 @@ Use the following command to create a storage bucket in a storage pool:
 
     lxc storage bucket create <pool_name> <bucket_name> [configuration_options...]
 
-See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver.
+See the {ref}`storage-drivers` documentation for a list of available storage bucket configuration options for each driver that supports object storage.
 
 To add a storage bucket on a cluster member, add the `--target` flag:
 
@@ -23,22 +23,23 @@ For most storage drivers, storage buckets are not replicated across the cluster 
 This behavior is different for `cephobject` storage pools, where buckets are available from any cluster member.
 ```
 
+(storage_create_bucket_keys)=
 ## Create storage bucket keys
 
-In order for an application to access a storage bucket they must use a set of S3 credentials made up of an *access key* and a *secret key*.
-Multiple sets of credentials can be created for a specific bucket.
+To access a storage bucket, applications must use a set of S3 credentials made up of an *access key* and a *secret key*.
+You can create multiple sets of credentials for a specific bucket.
 
 Each set of credentials is given a key name.
-The key name is used only for reference and does not need to be provided to the application using the credentials.
+The key name is used only for reference and does not need to be provided to the application that uses the credentials.
 
-Each set of credentials is given a *role* that specifies what operations they can perform on the bucket.
+Each set of credentials has a *role* that specifies what operations they can perform on the bucket.
 
 The roles available are:
 
- - `admin` - Full access to the bucket.
- - `read-only` - Read only access to the bucket (list and get files only).
+- `admin` - Full access to the bucket
+- `read-only` - Read-only access to the bucket (list and get files only)
 
-If the role is not specified when creating a bucket key the role used is `read-only`.
+If the role is not specified when creating a bucket key, the role used is `read-only`.
 
 Use the following command to create a set of credentials for a storage bucket:
 
