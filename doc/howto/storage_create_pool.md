@@ -134,7 +134,9 @@ Use the sub-directory `my-directory` from the `my-filesystem` file system for `p
 When using the Ceph Object driver, you must have a running Ceph Object Gateway [`radosgw`](https://docs.ceph.com/en/latest/radosgw/) URL available beforehand.
 ```
 
-    lxc storage create s3 cephobject cephobject.radosgw.endpoint=http://<radosgw URL>
+Use the existing Ceph Object Gateway `https://www.example.com/radosgw` to create `pool1`:
+
+    lxc storage create pool1 cephobject cephobject.radosgw.endpoint=https://www.example.com/radosgw
 ````
 `````
 
@@ -159,5 +161,5 @@ For example, the following series of commands sets up a storage pool with the na
 For most storage drivers, the storage pools exist locally on each cluster member.
 That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
 
-This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
+This behavior is different for Ceph-based storage pools (`ceph`, `cephfs` and `cephobject`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
 ```
