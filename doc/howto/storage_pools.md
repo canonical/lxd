@@ -1,5 +1,13 @@
+---
+discourse: 1333
+---
+
+# How to manage storage pools
+
+See the following sections for instructions on how to create, configure, view and resize storage pools.
+
 (storage-create-pool)=
-# How to create a storage pool
+## Create a storage pool
 
 LXD creates a storage pool during initialization.
 You can add more storage pools later, using the same driver or different drivers.
@@ -12,7 +20,7 @@ Unless specified otherwise, LXD sets up loop-based storage with a sensible defau
 
 See the {ref}`storage-drivers` documentation for a list of available configuration options for each driver.
 
-## Examples
+### Examples
 
 See the following examples for how to create a storage pool using different storage drivers.
 
@@ -130,7 +138,7 @@ Use the sub-directory `my-directory` from the `my-filesystem` file system for `p
 ````
 `````
 
-## Create a storage pool in a cluster
+### Create a storage pool in a cluster
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
 The reason for this is that the configuration, for example, the storage location or the size of the pool, might be different between cluster members.
@@ -153,3 +161,127 @@ That means that if you create a storage volume in a storage pool on one member, 
 
 This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`) where each storage pool exists in one central location and therefore, all cluster members access the same storage pool with the same storage volumes.
 ```
+
+## Configure storage pool settings
+
+See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
+
+General keys for a storage pool (like `source`) are top-level.
+Driver-specific keys are namespaced by the driver name.
+
+Use the following command to set configuration options for a storage pool:
+
+    lxc storage set <pool_name> <key> <value>
+
+For example, to turn off compression during storage pool migration for a `dir` storage pool, use the following command:
+
+    lxc storage set my-dir-pool rsync.compression false
+
+You can also edit the storage pool configuration by using the following command:
+
+    lxc storage edit <pool_name>
+
+## View storage pools
+
+You can display a list of all available storage pools and check their configuration.
+
+Use the following command to list all available storage pools:
+
+    lxc storage list
+
+The resulting table contains the storage pool that you created during initialization (usually called `default` or `local`) and any storage pools that you added.
+
+To show detailed information about a specific pool, use the following command:
+
+    lxc storage show <pool_name>
+
+
+(storage-resize-pool)=
+## Resize a storage pool
+
+If you need more storage, you can increase the size of your storage pool.
+
+To increase the size of a storage pool, follow these general steps:
+
+1. Grow the size of the storage on disk.
+1. Let the file system know of the size change.
+
+See the specific commands for different storage drivers below.
+
+````{tabs}
+
+```{group-tab} Btrfs
+
+Enter the following commands to grow a loop-backed Btrfs pool by 5 Gigabytes:
+
+    sudo truncate -s +5G <LXD_lib_dir>/disks/<pool_name>.img
+    sudo losetup -c <loop_device>
+    sudo btrfs filesystem resize max <LXD_lib_dir>/storage-pools/<pool_name>/
+
+Replace the following variables:
+
+`<LXD_lib_dir>`
+: `/var/snap/lxd/common/mntns/var/snap/lxd/common/lxd/` if you are using the snap, or `/var/lib/lxd/` otherwise.
+
+`<pool_name>`
+: The name of your storage pool (for example, `my-pool`).
+
+`<loop_device>`
+: The mounted loop device that is associated with the storage pool image (for example, `/dev/loop8`).
+  To find your loop device, enter `losetup -j <LXD_lib_dir>/disks/<pool_name>.img`.
+  You can also use `losetup -l` to list all mounted loop devices.
+```
+```{group-tab} LVM
+
+Enter the following commands to grow a loop-backed LVM pool by 5 Gigabytes:
+
+    sudo truncate -s +5G <LXD_lib_dir>/disks/<pool_name>.img
+    sudo losetup -c <loop_device>
+    sudo pvresize <loop_device>
+
+For LVM thin pools, you must then expand the `LXDThinPool` logical volume in your pool (skip this step if you are not using a thin pool):
+
+    sudo lvextend <pool_name>/LXDThinPool -l+100%FREE
+
+Replace the following variables:
+
+`<LXD_lib_dir>`
+: `/var/snap/lxd/common/lxd/` if you are using the snap, or `/var/lib/lxd/` otherwise.
+
+`<pool_name>`
+: The name of your storage pool (for example, `my-pool`).
+
+`<loop_device>`
+: The mounted loop device that is associated with the storage pool image (for example, `/dev/loop8`).
+  To find your loop device, enter `losetup -j <LXD_lib_dir>/disks/<pool_name>.img`.
+  You can also use `losetup -l` to list all mounted loop devices.
+
+You can check that the pool was resized as expected with the following commands:
+
+    sudo pvs <loop_device> # Check the size of the physical volume
+    sudo vgs <pool_name> # Check the size of the volume group
+    sudo lvs <pool_name>/LXDThinPool # Thin pool only: check the size of the thin-pool logical volume
+```
+```{group-tab} ZFS
+
+Enter the following commands to grow a loop-backed ZFS pool by 5 Gigabytes:
+
+    sudo truncate -s +5G <LXD_lib_dir>/disks/<pool_name>.img
+    sudo zpool set autoexpand=on <pool_name>
+    sudo zpool online -e <pool_name> <device_ID>
+    sudo zpool set autoexpand=off <pool_name>
+
+Replace the following variables:
+
+`<LXD_lib_dir>`
+: `/var/snap/lxd/common/lxd/` if you are using the snap, or `/var/lib/lxd/` otherwise.
+
+`<pool_name>`
+: The name of your storage pool (for example, `my-pool`).
+
+`<device_ID>`
+: The ID of the ZFS device.
+  Enter `sudo zpool status -vg <pool_name>` to find the ID.
+```
+
+````

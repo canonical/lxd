@@ -1,4 +1,8 @@
-# How to create a custom storage volume
+# How to manage storage volumes
+
+See the following sections for instructions on how to create, configure, view and resize storage volumes.
+
+## Create a custom storage volume
 
 When you create an instance, LXD automatically creates a storage volume that is used as the root disk for the instance.
 
@@ -8,7 +12,7 @@ Custom storage volumes with content type `filesystem` can also be shared between
 
 See {ref}`storage-volumes` for detailed information.
 
-## Create a custom storage volume
+### Create the volume
 
 Use the following command to create a custom storage volume in a storage pool:
 
@@ -31,7 +35,7 @@ This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), w
 ```
 
 (storage-attach-volume)=
-## Attach a custom storage volume to an instance
+### Attach the volume to an instance
 
 After creating a custom storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
 
@@ -55,7 +59,7 @@ If you want to use a different device name, you can add it to the command:
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name> <device_name>
 
 (storage-configure-IO)=
-## Configure I/O limits
+### Configure I/O limits
 
 When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.
 To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits.
@@ -74,3 +78,78 @@ Because the limits apply to a whole physical disk rather than a partition or pat
 All I/O limits only apply to actual block device access.
 Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.
+
+
+(storage-configure-volume)=
+## Configure storage volume settings
+
+See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
+
+Use the following command to set configuration options for a storage volume:
+
+    lxc storage volume set <pool_name> <volume_name> <key> <value>
+
+For example, to set the snapshot expiry time to one month, use the following command:
+
+    lxc storage volume set my-pool my-volume snapshots.expiry 1M
+
+To configure an instance storage volume, specify the volume name including the {ref}`storage volume type <storage-volume-types>`, for example:
+
+    lxc storage volume set my-pool container/my-container-volume user.XXX value
+
+You can also edit the storage volume configuration by using the following command:
+
+    lxc storage volume edit <pool_name> <volume_name>
+
+(storage-configure-vol-default)=
+### Configure default values for storage volumes
+
+You can define default volume configurations for a storage pool.
+To do so, set a storage pool configuration with a `volume` prefix, thus `volume.<VOLUME_CONFIGURATION>=<VALUE>`.
+
+This value is then used for all new storage volumes in the pool, unless it is set explicitly for a volume or an instance.
+In general, the defaults set on a storage pool level (before the volume was created) can be overridden through the volume configuration, and the volume configuration can be overridden through the instance configuration (for storage volumes of {ref}`type <storage-volume-types>` `container` or `vm`).
+
+For example, to set a default volume size for a storage pool, use the following command:
+
+    lxc storage set [<remote>:]<pool_name> volume.size <value>
+
+## View storage volumes
+
+You can display a list of all available storage volumes in a storage pool and check their configuration.
+
+To list all available storage volumes in a storage pool, use the following command:
+
+    lxc storage volume list <pool_name>
+
+The resulting table contains the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume in the pool.
+
+```{note}
+Custom storage volumes might use the same name as instance volumes (for example, you might have a container named `c1` with a container storage volume named `c1` and a custom storage volume named `c1`).
+Therefore, to distinguish between instance storage volumes and custom storage volumes, all instance storage volumes must be referred to as `<volume_type>/<volume_name>` (for example, `container/c1` or `virtual-machine/vm`) in commands.
+```
+
+To show detailed information about a specific custom volume, use the following command:
+
+    lxc storage volume show <pool_name> <volume_name>
+
+To show detailed information about a specific instance volume, use the following command:
+
+    lxc storage volume show <pool_name> <volume_type>/<volume_name>
+
+## Resize a storage volume
+
+If you need more storage in a volume, you can increase the size of your storage volume.
+In some cases, it is also possible to reduce the size of a storage volume.
+
+To resize a storage volume, set its size configuration:
+
+    lxc storage volume set <pool_name> <volume_name> size <new_size>
+
+```{important}
+- Growing a storage volume usually works (if the storage pool has sufficient storage).
+- Shrinking a storage volume is only possible for storage volumes with content type `filesystem`.
+  It is not guaranteed to work though, because you cannot shrink storage below its current used size.
+- Shrinking a storage volume with content type `block` is not possible.
+
+```

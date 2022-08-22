@@ -140,5 +140,13 @@ redirects = {
     "network-peers/index": "../howto/network_ovn_peers/index.html",
     "network-acls/index": "../howto/network_acls/index.html",
     "network-forwards/index": "../howto/network_forwards/index.html",
-    "network-zones/index": "../howto/network_zones/index.html"
+    "network-zones/index": "../howto/network_zones/index.html",
+    "howto/storage_create_pool/index": "../storage_pools/index.html#create-a-storage-pool",
+    "howto/storage_configure_pool/index": "../storage_pools/index.html#configure-storage-pool-settings",
+    "howto/storage_view_pools/index": "../storage_pools/index.html#view-storage-pools",
+    "howto/storage_resize_pool/index": "../storage_pools/index.html#resize-a-storage-pool",
+    "howto/storage_create_volume/index": "../storage_volumes/index.html#create-a-custom-storage-volume",
+    "howto/storage_configure_volume/index": "../storage_volumes/index.html#configure-storage-volume-settings",
+    "howto/storage_view_volumes/index": "../storage_volumes/index.html#view-storage-volumes",
+    "howto/storage_resize_volume/index": "../storage_volumes/index.html#resize-a-storage-volume"
 }
