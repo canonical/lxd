@@ -57,7 +57,7 @@ The following configuration options are available for storage pools that use the
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
 `btrfs.mount_options`           | string    | `user_subvol_rm_allowed`   | Mount options for block devices
-`size`                          | string    | `auto` (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
+`size`                          | string    | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
 
 {{volume_configuration}}
 

@@ -675,7 +675,7 @@ This saves you from creating a bridge device and virtual Ethernet device pairs a
 The downside to this is that `macvlan` devices while able to communicate between themselves and to the outside, aren't able to talk to their parent device.
 This means that you can't use `macvlan` if you ever need your instances to talk to the host itself.
 
-In such case, a `bridge` is preferable. A bridge will also let you use MAC filtering and I/O limits which cannot be applied to a macvlan device.
+In such case, a `bridge` device is preferable. A bridge will also let you use MAC filtering and I/O limits which cannot be applied to a macvlan device.
 
 `ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs statically assigned to it and inherits the parent's MAC address on the network.
 
