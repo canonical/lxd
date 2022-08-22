@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,97 +26,97 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 var instanceObjectsByID = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.id = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.id = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProject = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndType = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.type = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.type = ? AND node = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndNodeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.type = ? AND node = ? AND instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND node = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.type = ? AND instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNameAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.name = ? AND node = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.name = ? AND node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND node = ? ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByType = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.type = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.type = ? AND instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndNameAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.type = ? AND instances.name = ? AND node = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND instances.name = ? AND node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.type = ? AND node = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE node = ? ORDER BY projects.id, instances.name
+  WHERE ( node = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByNodeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE node = ? AND instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( node = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.name = ? ORDER BY projects.id, instances.name
+  WHERE ( instances.name = ? ) ORDER BY projects.id, instances.name
 `)
 
 var instanceID = RegisterStmt(`
@@ -144,7 +145,7 @@ UPDATE instances
 
 // GetInstances returns all available instances.
 // generator: instance GetMany
-func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Instance, error) {
+func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error) {
 	var err error
 
 	// Result slice.
@@ -152,178 +153,406 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNodeAndName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Node,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Type,
-			filter.Name,
-		}
-	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNameAndNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Type,
-			filter.Name,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNameAndNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Name,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndType)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndType\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Type,
-		}
-	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Type,
-			filter.Node,
-		}
-	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Type,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByNodeAndName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByNodeAndName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Node,
-			filter.Name,
-		}
-	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByType)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByType\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Type,
-		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByProject)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByProject\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-		}
-	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByNode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByNode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Node,
-		}
-	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, instanceObjectsByID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"instanceObjectsByID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, instanceObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
+			args = append(args, []any{filter.Project, filter.Type, filter.Node, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNodeAndName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNodeAndName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndTypeAndNodeAndName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
+			args = append(args, []any{filter.Project, filter.Type, filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndTypeAndNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
+			args = append(args, []any{filter.Project, filter.Type, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndTypeAndName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndTypeAndName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndTypeAndName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
+			args = append(args, []any{filter.Type, filter.Name, filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNameAndNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNameAndNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByTypeAndNameAndNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
+			args = append(args, []any{filter.Project, filter.Name, filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNameAndNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNameAndNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndNameAndNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
+			args = append(args, []any{filter.Project, filter.Type}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndType)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndType\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndType)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
+			args = append(args, []any{filter.Type, filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByTypeAndNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
+			args = append(args, []any{filter.Type, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByTypeAndName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByTypeAndName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByTypeAndName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{filter.Project, filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
+			args = append(args, []any{filter.Project, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProjectAndName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProjectAndName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProjectAndName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
+			args = append(args, []any{filter.Node, filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByNodeAndName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByNodeAndName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByNodeAndName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
+			args = append(args, []any{filter.Type}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByType)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByType\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByType)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+			args = append(args, []any{filter.Project}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByProject)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByProject\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByProject)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{filter.Node}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByNode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByNode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByNode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
+			args = append(args, []any{filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, instanceObjectsByID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"instanceObjectsByID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(instanceObjectsByID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"instanceObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+			return nil, fmt.Errorf("Cannot filter on empty InstanceFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -340,7 +569,13 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
@@ -350,8 +585,8 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Ins
 
 // GetInstanceDevices returns all available Instance Devices
 // generator: instance GetMany
-func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]Device, error) {
-	instanceDevices, err := GetDevices(ctx, tx, "instance")
+func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filters ...DeviceFilter) (map[string]Device, error) {
+	instanceDevices, err := GetDevices(ctx, tx, "instance", filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -371,8 +606,8 @@ func GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[st
 
 // GetInstanceConfig returns all available Instance Config
 // generator: instance GetMany
-func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]string, error) {
-	instanceConfig, err := GetConfig(ctx, tx, "instance")
+func GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ConfigFilter) (map[string]string, error) {
+	instanceConfig, err := GetConfig(ctx, tx, "instance", filters...)
 	if err != nil {
 		return nil, err
 	}
