@@ -32,6 +32,13 @@ type Device struct {
 	Config      map[string]string
 }
 
+// DeviceFilter specifies potential query parameter fields.
+type DeviceFilter struct {
+	Name   *string
+	Type   *DeviceType
+	Config *ConfigFilter
+}
+
 // Supported device types.
 const (
 	TypeNone        = DeviceType(0)
