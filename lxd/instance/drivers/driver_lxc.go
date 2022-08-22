@@ -310,7 +310,8 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, map[string]any{
-			"type": api.InstanceTypeContainer,
+			"type":         api.InstanceTypeContainer,
+			"storage-pool": d.storagePool.Name(),
 		}))
 	}
 
