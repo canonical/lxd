@@ -102,6 +102,22 @@ var updates = map[int]schema.Update{
 	63: updateFromV62,
 	64: updateFromV63,
 	65: updateFromV64,
+	66: updateFromV65,
+}
+
+// updateFromV65 fixes typo in cephobject.radosgw.endpoint* settings.
+func updateFromV65(tx *sql.Tx) error {
+	q := `
+	UPDATE storage_pools_config
+	SET key = REPLACE(key, "cephobject.radosgsw.endpoint", "cephobject.radosgw.endpoint")
+	WHERE key IN ("cephobject.radosgsw.endpoint", "cephobject.radosgsw.endpoint_cert_file")
+	`
+	_, err := tx.Exec(q)
+	if err != nil {
+		return fmt.Errorf("Failed replacing storage pool config cephobject.radosgsw.endpoint* with cephobject.radosgw.endpoint*: %w", err)
+	}
+
+	return nil
 }
 
 // updatefromV64 updates nodes_cluster_groups to include an ID field so that it works well with lxd-generate.
