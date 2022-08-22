@@ -38,8 +38,8 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.InstanceTypeFilter(instancetype.Container)
-	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), filter)
+	instType := instancetype.Container
+	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), cluster.InstanceFilter{Type: &instType})
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
@@ -93,11 +93,10 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	addContainer(t, tx, nodeID1, "c2")
 	addContainer(t, tx, nodeID2, "c3")
 
-	filter := db.InstanceTypeFilter(instancetype.Container)
 	project := "default"
 	node := "node2"
-	filter.Project = &project
-	filter.Node = &node
+	instType := instancetype.Container
+	filter := cluster.InstanceFilter{Project: &project, Node: &node, Type: &instType}
 
 	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), filter)
 	require.NoError(t, err)
@@ -177,7 +176,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	err = cluster.UpdateInstanceProfiles(context.TODO(), tx.Tx(), int(id), c1p2.Project, []string{"intranet"})
 	require.NoError(t, err)
 
-	containers, err := cluster.GetInstances(context.TODO(), tx.Tx(), cluster.InstanceFilter{})
+	containers, err := cluster.GetInstances(context.TODO(), tx.Tx())
 	require.NoError(t, err)
 
 	c1Profiles, err := cluster.GetInstanceProfiles(context.TODO(), tx.Tx(), containers[0].ID)
@@ -266,7 +265,7 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.InstanceArgs
-	err = c.InstanceList(nil, func(dbInst db.InstanceArgs, p api.Project) error {
+	err = c.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
 
@@ -424,7 +423,8 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.GetProjectAndInstanceNamesByNodeAddress([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
+	instType := instancetype.Container
+	result, err := tx.GetProjectAndInstanceNamesByNodeAddress([]string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -448,7 +448,8 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.GetProjectInstanceToNodeMap([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
+	instType := instancetype.Container
+	result, err := tx.GetProjectInstanceToNodeMap([]string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -519,7 +520,8 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
 
-	containers, err := tx.GetLocalInstancesInProject(context.TODO(), db.InstanceTypeFilter(instancetype.Container))
+	instType := instancetype.Container
+	containers, err := tx.GetLocalInstancesInProject(context.TODO(), cluster.InstanceFilter{Type: &instType})
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 

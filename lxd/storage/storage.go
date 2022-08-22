@@ -184,7 +184,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 		}
 
 		// Get all the profiles using the storage pool.
-		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		profiles, err := cluster.GetProfiles(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles: %w", err)
 		}

@@ -284,7 +284,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 		var err error
 
 		if allProjects {
-			projects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
+			projects, err := dbCluster.GetProjects(context.Background(), tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -300,12 +300,12 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(filteredProjects, db.InstanceTypeFilter(instanceType))
+		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}
 
-		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(filteredProjects, db.InstanceTypeFilter(instanceType))
+		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}

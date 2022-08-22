@@ -2174,7 +2174,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 	var projects []api.Project
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		dbProjects, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
+		dbProjects, err := dbCluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}

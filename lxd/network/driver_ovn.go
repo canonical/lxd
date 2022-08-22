@@ -3820,7 +3820,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project) error {
+	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
@@ -3938,7 +3938,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project) error {
+			err = n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 				// Get the instance's effective network project name.
 				instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -4323,11 +4323,8 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	leases := []api.NetworkLease{}
 
-	filter := dbCluster.InstanceFilter{
-		Project: &projectName,
-	}
-
-	err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+	filter := dbCluster.InstanceFilter{Project: &projectName}
+	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 		// Get the instance UUID needed for OVN port name generation.
@@ -4370,7 +4367,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 		}
 
 		return nil
-	})
+	}, filter)
 	if err != nil {
 		return nil, err
 	}

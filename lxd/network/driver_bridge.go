@@ -2452,7 +2452,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project) error {
+	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2663,11 +2663,8 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 			// If we are the first forward on this bridge, enable hairpin mode on active NIC ports.
 			if len(listenAddresses) <= 1 {
-				filter := dbCluster.InstanceFilter{
-					Node: &n.state.ServerName,
-				}
-
-				err = n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+				filter := dbCluster.InstanceFilter{Node: &n.state.ServerName}
+				err = n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 					// Get the instance's effective network project name.
 					instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2702,7 +2699,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					}
 
 					return nil
-				})
+				}, filter)
 				if err != nil {
 					return err
 				}
@@ -2927,11 +2924,8 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		}
 
 		// Get all the instances in project.
-		filter := dbCluster.InstanceFilter{
-			Project: &projectName,
-		}
-
-		err := n.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+		filter := dbCluster.InstanceFilter{Project: &projectName}
+		err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 			devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 
 			// Go through all its devices (including profiles).
@@ -3007,7 +3001,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			}
 
 			return nil
-		})
+		}, filter)
 		if err != nil {
 			return nil, err
 		}

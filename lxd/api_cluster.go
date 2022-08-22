@@ -571,7 +571,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		var projects []dbCluster.Project
 
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			projects, err = dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
+			projects, err = dbCluster.GetProjects(ctx, tx.Tx())
 			return err
 		})
 		if err != nil {
@@ -2893,7 +2893,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	// List the instances.
 	var dbInstances []dbCluster.Instance
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx(), dbCluster.InstanceFilter{})
+		dbInstances, err = dbCluster.GetInstances(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed to get instances: %w", err)
 		}
