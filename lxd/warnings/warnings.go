@@ -32,7 +32,7 @@ func ResolveWarningsByLocalNodeOlderThan(dbCluster *db.Cluster, date time.Time) 
 	}
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		warnings, err := cluster.GetWarnings(ctx, tx.Tx(), cluster.WarningFilter{})
+		warnings, err := cluster.GetWarnings(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}

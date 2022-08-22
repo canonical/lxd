@@ -79,7 +79,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 	// imported instances and volumes, and avoid repeatedly querying the same information.
 	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Load list of projects for validation.
-		ps, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
+		ps, err := dbCluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		}
 
 		// Load list of project/profile names for validation.
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{})
+		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}

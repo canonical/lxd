@@ -170,13 +170,13 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 
 	var warnings []api.Warning
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := cluster.WarningFilter{}
-
+		filters := []cluster.WarningFilter{}
 		if projectName != "" {
-			filter.Project = &projectName
+			filter := cluster.WarningFilter{Project: &projectName}
+			filters = append(filters, filter)
 		}
 
-		dbWarnings, err := cluster.GetWarnings(ctx, tx.Tx(), filter)
+		dbWarnings, err := cluster.GetWarnings(ctx, tx.Tx(), filters...)
 		if err != nil {
 			return fmt.Errorf("Failed to get warnings: %w", err)
 		}

@@ -44,11 +44,8 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 
 	// Get instances on this local server (as the DB helper functions return volumes on local server), also
 	// avoids running the same queries on every cluster member for instances on shared storage.
-	filter := cluster.InstanceFilter{
-		Node: &localNode,
-	}
-
-	err = b.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+	filter := cluster.InstanceFilter{Node: &localNode}
+	err = b.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Check we can convert the instance to the volume type needed.
 		volType, err := InstanceTypeToVolumeType(inst.Type)
 		if err != nil {
@@ -120,7 +117,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 		}
 
 		return nil
-	})
+	}, filter)
 	if err != nil {
 		return err
 	}
