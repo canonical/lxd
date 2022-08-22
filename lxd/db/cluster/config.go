@@ -23,3 +23,9 @@ type Config struct {
 	Key         string
 	Value       string
 }
+
+// ConfigFilter specifies potential query parameter fields.
+type ConfigFilter struct {
+	Key   *string
+	Value *string
+}
