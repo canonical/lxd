@@ -54,6 +54,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
+	"github.com/lxc/lxd/lxd/storage/s3/miniod"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/ucred"
@@ -1631,6 +1632,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	s := d.State()
+
+	// Stop any running minio processes cleanly before unmount storage pools.
+	miniod.StopAll()
 
 	var err error
 	var instances []instance.Instance
