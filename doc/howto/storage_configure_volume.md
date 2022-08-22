@@ -1,4 +1,5 @@
 (storage-configure-volume)=
+
 # How to configure storage volume settings
 
 See the {ref}`storage-drivers` documentation for the available configuration options for each storage driver.
@@ -20,6 +21,7 @@ You can also edit the storage volume configuration by using the following comman
     lxc storage volume edit <pool_name> <volume_name>
 
 (storage-configure-vol-default)=
+
 ## Configure default values for storage volumes
 
 You can define default volume configurations for a storage pool.

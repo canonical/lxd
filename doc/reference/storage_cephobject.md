@@ -4,9 +4,11 @@ relatedlinks: https://youtube.com/watch?v=kVLGbvRU98A
 ---
 
 (storage-cephobject)=
+
 # Ceph Object - `cephobject`
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph intro -->
     :end-before: <!-- Include end Ceph intro -->
@@ -18,6 +20,7 @@ It provides object storage functionality with an interface that is compatible wi
 ## Terminology
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph terminology -->
     :end-before: <!-- Include end Ceph terminology -->
@@ -34,6 +37,7 @@ For storage volumes, use the {ref}`Ceph <storage-ceph>` or {ref}`CephFS <storage
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver cluster -->
     :end-before: <!-- Include end Ceph driver cluster -->
@@ -46,12 +50,14 @@ The `radosgw` URL can be specified at pool creation time using the [`cephobject.
 LXD also uses the `radosgw-admin` command to manage buckets. So this command must be available and operational on the LXD servers(s).
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver remote -->
     :end-before: <!-- Include end Ceph driver remote -->
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver control -->
     :end-before: <!-- Include end Ceph driver control -->
@@ -62,7 +68,9 @@ LXD also uses the `radosgw-admin` command to manage buckets. So this command mus
 The following configuration options are available for storage pools that use the `cephobject` driver and for storage buckets in these pools.
 
 (storage-cephobject-pool-config)=
+
 ### Storage pool configuration
+
 Key                                      | Type                          | Default | Description
 :--                                      | :---                          | :------ | :----------
 `cephobject.bucket.name_prefix`          | string                        | -       | Prefix to add to bucket names in Ceph
@@ -73,6 +81,7 @@ Key                                      | Type                          | Defau
 `volatile.pool.pristine`                 | string                        | `true`  | Whether the `radosgw` `lxd-admin` user existed at creation time
 
 ### Storage bucket configuration
+
 Key    | Type   | Default                | Description
 :--    | :---   | :------                | :----------
 `size` | string | -                      | Quota of the storage bucket

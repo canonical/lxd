@@ -3,6 +3,7 @@ discourse: 14317
 ---
 
 (network-load-balancers)=
+
 # How to configure network load balancers
 
 ```{note}
@@ -43,6 +44,7 @@ Property         | Type         | Required | Description
 `ports`          | port list    | no       | List of {ref}`port specifications <network-load-balancers-port-specifications>`
 
 (network-load-balancers-listen-addresses)=
+
 ### Requirements for listen addresses
 
 The following requirements must be met for valid listen addresses:
@@ -51,6 +53,7 @@ The following requirements must be met for valid listen addresses:
 - The listen address must not overlap with a subnet that is in use with another network or entity in that network.
 
 (network-load-balancers-backend-specifications)=
+
 ## Configure backends
 
 You can add backend specifications to the network load balancer to define target addresses (and optionally ports).
@@ -82,6 +85,7 @@ Property          | Type       | Required | Description
 `description`     | string     | no       | Description of backend
 
 (network-load-balancers-port-specifications)=
+
 ## Configure ports
 
 You can add port specifications to the network load balancer to forward traffic from specific ports on the listen address to specific ports on one or more target backends.

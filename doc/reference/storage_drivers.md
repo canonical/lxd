@@ -3,6 +3,7 @@ relatedlinks: https://www.youtube.com/watch?v=z_OKwO5TskA
 ---
 
 (storage-drivers)=
+
 # Storage drivers
 
 LXD supports the following storage drivers for storing images, instances and custom volumes:
@@ -18,9 +19,11 @@ storage_ceph
 storage_cephfs
 storage_cephobject
 ```
+
 See the corresponding pages for driver-specific information and configuration options.
 
 (storage-drivers-features)=
+
 ## Feature comparison
 
 Where possible, LXD uses the advanced features of each storage system to optimize operations.
@@ -42,6 +45,7 @@ Available on `lxd init`                     | yes       | yes   | yes   | yes  |
 Object storage                              | no        | no    | no    | no   | no       | no     | yes
 
 (storage-optimized-image-storage)=
+
 ### Optimized image storage
 
 All storage drivers except for the directory driver have some kind of optimized image storage format.
@@ -51,6 +55,7 @@ To prevent preparing such a volume on a storage pool that might never be used wi
 Therefore, the first instance takes longer to create than subsequent ones.
 
 (storage-optimized-instance-transfer)=
+
 ### Optimized instance transfer
 
 Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.

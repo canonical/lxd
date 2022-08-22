@@ -1,10 +1,12 @@
 (storage-cephfs)=
+
 # CephFS - `cephfs`
 
 ```{youtube} https://youtube.com/watch?v=kVLGbvRU98A
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph intro -->
     :end-before: <!-- Include end Ceph intro -->
@@ -16,6 +18,7 @@ Internally, it maps files to Ceph objects and stores file metadata (for example,
 ## Terminology
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph terminology -->
     :end-before: <!-- Include end Ceph terminology -->
@@ -33,6 +36,7 @@ That driver can also be used for custom storage volumes with content type `files
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver cluster -->
     :end-before: <!-- Include end Ceph driver cluster -->
@@ -41,12 +45,14 @@ That driver can also be used for custom storage volumes with content type `files
 You must create the CephFS file system that you want to use beforehand and specify it through the [`source`](storage-cephfs-pool-config) option.
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver remote -->
     :end-before: <!-- Include end Ceph driver remote -->
 ```
 
 % Include content from [storage_ceph.md](storage_ceph.md)
+
 ```{include} storage_ceph.md
     :start-after: <!-- Include start Ceph driver control -->
     :end-before: <!-- Include end Ceph driver control -->
@@ -59,7 +65,9 @@ The `cephfs` driver in LXD supports snapshots if snapshots are enabled on the se
 The following configuration options are available for storage pools that use the `cephfs` driver and for storage volumes in these pools.
 
 (storage-cephfs-pool-config)=
+
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `cephfs.cluster_name`         | string                        | `ceph`                                  | Name of the Ceph cluster that contains the CephFS file system
@@ -72,6 +80,7 @@ Key                           | Type                          | Default         
 {{volume_configuration}}
 
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}

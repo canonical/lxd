@@ -6,6 +6,7 @@ This specification covers some of the daemon's behavior, such as
 reaction to given signals, crashes, ...
 
 ## Startup
+
 On every start, LXD checks that its directory structure exists. If it
 doesn't, it'll create the required directories, generate a key pair and
 initialize the database.
@@ -16,7 +17,9 @@ current one. If an instance's power state was recorded as running and the
 instance isn't running, LXD will start it.
 
 ## Signal handling
+
 ### `SIGINT`, `SIGQUIT`, `SIGTERM`
+
 For those signals, LXD assumes that it's being temporarily stopped and
 will be restarted at a later time to continue handling the instances.
 
@@ -24,6 +27,7 @@ The instances will keep running and LXD will close all connections and
 exit cleanly.
 
 ### `SIGPWR`
+
 Indicates to LXD that the host is going down.
 
 LXD will attempt a clean shutdown of all the instances. After 30s, it
@@ -34,4 +38,5 @@ that LXD after the host is done rebooting can restore the instances as
 they were.
 
 ### `SIGUSR1`
+
 Write a memory profile dump to the file specified with `--memprofile`.

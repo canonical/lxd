@@ -3,6 +3,7 @@ discourse: 1333
 ---
 
 (storage-resize-pool)=
+
 # How to resize a storage pool
 
 If you need more storage, you can increase the size of your storage pool.

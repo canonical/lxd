@@ -1,4 +1,5 @@
 (network-macvlan)=
+
 # Macvlan network
 
 <!-- Include start macvlan intro -->
@@ -10,12 +11,13 @@ The `macvlan` network type allows to specify presets to use when connecting inst
 In this case, the instance NICs can simply set the `network` option to the network they connect to without knowing any of the underlying configuration details.
 
 (network-macvlan-options)=
+
 ## Configuration options
 
 The following configuration key namespaces are currently supported for the `macvlan` network type:
 
- - `maas` (MAAS network identification)
- - `user` (free-form key/value for user metadata)
+- `maas` (MAAS network identification)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}

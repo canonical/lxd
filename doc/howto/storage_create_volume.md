@@ -31,6 +31,7 @@ This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), w
 ```
 
 (storage-attach-volume)=
+
 ## Attach a custom storage volume to an instance
 
 After creating a custom storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
@@ -55,6 +56,7 @@ If you want to use a different device name, you can add it to the command:
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name> <device_name>
 
 (storage-configure-IO)=
+
 ## Configure I/O limits
 
 When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.

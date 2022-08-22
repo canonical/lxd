@@ -4,6 +4,7 @@ To create and configure a managed network, use the `lxc network` command and its
 Append `--help` to any command to see more information about its usage and available flags.
 
 (network-types)=
+
 ## Network types
 
 The following network types are available:

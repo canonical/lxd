@@ -20,6 +20,7 @@ The following storage drivers are supported:
 - [Ceph Object - `cephobject`](storage-cephobject)
 
 (storage-location)=
+
 ### Data storage location
 
 Where the LXD data is stored depends on the configuration and the selected storage driver.
@@ -40,11 +41,13 @@ In most cases, it is also the easiest to manage.
 This option is supported for the `dir` driver, the `btrfs` driver (if the host is Btrfs and you point LXD to a dedicated sub-volume) and the `zfs` driver (if the host is ZFS and you point LXD to a dedicated dataset on your zpool).
 
 #### Dedicated disk or partition
+
 Having LXD use an empty partition on your main disk or a full dedicated disk keeps its storage completely independent from the host.
 
 This option is supported  for the `btrfs` driver, the `lvm` driver and the `zfs` driver.
 
 #### Loop disk
+
 LXD can create a loop file on your main drive and have the selected storage driver use that.
 This method is functionally similar to using a disk or partition, but it uses a large file on your main drive instead.
 This means that every write must go through the storage driver and your main drive's file system, which leads to decreased performance.
@@ -56,9 +59,11 @@ They will grow up to the configured limit, but deleting instances or images will
 You can increase their size though; see {ref}`storage-resize-pool`.
 
 #### Remote storage
+
 The `ceph`, `cephfs` and `cephobject` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
 
 (storage-default-pool)=
+
 ### Default storage pool
 
 There is no concept of a default storage pool in LXD.
@@ -84,12 +89,14 @@ In a profile, the storage pool to use is defined by the pool for the root disk d
 In the default profile, this pool is set to the storage pool that was created during initialization.
 
 (storage-volumes)=
+
 ## Storage volumes
 
 When you create an instance, LXD automatically creates the required storage volumes for it.
 You can create additional storage volumes.
 
 (storage-volume-types)=
+
 ### Storage volume types
 
 Storage volumes can be of the following types:
@@ -115,6 +122,7 @@ Storage volumes can be of the following types:
   You must specify the storage pool for the custom volume when you create it.
 
 (storage-content-types)=
+
 ### Content types
 
 Each storage volume uses one of the following content types:
@@ -133,6 +141,7 @@ Each storage volume uses one of the following content types:
   They should not be shared between instances, because simultaneous access can lead to data corruption.
 
 (storage-buckets)=
+
 ## Storage buckets
 
 Storage buckets provide object storage functionality via the S3 protocol.

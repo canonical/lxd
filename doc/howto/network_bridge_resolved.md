@@ -1,4 +1,5 @@
 (network-bridge-resolved)=
+
 # How to integrate with `systemd-resolved`
 
 If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify `resolved` of the domains that LXD can resolve.
@@ -12,6 +13,7 @@ This can be done through the `DNSSEC` option in `resolved.conf`.
 ```
 
 (network-bridge-resolved-configure)=
+
 ## Configure resolved
 
 To add a network bridge to the `resolved` configuration, specify the DNS addresses and domains for the respective bridge.

@@ -1,4 +1,5 @@
 (import-machines-to-instances)=
+
 # How to import physical or virtual machines to LXD instances
 
 LXD provides a tool (`lxd-migrate`) to create a LXD instance based on an existing disk or image.
@@ -8,6 +9,7 @@ It connects to a LXD server and creates a blank instance, which you can configur
 The tool then copies the data from the disk or image that you provide to the instance.
 
 The tool can create both containers and virtual machines:
+
 * When creating a container, you must provide a disk or partition that contains the root file system for the container.
   For example, this could be the `/` root disk of the machine or container where you are running the tool.
 * When creating a virtual machine, you must provide a bootable disk, partition or image.
@@ -150,4 +152,5 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    Please pick one of the options above [default=1]: 1
    Instance foo successfully created
    ```
+
    </details>

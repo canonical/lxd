@@ -3,6 +3,7 @@ discourse: 10034,9953
 ---
 
 (network-bridge-firewall)=
+
 # How to configure your firewall
 
 Linux firewalls are based on `netfilter`.
@@ -84,6 +85,7 @@ For example:
     sudo ufw route allow in on lxdbr0
 
 % Repeat warning from above
+
 ```{include} network_bridge_firewalld.md
     :start-after: <!-- Include start warning -->
     :end-before: <!-- Include end warning -->

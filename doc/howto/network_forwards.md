@@ -3,6 +3,7 @@ discourse: 11801
 ---
 
 (network-forwards)=
+
 # How to configure network forwards
 
 ```{note}
@@ -49,19 +50,23 @@ Property         | Type       | Required | Description
 `ports`          | port list  | no       | List of {ref}`port specifications <network-forwards-port-specifications>`
 
 (network-forwards-listen-addresses)=
+
 ### Requirements for listen addresses
 
 The requirements for valid listen addresses vary depending on which network type the forward is associated to.
 
 Bridge network
 : - Any non-conflicting listen address is allowed.
-  - The listen address must not overlap with a subnet that is in use with another network.
+
+    - The listen address must not overlap with a subnet that is in use with another network.
 
 OVN network
 : - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's `restricted.networks.subnets` setting (if set).
-  - The listen address must not overlap with a subnet that is in use with another network.
+
+    - The listen address must not overlap with a subnet that is in use with another network.
 
 (network-forwards-port-specifications)=
+
 ## Configure ports
 
 You can add port specifications to the network forward to forward traffic from specific ports on the listen address to specific ports on the target address.

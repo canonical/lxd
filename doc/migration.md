@@ -1,4 +1,5 @@
 (migration)=
+
 # Migration
 
 LXD provides tools and functionality to migrate instances in different contexts.

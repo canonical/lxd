@@ -3,6 +3,7 @@ discourse: 11033
 ---
 
 (network-ovn)=
+
 # OVN network
 
 <!-- Include start OVN intro -->
@@ -20,16 +21,17 @@ By default, all connections from the OVN logical networks are NATed to an IP all
 See {ref}`network-ovn-setup` for basic instructions for setting up an OVN network.
 
 (network-ovn-options)=
+
 ## Configuration options
 
 The following configuration key namespaces are currently supported for the `ovn` network type:
 
- - `bridge` (L2 interface configuration)
- - `dns` (DNS server and resolution configuration)
- - `ipv4` (L3 IPv4 configuration)
- - `ipv6` (L3 IPv6 configuration)
- - `security` (network ACL configuration)
- - `user` (free-form key/value for user metadata)
+- `bridge` (L2 interface configuration)
+- `dns` (DNS server and resolution configuration)
+- `ipv4` (L3 IPv4 configuration)
+- `ipv6` (L3 IPv6 configuration)
+- `security` (network ACL configuration)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}
@@ -64,6 +66,7 @@ Key                                  | Type      | Condition             | Defau
 `user.*`                             | string    | -                     | -                         | User-provided free-form key/value pairs
 
 (network-ovn-features)=
+
 ## Supported features
 
 The following features are supported for the `ovn` network type:

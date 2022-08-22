@@ -35,8 +35,8 @@ Each set of credentials is given a *role* that specifies what operations they ca
 
 The roles available are:
 
- - `admin` - Full access to the bucket.
- - `read-only` - Read only access to the bucket (list and get files only).
+- `admin` - Full access to the bucket.
+- `read-only` - Read only access to the bucket (list and get files only).
 
 If the role is not specified when creating a bucket key the role used is `read-only`.
 

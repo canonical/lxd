@@ -1,6 +1,7 @@
 # Security
 
 % Include content from [../README.md](../README.md)
+
 ```{include} ../README.md
     :start-after: <!-- Include start security -->
     :end-before: <!-- Include end security -->
@@ -15,10 +16,12 @@ If you discover a security issue, see the [LXD security policy](https://github.c
 Never use unsupported LXD versions in a production environment.
 
 % Include content from [../SECURITY.md](../SECURITY.md)
+
 ```{include} ../SECURITY.md
     :start-after: <!-- Include start supported versions -->
     :end-before: <!-- Include end supported versions -->
 ```
+
 ## Access to the LXD daemon
 
 LXD is a daemon that can be accessed locally over a Unix socket or, if configured, remotely over a {abbr}`TLS (Transport Layer Security)` socket.
@@ -41,6 +44,7 @@ The root user and all members of the `lxd` group can interact with the local dae
 ````
 
 (security_remote_access)=
+
 ### Access to the remote API
 
 By default, access to the daemon is only possible locally.

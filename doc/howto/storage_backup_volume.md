@@ -20,6 +20,7 @@ You must back up the data of your storage volume separately.
 ```
 
 (storage-backup-snapshots)=
+
 ## Use snapshots for backup
 
 A snapshot saves the state of the storage volume at a specific time, which makes it easy to restore the volume to a previous state.
@@ -42,6 +43,7 @@ By default, snapshots are kept forever, unless the `snapshots.expiry` configurat
 To retain a specific snapshot even if a general expiry time is set, use the `--no-expiry` flag.
 
 (storage-edit-snapshots)=
+
 ### View, edit or delete snapshots
 
 Use the following command to display the snapshots for a storage volume:
@@ -93,6 +95,7 @@ To do so, use the following command:
     lxc storage volume copy <source_pool_name>/<source_volume_name>/<source_snapshot_name> <target_pool_name>/<target_volume_name>
 
 (storage-backup-export)=
+
 ## Use export files for backup
 
 You can export the full content of your custom storage volume to a standalone file that can be stored at any location.

@@ -1,4 +1,5 @@
 (network-sriov)=
+
 # SR-IOV network
 
 <!-- Include start SR-IOV intro -->
@@ -9,12 +10,13 @@ The `sriov` network type allows to specify presets to use when connecting instan
 In this case, the instance NICs can simply set the `network` option to the network they connect to without knowing any of the underlying configuration details.
 
 (network-sriov-options)=
+
 ## Configuration options
 
 The following configuration key namespaces are currently supported for the `sriov` network type:
 
- - `maas` (MAAS network identification)
- - `user` (free-form key/value for user metadata)
+- `maas` (MAAS network identification)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}

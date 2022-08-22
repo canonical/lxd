@@ -3,6 +3,7 @@ discourse: 13223
 ---
 
 (network-acls)=
+
 # How to configure network ACLs
 
 ```{note}
@@ -51,6 +52,7 @@ Property         | Type       | Required | Description
 `config`         | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
 
 (network-acls-rules)=
+
 ## Add or remove rules
 
 Each ACL contains two lists of rules:
@@ -82,14 +84,13 @@ filtering.
 
 LXD automatically orders the rules based on the `action` property as follows:
 
- - `drop`
- - `reject`
- - `allow`
- - Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+- `drop`
+- `reject`
+- `allow`
+- Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
 
 This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
 If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
-
 
 ### Rule properties
 
@@ -109,6 +110,7 @@ Property          | Type       | Required | Description
 `icmp_code`       | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP code number, or empty for any
 
 (network-acls-selectors)=
+
 ### Use selectors in rules
 
 ```{note}
@@ -120,6 +122,7 @@ The `source` field (for ingress rules) and the `destination` field (for egress r
 With this method, you can use ACL groups or network selectors to define rules for groups of instances without needing to maintain IP lists or create additional subnets.
 
 (network-acls-groups)=
+
 #### ACL groups
 
 Instance NICs that are assigned a particular ACL (either explicitly or implicitly through a network) make up a logical port group.
@@ -163,6 +166,7 @@ lxc network acl show-log <ACL_name>
 ```
 
 (network-acls-edit)=
+
 ## Edit an ACL
 
 Use the following command to edit an ACL:
@@ -192,6 +196,7 @@ lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
 ```
 
 (network-acls-defaults)=
+
 ## Configure default actions
 
 When one or more ACLs are applied to a NIC (either explicitly or implicitly through a network), a default reject rule is added to the NIC.
@@ -213,6 +218,7 @@ lxc config device set <instance_name> <device_name> security.acls.default.ingres
 ```
 
 (network-acls-bridge-limitations)=
+
 ## Bridge limitations
 
 When using network ACLs with a bridge network, be aware of the following limitations:

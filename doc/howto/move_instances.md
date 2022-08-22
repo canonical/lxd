@@ -1,4 +1,5 @@
 (move-instances)=
+
 # How to move existing LXD instances between servers
 
 To move an instance from one LXD server to another, use the `lxc move` command:
@@ -28,6 +29,7 @@ You can add the `--mode` flag to choose a transfer mode, depending on your netwo
 If you need to adapt the configuration for the instance to run on the target server, you can either specify the new configuration directly (using `--config`, `--device`, `--storage` or `--target-project`) or through profiles (using `--no-profiles` or `--profile`). See `lxc move --help` for all available flags.
 
 (live-migration)=
+
 ## Live migration
 
 Virtual machines can be moved to another server while they are running, thus without any downtime.

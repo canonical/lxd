@@ -1,4 +1,5 @@
 (storage-lvm)=
+
 # LVM - `lvm`
 
 {abbr}`LVM (Logical Volume Manager)` is a storage management framework rather than a file system.
@@ -38,7 +39,9 @@ For environments with a high instance turnover (for example, continuous integrat
 The following configuration options are available for storage pools that use the `lvm` driver and for storage volumes in these pools.
 
 (storage-lvm-pool-config)=
+
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `lvm.thinpool_name`           | string                        | `LXDThinPool`                           | Thin pool where volumes are created
@@ -54,7 +57,9 @@ Key                           | Type                          | Default         
 {{volume_configuration}}
 
 (storage-lvm-vol-config)=
+
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `block.filesystem`      | string    | block based driver        | same as `volume.block.filesystem`              | {{block_filesystem}}

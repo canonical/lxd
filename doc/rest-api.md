@@ -1,10 +1,13 @@
 # REST API
+
 ## Introduction
+
 All the communications between LXD and its clients happen using a
 RESTful API over HTTP which is then encapsulated over either SSL for
 remote operations or a Unix socket for local operations.
 
 ## API versioning
+
 The list of supported major API versions can be retrieved using `GET /`.
 
 The reason for a major API bump is if the API breaks backward compatibility.
@@ -14,13 +17,15 @@ result in addition to `api_extensions` which can be used by the client
 to check if a given feature is supported by the server.
 
 ## Return values
+
 There are three standard return types:
 
- * Standard return value
- * Background operation
- * Error
+* Standard return value
+* Background operation
+* Error
 
 ### Standard return value
+
 For a standard synchronous operation, the following dict is returned:
 
 ```js
@@ -35,6 +40,7 @@ For a standard synchronous operation, the following dict is returned:
 HTTP code must be 200.
 
 ### Background operation
+
 When a request results in a background operation, the HTTP code is set to 202 (Accepted)
 and the Location HTTP header is set to the operation URL.
 
@@ -81,6 +87,7 @@ going on without having to pull the target operation, all information in
 the body can also be retrieved from the background operation URL.
 
 ### Error
+
 There are various situations in which something may immediately go
 wrong, in those cases, the following return value is used:
 
@@ -96,6 +103,7 @@ wrong, in those cases, the following return value is used:
 HTTP code must be one of of 400, 401, 403, 404, 409, 412 or 500.
 
 ## Status codes
+
 The LXD REST API often has to return status information, be that the
 reason for an error, the current state of an operation or the state of
 the various resources it exports.
@@ -112,10 +120,10 @@ numeric value.
 
 The codes are always 3 digits, with the following ranges:
 
- * 100 to 199: resource state (started, stopped, ready, ...)
- * 200 to 399: positive action result
- * 400 to 599: negative action result
- * 600 to 999: future use
+* 100 to 199: resource state (started, stopped, ready, ...)
+* 200 to 399: positive action result
+* 400 to 599: negative action result
+* 600 to 999: future use
 
 ### List of current status codes
 
@@ -139,6 +147,7 @@ Code  | Meaning
 401   | Canceled
 
 ## Recursion
+
 To optimize queries of large lists, recursion is implemented for collections.
 A `recursion` argument can be passed to a GET query against a collection.
 
@@ -150,6 +159,7 @@ Recursion is implemented by simply replacing any pointer to an job (URL)
 by the object itself.
 
 ## Filtering
+
 To filter your results on certain values, filter is implemented for collections.
 A `filter` argument can be passed to a GET query against a collection.
 
@@ -181,6 +191,7 @@ Here are a few GET query examples of the different filtering methods mentioned a
     images?filter=Properties.os eq Centos and not UpdateSource.Protocol eq simplestreams
 
 ## Asynchronous operations
+
 Any operation which may take more than a second to be done must be done
 in the background, returning a background operation ID to the client.
 
@@ -188,6 +199,7 @@ The client will then be able to either poll for a status update or wait
 for a notification using the long-poll API.
 
 ## Notifications
+
 A WebSocket-based API is available for notifications, different notification
 types exist to limit the traffic going to the client.
 
@@ -196,6 +208,7 @@ notification type before triggering remote operations so that it doesn't
 have to then poll for their status.
 
 ## PUT vs PATCH
+
 The LXD API supports both PUT and PATCH to modify existing objects.
 
 PUT replaces the entire object with a new definition, it's typically
@@ -211,6 +224,7 @@ it to empty will usually do the trick, but there are cases where PATCH
 won't work and PUT needs to be used instead.
 
 ## Instances, containers and virtual-machines
+
 This documentation will always show paths such as `/1.0/instances/...`.
 Those are fairly new, introduced with LXD 3.19 when virtual-machine support.
 
@@ -224,6 +238,7 @@ An additional endpoint at `/1.0/virtual-machines` is also present and
 much like `/1.0/containers` will only show you instances of that type.
 
 ## API structure
+
 LXD has an auto-generated [Swagger](https://swagger.io/) specification describing its API endpoints.
 The YAML version of this API specification can be found in [`rest-api.yaml`](https://github.com/lxc/lxd/blob/master/doc/rest-api.yaml). <!-- wokeignore:rule=master -->
 A convenient web rendering of it can be found here: [`https://linuxcontainers.org/lxd/api/master/`](https://linuxcontainers.org/lxd/api/master/) <!-- wokeignore:rule=master -->

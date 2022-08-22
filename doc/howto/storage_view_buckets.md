@@ -19,4 +19,3 @@ Use the following command to see the keys defined for an existing bucket:
 Use the following command to see a specific bucket key:
 
     lxc storage bucket key show <pool_name> <bucket_name> <key_name>
-

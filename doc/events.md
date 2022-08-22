@@ -1,17 +1,22 @@
 # Events
 
 ## Introduction
+
 Events are messages about actions that have occurred over LXD. Using the API endpoint `/1.0/events` directly or via
 `lxc monitor` will connect to a WebSocket through which logs and life-cycle messages will be streamed.
 
 ## Event types
+
 LXD Currently supports three event types.
+
 - `logging`: Shows all logging messages regardless of the server logging level.
 - `operation`: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
 - `lifecycle`: Shows an audit trail for specific actions occurring over LXD.
 
 ## Event structure
-### Example:
+
+### Example
+
 ```yaml
 location: cluster_name
 metadata:
@@ -23,17 +28,20 @@ metadata:
 timestamp: "2021-03-14T00:00:00Z"
 type: lifecycle
 ```
+
 - `location`: The cluster member name (if clustered).
 - `timestamp`: Time that the event occurred in RFC3339 format.
 - `type`: The type of event this is (one of `logging`, `operation`, or `lifecycle`).
 - `metadata`: Information about the specific event type.
 
 ### Logging event structure
+
 - `message`: The log message.
 - `level`: The log-level of the log.
 - `context`: Additional information included in the event.
 
 ### Operation event structure
+
 - `id`: The UUID of the operation.
 - `class`: The type of operation (`task`, `token`, or `websocket`).
 - `description`: A description of the operation.
@@ -48,12 +56,14 @@ type: lifecycle
 - `location`: The cluster member name (if clustered).
 
 ### Life-cycle event structure
+
 - `action`: The life-cycle action that occurred.
 - `requestor`: Information about who is making the request (if applicable).
 - `source`: Path to what is being acted upon.
 - `context`: Additional information included in the event.
 
 ## Supported life-cycle events
+
 | Name                                   | Description                                                           | Additional Information                                                                               |
 | :------------------------------------- | :-------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
 | `certificate-created`                  | A new certificate has been added to the server trust store.           |                                                                                                      |

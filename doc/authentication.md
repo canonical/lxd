@@ -4,6 +4,7 @@ relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 ---
 
 (authentication)=
+
 # Remote API authentication
 
 Remote communications with the LXD daemon happen using JSON over HTTPS.
@@ -15,8 +16,8 @@ The following authentication methods are supported:
 - {ref}`authentication-candid`
 - {ref}`authentication-rbac`
 
-
 (authentication-tls-certs)=
+
 ## TLS client certificates
 
 ```{youtube} https://www.youtube.com/watch?v=4iNpiL-lrXU
@@ -41,6 +42,7 @@ Since we control both client and server, there is no reason to support
 any backward compatibility to broken protocol or ciphers.
 
 (authentication-trusted-clients)=
+
 ### Trusted TLS clients
 
 You can obtain the list of TLS certificates trusted by a LXD server with `lxc config trust list`.
@@ -71,12 +73,14 @@ Set the `restricted` key to `true` and specify a list of projects to restrict th
 If the list of projects is empty, the client will not be allowed access to any of them.
 
 (authentication-add-certs)=
+
 #### Adding trusted certificates to the server
 
 The preferred way to add trusted clients is to directly add their certificates to the trust store on the server.
 To do so, copy the client certificate to the server and register it using `lxc config trust add <file>`.
 
 (authentication-trust-pw)=
+
 #### Adding client certificates using a trust password
 
 To allow establishing a new trust relationship from the client side, you must set a trust password (`core.trust_password`, see {doc}`server`) for the server. Clients can then add their own certificate to the server's trust store by providing the trust password when prompted.
@@ -85,6 +89,7 @@ In a production setup, unset `core.trust_password` after all clients have been a
 This prevents brute-force attacks trying to guess the password.
 
 (authentication-token)=
+
 #### Adding client certificates using tokens
 
 You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire once they've been used.
@@ -128,6 +133,7 @@ If the server certificate is valid and signed by the CA, then the connection con
 Note that the generated certificates are not automatically trusted. You must still add them to the server in one of the ways described in {ref}`authentication-trusted-clients`.
 
 (authentication-candid)=
+
 ## Candid-based authentication
 
 ```{youtube} https://www.youtube.com/watch?v=FebTipM1jJk
@@ -146,6 +152,7 @@ The token is stored as cookie and is presented by the client at each request to 
 For instructions on how to set up Candid-based authentication, see the [Candid authentication for LXD](https://ubuntu.com/tutorials/candid-authentication-lxd) tutorial.
 
 (authentication-rbac)=
+
 ## Role Based Access Control (RBAC)
 
 ```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
@@ -180,8 +187,8 @@ In the following scenarios, authentication is expected to fail.
 
 The server certificate might change in the following cases:
 
- * The server was fully reinstalled and therefore got a new certificate.
- * The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
+- The server was fully reinstalled and therefore got a new certificate.
+- The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
 
 In such cases, the client will refuse to connect to the server because the certificate fingerprint does not match the fingerprint in the configuration for this remote.
 

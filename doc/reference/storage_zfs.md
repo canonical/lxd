@@ -1,4 +1,5 @@
 (storage-zfs)=
+
 # ZFS - `zfs`
 
 ```{youtube} https://www.youtube.com/watch?v=ysLi_LYAs_M
@@ -20,13 +21,12 @@ ZFS creates logical units based on physical storage devices.
 These logical units are called *ZFS pools* or *zpools*.
 Each zpool is then divided into a number of *{spellexception}`datasets`*.
 These {spellexception}`datasets` can be of different types:
+
 - A *{spellexception}`ZFS filesystem`* can be seen as a partition or a mounted file system.
 - A *ZFS volume* represents a block device.
 - A *ZFS snapshot* captures a specific state of either a {spellexception}`ZFS filesystem` or a ZFS volume.
   ZFS snapshots are read-only.
 - A *ZFS clone* is a writable copy of a ZFS snapshot.
-
-
 
 ## `zfs` driver in LXD
 
@@ -52,6 +52,7 @@ Then use the following commands to make sure that trimming is automatically enab
     zpool trim ZPOOL-NAME
 
 (storage-zfs-limitations)=
+
 ### Limitations
 
 The `zfs` driver has the following limitations:
@@ -94,7 +95,9 @@ You can also set the [`zfs.use_reserve_space`](storage-zfs-vol-config) (or `volu
 The following configuration options are available for storage pools that use the `zfs` driver and for storage volumes in these pools.
 
 (storage-zfs-pool-config)=
+
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
@@ -106,7 +109,9 @@ Key                           | Type                          | Default         
 {{volume_configuration}}
 
 (storage-zfs-vol-config)=
+
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}

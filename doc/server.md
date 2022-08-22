@@ -1,18 +1,20 @@
 (server)=
+
 # Server configuration
+
 The server configuration is a simple set of key and values.
 
 The key/value configuration is namespaced with the following namespaces
 currently supported:
 
- - `backups` (backups configuration)
- - `candid` (External user authentication through Candid)
- - `cluster` (cluster configuration)
- - `core` (core daemon configuration)
- - `images` (image configuration)
- - `instances` (instance configuration)
- - `maas` (MAAS integration)
- - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
+- `backups` (backups configuration)
+- `candid` (External user authentication through Candid)
+- `cluster` (cluster configuration)
+- `core` (core daemon configuration)
+- `images` (image configuration)
+- `instances` (instance configuration)
+- `maas` (MAAS integration)
+- `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
 
 ```{rst-class} break-col-4 min-width-4-8
 ```
@@ -81,6 +83,7 @@ with a `local` scope must be set on a per member basis using the
 `--target` option of the command line tool.
 
 ## Exposing LXD to the network
+
 By default, LXD can only be used by local users through a Unix socket.
 
 To expose LXD to the network, you'll need to set `core.https_address`.
@@ -95,6 +98,7 @@ time by providing the configured password.
 More details about authentication can be found [here](security.md).
 
 ## External authentication
+
 LXD when accessed over the network can be configured to use external
 authentication through [Candid](https://github.com/canonical/candid).
 

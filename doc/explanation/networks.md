@@ -50,6 +50,7 @@ LXD supports the following network types:
 
 {ref}`network-bridge`
 : % Include content from [../reference/network_bridge.md](../reference/network_bridge.md)
+
   ```{include} ../reference/network_bridge.md
       :start-after: <!-- Include start bridge intro -->
       :end-before: <!-- Include end bridge intro -->
@@ -63,6 +64,7 @@ LXD supports the following network types:
 
 {ref}`network-ovn`
 : % Include content from [../reference/network_ovn.md](../reference/network_ovn.md)
+
   ```{include} ../reference/network_ovn.md
       :start-after: <!-- Include start OVN intro -->
       :end-before: <!-- Include end OVN intro -->
@@ -81,6 +83,7 @@ LXD supports the following network types:
 ### External networks
 
 % Include content from [../reference/network_external.md](../reference/network_external.md)
+
 ```{include} ../reference/network_external.md
     :start-after: <!-- Include start external intro -->
     :end-before: <!-- Include end external intro -->
@@ -88,6 +91,7 @@ LXD supports the following network types:
 
 {ref}`network-macvlan`
 : % Include content from [../reference/network_macvlan.md](../reference/network_macvlan.md)
+
   ```{include} ../reference/network_macvlan.md
       :start-after: <!-- Include start macvlan intro -->
       :end-before: <!-- Include end macvlan intro -->
@@ -97,6 +101,7 @@ LXD supports the following network types:
 
 {ref}`network-sriov`
 : % Include content from [../reference/network_sriov.md](../reference/network_sriov.md)
+
   ```{include} ../reference/network_sriov.md
       :start-after: <!-- Include start SR-IOV intro -->
       :end-before: <!-- Include end SR-IOV intro -->
@@ -106,6 +111,7 @@ LXD supports the following network types:
 
 {ref}`network-physical`
 : % Include content from [../reference/network_physical.md](../reference/network_physical.md)
+
   ```{include} ../reference/network_physical.md
       :start-after: <!-- Include start physical intro -->
       :end-before: <!-- Include end physical intro -->
@@ -129,5 +135,6 @@ As a general recommendation:
   OVN requires a shared L2 uplink network for proper operation.
   Therefore, using OVN is usually not possible if you run LXD in a public cloud.
   ```
+
 - To connect an instance NIC to a managed network, use the `network` property rather than the `parent` property, if possible.
   This way, the NIC can inherit the settings from the network and you don't need to specify the `nictype`.

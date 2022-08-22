@@ -1,4 +1,5 @@
 (storage-dir)=
+
 # Directory - `dir`
 
 The directory storage driver is a basic backend that stores its data in a standard file and directory structure.
@@ -13,6 +14,7 @@ However, it is much slower than all the other drivers because it must unpack ima
 Unless specified differently during creation (with the `source` configuration option), the data is stored in the `/var/snap/lxd/common/lxd/storage-pools/` (for snap installations) or `/var/lib/lxd/storage-pools/` directory.
 
 (storage-dir-quotas)=
+
 ### Quotas
 
 The `dir` driver supports storage quotas when running on either ext4 or XFS with project quotas enabled at the file system level.
@@ -22,6 +24,7 @@ The `dir` driver supports storage quotas when running on either ext4 or XFS with
 The following configuration options are available for storage pools that use the `dir` driver and for storage volumes in these pools.
 
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `rsync.bwlimit`               | string                        | `0` (no limit)                          | The upper limit to be placed on the socket I/O when `rsync` must be used to transfer storage entities
@@ -31,6 +34,7 @@ Key                           | Type                          | Default         
 {{volume_configuration}}
 
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}

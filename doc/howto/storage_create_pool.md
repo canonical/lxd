@@ -1,4 +1,5 @@
 (storage-create-pool)=
+
 # How to create a storage pool
 
 LXD creates a storage pool during initialization.
@@ -153,7 +154,6 @@ For example, the following series of commands sets up a storage pool with the na
     lxc storage create my-pool zfs source=/dev/sdX size=15GB --target=vm02
     lxc storage create my-pool zfs source=/dev/sdY size=10GB --target=vm03
     lxc storage create my-pool zfs
-
 
 ```{note}
 For most storage drivers, the storage pools exist locally on each cluster member.
