@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,13 +26,13 @@ SELECT projects.id, projects.description, projects.name
 var projectObjectsByName = RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
   FROM projects
-  WHERE projects.name = ? ORDER BY projects.name
+  WHERE ( projects.name = ? ) ORDER BY projects.name
 `)
 
 var projectObjectsByID = RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
   FROM projects
-  WHERE projects.id = ? ORDER BY projects.name
+  WHERE ( projects.id = ? ) ORDER BY projects.name
 `)
 
 var projectCreate = RegisterStmt(`
@@ -60,7 +61,7 @@ DELETE FROM projects WHERE name = ?
 
 // GetProjects returns all available projects.
 // generator: project GetMany
-func GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Project, error) {
+func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]Project, error) {
 	var err error
 
 	// Result slice.
@@ -68,35 +69,70 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Proje
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.Name != nil && filter.ID == nil {
-		sqlStmt, err = Stmt(tx, projectObjectsByName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"projectObjectsByName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID != nil && filter.Name == nil {
-		sqlStmt, err = Stmt(tx, projectObjectsByID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"projectObjectsByID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Name == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, projectObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.Name != nil && filter.ID == nil {
+			args = append(args, []any{filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, projectObjectsByName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"projectObjectsByName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(projectObjectsByName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.Name == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, projectObjectsByID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"projectObjectsByID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(projectObjectsByID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"projectObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Name == nil {
+			return nil, fmt.Errorf("Cannot filter on empty ProjectFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -113,7 +149,13 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Proje
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
@@ -123,8 +165,8 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filter ProjectFilter) ([]Proje
 
 // GetProjectConfig returns all available Project Config
 // generator: project GetMany
-func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int) (map[string]string, error) {
-	projectConfig, err := GetConfig(ctx, tx, "project")
+func GetProjectConfig(ctx context.Context, tx *sql.Tx, projectID int, filters ...ConfigFilter) (map[string]string, error) {
+	projectConfig, err := GetConfig(ctx, tx, "project", filters...)
 	if err != nil {
 		return nil, err
 	}

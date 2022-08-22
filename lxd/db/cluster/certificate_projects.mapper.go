@@ -18,7 +18,7 @@ var _ = api.ServerEnvironment{}
 var certificateProjectObjectsByCertificateID = RegisterStmt(`
 SELECT certificates_projects.certificate_id, certificates_projects.project_id
   FROM certificates_projects
-  WHERE certificates_projects.certificate_id = ? ORDER BY certificates_projects.certificate_id
+  WHERE ( certificates_projects.certificate_id = ? ) ORDER BY certificates_projects.certificate_id
 `)
 
 var certificateProjectCreate = RegisterStmt(`

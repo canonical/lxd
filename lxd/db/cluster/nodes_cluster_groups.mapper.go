@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,7 +26,7 @@ SELECT nodes_cluster_groups.group_id, nodes.name AS node
 var nodeClusterGroupObjectsByGroupID = RegisterStmt(`
 SELECT nodes_cluster_groups.group_id, nodes.name AS node
   FROM nodes_cluster_groups JOIN nodes ON nodes_cluster_groups.node_id = nodes.id
-  WHERE nodes_cluster_groups.group_id = ? ORDER BY nodes_cluster_groups.group_id
+  WHERE ( nodes_cluster_groups.group_id = ? ) ORDER BY nodes_cluster_groups.group_id
 `)
 
 var nodeClusterGroupID = RegisterStmt(`
@@ -44,7 +45,7 @@ DELETE FROM nodes_cluster_groups WHERE group_id = ?
 
 // GetNodeClusterGroups returns all available node_cluster_groups.
 // generator: node_cluster_group GetMany
-func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filter NodeClusterGroupFilter) ([]NodeClusterGroup, error) {
+func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeClusterGroupFilter) ([]NodeClusterGroup, error) {
 	var err error
 
 	// Result slice.
@@ -52,26 +53,46 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filter NodeClusterGro
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.GroupID != nil {
-		sqlStmt, err = Stmt(tx, nodeClusterGroupObjectsByGroupID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjectsByGroupID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.GroupID,
-		}
-	} else if filter.GroupID == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, nodeClusterGroupObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.GroupID != nil {
+			args = append(args, []any{filter.GroupID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, nodeClusterGroupObjectsByGroupID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjectsByGroupID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(nodeClusterGroupObjectsByGroupID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"nodeClusterGroupObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.GroupID == nil {
+			return nil, fmt.Errorf("Cannot filter on empty NodeClusterGroupFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -88,7 +109,13 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filter NodeClusterGro
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
 	}

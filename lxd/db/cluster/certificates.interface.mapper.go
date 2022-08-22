@@ -11,7 +11,7 @@ import (
 type CertificateGenerated interface {
 	// GetCertificates returns all available certificates.
 	// generator: certificate GetMany
-	GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) ([]Certificate, error)
+	GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error)
 
 	// GetCertificate returns the certificate with the given key.
 	// generator: certificate GetOne

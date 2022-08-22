@@ -11,7 +11,7 @@ import (
 type ClusterGroupGenerated interface {
 	// GetClusterGroups returns all available cluster_groups.
 	// generator: cluster_group GetMany
-	GetClusterGroups(ctx context.Context, tx *sql.Tx, filter ClusterGroupFilter) ([]ClusterGroup, error)
+	GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFilter) ([]ClusterGroup, error)
 
 	// GetClusterGroup returns the cluster_group with the given key.
 	// generator: cluster_group GetOne

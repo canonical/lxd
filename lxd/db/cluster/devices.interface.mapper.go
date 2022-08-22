@@ -11,7 +11,7 @@ import (
 type DeviceGenerated interface {
 	// GetDevices returns all available devices for the parent entity.
 	// generator: device GetMany
-	GetDevices(ctx context.Context, tx *sql.Tx, parent string) (map[int][]Device, error)
+	GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...DeviceFilter) (map[int][]Device, error)
 
 	// CreateDevices adds a new device to the database.
 	// generator: device Create
