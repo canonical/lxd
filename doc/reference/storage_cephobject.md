@@ -42,7 +42,7 @@ For storage volumes, use the {ref}`Ceph <storage-ceph>` or {ref}`CephFS <storage
 You must setup a `radosgw` environment beforehand and ensure that its HTTP/HTTPS endpoint URL is reachable from the LXD server(s).
 See [Manual Deployment](https://docs.ceph.com/en/latest/install/manual-deployment/) for information on how to set up a Ceph cluster and [`radosgw`](https://docs.ceph.com/en/latest/radosgw/) on how to set up a `radosgw` environment.
 
-The `radosgw` URL can be specified at pool creation time using the [`cephobject.radosgsw.endpoint`](storage-cephobject-pool-config) option.
+The `radosgw` URL can be specified at pool creation time using the [`cephobject.radosgw.endpoint`](storage-cephobject-pool-config) option.
 LXD also uses the `radosgw-admin` command to manage buckets. So this command must be available and operational on the LXD servers(s).
 
 % Include content from [storage_ceph.md](storage_ceph.md)
@@ -67,8 +67,8 @@ Key                                      | Type                          | Defau
 :--                                      | :---                          | :------ | :----------
 `cephobject.bucket.name_prefix`          | string                        | -       | Prefix to add to bucket names in Ceph
 `cephobject.cluster_name`                | string                        | `ceph`  | The Ceph cluster to use
-`cephobject.radosgsw.endpoint`           | string                        | -       | URL of the `radosgw` gateway process
-`cephobject.radosgsw.endpoint_cert_file` | string                        | -       | Path to the file containing the TLS client certificate to use for endpoint communication
+`cephobject.radosgw.endpoint`            | string                        | -       | URL of the `radosgw` gateway process
+`cephobject.radosgw.endpoint_cert_file`  | string                        | -       | Path to the file containing the TLS client certificate to use for endpoint communication
 `cephobject.user.name`                   | string                        | `admin` | The Ceph user to use
 `volatile.pool.pristine`                 | string                        | `true`  | Whether the `radosgw` `lxd-admin` user existed at creation time
 
