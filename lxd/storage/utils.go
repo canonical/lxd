@@ -623,7 +623,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 	var profileProjects []*api.Project
 	// Retrieve required info from the database in single transaction for performance.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projects, err := cluster.GetProjects(ctx, tx.Tx(), cluster.ProjectFilter{})
+		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading projects: %w", err)
 		}
@@ -633,7 +633,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 			projectMap[project.Name] = projects[i]
 		}
 
-		dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx())
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles: %w", err)
 		}
@@ -719,7 +719,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		return err
 	}
 
-	return s.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project) error {
+	return s.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
 		if vol.Location != "" && inst.Node != vol.Location {

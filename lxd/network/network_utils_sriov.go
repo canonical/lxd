@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/cluster"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -53,14 +53,11 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 		return nil, err
 	}
 
-	filter := cluster.InstanceFilter{
-		Node: &s.ServerName,
-	}
-
+	filter := dbCluster.InstanceFilter{Node: &s.ServerName}
 	reservedDevices := map[string]struct{}{}
 
 	// Check if any instances are using the VF device.
-	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
 		// Expand configs so we take into account profile devices.
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, dbInst.Profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(dbInst.Devices, dbInst.Profiles)
@@ -80,7 +77,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 		}
 
 		return nil
-	})
+	}, filter)
 	if err != nil {
 		return nil, err
 	}

@@ -117,7 +117,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	var profiles []cluster.Profile
 	profileDevices := map[string]map[string]cluster.Device{}
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profiles, err = cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+		profiles, err = cluster.GetProfiles(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Find instances using the ACLs. Most expensive to do.
-	err = s.DB.Cluster.InstanceList(nil, func(inst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 

@@ -88,7 +88,7 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName
 	var address string // Cluster member address.
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetNodeAddressOfInstance(projectName, instName, db.InstanceTypeFilter(instanceType))
+		address, err = tx.GetNodeAddressOfInstance(projectName, instName, instanceType)
 		return err
 	})
 	if err != nil {

@@ -32,7 +32,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var images []cluster.Image
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{})
+			images, err = cluster.GetImages(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
@@ -60,7 +60,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var profiles []cluster.Profile
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			profiles, err = cluster.GetProfiles(ctx, tx.Tx(), cluster.ProfileFilter{})
+			profiles, err = cluster.GetProfiles(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -109,7 +109,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var certificates []cluster.Certificate
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			certificates, err = cluster.GetCertificates(context.Background(), tx.tx, cluster.CertificateFilter{})
+			certificates, err = cluster.GetCertificates(context.Background(), tx.tx)
 			if err != nil {
 				return err
 			}
@@ -139,7 +139,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var instances []cluster.Instance
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			instances, err = cluster.GetInstances(ctx, tx.tx, cluster.InstanceFilter{})
+			instances, err = cluster.GetInstances(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
@@ -172,7 +172,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var instances []cluster.Instance
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			instances, err = cluster.GetInstances(ctx, tx.tx, cluster.InstanceFilter{})
+			instances, err = cluster.GetInstances(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
@@ -200,7 +200,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var snapshots []cluster.InstanceSnapshot
 
 		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			snapshots, err = cluster.GetInstanceSnapshots(ctx, tx.Tx(), cluster.InstanceSnapshotFilter{})
+			snapshots, err = cluster.GetInstanceSnapshots(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}

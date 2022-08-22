@@ -33,8 +33,7 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	addInstanceSnapshotDevice(t, tx, "c2", "snap2", "eth0", "nic", nil)
 	addInstanceSnapshotDevice(t, tx, "c2", "snap3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := cluster.InstanceSnapshotFilter{}
-	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx(), filter)
+	snapshots, err := cluster.GetInstanceSnapshots(context.TODO(), tx.Tx())
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 3)
 
