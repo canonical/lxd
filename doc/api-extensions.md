@@ -9,7 +9,7 @@ looking at the `api_extensions` field in `GET /1.0/`.
 ## `storage_zfs_remove_snapshots`
 A `storage.zfs_remove_snapshots` daemon configuration key was introduced.
 
-It's a Boolean that defaults to false and that when set to true instructs LXD
+It's a Boolean that defaults to `false` and that when set to `true` instructs LXD
 to remove any needed snapshot when attempting to restore another.
 
 This is needed as ZFS will only let you restore the latest snapshot.
@@ -142,8 +142,8 @@ server and operate in pull mode.
 
 ## `container_exec_recording`
 Introduces a new Boolean `record-output`, parameter to
-`/1.0/containers/<name>/exec` which when set to "true" and combined with
-with `wait-for-websocket` set to false, will record stdout and stderr to
+`/1.0/containers/<name>/exec` which when set to `true` and combined with
+with `wait-for-websocket` set to `false`, will record stdout and stderr to
 disk and make them available through the logs interface.
 
 The URL to the recorded output is included in the operation metadata
@@ -180,9 +180,9 @@ Enables setting the `security.idmap.isolated` and `security.idmap.isolated`,
 
 ## `network_firewall_filtering`
 Add two new keys, `ipv4.firewall` and `ipv6.firewall` which if set to
-false will turn off the generation of `iptables` FORWARDING rules. NAT
+`false` will turn off the generation of `iptables` FORWARDING rules. NAT
 rules will still be added so long as the matching `ipv4.nat` or
-`ipv6.nat` key is set to true.
+`ipv6.nat` key is set to `true`.
 
 Rules necessary for `dnsmasq` to work (DHCP/DNS) will always be applied if
 `dnsmasq` is enabled on the bridge.
@@ -246,21 +246,21 @@ be set at image creation/import time.
 
 ## `container_stateless_copy`
 This introduces a new `live` attribute in `POST /1.0/containers/<name>`.
-Setting it to false tells LXD not to attempt running state transfer.
+Setting it to `false` tells LXD not to attempt running state transfer.
 
 ## `container_only_migration`
-Introduces a new Boolean `container_only` attribute. When set to true only the
+Introduces a new Boolean `container_only` attribute. When set to `true` only the
 container will be copied or moved.
 
 ## `storage_zfs_clone_copy`
 Introduces a new Boolean `storage_zfs_clone_copy` property for ZFS storage
-pools. When set to false copying a container will be done through `zfs send` and
+pools. When set to `false` copying a container will be done through `zfs send` and
 receive. This will make the target container independent of its source
 container thus avoiding the need to keep dependent snapshots in the ZFS pool
 around. However, this also entails less efficient storage usage for the
 affected pool.
-The default value for this property is true, i.e. space-efficient snapshots
-will be used unless explicitly set to "false".
+The default value for this property is `true`, i.e. space-efficient snapshots
+will be used unless explicitly set to `false`.
 
 ## `unix_device_rename`
 Introduces the ability to rename the `unix-block`/`unix-char` device inside container by setting `path`,
@@ -372,7 +372,7 @@ This adds support to interact with the container console device and console log.
 ## `restrict_devlxd`
 A new `security.devlxd` container configuration key was introduced.
 The key controls whether the `/dev/lxd` interface is made available to the container.
-If set to false, this effectively prevents the container from interacting with the LXD daemon.
+If set to `false`, this effectively prevents the container from interacting with the LXD daemon.
 
 ## `migration_pre_copy`
 This adds support for optimized memory transfer during live migration.
@@ -432,17 +432,17 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 
 The following existing endpoints have been modified:
 
- * `POST /1.0/containers` accepts a new target query parameter
- * `POST /1.0/storage-pools` accepts a new target query parameter
- * `GET /1.0/storage-pool/<name>` accepts a new target query parameter
- * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new target query parameter
- * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
- * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
- * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
- * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
- * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
- * `POST /1.0/networks` accepts a new target query parameter
- * `GET /1.0/networks/<name>` accepts a new target query parameter
+ * `POST /1.0/containers` accepts a new `target` query parameter
+ * `POST /1.0/storage-pools` accepts a new `target` query parameter
+ * `GET /1.0/storage-pool/<name>` accepts a new `target` query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new `target` query parameter
+ * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+ * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+ * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+ * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+ * `POST /1.0/networks` accepts a new `target` query parameter
+ * `GET /1.0/networks/<name>` accepts a new `target` query parameter
 
 ## `event_lifecycle`
 This adds a new `lifecycle` message type to the events API.
@@ -452,7 +452,7 @@ This adds the ability to copy and move custom storage volumes between remote.
 
 ## `nvidia_runtime`
 Adds a `nvidia_runtime` configuration option for containers, setting this to
-true will have the NVIDIA runtime and CUDA libraries passed to the
+`true` will have the NVIDIA runtime and CUDA libraries passed to the
 container.
 
 ## `container_mount_propagation`
@@ -539,7 +539,7 @@ sockets.
 
 ## `container_protection_delete`
 Enables setting the `security.protection.delete` field which prevents containers
-from being deleted if set to true. Snapshots are not affected by this setting.
+from being deleted if set to `true`. Snapshots are not affected by this setting.
 
 ## `proxy_priv_drop`
 Adds `security.uid` and `security.gid` for the proxy devices, allowing
@@ -567,7 +567,7 @@ This introduces the `ipv4.nat.order` and `ipv6.nat.order` configuration keys for
 Those keys control whether to put the LXD rules before or after any pre-existing rules in the chain.
 
 ## `container_full`
-This introduces a new recursion=2 mode for `GET /1.0/containers` which allows for the retrieval of
+This introduces a new `recursion=2` mode for `GET /1.0/containers` which allows for the retrieval of
 all container structs, including the state, snapshots and backup structs.
 
 This effectively allows for `lxc list` to get all it needs in one query.
@@ -611,7 +611,7 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 ## `storage_unmapped`
 Introduces a new `security.unmapped` Boolean on storage volumes.
 
-Setting it to true will flush the current map on the volume and prevent
+Setting it to `true` will flush the current map on the volume and prevent
 any further idmap tracking and remapping on the volume.
 
 This can be used to share data between isolated containers after
@@ -626,7 +626,7 @@ you get a separate view of your LXD resources by switching to it.
 ## `candid_config_key`
 This introduces a new `candid.api.key` option which allows for setting
 the expected public key for the endpoint, allowing for safe use of a
-HTTP-only candid server.
+HTTP-only Candid server.
 
 ## `network_vxlan_ttl`
 This adds a new `tunnel.NAME.ttl` network configuration option which
@@ -660,18 +660,18 @@ copy/move of containers between projects.
 ## `clustering_server_address`
 This adds support for configuring a server network address which differs from
 the REST API client network address. When bootstrapping a new cluster, clients
-can set the new ```cluster.https_address``` configuration key to specify the address of
+can set the new `cluster.https_address` configuration key to specify the address of
 the initial server. When joining a new server, clients can set the
-```core.https_address``` configuration key of the joining server to the REST API
-address the joining server should listen at, and set the ```server_address```
-key in the ```PUT /1.0/cluster``` API to the address the joining server should
-use for clustering traffic (the value of ```server_address``` will be
-automatically copied to the ```cluster.https_address``` configuration key of the
+`core.https_address` configuration key of the joining server to the REST API
+address the joining server should listen at, and set the `server_address`
+key in the `PUT /1.0/cluster` API to the address the joining server should
+use for clustering traffic (the value of `server_address` will be
+automatically copied to the `cluster.https_address` configuration key of the
 joining server).
 
 ## `clustering_image_replication`
 Enable image replication across the nodes in the cluster.
-A new cluster.images_minimal_replica configuration key was introduced can be used
+A new `cluster.images_minimal_replica` configuration key was introduced can be used
 to specify to the minimal numbers of nodes for image replication.
 
 ## `container_protection_shift`
@@ -727,7 +727,7 @@ This effectively gives us:
  - `volatile.idmap.next` => Next on-disk idmap
 
 This is required to implement environments where the on-disk map isn't
-changed but the kernel map is (e.g. shiftfs).
+changed but the kernel map is (e.g. `shiftfs`).
 
 ## `event_location`
 Expose the location of the generation of API events.
@@ -812,16 +812,16 @@ what system calls will be intercepted by LXD and processed with
 elevated permissions.
 
 ## `container_disk_shift`
-Adds the `shift` property on `disk` devices which controls the use of the shiftfs overlay.
+Adds the `shift` property on `disk` devices which controls the use of the `shiftfs` overlay.
 
 ## `storage_shifted`
 Introduces a new `security.shifted` Boolean on storage volumes.
 
-Setting it to true will allow multiple isolated containers to attach the
+Setting it to `true` will allow multiple isolated containers to attach the
 same storage volume while keeping the file system writable from all of
 them.
 
-This makes use of shiftfs as an overlay file system.
+This makes use of `shiftfs` as an overlay file system.
 
 ## `resources_infiniband`
 Export InfiniBand character device information (`issm`, `umad`, `uverb`) as part of the resources API.
@@ -872,7 +872,7 @@ in the pool specified by `pool_name`.
 Adds the `security.syscalls.intercept.mount`,
 `security.syscalls.intercept.mount.allowed`, and
 `security.syscalls.intercept.mount.shift` configuration keys to control whether
-and how the mount system call will be intercepted by LXD and processed with
+and how the `mount` system call will be intercepted by LXD and processed with
 elevated permissions.
 
 ## `compression_squashfs`
@@ -970,8 +970,8 @@ configuration keys: `snapshots.schedule` and
 
 ## `trust_ca_certificates`
 This allows for checking client certificates trusted by the provided CA (`server.ca`).
-It can be enabled by setting `core.trust_ca_certificates` to true.
-If enabled, it will perform the check, and bypass the trusted password if true.
+It can be enabled by setting `core.trust_ca_certificates` to `true`.
+If enabled, it will perform the check, and bypass the trusted password if `true`.
 An exception will be made if the connecting client certificate is in the provided CRL (`ca.crl`).
 In this case, it will ask for the password.
 
@@ -1254,7 +1254,7 @@ Adds `ipv4.dhcp` and `ipv6.dhcp` settings for `ovn` networks.
 Allows DHCP (and RA for IPv6) to be disabled. Defaults to on.
 
 ## `network_physical_routes_anycast`
-Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` Boolean settings for `physical` networks. Defaults to false.
+Adds `ipv4.routes.anycast` and `ipv6.routes.anycast` Boolean settings for `physical` networks. Defaults to `false`.
 
 Allows OVN networks using physical network as uplink to relax external subnet/route overlap detection when used
 with `ovn.ingress_mode=routed`.
@@ -1283,7 +1283,7 @@ This adds an optional `gvrp` property to `macvlan` and `physical` networks,
 and to `ipvlan`, `macvlan`, `routed` and `physical` NIC devices.
 
 When set, this specifies whether the VLAN should be registered using GARP VLAN
-Registration Protocol. Defaults to false.
+Registration Protocol. Defaults to `false`.
 
 ## `instance_pool_move`
 This adds a `pool` field to the `POST /1.0/instances/NAME` API,
@@ -1564,7 +1564,7 @@ This adds `live-migrate` as a configuration option to `cluster.evacuate`, which 
 of instances during cluster evacuation.
 
 ## `instance_allow_inconsistent_copy`
-Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, `rsync` will ignore the
+Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If `true`, `rsync` will ignore the
 `Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy.
 
 ## `network_state_ovn`
@@ -1623,7 +1623,7 @@ Adds the `ipv4.neighbor_probe` and `ipv6.neighbor_probe` NIC settings. Defaultin
 This adds support for `event-hub` cluster member role and the `ServerEventMode` environment field.
 
 ## `agent_nic_config`
-If set to true, on VM start-up the `lxd-agent` will apply NIC configuration to change the names and MTU of the instance NIC
+If set to `true`, on VM start-up the `lxd-agent` will apply NIC configuration to change the names and MTU of the instance NIC
 devices.
 
 ## `projects_restricted_intercept`
@@ -1638,7 +1638,7 @@ client authentication.
 Adds ability to copy image to a project different from the source.
 
 ## `cluster_migration_inconsistent_copy`
-Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to true to allow inconsistent copying between cluster
+Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to `true` to allow inconsistent copying between cluster
 members.
 
 ## `cluster_ovn_chassis`
@@ -1653,7 +1653,7 @@ Introduces the ability to specify the thin pool metadata volume size via `storag
 If this is not specified then the default is to let LVM pick an appropriate thin pool metadata volume size.
 
 ## `storage_volume_state_total`
-This adds 'total' field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/state` API.
+This adds `total` field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/state` API.
 
 ## `instance_file_head`
 Implements HEAD on `/1.0/instances/NAME/file`.
