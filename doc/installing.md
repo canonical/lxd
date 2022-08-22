@@ -24,7 +24,7 @@ sudo apt update
 sudo apt install acl attr autoconf automake dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
 ```
 
-There are a few storage drivers for LXD besides the default `directory` driver.
+There are a few storage drivers for LXD besides the default `dir` driver.
 Installing these tools adds a bit to initramfs and may slow down your
 host boot, but are needed if you'd like to use a particular driver:
 
