@@ -11,7 +11,7 @@ import (
 type WarningGenerated interface {
 	// GetWarnings returns all available warnings.
 	// generator: warning GetMany
-	GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warning, error)
+	GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]Warning, error)
 
 	// GetWarning returns the warning with the given key.
 	// generator: warning GetOne-by-UUID

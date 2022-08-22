@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,13 +26,13 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
 var certificateObjectsByID = RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
-  WHERE certificates.id = ? ORDER BY certificates.fingerprint
+  WHERE ( certificates.id = ? ) ORDER BY certificates.fingerprint
 `)
 
 var certificateObjectsByFingerprint = RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
-  WHERE certificates.fingerprint = ? ORDER BY certificates.fingerprint
+  WHERE ( certificates.fingerprint = ? ) ORDER BY certificates.fingerprint
 `)
 
 var certificateID = RegisterStmt(`
@@ -60,7 +61,7 @@ UPDATE certificates
 
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
-func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) ([]Certificate, error) {
+func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
 	var err error
 
 	// Result slice.
@@ -68,35 +69,70 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, certificateObjectsByID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"certificateObjectsByID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		sqlStmt, err = Stmt(tx, certificateObjectsByFingerprint)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"certificateObjectsByFingerprint\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Fingerprint,
-		}
-	} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, certificateObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, certificateObjectsByID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"certificateObjectsByID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(certificateObjectsByID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{filter.Fingerprint}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, certificateObjectsByFingerprint)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"certificateObjectsByFingerprint\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(certificateObjectsByFingerprint)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+			return nil, fmt.Errorf("Cannot filter on empty CertificateFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -113,7 +149,13 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filter CertificateFilter) 
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
 	}

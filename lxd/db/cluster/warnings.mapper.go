@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,37 +26,37 @@ SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, ''
 var warningObjectsByUUID = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE warnings.uuid = ? ORDER BY warnings.uuid
+  WHERE ( warnings.uuid = ? ) ORDER BY warnings.uuid
 `)
 
 var warningObjectsByProject = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE coalesce(project, '') = ? ORDER BY warnings.uuid
+  WHERE ( coalesce(project, '') = ? ) ORDER BY warnings.uuid
 `)
 
 var warningObjectsByStatus = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE warnings.status = ? ORDER BY warnings.uuid
+  WHERE ( warnings.status = ? ) ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCode = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE coalesce(node, '') = ? AND warnings.type_code = ? ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? ) ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCodeAndProject = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? ) ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? AND coalesce(warnings.entity_type_code, -1) = ? AND coalesce(warnings.entity_id, -1) = ? ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? AND coalesce(warnings.entity_type_code, -1) = ? AND coalesce(warnings.entity_id, -1) = ? ) ORDER BY warnings.uuid
 `)
 
 var warningDeleteByUUID = RegisterStmt(`
@@ -73,7 +74,7 @@ SELECT warnings.id FROM warnings
 
 // GetWarnings returns all available warnings.
 // generator: warning GetMany
-func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warning, error) {
+func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]Warning, error) {
 	var err error
 
 	// Result slice.
@@ -81,78 +82,166 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
-			filter.Project,
-			filter.EntityTypeCode,
-			filter.EntityID,
-		}
-	} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProject\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
-			filter.Project,
-		}
-	} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCode)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCode\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Node,
-			filter.TypeCode,
-		}
-	} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByUUID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByUUID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.UUID,
-		}
-	} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByStatus)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByStatus\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Status,
-		}
-	} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
-		sqlStmt, err = Stmt(tx, warningObjectsByProject)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"warningObjectsByProject\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Project,
-		}
-	} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, warningObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
+			args = append(args, []any{filter.Node, filter.TypeCode, filter.Project, filter.EntityTypeCode, filter.EntityID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+			args = append(args, []any{filter.Node, filter.TypeCode, filter.Project}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCodeAndProject)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCodeAndProject\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByNodeAndTypeCodeAndProject)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+			args = append(args, []any{filter.Node, filter.TypeCode}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByNodeAndTypeCode)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByNodeAndTypeCode\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByNodeAndTypeCode)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+			args = append(args, []any{filter.UUID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByUUID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByUUID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByUUID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
+			args = append(args, []any{filter.Status}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByStatus)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByStatus\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByStatus)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+			args = append(args, []any{filter.Project}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, warningObjectsByProject)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"warningObjectsByProject\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(warningObjectsByProject)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"warningObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
+			return nil, fmt.Errorf("Cannot filter on empty WarningFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -169,7 +258,13 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filter WarningFilter) ([]Warni
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"warnings\" table: %w", err)
 	}

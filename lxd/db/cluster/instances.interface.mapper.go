@@ -11,15 +11,15 @@ import (
 type InstanceGenerated interface {
 	// GetInstanceConfig returns all available Instance Config
 	// generator: instance GetMany
-	GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]string, error)
+	GetInstanceConfig(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ConfigFilter) (map[string]string, error)
 
 	// GetInstanceDevices returns all available Instance Devices
 	// generator: instance GetMany
-	GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int) (map[string]Device, error)
+	GetInstanceDevices(ctx context.Context, tx *sql.Tx, instanceID int, filters ...DeviceFilter) (map[string]Device, error)
 
 	// GetInstances returns all available instances.
 	// generator: instance GetMany
-	GetInstances(ctx context.Context, tx *sql.Tx, filter InstanceFilter) ([]Instance, error)
+	GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error)
 
 	// GetInstance returns the instance with the given key.
 	// generator: instance GetOne
