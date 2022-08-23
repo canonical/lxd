@@ -44,26 +44,6 @@ lxc config trust add client.crt
 
 See {doc}`authentication` for detailed information.
 
-### How can I live-migrate a container using LXD?
-Live migration requires a tool installed on both hosts called
-[CRIU](https://criu.org), which is available in Ubuntu via:
-
-```bash
-sudo apt install criu
-```
-
-Then, launch your container with the following:
-
-```bash
-lxc launch ubuntu SOME-NAME
-sleep 5s # let the container get to an interesting state
-lxc move host1:SOME-NAME host2:SOME-NAME
-```
-
-This should migrate your container. Be aware though that migration is still in
-experimental stages and might not work for all workloads. Please report bugs on
-`lxc-devel`, and we can escalate to CRIU lists as necessary.
-
 ### Can I bind-mount my home directory in a container?
 Yes. This can be done using a disk device:
 
