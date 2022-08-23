@@ -140,8 +140,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		filter := cluster.ProjectFilter{}
-		projects, err := cluster.GetProjects(ctx, tx.Tx(), filter)
+		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
