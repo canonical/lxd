@@ -1706,3 +1706,6 @@ It reports the number of times the out of memory killer (`OOM`) has been trigger
 
 ## `storage_buckets`
 This introduces the storage bucket API. It allows the management of S3 object storage buckets for storage pools.
+
+## `storage_buckets_create_credentials`
+This updates the storage bucket API to return initial admin credentials at bucket creation time.

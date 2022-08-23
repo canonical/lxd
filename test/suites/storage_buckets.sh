@@ -46,7 +46,11 @@ test_storage_buckets() {
   ! lxc storage bucket create s3 "foo bar" || false
 
   # Create bucket.
-  lxc storage bucket create s3 "${bucketPrefix}.foo" user.foo=comment
+  initCreds=$(lxc storage bucket create s3 "${bucketPrefix}.foo" user.foo=comment)
+  initAccessKey=$(echo "${initCreds}" | awk '{ if ($2 == "access" && $3 == "key:") {print $4}}')
+  initSecretKey=$(echo "${initCreds}" | awk '{ if ($2 == "secret" && $3 == "key:") {print $4}}')
+  s3cmdrun "${initAccessKey}" "${initSecretKey}" ls | grep -F "${bucketPrefix}.foo"
+
   lxc storage bucket list s3 | grep -F "${bucketPrefix}.foo"
   lxc storage bucket show s3 "${bucketPrefix}.foo"
 

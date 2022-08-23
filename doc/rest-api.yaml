@@ -14087,7 +14087,7 @@ paths:
       - application/json
       responses:
         "200":
-          $ref: '#/responses/EmptySyncResponse'
+          $ref: '#/definitions/StorageBucketKey'
         "400":
           $ref: '#/responses/BadRequest'
         "403":
@@ -14206,7 +14206,7 @@ paths:
       - application/json
       responses:
         "200":
-          $ref: '#/responses/EmptySyncResponse'
+          $ref: '#/definitions/StorageBucketKey'
         "400":
           $ref: '#/responses/BadRequest'
         "403":
