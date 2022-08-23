@@ -153,13 +153,18 @@ func (c *cmdStorageBucketCreate) Run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storageBucket.flagTarget)
 	}
 
-	err = client.CreateStoragePoolBucket(resource.name, bucket)
+	adminKey, err := client.CreateStoragePoolBucket(resource.name, bucket)
 	if err != nil {
 		return err
 	}
 
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("Storage bucket %s created")+"\n", args[1])
+
+		if adminKey != nil {
+			fmt.Printf(i18n.G("Admin access key: %s")+"\n", adminKey.AccessKey)
+			fmt.Printf(i18n.G("Admin secret key: %s")+"\n", adminKey.SecretKey)
+		}
 	}
 
 	return nil
