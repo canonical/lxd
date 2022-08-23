@@ -99,7 +99,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("Invalid storage volume type")
+	return -1, fmt.Errorf("Invalid storage volume type: %q", volType)
 }
 
 // VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
@@ -115,7 +115,7 @@ func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 		return drivers.VolumeTypeCustom, nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume type")
+	return "", fmt.Errorf("Invalid storage volume DB type: %d", volDBType)
 }
 
 // InstanceTypeToVolumeType converts instance type to storage driver volume type.
