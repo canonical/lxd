@@ -50,3 +50,13 @@ func (instanceType Type) String() string {
 
 	return ""
 }
+
+// Filter returns a valid filter field compatible with cluster.InstanceFilter.
+// 'Any' represents any possible instance type, and so it is omitted.
+func (instanceType Type) Filter() *Type {
+	if instanceType == Any {
+		return nil
+	}
+
+	return &instanceType
+}
