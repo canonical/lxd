@@ -134,7 +134,7 @@ Use the sub-directory `my-directory` from the `my-filesystem` file system for `p
 When using the Ceph Object driver, you must have a running Ceph Object Gateway [`radosgw`](https://docs.ceph.com/en/latest/radosgw/) URL available beforehand.
 ```
 
-    lxc storage create s3 cephobject cephobject.radosgsw.endpoint=http://<radosgw URL>
+    lxc storage create s3 cephobject cephobject.radosgw.endpoint=http://<radosgw URL>
 ````
 `````
 
