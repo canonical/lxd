@@ -8,9 +8,9 @@ discourse: 7735
 :maxdepth: 1
 
 About storage </explanation/storage>
-Manage storage pools <howto/storage_pools>
+Manage pools <howto/storage_pools>
 Create an instance in a pool <howto/storage_create_instance>
-Manage storage volumes <howto/storage_volumes>
+Manage volumes <howto/storage_volumes>
 Move or copy a volume <howto/storage_move_volume>
 Back up a volume <howto/storage_backup_volume>
 reference/storage_drivers
