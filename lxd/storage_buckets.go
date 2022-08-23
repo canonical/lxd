@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
@@ -199,7 +200,11 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	if util.IsRecursionRequest(r) {
 		buckets := make([]*api.StorageBucket, 0, len(dbBuckets))
 		for _, dbBucket := range dbBuckets {
-			dbBucket.S3URL = pool.Driver().BucketURL(dbBucket.Name).String()
+			u := pool.Driver().BucketURL(dbBucket.Name)
+			if u != nil {
+				dbBucket.S3URL = u.String()
+			}
+
 			buckets = append(buckets, &dbBucket.StorageBucket)
 		}
 
@@ -326,7 +331,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 //       $ref: "#/definitions/StorageBucketsPost"
 // responses:
 //   "200":
-//     $ref: "#/responses/EmptySyncResponse"
+//     $ref: '#/definitions/StorageBucketKey'
 //   "400":
 //     $ref: "#/responses/BadRequest"
 //   "403":
@@ -361,16 +366,36 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	err = pool.CreateBucket(bucketProjectName, req, nil)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket: %w", err))
+	}
+
+	revert.Add(func() { _ = pool.DeleteBucket(bucketProjectName, req.Name, nil) })
+
+	// Create admin key for new bucket.
+	adminKeyReq := api.StorageBucketKeysPost{
+		StorageBucketKeyPut: api.StorageBucketKeyPut{
+			Role:        "admin",
+			Description: "Admin user",
+		},
+		Name: "admin",
+	}
+
+	adminKey, err := pool.CreateBucketKey(bucketProjectName, req.Name, adminKeyReq, nil)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed creating storage bucket admin key: %w", err))
 	}
 
 	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketCreated.Event(pool, bucketProjectName, req.Name, request.CreateRequestor(r), nil))
 
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "buckets", req.Name)
 
-	return response.SyncResponseLocation(true, nil, u.String())
+	revert.Success()
+	return response.SyncResponseLocation(true, adminKey, u.String())
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name}/buckets/{bucketName} storage storage_pool_bucket_patch
@@ -770,7 +795,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 //       $ref: "#/definitions/StorageBucketKeysPost"
 // responses:
 //   "200":
-//     $ref: "#/responses/EmptySyncResponse"
+//     $ref: '#/definitions/StorageBucketKey'
 //   "400":
 //     $ref: "#/responses/BadRequest"
 //   "403":
