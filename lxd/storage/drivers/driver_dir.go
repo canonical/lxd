@@ -35,11 +35,12 @@ func (d *dir) Info() Info {
 		OptimizedImages:   false,
 		PreservesInodes:   false,
 		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:      false,
 		RunningCopyFreeze: true,
 		DirectIO:          true,
 		MountedRoot:       true,
+		Buckets:           true,
 	}
 }
 

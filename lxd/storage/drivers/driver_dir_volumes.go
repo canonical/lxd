@@ -45,7 +45,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if vol.volType != VolumeTypeBucket {
 		// Filesystem quotas only used with non-block volume types.
 		revertFunc, err := d.setupInitialQuota(vol)
 		if err != nil {
@@ -178,15 +178,17 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	// Get the volume ID for the volume, which is used to remove project quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
-	if err != nil {
-		return err
-	}
+	if vol.Type() != VolumeTypeBucket {
+		volID, err := d.getVolID(vol.volType, vol.name)
+		if err != nil {
+			return err
+		}
 
-	// Remove the project quota.
-	err = d.deleteQuota(volPath, volID)
-	if err != nil {
-		return err
+		// Remove the project quota.
+		err = d.deleteQuota(volPath, volID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Remove the volume from the storage device.
@@ -210,9 +212,36 @@ func (d *dir) HasVolume(vol Volume) bool {
 	return genericVFSHasVolume(vol)
 }
 
+// FillVolumeConfig populate volume with default config.
+func (d *dir) FillVolumeConfig(vol Volume) error {
+	initialSize := vol.config["size"]
+
+	err := d.fillVolumeConfig(&vol)
+	if err != nil {
+		return err
+	}
+
+	// Buckets do not support default volume size.
+	// If size is specified manually, do not remove, so it triggers validation failure and an error to user.
+	if vol.volType == VolumeTypeBucket && initialSize == "" {
+		delete(vol.config, "size")
+	}
+
+	return nil
+}
+
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
 func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	return d.validateVolume(vol, nil, removeUnknownKeys)
+	err := d.validateVolume(vol, nil, removeUnknownKeys)
+	if err != nil {
+		return err
+	}
+
+	if vol.config["size"] != "" && vol.volType == VolumeTypeBucket {
+		return fmt.Errorf("Size cannot be specified for buckets")
+	}
+
+	return nil
 }
 
 // UpdateVolume applies config changes to the volume.
@@ -295,29 +324,31 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		}
 
 		return nil
-	}
-
-	// For non-VM block volumes, set filesystem quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
-	if err != nil {
-		return err
-	}
-
-	// Custom handling for filesystem volume associated with a VM.
-	volPath := vol.MountPath()
-	if sizeBytes > 0 && vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
-		// Get the size of the VM image.
-		blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+	} else if vol.Type() != VolumeTypeBucket {
+		// For non-VM block volumes, set filesystem quota.
+		volID, err := d.getVolID(vol.volType, vol.name)
 		if err != nil {
 			return err
 		}
 
-		// Add that to the requested filesystem size (to ignore it from the quota).
-		sizeBytes += blockSize
-		d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+		// Custom handling for filesystem volume associated with a VM.
+		volPath := vol.MountPath()
+		if sizeBytes > 0 && vol.volType == VolumeTypeVM && shared.PathExists(filepath.Join(volPath, genericVolumeDiskFile)) {
+			// Get the size of the VM image.
+			blockSize, err := BlockDiskSizeBytes(filepath.Join(volPath, genericVolumeDiskFile))
+			if err != nil {
+				return err
+			}
+
+			// Add that to the requested filesystem size (to ignore it from the quota).
+			sizeBytes += blockSize
+			d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
+		}
+
+		return d.setQuota(vol.MountPath(), volID, sizeBytes)
 	}
 
-	return d.setQuota(vol.MountPath(), volID, sizeBytes)
+	return nil
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.
