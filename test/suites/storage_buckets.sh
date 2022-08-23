@@ -29,10 +29,10 @@ test_storage_buckets() {
     return
   fi
 
-  # Check cephobject.radosgsw.endpoint is required for cephobject pools.
+  # Check cephobject.radosgw.endpoint is required for cephobject pools.
   if [ "$lxd_backend" = "ceph" ]; then
     ! lxc storage create s3 cephobject || false
-    lxc storage create s3 cephobject cephobject.radosgsw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
+    lxc storage create s3 cephobject cephobject.radosgw.endpoint="${LXD_CEPH_CEPHOBJECT_RADOSGW}"
   fi
 
   lxc storage show s3
