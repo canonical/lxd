@@ -42,6 +42,9 @@ func (t VolumeType) IsInstance() bool {
 	return false
 }
 
+// VolumeTypeBucket represents a bucket storage volume.
+const VolumeTypeBucket = VolumeType("buckets")
+
 // VolumeTypeImage represents an image storage volume.
 const VolumeTypeImage = VolumeType("images")
 
@@ -69,6 +72,7 @@ type VolumePostHook func(vol Volume) error
 
 // BaseDirectories maps volume types to the expected directories.
 var BaseDirectories = map[VolumeType][]string{
+	VolumeTypeBucket:    {"buckets"},
 	VolumeTypeContainer: {"containers", "containers-snapshots"},
 	VolumeTypeCustom:    {"custom", "custom-snapshots"},
 	VolumeTypeImage:     {"images"},
