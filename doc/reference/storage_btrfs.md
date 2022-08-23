@@ -1,6 +1,9 @@
 (storage-btrfs)=
 # Btrfs - `btrfs`
 
+```{youtube} https://www.youtube.com/watch?v=2r5FYuusxNc
+```
+
 {abbr}`Btrfs (B-tree file system)` is a local file system based on the {abbr}`COW (copy-on-write)` principle.
 COW means that data is stored to a different block after it has been modified instead of overwriting the existing data, reducing the risk of data corruption.
 Unlike other file systems, Btrfs is extent-based, which means that it stores data in contiguous areas of memory.
@@ -19,6 +22,10 @@ Snapshots can be read-write or read-only.
 
 The `btrfs` driver in LXD uses a subvolume per instance, image and snapshot.
 When creating a new object (for example, launching a new instance), it creates a Btrfs snapshot.
+
+Btrfs doesn't natively support storing block devices.
+Therefore, when using Btrfs for VMs, LXD creates a big file on disk to store the VM.
+This approach is not very efficient and might cause issues when creating snapshots.
 
 Btrfs can be used as a storage backend inside a container in a nested LXD environment.
 In this case, the parent container itself must use Btrfs.
