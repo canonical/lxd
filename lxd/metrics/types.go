@@ -132,7 +132,7 @@ var MetricNames = map[MetricType]string{
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
 var MetricHeaders = map[MetricType]string{
-	CPUSecondsTotal:             "# HELP lxd_cpu_seconds_total The total number of CPU seconds used in milliseconds.",
+	CPUSecondsTotal:             "# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.",
 	DiskReadBytesTotal:          "# HELP lxd_disk_read_bytes_total The total number of bytes read.",
 	DiskReadsCompletedTotal:     "# HELP lxd_disk_reads_completed_total The total number of completed reads.",
 	DiskWrittenBytesTotal:       "# HELP lxd_disk_written_bytes_total The total number of bytes written.",

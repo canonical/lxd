@@ -6902,8 +6902,8 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		for cpu, stats := range usage {
 			cpuID := strconv.Itoa(int(cpu))
 
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System / 1000000000), Labels: map[string]string{"mode": "system", "cpu": cpuID}})
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User / 1000000000), Labels: map[string]string{"mode": "user", "cpu": cpuID}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System) / 1000000000, Labels: map[string]string{"mode": "system", "cpu": cpuID}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User) / 1000000000, Labels: map[string]string{"mode": "user", "cpu": cpuID}})
 		}
 	}
 
