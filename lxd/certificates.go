@@ -147,7 +147,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 		var baseCerts []dbCluster.Certificate
 		var err error
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx(), dbCluster.CertificateFilter{})
+			baseCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -195,7 +195,7 @@ func updateCertificateCache(d *Daemon) {
 	var localCerts []dbCluster.Certificate
 	var err error
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx(), dbCluster.CertificateFilter{})
+		dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}

@@ -223,8 +223,8 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 
 	var filterStr strings.Builder
 	if len(where) > 0 {
-		filterStr.WriteString("WHERE ")
-		filterStr.WriteString(strings.Join(where, "AND "))
+		filterStr.WriteString("WHERE ( ")
+		filterStr.WriteString(strings.Join(where, "AND ") + ") ")
 	}
 
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, filterStr.String(), strings.Join(orderBy, ", "))

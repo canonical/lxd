@@ -450,15 +450,12 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	var err error
 	var instances []Instance
 
-	filter := cluster.InstanceFilter{
-		Type: &instanceType,
-	}
-
+	filter := cluster.InstanceFilter{Type: instanceType.Filter()}
 	if s.ServerName != "" {
 		filter.Node = &s.ServerName
 	}
 
-	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
 		inst, err := Load(s, dbInst, dbInst.Profiles)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
@@ -467,7 +464,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 		instances = append(instances, inst)
 
 		return nil
-	})
+	}, filter)
 	if err != nil {
 		return nil, err
 	}

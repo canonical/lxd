@@ -27,7 +27,7 @@ const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
 // GetConfig returns all available config.
 // generator: config GetMany
-func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[string]string, error) {
+func GetConfig(ctx context.Context, tx *sql.Tx, parent string, filters ...ConfigFilter) (map[int]map[string]string, error) {
 	var err error
 
 	// Result slice.
@@ -40,11 +40,36 @@ func GetConfig(ctx context.Context, tx *sql.Tx, parent string) (map[int]map[stri
 	}
 
 	queryStr := fmt.Sprintf(configObjectsLocal, fillParent...)
-	if err != nil {
-		return nil, err
+	queryParts := strings.SplitN(queryStr, "ORDER BY", 2)
+	args := []any{}
+
+	for i, filter := range filters {
+		var cond string
+		if i == 0 {
+			cond = " WHERE ( %s )"
+		} else {
+			cond = " OR ( %s )"
+		}
+
+		entries := []string{}
+		if filter.Key != nil {
+			entries = append(entries, "key = ?")
+			args = append(args, filter.Key)
+		}
+
+		if filter.Value != nil {
+			entries = append(entries, "value = ?")
+			args = append(args, filter.Value)
+		}
+
+		if len(entries) == 0 {
+			return nil, fmt.Errorf("Cannot filter on empty ConfigFilter")
+		}
+
+		queryParts[0] += fmt.Sprintf(cond, strings.Join(entries, " AND "))
 	}
 
-	args := []any{}
+	queryStr = strings.Join(queryParts, " ORDER BY")
 
 	// Dest function for scanning a row.
 	dest := func(scan func(dest ...any) error) error {

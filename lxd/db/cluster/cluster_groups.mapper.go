@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,7 +26,7 @@ SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.descripti
 var clusterGroupObjectsByName = RegisterStmt(`
 SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.description, '')
   FROM cluster_groups
-  WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
+  WHERE ( cluster_groups.name = ? ) ORDER BY cluster_groups.name
 `)
 
 var clusterGroupID = RegisterStmt(`
@@ -54,7 +55,7 @@ UPDATE cluster_groups
 
 // GetClusterGroups returns all available cluster_groups.
 // generator: cluster_group GetMany
-func GetClusterGroups(ctx context.Context, tx *sql.Tx, filter ClusterGroupFilter) ([]ClusterGroup, error) {
+func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFilter) ([]ClusterGroup, error) {
 	var err error
 
 	// Result slice.
@@ -62,26 +63,46 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filter ClusterGroupFilter
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.Name != nil && filter.ID == nil {
-		sqlStmt, err = Stmt(tx, clusterGroupObjectsByName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"clusterGroupObjectsByName\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID == nil && filter.Name == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, clusterGroupObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"clusterGroupObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.Name != nil && filter.ID == nil {
+			args = append(args, []any{filter.Name}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, clusterGroupObjectsByName)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"clusterGroupObjectsByName\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(clusterGroupObjectsByName)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"clusterGroupObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Name == nil {
+			return nil, fmt.Errorf("Cannot filter on empty ClusterGroupFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -98,7 +119,13 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filter ClusterGroupFilter
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
 	}

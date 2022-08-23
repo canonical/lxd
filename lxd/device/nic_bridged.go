@@ -359,9 +359,6 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 // Returns api.StatusError with status code set to http.StatusConflict if conflicting address found.
 func (d *nicBridged) checkAddressConflict() error {
 	node := d.inst.Location()
-	filter := cluster.InstanceFilter{
-		Node: &node, // Managed bridge networks have a per-server DHCP daemon.
-	}
 
 	ourNICIPs := make(map[string]net.IP, 2)
 	ourNICIPs["ipv4.address"] = net.ParseIP(d.config["ipv4.address"])
@@ -372,7 +369,9 @@ func (d *nicBridged) checkAddressConflict() error {
 		ourNICMAC, _ = net.ParseMAC(d.volatileGet()["hwaddr"])
 	}
 
-	return d.state.DB.Cluster.InstanceList(&filter, func(inst db.InstanceArgs, p api.Project) error {
+	// Managed bridge networks have a per-server DHCP daemon.
+	filter := cluster.InstanceFilter{Node: &node}
+	return d.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		if instNetworkProject != project.Default {
@@ -446,7 +445,7 @@ func (d *nicBridged) checkAddressConflict() error {
 		}
 
 		return nil
-	})
+	}, filter)
 }
 
 // validateEnvironment checks the runtime environment for correctness.

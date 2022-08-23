@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,19 +26,19 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 var operationObjectsByNodeID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.node_id = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.node_id = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.id = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.id = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE operations.uuid = ? ORDER BY operations.id, operations.uuid
+  WHERE ( operations.uuid = ? ) ORDER BY operations.id, operations.uuid
 `)
 
 var operationCreateOrReplace = RegisterStmt(`
@@ -55,7 +56,7 @@ DELETE FROM operations WHERE node_id = ?
 
 // GetOperations returns all available operations.
 // generator: operation GetMany
-func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]Operation, error) {
+func GetOperations(ctx context.Context, tx *sql.Tx, filters ...OperationFilter) ([]Operation, error) {
 	var err error
 
 	// Result slice.
@@ -63,44 +64,94 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
-	var args []any
+	args := []any{}
+	queryParts := [2]string{}
 
-	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
-		sqlStmt, err = Stmt(tx, operationObjectsByUUID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"operationObjectsByUUID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.UUID,
-		}
-	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
-		sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.NodeID,
-		}
-	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
-		sqlStmt, err = Stmt(tx, operationObjectsByID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"operationObjectsByID\" prepared statement: %w", err)
-		}
-
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+	if len(filters) == 0 {
 		sqlStmt, err = Stmt(tx, operationObjects)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
 		}
+	}
 
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
+	for i, filter := range filters {
+		if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
+			args = append(args, []any{filter.UUID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByUUID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByUUID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByUUID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.NodeID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByNodeID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByNodeID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByNodeID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
+			args = append(args, []any{filter.ID}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, operationObjectsByID)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"operationObjectsByID\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(operationObjectsByID)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"operationObjects\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
+			return nil, fmt.Errorf("Cannot filter on empty OperationFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
 	// Dest function for scanning a row.
@@ -117,7 +168,13 @@ func GetOperations(ctx context.Context, tx *sql.Tx, filter OperationFilter) ([]O
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	if sqlStmt != nil {
+		err = query.SelectObjects(sqlStmt, dest, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		err = query.Scan(tx, queryStr, dest, args...)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
 	}

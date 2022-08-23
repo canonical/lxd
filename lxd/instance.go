@@ -397,16 +397,12 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	var err error
 	var instances []instance.Instance
 
-	filter := dbCluster.InstanceFilter{
-		Type:    &instanceType,
-		Project: &project,
-	}
-
+	filter := dbCluster.InstanceFilter{Type: instanceType.Filter(), Project: &project}
 	if s.ServerName != "" {
 		filter.Node = &s.ServerName
 	}
 
-	err = s.DB.Cluster.InstanceList(&filter, func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
 		inst, err := instance.Load(s, dbInst, nil)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
@@ -415,7 +411,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 		instances = append(instances, inst)
 
 		return nil
-	})
+	}, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +428,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Get eligible instances.
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all projects.
-			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
+			allProjects, err := dbCluster.GetProjects(context.Background(), tx.Tx())
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
@@ -447,9 +443,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				}
 
 				// Get instances.
-				filter := db.InstanceTypeFilter(instancetype.Any)
-				filter.Project = &p.Name
-
+				filter := dbCluster.InstanceFilter{Project: &p.Name}
 				entries, err := tx.GetLocalInstancesInProject(ctx, filter)
 				if err != nil {
 					return err
