@@ -338,7 +338,7 @@ type InstanceServer interface {
 	GetStoragePoolBucketNames(poolName string) ([]string, error)
 	GetStoragePoolBuckets(poolName string) ([]api.StorageBucket, error)
 	GetStoragePoolBucket(poolName string, bucketName string) (bucket *api.StorageBucket, ETag string, err error)
-	CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) error
+	CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error)
 	UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) (err error)
 	DeleteStoragePoolBucket(poolName string, bucketName string) (err error)
 	GetStoragePoolBucketKeyNames(poolName string, bucketName string) ([]string, error)
