@@ -62,20 +62,33 @@ func (r *ProtocolLXD) GetStoragePoolBucket(poolName string, bucketName string) (
 }
 
 // CreateStoragePoolBucket defines a new storage bucket using the provided struct.
-func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) error {
+// If the server supports storage_buckets_create_credentials API extension, then this function will return the
+// initial admin credentials. Otherwise it will be nil.
+func (r *ProtocolLXD) CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error) {
 	err := r.CheckExtension("storage_buckets")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Send the request.
 	u := api.NewURL().Path("storage-pools", poolName, "buckets")
+
+	// Send the request and get the resulting key info (including generated keys).
+	if r.HasExtension("storage_buckets_create_credentials") {
+		var newKey api.StorageBucketKey
+		_, err = r.queryStruct("POST", u.String(), bucket, "", &newKey)
+		if err != nil {
+			return nil, err
+		}
+
+		return &newKey, nil
+	}
+
 	_, _, err = r.query("POST", u.String(), bucket, "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 // UpdateStoragePoolBucket updates the storage bucket to match the provided struct.
