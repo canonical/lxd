@@ -117,3 +117,16 @@ sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd
 ```{note}
 If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
 ```
+
+## Upgrading LXD
+
+After upgrading LXD to a newer version, LXD might need to update its database to a new schema.
+This update happens automatically when the daemon starts up after a LXD upgrade.
+A backup of the database before the update is stored in the same location as the active database (for example, at `/var/snap/lxd/common/lxd/database` for the snap installation).
+
+```{important}
+After a schema update, older versions of LXD might regard the database as invalid.
+That means that downgrading LXD might render your LXD installation unusable.
+
+In that case, if you need to downgrade, restore the database backup before starting the downgrade.
+```
