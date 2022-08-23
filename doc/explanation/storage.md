@@ -1,7 +1,10 @@
-# About storage pools and storage volumes
+# About storage pools, volumes and buckets
 
 LXD stores its data in storage pools, divided into storage volumes of different content types (like images or instances).
 You could think of a storage pool as the disk that is used to store data, while storage volumes are different partitions on this disk that are used for specific purposes.
+
+In addition to storage volumes, there are storage buckets, which use the [Amazon {abbr}`S3 (Simple Storage Service)`](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) protocol.
+Like storage volumes, storage buckets are part of a storage pool.
 
 ## Storage pools
 
@@ -137,6 +140,8 @@ Each storage volume uses one of the following content types:
 
 Storage buckets provide object storage functionality via the S3 protocol.
 
-Each storage bucket is accessed directly by applications using its own URL.
+They can be used in a way that is similar to custom storage volumes.
+However, unlike storage volumes, storage buckets are not attached to an instance.
+Instead, applications can access a storage bucket directly using its URL.
 
-Each storage bucket is assigned one or more access keys which are used by the applications to access it.
+Each storage bucket is assigned one or more access keys, which the applications must use to access it.
