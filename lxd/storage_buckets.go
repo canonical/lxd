@@ -200,7 +200,11 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	if util.IsRecursionRequest(r) {
 		buckets := make([]*api.StorageBucket, 0, len(dbBuckets))
 		for _, dbBucket := range dbBuckets {
-			dbBucket.S3URL = pool.Driver().BucketURL(dbBucket.Name).String()
+			u := pool.Driver().BucketURL(dbBucket.Name)
+			if u != nil {
+				dbBucket.S3URL = u.String()
+			}
+
 			buckets = append(buckets, &dbBucket.StorageBucket)
 		}
 
