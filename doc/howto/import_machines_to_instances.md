@@ -1,3 +1,7 @@
+---
+discourse: 14345
+---
+
 (import-machines-to-instances)=
 # How to import physical or virtual machines to LXD instances
 
