@@ -289,8 +289,18 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 
 	for i, field := range fields {
 		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			columns[i] = ref + "_id"
+			joinTable, _, err := field.ScalarTableColumn()
+			if err != nil {
+				return err
+			}
+
+			ref := lex.Singular(joinTable)
+			referenceColumn := field.Config.Get("joinon")
+			if referenceColumn == "" {
+				referenceColumn = ref + "_id"
+			}
+
+			columns[i] = referenceColumn
 			table := entityTable(ref, "")
 			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", table, table)
 			for _, other := range via[ref] {
