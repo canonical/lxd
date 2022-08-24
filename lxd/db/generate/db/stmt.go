@@ -192,6 +192,12 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	}
 
 	for _, field := range mapping.ScalarFields() {
+		if field.Config.Get("join") != "" && field.Config.Get("leftjoin") != "" {
+			return fmt.Errorf("Cannot join and leftjoin at the same time for field %q of struct %q", field.Name, mapping.Name)
+		}
+	}
+
+	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
 		if join == "" {
 			continue
