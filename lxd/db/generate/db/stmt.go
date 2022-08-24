@@ -301,12 +301,11 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 			}
 
 			columns[i] = referenceColumn
-			table := entityTable(ref, "")
-			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", table, table)
+			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", joinTable, joinTable)
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
 				otherTable := entityTable(otherRef, "")
-				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, table, otherRef)
+				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, joinTable, otherRef)
 			}
 
 			params[i] += " WHERE"
