@@ -403,10 +403,18 @@ func (s *Stmt) update(buf *file.Buffer) error {
 
 	for i, field := range fields {
 		if field.IsScalar() {
-			// TODO: make this more general
-			ref := lex.Snake(field.Name)
-			updates[i] = fmt.Sprintf("%s_id = ", ref)
-			updates[i] += fmt.Sprintf("(SELECT id FROM %s WHERE name = ?)", lex.Plural(ref))
+			table, column, err := field.ScalarTableColumn()
+			if err != nil {
+				return err
+			}
+
+			referenceColumn := field.Config.Get("joinon")
+			if referenceColumn == "" {
+				referenceColumn = fmt.Sprintf("%s_id", lex.Singular(table))
+			}
+
+			updates[i] = fmt.Sprintf("%s = ", referenceColumn)
+			updates[i] += fmt.Sprintf("(SELECT id FROM %s WHERE %s = ?)", table, column)
 		} else {
 			updates[i] = fmt.Sprintf("%s = ?", field.Column())
 		}
