@@ -268,7 +268,12 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("break")
 			buf.L("}")
 			buf.N()
-			buf.L("query, err := StmtString(%s)", stmtCodeVar(m.entity, "objects", filter...))
+			if m.db != "" {
+				buf.L("query, err := %s.StmtString(%s)", m.db, stmtCodeVar(m.entity, "objects", filter...))
+			} else {
+				buf.L("query, err := StmtString(%s)", stmtCodeVar(m.entity, "objects", filter...))
+			}
+
 			m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "objects")))
 			buf.L("parts := strings.SplitN(query, \"ORDER BY\", 2)")
 			buf.L("if i == 0 {")
