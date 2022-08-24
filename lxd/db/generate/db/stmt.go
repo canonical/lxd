@@ -192,18 +192,29 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	}
 
 	for _, field := range mapping.ScalarFields() {
+		if field.Config.Get("join") != "" && field.Config.Get("leftjoin") != "" {
+			return fmt.Errorf("Cannot join and leftjoin at the same time for field %q of struct %q", field.Name, mapping.Name)
+		}
+	}
+
+	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
 		if join == "" {
 			continue
 		}
 
 		right := strings.Split(join, ".")[0]
+		joinOn := field.Config.Get("joinon")
+		if joinOn == "" {
+			joinOn = lex.Singular(right) + "_id"
+		}
+
 		via := entityTable(s.entity, s.config["table"])
 		if field.Config.Get("via") != "" {
 			via = entityTable(field.Config.Get("via"), "")
 		}
 
-		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+		table += fmt.Sprintf(" JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
 	}
 
 	for _, field := range mapping.ScalarFields() {
@@ -213,12 +224,17 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		}
 
 		right := strings.Split(join, ".")[0]
+		joinOn := field.Config.Get("joinon")
+		if joinOn == "" {
+			joinOn = lex.Singular(right) + "_id"
+		}
+
 		via := entityTable(s.entity, s.config["table"])
 		if field.Config.Get("via") != "" {
 			via = entityTable(field.Config.Get("via"), "")
 		}
 
-		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
 	}
 
 	var filterStr strings.Builder
