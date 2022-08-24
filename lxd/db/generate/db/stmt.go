@@ -181,7 +181,12 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		orderBy = make([]string, len(nk))
 		for i, field := range nk {
 			if field.IsScalar() {
-				orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
+				table, _, err := field.ScalarTableColumn()
+				if err != nil {
+					return err
+				}
+
+				orderBy[i] = table + ".id"
 			} else {
 				orderBy[i] = mapping.FieldColumnName(field.Name, table)
 				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
@@ -284,14 +289,23 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 
 	for i, field := range fields {
 		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			columns[i] = ref + "_id"
-			table := entityTable(ref, "")
-			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", table, table)
+			joinTable, _, err := field.ScalarTableColumn()
+			if err != nil {
+				return err
+			}
+
+			ref := lex.Singular(joinTable)
+			referenceColumn := field.Config.Get("joinon")
+			if referenceColumn == "" {
+				referenceColumn = ref + "_id"
+			}
+
+			columns[i] = referenceColumn
+			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", joinTable, joinTable)
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
 				otherTable := entityTable(otherRef, "")
-				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, table, otherRef)
+				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, joinTable, otherRef)
 			}
 
 			params[i] += " WHERE"
@@ -364,7 +378,10 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 	}
 
 	table := entityTable(s.entity, s.config["table"])
-	where := whereClause(mapping.NaturalKey())
+	where, err := whereClause(mapping.NaturalKey())
+	if err != nil {
+		return err
+	}
 
 	sql := fmt.Sprintf(stmts[s.kind], table, where)
 	kind := strings.Replace(s.kind, "-", "_", -1)
@@ -388,10 +405,18 @@ func (s *Stmt) update(buf *file.Buffer) error {
 
 	for i, field := range fields {
 		if field.IsScalar() {
-			// TODO: make this more general
-			ref := lex.Snake(field.Name)
-			updates[i] = fmt.Sprintf("%s_id = ", ref)
-			updates[i] += fmt.Sprintf("(SELECT id FROM %s WHERE name = ?)", lex.Plural(ref))
+			table, column, err := field.ScalarTableColumn()
+			if err != nil {
+				return err
+			}
+
+			referenceColumn := field.Config.Get("joinon")
+			if referenceColumn == "" {
+				referenceColumn = fmt.Sprintf("%s_id", lex.Singular(table))
+			}
+
+			updates[i] = fmt.Sprintf("%s = ", referenceColumn)
+			updates[i] += fmt.Sprintf("(SELECT id FROM %s WHERE %s = ?)", table, column)
 		} else {
 			updates[i] = fmt.Sprintf("%s = ?", field.Column())
 		}
@@ -420,7 +445,10 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 		where = "%s_id = ?"
 		table = "%s_" + table
 	} else {
-		where = whereClause(mapping.NaturalKey())
+		where, err = whereClause(mapping.NaturalKey())
+		if err != nil {
+			return err
+		}
 	}
 
 	fields := []*Field{}
@@ -435,7 +463,10 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 			fields = append(fields, field)
 		}
 
-		where = whereClause(fields)
+		where, err = whereClause(fields)
+		if err != nil {
+			return err
+		}
 	}
 
 	sql := fmt.Sprintf(stmts["delete"], table, where)
@@ -451,7 +482,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 }
 
 // Return a where clause that filters an entity by the given fields.
-func whereClause(fields []*Field) string {
+func whereClause(fields []*Field) (string, error) {
 	via := map[string][]*Field{} // Map scalar fields to their additional indirect fields
 
 	// Filter out indirect fields
@@ -470,13 +501,17 @@ func whereClause(fields []*Field) string {
 
 	for i, field := range directFields {
 		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			refTable := entityTable(ref, "")
-			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", refTable, refTable)
+			joinTable, joinColumn, err := field.ScalarTableColumn()
+			if err != nil {
+				return "", err
+			}
+
+			ref := lex.Singular(joinTable)
+			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", joinTable, joinTable)
 			for _, other := range via[ref] {
 				otherRef := lex.Snake(other.Name)
 				otherTable := entityTable(otherRef, "")
-				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, refTable, otherRef)
+				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, joinTable, otherRef)
 			}
 
 			subSelect += " WHERE"
@@ -486,14 +521,19 @@ func whereClause(fields []*Field) string {
 				subSelect += fmt.Sprintf(" %s.name = ? AND", otherTable)
 			}
 
-			subSelect += fmt.Sprintf(" %s.name = ?", refTable)
-			where[i] = fmt.Sprintf("%s_id = (%s)", ref, subSelect)
+			referenceColumn := field.Config.Get("joinon")
+			if referenceColumn == "" {
+				referenceColumn = fmt.Sprintf("%s_id", ref)
+			}
+
+			subSelect += fmt.Sprintf(" %s.%s = ?", joinTable, joinColumn)
+			where[i] = fmt.Sprintf("%s = (%s)", referenceColumn, subSelect)
 		} else {
 			where[i] = fmt.Sprintf("%s = ?", field.Column())
 		}
 	}
 
-	return strings.Join(where, " AND ")
+	return strings.Join(where, " AND "), nil
 }
 
 // Return a select statement that returns the ID of an entity given its natural key.
