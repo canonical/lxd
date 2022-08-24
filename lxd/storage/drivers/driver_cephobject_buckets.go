@@ -84,15 +84,15 @@ func (d *cephobject) CreateBucket(bucket Bucket, op *operations.Operation) error
 		}
 	}
 
+	storageBucketName := d.radosgwBucketName(bucket.name)
+
+	minioCtx, minioCtxCancel := context.WithTimeout(context.TODO(), time.Second*30)
+	defer minioCtxCancel()
+
 	minioClient, err := d.s3Client(*adminUserInfo)
 	if err != nil {
 		return err
 	}
-
-	storageBucketName := d.radosgwBucketName(bucket.name)
-
-	minioCtx, cancel := context.WithTimeout(context.TODO(), time.Second*30)
-	defer cancel()
 
 	bucketExists, err := minioClient.BucketExists(minioCtx, storageBucketName)
 	if err != nil {
