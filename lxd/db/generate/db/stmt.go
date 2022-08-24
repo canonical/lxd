@@ -547,12 +547,17 @@ func naturalKeySelect(entity string, config map[string]string, mapping *Mapping)
 		}
 
 		right := strings.Split(join, ".")[0]
+		joinOn := field.Config.Get("joinon")
+		if joinOn == "" {
+			joinOn = lex.Singular(right) + "_id"
+		}
+
 		via := entityTable(entity, config["table"])
 		if field.Config.Get("via") != "" {
 			via = entityTable(field.Config.Get("via"), "")
 		}
 
-		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+		table += fmt.Sprintf(" JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
 	}
 
 	sql := fmt.Sprintf(stmts["id"], entityTable(entity, config["table"]), table, criteria)
