@@ -17,6 +17,7 @@ import (
 var cephobjectVersion string
 var cephobjectLoaded bool
 
+// cephobjectRadosgwAdminUser admin user in radosgw.
 const cephobjectRadosgwAdminUser = "lxd-admin"
 
 type cephobject struct {
