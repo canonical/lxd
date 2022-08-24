@@ -181,7 +181,12 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		orderBy = make([]string, len(nk))
 		for i, field := range nk {
 			if field.IsScalar() {
-				orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
+				table, _, err := field.ScalarTableColumn()
+				if err != nil {
+					return err
+				}
+
+				orderBy[i] = table + ".id"
 			} else {
 				orderBy[i] = mapping.FieldColumnName(field.Name, table)
 				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
