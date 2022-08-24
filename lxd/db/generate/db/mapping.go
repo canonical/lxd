@@ -238,7 +238,7 @@ func (f *Field) Stmt() string {
 
 // IsScalar returns true if the field is a scalar column value from a joined table.
 func (f *Field) IsScalar() bool {
-	return f.Config.Get("join") != "" || f.Config.Get("leftjoin") != ""
+	return f.JoinConfig() != ""
 }
 
 // IsIndirect returns true if the field is a scalar column value from a joined
@@ -261,16 +261,37 @@ func (f *Field) Column() string {
 
 	column := lex.Snake(f.Name)
 
-	join := f.Config.Get("join")
-	if join == "" {
-		join = f.Config.Get("leftjoin")
-	}
-
+	join := f.JoinConfig()
 	if join != "" {
 		column = fmt.Sprintf("%s AS %s", join, column)
 	}
 
 	return column
+}
+
+func (f Field) JoinConfig() string {
+	join := f.Config.Get("join")
+	if join == "" {
+		join = f.Config.Get("leftjoin")
+	}
+
+	return join
+}
+
+// ScalarTableColumn gets the table and column from the join configuration.
+func (f Field) ScalarTableColumn() (string, string, error) {
+	join := f.JoinConfig()
+
+	if join == "" {
+		return "", "", fmt.Errorf("Missing join config for field %q", f.Name)
+	}
+
+	joinFields := strings.Split(join, ".")
+	if len(joinFields) != 2 {
+		return "", "", fmt.Errorf("Join config must be of the format <table>.<column> for field %q", f.Name)
+	}
+
+	return joinFields[0], joinFields[1], nil
 }
 
 // FieldNames returns the names of the given fields.
