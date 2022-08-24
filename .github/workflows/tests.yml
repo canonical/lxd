@@ -119,3 +119,18 @@ jobs:
       - name: Build docs and run spellchecker
         run: |
           make doc-spellcheck
+
+  markdownlint:
+    name: Markdownlint (documentation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install mdl
+        run: |
+          sudo snap install mdl
+
+      - name: Run mdl
+        run: |
+          make doc-lint
