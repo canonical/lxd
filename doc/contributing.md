@@ -23,7 +23,6 @@ Then switch to it:
 <!-- wokeignore:rule=master -->
     git checkout myfork/master
 
-
 ### Building LXD
 
 Finally, you should be able to `make` inside the repository and build your fork of the project.

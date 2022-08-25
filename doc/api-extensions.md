@@ -5,7 +5,6 @@ The changes below were introduced to the LXD API after the 1.0 API was finalized
 They are all backward compatible and can be detected by client tools by
 looking at the `api_extensions` field in `GET /1.0/`.
 
-
 ## `storage_zfs_remove_snapshots`
 
 A `storage.zfs_remove_snapshots` daemon configuration key was introduced.

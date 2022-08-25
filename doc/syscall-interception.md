@@ -79,7 +79,6 @@ the resulting mount is shifted to the UID/GID map used by the container.
 This is needed to avoid everything showing up as `nobody`/`nogroup` inside
 of unprivileged containers.
 
-
 The much safer alternative to those is
 `security.syscalls.intercept.mount.fuse` which can be set to pairs of
 file-system name and FUSE handler. When this is set, an attempt at
