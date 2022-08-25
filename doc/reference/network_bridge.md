@@ -40,17 +40,17 @@ If you must create a smaller subnet, use static allocation or another standalone
 
 The following configuration key namespaces are currently supported for the `bridge` network type:
 
- - `bgp` (BGP peer configuration)
- - `bridge` (L2 interface configuration)
- - `dns` (DNS server and resolution configuration)
- - `fan` (configuration specific to the Ubuntu FAN overlay)
- - `ipv4` (L3 IPv4 configuration)
- - `ipv6` (L3 IPv6 configuration)
- - `maas` (MAAS network identification)
- - `security` (network ACL configuration)
- - `raw` (raw configuration file content)
- - `tunnel` (cross-host tunneling configuration)
- - `user` (free-form key/value for user metadata)
+- `bgp` (BGP peer configuration)
+- `bridge` (L2 interface configuration)
+- `dns` (DNS server and resolution configuration)
+- `fan` (configuration specific to the Ubuntu FAN overlay)
+- `ipv4` (L3 IPv4 configuration)
+- `ipv6` (L3 IPv6 configuration)
+- `maas` (MAAS network identification)
+- `security` (network ACL configuration)
+- `raw` (raw configuration file content)
+- `tunnel` (cross-host tunneling configuration)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}

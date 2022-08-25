@@ -22,9 +22,9 @@ on the target LXD.
 
 LXD supports importing images from three different sources:
 
- - Remote image server (LXD or simplestreams)
- - Direct pushing of the image files
- - File on a remote web server
+- Remote image server (LXD or simplestreams)
+- Direct pushing of the image files
+- File on a remote web server
 
 ### Remote image server (LXD or simplestreams)
 
@@ -75,14 +75,13 @@ single image to users, LXD also supports importing images by URL.
 
 There are a few limitations to that method though:
 
- - Only unified (single file) images are supported
- - Additional HTTP headers must be returned by the remote server
+- Only unified (single file) images are supported
+- Additional HTTP headers must be returned by the remote server
 
 LXD will set the following headers when querying the server:
 
- - `LXD-Server-Architectures` to a comma-separated list of architectures the client supports
- - `LXD-Server-Version` to the version of LXD in use
-
+- `LXD-Server-Architectures` to a comma-separated list of architectures the client supports
+- `LXD-Server-Version` to the version of LXD in use
 
 And expects `LXD-Image-Hash` and `LXD-Image-URL` to be set by the remote server.
 The former being the SHA256 of the image being downloaded and the latter
@@ -194,9 +193,9 @@ non-LXD rootfs tarballs already available today.
 
 Tarball, can be compressed and contains:
 
- - `rootfs/`
- - `metadata.yaml`
- - `templates/` (optional)
+- `rootfs/`
+- `metadata.yaml`
+- `templates/` (optional)
 
 In this mode, the image identifier is the SHA-256 of the tarball.
 
@@ -206,8 +205,8 @@ Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
 
 `metadata.tar` contains:
 
- - `metadata.yaml`
- - `templates/` (optional)
+- `metadata.yaml`
+- `templates/` (optional)
 
 `rootfs.tar` contains a Linux root file system at its root.
 
@@ -266,19 +265,19 @@ pretty common.
 
 For templates, the `when` key can be one or more of:
 
- - `create` (run at the time a new instance is created from the image)
- - `copy` (run when an instance is created from an existing one)
- - `start` (run every time the instance is started)
+- `create` (run at the time a new instance is created from the image)
+- `copy` (run when an instance is created from an existing one)
+- `start` (run every time the instance is started)
 
 The templates will always receive the following context:
 
- - `trigger`: name of the event which triggered the template (string)
- - `path`: path of the file that uses the template (string)
- - `container`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string) (deprecated in favor of `instance`)
- - `instance`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string)
- - `config`: key/value map of the instance's configuration (map[string]string)
- - `devices`: key/value map of the devices assigned to this instance (map[string]map[string]string)
- - `properties`: key/value map of the template properties specified in `metadata.yaml` (map[string]string)
+- `trigger`: name of the event which triggered the template (string)
+- `path`: path of the file that uses the template (string)
+- `container`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string) (deprecated in favor of `instance`)
+- `instance`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string)
+- `config`: key/value map of the instance's configuration (map[string]string)
+- `devices`: key/value map of the devices assigned to this instance (map[string]map[string]string)
+- `properties`: key/value map of the template properties specified in `metadata.yaml` (map[string]string)
 
 The `create_only` key can be set to have LXD only only create missing files but not overwrite an existing file.
 
@@ -288,4 +287,4 @@ of the instance.
 
 For convenience the following functions are exported to Pongo2 templates:
 
- - `config_get("user.foo", "bar")` => Returns the value of `user.foo` or `"bar"` if unset.
+- `config_get("user.foo", "bar")` => Returns the value of `user.foo` or `"bar"` if unset.

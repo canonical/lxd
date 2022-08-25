@@ -57,9 +57,9 @@ lxc config device add container-name home disk source=/home/${USER} path=/home/u
 
 For unprivileged containers, you will also need one of:
 
- - Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
- - `raw.idmap` entry (see [Idmaps for user namespace](userns-idmap.md))
- - Recursive POSIX ACLs placed on your home directory
+- Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
+- `raw.idmap` entry (see [Idmaps for user namespace](userns-idmap.md))
+- Recursive POSIX ACLs placed on your home directory
 
 Either of those can be used to allow the user in the container to have working read/write permissions.
 When not setting one of those, everything will show up as the overflow UID/GID (65536:65536)
@@ -207,9 +207,9 @@ address of 10.61.0.25, and VLAN102 being used for client traffic.
 
 #### Things to note
 
-* `eth0` is the Management interface, with the default gateway.
-* `vlan102` uses `eth1`.
-* `br102` uses `vlan102`, and has a bogus /32 IP address assigned to it.
+- `eth0` is the Management interface, with the default gateway.
+- `vlan102` uses `eth1`.
+- `br102` uses `vlan102`, and has a bogus /32 IP address assigned to it.
 
 The other important thing is to set `stp: false`, otherwise the bridge will sit
 in `learning` state for up to 10 seconds, which is longer than most DHCP requests

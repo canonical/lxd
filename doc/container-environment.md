@@ -12,8 +12,8 @@ This binary should act as a proper init system, including handling re-parented p
 
 LXD's communication with PID1 in the container is limited to two signals:
 
- - `SIGINT` to trigger a reboot of the container
- - `SIGPWR` (or alternatively `SIGRTMIN`+3) to trigger a clean shutdown of the container
+- `SIGINT` to trigger a reboot of the container
+- `SIGPWR` (or alternatively `SIGRTMIN`+3) to trigger a clean shutdown of the container
 
 The initial environment of PID1 is blank except for `container=lxc` which can
 be used by the init system to detect the runtime.
@@ -24,10 +24,10 @@ All file descriptors above the default 3 are closed prior to PID1 being spawned.
 
 LXD assumes that any image it uses to create a new container from will come with at least:
 
- - `/dev` (empty)
- - `/proc` (empty)
- - `/sbin/init` (executable)
- - `/sys` (empty)
+- `/dev` (empty)
+- `/proc` (empty)
+- `/sbin/init` (executable)
+- `/sys` (empty)
 
 ## Devices
 
@@ -36,42 +36,42 @@ Since this is a `tmpfs` and not a `devtmpfs`, device nodes will only appear if m
 
 The standard set of device nodes will be set up:
 
- - `/dev/console`
- - `/dev/fd`
- - `/dev/full`
- - `/dev/log`
- - `/dev/null`
- - `/dev/ptmx`
- - `/dev/random`
- - `/dev/stdin`
- - `/dev/stderr`
- - `/dev/stdout`
- - `/dev/tty`
- - `/dev/urandom`
- - `/dev/zero`
+- `/dev/console`
+- `/dev/fd`
+- `/dev/full`
+- `/dev/log`
+- `/dev/null`
+- `/dev/ptmx`
+- `/dev/random`
+- `/dev/stdin`
+- `/dev/stderr`
+- `/dev/stdout`
+- `/dev/tty`
+- `/dev/urandom`
+- `/dev/zero`
 
 On top of the standard set of devices, the following are also set up for convenience:
 
- - `/dev/fuse`
- - `/dev/net/tun`
- - `/dev/mqueue`
+- `/dev/fuse`
+- `/dev/net/tun`
+- `/dev/mqueue`
 
 ## Mounts
 
 The following mounts are set up by default under LXD:
 
- - `/proc` ({spellexception}`proc`)
- - `/sys` (`sysfs`)
- - `/sys/fs/cgroup/*` (`cgroupfs`) (only on kernels lacking cgroup namespace support)
+- `/proc` ({spellexception}`proc`)
+- `/sys` (`sysfs`)
+- `/sys/fs/cgroup/*` (`cgroupfs`) (only on kernels lacking cgroup namespace support)
 
 The following paths will also be automatically mounted if present on the host:
 
- - `/proc/sys/fs/binfmt_misc`
- - `/sys/firmware/efi/efivars`
- - `/sys/fs/fuse/connections`
- - `/sys/fs/pstore`
- - `/sys/kernel/debug`
- - `/sys/kernel/security`
+- `/proc/sys/fs/binfmt_misc`
+- `/sys/firmware/efi/efivars`
+- `/sys/fs/fuse/connections`
+- `/sys/fs/pstore`
+- `/sys/kernel/debug`
+- `/sys/kernel/security`
 
 The reason for passing all of those is legacy init systems which require
 those to be mounted or be mountable inside the container.

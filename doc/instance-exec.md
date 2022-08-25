@@ -38,17 +38,19 @@ have to be provided as LXD will not do any resolution for you.
 ## Environment
 
 The environment variables set during an exec session come from a few sources:
- - `environment.KEY=VALUE` directly set on the instance
- - Environment variables directly passed during the exec session
- - Default variables set by LXD
+
+- `environment.KEY=VALUE` directly set on the instance
+- Environment variables directly passed during the exec session
+- Default variables set by LXD
 
 For that last category, LXD will set the `PATH` to `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`
 and extend it with `/snap` and `/etc/NIXOS` if applicable.
 Additionally `LANG` will be set to `C.UTF-8`.
 
 When running as root (UID 0), the following variables will also be set:
- - `HOME` to `/root`
- - `USER` to `root`
+
+- `HOME` to `/root`
+- `USER` to `root`
 
 When running as another user, it is the responsibility of the user to specify the correct values.
 

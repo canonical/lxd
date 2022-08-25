@@ -20,9 +20,9 @@ to check if a given feature is supported by the server.
 
 There are three standard return types:
 
- * Standard return value
- * Background operation
- * Error
+* Standard return value
+* Background operation
+* Error
 
 ### Standard return value
 
@@ -120,10 +120,10 @@ numeric value.
 
 The codes are always 3 digits, with the following ranges:
 
- * 100 to 199: resource state (started, stopped, ready, ...)
- * 200 to 399: positive action result
- * 400 to 599: negative action result
- * 600 to 999: future use
+* 100 to 199: resource state (started, stopped, ready, ...)
+* 200 to 399: positive action result
+* 400 to 599: negative action result
+* 600 to 999: future use
 
 ### List of current status codes
 

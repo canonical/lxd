@@ -13,8 +13,8 @@ In this case, the instance NICs can simply set the `network` option to the netwo
 
 The following configuration key namespaces are currently supported for the `sriov` network type:
 
- - `maas` (MAAS network identification)
- - `user` (free-form key/value for user metadata)
+- `maas` (MAAS network identification)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}
