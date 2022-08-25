@@ -743,8 +743,8 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 //     schema:
 //       $ref: "#/definitions/ProjectPost"
 // responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
+//   "202":
+//     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
 //   "403":
