@@ -99,7 +99,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("Invalid storage volume type")
+	return -1, fmt.Errorf("Invalid storage volume type: %q", volType)
 }
 
 // VolumeDBTypeToType converts internal volume type DB code to storage driver volume type.
@@ -115,7 +115,7 @@ func VolumeDBTypeToType(volDBType int) (drivers.VolumeType, error) {
 		return drivers.VolumeTypeCustom, nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume type")
+	return "", fmt.Errorf("Invalid storage volume DB type: %d", volDBType)
 }
 
 // InstanceTypeToVolumeType converts instance type to storage driver volume type.
@@ -194,7 +194,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 	_, vol, err := p.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil {
 		if response.IsNotFoundError(err) {
-			return vol, fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
+			return nil, fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
 		}
 
 		return nil, err
@@ -210,6 +210,10 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return fmt.Errorf("Pool is not a lxdBackend")
+	}
+
+	if volumeType == drivers.VolumeTypeBucket {
+		return fmt.Errorf("Cannot storage volume using bucket type")
 	}
 
 	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
@@ -311,6 +315,64 @@ func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeTy
 	}
 
 	return snapshots, nil
+}
+
+// BucketDBCreate creates a bucket in the database.
+// The supplied bucket's config may be modified with defaults for the storage pool being used.
+// Returns bucket DB record ID.
+func BucketDBCreate(ctx context.Context, pool Pool, projectName string, memberSpecific bool, bucket *api.StorageBucketsPost) (int64, error) {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return -1, fmt.Errorf("Pool is not a lxdBackend")
+	}
+
+	// Make sure that we don't pass a nil to the next function.
+	if bucket.Config == nil {
+		bucket.Config = map[string]string{}
+	}
+
+	bucketVol := drivers.NewVolume(pool.Driver(), pool.Name(), drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config, pool.Driver().Config())
+
+	// Fill default config.
+	err := pool.Driver().FillVolumeConfig(bucketVol)
+	if err != nil {
+		return -1, err
+	}
+
+	// Validate bucket name.
+	err = pool.Driver().ValidateBucket(bucketVol)
+	if err != nil {
+		return -1, err
+	}
+
+	// Validate bucket volume config.
+	err = pool.Driver().ValidateVolume(bucketVol, false)
+	if err != nil {
+		return -1, err
+	}
+
+	// Create the database entry for the storage bucket.
+	bucketID, err := p.state.DB.Cluster.CreateStoragePoolBucket(ctx, p.ID(), projectName, memberSpecific, *bucket)
+	if err != nil {
+		return -1, fmt.Errorf("Failed inserting storage bucket %q for project %q in pool %q into database: %w", bucket.Name, projectName, pool.Name(), err)
+	}
+
+	return bucketID, nil
+}
+
+// BucketDBDelete deletes a bucket from the database.
+func BucketDBDelete(ctx context.Context, pool Pool, bucketID int64) error {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Pool is not a lxdBackend")
+	}
+
+	err := p.state.DB.Cluster.DeleteStoragePoolBucket(ctx, p.ID(), bucketID)
+	if err != nil && !response.IsNotFoundError(err) {
+		return fmt.Errorf("Failed deleting storage bucket from database: %w", err)
+	}
+
+	return nil
 }
 
 // poolAndVolumeCommonRules returns a map of pool and volume config common rules common to all drivers.

@@ -301,7 +301,10 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	bucket.S3URL = pool.Driver().BucketURL(bucket.Name).String()
+	u := pool.Driver().BucketURL(bucket.Name)
+	if u != nil {
+		bucket.S3URL = u.String()
+	}
 
 	return response.SyncResponseETag(true, bucket, bucket.Etag())
 }
