@@ -31,6 +31,7 @@ By default the global configuration file is kept in `/etc/lxc/config.yml` or in 
 The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. `/etc/lxc/servercerts/`) and match the remote name (e.g. `foo.crt`).
 
 An example configuration is below:
+
 ```
 remotes:
   foo:

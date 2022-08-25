@@ -34,6 +34,7 @@ For storage volumes with content type `filesystem` (images, containers and custo
 
 Alternatively, you can use the {ref}`CephFS <storage-cephfs>` driver to create storage volumes with content type `filesystem`.
 ```
+
 <!-- Include start Ceph driver cluster -->
 Unlike other storage drivers, this driver does not set up the storage system but assumes that you already have a Ceph cluster installed.
 <!-- Include end Ceph driver cluster -->

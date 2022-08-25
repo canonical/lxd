@@ -41,6 +41,7 @@ utility:
 ```bash
 curl --unix-socket /var/lib/lxd/unix.socket lxd/1.0 | jq .
 ```
+
 or for snap users:
 
 ```bash

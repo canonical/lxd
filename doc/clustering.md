@@ -634,6 +634,7 @@ With cluster groups, it's possible to target specific groups instead of individu
 This is done by using the `@` prefix when using `--target`.
 
 An example:
+
 ```bash
 lxc launch ubuntu:22.04 cluster:ubuntu --target=@gpu
 ```

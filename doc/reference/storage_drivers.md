@@ -18,6 +18,7 @@ storage_ceph
 storage_cephfs
 storage_cephobject
 ```
+
 See the corresponding pages for driver-specific information and configuration options.
 
 (storage-drivers-features)=

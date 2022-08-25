@@ -73,28 +73,35 @@ You can specify the code language after the back ticks to enforce a specific lex
 * - Input
   - Output
 * - ````
+
     ```
     # Demonstrate a code block
     code:
     - example: true
     ```
+
     ````
+
   - ```
     # Demonstrate a code block
     code:
     - example: true
     ```
 * - ````
+
     ```yaml
     # Demonstrate a code block
     code:
     - example: true
     ```
+
     ````
+
   - ```yaml
     # Demonstrate a code block
     code:
     - example: true
+
     ```
 
 ```
@@ -106,14 +113,22 @@ To include back ticks in a code block, increase the number of surrounding back t
 
 * - Input
   - Output
-* - `````
-    ````
-    ```
-    ````
+* -
     `````
-  - ````
+
+    ````
     ```
     ````
+
+    `````
+
+  -
+    ````
+
+    ```
+
+    ````
+
 ```
 
 ## Links
@@ -180,6 +195,7 @@ To reference a documentation page, use MyST syntax to automatically extract the 
   - Alternative when overriding the link text.
 
 ```
+
 Adhere to the following conventions:
 
 - Override the link text only when it is necessary. If you can use the document title as link text, do so, because the text will then update automatically if the title changes.
@@ -531,17 +547,22 @@ By combining file inclusion and substitutions, you can even replace parts of the
 * - Input
   - Output
 * - ````
+
     % Include parts of the content from file [../README.md](../README.md)
     ```{include} ../README.md
        :start-after: Installing LXD from packages
        :end-before: <!-- Include end installing -->
     ```
+
     ````
-  - % Include parts of the content from file [../README.md](../README.md)
+
+  -
+    % Include parts of the content from file [../README.md](../README.md)
     ```{include} ../README.md
        :start-after: Installing LXD from packages
        :end-before: <!-- Include end installing -->
     ```
+
 `````
 
 Adhere to the following convention:
@@ -557,24 +578,30 @@ Adhere to the following convention:
 * - Input
   - Output
 * - `````
+
     ````{tabs}
 
     ```{group-tab} Tab 1
 
     Content Tab 1
     ```
+
     ```{group-tab} Tab 2
 
     Content Tab 2
     ```
+
     ````
+
     `````
+
   - ````{tabs}
 
     ```{group-tab} Tab 1
 
     Content Tab 1
     ```
+
     ```{group-tab} Tab 2
 
     Content Tab 2
@@ -598,11 +625,13 @@ There is no support for details sections in rST, but you can insert HTML to crea
     Content
     </details>
     ```
+
   - <details>
     <summary>Details</summary>
 
     Content
     </details>
+
 ```
 
 ## Glossary
@@ -615,17 +644,21 @@ You can define glossary terms in any file. Ideally, all terms should be collecte
 * - Input
   - Output
 * - ````
+
     ```{glossary}
 
     example term
       Definition of the example term.
     ```
+
     ````
+
   - ```{glossary}
 
     example term
       Definition of the example term.
     ```
+
 * - ``{term}`example term` ``
   - {term}`example term`
 `````
