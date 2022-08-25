@@ -46,7 +46,6 @@ lxc config trust add client.crt
 
 See {doc}`authentication` for detailed information.
 
-
 ### Can I bind-mount my home directory in a container?
 
 Yes. This can be done using a disk device:

@@ -13,7 +13,6 @@ directory as is traditionally done by LXC, LXD has an internal database
 which stores all of that information. This allows very quick queries
 against all instances configuration.
 
-
 An example is the rather obvious question "what instances are using `br0`?".
 To answer that question without a database, LXD would have to iterate
 through every single instance, load and parse its configuration and
@@ -23,7 +22,6 @@ While that may be quick with a few instance, imagine how many
 file system access would be required for 2000 instances. Instead with a
 database, it's only a matter of accessing the already cached database
 with a pretty simple query.
-
 
 ## Database engine
 

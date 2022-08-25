@@ -67,7 +67,6 @@ Start and end a code block with three back ticks: `` ``` ``
 
 You can specify the code language after the back ticks to enforce a specific lexer, but in many cases, the default lexer works just fine.
 
-
 ```{list-table}
    :header-rows: 1
 
@@ -202,7 +201,6 @@ Adhere to the following conventions:
 You can add targets at any place in the documentation. However, if there is no heading or title for the targeted element, you must specify a link text.
 
 (a_random_target)=
-
 ```{list-table}
    :header-rows: 1
 
@@ -552,7 +550,6 @@ Adhere to the following convention:
 - To select parts of the text, add HTML comments for the start and end points and use `:start-after:` and `:end-before:`, if possible. You can combine `:start-after:` and `:end-before:` with `:start-line:` and `:end-line:` if required. Using only `:start-line:` and `:end-line:` is error-prone though.
 
 ## Tabs
-
 
 ``````{list-table}
    :header-rows: 1

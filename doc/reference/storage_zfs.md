@@ -27,8 +27,6 @@ These {spellexception}`datasets` can be of different types:
   ZFS snapshots are read-only.
 - A *ZFS clone* is a writable copy of a ZFS snapshot.
 
-
-
 ## `zfs` driver in LXD
 
 The `zfs` driver in LXD uses {spellexception}`ZFS filesystems` and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.

@@ -9,7 +9,6 @@ greatly limiting the attack surface.
 User namespaces work by mapping a set of UIDs and GIDs on the host to a
 set of UIDs and GIDs in the container.
 
-
 For example, we can define that the host UIDs and GIDs from 100000 to
 165535 may be used by LXD and should be mapped to UID/GID 0 through
 65535 in the container.
@@ -38,7 +37,6 @@ If some but not all of `/etc/subuid`, `/etc/subgid`, `newuidmap` (path lookup)
 and `newgidmap` (path lookup) can be found on the system, LXD will fail
 the startup of any container until this is corrected as this shows a
 broken shadow setup.
-
 
 If none of those files can be found, then LXD will assume a 1000000000
 UID/GID range starting at a base UID/GID of 1000000.
