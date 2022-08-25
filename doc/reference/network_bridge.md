@@ -132,7 +132,6 @@ The following features are supported for the `bridge` network type:
 - {ref}`network-bgp`
 - [How to integrate with `systemd-resolved`](network-bridge-resolved)
 
-
 ```{toctree}
 :maxdepth: 1
 :hidden:

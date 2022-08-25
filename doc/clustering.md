@@ -485,7 +485,6 @@ of the image being locally available.
 
 The special value of "-1" may be used to have the image copied on all nodes.
 
-
 You can disable the image replication in the cluster by setting the count down to 1:
 
 ```bash

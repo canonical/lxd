@@ -154,7 +154,6 @@ For example, the following series of commands sets up a storage pool with the na
     lxc storage create my-pool zfs source=/dev/sdY size=10GB --target=vm03
     lxc storage create my-pool zfs
 
-
 ```{note}
 For most storage drivers, the storage pools exist locally on each cluster member.
 That means that if you create a storage volume in a storage pool on one member, it will not be available on other cluster members.
@@ -194,7 +193,6 @@ The resulting table contains the storage pool that you created during initializa
 To show detailed information about a specific pool, use the following command:
 
     lxc storage show <pool_name>
-
 
 (storage-resize-pool)=
 ## Resize a storage pool

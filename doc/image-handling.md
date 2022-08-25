@@ -90,7 +90,6 @@ the URL to download the image from.
 This allows for reasonably complex image servers to be implemented using
 only a basic web server with support for custom headers.
 
-
 On the client side, this is used with:
 
     lxc image import URL --alias some-name
@@ -138,7 +137,6 @@ image is removed from the store.
 
 The user can also request a particular image be kept up to date when
 manually copying an image from a remote server.
-
 
 If a new upstream image update is published and the local LXD has the
 previous image in its cache when the user requests a new instance to be

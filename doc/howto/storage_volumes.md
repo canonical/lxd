@@ -79,7 +79,6 @@ All I/O limits only apply to actual block device access.
 Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.
 
-
 (storage-configure-volume)=
 ## Configure storage volume settings
 

@@ -708,7 +708,6 @@ lxc config device add <instance> <device-name> nic nictype=sriov parent=<sriov-e
 To tell LXD to use a specific unused VF add the `host_name` property and pass
 it the name of the enabled VF.
 
-
 ##### MAAS integration
 
 If you're using MAAS to manage the physical network under your LXD host
@@ -1053,7 +1052,6 @@ Key         | Type      | Default           | Required  | Description
 `gid`       | int       | `0`               | no        | GID of the device owner in the instance
 `mode`      | int       | `0660`            | no        | Mode of the device in the instance
 `required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is `false`, and all devices can be hotplugged)
-
 
 #### Type: `tpm`
 

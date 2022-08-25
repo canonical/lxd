@@ -42,7 +42,6 @@ By default, any contribution to this project is made under the Apache
 The author of a change remains the copyright holder of their code
 (no copyright assignment).
 
-
 ## Developer Certificate of Origin
 
 To improve tracking of contributions to this project we use the DCO 1.1
