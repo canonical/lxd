@@ -1,4 +1,5 @@
 # System call interception
+
 LXD supports intercepting some specific system calls from unprivileged
 containers and if they're considered to be safe, will executed with
 elevated privileges on the host.
@@ -11,7 +12,9 @@ Enabling of specific system call interception options is done on a
 per-container basis through container configuration options.
 
 ## Available system calls
+
 ### `mknod` / `mknodat`
+
 The `mknod` and `mknodat` system calls can be used to create a variety of special files.
 
 Most commonly inside containers, they may be called to create block or character devices.
@@ -41,6 +44,7 @@ at all.
 This can be enabled by setting `security.syscalls.intercept.mknod` to `true`.
 
 ### `bpf`
+
 The `bpf` system call is used to manage eBPF programs in the kernel.
 Those can be attached to a variety of kernel subsystems.
 
@@ -53,6 +57,7 @@ cgroup entries. To enable it, you need to set both
 `security.syscalls.intercept.bpf.devices` to true.
 
 ### `mount`
+
 The `mount` system call allows for mounting both physical and virtual file systems.
 By default, unprivileged containers are restricted by the kernel to just
 a handful of virtual and network file systems.
@@ -87,6 +92,7 @@ though you should keep in mind that any kind of system call interception
 makes for an easy way to overload the host system.
 
 ### `sched_setscheduler`
+
 The `sched_setscheduler` system call is used to manage process priority.
 
 Granting this may allow a user to significantly increase the priority of
@@ -98,6 +104,7 @@ stability. This is why under normal conditions, only the real root user
 (or global `CAP_SYS_NICE`) would allow its use.
 
 ### `setxattr`
+
 The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:

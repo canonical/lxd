@@ -3,6 +3,7 @@
 ## General issues
 
 ### How to enable LXD server for remote access?
+
 By default, the LXD server is not accessible from the network as it only listens
 on a local Unix socket. You can make LXD available from the network by specifying
 additional addresses to listen to. This is done with the `core.https_address`
@@ -25,6 +26,7 @@ lxc config set core.https_address 192.168.1.15
 Also see {ref}`security_remote_access`.
 
 ### When I do a `lxc remote add` over HTTPS, it asks for a password?
+
 By default, LXD has no password for security reasons, so you can't do a remote
 add this way. To set a password, enter the following command on the host LXD is
 running on:
@@ -44,7 +46,9 @@ lxc config trust add client.crt
 
 See {doc}`authentication` for detailed information.
 
+
 ### Can I bind-mount my home directory in a container?
+
 Yes. This can be done using a disk device:
 
 ```bash
@@ -65,6 +69,7 @@ Privileged containers do not have this issue because all UID/GID in the containe
 But that's also the cause of most of the security issues with such privileged containers.
 
 ### How can I run Docker inside a LXD container?
+
 To run Docker inside a LXD container, the `security.nesting` property of the container should be set to `true`.
 
 ```bash

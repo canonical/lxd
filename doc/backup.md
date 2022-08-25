@@ -3,7 +3,9 @@ discourse: 11296
 ---
 
 # Backing up a LXD server
+
 ## What to back up
+
 When planning to back up a LXD server, consider all the different objects
 that are stored/managed by LXD:
 
@@ -21,6 +23,7 @@ goal is to get back online quickly, consider all the different pieces of
 LXD you're using.
 
 ## Full backup
+
 A full backup would include the entirety of `/var/lib/lxd` or `/var/snap/lxd/common/lxd` for snap users.
 
 You will also need to appropriately back up any external storage that you
@@ -38,6 +41,7 @@ them for both the `lxd` and `root` user is also a good idea
 Then start LXD again and check that everything works fine.
 
 ## Secondary backup LXD server
+
 LXD supports copying and moving instances and storage volumes between two hosts.
 
 So with a spare server, you can copy your instances and storage volumes
@@ -46,6 +50,7 @@ offline spare or just as a storage server that you can copy your
 instances back from if needed.
 
 ## Instance backups
+
 The `lxc export` command can be used to export instances to a backup tarball.
 Those tarballs will include all snapshots by default and an "optimized"
 tarball can be obtained if you know that you'll be restoring on a LXD
@@ -59,6 +64,7 @@ Those tarballs can be saved any way you want on any file system you want
 and can be imported back into LXD using the `lxc import` command.
 
 ## Disaster recovery
+
 LXD provides the `lxd recover` command (note the the `lxd` command rather than the normal `lxc` command).
 This is an interactive CLI tool that will attempt to scan all storage pools that exist in the database looking for
 missing volumes that can be recovered. It also provides the ability for the user to specify the details of any

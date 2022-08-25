@@ -77,6 +77,7 @@ if you have a join token. Then pick an address of an existing node in the cluste
 gets printed matches the cluster certificate of the existing members.
 
 ### Per-server configuration
+
 As mentioned previously, LXD cluster members are generally assumed to be identical systems.
 
 However to accommodate things like slightly different disk ordering or
@@ -611,6 +612,7 @@ address of the joining node with the ```server_address``` field. If you use
 preseed, the YAML payload would be exactly like the one above.
 
 ## Updating the cluster certificate
+
 In a LXD cluster, all servers respond with the same shared certificate. This
 is usually a standard self-signed certificate with an expiry set to 10 years.
 
