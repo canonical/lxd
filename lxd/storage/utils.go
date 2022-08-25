@@ -212,6 +212,10 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 		return fmt.Errorf("Pool is not a lxdBackend")
 	}
 
+	if volumeType == drivers.VolumeTypeBucket {
+		return fmt.Errorf("Cannot storage volume using bucket type")
+	}
+
 	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
 	// the instance disk effective override fields (which should not be stored in the database).
 	if volumeType.IsInstance() {
