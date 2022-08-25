@@ -11,7 +11,8 @@ LXD requires a kernel with support for:
 
  * Namespaces (`pid`, `net`, `uts`, `ipc` and `mount`)
  * Seccomp
- * POSIX AIO
+ * Native Linux AIO
+   ([`io_setup(2)`](https://man7.org/linux/man-pages/man2/io_setup.2.html), etc.)
 
 The following optional features also require extra kernel options:
 
