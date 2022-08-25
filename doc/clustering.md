@@ -91,10 +91,10 @@ storage or networks.
 
 Those typically cover:
 
- - Source device for a storage pool (leaving empty would create a loop)
- - Name for a ZFS zpool (defaults to the name of the LXD pool)
- - External interfaces for a bridged network (empty would add none)
- - Name of the parent network device for managed `physical` or `macvlan` networks (must be set)
+- Source device for a storage pool (leaving empty would create a loop)
+- Name for a ZFS zpool (defaults to the name of the LXD pool)
+- External interfaces for a bridged network (empty would add none)
+- Name of the parent network device for managed `physical` or `macvlan` networks (must be set)
 
 It's possible to lookup the questions ahead of time (useful for scripting) by querying the `/1.0/cluster` API endpoint.
 This can be done through `lxc query /1.0/cluster` or through other API clients.
@@ -177,10 +177,10 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 When joining a cluster using a cluster join token, the following fields can be omitted:
 
- - `server_name`
- - `cluster_address`
- - `cluster_certificate`
- - `cluster_password`
+- `server_name`
+- `cluster_address`
+- `cluster_certificate`
+- `cluster_password`
 
 And instead the full token be passed through the `cluster_token` field.
 

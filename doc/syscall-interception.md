@@ -28,14 +28,14 @@ inside an unprivileged containers.
 
 The devices which are currently allowed are:
 
- - overlayfs whiteout (char 0:0)
- - `/dev/console` (char 5:1)
- - `/dev/full` (char 1:7)
- - `/dev/null` (char 1:3)
- - `/dev/random` (char 1:8)
- - `/dev/tty` (char 5:0)
- - `/dev/urandom` (char 1:9)
- - `/dev/zero` (char 1:5)
+- overlayfs whiteout (char 0:0)
+- `/dev/console` (char 5:1)
+- `/dev/full` (char 1:7)
+- `/dev/null` (char 1:3)
+- `/dev/random` (char 1:8)
+- `/dev/tty` (char 5:0)
+- `/dev/urandom` (char 1:9)
+- `/dev/zero` (char 1:5)
 
 All file types other than character devices are currently sent to the
 kernel as usual, so enabling this feature doesn't change their behavior
@@ -109,7 +109,7 @@ The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:
 
- - trusted.overlay.opaque (overlayfs directory whiteout)
+- trusted.overlay.opaque (overlayfs directory whiteout)
 
 Note that because the mediation must happen on a number of character
 strings, there is no easy way at present to only intercept the few

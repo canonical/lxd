@@ -17,9 +17,9 @@ existing projects do not get new features enabled.
 The key/value configuration is namespaced with the following namespaces
 currently supported:
 
- - `features` (What part of the project feature set is in use)
- - `limits` (Resource limits applied on containers and VMs belonging to the project)
- - `user` (free form key/value for user metadata)
+- `features` (What part of the project feature set is in use)
+- `limits` (Resource limits applied on containers and VMs belonging to the project)
+- `user` (free form key/value for user metadata)
 
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--

@@ -38,10 +38,10 @@ Containers with the same priority will shutdown in parallel.  It defaults to 0.
 
 A number of new syscalls related container configuration keys were introduced.
 
- * `security.syscalls.blacklist_default` <!-- wokeignore:rule=blacklist -->
- * `security.syscalls.blacklist_compat` <!-- wokeignore:rule=blacklist -->
- * `security.syscalls.blacklist` <!-- wokeignore:rule=blacklist -->
- * `security.syscalls.whitelist` <!-- wokeignore:rule=whitelist -->
+* `security.syscalls.blacklist_default` <!-- wokeignore:rule=blacklist -->
+* `security.syscalls.blacklist_compat` <!-- wokeignore:rule=blacklist -->
+* `security.syscalls.blacklist` <!-- wokeignore:rule=blacklist -->
+* `security.syscalls.whitelist` <!-- wokeignore:rule=whitelist -->
 
 See [Instance configuration](instances.md) for how to use them.
 
@@ -68,11 +68,11 @@ Add support for the ETag header on all relevant endpoints.
 
 This adds the following HTTP header on answers to GET:
 
- - ETag (SHA-256 of user modifiable content)
+* ETag (SHA-256 of user modifiable content)
 
 And adds support for the following HTTP header on PUT requests:
 
- - If-Match (ETag value retrieved through previous GET)
+* If-Match (ETag value retrieved through previous GET)
 
 This makes it possible to GET a LXD object, modify it and PUT it without
 risking to hit a race condition where LXD or another client modified the
@@ -137,15 +137,15 @@ Network management API for LXD.
 
 This includes:
 
- * Addition of the `managed` property on `/1.0/networks` entries
- * All the network configuration options (see [Network configuration](networks.md) for details)
- * `POST /1.0/networks` (see [RESTful API](rest-api.md) for details)
- * `PUT /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
- * `PATCH /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
- * `DELETE /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
- * `ipv4.address` property on `nic` type devices (when `nictype` is `bridged`)
- * `ipv6.address` property on `nic` type devices (when `nictype` is `bridged`)
- * `security.mac_filtering` property on `nic` type devices (when `nictype` is `bridged`)
+* Addition of the `managed` property on `/1.0/networks` entries
+* All the network configuration options (see [Network configuration](networks.md) for details)
+* `POST /1.0/networks` (see [RESTful API](rest-api.md) for details)
+* `PUT /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
+* `PATCH /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
+* `DELETE /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
+* `ipv4.address` property on `nic` type devices (when `nictype` is `bridged`)
+* `ipv6.address` property on `nic` type devices (when `nictype` is `bridged`)
+* `security.mac_filtering` property on `nic` type devices (when `nictype` is `bridged`)
 
 ## `profile_usedby`
 
@@ -174,9 +174,9 @@ That output will expire similarly to other log files, typically after 48 hours.
 
 Adds the following to the REST API:
 
- * ETag header on GET of a certificate
- * PUT of certificate entries
- * PATCH of certificate entries
+* ETag header on GET of a certificate
+* PUT of certificate entries
+* PATCH of certificate entries
 
 ## `container_exec_signal_handling`
 
@@ -509,17 +509,17 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 
 The following existing endpoints have been modified:
 
- * `POST /1.0/containers` accepts a new `target` query parameter
- * `POST /1.0/storage-pools` accepts a new `target` query parameter
- * `GET /1.0/storage-pool/<name>` accepts a new `target` query parameter
- * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new `target` query parameter
- * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
- * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
- * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
- * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
- * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
- * `POST /1.0/networks` accepts a new `target` query parameter
- * `GET /1.0/networks/<name>` accepts a new `target` query parameter
+* `POST /1.0/containers` accepts a new `target` query parameter
+* `POST /1.0/storage-pools` accepts a new `target` query parameter
+* `GET /1.0/storage-pool/<name>` accepts a new `target` query parameter
+* `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new `target` query parameter
+* `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+* `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+* `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+* `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+* `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new `target` query parameter
+* `POST /1.0/networks` accepts a new `target` query parameter
+* `GET /1.0/networks/<name>` accepts a new `target` query parameter
 
 ## `event_lifecycle`
 
@@ -557,7 +557,7 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 
 The following existing endpoint has been modified:
 
- * `POST /1.0/containers` accepts the new source type `backup`
+* `POST /1.0/containers` accepts the new source type `backup`
 
 ## `devlxd_images`
 
@@ -692,9 +692,9 @@ macaroon's expiry configurable. The `lxc remote add` command now has a
 This introduces a few extra configuration keys when using `nvidia.runtime` and the `libnvidia-container` library.
 Those keys translate pretty much directly to the matching NVIDIA container environment variables:
 
- - `nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
- - `nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
- - `nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
+* `nvidia.driver.capabilities` => `NVIDIA_DRIVER_CAPABILITIES`
+* `nvidia.require.cuda` => `NVIDIA_REQUIRE_CUDA`
+* `nvidia.require.driver` => `NVIDIA_REQUIRE_DRIVER`
 
 ## `storage_api_volume_snapshots`
 
@@ -845,9 +845,9 @@ used to track the current mapping for the container.
 
 This effectively gives us:
 
- - `volatile.last_state.idmap` => On-disk idmap
- - `volatile.idmap.current` => Current kernel map
- - `volatile.idmap.next` => Next on-disk idmap
+* `volatile.last_state.idmap` => On-disk idmap
+* `volatile.idmap.current` => Current kernel map
+* `volatile.idmap.next` => Next on-disk idmap
 
 This is required to implement environments where the on-disk map isn't
 changed but the kernel map is (e.g. `shiftfs`).
@@ -874,13 +874,13 @@ This allows adding static routes on host to container's NIC.
 
 Adds support for RBAC (role based access control). This introduces new configuration keys:
 
-  * `rbac.api.url`
-  * `rbac.api.key`
-  * `rbac.api.expiry`
-  * `rbac.agent.url`
-  * `rbac.agent.username`
-  * `rbac.agent.private_key`
-  * `rbac.agent.public_key`
+* `rbac.api.url`
+* `rbac.api.key`
+* `rbac.api.expiry`
+* `rbac.agent.url`
+* `rbac.agent.username`
+* `rbac.agent.private_key`
+* `rbac.agent.public_key`
 
 ## `cluster_internal_copy`
 
@@ -922,22 +922,22 @@ This introduces container IP filtering (`security.ipv4_filtering` and `security.
 
 Rework the resources API at `/1.0/resources`, especially:
 
- - CPU
-   - Fix reporting to track sockets, cores and threads
-   - Track NUMA node per core
-   - Track base and turbo frequency per socket
-   - Track current frequency per core
-   - Add CPU cache information
-   - Export the CPU architecture
-   - Show online/offline status of threads
- - Memory
-   - Add huge-pages tracking
-   - Track memory consumption per NUMA node too
- - GPU
-   - Split DRM information to separate struct
-   - Export device names and nodes in DRM struct
-   - Export device name and node in NVIDIA struct
-   - Add SR-IOV VF tracking
+* CPU
+  * Fix reporting to track sockets, cores and threads
+  * Track NUMA node per core
+  * Track base and turbo frequency per socket
+  * Track current frequency per core
+  * Add CPU cache information
+  * Export the CPU architecture
+  * Show online/offline status of threads
+* Memory
+  * Add huge-pages tracking
+  * Track memory consumption per NUMA node too
+* GPU
+  * Split DRM information to separate struct
+  * Export device names and nodes in DRM struct
+  * Export device name and node in NVIDIA struct
+  * Add SR-IOV VF tracking
 
 ## `container_exec_user_group_cwd`
 
@@ -985,12 +985,12 @@ This introduces support for a new Type field on images, indicating what type of 
 
 Extends the disk resource API struct to include:
 
- - Proper detection of SATA devices (type)
- - Device path
- - Drive RPM
- - Block size
- - Firmware version
- - Serial number
+* Proper detection of SATA devices (type)
+* Device path
+* Drive RPM
+* Block size
+* Firmware version
+* Serial number
 
 ## `clustering_roles`
 
@@ -1230,7 +1230,8 @@ This adds system information to the output of `/1.0/resources`.
 
 This adds the push and relay modes to image copy.
 It also introduces the following new endpoint:
- - `POST 1.0/images/<fingerprint>/export`
+
+* `POST 1.0/images/<fingerprint>/export`
 
 ## `network_dns_search`
 
@@ -1254,22 +1255,22 @@ Those contain additional state information relevant to those particular types.
 
 Bond:
 
- - Mode
- - Transmit hash
- - Up delay
- - Down delay
- - MII frequency
- - MII state
- - Lower devices
+* Mode
+* Transmit hash
+* Up delay
+* Down delay
+* MII frequency
+* MII state
+* Lower devices
 
 Bridge:
 
- - ID
- - Forward delay
- - STP mode
- - Default VLAN
- - VLAN filtering
- - Upper devices
+* ID
+* Forward delay
+* STP mode
+* Default VLAN
+* VLAN filtering
+* Upper devices
 
 ## `resources_cpu_isolated`
 
@@ -1282,11 +1283,12 @@ This extension indicates that `UsedBy` should now be consistent with
 suitable `?project=` and `?target=` when appropriate.
 
 The 5 entities that have `UsedBy` are:
- - Profiles
- - Projects
- - Networks
- - Storage pools
- - Storage volumes
+
+* Profiles
+* Projects
+* Networks
+* Storage pools
+* Storage volumes
 
 ## `custom_block_volumes`
 
@@ -1302,10 +1304,10 @@ which can be used to set the failure domain of a node.
 
 A number of new syscalls related container configuration keys were updated.
 
- * `security.syscalls.deny_default`
- * `security.syscalls.deny_compat`
- * `security.syscalls.deny`
- * `security.syscalls.allow`
+* `security.syscalls.deny_default`
+* `security.syscalls.deny_compat`
+* `security.syscalls.deny`
+* `security.syscalls.allow`
 
 ## `resources_gpu_mdev`
 
@@ -1355,8 +1357,8 @@ type network they should connect to.
 
 Also introduces two new global configuration keys that apply to all `ovn` networks and NIC devices:
 
- - `network.ovn.integration_bridge` - the OVS integration bridge to use.
- - `network.ovn.northbound_connection` - the OVN northbound database connection string.
+* `network.ovn.integration_bridge` - the OVS integration bridge to use.
+* `network.ovn.northbound_connection` - the OVN northbound database connection string.
 
 ## `projects_networks`
 
@@ -1384,7 +1386,7 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 
 The following existing endpoint has been modified:
 
- * `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
+* `POST /1.0/storage-pools/<pool>/<type>/<volume>` accepts the new source type `backup`
 
 ## `backup_override_name`
 
@@ -1488,8 +1490,9 @@ limits the total number of instances (VMs and containers) that can be used in th
 This adds a `vlan` section to the `/1.0/networks/NAME/state` API.
 
 Those contain additional state information relevant to VLAN interfaces:
- - `lower_device`
- - `vid`
+
+* `lower_device`
+* `vid`
 
 ## `instance_nic_bridged_port_isolation`
 
@@ -1676,22 +1679,22 @@ routes to `bridge` and `ovn` networks.
 
 This comes with the addition to global configuration of:
 
- - `core.bgp_address`
- - `core.bgp_asn`
- - `core.bgp_routerid`
+* `core.bgp_address`
+* `core.bgp_asn`
+* `core.bgp_routerid`
 
 The following network configurations keys (`bridge` and `physical`):
 
- - `bgp.peers.<name>.address`
- - `bgp.peers.<name>.asn`
- - `bgp.peers.<name>.password`
- - `bgp.ipv4.nexthop`
- - `bgp.ipv6.nexthop`
+* `bgp.peers.<name>.address`
+* `bgp.peers.<name>.asn`
+* `bgp.peers.<name>.password`
+* `bgp.ipv4.nexthop`
+* `bgp.ipv6.nexthop`
 
 And the following NIC-specific configuration keys (`bridged` NIC type):
 
- - `ipv4.routes.external`
- - `ipv6.routes.external`
+* `ipv4.routes.external`
+* `ipv6.routes.external`
 
 ## `network_forward`
 
@@ -1738,22 +1741,22 @@ Introduces a built-in DNS server and zones API to provide DNS records for LXD in
 
 This introduces the following server configuration key:
 
- - `core.dns_address`
+* `core.dns_address`
 
 The following network configuration key:
 
- - `dns.zone.forward`
- - `dns.zone.reverse.ipv4`
- - `dns.zone.reverse.ipv6`
+* `dns.zone.forward`
+* `dns.zone.reverse.ipv4`
+* `dns.zone.reverse.ipv6`
 
 And the following project configuration key:
 
- - `restricted.networks.zones`
+* `restricted.networks.zones`
 
 A new REST API is also introduced to manage DNS zones:
 
- - `/1.0/network-zones` (GET, POST)
- - `/1.0/network-zones/<name>` (GET, PUT, PATCH, DELETE)
+* `/1.0/network-zones` (GET, POST)
+* `/1.0/network-zones/<name>` (GET, PUT, PATCH, DELETE)
 
 ## `ovn_nic_acceleration`
 
@@ -1777,9 +1780,9 @@ This adds support for moving storage volume between projects.
 
 This adds a new `cloud-init` configuration key namespace which contains the following keys:
 
- - `cloud-init.vendor-data`
- - `cloud-init.user-data`
- - `cloud-init.network-config`
+* `cloud-init.vendor-data`
+* `cloud-init.user-data`
+* `cloud-init.network-config`
 
  It also adds a new endpoint `/1.0/devices` to `devlxd` which shows an instance's devices.
 
@@ -1805,12 +1808,12 @@ Add support for grouping cluster members.
 
 This introduces the following new endpoints:
 
- - `/1.0/cluster/groups` (GET, POST)
- - `/1.0/cluster/groups/<name>` (GET, POST, PUT, PATCH, DELETE)
+* `/1.0/cluster/groups` (GET, POST)
+* `/1.0/cluster/groups/<name>` (GET, POST, PUT, PATCH, DELETE)
 
  The following project restriction is added:
 
-  - `restricted.cluster.groups`
+* `restricted.cluster.groups`
 
 ## `ceph_rbd_du`
 
@@ -1853,7 +1856,8 @@ Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If 
 
 This adds an `ovn` section to the `/1.0/networks/NAME/state` API which contains additional state information relevant to
 OVN networks:
-- chassis
+
+* chassis
 
 ## `storage_volume_api_filtering`
 
@@ -1874,12 +1878,12 @@ This extends the network zones (DNS) API to add the ability to create and manage
 
 This adds:
 
- - `GET /1.0/network-zones/ZONE/records`
- - `POST /1.0/network-zones/ZONE/records`
- - `GET /1.0/network-zones/ZONE/records/RECORD`
- - `PUT /1.0/network-zones/ZONE/records/RECORD`
- - `PATCH /1.0/network-zones/ZONE/records/RECORD`
- - `DELETE /1.0/network-zones/ZONE/records/RECORD`
+* `GET /1.0/network-zones/ZONE/records`
+* `POST /1.0/network-zones/ZONE/records`
+* `GET /1.0/network-zones/ZONE/records/RECORD`
+* `PUT /1.0/network-zones/ZONE/records/RECORD`
+* `PATCH /1.0/network-zones/ZONE/records/RECORD`
+* `DELETE /1.0/network-zones/ZONE/records/RECORD`
 
 ## `storage_zfs_reserve_space`
 

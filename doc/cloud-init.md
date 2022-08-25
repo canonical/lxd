@@ -182,6 +182,6 @@ config:
 
 An instance's rootfs will contain the following files as a result:
 
- * `/var/lib/cloud/seed/nocloud-net/network-config`
- * `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
- * `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)
+* `/var/lib/cloud/seed/nocloud-net/network-config`
+* `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
+* `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)

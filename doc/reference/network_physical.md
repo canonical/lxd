@@ -13,13 +13,13 @@ In this case, the instance NICs can simply set the `network`option to the networ
 
 The following configuration key namespaces are currently supported for the `physical` network type:
 
- - `bgp` (BGP peer configuration)
- - `dns` (DNS server and resolution configuration)
- - `ipv4` (L3 IPv4 configuration)
- - `ipv6` (L3 IPv6 configuration)
- - `maas` (MAAS network identification)
- - `ovn` (OVN configuration)
- - `user` (free-form key/value for user metadata)
+- `bgp` (BGP peer configuration)
+- `dns` (DNS server and resolution configuration)
+- `ipv4` (L3 IPv4 configuration)
+- `ipv6` (L3 IPv6 configuration)
+- `maas` (MAAS network identification)
+- `ovn` (OVN configuration)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}
