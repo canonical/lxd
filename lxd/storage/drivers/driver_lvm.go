@@ -88,11 +88,12 @@ func (d *lvm) Info() Info {
 		OptimizedImages:   d.usesThinpool(), // Only thinpool pools support optimized images.
 		PreservesInodes:   false,
 		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:      true,
 		RunningCopyFreeze: true,
 		DirectIO:          true,
 		MountedRoot:       false,
+		Buckets:           true,
 	}
 }
 
