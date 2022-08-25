@@ -14,6 +14,7 @@ LXD has four types of remotes:
 ### Static
 
 Static remotes are:
+
 - `local` (default)
 - `ubuntu`
 - `ubuntu-daily`

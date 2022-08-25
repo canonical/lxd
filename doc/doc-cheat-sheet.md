@@ -182,6 +182,7 @@ To reference a documentation page, use MyST syntax to automatically extract the 
 
 ```
 Adhere to the following conventions:
+
 - Override the link text only when it is necessary. If you can use the document title as link text, do so, because the text will then update automatically if the title changes.
 - Never "override" the link text with the same text that would be generated automatically.
 
@@ -191,6 +192,7 @@ Adhere to the following conventions:
 To reference a section within the documentation (on the same page or on another page), you can either add a target to it and reference that target, or you can use an automatically generated anchor in combination with the file name.
 
 Adhere to the following conventions:
+
 - Add targets for sections that are central and a "typical" place to link to, so you expect they will be linked frequently. For "one-off" links, use the automatically generated anchors.
 - Override the link text only when it is necessary. If you can use the section title as link text, do so, because the text will then update automatically if the title changes.
 - Never "override" the link text with the same text that would be generated automatically.
@@ -323,6 +325,7 @@ Use orphan pages sparingly and only if there is a clear reason for it.
 ```
 
 Adhere to the following conventions:
+
 - In numbered lists, use ``1.`` for all items to generate the step numbers automatically.
 - Use `-` for unordered lists. When using nested lists, you can use `*` for the nested level.
 
@@ -436,6 +439,7 @@ Both markups result in the following output:
 ```
 
 Adhere to the following conventions:
+
 - Use notes sparingly.
 - Only use the following note types: `note`, `tip`, `important`, `caution`
 - Only use a caution if there is a clear hazard of hardware damage or data loss.
@@ -468,6 +472,7 @@ Adhere to the following conventions:
 ```
 
 Adhere to the following conventions:
+
 - For pictures in the `doc` folder, start the path with `/` (for example, `/images/image.png`).
 - Use PNG format for screenshots and SVG format for graphics.
 
@@ -480,6 +485,7 @@ A big advantage of MyST in comparison to plain Markdown is that it allows to reu
 To reuse sentences or paragraphs without too much markup and special formatting, use substitutions.
 
 Substitutions can be defined in the following locations:
+
 - In the `substitutions.yaml` file. Substitutions defined in this file are available in all documentation pages.
 - At the top of a single file in the following format:
 
@@ -510,6 +516,7 @@ You can combine both options by defining a default substitution in `reuse/substi
 ```
 
 Adhere to the following convention:
+
 - Substitutions do not work on GitHub. Therefore, use key names that indicate the included text (for example, `note_not_supported` instead of `reuse_note`).
 
 ### File inclusion
@@ -540,6 +547,7 @@ By combining file inclusion and substitutions, you can even replace parts of the
 `````
 
 Adhere to the following convention:
+
 - File inclusion does not work on GitHub. Therefore, always add a comment linking to the included file.
 - To select parts of the text, add HTML comments for the start and end points and use `:start-after:` and `:end-before:`, if possible. You can combine `:start-after:` and `:end-before:` with `:start-line:` and `:end-line:` if required. Using only `:start-line:` and `:end-line:` is error-prone though.
 
