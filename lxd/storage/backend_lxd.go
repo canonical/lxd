@@ -3279,25 +3279,20 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 		return fmt.Errorf("Storage pool does not support buckets")
 	}
 
-	// Validate config.
-	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
-
-	err = b.driver.ValidateBucket(storageBucket)
-	if err != nil {
-		return err
-	}
-
+	// Validate config and create database entry for new storage bucket.
 	revert := revert.New()
 	defer revert.Fail()
 
 	memberSpecific := !b.Driver().Info().Remote // Member specific if storage pool isn't remote.
 
-	bucketID, err := b.state.DB.Cluster.CreateStoragePoolBucket(context.TODO(), b.id, projectName, memberSpecific, bucket)
+	bucketID, err := BucketDBCreate(context.TODO(), b, projectName, memberSpecific, &bucket)
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() { _ = b.state.DB.Cluster.DeleteStoragePoolBucket(context.TODO(), b.id, bucketID) })
+	revert.Add(func() { _ = BucketDBDelete(context.TODO(), b, bucketID) })
+
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
 
 	// Create the bucket on the storage device.
 	err = b.driver.CreateBucket(storageBucket, op)
@@ -3336,12 +3331,17 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 		return err
 	}
 
-	curStorageBucket := b.GetBucket(curBucket.Name, curBucket.Config)
+	curStorageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, curBucket.Name, curBucket.Config)
 
 	// Validate config.
-	newStorageBucket := b.GetBucket(curBucket.Name, bucket.Config)
+	newStorageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, curBucket.Name, bucket.Config)
 
 	err = b.driver.ValidateBucket(newStorageBucket)
+	if err != nil {
+		return err
+	}
+
+	err = b.driver.ValidateVolume(newStorageBucket, false)
 	if err != nil {
 		return err
 	}
@@ -3408,16 +3408,16 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 		return err
 	}
 
-	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
 
 	err = b.driver.DeleteBucket(storageBucket, op)
 	if err != nil {
 		return err
 	}
 
-	err = b.state.DB.Cluster.DeleteStoragePoolBucket(context.TODO(), b.id, bucket.ID)
+	_ = BucketDBDelete(context.TODO(), b, bucket.ID)
 	if err != nil {
-		return fmt.Errorf("Failed deleting bucket from database: %w", err)
+		return err
 	}
 
 	return nil
@@ -3449,12 +3449,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 		return nil, err
 	}
 
-	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
-
-	err = b.driver.ValidateBucket(storageBucket)
-	if err != nil {
-		return nil, err
-	}
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -3554,11 +3549,7 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 		return nil // Nothing has changed.
 	}
 
-	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
-	err = b.driver.ValidateBucket(storageBucket)
-	if err != nil {
-		return err
-	}
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
 
 	creds := drivers.S3Credentials{
 		AccessKey: newBucketKey.AccessKey,
@@ -3623,7 +3614,7 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 		return err
 	}
 
-	storageBucket := b.GetBucket(bucket.Name, bucket.Config)
+	storageBucket := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucket.Name, bucket.Config)
 
 	// Delete the bucket key from the storage device.
 	err = b.driver.DeleteBucketKey(storageBucket, keyName, op)
