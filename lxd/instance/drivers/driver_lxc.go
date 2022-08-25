@@ -6924,6 +6924,14 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		}
 	}
 
+	// Get CPUs.
+	CPUs, err := cg.GetEffectiveCPUs()
+	if err != nil {
+		d.logger.Warn("Failed to get CPUs", logger.Ctx{"err": err})
+	} else {
+		out.AddSamples(metrics.CPUs, metrics.Sample{Value: float64(CPUs)})
+	}
+
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
 	if err != nil {
