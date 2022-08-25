@@ -1709,3 +1709,7 @@ This introduces the storage bucket API. It allows the management of S3 object st
 
 ## `storage_buckets_create_credentials`
 This updates the storage bucket API to return initial admin credentials at bucket creation time.
+
+## `metrics_cpu_effective_total`
+This introduces a new `lxd_cpu_effective_total` metric to the `/1.0/metrics` API.
+It reports the total number of effective CPUs.
