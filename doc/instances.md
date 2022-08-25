@@ -331,7 +331,7 @@ Some of the NICs properties are inherited from the network rather than being cus
 
 These are detailed in the "Managed" column in the NIC specific sections below.
 
-##### NICs Available:
+##### NICs Available
 
 See the settings for the NIC below for details about which properties are available.
 
@@ -892,7 +892,7 @@ instance.
 Container devices may match multiple GPUs at once. However, for virtual machines a device can only match a single GPU.
 ```
 
-##### GPUs available:
+##### GPUs available
 
 The following GPUs can be specified using the `gputype` property:
 
