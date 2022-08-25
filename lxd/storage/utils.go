@@ -194,7 +194,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 	_, vol, err := p.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil {
 		if response.IsNotFoundError(err) {
-			return vol, fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
+			return nil, fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
 		}
 
 		return nil, err
