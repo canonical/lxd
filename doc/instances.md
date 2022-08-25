@@ -779,18 +779,23 @@ LXD supports the following additional source types:
 - Ceph RBD: Mount from existing Ceph RBD device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph RBD that they would like use for this instance, they can use this command.
 
   Example command:
+
   ```
   lxc config device add <instance> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username> path=/ceph
   ```
+
 - CephFS: Mount from existing CephFS device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph file system that they would like use for this instance, they can use this command.
 
   Example command:
+
   ```
   lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username> path=/cephfs
   ```
+
 - VM cloud-init: Generate a cloud-init configuration ISO from the `user.vendor-data`, `user.user-data` and `user.meta-data` configuration keys and attach to the VM so that cloud-init running inside the VM guest will detect the drive on boot and apply the configuration. Only applicable to virtual-machine instances.
 
   Example command:
+
   ```
   lxc config device add <instance> config disk source=cloud-init:config
   ```
@@ -1219,9 +1224,11 @@ There are three configuration options:
   The default behavior of `snapshots.pattern` is equivalent to a format string of `snap%d`.
 
 Example of using Pongo2 syntax to format snapshot names with timestamps:
+
 ```bash
 lxc config set INSTANCE snapshots.pattern "{{ creation_date|date:'2006-01-02_15-04-05' }}"
 ```
+
 This results in snapshots named `{date/time of creation}` down to the precision of a second.
 
 ### Overriding QEMU configuration

@@ -155,4 +155,5 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    Please pick one of the options above [default=1]: 1
    Instance foo successfully created
    ```
+
    </details>

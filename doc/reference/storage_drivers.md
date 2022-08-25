@@ -17,6 +17,7 @@ storage_zfs
 storage_ceph
 storage_cephfs
 ```
+
 See the corresponding pages for driver-specific information and configuration options.
 
 (storage-drivers-features)=
