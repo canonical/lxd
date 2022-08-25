@@ -2,6 +2,7 @@
 
 <!-- Include start LXD intro -->
 # LXD
+
 LXD is a modern, secure and powerful system container and virtual machine manager.
 
 It provides a unified experience for running and managing full Linux systems inside containers or virtual machines. LXD supplies images for a [wide number of Linux distributions](https://images.linuxcontainers.org) and is built around a very powerful, yet pretty simple, REST API. LXD scales from one instance on a single machine to a cluster in a full data center rack, making it suitable for running workloads both for development and in production.
@@ -22,6 +23,7 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 <!-- Include end LXD intro -->
 
 ## Status
+
 Type                | Service               | Status
 ---                 | ---                   | ---
 CI (client)         | GitHub                | [![Build Status](https://github.com/lxc/lxd/workflows/Client%20build%20and%20unit%20tests/badge.svg)](https://github.com/lxc/lxd/actions)
@@ -34,6 +36,7 @@ Project status      | CII Best Practices    | [![CII Best Practices](https://bes
 <!-- Include start installing -->
 
 ## Installing LXD from packages
+
 The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
 
 OS                  | Format                                            | Command
@@ -76,16 +79,20 @@ Therefore, you should only give such access to users who you'd trust with root a
 The following channels are available for you to interact with the LXD community.
 
 ### Bug reports
+
 You can file bug reports and feature requests at: [`https://github.com/lxc/lxd/issues/new`](https://github.com/lxc/lxd/issues/new)
 
 ### Forum
+
 A discussion forum is available at: [`https://discuss.linuxcontainers.org`](https://discuss.linuxcontainers.org)
 
 ### Mailing lists
+
 We use the LXC mailing lists for developer and user discussions. You can
 find and subscribe to those at: [`https://lists.linuxcontainers.org`](https://lists.linuxcontainers.org)
 
 ### IRC
+
 If you prefer live discussions, you can find us in [`#lxc`](https://kiwiirc.com/client/irc.libera.chat/#lxc) on `irc.libera.chat`. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
 ### Commercial support
@@ -93,6 +100,7 @@ If you prefer live discussions, you can find us in [`#lxc`](https://kiwiirc.com/
 Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
 
 ## Documentation
+
 The official documentation is available at: [`https://linuxcontainers.org/lxd/docs/stable-5.0/`](https://linuxcontainers.org/lxd/docs/stable-5.0/)
 
 You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
@@ -100,4 +108,5 @@ You can find additional resources on the [website](https://linuxcontainers.org/l
 <!-- Include end support -->
 
 ## Contributing
+
 Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!

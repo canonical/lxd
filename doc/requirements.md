@@ -1,10 +1,13 @@
 # Requirements
+
 ## Go
+
 LXD requires Go 1.18 or higher and is only tested with the Golang compiler.
 
 We recommend having at least 2GB of RAM to allow the build to complete.
 
 ## Kernel requirements
+
 The minimum supported kernel version is 5.4.
 
 LXD requires a kernel with support for:
@@ -24,6 +27,7 @@ The following optional features also require extra kernel options:
 As well as any other kernel feature required by the LXC version in use.
 
 ## LXC
+
 LXD requires LXC 4.0.0 or higher with the following build options:
 
  * `apparmor` (if using LXD's AppArmor support)
@@ -33,9 +37,11 @@ To run recent version of various distributions, including Ubuntu, LXCFS
 should also be installed.
 
 ## QEMU
+
 For virtual machines, QEMU 6.0 or higher is required.
 
 ## Additional libraries (and development headers)
+
 LXD uses `dqlite` for its database, to build and set it up, you can
 run `make deps`.
 

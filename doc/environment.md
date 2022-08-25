@@ -1,10 +1,12 @@
 # Environment variables
 
 ## Introduction
+
 The LXD client and daemon respect some environment variables to adapt to
 the user's environment and to turn some advanced features on and off.
 
 ## Common
+
 Name                            | Description
 :---                            | :----
 `LXD_DIR`                       | The LXD data directory
@@ -15,6 +17,7 @@ Name                            | Description
 `no_proxy`                      | List of domains, IP addresses or CIDR ranges that don't require the use of a proxy
 
 ## Client environment variable
+
 Name                            | Description
 :---                            | :----
 `EDITOR`                        | What text editor to use
@@ -24,6 +27,7 @@ Name                            | Description
 `LXC_REMOTE`                    | Name of the remote to use (overrides configured default remote)
 
 ## Server environment variable
+
 Name                            | Description
 :---                            | :----
 `LXD_EXEC_PATH`                 | Full path to the LXD binary (used when forking subcommands)

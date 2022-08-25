@@ -39,11 +39,13 @@ In most cases, it is also the easiest to manage.
 This option is supported for the `dir` driver, the `btrfs` driver (if the host is Btrfs and you point LXD to a dedicated sub-volume) and the `zfs` driver (if the host is ZFS and you point LXD to a dedicated dataset on your zpool).
 
 #### Dedicated disk or partition
+
 Having LXD use an empty partition on your main disk or a full dedicated disk keeps its storage completely independent from the host.
 
 This option is supported  for the `btrfs` driver, the `lvm` driver and the `zfs` driver.
 
 #### Loop disk
+
 LXD can create a loop file on your main drive and have the selected storage driver use that.
 This method is functionally similar to using a disk or partition, but it uses a large file on your main drive instead.
 This means that every write must go through the storage driver and your main drive's file system, which leads to decreased performance.
@@ -55,6 +57,7 @@ They will grow up to the configured limit, but deleting instances or images will
 You can increase their size though; see {ref}`storage-resize-pool`.
 
 #### Remote storage
+
 The `ceph` and `cephfs` drivers store the data in a completely independent Ceph storage cluster that must be set up separately.
 
 (storage-default-pool)=

@@ -15,6 +15,7 @@ They are cached for 8s to handle multiple scrapers. Fetching metrics is a relati
 if the impact is too high.
 
 ## Create metrics certificate
+
 The `/1.0/metrics` endpoint is a special one as it also accepts a `metrics` type certificate.
 This kind of certificate is meant for metrics only, and won't work for interaction with instances or any other LXD objects.
 
@@ -33,6 +34,7 @@ lxc config trust add metrics.crt --type=metrics
 ```
 
 ## Add target to Prometheus
+
 In order for Prometheus to scrape from LXD, it has to be added to the targets.
 
 First, one needs to ensure that `core.https_address` is set so LXD can be reached over the network.

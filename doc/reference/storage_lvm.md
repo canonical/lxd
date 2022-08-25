@@ -43,6 +43,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-lvm-pool-config)=
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `lvm.thinpool_name`           | string                        | `LXDThinPool`                           | Thin pool where volumes are created
@@ -59,6 +60,7 @@ Key                           | Type                          | Default         
 
 (storage-lvm-vol-config)=
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `block.filesystem`      | string    | block based driver        | same as `volume.block.filesystem`              | {{block_filesystem}}

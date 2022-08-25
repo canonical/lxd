@@ -95,6 +95,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-zfs-pool-config)=
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
@@ -107,6 +108,7 @@ Key                           | Type                          | Default         
 
 (storage-zfs-vol-config)=
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}

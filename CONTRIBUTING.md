@@ -3,6 +3,7 @@
 Check the following guidelines before contributing to the project.
 
 ## Pull requests
+
 Changes to this project should be proposed as pull requests on GitHub
 at: [`https://github.com/lxc/lxd`](https://github.com/lxc/lxd)
 
@@ -10,6 +11,7 @@ Proposed changes will then go through code review there and once approved,
 be merged in the main branch.
 
 ## Commit structure
+
 Separate commits should be used for:
 
  - API extension (`api: Add XYZ extension`, contains `doc/api-extensions.md` and `shared/version.api.go`)
@@ -33,6 +35,7 @@ This structure makes it easier for contributions to be reviewed and also
 greatly simplifies the process of back-porting fixes to stable branches.
 
 ## License and copyright
+
 By default, any contribution to this project is made under the Apache
 2.0 license.
 
@@ -41,6 +44,7 @@ The author of a change remains the copyright holder of their code
 
 
 ## Developer Certificate of Origin
+
 To improve tracking of contributions to this project we use the DCO 1.1
 and use a "sign-off" procedure for all changes going into the branch.
 

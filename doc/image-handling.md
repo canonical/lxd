@@ -8,6 +8,7 @@ discourse: 9310
 ```
 
 ## Introduction
+
 LXD uses an image based workflow. It comes with a built-in image store
 where the user or external tools can import images.
 
@@ -18,6 +19,7 @@ instances using remote images. In such cases, the image may be cached
 on the target LXD.
 
 ## Sources
+
 LXD supports importing images from three different sources:
 
  - Remote image server (LXD or simplestreams)
@@ -25,6 +27,7 @@ LXD supports importing images from three different sources:
  - File on a remote web server
 
 ### Remote image server (LXD or simplestreams)
+
 This is the most common source of images and the only one of the three
 options which is supported directly at instance creation time.
 
@@ -49,6 +52,7 @@ The `my-server` remote there is another LXD server and in that example
 selects an image based on its fingerprint.
 
 ### Direct pushing of the image files
+
 This is mostly useful for air-gapped environments where images cannot be
 directly retrieved from an external server.
 
@@ -65,6 +69,7 @@ local image store with:
 images (two files) with the example above using the latter.
 
 ### File on a remote web server
+
 As an alternative to running a full image server only to distribute a
 single image to users, LXD also supports importing images by URL.
 
@@ -92,6 +97,7 @@ On the client side, this is used with:
     lxc image import URL --alias some-name
 
 ### Publishing an instance or snapshot as a new image
+
 An instance or one of its snapshots can be turned into a new image.
 This is done on the CLI with `lxc publish`.
 
@@ -105,6 +111,7 @@ generated from the instance and then be compressed. As this can be
 particularly I/O and CPU intensive, publish operations are serialized by LXD.
 
 ## Caching
+
 When spawning an instance from a remote image, the remote image is
 downloaded into the local image store with the cached bit set. The image
 will be kept locally as a private image until either it's been unused
@@ -116,6 +123,7 @@ LXD keeps track of image usage by updating the `last_used_at` image
 property every time a new instance is spawned from the image.
 
 ## Auto-update
+
 LXD can keep images up to date. By default, any image which comes from a
 remote server and was requested through an alias will be automatically
 updated by LXD. This can be changed with `images.auto_update_cached`.
@@ -142,6 +150,7 @@ This behavior only happens if the current image is scheduled to be
 auto-updated and can be disabled by setting `images.auto_update_interval` to 0.
 
 ## Profiles
+
 A list of profiles can be associated with an image using the `lxc image edit`
 command. After associating profiles with an image, an instance launched
 using the image will have the profiles applied in order. If `nil` is passed
@@ -152,6 +161,7 @@ profiles can be overridden when launching an instance by using the
 `--profile` and the `--no-profiles` flags to `lxc launch`.
 
 ## Special image properties
+
 Image properties beginning with the prefix ***requirements*** (e.g. `requirements.XYZ`)
 are used by LXD to determine the compatibility of the host system and the
 instance to be created by said image. In the event that these are incompatible,
@@ -165,6 +175,7 @@ Key                                         | Type      | Default      | Descrip
 `requirements.cgroup`                       | string    | -            | If set to `v1`, indicates the image requires the host to run `CGroupV1`
 
 ## Image format
+
 LXD currently supports two LXD-specific image formats.
 
 The first is a unified tarball, where a single tarball
@@ -180,6 +191,7 @@ The latter is designed to allow for easy image building from existing
 non-LXD rootfs tarballs already available today.
 
 ### Unified tarball
+
 Tarball, can be compressed and contains:
 
  - `rootfs/`
@@ -189,6 +201,7 @@ Tarball, can be compressed and contains:
 In this mode, the image identifier is the SHA-256 of the tarball.
 
 ### Split tarballs
+
 Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
 
 `metadata.tar` contains:
@@ -202,6 +215,7 @@ In this mode the image identifier is the SHA-256 of the concatenation of
 the metadata and rootfs tarball (in that order).
 
 ### Supported compression
+
 LXD supports a wide variety of compression algorithms for tarballs
 though for compatibility purposes, `gzip` or `xz` should be preferred.
 
@@ -210,6 +224,7 @@ container case. For virtual machines, the `rootfs.img` file is always
 `qcow2` and can optionally be compressed using `qcow2`'s native compression.
 
 ### Content
+
 For containers, the rootfs directory (or tarball) contains a full file system tree of what will become the `/`.
 For VMs, this is instead a `rootfs.img` file which becomes the main disk device.
 

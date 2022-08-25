@@ -5,7 +5,9 @@ discourse: 8355
 # Instance configuration
 
 ## Instances
+
 ### Properties
+
 The following are direct instance properties and can't be part of a profile:
 
  - `name`
@@ -25,6 +27,7 @@ DNS records, on the file system, in various security profiles as well as
 the host name of the instance itself.
 
 ### Key/value configuration
+
 The key/value configuration is namespaced with the following namespaces
 currently supported:
 
@@ -171,6 +174,7 @@ itself uses, setting those may very well break LXD in non-obvious ways
 and should whenever possible be avoided.
 
 #### CPU limits
+
 The CPU limits are implemented through a mix of the `cpuset` and `cpu` cgroup controllers.
 
 `limits.cpu` results in CPU pinning through the `cpuset` controller.
@@ -202,6 +206,7 @@ scheduler priority score when a number of instances sharing a set of
 CPUs have the same percentage of CPU assigned to them.
 
 #### VM CPU topology
+
 LXD virtual machines default to having just one vCPU allocated which
 shows up as matching the host CPU vendor and type but has a single core
 and no threads.
@@ -234,6 +239,7 @@ across NUMA nodes.
 
 (devices)=
 ## Devices configuration
+
 LXD will always provide the instance with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in instance or
 profile configuration and may not be overridden.
@@ -279,6 +285,7 @@ lxc profile device add <profile> <name> <type> [key=value]...
 ```
 
 ### Device types
+
 LXD supports the following device types:
 
 ID (database)   | Name                                 | Condition     | Description
@@ -309,6 +316,7 @@ It can be added in a profile being applied after the profile it originated from 
 
 (instance_device_type_nic)=
 #### Type: `nic`
+
 LXD supports several different kinds of network devices (referred to as Network Interface Controller or NIC).
 
 When adding a network device to an instance, there are two ways to specify the type of device you want to add;
@@ -680,6 +688,7 @@ In such case, a `bridge` device is preferable. A bridge will also let you use MA
 `ipvlan` is similar to `macvlan`, with the difference being that the forked device has IPs statically assigned to it and inherits the parent's MAC address on the network.
 
 ##### SR-IOV
+
 The `sriov` interface type supports SR-IOV enabled network devices.
 These devices associate a set of virtual functions (VFs) with the single physical function (PF) of the network device.
 PFs are standard PCIe functions. VFs on the other hand are very lightweight PCIe functions that are optimized for data movement.
@@ -701,6 +710,7 @@ it the name of the enabled VF.
 
 
 ##### MAAS integration
+
 If you're using MAAS to manage the physical network under your LXD host
 and want to attach your instances directly to a MAAS managed network,
 LXD can be configured to interact with MAAS so that it can track your
@@ -742,6 +752,7 @@ lxc config device add <instance> <device-name> infiniband nictype=physical paren
 ```
 
 ##### SR-IOV with InfiniBand devices
+
 InfiniBand devices do support SR-IOV but in contrast to other SR-IOV enabled
 devices InfiniBand does not support dynamic device creation in SR-IOV mode.
 This means users need to pre-configure the number of virtual functions by
@@ -1066,6 +1077,7 @@ Key                 | Type      | Default   | Required  | Description
 
 (instances-limit-units)=
 ### Units for storage and network limits
+
 Any value representing bytes or bits can make use of a number of useful
 suffixes to make it easier to understand what a particular limit is.
 
@@ -1105,6 +1117,7 @@ The full list of byte suffixes currently supported is:
  - EiB (1024^6)
 
 ### Instance types
+
 LXD supports simple instance types. Those are represented as a string
 which can be passed at instance creation time.
 
@@ -1131,6 +1144,7 @@ The list of supported clouds and instance types can be found here:
   [`https://github.com/dustinkirkland/instance-type`](https://github.com/dustinkirkland/instance-type)
 
 ### Huge page limits via `limits.hugepages.[size]`
+
 LXD allows to limit the number of huge pages available to a container through
 the `limits.hugepage.[size]` key. Limiting huge pages is done through the
 `hugetlb` cgroup controller. This means the host system needs to expose the
@@ -1149,6 +1163,7 @@ container through `limits.hugepages.[size]` to stop the container from being
 able to exhaust the huge pages available to the host.
 
 ### Resource limits via `limits.kernel.[limit name]`
+
 LXD exposes a generic namespaced key `limits.kernel.*` which can be used to set
 resource limits for a given instance. It is generic in the sense that LXD will
 not perform any validation on the resource that is specified following the
@@ -1185,6 +1200,7 @@ configured limitation will be inherited from the process starting up the
 instance. Note that this inheritance is not enforced by LXD but by the kernel.
 
 ### Snapshot scheduling and configuration
+
 LXD supports scheduled snapshots which can be created at most once every minute.
 There are three configuration options:
 -  `snapshots.schedule` takes a shortened cron expression:
@@ -1211,6 +1227,7 @@ lxc config set INSTANCE snapshots.pattern "{{ creation_date|date:'2006-01-02_15-
 This results in snapshots named `{date/time of creation}` down to the precision of a second.
 
 ### Overriding QEMU configuration
+
 For VM instances, LXD configures QEMU via a somewhat undocumented configuration
 file format passed to QEMU with the `-readconfig` command-line option, with
 each instance having a configuration file generated before boot. The generated

@@ -1,10 +1,12 @@
 # Container runtime environment
+
 LXD attempts to present a consistent environment to the container it runs.
 
 The exact environment will differ slightly based on kernel features and user
 configuration but will otherwise be identical for all containers.
 
 ## PID1
+
 LXD spawns whatever is located at `/sbin/init` as the initial process of the container (PID 1).
 This binary should act as a proper init system, including handling re-parented processes.
 
@@ -19,6 +21,7 @@ be used by the init system to detect the runtime.
 All file descriptors above the default 3 are closed prior to PID1 being spawned.
 
 ## File system
+
 LXD assumes that any image it uses to create a new container from will come with at least:
 
  - `/dev` (empty)
@@ -27,6 +30,7 @@ LXD assumes that any image it uses to create a new container from will come with
  - `/sys` (empty)
 
 ## Devices
+
 LXD containers have a minimal and ephemeral `/dev` based on a `tmpfs` file system.
 Since this is a `tmpfs` and not a `devtmpfs`, device nodes will only appear if manually created.
 
@@ -53,6 +57,7 @@ On top of the standard set of devices, the following are also set up for conveni
  - `/dev/mqueue`
 
 ## Mounts
+
 The following mounts are set up by default under LXD:
 
  - `/proc` ({spellexception}`proc`)
@@ -76,15 +81,18 @@ unprivileged container and will be blocked by our AppArmor policy inside
 privileged containers.
 
 ## Network
+
 LXD containers may have any number of network devices attached to them.
 The naming for those unless overridden by the user is `ethX` where X is an incrementing number.
 
 ## Container to host communication
+
 LXD sets up a socket at `/dev/lxd/sock` which root in the container can use to communicate with LXD on the host.
 
 The API is [documented here](dev-lxd.md).
 
 ## LXCFS
+
 If LXCFS is present on the host, it will automatically be set up for the container.
 
 This normally results in a number of `/proc` files being overridden through bind-mounts.

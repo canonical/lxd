@@ -79,6 +79,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-ceph-pool-config)=
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `ceph.cluster_name`           | string                        | `ceph`                                  | Name of the Ceph cluster in which to create new storage pools
@@ -96,6 +97,7 @@ Key                           | Type                          | Default         
 
 (storage-ceph-vol-config)=
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `block.filesystem`      | string    | block based driver        | same as `volume.block.filesystem`              | {{block_filesystem}}
