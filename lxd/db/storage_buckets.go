@@ -223,6 +223,65 @@ func (c *ClusterTx) GetStoragePoolLocalBucket(bucketName string) (*StorageBucket
 	return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket not found")
 }
 
+// GetStoragePoolLocalBucketByAccessKey returns the local Storage Bucket for the given bucket access key.
+// The search is restricted to buckets that belong to this member.
+func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(accessKey string) (*StorageBucket, error) {
+	var q *strings.Builder = &strings.Builder{}
+
+	q.WriteString(`
+	SELECT
+		projects.name as project,
+		storage_pools.name,
+		storage_buckets.id,
+		storage_buckets.storage_pool_id,
+		storage_buckets.name,
+		storage_buckets.description,
+		IFNULL(nodes.name, "") as location
+	FROM storage_buckets
+	JOIN projects ON projects.id = storage_buckets.project_id
+	JOIN storage_pools ON storage_pools.id = storage_buckets.storage_pool_id
+	JOIN storage_buckets_keys ON storage_buckets_keys.storage_bucket_id = storage_buckets.id
+	JOIN nodes ON nodes.id = storage_buckets.node_id
+	WHERE storage_buckets.node_id = ?
+	AND storage_buckets_keys.access_key = ?
+	`)
+
+	var err error
+	var buckets []*StorageBucket
+	args := []any{c.nodeID, accessKey}
+
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		var bucket StorageBucket
+
+		err := scan(&bucket.Project, &bucket.PoolName, &bucket.ID, &bucket.PoolID, &bucket.Name, &bucket.Description, &bucket.Location)
+		if err != nil {
+			return err
+		}
+
+		buckets = append(buckets, &bucket)
+
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	bucketsLen := len(buckets)
+	if bucketsLen == 1 {
+		// Populate config.
+		err = storagePoolBucketConfig(c, buckets[0].ID, &buckets[0].StorageBucket)
+		if err != nil {
+			return nil, err
+		}
+
+		return buckets[0], nil
+	} else if bucketsLen > 1 {
+		return nil, api.StatusErrorf(http.StatusConflict, "Multiple storage buckets found for access key")
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket access key not found")
+}
+
 // CreateStoragePoolBucket creates a new Storage Bucket.
 // If memberSpecific is true, then the storage bucket is associated to the current member, rather than being
 // associated to all members.
