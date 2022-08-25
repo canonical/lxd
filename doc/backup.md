@@ -9,11 +9,11 @@ discourse: 11296
 When planning to back up a LXD server, consider all the different objects
 that are stored/managed by LXD:
 
- - Instances (database records and file systems)
- - Images (database records, image files and file systems)
- - Networks (database records and state files)
- - Profiles (database records)
- - Storage volumes (database records and file systems)
+- Instances (database records and file systems)
+- Images (database records, image files and file systems)
+- Networks (database records and state files)
+- Profiles (database records)
+- Storage volumes (database records and file systems)
 
 Only backing up the database or only backing up the instances will not
 get you a fully functional backup.

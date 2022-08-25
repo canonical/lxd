@@ -6,13 +6,13 @@ The server configuration is a simple set of key and values.
 The key/value configuration is namespaced with the following namespaces
 currently supported:
 
- - `backups` (backups configuration)
- - `candid` (External user authentication through Candid)
- - `cluster` (cluster configuration)
- - `core` (core daemon configuration)
- - `images` (image configuration)
- - `maas` (MAAS integration)
- - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
+- `backups` (backups configuration)
+- `candid` (External user authentication through Candid)
+- `cluster` (cluster configuration)
+- `core` (core daemon configuration)
+- `images` (image configuration)
+- `maas` (MAAS integration)
+- `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
 
 ```{rst-class} break-col-4 min-width-4-8
 ```

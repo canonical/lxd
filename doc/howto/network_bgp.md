@@ -22,10 +22,11 @@ The BGP server feature can be used to allow a LXD server or cluster to directly 
 This way, traffic can be forwarded to the target instance.
 
 For bridge networks, the following addresses and networks are being advertised:
- - Network `ipv4.address` or `ipv6.address` subnets (if the matching `nat` property isn't set to `true`)
- - Network `ipv4.nat.address` or `ipv6.nat.address` subnets (if the matching `nat` property is set to `true`)
- - Network forward addresses
- - Addresses or subnets specified in `ipv4.routes.external` or `ipv6.routes.external` on an instance NIC that is connected to the bridge network
+
+- Network `ipv4.address` or `ipv6.address` subnets (if the matching `nat` property isn't set to `true`)
+- Network `ipv4.nat.address` or `ipv6.nat.address` subnets (if the matching `nat` property is set to `true`)
+- Network forward addresses
+- Addresses or subnets specified in `ipv4.routes.external` or `ipv6.routes.external` on an instance NIC that is connected to the bridge network
 
 For physical networks, no addresses are advertised directly at the level of the physical network.
 Instead, the networks, forwards and routes of all downstream networks (the networks that specify the physical network as their uplink network through the `network` option) are advertised in the same way as for bridge networks.

@@ -10,17 +10,17 @@ discourse: 8355
 
 The following are direct instance properties and can't be part of a profile:
 
- - `name`
- - `architecture`
+- `name`
+- `architecture`
 
 Name is the instance name and can only be changed by renaming the instance.
 
 Valid instance names must:
 
- - Be between 1 and 63 characters long
- - Be made up exclusively of letters, numbers and dashes from the ASCII table
- - Not start with a digit or a dash
- - Not end with a dash
+- Be between 1 and 63 characters long
+- Be made up exclusively of letters, numbers and dashes from the ASCII table
+- Not start with a digit or a dash
+- Not end with a dash
 
 This requirement is so that the instance name may properly be used in
 DNS records, on the file system, in various security profiles as well as
@@ -31,16 +31,16 @@ the host name of the instance itself.
 The key/value configuration is namespaced with the following namespaces
 currently supported:
 
- - `boot` (boot related options, timing, dependencies, ...)
- - `cloud-init` (cloud-init configuration)
- - `environment` (environment variables)
- - `image` (copy of the image properties at time of creation)
- - `limits` (resource limits)
- - `nvidia` (NVIDIA and CUDA configuration)
- - `raw` (raw instance configuration overrides)
- - `security` (security policies)
- - `user` (storage for user properties, searchable)
- - `volatile` (used internally by LXD to store internal data specific to an instance)
+- `boot` (boot related options, timing, dependencies, ...)
+- `cloud-init` (cloud-init configuration)
+- `environment` (environment variables)
+- `image` (copy of the image properties at time of creation)
+- `limits` (resource limits)
+- `nvidia` (NVIDIA and CUDA configuration)
+- `raw` (raw instance configuration overrides)
+- `security` (security policies)
+- `user` (storage for user properties, searchable)
+- `volatile` (used internally by LXD to store internal data specific to an instance)
 
 The currently supported keys are:
 
@@ -246,16 +246,16 @@ profile configuration and may not be overridden.
 
 Those include:
 
- - `/dev/null` (character device)
- - `/dev/zero` (character device)
- - `/dev/full` (character device)
- - `/dev/console` (character device)
- - `/dev/tty` (character device)
- - `/dev/random` (character device)
- - `/dev/urandom` (character device)
- - `/dev/net/tun` (character device)
- - `/dev/fuse` (character device)
- - `lo` (network interface)
+- `/dev/null` (character device)
+- `/dev/zero` (character device)
+- `/dev/full` (character device)
+- `/dev/console` (character device)
+- `/dev/tty` (character device)
+- `/dev/random` (character device)
+- `/dev/urandom` (character device)
+- `/dev/net/tun` (character device)
+- `/dev/fuse` (character device)
+- `lo` (network interface)
 
 Anything else has to be defined in the instance configuration or in one of its
 profiles. The default profile will typically contain a network interface to
@@ -337,20 +337,20 @@ See the settings for the NIC below for details about which properties are availa
 
 The following NICs can be specified using the `nictype` or `network` properties:
 
- - [`bridged`](#nic-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
- - [`macvlan`](#nic-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
- - [`sriov`](#nic-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
+- [`bridged`](#nic-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
+- [`macvlan`](#nic-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
+- [`sriov`](#nic-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
 
 The following NICs can be specified using only the `network` property:
 
- - [`ovn`](#nic-ovn): Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
+- [`ovn`](#nic-ovn): Uses an existing OVN network and creates a virtual device pair to connect the instance to it.
 
 The following NICs can be specified using only the `nictype` property:
 
- - [`physical`](#nic-physical): Straight physical device pass-through from the host. The targeted device will vanish from the host and appear in the instance.
- - [`ipvlan`](#nic-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
- - [`p2p`](#nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
- - [`routed`](#nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
+- [`physical`](#nic-physical): Straight physical device pass-through from the host. The targeted device will vanish from the host and appear in the instance.
+- [`ipvlan`](#nic-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
+- [`p2p`](#nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
+- [`routed`](#nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
 
 (instance_device_type_nic_bridged)=
 ##### `nic`: `bridged`
@@ -732,8 +732,8 @@ Supported instance types: container
 
 LXD supports two different kind of network types for InfiniBand devices:
 
- - `physical`: Straight physical device pass-through from the host. The targeted device will vanish from the host and appear in the instance.
- - `sriov`: Passes a virtual function of an SR-IOV enabled physical network device into the instance.
+- `physical`: Straight physical device pass-through from the host. The targeted device will vanish from the host and appear in the instance.
+- `sriov`: Passes a virtual function of an SR-IOV enabled physical network device into the instance.
 
 Different network interface types have different additional properties, the current list is:
 
@@ -889,10 +889,10 @@ Container devices may match multiple GPUs at once. However, for virtual machines
 
 The following GPUs can be specified using the `gputype` property:
 
- - [`physical`](#gpu-physical) Passes through an entire GPU. This is the default if `gputype` is unspecified.
- - [`mdev`](#gpu-mdev) Creates and passes through a virtual GPU into the instance.
- - [`mig`](#gpu-mig) Creates and passes through a MIG (Multi-Instance GPU) device into the instance.
- - [`sriov`](#gpu-sriov) Passes a virtual function of an SR-IOV enabled GPU into the instance.
+- [`physical`](#gpu-physical) Passes through an entire GPU. This is the default if `gputype` is unspecified.
+- [`mdev`](#gpu-mdev) Creates and passes through a virtual GPU into the instance.
+- [`mig`](#gpu-mig) Creates and passes through a MIG (Multi-Instance GPU) device into the instance.
+- [`sriov`](#gpu-sriov) Passes a virtual function of an SR-IOV enabled GPU into the instance.
 
 ##### `gpu`: `physical`
 
@@ -973,15 +973,16 @@ addresses to an address inside the instance or to do the reverse and
 have an address in the instance connect through the host.
 
 The supported connection types are:
-* `tcp <-> tcp`
-* `udp <-> udp`
-* `unix <-> unix`
-* `tcp <-> unix`
-* `unix <-> tcp`
-* `udp <-> tcp`
-* `tcp <-> udp`
-* `udp <-> unix`
-* `unix <-> udp`
+
+- `tcp <-> tcp`
+- `udp <-> udp`
+- `unix <-> unix`
+- `tcp <-> unix`
+- `unix <-> tcp`
+- `udp <-> tcp`
+- `tcp <-> udp`
+- `udp <-> unix`
+- `unix <-> udp`
 
 The proxy device also supports a `nat` mode where packets are forwarded using NAT rather than being proxied through
 a separate connection. This has benefit that the client address is maintained without the need for the target
@@ -999,8 +1000,8 @@ In order to define a static IPv6 address, the parent managed network needs to ha
 
 In NAT mode the supported connection types are:
 
-* `tcp <-> tcp`
-* `udp <-> udp`
+- `tcp <-> tcp`
+- `udp <-> udp`
 
 When defining IPv6 addresses use square bracket notation, e.g.
 
@@ -1086,35 +1087,35 @@ mostly making sense for storage limits.
 
 The full list of bit suffixes currently supported is:
 
- - bit (1)
- - kbit (1000)
- - Mbit (1000^2)
- - Gbit (1000^3)
- - Tbit (1000^4)
- - Pbit (1000^5)
- - Ebit (1000^6)
- - Kibit (1024)
- - Mibit (1024^2)
- - Gibit (1024^3)
- - Tibit (1024^4)
- - Pibit (1024^5)
- - Eibit (1024^6)
+- bit (1)
+- kbit (1000)
+- Mbit (1000^2)
+- Gbit (1000^3)
+- Tbit (1000^4)
+- Pbit (1000^5)
+- Ebit (1000^6)
+- Kibit (1024)
+- Mibit (1024^2)
+- Gibit (1024^3)
+- Tibit (1024^4)
+- Pibit (1024^5)
+- Eibit (1024^6)
 
 The full list of byte suffixes currently supported is:
 
- - B or bytes (1)
- - kB (1000)
- - MB (1000^2)
- - GB (1000^3)
- - TB (1000^4)
- - PB (1000^5)
- - EB (1000^6)
- - KiB (1024)
- - MiB (1024^2)
- - GiB (1024^3)
- - TiB (1024^4)
- - PiB (1024^5)
- - EiB (1024^6)
+- B or bytes (1)
+- kB (1000)
+- MB (1000^2)
+- GB (1000^3)
+- TB (1000^4)
+- PB (1000^5)
+- EB (1000^6)
+- KiB (1024)
+- MiB (1024^2)
+- GiB (1024^3)
+- TiB (1024^4)
+- PiB (1024^5)
+- EiB (1024^6)
 
 ### Instance types
 
@@ -1123,15 +1124,15 @@ which can be passed at instance creation time.
 
 The syntax allows the three following forms:
 
- - `<instance type>`
- - `<cloud>:<instance type>`
- - `c<CPU>-m<RAM in GB>`
+- `<instance type>`
+- `<cloud>:<instance type>`
+- `c<CPU>-m<RAM in GB>`
 
 For example, those 3 are equivalent:
 
- - `t2.micro`
- - `aws:t2.micro`
- - `c1-m1`
+- `t2.micro`
+- `aws:t2.micro`
+- `c1-m1`
 
 On the command line, this is passed like this:
 
@@ -1203,12 +1204,13 @@ instance. Note that this inheritance is not enforced by LXD but by the kernel.
 
 LXD supports scheduled snapshots which can be created at most once every minute.
 There are three configuration options:
--  `snapshots.schedule` takes a shortened cron expression:
+
+- `snapshots.schedule` takes a shortened cron expression:
 `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is empty
 (default), no snapshots will be created.
--  `snapshots.schedule.stopped` controls whether to automatically snapshot stopped
+- `snapshots.schedule.stopped` controls whether to automatically snapshot stopped
 instances.  It defaults to `false`.
--  `snapshots.pattern` takes a Pongo2 template string to format the snapshot name.
+- `snapshots.pattern` takes a Pongo2 template string to format the snapshot name.
 To name snapshots with time stamps, the Pongo2 context variable `creation_date`
 can be used.  Be aware that you should format the date
 (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template
