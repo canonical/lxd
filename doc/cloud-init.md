@@ -22,6 +22,7 @@ The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` ena
 Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
 
 Both `vendor-data` and `user-data` follow the same rules, with the following caveats:
+
 * Users have ultimate control over vendor data. They can disable its execution or disable handling of specific parts of multipart input.
 * By default it only runs on first boot
 * Vendor data can be disabled by the user. If the use of vendor data is required for the instance to run, then vendor data should not be used.
@@ -85,6 +86,7 @@ cloud-init uses the `user-data` (and `vendor-data`) section to do things like up
 A `cloud-init.user-data` key must have a first line that indicates what type of [data format](https://cloudinit.readthedocs.io/en/latest/topics/format.html) is being passed to `cloud-init`. For activities like upgrading packages or setting up a user, `#cloud-config` is the data format to use.
 
 An instance's rootfs will contain the following files as a result:
+
 * `/var/lib/cloud/instance/cloud-config.txt`
 * `/var/lib/cloud/instance/user-data.txt`
 

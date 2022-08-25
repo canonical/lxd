@@ -778,20 +778,23 @@ They can also be created by {ref}`attaching a storage volume to an instance <sto
 LXD supports the following additional source types:
 
 - Ceph RBD: Mount from existing Ceph RBD device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph RBD that they would like use for this instance, they can use this command.
-Example command
-```
-lxc config device add <instance> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username> path=/ceph
-```
+
+  Example command:
+  ```
+  lxc config device add <instance> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username> path=/ceph
+  ```
 - CephFS: Mount from existing CephFS device that is externally managed. LXD can use Ceph to manage an internal file system for the instance, but in the event that a user has a previously existing Ceph file system that they would like use for this instance, they can use this command.
-Example command.
-```
-lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username> path=/cephfs
-```
+
+  Example command:
+  ```
+  lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username> path=/cephfs
+  ```
 - VM cloud-init: Generate a cloud-init configuration ISO from the `user.vendor-data`, `user.user-data` and `user.meta-data` configuration keys and attach to the VM so that cloud-init running inside the VM guest will detect the drive on boot and apply the configuration. Only applicable to virtual-machine instances.
-Example command.
-```
-lxc config device add <instance> config disk source=cloud-init:config
-```
+
+  Example command:
+  ```
+  lxc config device add <instance> config disk source=cloud-init:config
+  ```
 
 The following properties exist:
 
@@ -1205,22 +1208,17 @@ instance. Note that this inheritance is not enforced by LXD but by the kernel.
 LXD supports scheduled snapshots which can be created at most once every minute.
 There are three configuration options:
 
-- `snapshots.schedule` takes a shortened cron expression:
-`<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is empty
-(default), no snapshots will be created.
-- `snapshots.schedule.stopped` controls whether to automatically snapshot stopped
-instances.  It defaults to `false`.
+- `snapshots.schedule` takes a shortened cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`.
+  If this is empty (default), no snapshots will be created.
+- `snapshots.schedule.stopped` controls whether to automatically snapshot stopped instances.
+  It defaults to `false`.
 - `snapshots.pattern` takes a Pongo2 template string to format the snapshot name.
-To name snapshots with time stamps, the Pongo2 context variable `creation_date`
-can be used.  Be aware that you should format the date
-(e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template
-string to avoid forbidden characters in the snapshot name.  Another way to avoid
-name collisions is to use the placeholder `%d`. If a snapshot with the same name
-(excluding the placeholder) already exists, all existing snapshot names will be
-taken into account to find the highest number at the placeholders position. This
-number will be incremented by one for the new name. The starting number if no
-snapshot exists will be `0`. The default behavior of `snapshots.pattern` is
-equivalent to a format string of `snap%d`.
+  To name snapshots with time stamps, the Pongo2 context variable `creation_date` can be used.
+  Be aware that you should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template string to avoid forbidden characters in the snapshot name.
+  Another way to avoid name collisions is to use the placeholder `%d`.
+  If a snapshot with the same name (excluding the placeholder) already exists, all existing snapshot names will be taken into account to find the highest number at the placeholders position.
+  This number will be incremented by one for the new name. The starting number if no snapshot exists will be `0`.
+  The default behavior of `snapshots.pattern` is equivalent to a format string of `snap%d`.
 
 Example of using Pongo2 syntax to format snapshot names with timestamps:
 ```bash
