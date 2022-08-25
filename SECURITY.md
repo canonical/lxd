@@ -28,7 +28,7 @@ but we simply do not consider such containers to be root safe.
 Unprivileged container escapes are certainly something we'd consider a
 security issue, especially if somehow facilitated by LXD.
 
-More details can be found here: https://linuxcontainers.org/lxc/security/
+More details can be found here: <https://linuxcontainers.org/lxc/security/>
 
 ## Reporting a vulnerability
 
