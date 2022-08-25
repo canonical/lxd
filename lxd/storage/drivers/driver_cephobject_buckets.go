@@ -21,6 +21,11 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// ValidateVolume validates the supplied volume config.
+func (d *cephobject) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	return d.validateVolume(vol, nil, removeUnknownKeys)
+}
+
 // s3Client returns a configured minio S3 client.
 func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
 	u, err := url.ParseRequestURI(d.config["cephobject.radosgsw.endpoint"])
@@ -69,7 +74,7 @@ func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
 }
 
 // CreateBucket creates a new bucket.
-func (d *cephobject) CreateBucket(bucket Bucket, op *operations.Operation) error {
+func (d *cephobject) CreateBucket(bucket Volume, op *operations.Operation) error {
 	// Check if there is an existing cephobjectRadosgwAdminUser user.
 	adminUserInfo, _, err := d.radosgwadminGetUser(context.TODO(), cephobjectRadosgwAdminUser)
 	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
@@ -141,7 +146,7 @@ func (d *cephobject) CreateBucket(bucket Bucket, op *operations.Operation) error
 }
 
 // setBucketQuota sets the bucket quota.
-func (d *cephobject) setBucketQuota(bucket Bucket, quotaSize string) error {
+func (d *cephobject) setBucketQuota(bucket Volume, quotaSize string) error {
 	storageBucketName := d.radosgwBucketName(bucket.name)
 
 	sizeBytes, err := units.ParseByteSizeString(quotaSize)
@@ -158,7 +163,7 @@ func (d *cephobject) setBucketQuota(bucket Bucket, quotaSize string) error {
 }
 
 // DeleteBucket deletes an existing bucket.
-func (d *cephobject) DeleteBucket(bucket Bucket, op *operations.Operation) error {
+func (d *cephobject) DeleteBucket(bucket Volume, op *operations.Operation) error {
 	storageBucketName := d.radosgwBucketName(bucket.name)
 
 	err := d.radosgwadminBucketDelete(context.TODO(), storageBucketName)
@@ -175,7 +180,7 @@ func (d *cephobject) DeleteBucket(bucket Bucket, op *operations.Operation) error
 }
 
 // UpdateBucket updates an existing bucket.
-func (d *cephobject) UpdateBucket(bucket Bucket, changedConfig map[string]string) error {
+func (d *cephobject) UpdateBucket(bucket Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
 		err := d.setBucketQuota(bucket, newSize)
@@ -200,7 +205,7 @@ func (d *cephobject) bucketKeyRadosgwAccessRole(roleName string) (string, error)
 }
 
 // CreateBucket creates a new bucket.
-func (d *cephobject) CreateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *cephobject) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	storageBucketName := d.radosgwBucketName(bucket.name)
 
 	accessRole, err := d.bucketKeyRadosgwAccessRole(roleName)
@@ -228,7 +233,7 @@ func (d *cephobject) CreateBucketKey(bucket Bucket, keyName string, creds S3Cred
 }
 
 // UpdateBucketKey updates bucket key.
-func (d *cephobject) UpdateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *cephobject) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	storageBucketName := d.radosgwBucketName(bucket.name)
 
 	accessRole, err := d.bucketKeyRadosgwAccessRole(roleName)
@@ -263,7 +268,7 @@ func (d *cephobject) UpdateBucketKey(bucket Bucket, keyName string, creds S3Cred
 }
 
 // DeleteBucketKey deletes an existing bucket key.
-func (d *cephobject) DeleteBucketKey(bucket Bucket, keyName string, op *operations.Operation) error {
+func (d *cephobject) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
 	storageBucketName := d.radosgwBucketName(bucket.name)
 
 	err := d.radosgwadminSubUserDelete(context.TODO(), storageBucketName, keyName)
