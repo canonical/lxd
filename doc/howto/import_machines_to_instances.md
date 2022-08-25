@@ -12,6 +12,7 @@ It connects to a LXD server and creates a blank instance, which you can configur
 The tool then copies the data from the disk or image that you provide to the instance.
 
 The tool can create both containers and virtual machines:
+
 * When creating a container, you must provide a disk or partition that contains the root file system for the container.
   For example, this could be the `/` root disk of the machine or container where you are running the tool.
 * When creating a virtual machine, you must provide a bootable disk, partition or image.

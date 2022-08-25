@@ -8,6 +8,7 @@ Events are messages about actions that have occurred over LXD. Using the API end
 ## Event types
 
 LXD Currently supports three event types.
+
 - `logging`: Shows all logging messages regardless of the server logging level.
 - `operation`: Shows all ongoing operations from creation to completion (including updates to their state and progress metadata).
 - `lifecycle`: Shows an audit trail for specific actions occurring over LXD.
@@ -27,6 +28,7 @@ metadata:
 timestamp: "2021-03-14T00:00:00Z"
 type: lifecycle
 ```
+
 - `location`: The cluster member name (if clustered).
 - `timestamp`: Time that the event occurred in RFC3339 format.
 - `type`: The type of event this is (one of `logging`, `operation`, or `lifecycle`).

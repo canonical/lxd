@@ -20,6 +20,7 @@ ZFS creates logical units based on physical storage devices.
 These logical units are called *ZFS pools* or *zpools*.
 Each zpool is then divided into a number of *{spellexception}`datasets`*.
 These {spellexception}`datasets` can be of different types:
+
 - A *{spellexception}`ZFS filesystem`* can be seen as a partition or a mounted file system.
 - A *ZFS volume* represents a block device.
 - A *ZFS snapshot* captures a specific state of either a {spellexception}`ZFS filesystem` or a ZFS volume.
