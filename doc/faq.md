@@ -109,7 +109,7 @@ cannot start.
 
 The errors here say that `/sys` and `/proc` cannot be mounted - which is
 correct in an unprivileged container.  However, LXD does mount these
-file systems automatically _if it can_.
+file systems automatically if it can.
 
 The [container requirements](container-environment.md) specify that
 every container must come with an empty `/dev`, `/proc` and `/sys`
@@ -148,7 +148,7 @@ not running as well as expected.
     sys
     [root@systemd /]# exit
 
-Because LXD tries to auto-heal, it *did* create some of the folders when it was
+Because LXD tries to auto-heal, it did create some of the folders when it was
 starting up. Shutting down and restarting the container will fix the problem, but
 the original cause is still there - the **template does not contain the required
 files**.
@@ -217,9 +217,9 @@ safe to do.
 
 ### Beware of port security
 
-Many switches do *not* allow MAC address changes, and will either drop traffic
+Many switches do not allow MAC address changes, and will either drop traffic
 with an incorrect MAC or disable the port totally. If you can ping a LXD instance
-from the host, but are not able to ping it from a _different_ host, this could be
+from the host, but are not able to ping it from a different host, this could be
 the cause.  The way to diagnose this is to run a `tcpdump` on the uplink (in this case,
 `eth1`), and you will see either "ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy`", with you
 sending responses but them not getting acknowledged, or ICMP packets going in and
