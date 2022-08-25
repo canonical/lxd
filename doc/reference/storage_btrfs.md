@@ -61,6 +61,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-btrfs-pool-config)=
 ### Storage pool configuration
+
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
 `btrfs.mount_options`           | string    | `user_subvol_rm_allowed`   | Mount options for block devices
@@ -69,6 +70,7 @@ Key                             | Type      | Default                    | Descr
 {{volume_configuration}}
 
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                       | Description
 :--                     | :---      | :--------                 | :------                                       | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`  | {{enable_ID_shifting}}

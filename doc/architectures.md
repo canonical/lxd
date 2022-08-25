@@ -1,6 +1,7 @@
 # Architectures
 
 ## Introduction
+
 LXD just like LXC can run on just about any architecture that's
 supported by the Linux kernel and by Go.
 

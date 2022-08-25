@@ -1,4 +1,5 @@
 # Instance command execution
+
 LXD makes it easy to run a command inside a given instance.
 For containers, this always works and is handled directly by LXD.
 For virtual machines, this relies on the `lxd-agent` process running inside of the virtual machine.
@@ -10,6 +11,7 @@ execution mode, user, group and working directory.
 At the API level, this is done through `/1.0/instances/NAME/exec`.
 
 ## Execution mode
+
 LXD can execute commands either interactively or non-interactively.
 
 In interactive mode, a pseudo-terminal device (PTS) will be used to handle input (stdin) and output (stdout, stderr).
@@ -19,6 +21,7 @@ In non-interactive mode, pipes are allocated instead, one for each of stdin, std
 This allows running a command and properly getting separate stdin, stdout and stderr as required by many scripts.
 
 ## User, groups and working directory
+
 LXD has a policy not to read data from within the instances or trusting anything that can be found in it.
 This means that LXD will not be parsing things like `/etc/passwd`, `/etc/group` or `/etc/nsswitch.conf`
 to handle user and group resolution.
@@ -33,6 +36,7 @@ The user, group and working directory can all be overridden but absolute values 
 have to be provided as LXD will not do any resolution for you.
 
 ## Environment
+
 The environment variables set during an exec session come from a few sources:
  - `environment.KEY=VALUE` directly set on the instance
  - Environment variables directly passed during the exec session

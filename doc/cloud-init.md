@@ -89,6 +89,7 @@ An instance's rootfs will contain the following files as a result:
 * `/var/lib/cloud/instance/user-data.txt`
 
 #### Upgrade packages on instance creation
+
 To trigger a package upgrade from the repositories for the instance, use the `package_upgrade` key:
 
 ```yaml
@@ -99,6 +100,7 @@ config:
 ```
 
 #### Install packages on instance creation
+
 To install specific packages when the instance is set up, use the `packages` key and specify the package names as a list:
 
 ```yaml
@@ -111,6 +113,7 @@ config:
 ```
 
 #### Set the time zone on instance creation
+
 To set the time zone for the instance, use the `timezone` key:
 
 ```yaml
@@ -121,6 +124,7 @@ config:
 ```
 
 #### Run commands
+
 To run a command (such as writing a marker file), use the `runcmd` key and specify commands as a list:
 
 ```yaml
@@ -132,6 +136,7 @@ config:
 ```
 
 #### Add a user account
+
 To add a user account, use the `user` key. See the [documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html#including-users-and-groups) for more details about default users and which keys are supported.
 
 ```yaml
