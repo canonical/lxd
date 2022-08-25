@@ -48,15 +48,15 @@ type Driver interface {
 	ApplyPatch(name string) error
 
 	// Buckets.
-	ValidateBucket(bucket Bucket) error
+	ValidateBucket(bucket Volume) error
 	BucketURL(bucketName string) *url.URL
-	CreateBucket(bucket Bucket, op *operations.Operation) error
-	DeleteBucket(bucket Bucket, op *operations.Operation) error
-	UpdateBucket(bucket Bucket, changedConfig map[string]string) error
+	CreateBucket(bucket Volume, op *operations.Operation) error
+	DeleteBucket(bucket Volume, op *operations.Operation) error
+	UpdateBucket(bucket Volume, changedConfig map[string]string) error
 	ValidateBucketKey(keyName string, creds S3Credentials, roleName string) error
-	CreateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
-	UpdateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
-	DeleteBucketKey(bucket Bucket, keyName string, op *operations.Operation) error
+	CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
+	UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error)
+	DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error
 
 	// Volumes.
 	FillVolumeConfig(vol Volume) error
