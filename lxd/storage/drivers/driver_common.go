@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/validate"
 )
 
 type common struct {
@@ -112,8 +111,8 @@ func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
 			continue
 		}
 
-		// If volume type is not custom, don't copy "size" property to volume config.
-		if vol.volType != VolumeTypeCustom && volKey == "size" {
+		// If volume type is not custom or bucket, don't copy "size" property to volume config.
+		if (vol.volType != VolumeTypeCustom && vol.volType != VolumeTypeBucket) && volKey == "size" {
 			continue
 		}
 
@@ -178,9 +177,9 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		}
 	}
 
-	// If volume type is not custom, don't allow "size" property.
-	if vol.volType != VolumeTypeCustom && vol.config["size"] != "" {
-		return fmt.Errorf("Volume %q property is only valid for custom volume types", "size")
+	// If volume type is not custom or bucket, don't allow "size" property.
+	if (vol.volType != VolumeTypeCustom && vol.volType != VolumeTypeBucket) && vol.config["size"] != "" {
+		return fmt.Errorf("Volume %q property is not valid for volume type", "size")
 	}
 
 	return nil
@@ -432,8 +431,8 @@ func (d *common) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 	return ErrNotSupported
 }
 
-// ValidateBucket validates the supplied bucket config.
-func (d *common) ValidateBucket(bucket Bucket) error {
+// ValidateBucket validates the supplied bucket name.
+func (d *common) ValidateBucket(bucket Volume) error {
 	match, err := regexp.MatchString(`^[a-z0-9][\-\.a-z0-9]{2,62}$`, bucket.name)
 	if err != nil {
 		return err
@@ -441,36 +440,6 @@ func (d *common) ValidateBucket(bucket Bucket) error {
 
 	if !match {
 		return fmt.Errorf("Bucket name must be between 3 and 63 lowercase letters, numbers, periods or hyphens and must start with a letter or number")
-	}
-
-	checkedFields := map[string]struct{}{}
-
-	rules := map[string]func(string) error{
-		"size": validate.Optional(validate.IsSize),
-	}
-
-	// Run the validator against each field.
-	for k, validator := range rules {
-		checkedFields[k] = struct{}{} //Mark field as checked.
-		err := validator(bucket.config[k])
-		if err != nil {
-			return fmt.Errorf("Invalid value for bucket %q option %q: %w", bucket.name, k, err)
-		}
-	}
-
-	// Look for any unchecked fields, as these are unknown fields and validation should fail.
-	for k := range bucket.config {
-		_, checked := checkedFields[k]
-		if checked {
-			continue
-		}
-
-		// User keys are not validated.
-		if strings.HasPrefix(k, "user.") {
-			continue
-		}
-
-		return fmt.Errorf("Invalid option for bucket %q option %q", bucket.name, k)
 	}
 
 	return nil
@@ -482,17 +451,17 @@ func (d *common) BucketURL(bucketName string) *url.URL {
 }
 
 // CreateBucket creates a new bucket.
-func (d *common) CreateBucket(bucket Bucket, op *operations.Operation) error {
+func (d *common) CreateBucket(bucket Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // DeleteBucket deletes an existing bucket.
-func (d *common) DeleteBucket(bucket Bucket, op *operations.Operation) error {
+func (d *common) DeleteBucket(bucket Volume, op *operations.Operation) error {
 	return ErrNotSupported
 }
 
 // UpdateBucket updates an existing bucket.
-func (d *common) UpdateBucket(bucket Bucket, changedConfig map[string]string) error {
+func (d *common) UpdateBucket(bucket Volume, changedConfig map[string]string) error {
 	return ErrNotSupported
 }
 
@@ -511,15 +480,15 @@ func (d *common) ValidateBucketKey(keyName string, creds S3Credentials, roleName
 }
 
 // CreateBucketKey create bucket key.
-func (d *common) CreateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) CreateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
 // UpdateBucketKey updates bucket key.
-func (d *common) UpdateBucketKey(bucket Bucket, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
+func (d *common) UpdateBucketKey(bucket Volume, keyName string, creds S3Credentials, roleName string, op *operations.Operation) (*S3Credentials, error) {
 	return nil, ErrNotSupported
 }
 
-func (d *common) DeleteBucketKey(bucket Bucket, keyName string, op *operations.Operation) error {
+func (d *common) DeleteBucketKey(bucket Volume, keyName string, op *operations.Operation) error {
 	return nil
 }
