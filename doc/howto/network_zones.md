@@ -41,12 +41,12 @@ You can check the records that are generated with your zone setup with the `dig`
 For example, running `dig @<DNS_server_IP> -p 1053 axfr lxd.example.net` might give the following output:
 
 ```bash
-lxd.example.net.              3600  IN	SOA	lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
+lxd.example.net.              3600  IN  SOA lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
 default-my-ovn.uplink.lxd.example.net. 300 IN A 192.0.2.100
-my-instance.lxd.example.net.  300   IN	A	192.0.2.76
-my-uplink.gw.lxd.example.net. 300   IN	A	192.0.2.1
-foo.lxd.example.net.          300	IN	A	8.8.8.8
-lxd.example.net.              3600	IN	SOA	lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
+my-instance.lxd.example.net.  300   IN  A   192.0.2.76
+my-uplink.gw.lxd.example.net. 300   IN  A   192.0.2.1
+foo.lxd.example.net.          300   IN  A   8.8.8.8
+lxd.example.net.              3600  IN  SOA lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
 ```
 
 If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` for a network using `192.0.2.0/24`, it generates reverse DNS records for, for example, `192.0.2.100`.
