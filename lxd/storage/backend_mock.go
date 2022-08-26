@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -261,6 +262,10 @@ func (b *mockBackend) DeleteBucketKey(projectName string, bucketName string, key
 
 func (b *mockBackend) ActivateBucket(bucketName string, op *operations.Operation) (*miniod.Process, error) {
 	return nil, nil
+}
+
+func (b *mockBackend) GetBucketURL(bucketName string) *url.URL {
+	return nil
 }
 
 func (b *mockBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error {
