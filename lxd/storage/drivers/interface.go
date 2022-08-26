@@ -50,7 +50,7 @@ type Driver interface {
 
 	// Buckets.
 	ValidateBucket(bucket Volume) error
-	BucketURL(bucketName string) *url.URL
+	GetBucketURL(bucketName string) *url.URL
 	CreateBucket(bucket Volume, op *operations.Operation) error
 	DeleteBucket(bucket Volume, op *operations.Operation) error
 	UpdateBucket(bucket Volume, changedConfig map[string]string) error

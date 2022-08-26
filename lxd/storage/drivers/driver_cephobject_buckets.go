@@ -280,9 +280,9 @@ func (d *cephobject) DeleteBucketKey(bucket Volume, keyName string, op *operatio
 	return nil
 }
 
-// BucketURL returns the URL of the specified bucket.
-func (d *cephobject) BucketURL(bucketName string) *url.URL {
-	u, err := url.ParseRequestURI(d.config["cephobject.radosgsw.endpoint"])
+// GetBucketURL returns the URL of the specified bucket.
+func (d *cephobject) GetBucketURL(bucketName string) *url.URL {
+	u, err := url.ParseRequestURI(d.config["cephobject.radosgw.endpoint"])
 	if err != nil {
 		return nil
 	}
