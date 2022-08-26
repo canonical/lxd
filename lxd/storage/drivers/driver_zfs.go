@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -126,6 +127,45 @@ func (d *zfs) Info() Info {
 	return info
 }
 
+// ensureInitialDatasets creates missing initial datasets or configures existing ones with current policy.
+func (d zfs) ensureInitialDatasets() error {
+	args := make([]string, 0, len(zfsDefaultSettings))
+	for k, v := range zfsDefaultSettings {
+		args = append(args, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	err := d.setDatasetProperties(d.config["zfs.pool_name"], args...)
+	if err != nil {
+		return err
+	}
+
+	for _, dataset := range d.initialDatasets() {
+		properties := []string{"mountpoint=legacy"}
+		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
+			if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {
+				d.logger.Warn("Unable to set volmode on parent virtual-machines datasets due to ZFS being too old")
+			} else {
+				properties = append(properties, "volmode=none")
+			}
+		}
+
+		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
+		if d.checkDataset(datasetPath) {
+			err := d.setDatasetProperties(datasetPath, properties...)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := d.createDataset(datasetPath, properties...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *zfs) Create() error {
@@ -240,7 +280,7 @@ func (d *zfs) Create() error {
 			}
 		} else {
 			// Ensure that the pool is available.
-			_, err := d.Mount()
+			_, err := d.importPool()
 			if err != nil {
 				return err
 			}
@@ -258,44 +298,18 @@ func (d *zfs) Create() error {
 	}
 
 	// Setup revert in case of problems
-	revertPool := true
-	defer func() {
-		if !revertPool {
-			return
-		}
+	revert := revert.New()
+	defer revert.Fail()
 
-		_ = d.Delete(nil)
-	}()
+	revert.Add(func() { _ = d.Delete(nil) })
 
 	// Apply our default configuration.
-	args := []string{}
-	for k, v := range zfsDefaultSettings {
-		args = append(args, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	err := d.setDatasetProperties(d.config["zfs.pool_name"], args...)
+	err := d.ensureInitialDatasets()
 	if err != nil {
 		return err
 	}
 
-	// Create the initial datasets.
-	for _, dataset := range d.initialDatasets() {
-		properties := []string{"mountpoint=legacy"}
-		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
-			if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {
-				d.logger.Warn("Unable to set volmode on parent virtual-machines datasets due to ZFS being too old")
-			} else {
-				properties = append(properties, "volmode=none")
-			}
-		}
-
-		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), properties...)
-		if err != nil {
-			return err
-		}
-	}
-
-	revertPool = false
+	revert.Success()
 	return nil
 }
 
@@ -382,8 +396,8 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 	return nil
 }
 
-// Mount mounts the storage pool.
-func (d *zfs) Mount() (bool, error) {
+// importPool the storage pool.
+func (d *zfs) importPool() (bool, error) {
 	if d.config["zfs.pool_name"] == "" {
 		return false, fmt.Errorf("Cannot mount pool as %q is not specified", "zfs.pool_name")
 	}
@@ -419,6 +433,23 @@ func (d *zfs) Mount() (bool, error) {
 	}
 
 	return false, fmt.Errorf("ZFS zpool exists but dataset is missing")
+}
+
+// Mount mounts the storage pool.
+func (d *zfs) Mount() (bool, error) {
+	// Import the pool if not already imported.
+	imported, err := d.importPool()
+	if err != nil {
+		return false, err
+	}
+
+	// Apply our default configuration.
+	err = d.ensureInitialDatasets()
+	if err != nil {
+		return false, err
+	}
+
+	return imported, nil
 }
 
 // Unmount unmounts the storage pool.
