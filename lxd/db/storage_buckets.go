@@ -523,6 +523,14 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 	var bucketKeyID int64
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		// Check there isn't another bucket with the same access key on the local server.
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		} else if bucket != nil {
+			return api.StatusErrorf(http.StatusConflict, "A bucket key using that access key already exists on this server")
+		}
+
 		// Insert a new Storage Bucket Key record.
 		result, err := tx.tx.Exec(`
 		INSERT INTO storage_buckets_keys
@@ -556,6 +564,14 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 // UpdateStoragePoolBucketKey updates an existing Storage Bucket Key.
 func (c *Cluster) UpdateStoragePoolBucketKey(ctx context.Context, bucketID int64, bucketKeyID int64, info *api.StorageBucketKeyPut) error {
 	return c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		// Check there isn't another bucket with the same access key on the local server.
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		} else if bucket != nil && bucket.ID != bucketID {
+			return api.StatusErrorf(http.StatusConflict, "A bucket key using that access key already exists on this server")
+		}
+
 		// Update existing Storage Bucket Key record.
 		res, err := tx.tx.Exec(`
 		UPDATE storage_buckets_keys
