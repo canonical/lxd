@@ -117,11 +117,12 @@ func (d *zfs) Info() Info {
 		OptimizedBackups:  true,
 		PreservesInodes:   true,
 		Remote:            d.isRemote(),
-		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:      false,
 		RunningCopyFreeze: false,
 		DirectIO:          zfsDirectIO,
 		MountedRoot:       false,
+		Buckets:           true,
 	}
 
 	return info
