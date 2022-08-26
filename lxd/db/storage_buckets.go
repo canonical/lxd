@@ -18,54 +18,80 @@ import (
 
 // StorageBucketFilter used for filtering storage buckets with GetStorageBuckets().
 type StorageBucketFilter struct {
-	Project *string
-	Name    *string
+	PoolID   *int64
+	PoolName *string
+	Project  *string
+	Name     *string
 }
 
 // StorageBucket represents a database storage bucket record.
 type StorageBucket struct {
 	api.StorageBucket
 
-	ID      int64
-	Project string
+	ID       int64
+	Project  string
+	PoolID   int64
+	PoolName string
 }
 
-// GetStoragePoolBuckets returns all storage buckets attached to a given storage pool.
+// GetStoragePoolBuckets returns all storage buckets.
 // If there are no buckets, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to buckets that belong to this member or belong to all members.
-func (c *ClusterTx) GetStoragePoolBuckets(poolID int64, memberSpecific bool, filters ...StorageBucketFilter) ([]*StorageBucket, error) {
+func (c *ClusterTx) GetStoragePoolBuckets(memberSpecific bool, filters ...StorageBucketFilter) ([]*StorageBucket, error) {
 	var q *strings.Builder = &strings.Builder{}
-	args := []any{poolID}
+	var args []any
 
 	q.WriteString(`
 	SELECT
 		projects.name as project,
+		storage_pools.name,
 		storage_buckets.id,
+		storage_buckets.storage_pool_id,
 		storage_buckets.name,
 		storage_buckets.description,
 		IFNULL(nodes.name, "") as location
 	FROM storage_buckets
 	JOIN projects ON projects.id = storage_buckets.project_id
+	JOIN storage_pools ON storage_pools.id = storage_buckets.storage_pool_id
 	LEFT JOIN nodes ON nodes.id = storage_buckets.node_id
-	WHERE storage_buckets.storage_pool_id = ?
 	`)
 
 	if memberSpecific {
-		q.WriteString("AND (storage_buckets.node_id = ? OR storage_buckets.node_id IS NULL) ")
+		if len(args) == 0 {
+			q.WriteString("WHERE ")
+		} else {
+			q.WriteString("AND ")
+		}
+
+		q.WriteString("(storage_buckets.node_id = ? OR storage_buckets.node_id IS NULL) ")
 		args = append(args, c.nodeID)
 	}
 
 	if len(filters) > 0 {
-		q.WriteString("AND (")
+		if len(args) == 0 {
+			q.WriteString("WHERE (")
+		} else {
+			q.WriteString("AND (")
+		}
 
 		for i, filter := range filters {
 			// Validate filter.
-			if filter.Name != nil && filter.Project == nil {
-				return nil, fmt.Errorf("Cannot filter by bucket name if bucket project not specified")
+			if !memberSpecific && filter.Name != nil && ((filter.PoolID == nil && filter.PoolName == nil) || filter.Project == nil) {
+				return nil, fmt.Errorf("Cannot filter by bucket name without specifying pool and project when doing member inspecific search")
 			}
 
 			var qFilters []string
+
+			if filter.PoolID != nil {
+				qFilters = append(qFilters, "storage_buckets.storage_pool_id= ?")
+				args = append(args, *filter.PoolID)
+			}
+
+			if filter.PoolName != nil {
+				qFilters = append(qFilters, "storage_pools.name= ?")
+				args = append(args, *filter.PoolID)
+			}
 
 			if filter.Project != nil {
 				qFilters = append(qFilters, "projects.name = ?")
@@ -97,7 +123,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(poolID int64, memberSpecific bool, fil
 	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucket StorageBucket
 
-		err := scan(&bucket.Project, &bucket.ID, &bucket.Name, &bucket.Description, &bucket.Location)
+		err := scan(&bucket.Project, &bucket.PoolName, &bucket.ID, &bucket.PoolID, &bucket.Name, &bucket.Description, &bucket.Location)
 		if err != nil {
 			return err
 		}
@@ -156,11 +182,12 @@ func storagePoolBucketConfig(tx *ClusterTx, bucketID int64, bucket *api.StorageB
 // to all members.
 func (c *ClusterTx) GetStoragePoolBucket(poolID int64, projectName string, memberSpecific bool, bucketName string) (*StorageBucket, error) {
 	filters := []StorageBucketFilter{{
+		PoolID:  &poolID,
 		Project: &projectName,
 		Name:    &bucketName,
 	}}
 
-	buckets, err := c.GetStoragePoolBuckets(poolID, memberSpecific, filters...)
+	buckets, err := c.GetStoragePoolBuckets(memberSpecific, filters...)
 	bucketsLen := len(buckets)
 	if (err == nil && bucketsLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket not found")
