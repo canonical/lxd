@@ -76,6 +76,8 @@ After=sys-subsystem-net-devices-<network_bridge>.device
 Type=oneshot
 ExecStart=/usr/bin/resolvectl dns <network_bridge> <dns_address>
 ExecStart=/usr/bin/resolvectl domain <network_bridge> <dns_domain>
+ExecStopPost=/usr/bin/resolvectl revert <network_bridge>
+RemainAfterExit=yes
 
 [Install]
 WantedBy=sys-subsystem-net-devices-<network_bridge>.device
@@ -104,7 +106,7 @@ You should see output similar to the following:
    Main PID: 9434 (code=exited, status=0/SUCCESS)
 ```
 
-To check that `resolved` has applied the settings, use `sudo resolvectl status <network_bridge>`:
+To check that `resolved` has applied the settings, use `resolvectl status <network_bridge>`:
 
 ```
 Link 6 (lxdbr0)
