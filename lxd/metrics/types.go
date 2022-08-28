@@ -18,6 +18,8 @@ type MetricType int
 const (
 	// CPUSecondsTotal represents the total CPU seconds used.
 	CPUSecondsTotal MetricType = iota
+	// CPUs represents the total number of effective CPUs.
+	CPUs
 	// DiskReadBytesTotal represents the read bytes for a disk.
 	DiskReadBytesTotal
 	// DiskReadsCompletedTotal represents the completed for a disk.
@@ -95,6 +97,7 @@ const (
 // MetricNames associates a metric type to its name.
 var MetricNames = map[MetricType]string{
 	CPUSecondsTotal:             "lxd_cpu_seconds_total",
+	CPUs:                        "lxd_cpu_effective_total",
 	DiskReadBytesTotal:          "lxd_disk_read_bytes_total",
 	DiskReadsCompletedTotal:     "lxd_disk_reads_completed_total",
 	DiskWrittenBytesTotal:       "lxd_disk_written_bytes_total",
@@ -136,6 +139,7 @@ var MetricNames = map[MetricType]string{
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
 var MetricHeaders = map[MetricType]string{
 	CPUSecondsTotal:             "# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.",
+	CPUs:                        "# HELP lxd_cpu_effective_total The total number of effective CPUs.",
 	DiskReadBytesTotal:          "# HELP lxd_disk_read_bytes_total The total number of bytes read.",
 	DiskReadsCompletedTotal:     "# HELP lxd_disk_reads_completed_total The total number of completed reads.",
 	DiskWrittenBytesTotal:       "# HELP lxd_disk_written_bytes_total The total number of bytes written.",
