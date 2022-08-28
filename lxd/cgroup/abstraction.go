@@ -397,6 +397,61 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
+// GetEffectiveCPUs returns the total number of effective CPUs.
+func (cg *CGroup) GetEffectiveCPUs() (int, error) {
+	set, err := cg.GetEffectiveCpuset()
+	if err != nil {
+		return -1, err
+	}
+
+	return parseCPUSet(set)
+}
+
+// parseCPUSet parses a cpuset string and returns the number of CPUs.
+func parseCPUSet(set string) (int, error) {
+	var out int
+
+	fields := strings.Split(strings.TrimSpace(set), ",")
+	for _, value := range fields {
+		// Parse non-range values.
+		if !strings.Contains(value, "-") {
+			_, err := strconv.Atoi(value)
+			if err != nil {
+				return -1, fmt.Errorf("Failed parsing %q: %w", value, err)
+			}
+
+			out++
+			continue
+		}
+
+		// Parse ranges (should be made of two elements only).
+		valueFields := strings.Split(value, "-")
+		if len(valueFields) != 2 {
+			return -1, fmt.Errorf("Failed parsing %q: Invalid range format", value)
+		}
+
+		startRange, err := strconv.Atoi(valueFields[0])
+		if err != nil {
+			return -1, fmt.Errorf("Failed parsing %q: %w", valueFields[0], err)
+		}
+
+		endRange, err := strconv.Atoi(valueFields[1])
+		if err != nil {
+			return -1, fmt.Errorf("Failed parsing %q: %w", valueFields[1], err)
+		}
+
+		for i := startRange; i <= endRange; i++ {
+			out++
+		}
+	}
+
+	if out == 0 {
+		return -1, fmt.Errorf("Failed parsing %q", set)
+	}
+
+	return out, nil
+}
+
 // GetMemoryMaxUsage returns the record high for memory usage.
 func (cg *CGroup) GetMemoryMaxUsage() (int64, error) {
 	version := cgControllers["memory"]

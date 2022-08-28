@@ -3,6 +3,7 @@ package metrics
 // Metrics represents instance metrics.
 type Metrics struct {
 	CPU            map[string]CPUMetrics        `json:"cpu_seconds_total" yaml:"cpu_seconds_total"`
+	CPUs           int                          `json:"cpus" yaml:"cpus"`
 	Disk           map[string]DiskMetrics       `json:"disk" yaml:"disk"`
 	Filesystem     map[string]FilesystemMetrics `json:"filesystem" yaml:"filesystem"`
 	Memory         MemoryMetrics                `json:"memory" yaml:"memory"`
