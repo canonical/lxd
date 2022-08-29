@@ -90,16 +90,25 @@ EOF
   kill -9 "${client_websocket}"
   kill -9 "${client_stream}"
 
+  lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
+  monitorDevlxdPID=$!
+
   # Test instance Ready state
   lxc info devlxd | grep -q 'Status: RUNNING'
   lxc exec devlxd devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
+  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+
   lxc info devlxd | grep -q 'Status: READY'
   lxc exec devlxd devlxd-client ready-state false
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
+  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+
   lxc info devlxd | grep -q 'Status: RUNNING'
+
+  kill -9 ${monitorDevlxdPID} || true
 
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -107,8 +116,14 @@ EOF
   # volatile.last_state.ready should be unset during daemon init
   [ -z "$(lxc config get devlxd volatile.last_state.ready)" ]
 
+  lxc monitor --type=lifecycle > "${TEST_DIR}/devlxd.log" &
+  monitorDevlxdPID=$!
+
   lxc exec devlxd devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
+
+  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 1
+
   lxc stop -f devlxd
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "false" ]
 
@@ -116,7 +131,10 @@ EOF
   lxc exec devlxd devlxd-client ready-state true
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
+  grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 2
+
   lxc delete devlxd --force
+  kill -9 ${monitorDevlxdPID} || true
 
   [ "${MATCH}" = "1" ] || false
 }
