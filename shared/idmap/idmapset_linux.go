@@ -609,7 +609,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 
 		intUid, intGid, _, _, inode, nlink, err := shared.GetFileStat(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("Stat on %q: %w", path, err)
 		}
 
 		if nlink >= 2 {
@@ -641,22 +641,27 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 			// Dump capabilities
 			if fi.Mode()&os.ModeSymlink == 0 {
 				caps, err = GetCaps(path)
-				if err != nil {
-					return err
+				switch err {
+				case syscall.EOPNOTSUPP:
+					// noop
+				case nil:
+					// noop
+				default:
+					return fmt.Errorf("llistxattr on %q: %w", path, err)
 				}
 			}
 
 			// Shift owner
 			err = ShiftOwner(dir, path, int(newuid), int(newgid))
 			if err != nil {
-				return err
+				return fmt.Errorf("Uid-shifting %q to %d %d: %w", path, int(newuid), int(newgid), err)
 			}
 
 			if fi.Mode()&os.ModeSymlink == 0 {
 				// Shift POSIX ACLs
 				err = ShiftACL(path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
 				if err != nil {
-					return err
+					return fmt.Errorf("Shifting ACL on %q: %w", path, err)
 				}
 
 				// Shift capabilities
@@ -669,7 +674,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 					if how != "in" || atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsSupported {
 						err = SetCaps(path, caps, rootUid)
 						if err != nil {
-							logger.Warnf("Unable to set file capabilities on %s", path)
+							logger.Warnf("Unable to set file capabilities on %q: %w", path, err)
 						}
 					}
 				}
