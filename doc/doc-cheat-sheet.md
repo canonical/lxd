@@ -63,7 +63,9 @@ Adhere to the following conventions:
 
 ## Code blocks
 
-Start and end a code block with three back ticks: `` ``` ``
+Start and end a code block with three back ticks:
+
+    ```
 
 You can specify the code language after the back ticks to enforce a specific lexer, but in many cases, the default lexer works just fine.
 
