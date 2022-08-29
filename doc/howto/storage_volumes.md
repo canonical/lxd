@@ -122,6 +122,8 @@ To list all available storage volumes in a storage pool, use the following comma
 
     lxc storage volume list <pool_name>
 
+To display the storage volumes for all projects (not only the default project), add the `--all-projects` flag.
+
 The resulting table contains the {ref}`storage volume type <storage-volume-types>` and the {ref}`content type <storage-content-types>` for each storage volume in the pool.
 
 ```{note}
