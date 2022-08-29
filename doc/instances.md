@@ -782,9 +782,6 @@ Example command.
 lxc config device add <instance> config disk source=cloud-init:config
 ```
 
-Currently only the root disk (`path=/`) and `config` drive (`source=cloud-init:config`) are supported with virtual machines.
-
-
 The following properties exist:
 
 Key                 | Type      | Default   | Required  | Description
