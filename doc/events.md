@@ -103,6 +103,7 @@ type: lifecycle
 | `instance-metadata-template-retrieved` | The image template file for the instance has been downloaded.         | `path`: relative file path.                                                                          |
 | `instance-metadata-updated`            | The instance's image metadata has changed.                            |                                                                                                      |
 | `instance-paused`                      | The instance has been put in a paused state.                          |                                                                                                      |
+| `instance-ready`                       | The instance is ready.                                                |                                                                                                      |
 | `instance-renamed`                     | The instance has been renamed.                                        | `old_name`: the previous name.                                                                       |
 | `instance-restarted`                   | The instance has restarted.                                           |                                                                                                      |
 | `instance-restored`                    | The instance has been restored from a snapshot.                       | `snapshot`: name of the snapshot being restored.                                                     |
