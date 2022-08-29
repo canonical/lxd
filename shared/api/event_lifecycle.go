@@ -49,6 +49,7 @@ const (
 	EventLifecycleInstanceMetadataTemplateRetrieved = "instance-metadata-template-retrieved"
 	EventLifecycleInstanceMetadataUpdated           = "instance-metadata-updated"
 	EventLifecycleInstancePaused                    = "instance-paused"
+	EventLifecycleInstanceReady                     = "instance-ready"
 	EventLifecycleInstanceRenamed                   = "instance-renamed"
 	EventLifecycleInstanceRestarted                 = "instance-restarted"
 	EventLifecycleInstanceRestored                  = "instance-restored"
