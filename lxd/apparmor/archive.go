@@ -112,6 +112,16 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		imagesPath = imagesPathFull
 	}
 
+	derefCommandPaths := make([]string, len(allowedCommandPaths))
+	for i, cmd := range allowedCommandPaths {
+		cmdFull, err := filepath.EvalSymlinks(cmd)
+		if err == nil {
+			derefCommandPaths[i] = cmdFull
+		} else {
+			derefCommandPaths[i] = cmd
+		}
+	}
+
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err = archiveProfileTpl.Execute(sb, map[string]any{
@@ -120,7 +130,7 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		"rootPath":            rootPath,
 		"backupsPath":         backupsPath,
 		"imagesPath":          imagesPath,
-		"allowedCommandPaths": allowedCommandPaths,
+		"allowedCommandPaths": derefCommandPaths,
 	})
 	if err != nil {
 		return "", err
