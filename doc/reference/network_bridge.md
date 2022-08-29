@@ -17,6 +17,15 @@ By default, it also performs NAT for the bridge.
 
 See {ref}`network-bridge-firewall` for instructions on how to configure your firewall to work with LXD bridge networks.
 
+<!-- Include start MAC identifier note -->
+
+```{note}
+Static DHCP assignments depend on the client using its MAC address as the DHCP identifier.
+This method prevents conflicting leases when copying an instance, and thus makes statically assigned leases work properly.
+```
+
+<!-- Include end MAC identifier note -->
+
 ## IPv6 prefix size
 
 If you're using IPv6 for your bridge network, you should use a prefix size of 64.
