@@ -19,6 +19,12 @@ By default, all connections from the OVN logical networks are NATed to an IP all
 
 See {ref}`network-ovn-setup` for basic instructions for setting up an OVN network.
 
+% Include content from [network_bridge.md](network_bridge.md)
+```{include} network_bridge.md
+    :start-after: <!-- Include start MAC identifier note -->
+    :end-before: <!-- Include end MAC identifier note -->
+```
+
 (network-ovn-options)=
 ## Configuration options
 
