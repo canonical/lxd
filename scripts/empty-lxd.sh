@@ -42,11 +42,12 @@ done
 ## Delete the storage pools
 echo "==> Deleting all storage pools"
 for storage_pool in $(lxc query "/1.0/storage-pools?recursion=1" | jq .[].name -r); do
+    # Delete the storage volumes.
     for volume in $(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom?recursion=1" | jq .[].name -r); do
         echo "==> Deleting storage volume ${volume} on ${storage_pool}"
         lxc storage volume delete "${storage_pool}" "${volume}"
     done
 
-    ## Delete the custom storage volumes
+    ## Delete the storage pool.
     lxc storage delete "${storage_pool}"
 done
