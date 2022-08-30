@@ -1,5 +1,7 @@
 [![LXD](../.sphinx/_static/download/containers.png)](https://linuxcontainers.org/lxd)
 
+# LXD
+
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
     :start-after: <!-- Include start LXD intro -->

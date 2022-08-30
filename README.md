@@ -1,7 +1,8 @@
 [![LXD](https://linuxcontainers.org/static/img/containers.png)](https://linuxcontainers.org/lxd)
 
-<!-- Include start LXD intro -->
 # LXD
+
+<!-- Include start LXD intro -->
 
 LXD is a modern, secure and powerful system container and virtual machine manager.
 
