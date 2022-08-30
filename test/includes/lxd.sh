@@ -165,8 +165,15 @@ kill_lxd() {
         printf 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
-        for storage in $(timeout -k 2 2 lxc storage list --force-local --format csv | cut -d, -f1); do
-            timeout -k 20 20 lxc storage delete "${storage}" --force-local || true
+        for storage_pool in $(lxc query "/1.0/storage-pools?recursion=1" | jq .[].name -r); do
+            # Delete the storage volumes.
+            for volume in $(lxc query "/1.0/storage-pools/${storage_pool}/volumes/custom?recursion=1" | jq .[].name -r); do
+                echo "==> Deleting storage volume ${volume} on ${storage_pool}"
+                timeout -k 20 20 lxc storage volume delete "${storage_pool}" "${volume}" --force-local || true
+            done
+
+            ## Delete the storage pool.
+            timeout -k 20 20 lxc storage delete "${storage_pool}" --force-local || true
         done
 
         echo "==> Checking for locked DB tables"
