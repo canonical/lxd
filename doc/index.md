@@ -1,3 +1,7 @@
+---
+relatedlinks: https://linuxcontainers.org/, https://ubuntu.com/lxd, https://ubuntu.com/blog/open-source-for-beginners-dev-environment-with-lxd
+---
+
 [![LXD](../.sphinx/_static/download/containers.png)](https://linuxcontainers.org/lxd)
 
 # LXD
