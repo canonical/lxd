@@ -24,6 +24,7 @@ const (
 	InstanceShutdown         = InstanceAction(api.EventLifecycleInstanceShutdown)
 	InstanceRestarted        = InstanceAction(api.EventLifecycleInstanceRestarted)
 	InstancePaused           = InstanceAction(api.EventLifecycleInstancePaused)
+	InstanceReady            = InstanceAction(api.EventLifecycleInstanceReady)
 	InstanceResumed          = InstanceAction(api.EventLifecycleInstanceResumed)
 	InstanceRestored         = InstanceAction(api.EventLifecycleInstanceRestored)
 	InstanceDeleted          = InstanceAction(api.EventLifecycleInstanceDeleted)

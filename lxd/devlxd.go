@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
@@ -211,6 +212,10 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 		err = c.VolatileSet(map[string]string{"volatile.last_state.ready": strconv.FormatBool(state == api.Ready)})
 		if err != nil {
 			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, err.Error()), c.Type() == instancetype.VM)
+		}
+
+		if state == api.Ready {
+			d.events.SendLifecycle(c.Project(), lifecycle.InstanceReady.Event(c, nil))
 		}
 
 		return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)
