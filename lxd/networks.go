@@ -52,7 +52,7 @@ var networksCmd = APIEndpoint{
 }
 
 var networkCmd = APIEndpoint{
-	Path: "networks/{name}",
+	Path: "networks/{networkName}",
 
 	Delete: APIEndpointAction{Handler: networkDelete, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowProjectPermission("networks", "view")},
@@ -62,13 +62,13 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Path: "networks/{name}/leases",
+	Path: "networks/{networkName}/leases",
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowProjectPermission("networks", "view")},
 }
 
 var networkStateCmd = APIEndpoint{
-	Path: "networks/{name}/state",
+	Path: "networks/{networkName}/state",
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowProjectPermission("networks", "view")},
 }
@@ -168,7 +168,7 @@ var networkStateCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networksGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -212,7 +212,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(d, r, clustered, projectName, networkName)
+			net, err := doNetworkGet(d, r, clustered, projectName, reqProject.Config, networkName)
 			if err != nil {
 				continue
 			}
@@ -344,7 +344,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if isClusterNotification(r) {
 		n, err := network.LoadByName(d.State(), projectName, req.Name)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 		}
 
 		// This is an internal request which triggers the actual creation of the network across all nodes
@@ -457,7 +457,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
 	err = doNetworksCreate(d, n, clientType)
@@ -573,7 +573,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	// Load the network from the database for the local member.
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed loading network: %w", err)
 	}
 
 	netConfig := n.Config()
@@ -751,7 +751,12 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -766,12 +771,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		allNodes = true
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	n, err := doNetworkGet(d, r, allNodes, projectName, name)
+	n, err := doNetworkGet(d, r, allNodes, projectName, reqProject.Config, networkName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -784,17 +784,25 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 // doNetworkGet returns information about the specified network.
 // If the network being requested is a managed network and allNodes is true then node specific config is removed.
 // Otherwise if allNodes is false then the network's local status is returned.
-func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, networkName string) (api.Network, error) {
+func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, reqProjectConfig map[string]string, networkName string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(networkName, "veth") {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	// Get some information.
-	n, _ := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(d.State(), projectName, networkName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return api.Network{}, fmt.Errorf("Failed loading network: %w", err)
+	}
 
 	// Don't allow retrieving info about the local server interfaces when not using default project.
 	if projectName != project.Default && n == nil {
+		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProjectConfig, networkName, n != nil && n.IsManaged()) {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
@@ -901,12 +909,12 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -914,9 +922,14 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	state := d.State()
 
 	// Get the existing network.
-	n, err := network.LoadByName(state, projectName, name)
+	n, err := network.LoadByName(state, projectName, networkName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
@@ -1028,7 +1041,12 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1042,15 +1060,15 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	// Get the existing network.
+	n, err := network.LoadByName(state, projectName, networkName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
 
-	// Get the existing network.
-	n, err := network.LoadByName(state, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if n.Status() != api.NetworkStatusCreated {
@@ -1094,7 +1112,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": name})
+	lc := lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": networkName})
 	d.State().Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
@@ -1146,20 +1164,25 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(d.State(), projectName, name)
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	targetNode := queryParam(r, "target")
@@ -1366,26 +1389,29 @@ func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.N
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
-	projectName := projectParam(r)
-	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// The project we should use to load the network.
-	networkProjectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectName)
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Attempt to load the network.
-	n, err := network.LoadByName(d.State(), networkProjectName, name)
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-	leases, err := n.Leases(projectName, clientType)
+	leases, err := n.Leases(reqProject.Name, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1709,16 +1735,28 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	networkName, err := url.PathUnescape(mux.Vars(r)["name"])
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	projectName := projectParam(r)
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n != nil && n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
+	}
 
 	var state *api.NetworkState
-	n, networkLoadError := network.LoadByName(d.State(), projectName, networkName)
-	if networkLoadError == nil {
+	if n != nil {
 		state, err = n.State()
 		if err != nil {
 			return response.SmartError(err)
