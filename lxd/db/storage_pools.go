@@ -647,26 +647,6 @@ func StoragePoolStateToAPIStatus(state StoragePoolState) string {
 	}
 }
 
-// StoragePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
-func (c *Cluster) StoragePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
-	var nodes map[int64]StoragePoolNode
-	var err error
-
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		nodes, err = tx.storagePoolNodes(poolID)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
 // getStoragePoolConfig populates the config map of the Storage pool with the given ID.
 func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.StoragePool) error {
 	q := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
