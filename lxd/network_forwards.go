@@ -130,7 +130,7 @@ var networkForwardCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -143,6 +143,11 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().AddressForwards {
@@ -216,7 +221,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -238,6 +243,11 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().AddressForwards {
@@ -287,7 +297,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -300,6 +310,11 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().AddressForwards {
@@ -369,7 +384,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -382,6 +397,11 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().AddressForwards {
@@ -479,7 +499,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -492,6 +512,11 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().AddressForwards {

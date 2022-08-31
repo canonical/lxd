@@ -129,7 +129,7 @@ var networkPeerCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeersGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -142,6 +142,11 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().Peering {
@@ -216,7 +221,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -236,6 +241,11 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().Peering {
@@ -283,7 +293,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -296,6 +306,11 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().Peering {
@@ -363,7 +378,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -376,6 +391,11 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().Peering {
@@ -472,7 +492,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -485,6 +505,11 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().Peering {
