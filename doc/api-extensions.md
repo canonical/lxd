@@ -1986,3 +1986,14 @@ This introduces a bidirectional `vsock` interface which allows the `lxd-agent` a
 ## `storage_volumes_all_projects`
 
 This introduces the ability to list storage volumes from all projects.
+
+## `projects_networks_restricted_access`
+
+Adds the `restricted.networks.access` project configuration key to indicate (as a comma-delimited list) which networks can be accessed inside the project.
+If not specified, all networks are accessible (assuming it is also allowed by the `restricted.devices.nic` setting, described below).
+
+This also introduces a change whereby network access is controlled by the project's `restricted.devices.nic` setting:
+
+* If `restricted.devices.nic` is set to `managed` (the default if not specified), only managed networks are accessible.
+* If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
+* If `restricted.devices.nic` is set to `block`, no networks are accessible.
