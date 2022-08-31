@@ -53,7 +53,7 @@ Key                                  | Type      | Condition             | Defau
 `restricted.devices.disk.paths`      | string    | -                     | -                         | If `restricted.devices.disk` is set to `allow`, this sets a comma-separated list of path prefixes that restrict the `source` setting on `disk` devices. If empty then all paths are allowed.
 `restricted.devices.gpu`             | string    | -                     | `block`                   | Prevents use of devices of type `gpu`
 `restricted.devices.infiniband`      | string    | -                     | `block`                   | Prevents use of devices of type `infiniband`
-`restricted.devices.nic`             | string    | -                     | `managed`                 | If `block` prevent use of all network devices. If `managed` allow use of network devices only if `network=` is set. If `allow`, no restrictions apply.
+`restricted.devices.nic`             | string    | -                     | `managed`                 | If `block` prevent use of all network devices. If `managed` allow use of network devices only if `network=` is set. If `allow`, no restrictions apply. This also controls access to networks.
 `restricted.devices.pci`             | string    | -                     | `block`                   | Prevents use of devices of type `pci`
 `restricted.devices.proxy`           | string    | -                     | `block`                   | Prevents use of devices of type `proxy`
 `restricted.devices.unix-block`      | string    | -                     | `block`                   | Prevents use of devices of type `unix-block`
@@ -62,6 +62,7 @@ Key                                  | Type      | Condition             | Defau
 `restricted.devices.usb`             | string    | -                     | `block`                   | Prevents use of devices of type `usb`
 `restricted.idmap.uid`               | string    | -                     | -                         | Specifies the allowed host UID ranges allowed in the instance `raw.idmap` setting.
 `restricted.idmap.gid`               | string    | -                     | -                         | Specifies the allowed host GID ranges allowed in the instance `raw.idmap` setting.
+`restricted.networks.access`         | string    | -                     | -                         | Comma-delimited list of network names that are allowed for use in this project. If not set, all networks are accessible (depending on the `restricted.devices.nic` setting).
 `restricted.networks.subnets`        | string    | -                     | `block`                   | Comma-delimited list of network subnets from the uplink networks (in the form `<uplink>:<subnet>`) that are allocated for use in this project
 `restricted.networks.uplinks`        | string    | -                     | `block`                   | Comma-delimited list of network names that can be used as uplink for networks in this project
 `restricted.networks.zones`          | string    | -                     | `block`                   | Comma-delimited list of network zones that can be used (or something under them) in this project
