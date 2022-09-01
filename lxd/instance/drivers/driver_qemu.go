@@ -100,12 +100,12 @@ var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 type monitorHook func(m *qmp.Monitor) error
 
 // qemuLoad creates a Qemu instance from the supplied InstanceArgs.
-func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+func qemuLoad(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance struct.
 	d := qemuInstantiate(s, args, nil)
 
 	// Expand config and devices.
-	err := d.expandConfig(profiles)
+	err := d.expandConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -4450,7 +4450,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	d.expiryDate = args.ExpiryDate
 
 	// Expand the config.
-	err = d.expandConfig(nil)
+	err = d.expandConfig()
 	if err != nil {
 		return err
 	}
@@ -4914,7 +4914,7 @@ func (d *qemu) cleanupDevices() {
 
 func (d *qemu) init() error {
 	// Compute the expanded config and device list.
-	err := d.expandConfig(nil)
+	err := d.expandConfig()
 	if err != nil {
 		return err
 	}
