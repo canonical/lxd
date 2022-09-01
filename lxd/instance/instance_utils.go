@@ -42,7 +42,7 @@ import (
 var ValidDevices func(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
 
 // Load is linked from instance/drivers.load to allow different instance types to be loaded.
-var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
+var Load func(s *state.State, args db.InstanceArgs) (Instance, error)
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
@@ -437,7 +437,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 		return nil, err
 	}
 
-	inst, err := Load(s, args, nil)
+	inst, err := Load(s, args)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load instance: %w", err)
 	}
@@ -456,7 +456,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	}
 
 	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
-		inst, err := Load(s, dbInst, dbInst.Profiles)
+		inst, err := Load(s, dbInst)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
 		}
@@ -497,7 +497,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
 	}
 
-	inst, err = Load(s, *instDBArgs, nil)
+	inst, err = Load(s, *instDBArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
 	}

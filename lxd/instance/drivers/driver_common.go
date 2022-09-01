@@ -278,7 +278,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 		// Populate profile info that was already loaded.
 		snapshotArg.Profiles = d.profiles
 
-		snapInst, err := instance.Load(d.state, snapshotArg, nil)
+		snapInst, err := instance.Load(d.state, snapshotArg)
 		if err != nil {
 			return nil, err
 		}
