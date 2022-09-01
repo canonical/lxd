@@ -320,7 +320,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 	return d, cleanup, err
 }
 
-func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+func lxcLoad(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the container struct
 	d := lxcInstantiate(s, args, nil)
 
@@ -328,7 +328,7 @@ func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (inst
 	runtime.SetFinalizer(d, lxcUnload)
 
 	// Expand config and devices
-	err := d.(*lxc).expandConfig(profiles)
+	err := d.(*lxc).expandConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 
 func (d *lxc) init() error {
 	// Compute the expanded config and device list
-	err := d.expandConfig(nil)
+	err := d.expandConfig()
 	if err != nil {
 		return err
 	}
@@ -4035,7 +4035,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	d.expiryDate = args.ExpiryDate
 
 	// Expand the config and refresh the LXC config
-	err = d.expandConfig(nil)
+	err = d.expandConfig()
 	if err != nil {
 		return err
 	}
