@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -47,14 +46,14 @@ func init() {
 }
 
 // load creates the underlying instance type struct and returns it as an Instance.
-func load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+func load(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	var inst instance.Instance
 	var err error
 
 	if args.Type == instancetype.Container {
-		inst, err = lxcLoad(s, args, profiles)
+		inst, err = lxcLoad(s, args)
 	} else if args.Type == instancetype.VM {
-		inst, err = qemuLoad(s, args, profiles)
+		inst, err = qemuLoad(s, args)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}
