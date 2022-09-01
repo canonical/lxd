@@ -33,7 +33,7 @@ lxc_remote() {
     if [ -n "${DEBUG:-}" ]; then
         set -x
     fi
-    eval "${cmd}"
+    eval "timeout --foreground 60 ${cmd}"
 }
 
 gen_cert() {
