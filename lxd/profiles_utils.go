@@ -14,10 +14,10 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
+func doProfileUpdate(d *Daemon, projectName string, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return project.AllowProfileUpdate(tx, projectName, name, req)
+		return project.AllowProfileUpdate(tx, projectName, profileName, req)
 	})
 	if err != nil {
 		return err
@@ -36,9 +36,9 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		return err
 	}
 
-	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, name)
+	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, profileName)
 	if err != nil {
-		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
+		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
 	}
 
 	// Check if the root disk device's pool is supposed to be changed or removed and prevent that if there are
@@ -65,7 +65,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 				_, ok := profile.Devices[oldProfileRootDiskDeviceKey]
 				if ok {
 					// Found the profile.
-					if inst.Profiles[i].Name == name {
+					if inst.Profiles[i].Name == profileName {
 						// If it's the current profile, then we can't modify that root device.
 						return fmt.Errorf("At least one instance relies on this profile's root disk device")
 					}
@@ -84,16 +84,16 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 			return err
 		}
 
-		err = cluster.UpdateProfile(ctx, tx.Tx(), projectName, name, cluster.Profile{
+		err = cluster.UpdateProfile(ctx, tx.Tx(), projectName, profileName, cluster.Profile{
 			Project:     projectName,
-			Name:        name,
+			Name:        profileName,
 			Description: req.Description,
 		})
 		if err != nil {
 			return err
 		}
 
-		id, err := cluster.GetProfileID(ctx, tx.Tx(), projectName, name)
+		id, err := cluster.GetProfileID(ctx, tx.Tx(), projectName, profileName)
 		if err != nil {
 			return err
 		}
@@ -108,28 +108,13 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 			return nil
 		}
 
-		newProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, []string{name})
+		newProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, []string{profileName})
 		if err != nil {
 			return err
 		}
 
 		if len(newProfiles) != 1 {
-			return fmt.Errorf("Failed to find profile %q in project %q", name, projectName)
-		}
-
-		apiProfile, err := newProfiles[0].ToAPI(ctx, tx.Tx())
-		if err != nil {
-			return err
-		}
-
-		// Update the profile on our current list of instances.
-		for i := range insts {
-			for j, profile := range insts[i].Profiles {
-				if profile.Name == apiProfile.Name {
-					insts[i].Profiles[j] = *apiProfile
-					break
-				}
-			}
+			return fmt.Errorf("Failed to find profile %q in project %q", profileName, projectName)
 		}
 
 		return nil
@@ -144,7 +129,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	failures := map[*db.InstanceArgs]error{}
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
-		err := doProfileUpdateInstance(d, name, profile.ProfilePut, serverName, inst)
+		err := doProfileUpdateInstance(d, serverName, inst)
 		if err != nil {
 			failures[&inst] = err
 		}
@@ -164,18 +149,30 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 // Like doProfileUpdate but does not update the database, since it was already
 // updated by doProfileUpdate itself, called on the notifying node.
-func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.ProfilePut) error {
+func doProfileUpdateCluster(d *Daemon, projectName string, profileName string, old api.ProfilePut) error {
 	serverName := d.State().ServerName
 
-	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, name)
+	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, profileName)
 	if err != nil {
-		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
+		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
 	}
 
 	failures := map[*db.InstanceArgs]error{}
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
-		err := doProfileUpdateInstance(d, name, old, serverName, inst)
+
+		for i, profile := range inst.Profiles {
+			if profile.Name == profileName {
+				// As profile has already been updated in the database by this point, overwrite the
+				// new config from the database with the old config and devices, so that
+				// doProfileUpdateInstance will detect the changes and apply them.
+				inst.Profiles[i].Config = old.Config
+				inst.Profiles[i].Devices = old.Devices
+				break
+			}
+		}
+
+		err := doProfileUpdateInstance(d, serverName, inst)
 		if err != nil {
 			failures[&inst] = err
 		}
@@ -194,7 +191,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 }
 
 // Profile update of a single instance.
-func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.InstanceArgs) error {
+func doProfileUpdateInstance(d *Daemon, nodeName string, args db.InstanceArgs) error {
 	if args.Node != "" && args.Node != nodeName {
 		// No-op, this instance does not belong to this node.
 		return nil
@@ -210,17 +207,8 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 		return err
 	}
 
-	for i, profile := range args.Profiles {
-		if profile.Name == name {
-			// Overwrite the new config from the database with the old config and devices.
-			profiles[i].Config = old.Config
-			profiles[i].Devices = old.Devices
-			break
-		}
-	}
-
 	// Load the instance using the old profile config.
-	inst, err := instance.Load(d.State(), args, profiles)
+	inst, err := instance.Load(d.State(), args)
 	if err != nil {
 		return err
 	}
@@ -232,7 +220,7 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 		Description:  inst.Description(),
 		Devices:      inst.LocalDevices(),
 		Ephemeral:    inst.IsEphemeral(),
-		Profiles:     inst.Profiles(),
+		Profiles:     profiles, // Supply with new profile config.
 		Project:      inst.Project(),
 		Type:         inst.Type(),
 		Snapshot:     inst.IsSnapshot(),
