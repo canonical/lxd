@@ -62,7 +62,9 @@ func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
 
 	// Make sure both sides are closed.
 	_ = r.source.Close()
-	return target.Close()
+	_ = target.Close()
+
+	return nil
 }
 
 func (r *forwardedOperationWebSocket) String() string {
