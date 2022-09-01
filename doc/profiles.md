@@ -1,5 +1,7 @@
 # Profiles
+
 ## Introduction
+
 Profiles can store any configuration that an instance can (key/value or devices)
 and any number of profiles can be applied to an instance.
 
@@ -10,12 +12,14 @@ In any case, instance-specific configuration always overrides that coming from
 the profiles.
 
 ## Default profile
+
 If not present, LXD will create a `default` profile.
 The `default` profile cannot be renamed or removed.
 The `default` profile is set for any new instance created which doesn't
 specify a different profiles list.
 
 ## Configuration
+
 As profiles aren't specific to containers or virtual machines, they may
 contain configuration and devices that are valid for either type.
 

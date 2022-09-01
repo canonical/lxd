@@ -1,4 +1,5 @@
 # System call interception
+
 LXD supports intercepting some specific system calls from unprivileged
 containers and if they're considered to be safe, will executed with
 elevated privileges on the host.
@@ -11,7 +12,9 @@ Enabling of specific system call interception options is done on a
 per-container basis through container configuration options.
 
 ## Available system calls
+
 ### `mknod` / `mknodat`
+
 The `mknod` and `mknodat` system calls can be used to create a variety of special files.
 
 Most commonly inside containers, they may be called to create block or character devices.
@@ -25,14 +28,14 @@ inside an unprivileged containers.
 
 The devices which are currently allowed are:
 
- - overlayfs whiteout (char 0:0)
- - `/dev/console` (char 5:1)
- - `/dev/full` (char 1:7)
- - `/dev/null` (char 1:3)
- - `/dev/random` (char 1:8)
- - `/dev/tty` (char 5:0)
- - `/dev/urandom` (char 1:9)
- - `/dev/zero` (char 1:5)
+- overlayfs whiteout (char 0:0)
+- `/dev/console` (char 5:1)
+- `/dev/full` (char 1:7)
+- `/dev/null` (char 1:3)
+- `/dev/random` (char 1:8)
+- `/dev/tty` (char 5:0)
+- `/dev/urandom` (char 1:9)
+- `/dev/zero` (char 1:5)
 
 All file types other than character devices are currently sent to the
 kernel as usual, so enabling this feature doesn't change their behavior
@@ -41,6 +44,7 @@ at all.
 This can be enabled by setting `security.syscalls.intercept.mknod` to `true`.
 
 ### `bpf`
+
 The `bpf` system call is used to manage eBPF programs in the kernel.
 Those can be attached to a variety of kernel subsystems.
 
@@ -53,6 +57,7 @@ cgroup entries. To enable it, you need to set both
 `security.syscalls.intercept.bpf.devices` to true.
 
 ### `mount`
+
 The `mount` system call allows for mounting both physical and virtual file systems.
 By default, unprivileged containers are restricted by the kernel to just
 a handful of virtual and network file systems.
@@ -74,7 +79,6 @@ the resulting mount is shifted to the UID/GID map used by the container.
 This is needed to avoid everything showing up as `nobody`/`nogroup` inside
 of unprivileged containers.
 
-
 The much safer alternative to those is
 `security.syscalls.intercept.mount.fuse` which can be set to pairs of
 file-system name and FUSE handler. When this is set, an attempt at
@@ -87,6 +91,7 @@ though you should keep in mind that any kind of system call interception
 makes for an easy way to overload the host system.
 
 ### `sched_setscheduler`
+
 The `sched_setscheduler` system call is used to manage process priority.
 
 Granting this may allow a user to significantly increase the priority of
@@ -98,11 +103,12 @@ stability. This is why under normal conditions, only the real root user
 (or global `CAP_SYS_NICE`) would allow its use.
 
 ### `setxattr`
+
 The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:
 
- - trusted.overlay.opaque (overlayfs directory whiteout)
+- trusted.overlay.opaque (overlayfs directory whiteout)
 
 Note that because the mediation must happen on a number of character
 strings, there is no easy way at present to only intercept the few

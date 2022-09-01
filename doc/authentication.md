@@ -15,7 +15,6 @@ The following authentication methods are supported:
 - {ref}`authentication-candid`
 - {ref}`authentication-rbac`
 
-
 (authentication-tls-certs)=
 ## TLS client certificates
 
@@ -56,6 +55,7 @@ The workflow to authenticate with the server is similar to that of SSH, where an
 1. When the user adds a server with `lxc remote add`, the server is contacted over HTTPS, its certificate is downloaded and the fingerprint is shown to the user.
 1. The user is asked to confirm that this is indeed the server's fingerprint, which they can manually check by connecting to the server or by asking someone with access to the server to run the info command and compare the fingerprints.
 1. The server attempts to authenticate the client:
+
    - If the client certificate is in the server's trust store, the connection is granted.
    - If the client certificate is not in the server's trust store, the server prompts the user for a token or the trust password.
      If the provided token or trust password matches, the client certificate is added to the server's trust store and the connection is granted.
@@ -180,8 +180,8 @@ In the following scenarios, authentication is expected to fail.
 
 The server certificate might change in the following cases:
 
- * The server was fully reinstalled and therefore got a new certificate.
- * The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
+- The server was fully reinstalled and therefore got a new certificate.
+- The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
 
 In such cases, the client will refuse to connect to the server because the certificate fingerprint does not match the fingerprint in the configuration for this remote.
 

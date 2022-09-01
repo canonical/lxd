@@ -3,6 +3,7 @@
 ## General issues
 
 ### How to enable LXD server for remote access?
+
 By default, the LXD server is not accessible from the network as it only listens
 on a local Unix socket. You can make LXD available from the network by specifying
 additional addresses to listen to. This is done with the `core.https_address`
@@ -25,6 +26,7 @@ lxc config set core.https_address 192.168.1.15
 Also see {ref}`security_remote_access`.
 
 ### When I do a `lxc remote add` over HTTPS, it asks for a password?
+
 By default, LXD has no password for security reasons, so you can't do a remote
 add this way. To set a password, enter the following command on the host LXD is
 running on:
@@ -45,6 +47,7 @@ lxc config trust add client.crt
 See {doc}`authentication` for detailed information.
 
 ### Can I bind-mount my home directory in a container?
+
 Yes. This can be done using a disk device:
 
 ```bash
@@ -53,9 +56,9 @@ lxc config device add container-name home disk source=/home/${USER} path=/home/u
 
 For unprivileged containers, you will also need one of:
 
- - Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
- - `raw.idmap` entry (see [Idmaps for user namespace](userns-idmap.md))
- - Recursive POSIX ACLs placed on your home directory
+- Pass `shift=true` to the `lxc config device add` call. This depends on shiftfs being supported (see `lxc info`)
+- `raw.idmap` entry (see [Idmaps for user namespace](userns-idmap.md))
+- Recursive POSIX ACLs placed on your home directory
 
 Either of those can be used to allow the user in the container to have working read/write permissions.
 When not setting one of those, everything will show up as the overflow UID/GID (65536:65536)
@@ -65,6 +68,7 @@ Privileged containers do not have this issue because all UID/GID in the containe
 But that's also the cause of most of the security issues with such privileged containers.
 
 ### How can I run Docker inside a LXD container?
+
 To run Docker inside a LXD container, the `security.nesting` property of the container should be set to `true`.
 
 ```bash
@@ -105,7 +109,7 @@ cannot start.
 
 The errors here say that `/sys` and `/proc` cannot be mounted - which is
 correct in an unprivileged container.  However, LXD does mount these
-file systems automatically _if it can_.
+file systems automatically if it can.
 
 The [container requirements](container-environment.md) specify that
 every container must come with an empty `/dev`, `/proc` and `/sys`
@@ -144,7 +148,7 @@ not running as well as expected.
     sys
     [root@systemd /]# exit
 
-Because LXD tries to auto-heal, it *did* create some of the folders when it was
+Because LXD tries to auto-heal, it did create some of the folders when it was
 starting up. Shutting down and restarting the container will fix the problem, but
 the original cause is still there - the **template does not contain the required
 files**.
@@ -202,9 +206,9 @@ address of 10.61.0.25, and VLAN102 being used for client traffic.
 
 #### Things to note
 
-* `eth0` is the Management interface, with the default gateway.
-* `vlan102` uses `eth1`.
-* `br102` uses `vlan102`, and has a bogus /32 IP address assigned to it.
+- `eth0` is the Management interface, with the default gateway.
+- `vlan102` uses `eth1`.
+- `br102` uses `vlan102`, and has a bogus /32 IP address assigned to it.
 
 The other important thing is to set `stp: false`, otherwise the bridge will sit
 in `learning` state for up to 10 seconds, which is longer than most DHCP requests
@@ -213,9 +217,9 @@ safe to do.
 
 ### Beware of port security
 
-Many switches do *not* allow MAC address changes, and will either drop traffic
+Many switches do not allow MAC address changes, and will either drop traffic
 with an incorrect MAC or disable the port totally. If you can ping a LXD instance
-from the host, but are not able to ping it from a _different_ host, this could be
+from the host, but are not able to ping it from a different host, this could be
 the cause.  The way to diagnose this is to run a `tcpdump` on the uplink (in this case,
 `eth1`), and you will see either "ARP Who has `xx.xx.xx.xx` tell `yy.yy.yy.yy`", with you
 sending responses but them not getting acknowledged, or ICMP packets going in and

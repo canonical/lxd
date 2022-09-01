@@ -1,5 +1,7 @@
 # Communication between instance and host
+
 ## Introduction
+
 Communication between the hosted workload (instance) and its host while
 not strictly needed is a pretty useful feature.
 
@@ -11,6 +13,7 @@ connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
 
 ## Implementation details
+
 LXD on the host binds `/var/lib/lxd/devlxd/sock` and starts listening for new
 connections on it.
 
@@ -22,12 +25,14 @@ LXD would have to bind a different socket for every instance, quickly
 reaching the FD limit.
 
 ## Authentication
+
 Queries on `/dev/lxd/sock` will only return information related to the
 requesting instance. To figure out where a request comes from, LXD will
 extract the initial socket's user credentials and compare that to the list of
 instances it manages.
 
 ## Protocol
+
 The protocol on `/dev/lxd/sock` is plain-text HTTP with JSON messaging, so very
 similar to the local version of the LXD protocol.
 
@@ -35,21 +40,26 @@ Unlike the main LXD API, there is no background operation and no
 authentication support in the `/dev/lxd/sock` API.
 
 ## REST-API
+
 ### API structure
- * `/`
-   * `/1.0`
-     * `/1.0/config`
-       * `/1.0/config/{key}`
-     * `/1.0/devices`
-     * `/1.0/events`
-     * `/1.0/images/{fingerprint}/export`
-     * `/1.0/meta-data`
+
+* `/`
+  * `/1.0`
+    * `/1.0/config`
+      * `/1.0/config/{key}`
+    * `/1.0/devices`
+    * `/1.0/events`
+    * `/1.0/images/{fingerprint}/export`
+    * `/1.0/meta-data`
 
 ### API details
+
 #### `/`
+
 ##### GET
- * Description: List of supported APIs
- * Return: list of supported API endpoint URLs (by default `['/1.0']`)
+
+* Description: List of supported APIs
+* Return: list of supported API endpoint URLs (by default `['/1.0']`)
 
 Return value:
 
@@ -58,10 +68,13 @@ Return value:
     "/1.0"
 ]
 ```
+
 #### `/1.0`
+
 ##### GET
- * Description: Information about the 1.0 API
- * Return: dict
+
+* Description: Information about the 1.0 API
+* Return: dict
 
 Return value:
 
@@ -75,8 +88,9 @@ Return value:
 ```
 
 #### PATCH
- * Description: Update instance state (valid states are `Ready` and `Started`)
- * Return: none
+
+* Description: Update instance state (valid states are `Ready` and `Started`)
+* Return: none
 
  Input:
 
@@ -87,9 +101,11 @@ Return value:
 ```
 
 #### `/1.0/config`
+
 ##### GET
- * Description: List of configuration keys
- * Return: list of configuration keys URL
+
+* Description: List of configuration keys
+* Return: list of configuration keys URL
 
 Note that the configuration key names match those in the instance
 configuration, however not all configuration namespaces will be exported to
@@ -107,18 +123,22 @@ Return value:
 ```
 
 #### `/1.0/config/<KEY>`
+
 ##### GET
- * Description: Value of that key
- * Return: Plain-text value
+
+* Description: Value of that key
+* Return: Plain-text value
 
 Return value:
 
     blah
 
 #### `/1.0/devices`
+
 ##### GET
- * Description: Map of instance devices
- * Return: dict
+
+* Description: Map of instance devices
+* Return: dict
 
 Return value:
 
@@ -138,18 +158,20 @@ Return value:
 ```
 
 #### `/1.0/events`
+
 ##### GET
- * Description: WebSocket upgrade
- * Return: none (never ending flow of events)
+
+* Description: WebSocket upgrade
+* Return: none (never ending flow of events)
 
 Supported arguments are:
 
- * type: comma-separated list of notifications to subscribe to (defaults to all)
+* type: comma-separated list of notifications to subscribe to (defaults to all)
 
 The notification types are:
 
- * `config` (changes to any of the `user.*` configuration keys)
- * `device` (any device addition, change or removal)
+* `config` (changes to any of the `user.*` configuration keys)
+* `device` (any device addition, change or removal)
 
 This never returns. Each notification is sent as a separate JSON dict:
 
@@ -181,20 +203,23 @@ This never returns. Each notification is sent as a separate JSON dict:
 ```
 
 #### `/1.0/images/<FINGERPRINT>/export`
+
 ##### GET
- * Description: Download a public/cached image from the host
- * Return: raw image or error
- * Access: Requires `security.devlxd.images` set to `true`
+
+* Description: Download a public/cached image from the host
+* Return: raw image or error
+* Access: Requires `security.devlxd.images` set to `true`
 
 Return value:
 
     See /1.0/images/<FINGERPRINT>/export in the daemon API.
 
-
 #### `/1.0/meta-data`
+
 ##### GET
- * Description: Container meta-data compatible with cloud-init
- * Return: cloud-init meta-data
+
+* Description: Container meta-data compatible with cloud-init
+* Return: cloud-init meta-data
 
 Return value:
 
