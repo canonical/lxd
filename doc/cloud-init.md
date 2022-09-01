@@ -22,6 +22,7 @@ The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` ena
 Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
 
 Both `vendor-data` and `user-data` follow the same rules, with the following caveats:
+
 * Users have ultimate control over vendor data. They can disable its execution or disable handling of specific parts of multipart input.
 * By default it only runs on first boot
 * Vendor data can be disabled by the user. If the use of vendor data is required for the instance to run, then vendor data should not be used.
@@ -85,10 +86,12 @@ cloud-init uses the `user-data` (and `vendor-data`) section to do things like up
 A `cloud-init.user-data` key must have a first line that indicates what type of [data format](https://cloudinit.readthedocs.io/en/latest/topics/format.html) is being passed to `cloud-init`. For activities like upgrading packages or setting up a user, `#cloud-config` is the data format to use.
 
 An instance's rootfs will contain the following files as a result:
+
 * `/var/lib/cloud/instance/cloud-config.txt`
 * `/var/lib/cloud/instance/user-data.txt`
 
 #### Upgrade packages on instance creation
+
 To trigger a package upgrade from the repositories for the instance, use the `package_upgrade` key:
 
 ```yaml
@@ -99,6 +102,7 @@ config:
 ```
 
 #### Install packages on instance creation
+
 To install specific packages when the instance is set up, use the `packages` key and specify the package names as a list:
 
 ```yaml
@@ -111,6 +115,7 @@ config:
 ```
 
 #### Set the time zone on instance creation
+
 To set the time zone for the instance, use the `timezone` key:
 
 ```yaml
@@ -121,6 +126,7 @@ config:
 ```
 
 #### Run commands
+
 To run a command (such as writing a marker file), use the `runcmd` key and specify commands as a list:
 
 ```yaml
@@ -132,6 +138,7 @@ config:
 ```
 
 #### Add a user account
+
 To add a user account, use the `user` key. See the [documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html#including-users-and-groups) for more details about default users and which keys are supported.
 
 ```yaml
@@ -177,6 +184,6 @@ config:
 
 An instance's rootfs will contain the following files as a result:
 
- * `/var/lib/cloud/seed/nocloud-net/network-config`
- * `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
- * `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)
+* `/var/lib/cloud/seed/nocloud-net/network-config`
+* `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
+* `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)

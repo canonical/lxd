@@ -1,4 +1,5 @@
 # Debugging
+
 For information on debugging instance issues, see [Frequently Asked Questions](faq.md)
 
 ## Debugging `lxc` and `lxd`
@@ -30,7 +31,6 @@ lxd --debug --group lxd
 `--group lxd` is needed to grant access to unprivileged users in this
 group.
 
-
 ## REST API through local socket
 
 On server side the most easy way is to communicate with LXD through
@@ -41,6 +41,7 @@ utility:
 ```bash
 curl --unix-socket /var/lib/lxd/unix.socket lxd/1.0 | jq .
 ```
+
 or for snap users:
 
 ```bash
@@ -48,7 +49,6 @@ curl --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0 | jq .
 ```
 
 See the [RESTful API](rest-api.md) for available API.
-
 
 ## REST API through HTTPS
 

@@ -64,6 +64,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-cephobject-pool-config)=
 ### Storage pool configuration
+
 Key                                      | Type                          | Default | Description
 :--                                      | :---                          | :------ | :----------
 `cephobject.bucket.name_prefix`          | string                        | -       | Prefix to add to bucket names in Ceph
@@ -74,6 +75,7 @@ Key                                      | Type                          | Defau
 `volatile.pool.pristine`                 | string                        | `true`  | Whether the `radosgw` `lxd-admin` user existed at creation time
 
 ### Storage bucket configuration
+
 Key    | Type   | Default                | Description
 :--    | :---   | :------                | :----------
 `size` | string | -                      | Quota of the storage bucket

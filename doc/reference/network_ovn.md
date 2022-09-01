@@ -30,12 +30,12 @@ See {ref}`network-ovn-setup` for basic instructions for setting up an OVN networ
 
 The following configuration key namespaces are currently supported for the `ovn` network type:
 
- - `bridge` (L2 interface configuration)
- - `dns` (DNS server and resolution configuration)
- - `ipv4` (L3 IPv4 configuration)
- - `ipv6` (L3 IPv6 configuration)
- - `security` (network ACL configuration)
- - `user` (free-form key/value for user metadata)
+- `bridge` (L2 interface configuration)
+- `dns` (DNS server and resolution configuration)
+- `ipv4` (L3 IPv4 configuration)
+- `ipv6` (L3 IPv6 configuration)
+- `security` (network ACL configuration)
+- `user` (free-form key/value for user metadata)
 
 ```{note}
 {{note_ip_addresses_CIDR}}

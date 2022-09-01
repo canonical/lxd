@@ -60,6 +60,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-cephfs-pool-config)=
 ### Storage pool configuration
+
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 `cephfs.cluster_name`         | string                        | `ceph`                                  | Name of the Ceph cluster that contains the CephFS file system
@@ -72,6 +73,7 @@ Key                           | Type                          | Default         
 {{volume_configuration}}
 
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                        | Description
 :--                     | :---      | :--------                 | :------                                        | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`   | {{enable_ID_shifting}}

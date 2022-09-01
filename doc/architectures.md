@@ -1,6 +1,7 @@
 # Architectures
 
 ## Introduction
+
 LXD just like LXC can run on just about any architecture that's
 supported by the Linux kernel and by Go.
 
@@ -10,7 +11,6 @@ container snapshots and images.
 This document lists all the supported architectures, their unique
 identifier (used in the database), how they should be named and some
 notes.
-
 
 Please note that what LXD cares about is the kernel architecture, not
 the particular userspace flavor as determined by the toolchain.

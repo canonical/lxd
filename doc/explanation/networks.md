@@ -129,5 +129,6 @@ As a general recommendation:
   OVN requires a shared L2 uplink network for proper operation.
   Therefore, using OVN is usually not possible if you run LXD in a public cloud.
   ```
+
 - To connect an instance NIC to a managed network, use the `network` property rather than the `parent` property, if possible.
   This way, the NIC can inherit the settings from the network and you don't need to specify the `nictype`.

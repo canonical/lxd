@@ -82,14 +82,13 @@ filtering.
 
 LXD automatically orders the rules based on the `action` property as follows:
 
- - `drop`
- - `reject`
- - `allow`
- - Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+- `drop`
+- `reject`
+- `allow`
+- Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
 
 This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
 If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
-
 
 ### Rule properties
 

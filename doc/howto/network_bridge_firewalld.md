@@ -62,10 +62,12 @@ For example:
     sudo firewall-cmd --reload
 
 <!-- Include start warning -->
+
 ```{warning}
 The commands given above show a simple example configuration.
 Depending on your use case, you might need more advanced rules and the example configuration might inadvertently introduce a security risk.
 ```
+
 <!-- Include end warning -->
 
 ### UFW: Add rules for the bridge

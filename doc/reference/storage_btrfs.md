@@ -61,6 +61,7 @@ The following configuration options are available for storage pools that use the
 
 (storage-btrfs-pool-config)=
 ### Storage pool configuration
+
 Key                             | Type      | Default                    | Description
 :--                             | :---      | :------                    | :----------
 `btrfs.mount_options`           | string    | `user_subvol_rm_allowed`   | Mount options for block devices
@@ -69,11 +70,12 @@ Key                             | Type      | Default                    | Descr
 {{volume_configuration}}
 
 ### Storage volume configuration
+
 Key                     | Type      | Condition                 | Default                                       | Description
 :--                     | :---      | :--------                 | :------                                       | :----------
 `security.shifted`      | bool      | custom volume             | same as `volume.security.shifted` or `false`  | {{enable_ID_shifting}}
 `security.unmapped`     | bool      | custom volume             | same as `volume.security.unmapped` or `false` | Disable ID mapping for the volume
 `size`                  | string    | appropriate driver        | same as `volume.size`                         | Size/quota of the storage volume
-`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry `            | {{snapshot_expiry_format}}
+`snapshots.expiry`      | string    | custom volume             | same as `volume.snapshots.expiry`             | {{snapshot_expiry_format}}
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d`| {{snapshot_pattern_format}}
 `snapshots.schedule`    | string    | custom volume             | same as `volume.snapshots.schedule`           | {{snapshot_schedule_format}}
