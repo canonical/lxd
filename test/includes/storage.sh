@@ -100,6 +100,11 @@ deconfigure_loop_device() {
     success=0
     # shellcheck disable=SC2034
     for i in $(seq 20); do
+        if ! losetup "${loopdev}"; then
+            success=1
+            break
+        fi
+
         if losetup -d "${loopdev}"; then
             success=1
             break
