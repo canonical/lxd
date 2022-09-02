@@ -825,7 +825,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, l logger.Logger, client *openvsw
 			// If an ignore instance was provided, then skip the device that the ACLs were just removed
 			// from. In case DB record is not updated until the update process has completed otherwise
 			// we would still consider it using the ACL.
-			if isIgnoreInst && ignoreInst.Name() == u.Name && ignoreInst.Project() == u.Project && ignoreUsageNicName == nicName {
+			if isIgnoreInst && ignoreInst.Name() == u.Name && ignoreInst.Project().Name == u.Project && ignoreUsageNicName == nicName {
 				return nil
 			}
 
