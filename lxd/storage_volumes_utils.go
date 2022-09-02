@@ -5,7 +5,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -21,7 +20,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 
 	// Update all instances that are using the volume with a local (non-expanded) device.
 	err := storagePools.VolumeUsedByInstanceDevices(s, oldPoolName, projectName, oldVol, false, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		inst, err := instance.Load(s, dbInst)
+		inst, err := instance.Load(s, dbInst, project)
 		if err != nil {
 			return err
 		}
@@ -59,7 +58,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	}
 
 	// Update all profiles that are using the volume with a device.
-	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p cluster.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
 		for name, dev := range profile.Devices {
 			if shared.StringInSlice(name, usedByDevices) {
 				dev["pool"] = newPoolName
@@ -71,7 +70,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
 		pUpdate.Devices = profile.Devices
-		err = doProfileUpdate(d, p.Name, profile.Name, profileID, &profile, pUpdate)
+		err = doProfileUpdate(d, p, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
 		}
@@ -125,7 +124,7 @@ func storagePoolVolumeUsedByGet(s *state.State, requestProjectName string, poolN
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, poolName, requestProjectName, &vol.StorageVolume, func(profileID int64, profile api.Profile, p cluster.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, poolName, requestProjectName, &vol.StorageVolume, func(profileID int64, profile api.Profile, p api.Project, usedByDevices []string) error {
 		volumeUsedBy = append(volumeUsedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(p.Name).String())
 		return nil
 	})
