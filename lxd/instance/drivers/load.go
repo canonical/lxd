@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -46,14 +47,14 @@ func init() {
 }
 
 // load creates the underlying instance type struct and returns it as an Instance.
-func load(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, error) {
 	var inst instance.Instance
 	var err error
 
 	if args.Type == instancetype.Container {
-		inst, err = lxcLoad(s, args)
+		inst, err = lxcLoad(s, args, p)
 	} else if args.Type == instancetype.VM {
-		inst, err = qemuLoad(s, args)
+		inst, err = qemuLoad(s, args, p)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}
@@ -66,7 +67,7 @@ func load(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
+func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -75,7 +76,7 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	instConf := &common{
 		dbType:       instanceType,
 		localDevices: devices.Clone(),
-		project:      projectName,
+		project:      p,
 	}
 
 	// In non-expanded validation expensive checks should be avoided.
@@ -110,11 +111,11 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	return nil
 }
 
-func create(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
+func create(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	if args.Type == instancetype.Container {
-		return lxcCreate(s, args)
+		return lxcCreate(s, args, p)
 	} else if args.Type == instancetype.VM {
-		return qemuCreate(s, args)
+		return qemuCreate(s, args, p)
 	}
 
 	return nil, nil, fmt.Errorf("Instance type invalid")

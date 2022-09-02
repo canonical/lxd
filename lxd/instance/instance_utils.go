@@ -39,14 +39,14 @@ import (
 )
 
 // ValidDevices is linked from instance/drivers.validDevices to validate device config.
-var ValidDevices func(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
+var ValidDevices func(state *state.State, p api.Project, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
 
 // Load is linked from instance/drivers.load to allow different instance types to be loaded.
-var Load func(s *state.State, args db.InstanceArgs) (Instance, error)
+var Load func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, error)
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-var Create func(s *state.State, args db.InstanceArgs) (Instance, revert.Hook, error)
+var Create func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, revert.Hook, error)
 
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
@@ -415,11 +415,22 @@ func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, 
 }
 
 // LoadByProjectAndName loads an instance by project and name.
-func LoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
+func LoadByProjectAndName(s *state.State, projectName string, instanceName string) (Instance, error) {
 	// Get the DB record
 	var args db.InstanceArgs
+	var p *api.Project
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		inst, err := LoadInstanceDatabaseObject(ctx, tx, project, name)
+		proj, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err = proj.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		inst, err := LoadInstanceDatabaseObject(ctx, tx, projectName, instanceName)
 		if err != nil {
 			return err
 		}
@@ -431,13 +442,13 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 
 		args = instArgs[inst.ID]
 
-		return err
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	inst, err := Load(s, args)
+	inst, err := Load(s, args, *p)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load instance: %w", err)
 	}
@@ -456,7 +467,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	}
 
 	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
-		inst, err := Load(s, dbInst)
+		inst, err := Load(s, dbInst, p)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
 		}
@@ -497,7 +508,25 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
 	}
 
-	inst, err = Load(s, *instDBArgs)
+	var p *api.Project
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		proj, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err = proj.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	inst, err = Load(s, *instDBArgs, *p)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
 	}
@@ -918,8 +947,19 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	revert.Add(func() { op.Done(err) })
 
 	var dbInst cluster.Instance
+	var p *api.Project
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		proj, err := cluster.GetProject(ctx, tx.Tx(), args.Project)
+		if err != nil {
+			return err
+		}
+
+		p, err = proj.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return err
+		}
+
 		devices, err := cluster.APIToDevices(args.Devices.CloneNative())
 		if err != nil {
 			return err
@@ -1059,7 +1099,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 	}
 
 	revert.Add(func() { _ = s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
-	inst, cleanup, err := Create(s, args)
+	inst, cleanup, err := Create(s, args, *p)
 	if err != nil {
 		logger.Error("Failed initialising instance", logger.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
