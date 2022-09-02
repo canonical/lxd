@@ -445,15 +445,17 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 	allowVMLowLevel := false
 	var allowedIDMapHostUIDs, allowedIDMapHostGIDs []idmap.IdmapEntry
 
-	for key, defaultValue := range allRestrictions {
-		// Check if this particular restriction is defined explicitly
-		// in the project config. If not, use the default value.
-		restrictionValue, ok := project.Config[key]
+	for i := range allRestrictions {
+		// Check if this particular restriction is defined explicitly in the project config.
+		// If not, use the default value. Assign to local var so it doesn't change to the default value of
+		// another restriction by time check functions run.
+		restrictionKey := i
+		restrictionValue, ok := project.Config[restrictionKey]
 		if !ok {
-			restrictionValue = defaultValue
+			restrictionValue = allRestrictions[restrictionKey]
 		}
 
-		switch key {
+		switch restrictionKey {
 		case "restricted.containers.interception":
 			for _, key := range allowableIntercept {
 				containerConfigChecks[key] = func(instanceValue string) error {
@@ -576,6 +578,7 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 
 		case "restricted.devices.nic":
 			devicesChecks["nic"] = func(device map[string]string) error {
+				// Check if the NICs are allowed at all.
 				switch restrictionValue {
 				case "block":
 					return fmt.Errorf("Network devices are forbidden")
@@ -584,6 +587,19 @@ func checkRestrictions(project api.Project, instances []api.Instance, profiles [
 						return fmt.Errorf("Only managed network devices are allowed")
 					}
 				}
+
+				// Check if the NIC's parent/network setting is allowed based on the
+				// restricted.devices.nic and restricted.networks.access settings.
+				if device["network"] != "" {
+					if !NetworkAllowed(project.Config, device["network"], true) {
+						return fmt.Errorf("Network not allowed in project")
+					}
+				} else if device["parent"] != "" {
+					if !NetworkAllowed(project.Config, device["parent"], false) {
+						return fmt.Errorf("Network not allowed in project")
+					}
+				}
+
 				return nil
 			}
 
@@ -796,6 +812,7 @@ var allRestrictions = map[string]string{
 	"restricted.devices.disk.paths":        "",
 	"restricted.idmap.uid":                 "",
 	"restricted.idmap.gid":                 "",
+	"restricted.networks.access":           "",
 	"restricted.snapshots":                 "block",
 }
 
