@@ -67,7 +67,7 @@ type common struct {
 	name            string
 	node            string
 	profiles        []api.Profile
-	project         string
+	project         api.Project
 	snapshot        bool
 	stateful        bool
 
@@ -173,7 +173,7 @@ func (d *common) Profiles() []api.Profile {
 
 // Project returns instance's project.
 func (d *common) Project() string {
-	return d.project
+	return d.project.Name
 }
 
 // IsSnapshot returns whether instance is snapshot or not.
@@ -198,7 +198,7 @@ func (d *common) Operation() *operations.Operation {
 // Backups returns a list of backups.
 func (d *common) Backups() ([]backup.InstanceBackup, error) {
 	// Get all the backups
-	backupNames, err := d.state.DB.Cluster.GetInstanceBackups(d.project, d.name)
+	backupNames, err := d.state.DB.Cluster.GetInstanceBackups(d.project.Name, d.name)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (d *common) Backups() ([]backup.InstanceBackup, error) {
 	// Build the backup list
 	backups := []backup.InstanceBackup{}
 	for _, backupName := range backupNames {
-		backup, err := instance.BackupLoadByName(d.state, d.project, backupName)
+		backup, err := instance.BackupLoadByName(d.state, d.project.Name, backupName)
 		if err != nil {
 			return nil, err
 		}
@@ -248,7 +248,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	// Get all the snapshots for instance.
 	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.InstanceSnapshotFilter{
-			Project:  &d.project,
+			Project:  &d.project.Name,
 			Instance: &d.name,
 		}
 
@@ -278,7 +278,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 		// Populate profile info that was already loaded.
 		snapshotArg.Profiles = d.profiles
 
-		snapInst, err := instance.Load(d.state, snapshotArg)
+		snapInst, err := instance.Load(d.state, snapshotArg, d.project)
 		if err != nil {
 			return nil, err
 		}
@@ -344,19 +344,19 @@ func (d *common) ConsoleBufferLogPath() string {
 
 // DevicesPath returns the instance's devices path.
 func (d *common) DevicesPath() string {
-	name := project.Instance(d.project, d.name)
+	name := project.Instance(d.project.Name, d.name)
 	return shared.VarPath("devices", name)
 }
 
 // LogPath returns the instance's log path.
 func (d *common) LogPath() string {
-	name := project.Instance(d.project, d.name)
+	name := project.Instance(d.project.Name, d.name)
 	return shared.LogPath(name)
 }
 
 // Path returns the instance's path.
 func (d *common) Path() string {
-	return storagePools.InstancePath(d.dbType, d.project, d.name, d.snapshot)
+	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.snapshot)
 }
 
 // RootfsPath returns the instance's rootfs path.
@@ -366,7 +366,7 @@ func (d *common) RootfsPath() string {
 
 // ShmountsPath returns the instance's shared mounts path.
 func (d *common) ShmountsPath() string {
-	name := project.Instance(d.project, d.name)
+	name := project.Instance(d.project.Name, d.name)
 	return shared.VarPath("shmounts", name)
 }
 
@@ -400,12 +400,12 @@ func (d *common) deviceVolatileReset(devName string, oldConfig, newConfig device
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
-	newNICType, err := nictype.NICType(d.state, d.project, newConfig)
+	newNICType, err := nictype.NICType(d.state, d.project.Name, newConfig)
 	if err != nil {
 		return err
 	}
 
-	oldNICType, err := nictype.NICType(d.state, d.project, oldConfig)
+	oldNICType, err := nictype.NICType(d.state, d.project.Name, oldConfig)
 	if err != nil {
 		return err
 	}
@@ -1021,7 +1021,7 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 
 		// Load the parent.
-		storageInstance, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		storageInstance, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
 		if err != nil {
 			return "", nil, err
 		}

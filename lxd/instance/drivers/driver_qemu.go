@@ -100,9 +100,9 @@ var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 type monitorHook func(m *qmp.Monitor) error
 
 // qemuLoad creates a Qemu instance from the supplied InstanceArgs.
-func qemuLoad(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func qemuLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, error) {
 	// Create the instance struct.
-	d := qemuInstantiate(s, args, nil)
+	d := qemuInstantiate(s, args, nil, p)
 
 	// Expand config and devices.
 	err := d.expandConfig()
@@ -116,7 +116,7 @@ func qemuLoad(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 // qemuInstantiate creates a Qemu struct without expanding config. The expandedDevices argument is
 // used during device config validation when the devices have already been expanded and we do not
 // have access to the profiles used to do it. This can be safely passed as nil if not required.
-func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *qemu {
+func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices, p api.Project) *qemu {
 	d := &qemu{
 		common: common{
 			state: s,
@@ -135,7 +135,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
-			project:      args.Project,
+			project:      p,
 			snapshot:     args.Snapshot,
 			stateful:     args.Stateful,
 		},
@@ -170,7 +170,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
+func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -193,7 +193,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
-			project:      args.Project,
+			project:      p,
 			snapshot:     args.Snapshot,
 			stateful:     args.Stateful,
 		},
@@ -232,7 +232,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 		return nil, nil, fmt.Errorf("Invalid config: %w", err)
 	}
 
-	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
+	err = instance.ValidDevices(s, d.project, d.Type(), d.expandedDevices, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 	}
@@ -283,9 +283,9 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert
 	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, map[string]any{
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
 			"type":         api.InstanceTypeVM,
 			"storage-pool": d.storagePool.Name(),
 		}))
@@ -519,7 +519,7 @@ func (d *qemu) Freeze() error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstancePaused.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(d, nil))
 	return nil
 }
 
@@ -626,7 +626,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Log and emit lifecycle if not user triggered.
 	if instanceInitiated {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	// Reboot the instance.
@@ -639,7 +639,7 @@ func (d *qemu) onStop(target string) error {
 			return err
 		}
 
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
 		_ = op.Reset() // Reset timeout to default.
 
@@ -768,7 +768,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -786,7 +786,7 @@ func (d *qemu) Restart(timeout time.Duration) error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
 }
@@ -1211,14 +1211,14 @@ func (d *qemu) Start(stateful bool) error {
 
 			if errUnsupported == device.ErrMissingVirtiofsd {
 				// Create a warning if virtiofsd is missing.
-				_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+				_ = d.state.DB.Cluster.UpsertWarning(d.node, d.project.Name, dbCluster.TypeInstance, d.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
 			} else {
 				// Resolve previous warning.
-				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, warningtype.MissingVirtiofsd)
+				_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 			}
 		} else {
 			// Resolve previous warning.
-			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, warningtype.MissingVirtiofsd)
+			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
 			op.Done(err)
 			return fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 		}
@@ -1585,7 +1585,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	if op.Action() == "start" {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
 	return nil
@@ -2983,7 +2983,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 	}
 
 	if d.storagePool.Driver().Info().Remote {
-		vol := d.storagePool.GetVolume(storageDrivers.VolumeTypeVM, storageDrivers.ContentTypeBlock, project.Instance(d.project, d.name), nil)
+		vol := d.storagePool.GetVolume(storageDrivers.VolumeTypeVM, storageDrivers.ContentTypeBlock, project.Instance(d.project.Name, d.name), nil)
 
 		config := d.storagePool.ToAPI().Config
 
@@ -3221,7 +3221,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 
 		// Driver and pool name arguments can be ignored as CephGetRBDImageName doesn't need them.
 		volumeType := storageDrivers.VolumeTypeCustom
-		volumeName := project.StorageVolume(d.project, volName)
+		volumeName := project.StorageVolume(d.project.Name, volName)
 
 		// Handle different name for instance volumes.
 		if driveConf.TargetPath == "/" {
@@ -3822,7 +3822,7 @@ func (d *qemu) forceStop() error {
 			return err
 		}
 
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	return nil
@@ -3937,7 +3937,7 @@ func (d *qemu) Stop(stateful bool) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
@@ -3962,7 +3962,7 @@ func (d *qemu) Unfreeze() error {
 		return err
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceResumed.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(d, nil))
 	return nil
 }
 
@@ -4139,7 +4139,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": source.Name()}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": source.Name()}))
 	d.logger.Info("Restored instance", ctxMap)
 	return nil
 }
@@ -4195,7 +4195,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	if !d.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
+		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project.Name, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get instance snapshots", ctxMap)
 			return fmt.Errorf("Failed to get instance snapshots: %w", err)
@@ -4206,7 +4206,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldName, oldSnapName, baseSnapName)
+				return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
 				d.logger.Error("Failed renaming snapshot", ctxMap)
@@ -4220,10 +4220,10 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		if d.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldParts[0], oldParts[1], newParts[1])
+			return dbCluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return dbCluster.RenameInstance(ctx, tx.Tx(), d.project, oldName, newName)
+		return dbCluster.RenameInstance(ctx, tx.Tx(), d.project.Name, oldName, newName)
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming instance", ctxMap)
@@ -4299,9 +4299,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renamed instance", ctxMap)
 
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -4351,7 +4351,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.Project(), d.Type(), args.Devices, false)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), args.Devices, false)
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}
@@ -4503,7 +4503,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.Project(), d.Type(), d.expandedDevices, true)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.expandedDevices, true)
 		if err != nil {
 			return fmt.Errorf("Invalid expanded devices: %w", err)
 		}
@@ -4647,7 +4647,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
 		}
 
-		object, err := dbCluster.GetInstance(ctx, tx.Tx(), d.project, d.name)
+		object, err := dbCluster.GetInstance(ctx, tx.Tx(), d.project.Name, d.name)
 		if err != nil {
 			return err
 		}
@@ -4657,7 +4657,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Ephemeral = d.ephemeral
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
 
-		err = dbCluster.UpdateInstance(ctx, tx.Tx(), d.project, d.name, *object)
+		err = dbCluster.UpdateInstance(ctx, tx.Tx(), d.project.Name, d.name, *object)
 		if err != nil {
 			return err
 		}
@@ -4718,9 +4718,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if userRequested {
 		if d.snapshot {
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
 		} else {
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
 		}
 	}
 
@@ -5013,7 +5013,7 @@ func (d *qemu) Delete(force bool) error {
 		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 
 		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
 		if err != nil {
 			return fmt.Errorf("Invalid parent: %w", err)
 		}
@@ -5028,9 +5028,9 @@ func (d *qemu) Delete(force bool) error {
 	d.logger.Info("Deleted instance", ctxMap)
 
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
 	}
 
 	return nil
@@ -5098,7 +5098,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		var arch string
 		if d.IsSnapshot() {
 			parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+			parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -5438,7 +5438,7 @@ func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
 
 	_ = conn.Close()
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
 
 	return file, chDisconnect, nil
 }
@@ -5506,7 +5506,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		controlResCh:     controlResCh,
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
 
 	revert.Success()
 	return instCmd, nil
@@ -5573,7 +5573,7 @@ func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 	instState.LastUsedAt = d.lastUsedDate
 	instState.Profiles = profileNames
 	instState.Stateful = d.stateful
-	instState.Project = d.project
+	instState.Project = d.project.Name
 
 	for _, option := range options {
 		err := option(&instState)
@@ -6306,7 +6306,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 		return nil, err
 	}
 
-	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project, "name": d.name, "type": instancetype.VM.String()})
+	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String()})
 	if err != nil {
 		return nil, err
 	}

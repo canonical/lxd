@@ -67,7 +67,7 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 		}
 	}
 
-	metricSet, err := metrics.MetricSetFromAPI(&out, map[string]string{"project": d.project, "name": d.name, "type": instancetype.VM.String()})
+	metricSet, err := metrics.MetricSetFromAPI(&out, map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.VM.String()})
 	if err != nil {
 		return nil, err
 	}
