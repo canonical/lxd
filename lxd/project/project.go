@@ -124,19 +124,18 @@ func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 	return Default
 }
 
-// NetworkProject returns the project name to use for the network based on the requested project.
-// If the project specified has the "features.networks" flag enabled then the project name is returned,
-// otherwise the default project name is returned. The second return value is the project's config if non-default
-// project is being returned, nil if not.
-func NetworkProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
-	var project *api.Project
+// NetworkProject returns the effective project name to use for the network based on the requested project.
+// If the requested project has the "features.networks" flag enabled then the requested project's info is returned,
+// otherwise the default project name is returned. The second return value is always the requested project's info.
+func NetworkProject(c *db.Cluster, projectName string) (string, *api.Project, error) {
+	var p *api.Project
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(ctx, tx.Tx())
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -144,13 +143,9 @@ func NetworkProject(c *db.Cluster, projectName string) (string, map[string]strin
 		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
 	}
 
-	projectName = NetworkProjectFromRecord(project)
+	effectiveProjectName := NetworkProjectFromRecord(p)
 
-	if projectName != Default {
-		return projectName, project.Config, nil
-	}
-
-	return Default, nil, nil
+	return effectiveProjectName, p, nil
 }
 
 // NetworkProjectFromRecord returns the project name to use for the network based on the supplied project.
