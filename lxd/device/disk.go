@@ -1475,7 +1475,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
 			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-				inst, err := instance.Load(d.state, dbInst)
+				inst, err := instance.Load(d.state, dbInst, project)
 				if err != nil {
 					return err
 				}
