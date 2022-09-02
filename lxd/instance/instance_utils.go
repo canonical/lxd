@@ -1137,7 +1137,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project().Name, inst.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -1159,7 +1159,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
 		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project().Name, inst.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -1187,7 +1187,7 @@ func MoveTemporaryName(inst Instance) (string, error) {
 // if they have the same volatile.uuid values.
 func IsSameLogicalInstance(inst Instance, dbInst *db.InstanceArgs) bool {
 	// Instance name is unique within a project.
-	if dbInst.Project == inst.Project() && dbInst.Name == inst.Name() {
+	if dbInst.Project == inst.Project().Name && dbInst.Name == inst.Name() {
 		return true
 	}
 

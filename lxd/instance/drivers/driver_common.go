@@ -482,7 +482,7 @@ func (d *common) expandConfig() error {
 // restartCommon handles the common part of instance restarts.
 func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) error {
 	// Setup a new operation for the stop/shutdown phase.
-	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
 		return fmt.Errorf("Create restart operation: %w", err)
 	}
@@ -498,7 +498,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			Devices:      inst.LocalDevices(),
 			Ephemeral:    false,
 			Profiles:     inst.Profiles(),
-			Project:      inst.Project(),
+			Project:      inst.Project().Name,
 			Type:         inst.Type(),
 			Snapshot:     inst.IsSnapshot(),
 		}
@@ -536,7 +536,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	}
 
 	// Setup a new operation for the start phase.
-	op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
+	op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
 		return fmt.Errorf("Create restart (for start) operation: %w", err)
 	}
@@ -570,7 +570,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 
 	// Setup the arguments.
 	args := db.InstanceArgs{
-		Project:      inst.Project(),
+		Project:      inst.Project().Name,
 		Architecture: inst.Architecture(),
 		Config:       inst.LocalConfig(),
 		Type:         inst.Type(),
@@ -884,7 +884,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	// Pick up the existing stop operation lock created in Stop() function.
 	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
 	// to run the hook (this should be quick as it will fail showing instance is already running).
-	op := operationlock.Get(d.Project(), d.Name())
+	op := operationlock.Get(d.Project().Name, d.Name())
 	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		_ = op.Wait()
@@ -902,7 +902,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 			action = operationlock.ActionRestart
 		}
 
-		op, err = operationlock.Create(d.Project(), d.Name(), action, false, false)
+		op, err = operationlock.Create(d.Project().Name, d.Name(), action, false, false)
 		if err != nil {
 			return nil, false, fmt.Errorf("Failed creating %q operation: %w", action, err)
 		}
@@ -1115,7 +1115,7 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 		return d.storagePool, nil
 	}
 
-	poolName, err := d.state.DB.Cluster.GetInstancePool(d.Project(), d.Name())
+	poolName, err := d.state.DB.Cluster.GetInstancePool(d.Project().Name, d.Name())
 	if err != nil {
 		return nil, err
 	}
