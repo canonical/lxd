@@ -51,7 +51,7 @@ const TemplateTriggerRename TemplateTrigger = "rename"
 
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
-	Project() string
+	Project() api.Project
 	Type() instancetype.Type
 	Architecture() int
 	ExpandedConfig() map[string]string

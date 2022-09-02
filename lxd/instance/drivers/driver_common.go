@@ -172,8 +172,8 @@ func (d *common) Profiles() []api.Profile {
 }
 
 // Project returns instance's project.
-func (d *common) Project() string {
-	return d.project.Name
+func (d *common) Project() api.Project {
+	return d.project
 }
 
 // IsSnapshot returns whether instance is snapshot or not.
