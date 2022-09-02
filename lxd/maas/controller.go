@@ -8,13 +8,14 @@ import (
 	"github.com/juju/gomaasapi"
 
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Instance is a MAAS specific instance interface.
 // This is used rather than instance.Instance to avoid import loops.
 type Instance interface {
 	Name() string
-	Project() string
+	Project() api.Project
 }
 
 // Controller represents a MAAS server's machine functions.
@@ -115,7 +116,7 @@ func (c *Controller) getDomain(inst Instance) string {
 	fields := strings.Split(c.machine.FQDN(), ".")
 	domain := strings.Join(fields[1:], ".")
 
-	if inst.Project() == project.Default {
+	if inst.Project().Name == project.Default {
 		return domain
 	}
 
