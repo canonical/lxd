@@ -34,7 +34,7 @@ import (
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project().Name, "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
 
@@ -65,7 +65,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	revert.Add(func() { _ = s.DB.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
-	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
+	b, err := instance.BackupLoadByName(s, sourceInst.Project().Name, args.Name)
 	if err != nil {
 		return fmt.Errorf("Load backup object: %w", err)
 	}
@@ -78,7 +78,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	} else {
 		var p *api.Project
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := dbCluster.GetProject(ctx, tx.Tx(), sourceInst.Project())
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), sourceInst.Project().Name)
 			if err != nil {
 				return err
 			}
@@ -99,7 +99,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the target path if needed.
-	backupsPath := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), sourceInst.Name()))
+	backupsPath := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, sourceInst.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -109,7 +109,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		revert.Add(func() { _ = os.Remove(backupsPath) })
 	}
 
-	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), b.Name()))
+	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project().Name, b.Name()))
 
 	// Setup the tarball writer.
 	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
@@ -216,7 +216,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
-	s.Events.SendLifecycle(sourceInst.Project(), lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
+	s.Events.SendLifecycle(sourceInst.Project().Name, lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
 
 	return nil
 }

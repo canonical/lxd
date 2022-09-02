@@ -2763,7 +2763,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
 			if isRunning && !(migrate && live) {
-				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)
 				_ = op.UpdateMetadata(metadata)
 
 				// Get the shutdown timeout for the instance.
@@ -2820,12 +2820,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Skip migration if no target available.
 			if targetNodeName == "" {
-				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project()})
+				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project().Name})
 				continue
 			}
 
 			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project(), targetNodeName)
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNodeName)
 			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
@@ -2854,9 +2854,9 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed to connect to destination: %w", err)
 			}
 
-			dest = dest.UseProject(inst.Project())
+			dest = dest.UseProject(inst.Project().Name)
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
 			_ = op.UpdateMetadata(metadata)
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
@@ -2961,7 +2961,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
 			_ = op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
@@ -2975,7 +2975,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Check if live-migratable.
 			_, live := inst.CanMigrate()
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project().Name, inst.Location())
 			_ = op.UpdateMetadata(metadata)
 
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2995,7 +2995,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed to connect to source: %w", err)
 			}
 
-			source = source.UseProject(inst.Project())
+			source = source.UseProject(inst.Project().Name)
 
 			apiInst, _, err := source.GetInstance(inst.Name())
 			if err != nil {
@@ -3004,7 +3004,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			isRunning := apiInst.StatusCode == api.Running
 			if isRunning && !live {
-				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)
 				_ = op.UpdateMetadata(metadata)
 
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -3056,7 +3056,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Reload the instance after migration.
-			inst, err := instance.LoadByProjectAndName(s, inst.Project(), inst.Name())
+			inst, err := instance.LoadByProjectAndName(s, inst.Project().Name, inst.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to load instance: %w", err)
 			}
@@ -3071,7 +3071,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				Devices:      inst.LocalDevices(),
 				Ephemeral:    inst.IsEphemeral(),
 				Profiles:     inst.Profiles(),
-				Project:      inst.Project(),
+				Project:      inst.Project().Name,
 				ExpiryDate:   inst.ExpiryDate(),
 			}
 
@@ -3084,7 +3084,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
 			_ = op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)

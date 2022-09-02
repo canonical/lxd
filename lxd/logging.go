@@ -61,7 +61,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	// Build the expected names.
 	names := []string{}
 	for _, inst := range instances {
-		names = append(names, project.Instance(inst.Project(), inst.Name()))
+		names = append(names, project.Instance(inst.Project().Name, inst.Name()))
 	}
 
 	newestFile := func(path string, dir os.FileInfo) time.Time {

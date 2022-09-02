@@ -165,7 +165,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	pool, err := storagePools.LoadByName(state, poolName)
 	suite.Req.Nil(err)
 
-	_, err = state.DB.Cluster.CreateStoragePoolVolume(c.Project(), c.Name(), "", db.StoragePoolVolumeContentTypeFS, pool.ID(), nil, db.StoragePoolVolumeContentTypeFS)
+	_, err = state.DB.Cluster.CreateStoragePoolVolume(c.Project().Name, c.Name(), "", db.StoragePoolVolumeContentTypeFS, pool.ID(), nil, db.StoragePoolVolumeContentTypeFS)
 	suite.Req.Nil(err)
 
 	// Load the container and trigger initLXC()

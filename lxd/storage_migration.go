@@ -28,7 +28,7 @@ func snapshotProtobufToInstanceArgs(s *state.State, inst instance.Instance, snap
 		devices[ent.GetName()] = props
 	}
 
-	profiles, err := s.DB.Cluster.GetProfiles(inst.Project(), snap.Profiles)
+	profiles, err := s.DB.Cluster.GetProfiles(inst.Project().Name, snap.Profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func snapshotProtobufToInstanceArgs(s *state.State, inst instance.Instance, snap
 		Name:         inst.Name() + shared.SnapshotDelimiter + snap.GetName(),
 		Profiles:     profiles,
 		Stateful:     snap.GetStateful(),
-		Project:      inst.Project(),
+		Project:      inst.Project().Name,
 	}
 
 	if snap.GetCreationDate() != 0 {
