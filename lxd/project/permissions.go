@@ -1501,14 +1501,9 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 
 // AllowSnapshotCreation returns an error if any project-specific restriction is violated
 // when creating a new snapshot in a project.
-func AllowSnapshotCreation(tx *db.ClusterTx, dbProject *cluster.Project) error {
-	project, err := dbProject.ToAPI(context.Background(), tx.Tx())
-	if err != nil {
-		return err
-	}
-
-	if projectHasRestriction(project, "restricted.snapshots", "block") {
-		return fmt.Errorf("Project %s doesn't allow for snapshot creation", project.Name)
+func AllowSnapshotCreation(p *api.Project) error {
+	if projectHasRestriction(p, "restricted.snapshots", "block") {
+		return fmt.Errorf("Project %s doesn't allow for snapshot creation", p.Name)
 	}
 
 	return nil
