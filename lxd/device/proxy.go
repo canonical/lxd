@@ -2,7 +2,6 @@ package device
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -14,7 +13,6 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/lxc/lxd/lxd/apparmor"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -27,7 +25,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
@@ -124,27 +121,12 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		if d.inst != nil {
 			// Default project always has networks feature so don't bother loading the project config
 			// in that case.
-			projectName := d.inst.Project()
-			if projectName != project.Default {
+			instProject := d.inst.Project()
+			if instProject.Name != project.Default {
 				// Prevent use of NAT mode on non-default projects with networks feature.
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
-				var p *api.Project
-				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
-					if err != nil {
-						return err
-					}
-
-					p, err = project.ToAPI(ctx, tx.Tx())
-
-					return err
-				})
-				if err != nil {
-					return fmt.Errorf("Failed loading project %q: %w", projectName, err)
-				}
-
-				if shared.IsTrue(p.Config["features.networks"]) {
+				if shared.IsTrue(instProject.Config["features.networks"]) {
 					return fmt.Errorf("NAT mode cannot be used in projects that have the networks feature")
 				}
 			}
@@ -333,7 +315,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 // Stop is run when the device is removed from the instance.
 func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
-	err := d.state.Firewall.InstanceClearProxyNAT(d.inst.Project(), d.inst.Name(), d.name)
+	err := d.state.Firewall.InstanceClearProxyNAT(d.inst.Project().Name, d.inst.Name(), d.name)
 	if err != nil {
 		logger.Errorf("Failed to remove proxy NAT filters: %v", err)
 	}
@@ -384,7 +366,7 @@ func (d *proxy) setupNAT() error {
 			continue
 		}
 
-		nicType, err := nictype.NICType(d.state, d.inst.Project(), devConfig)
+		nicType, err := nictype.NICType(d.state, d.inst.Project().Name, devConfig)
 		if err != nil {
 			return err
 		}
@@ -428,12 +410,12 @@ func (d *proxy) setupNAT() error {
 	if err != nil {
 		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
 		d.logger.Warn(msg, logger.Ctx{"err": err})
-		err := d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+		err := d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, cluster.TypeInstance, d.inst.ID(), warningtype.ProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
 			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 		}
 	} else {
-		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project(), warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 		if err != nil {
 			logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 		}
@@ -461,7 +443,7 @@ func (d *proxy) setupNAT() error {
 		TargetPorts:   connectAddr.Ports,
 	}
 
-	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, &addressForward)
+	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project().Name, d.inst.Name(), d.name, &addressForward)
 	if err != nil {
 		return err
 	}
@@ -483,7 +465,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 }
 
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
-	cname := project.Instance(d.inst.Project(), d.inst.Name())
+	cname := project.Instance(d.inst.Project().Name, d.inst.Name())
 	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
 		return nil, err
@@ -580,7 +562,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 }
 
 func (d *proxy) Remove() error {
-	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project(), warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project().Name, warningtype.ProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 	if err != nil {
 		logger.Warn("Failed to delete warning", logger.Ctx{"err": err})
 	}
