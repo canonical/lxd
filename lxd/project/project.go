@@ -124,33 +124,26 @@ func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 	return Default
 }
 
-// StorageBucketProject returns the project name to use to for the bucket based on the requested project.
+// StorageBucketProject returns the effective project name to use to for the bucket based on the requested project.
 // If the project specified has the "features.storage.buckets" flag enabled then the project name is returned,
-// otherwise the default project name is returned. The second return value is the project's config if non-default
-// project is being returned, nil if not.
-func StorageBucketProject(ctx context.Context, c *db.Cluster, projectName string) (string, map[string]string, error) {
-	var project *api.Project
+// otherwise the default project name is returned.
+func StorageBucketProject(ctx context.Context, c *db.Cluster, projectName string) (string, error) {
+	var p *api.Project
 	err := c.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(ctx, tx.Tx())
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return "", fmt.Errorf("Failed to load project %q: %w", projectName, err)
 	}
 
-	projectName = StorageBucketProjectFromRecord(project)
-
-	if projectName != Default {
-		return projectName, project.Config, nil
-	}
-
-	return Default, nil, nil
+	return StorageBucketProjectFromRecord(p), nil
 }
 
 // StorageBucketProjectFromRecord returns the project name to use to for the bucket based on the supplied project.
