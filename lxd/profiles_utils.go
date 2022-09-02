@@ -105,7 +105,7 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 
 		err = cluster.UpdateProfileDevices(ctx, tx.Tx(), id, devices)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		newProfiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), p.Name, []string{profileName})
