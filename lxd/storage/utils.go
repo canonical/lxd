@@ -614,14 +614,13 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
-func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project cluster.Project, usedByDevices []string) error) error {
+func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profileID int64, profile api.Profile, project api.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
 		return err
 	}
 
-	projectMap := map[string]cluster.Project{}
 	var profiles []api.Profile
 	var profileIDs []int64
 	var profileProjects []*api.Project
@@ -633,8 +632,12 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		}
 
 		// Index of all projects by name.
-		for i, project := range projects {
-			projectMap[project.Name] = projects[i]
+		projectMap := make(map[string]*api.Project, len(projects))
+		for _, project := range projects {
+			projectMap[project.Name], err = project.ToAPI(ctx, tx.Tx())
+			if err != nil {
+				return fmt.Errorf("Failed loading config for projec %q: %w", project.Name, err)
+			}
 		}
 
 		dbProfiles, err := cluster.GetProfiles(ctx, tx.Tx())
@@ -654,11 +657,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 		profileProjects = make([]*api.Project, len(dbProfiles))
 		for i, p := range dbProfiles {
-			project := projectMap[p.Project]
-			profileProjects[i], err = project.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
+			profileProjects[i] = projectMap[p.Project]
 		}
 
 		return nil
@@ -701,7 +700,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		}
 
 		if len(usedByDevices) > 0 {
-			err = profileFunc(profileIDs[i], profile, projectMap[profileProjects[i].Name], usedByDevices)
+			err = profileFunc(profileIDs[i], profile, *profileProjects[i], usedByDevices)
 			if err != nil {
 				return err
 			}
