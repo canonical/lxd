@@ -3995,7 +3995,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		// Check for config changing that is not allowed when running instances are using it.
 		if changedConfig["security.shifted"] != "" {
 			err = VolumeUsedByInstanceDevices(b.state, b.name, projectName, curVol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-				inst, err := instance.Load(b.state, dbInst)
+				inst, err := instance.Load(b.state, dbInst, project)
 				if err != nil {
 					return err
 				}
@@ -4523,7 +4523,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 
 	// Check that the volume isn't in use by running instances.
 	err = VolumeUsedByInstanceDevices(b.state, b.Name(), projectName, curVol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
-		inst, err := instance.Load(b.state, dbInst)
+		inst, err := instance.Load(b.state, dbInst, project)
 		if err != nil {
 			return err
 		}
