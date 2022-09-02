@@ -141,7 +141,7 @@ var profileCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilesGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -151,7 +151,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	var result any
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.ProfileFilter{
-			Project: &projectName,
+			Project: &p.Name,
 		}
 
 		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), filter)
@@ -179,7 +179,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		} else {
 			urls := make([]string, len(apiProfiles))
 			for i, p := range apiProfiles {
-				urls[i] = p.URL(version.APIVersion, projectName).String()
+				urls[i] = p.URL(version.APIVersion, p.Name).String()
 			}
 
 			result = urls
@@ -243,7 +243,7 @@ func profileUsedBy(ctx context.Context, tx *db.ClusterTx, profile dbCluster.Prof
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilesPost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -273,7 +273,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
-	err = instance.ValidDevices(d.State(), projectName, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ValidDevices(d.State(), *p, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -285,13 +285,13 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		current, _ := dbCluster.GetProfile(ctx, tx.Tx(), projectName, req.Name)
+		current, _ := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, req.Name)
 		if current != nil {
 			return fmt.Errorf("The profile already exists")
 		}
 
 		profile := dbCluster.Profile{
-			Project:     projectName,
+			Project:     p.Name,
 			Name:        req.Name,
 			Description: req.Description,
 		}
@@ -318,8 +318,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	lc := lifecycle.ProfileCreated.Event(req.Name, projectName, requestor, nil)
-	d.State().Events.SendLifecycle(projectName, lc)
+	lc := lifecycle.ProfileCreated.Event(req.Name, p.Name, requestor, nil)
+	d.State().Events.SendLifecycle(p.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -365,7 +365,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profileGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -378,7 +378,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	var resp *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
 		if err != nil {
 			return fmt.Errorf("Fetch profile: %w", err)
 		}
@@ -440,7 +440,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePut(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -459,7 +459,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = doProfileUpdateCluster(d, projectName, name, old)
+		err = doProfileUpdateCluster(d, p.Name, name, old)
 		return response.SmartError(err)
 	}
 
@@ -467,7 +467,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile %q: %w", name, err)
 		}
@@ -498,7 +498,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = doProfileUpdate(d, projectName, name, id, profile, req)
+	err = doProfileUpdate(d, *p, name, id, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -508,7 +508,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UseProject(projectName).UpdateProfile(name, profile.ProfilePut, "")
+			return client.UseProject(p.Name).UpdateProfile(name, profile.ProfilePut, "")
 		})
 		if err != nil {
 			return response.SmartError(err)
@@ -516,7 +516,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, requestor, nil))
+	d.State().Events.SendLifecycle(p.Name, lifecycle.ProfileUpdated.Event(name, p.Name, requestor, nil))
 
 	return response.SmartError(err)
 }
@@ -556,7 +556,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -570,7 +570,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		current, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
+		current, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile=%q: %w", name, err)
 		}
@@ -646,9 +646,9 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, requestor, nil))
+	d.State().Events.SendLifecycle(p.Name, lifecycle.ProfileUpdated.Event(name, p.Name, requestor, nil))
 
-	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
+	return response.SmartError(doProfileUpdate(d, *p, name, id, profile, req))
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post
@@ -684,7 +684,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -719,20 +719,20 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		_, err = dbCluster.GetProfile(ctx, tx.Tx(), projectName, req.Name)
+		_, err = dbCluster.GetProfile(ctx, tx.Tx(), p.Name, req.Name)
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
 
-		return dbCluster.RenameProfile(ctx, tx.Tx(), projectName, name, req.Name)
+		return dbCluster.RenameProfile(ctx, tx.Tx(), p.Name, name, req.Name)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	lc := lifecycle.ProfileRenamed.Event(req.Name, projectName, requestor, logger.Ctx{"old_name": name})
-	d.State().Events.SendLifecycle(projectName, lc)
+	lc := lifecycle.ProfileRenamed.Event(req.Name, p.Name, requestor, logger.Ctx{"old_name": name})
+	d.State().Events.SendLifecycle(p.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -762,7 +762,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profileDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
+	p, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -777,7 +777,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), projectName, name)
+		profile, err := dbCluster.GetProfile(ctx, tx.Tx(), p.Name, name)
 		if err != nil {
 			return err
 		}
@@ -791,14 +791,14 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		return dbCluster.DeleteProfile(ctx, tx.Tx(), projectName, name)
+		return dbCluster.DeleteProfile(ctx, tx.Tx(), p.Name, name)
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileDeleted.Event(name, projectName, requestor, nil))
+	d.State().Events.SendLifecycle(p.Name, lifecycle.ProfileDeleted.Event(name, p.Name, requestor, nil))
 
 	return response.EmptySyncResponse
 }
