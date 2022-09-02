@@ -2,7 +2,6 @@ package device
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -269,7 +268,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// Custom volume validation.
 			if d.config["source"] != "" && d.config["path"] != "/" {
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project(), db.StoragePoolVolumeTypeCustom)
+				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project().Name, db.StoragePoolVolumeTypeCustom)
 				if err != nil {
 					return err
 				}
@@ -343,27 +342,12 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 	// If project not default then check if using restricted disk paths.
 	// Default project cannot be restricted, so don't bother loading the project config in that case.
-	projectName := d.inst.Project()
-	if projectName != project.Default {
-		var p *api.Project
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
-			if err != nil {
-				return err
-			}
-
-			p, err = project.ToAPI(ctx, tx.Tx())
-
-			return err
-		})
-		if err != nil {
-			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
-		}
-
+	instProject := d.inst.Project()
+	if instProject.Name != project.Default {
 		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
 		// allowed parent path for later user during device start up sequence.
-		if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.devices.disk.paths"] != "" {
-			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
+		if shared.IsTrue(instProject.Config["restricted"]) && instProject.Config["restricted.devices.disk.paths"] != "" {
+			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(instProject.Config, d.config["source"])
 			if !allowed {
 				return fmt.Errorf("Disk source path %q not allowed by project for disk %q", d.config["source"], d.name)
 			}
@@ -421,7 +405,7 @@ func (d *disk) Register() error {
 			return err
 		}
 	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -547,7 +531,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
 			// Only custom volumes can be attached currently.
-			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return nil, err
 			}
@@ -821,10 +805,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 							if errUnsupported == ErrMissingVirtiofsd {
-								_ = d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
+								_ = d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project().Name, cluster.TypeInstance, d.inst.ID(), warningtype.MissingVirtiofsd, "Using 9p as a fallback")
 							} else {
 								// Resolve previous warning.
-								_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project(), warningtype.MissingVirtiofsd)
+								_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
 							}
 
 							return nil
@@ -839,7 +823,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 					// Resolve previous warning
-					_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project(), warningtype.MissingVirtiofsd)
+					_ = warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project().Name, warningtype.MissingVirtiofsd)
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
@@ -1186,7 +1170,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	}
 
 	// Only custom volumes can be attached currently.
-	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1639,7 +1623,7 @@ func (d *disk) postStop() error {
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
 		// Only custom volumes can be attached currently.
-		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
