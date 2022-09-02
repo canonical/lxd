@@ -41,7 +41,7 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
 	unixHandlers[key] = UnixSubscription{
 		Path:    path,
 		Handler: handler,
@@ -69,7 +69,7 @@ func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName st
 	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
 
 	sub, exists := unixHandlers[key]
 	if !exists {

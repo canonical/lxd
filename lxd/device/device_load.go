@@ -111,7 +111,7 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 // Note: The supplied config may be modified during validation to enrich. If this is not desired, supply a copy.
 func New(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
-	dev, err := load(inst, state, inst.Project(), name, conf, volatileGet, volatileSet)
+	dev, err := load(inst, state, inst.Project().Name, name, conf, volatileGet, volatileSet)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func Validate(instConfig instance.ConfigReader, state *state.State, name string,
 		return err
 	}
 
-	dev, err := load(nil, state, instConfig.Project(), name, conf, nil, nil)
+	dev, err := load(nil, state, instConfig.Project().Name, name, conf, nil, nil)
 	if err != nil {
 		return err
 	}

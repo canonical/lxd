@@ -357,7 +357,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
-	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, saveData["host_name"])
+	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project().Name, d.inst.Name(), d.name, saveData["host_name"])
 	if err != nil {
 		return nil, fmt.Errorf("Error setting up reverse path filter: %w", err)
 	}
@@ -640,7 +640,7 @@ func (d *nicRouted) postStop() error {
 	}
 
 	// Remove reverse path filters.
-	err := d.state.Firewall.InstanceClearRPFilter(d.inst.Project(), d.inst.Name(), d.name)
+	err := d.state.Firewall.InstanceClearRPFilter(d.inst.Project().Name, d.inst.Name(), d.name)
 	if err != nil {
 		errs = append(errs, err)
 	}

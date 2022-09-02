@@ -545,7 +545,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	// missing.
 	bridgeNet, ok := d.network.(bridgeNetwork)
 	if ok && d.network.IsManaged() && bridgeNet.UsesDNSMasq() {
-		deviceStaticFileName := dnsmasq.DHCPStaticAllocationPath(d.network.Name(), dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name()))
+		deviceStaticFileName := dnsmasq.DHCPStaticAllocationPath(d.network.Name(), dnsmasq.StaticAllocationFileName(d.inst.Project().Name, d.inst.Name(), d.Name()))
 		if !shared.PathExists(deviceStaticFileName) {
 			err = d.rebuildDnsmasqEntry()
 			if err != nil {
@@ -872,7 +872,7 @@ func (d *nicBridged) Remove() error {
 		}
 
 		// Remove dnsmasq config if it exists (doesn't return error if file is missing).
-		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name())
+		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project().Name, d.inst.Name(), d.Name())
 		if err != nil {
 			return err
 		}
@@ -913,7 +913,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
 	if (shared.IsTrue(d.config["security.ipv4_filtering"]) && ipv4Address == "") || (shared.IsTrue(d.config["security.ipv6_filtering"]) && ipv6Address == "") {
-		deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name())
+		deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project().Name, d.inst.Name(), d.Name())
 		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], deviceStaticFileName)
 		if err != nil && !os.IsNotExist(err) {
 			return err
@@ -928,7 +928,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 		}
 	}
 
-	err := dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), d.network.Config(), d.config["hwaddr"], ipv4Address, ipv6Address)
+	err := dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project().Name, d.inst.Name(), d.Name(), d.network.Config(), d.config["hwaddr"], ipv4Address, ipv6Address)
 	if err != nil {
 		return err
 	}
@@ -998,7 +998,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
 	d.logger.Debug("Clearing instance firewall static filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
 	if err != nil {
 		d.logger.Error("Failed to remove static IP network filters", logger.Ctx{"err": err})
 	}
@@ -1006,14 +1006,14 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	// If allowedIPNets returned nil for IPv4 or IPv6, it is possible that total protocol blocking was set up
 	// because the device has a managed parent network with DHCP disabled. Pass in empty slices to catch this case.
 	d.logger.Debug("Clearing instance total protocol filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
 	if err != nil {
 		d.logger.Error("Failed to remove total protocol network filters", logger.Ctx{"err": err})
 	}
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
 	// This covers the case when IPs are not defined in config, but have been assigned in managed DHCP.
-	deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name())
+	deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project().Name, d.inst.Name(), d.Name())
 	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], deviceStaticFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1046,7 +1046,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	}
 
 	d.logger.Debug("Clearing instance firewall dynamic filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
 	}
@@ -1094,7 +1094,7 @@ func (d *nicBridged) setFilters() (err error) {
 	// If parent bridge is managed, allocate the static IPs (if needed).
 	if d.network != nil && (IPv4 == nil || IPv6 == nil) {
 		opts := &dhcpalloc.Options{
-			ProjectName: d.inst.Project(),
+			ProjectName: d.inst.Project().Name,
 			HostName:    d.inst.Name(),
 			DeviceName:  d.Name(),
 			HostMAC:     mac,
@@ -1143,7 +1143,7 @@ func (d *nicBridged) setFilters() (err error) {
 		return err
 	}
 
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project().Name, d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
 	if err != nil {
 		return err
 	}
