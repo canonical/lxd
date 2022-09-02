@@ -370,7 +370,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			nicType, err := nictype.NICType(s, inst.Project(), d)
+			nicType, err := nictype.NICType(s, inst.Project().Name, d)
 			if err != nil || nicType != "bridged" {
 				continue
 			}
@@ -398,7 +398,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				deviceStaticFileName := dnsmasq.StaticAllocationFileName(inst.Project(), inst.Name(), deviceName)
+				deviceStaticFileName := dnsmasq.StaticAllocationFileName(inst.Project().Name, inst.Name(), deviceName)
 				_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d["parent"], deviceStaticFileName)
 				if err != nil && !os.IsNotExist(err) {
 					return err
@@ -413,7 +413,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], inst.Project(), inst.Name(), d["ipv4.address"], d["ipv6.address"], deviceName})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], inst.Project().Name, inst.Name(), d["ipv4.address"], d["ipv6.address"], deviceName})
 		}
 	}
 

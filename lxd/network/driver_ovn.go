@@ -3137,7 +3137,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 				}
 			} else {
 				// Skip our own NIC device.
-				if externalSubnetUser.instanceProject == deviceInstance.Project() && externalSubnetUser.instanceName == deviceInstance.Name() && externalSubnetUser.instanceDevice == deviceName {
+				if externalSubnetUser.instanceProject == deviceInstance.Project().Name && externalSubnetUser.instanceName == deviceInstance.Name() && externalSubnetUser.instanceDevice == deviceName {
 					continue
 				}
 			}
