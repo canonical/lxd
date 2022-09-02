@@ -215,7 +215,7 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 		}
 
 		if state == api.Ready {
-			d.events.SendLifecycle(c.Project(), lifecycle.InstanceReady.Event(c, nil))
+			d.events.SendLifecycle(c.Project().Name, lifecycle.InstanceReady.Event(c, nil))
 		}
 
 		return response.DevLxdResponse(http.StatusOK, "", "raw", c.Type() == instancetype.VM)

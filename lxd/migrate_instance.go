@@ -583,7 +583,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			actionScriptOp, err := operations.OperationCreate(
 				state,
-				s.instance.Project(),
+				s.instance.Project().Name,
 				operations.OperationClassWebsocket,
 				operationtype.InstanceLiveMigrate,
 				nil,

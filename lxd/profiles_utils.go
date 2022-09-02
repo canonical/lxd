@@ -225,7 +225,7 @@ func doProfileUpdateInstance(d *Daemon, args db.InstanceArgs, p api.Project) err
 		Devices:      inst.LocalDevices(),
 		Ephemeral:    inst.IsEphemeral(),
 		Profiles:     profiles, // Supply with new profile config.
-		Project:      inst.Project(),
+		Project:      inst.Project().Name,
 		Type:         inst.Type(),
 		Snapshot:     inst.IsSnapshot(),
 	}, true)
