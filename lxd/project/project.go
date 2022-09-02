@@ -166,33 +166,43 @@ func NetworkProjectFromRecord(p *api.Project) string {
 	return Default
 }
 
-// ProfileProject returns the project name to use for the profile based on the requested project.
-// If the project specified has the "features.profiles" flag enabled then the project name is returned,
-// otherwise the default project name is returned. The second return value is the project's config if non-default
-// project is being returned, nil if not.
-func ProfileProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
-	var project *api.Project
+// ProfileProject returns the effective project to use for the profile based on the requested project.
+// If the requested project has the "features.profiles" flag enabled then the requested project's info is returned,
+// otherwise the default project's info is returned.
+func ProfileProject(c *db.Cluster, projectName string) (*api.Project, error) {
+	var p *api.Project
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}
 
-		project, err = dbProject.ToAPI(ctx, tx.Tx())
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading config for project %q: %w", projectName, err)
+		}
 
-		return err
+		effectiveProjectName := ProfileProjectFromRecord(p)
+
+		if effectiveProjectName == Default {
+			dbProject, err = cluster.GetProject(ctx, tx.Tx(), effectiveProjectName)
+			if err != nil {
+				return fmt.Errorf("Failed loading project %q: %w", effectiveProjectName, err)
+			}
+		}
+
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
+		if err != nil {
+			return fmt.Errorf("Failed loading config for project %q: %w", dbProject.Name, err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+		return nil, err
 	}
 
-	projectName = ProfileProjectFromRecord(project)
-
-	if projectName != Default {
-		return projectName, project.Config, nil
-	}
-
-	return Default, nil, nil
+	return p, nil
 }
 
 // ProfileProjectFromRecord returns the project name to use for the profile based on the supplied project.
