@@ -288,6 +288,11 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, req.Name, true) {
+		return response.SmartError(api.StatusErrorf(http.StatusForbidden, "Network not allowed in project"))
+	}
+
 	if req.Type == "" {
 		if projectName != project.Default {
 			req.Type = "ovn" // Only OVN networks are allowed inside network enabled projects.
