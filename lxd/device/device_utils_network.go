@@ -89,7 +89,7 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 	}
 
 	for _, inst := range instances {
-		if inst.Name() == current.Name() && inst.Project() == current.Project() {
+		if inst.Name() == current.Name() && inst.Project().Name == current.Project().Name {
 			continue
 		}
 

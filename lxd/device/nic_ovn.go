@@ -89,7 +89,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
-	networkProjectName, _, err := project.NetworkProject(d.state.DB.Cluster, instConf.Project())
+	networkProjectName, _, err := project.NetworkProject(d.state.DB.Cluster, instConf.Project().Name)
 	if err != nil {
 		return fmt.Errorf("Failed loading network project name: %w", err)
 	}
