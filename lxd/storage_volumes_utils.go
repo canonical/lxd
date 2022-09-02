@@ -41,7 +41,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 			Devices:      localDevices,
 			Ephemeral:    inst.IsEphemeral(),
 			Profiles:     inst.Profiles(),
-			Project:      inst.Project(),
+			Project:      inst.Project().Name,
 			Type:         inst.Type(),
 			Snapshot:     inst.IsSnapshot(),
 		}

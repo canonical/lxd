@@ -1246,7 +1246,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 		return response.SmartError(err)
 	}
 
-	client = client.UseProject(source.Project())
+	client = client.UseProject(source.Project().Name)
 
 	// Setup websockets
 	var opAPI api.Operation

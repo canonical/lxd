@@ -327,7 +327,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 			}
 
 			for _, inst := range insts {
-				nodeInstances[[2]string{inst.Project(), inst.Name()}] = inst
+				nodeInstances[[2]string{inst.Project().Name, inst.Name()}] = inst
 			}
 		}
 	}
@@ -477,7 +477,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 
 						c, _, err := inst.RenderFull()
 						if err != nil {
-							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
 							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 						} else {
 							resultFullListAppend(projectInstance, *c, err)

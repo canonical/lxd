@@ -418,7 +418,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		BaseImage:    localConfig["volatile.base_image"],
 		Config:       localConfig,
 		Devices:      localDevices,
-		Project:      inst.Project(),
+		Project:      inst.Project().Name,
 		Type:         inst.Type(),
 		Architecture: inst.Architecture(),
 		Description:  inst.Description(),
@@ -581,7 +581,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
 		}
 
-		source = source.UseProject(inst.Project())
+		source = source.UseProject(inst.Project().Name)
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
 		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
@@ -589,7 +589,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
 
-		dest = dest.UseTarget(newNode).UseProject(inst.Project())
+		dest = dest.UseTarget(newNode).UseProject(inst.Project().Name)
 
 		destName := newName
 		isSameName := false
@@ -692,7 +692,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		}
 
 		// Restore the original value of "volatile.apply_template"
-		project := inst.Project()
+		project := inst.Project().Name
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), project, destName)
 			if err != nil {
@@ -779,7 +779,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 				return fmt.Errorf("Failed to connect to source server %q: %w", sourceMember.Address, err)
 			}
 
-			source = source.UseProject(inst.Project())
+			source = source.UseProject(inst.Project().Name)
 
 			// Get instance state on source member.
 			entry, _, err := source.GetInstance(inst.Name())
@@ -826,7 +826,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 
 		// Trigger a rename in the Ceph driver.
 		args := migration.VolumeSourceArgs{
-			Data: project.Instance(inst.Project(), newName), // Indicate new storage volume name.
+			Data: project.Instance(inst.Project().Name, newName), // Indicate new storage volume name.
 			Info: &migration.Info{Config: srcConfig},
 		}
 
@@ -837,7 +837,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 
 		// Re-link the database entries against the new node name.
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(ctx, inst.Project(), inst.Name(), newName, newNode, volDBType)
+			err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), newName, newNode, volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newName, inst.Name(), err)
 			}
@@ -849,13 +849,13 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Reload instance from database with new state now its been updated.
-		inst, err := instance.LoadByProjectAndName(d.State(), inst.Project(), newName)
+		inst, err := instance.LoadByProjectAndName(d.State(), inst.Project().Name, newName)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q: %w", inst.Name(), err)
 		}
 
 		// Create the instance mount point on the target node.
-		target, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, inst.Project(), newName, d.endpoints.NetworkCert(), d.serverCert(), r, inst.Type())
+		target, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, inst.Project().Name, newName, d.endpoints.NetworkCert(), d.serverCert(), r, inst.Type())
 		if err != nil {
 			return fmt.Errorf("Failed to connect to target node: %w", err)
 		}
@@ -876,7 +876,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			}
 		} else {
 			// Create the instance mount point.
-			url := api.NewURL().Project(inst.Project()).Path("internal", "cluster", "instance-moved", newName)
+			url := api.NewURL().Project(inst.Project().Name).Path("internal", "cluster", "instance-moved", newName)
 			resp, _, err := target.RawQuery("POST", url.String(), nil, "")
 			if err != nil {
 				return fmt.Errorf("Failed creating mount point on target member: %w", err)

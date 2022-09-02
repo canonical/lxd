@@ -502,7 +502,7 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 				Devices:      snapInst.LocalDevices(),
 				Ephemeral:    snapInst.IsEphemeral(),
 				Profiles:     snapInst.Profiles(),
-				Project:      snapInst.Project(),
+				Project:      snapInst.Project().Name,
 				ExpiryDate:   configRaw.ExpiresAt,
 				Type:         snapInst.Type(),
 				Snapshot:     snapInst.IsSnapshot(),
@@ -526,7 +526,7 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -691,7 +691,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
+			op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -700,7 +700,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
+		op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -722,7 +722,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.db.Cluster.GetInstanceSnapshotID(snapInst.Project(), containerName, newName)
+	id, _ := d.db.Cluster.GetInstanceSnapshotID(snapInst.Project().Name, containerName, newName)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
@@ -738,7 +738,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), snapInst.Project(), operations.OperationClassTask, operationtype.SnapshotRename, resources, nil, rename, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -784,7 +784,7 @@ func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance,
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(s, snapInst.Project(), operations.OperationClassTask, operationtype.SnapshotDelete, resources, nil, remove, nil, nil, r)
+	op, err := operations.OperationCreate(s, snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotDelete, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
