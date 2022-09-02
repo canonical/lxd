@@ -9,7 +9,7 @@ import (
 // Internal copy of the instance interface.
 type instance interface {
 	Name() string
-	Project() string
+	Project() api.Project
 	Operation() *operations.Operation
 }
 
@@ -40,7 +40,7 @@ const (
 
 // Event creates the lifecycle event for an action on an instance.
 func (a InstanceAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
-	url := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(inst.Project())
+	url := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(inst.Project().Name)
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {

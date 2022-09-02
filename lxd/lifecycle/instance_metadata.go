@@ -16,7 +16,7 @@ const (
 
 // Event creates the lifecycle event for an action on instance metadata.
 func (a InstanceMetadataAction) Event(inst instance, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
-	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "metadata").Project(inst.Project())
+	u := api.NewURL().Path(version.APIVersion, "instances", inst.Name(), "metadata").Project(inst.Project().Name)
 
 	return api.EventLifecycle{
 		Action:    string(a),

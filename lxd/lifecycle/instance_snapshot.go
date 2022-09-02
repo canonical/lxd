@@ -20,7 +20,7 @@ const (
 func (a InstanceSnapshotAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
 	parentName, snapName, _ := api.GetParentAndSnapshotName(inst.Name())
 
-	u := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(inst.Project())
+	u := api.NewURL().Path(version.APIVersion, "instances", parentName, "snapshots", snapName).Project(inst.Project().Name)
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
