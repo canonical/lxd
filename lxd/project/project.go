@@ -161,6 +161,33 @@ func NetworkProjectFromRecord(p *api.Project) string {
 	return Default
 }
 
+// NetworkAllowed returns whether access is allowed to a particular network based on projectConfig.
+func NetworkAllowed(reqProjectConfig map[string]string, networkName string, isManaged bool) bool {
+	// If project is not restricted, then access to network is allowed.
+	if shared.IsFalseOrEmpty(reqProjectConfig["restricted"]) {
+		return true
+	}
+
+	// If project has no access to NIC devices then also block access to all networks.
+	if reqProjectConfig["restricted.devices.nic"] == "block" {
+		return false
+	}
+
+	// Don't allow access to unmanaged networks if only managed network access is allowed.
+	if shared.StringInSlice(reqProjectConfig["restricted.devices.nic"], []string{"managed", ""}) && !isManaged {
+		return false
+	}
+
+	// If restricted.networks.access is not set then allow access to all networks.
+	if reqProjectConfig["restricted.networks.access"] == "" {
+		return true
+	}
+
+	// Check if reqquested network is in list of allowed networks.
+	allowedRestrictedNetworks := shared.SplitNTrimSpace(reqProjectConfig["restricted.networks.access"], ",", -1, false)
+	return shared.StringInSlice(networkName, allowedRestrictedNetworks)
+}
+
 // ProfileProject returns the effective project to use for the profile based on the requested project.
 // If the requested project has the "features.profiles" flag enabled then the requested project's info is returned,
 // otherwise the default project's info is returned.
