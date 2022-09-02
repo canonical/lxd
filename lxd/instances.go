@@ -377,7 +377,11 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 					Config:  make(map[string]string),
 				}
 
-				inst, err = instance.Load(s, *instDBArgs)
+				emptyProject := api.Project{
+					Name: projectName,
+				}
+
+				inst, err = instance.Load(s, *instDBArgs, emptyProject)
 				if err != nil {
 					logger.Warn("Failed loading instance", logger.Ctx{"project": projectName, "instance": instanceName, "err": err})
 					continue
