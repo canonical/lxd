@@ -626,7 +626,7 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Load the go-lxc struct
-	cname := project.Instance(d.Project(), d.Name())
+	cname := project.Instance(d.Project().Name, d.Name())
 	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -889,19 +889,19 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Call the onstart hook on start.
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %s %s start", os.Getpid(), shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return err
 	}
 
 	// Call the onstopns hook on stop but before namespaces are unmounted.
-	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %s %s stopns", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return err
 	}
 
 	// Call the onstop hook on stop.
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project()), strconv.Quote(d.Name())))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %s %s stop", d.state.OS.ExecPath, shared.VarPath(""), strconv.Quote(d.Project().Name), strconv.Quote(d.Name())))
 	if err != nil {
 		return err
 	}
@@ -1558,7 +1558,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 	// If container is running, perform live detach of interface back to host.
 	if instanceRunning {
 		// For some reason, having network config confuses detach, so get our own go-lxc struct.
-		cname := project.Instance(d.Project(), d.Name())
+		cname := project.Instance(d.Project().Name, d.Name())
 		cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 		if err != nil {
 			return err
@@ -2275,7 +2275,7 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap logger.Ctx
 
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -2386,7 +2386,7 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	name := project.Instance(d.Project(), d.name)
+	name := project.Instance(d.Project().Name, d.name)
 
 	// Start the LXC container
 	_, err = shared.RunCommand(
@@ -2532,7 +2532,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -2702,7 +2702,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -3372,7 +3372,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap logger.Ctx
 
-	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
@@ -3394,7 +3394,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 				Devices:      d.LocalDevices(),
 				Ephemeral:    false,
 				Profiles:     d.Profiles(),
-				Project:      d.Project(),
+				Project:      d.Project().Name,
 				Type:         d.Type(),
 				Snapshot:     d.IsSnapshot(),
 			}
@@ -3420,7 +3420,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
+		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
@@ -3488,7 +3488,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		Devices:      sourceContainer.LocalDevices(),
 		Ephemeral:    sourceContainer.IsEphemeral(),
 		Profiles:     sourceContainer.Profiles(),
-		Project:      sourceContainer.Project(),
+		Project:      sourceContainer.Project().Name,
 		Type:         sourceContainer.Type(),
 		Snapshot:     sourceContainer.IsSnapshot(),
 	}
@@ -3782,7 +3782,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Rename the logging path.
-	newFullName := project.Instance(d.Project(), d.Name())
+	newFullName := project.Instance(d.Project().Name, d.Name())
 	_ = os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
@@ -3887,7 +3887,7 @@ func (d *lxc) CGroupSet(key string, value string) error {
 // Update applies updated config.
 func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create instance update operation: %w", err)
 	}
@@ -4064,12 +4064,12 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldDevType, err := device.LoadByType(d.state, d.Project(), oldDevice)
+		oldDevType, err := device.LoadByType(d.state, d.Project().Name, oldDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		newDevType, err := device.LoadByType(d.state, d.Project(), newDevice)
+		newDevType, err := device.LoadByType(d.state, d.Project().Name, newDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
@@ -5348,7 +5348,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// to complete before continuing as it is possible that a disk device is being removed that requires SFTP
 	// to clean up the path inside the container. Also it is not possible to be shifting/replacing the root
 	// volume when the instance is running, so there should be no reason to wait for the operation to finish.
-	op := operationlock.Get(d.Project(), d.Name())
+	op := operationlock.Get(d.Project().Name, d.Name())
 	if op.Action() != operationlock.ActionUpdate || !d.IsRunning() {
 		_ = op.Wait()
 	}
@@ -5572,7 +5572,7 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 	args := []string{
 		d.state.OS.ExecPath,
 		"forkconsole",
-		project.Instance(d.Project(), d.Name()),
+		project.Instance(d.Project().Name, d.Name()),
 		d.state.OS.LxcPath,
 		filepath.Join(d.LogPath(), "lxc.conf"),
 		"tty=0",
@@ -5663,7 +5663,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	defer func() { _ = logFile.Close() }()
 
 	// Prepare the subcommand
-	cname := project.Instance(d.Project(), d.Name())
+	cname := project.Instance(d.Project().Name, d.Name())
 	args := []string{
 		d.state.OS.ExecPath,
 		"forkexec",
@@ -5803,7 +5803,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 				continue
 			}
 
-			usage, err = pool.GetCustomVolumeUsage(d.Project(), dev.Config["source"])
+			usage, err = pool.GetCustomVolumeUsage(d.Project().Name, dev.Config["source"])
 			if err != nil {
 				if !errors.Is(err, storageDrivers.ErrNotSupported) {
 					d.logger.Error("Error getting volume usage", logger.Ctx{"volume": dev.Config["source"], "err": err})
@@ -6158,7 +6158,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 }
 
 func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
-	cname := project.Instance(d.Project(), d.Name())
+	cname := project.Instance(d.Project().Name, d.Name())
 	configPath := filepath.Join(d.LogPath(), "lxc.conf")
 	if fstype == "" {
 		fstype = "none"
@@ -6205,7 +6205,7 @@ func (d *lxc) removeMount(mount string) error {
 
 	if d.state.OS.LXCFeatures["mount_injection_file"] {
 		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-		cname := project.Instance(d.Project(), d.Name())
+		cname := project.Instance(d.Project().Name, d.Name())
 
 		if !strings.HasPrefix(mount, "/") {
 			mount = "/" + mount
@@ -6371,7 +6371,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		}
 
 		// Attempt to include all existing interfaces
-		cname := project.Instance(d.Project(), d.Name())
+		cname := project.Instance(d.Project().Name, d.Name())
 		cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 		if err == nil {
 			defer func() { _ = cc.Release() }()
@@ -6406,7 +6406,7 @@ func (d *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		}
 	}
 
-	nicType, err := nictype.NICType(d.state, d.Project(), m)
+	nicType, err := nictype.NICType(d.state, d.Project().Name, m)
 	if err != nil {
 		return nil, err
 	}
@@ -6613,7 +6613,7 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	defer revert.Fail()
 
 	// Prevent concurrent operations the instance.
-	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionCreate, false, false)
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionCreate, false, false)
 	if err != nil {
 		return nil, err
 	}

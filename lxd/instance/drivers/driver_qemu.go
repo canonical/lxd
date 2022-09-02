@@ -348,7 +348,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
-	projectName := d.Project()
+	instProject := d.Project()
 	instanceName := d.Name()
 	state := d.state
 
@@ -359,14 +359,14 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 
 		var d *qemu // Redefine d as local variable inside callback to avoid keeping references around.
 
-		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
+		inst, err := instance.LoadByProjectAndName(state, instProject.Name, instanceName)
 		if err != nil {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "instance": instanceName})
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": instanceName})
 			// If DB not available, try loading from backup file.
 			l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
 
-			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
-			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
+			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
+			inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
 			if err != nil {
 				l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
 				return
@@ -671,7 +671,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	// Allow reuse when creating a new stop operation. This allows the Stop() function to inherit operation.
 	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called earlier, which allows reuse
 	// of its operations. This allow for multiple Shutdown() attempts.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -1000,7 +1000,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -3847,7 +3847,7 @@ func (d *qemu) Stop(stateful bool) error {
 	// Don't allow reuse when creating a new stop operation. This prevents other operations from intefering.
 	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called first, which allows reuse
 	// of its operations. This allow for Stop() to inherit from Shutdown() where instance is stuck.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -4023,7 +4023,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
@@ -4047,7 +4047,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 				Devices:      d.LocalDevices(),
 				Ephemeral:    false,
 				Profiles:     d.Profiles(),
-				Project:      d.Project(),
+				Project:      d.Project().Name,
 				Type:         d.Type(),
 				Snapshot:     d.IsSnapshot(),
 			}
@@ -4073,7 +4073,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
+		op, err = operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
 			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
@@ -4111,7 +4111,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		Devices:      source.LocalDevices(),
 		Ephemeral:    source.IsEphemeral(),
 		Profiles:     source.Profiles(),
-		Project:      source.Project(),
+		Project:      source.Project().Name,
 		Type:         source.Type(),
 		Snapshot:     source.IsSnapshot(),
 	}
@@ -4228,7 +4228,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Rename the logging path.
-	newFullName := project.Instance(d.Project(), d.Name())
+	newFullName := project.Instance(d.Project().Name, d.Name())
 	_ = os.RemoveAll(shared.LogPath(newFullName))
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
@@ -4308,7 +4308,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create instance update operation: %w", err)
 	}
@@ -4479,12 +4479,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		oldDevType, err := device.LoadByType(d.state, d.Project(), oldDevice)
+		oldDevType, err := device.LoadByType(d.state, d.Project().Name, oldDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		newDevType, err := device.LoadByType(d.state, d.Project(), newDevice)
+		newDevType, err := device.LoadByType(d.state, d.Project().Name, newDevice)
 		if err != nil {
 			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
@@ -4999,9 +4999,9 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	err = d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name())
+	err = d.state.DB.Cluster.DeleteInstance(d.Project().Name, d.Name())
 	if err != nil {
-		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project()})
+		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project().Name})
 		return err
 	}
 
@@ -5785,7 +5785,7 @@ func (d *qemu) LockExclusive() (*operationlock.InstanceOperation, error) {
 	}
 
 	// Prevent concurrent operations the instance.
-	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionCreate, false, false)
+	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionCreate, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -5867,7 +5867,7 @@ func (d *qemu) InitPID() int {
 
 func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
-	op := operationlock.Get(d.Project(), d.Name())
+	op := operationlock.Get(d.Project().Name, d.Name())
 	if op != nil {
 		if op.Action() == "start" {
 			return api.Stopped
@@ -5943,7 +5943,7 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 
 	newDevice := m.Clone()
 
-	nicType, err := nictype.NICType(d.state, d.Project(), m)
+	nicType, err := nictype.NICType(d.state, d.Project().Name, m)
 	if err != nil {
 		return nil, err
 	}
@@ -6277,7 +6277,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"project": d.Project().Name, "instance": d.Name(), "err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 
