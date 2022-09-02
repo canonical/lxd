@@ -148,7 +148,7 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 
 // lxcCreate creates the DB storage records and sets up instance devices.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
-func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.Hook, error) {
+func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -171,7 +171,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
-			project:      args.Project,
+			project:      p,
 			snapshot:     args.Snapshot,
 			stateful:     args.Stateful,
 		},
@@ -204,7 +204,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 		return nil, nil, fmt.Errorf("Invalid config: %w", err)
 	}
 
-	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
+	err = instance.ValidDevices(s, d.project, d.Type(), d.expandedDevices, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Invalid devices: %w", err)
 	}
@@ -307,9 +307,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 
 	d.logger.Info("Created container", logger.Ctx{"ephemeral": d.ephemeral})
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, map[string]any{
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
 			"type":         api.InstanceTypeContainer,
 			"storage-pool": d.storagePool.Name(),
 		}))
@@ -320,9 +320,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, revert.
 	return d, cleanup, err
 }
 
-func lxcLoad(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func lxcLoad(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instance, error) {
 	// Create the container struct
-	d := lxcInstantiate(s, args, nil)
+	d := lxcInstantiate(s, args, nil, p)
 
 	// Setup finalizer
 	runtime.SetFinalizer(d, lxcUnload)
@@ -351,7 +351,7 @@ func (d *lxc) release() {
 }
 
 // Create a container struct without initializing it.
-func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
+func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices, p api.Project) instance.Instance {
 	d := &lxc{
 		common: common{
 			state: s,
@@ -370,7 +370,7 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
-			project:      args.Project,
+			project:      p,
 			snapshot:     args.Snapshot,
 			stateful:     args.Stateful,
 		},
@@ -2357,7 +2357,7 @@ func (d *lxc) Start(stateful bool) error {
 
 		if op.Action() == "start" {
 			d.logger.Info("Started container", ctxMap)
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 		}
 
 		return nil
@@ -2443,7 +2443,7 @@ func (d *lxc) Start(stateful bool) error {
 
 	if op.Action() == "start" {
 		d.logger.Info("Started container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
 	return nil
@@ -2595,7 +2595,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		d.logger.Info("Stopped container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 
 		return nil
 	} else if shared.PathExists(d.StatePath()) {
@@ -2675,7 +2675,7 @@ func (d *lxc) Stop(stateful bool) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
@@ -2802,7 +2802,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		return errPrefix
 	} else if op.Action() == "stop" {
 		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
@@ -2830,7 +2830,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	}
 
 	d.logger.Info("Restarted container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
 }
@@ -2959,7 +2959,7 @@ func (d *lxc) onStop(args map[string]string) error {
 			}
 
 			d.logger.Info("Shut down container", ctxMap)
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 		}
 
 		// Reboot the container
@@ -2971,7 +2971,7 @@ func (d *lxc) onStop(args map[string]string) error {
 				return
 			}
 
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 
 			return
 		}
@@ -3068,7 +3068,7 @@ func (d *lxc) Freeze() error {
 	}
 
 	d.logger.Info("Froze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstancePaused.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstancePaused.Event(d, nil))
 
 	return err
 }
@@ -3116,7 +3116,7 @@ func (d *lxc) Unfreeze() error {
 	}
 
 	d.logger.Info("Unfroze container", ctxMap)
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceResumed.Event(d, nil))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceResumed.Event(d, nil))
 
 	return err
 }
@@ -3215,7 +3215,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	instState.LastUsedAt = d.lastUsedDate
 	instState.Profiles = profileNames
 	instState.Stateful = d.stateful
-	instState.Project = d.project
+	instState.Project = d.project.Name
 
 	for _, option := range options {
 		err := option(&instState)
@@ -3556,7 +3556,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": sourceContainer.Name()}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": sourceContainer.Name()}))
 	d.logger.Info("Restored container", ctxMap)
 
 	return nil
@@ -3662,7 +3662,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	err = d.state.DB.Cluster.DeleteInstance(d.project, d.Name())
+	err = d.state.DB.Cluster.DeleteInstance(d.project.Name, d.Name())
 	if err != nil {
 		d.logger.Error("Failed deleting container entry", logger.Ctx{"err": err})
 		return err
@@ -3673,7 +3673,7 @@ func (d *lxc) Delete(force bool) error {
 		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
 
 		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
 		if err != nil {
 			return fmt.Errorf("Invalid parent: %w", err)
 		}
@@ -3687,9 +3687,9 @@ func (d *lxc) Delete(force bool) error {
 
 	d.logger.Info("Deleted container", ctxMap)
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceDeleted.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
 	}
 
 	return nil
@@ -3746,7 +3746,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	if !d.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
+		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project.Name, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get container snapshots", ctxMap)
 			return fmt.Errorf("Failed to get container snapshots: %w", err)
@@ -3757,7 +3757,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldName, oldSnapName, baseSnapName)
+				return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
 				d.logger.Error("Failed renaming snapshot", ctxMap)
@@ -3771,10 +3771,10 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		if d.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project, oldParts[0], oldParts[1], newParts[1])
+			return cluster.RenameInstanceSnapshot(ctx, tx.Tx(), d.project.Name, oldParts[0], oldParts[1], newParts[1])
 		}
 
-		return cluster.RenameInstance(ctx, tx.Tx(), d.project, oldName, newName)
+		return cluster.RenameInstance(ctx, tx.Tx(), d.project.Name, oldName, newName)
 	})
 	if err != nil {
 		d.logger.Error("Failed renaming container", ctxMap)
@@ -3854,9 +3854,9 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renamed container", ctxMap)
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -3923,7 +3923,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.Project(), d.Type(), args.Devices, false)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), args.Devices, false)
 		if err != nil {
 			return fmt.Errorf("Invalid devices: %w", err)
 		}
@@ -4104,7 +4104,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.Project(), d.Type(), d.expandedDevices, true)
+		err = instance.ValidDevices(d.state, d.project, d.Type(), d.expandedDevices, true)
 		if err != nil {
 			return fmt.Errorf("Invalid expanded devices: %w", err)
 		}
@@ -4542,7 +4542,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
 		}
 
-		object, err := cluster.GetInstance(ctx, tx.Tx(), d.project, d.name)
+		object, err := cluster.GetInstance(ctx, tx.Tx(), d.project.Name, d.name)
 		if err != nil {
 			return err
 		}
@@ -4552,7 +4552,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Ephemeral = d.ephemeral
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
 
-		err = cluster.UpdateInstance(ctx, tx.Tx(), d.project, d.name, *object)
+		err = cluster.UpdateInstance(ctx, tx.Tx(), d.project.Name, d.name, *object)
 		if err != nil {
 			return err
 		}
@@ -4654,9 +4654,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if userRequested {
 		if d.snapshot {
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
 		} else {
-			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceUpdated.Event(d, nil))
+			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
 		}
 	}
 
@@ -4734,7 +4734,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 		var arch string
 		if d.IsSnapshot() {
 			parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-			parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+			parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -5623,7 +5623,7 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 		_ = cmd.Process.Kill()
 	}()
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
 
 	return ptx, chDisconnect, nil
 }
@@ -5636,9 +5636,9 @@ func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 	}
 
 	if opts.ClearLog {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsoleReset.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleReset.Event(d, nil))
 	} else if opts.ReadLog && opts.WriteToLogFile {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsoleRetrieved.Event(d, nil))
+		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceConsoleRetrieved.Event(d, nil))
 	}
 
 	return string(msg), nil
@@ -5737,7 +5737,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 
 	d.logger.Debug("Retrieved PID of executing child process", logger.Ctx{"attachedPid": attachedPid})
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
 
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
@@ -6814,7 +6814,7 @@ func (d *lxc) Info() instance.Info {
 }
 
 func (d *lxc) Metrics() (*metrics.MetricSet, error) {
-	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name, "type": instancetype.Container.String()})
+	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
 
 	// Load cgroup abstraction
 	cg, err := d.cgroup(nil)
@@ -6963,7 +6963,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		FSType     string
 	}
 
-	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name})
+	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name})
 
 	mounts, err := ioutil.ReadFile("/proc/mounts")
 	if err != nil {
@@ -6994,10 +6994,10 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 			var volName string
 			var volType storageDrivers.VolumeType
 			if dev["source"] != "" {
-				volName = project.StorageVolume(d.project, dev["source"])
+				volName = project.StorageVolume(d.project.Name, dev["source"])
 				volType = storageDrivers.VolumeTypeCustom
 			} else {
-				volName = project.Instance(d.project, d.name)
+				volName = project.Instance(d.project.Name, d.name)
 				volType = storageDrivers.VolumeTypeContainer
 			}
 
