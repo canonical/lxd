@@ -278,7 +278,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 		// Populate profile info that was already loaded.
 		snapshotArg.Profiles = d.profiles
 
-		snapInst, err := instance.Load(d.state, snapshotArg, nil)
+		snapInst, err := instance.Load(d.state, snapshotArg)
 		if err != nil {
 			return nil, err
 		}
@@ -472,13 +472,9 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 }
 
 // expandConfig applies the config of each profile in order, followed by the local config.
-func (d *common) expandConfig(profiles []api.Profile) error {
-	if profiles == nil && len(d.profiles) > 0 {
-		profiles = d.profiles
-	}
-
-	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
-	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, profiles)
+func (d *common) expandConfig() error {
+	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, d.profiles)
+	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, d.profiles)
 
 	return nil
 }
