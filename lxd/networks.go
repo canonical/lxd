@@ -267,7 +267,7 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networksPost(d *Daemon, r *http.Request) response.Response {
-	projectName, projectConfig, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -316,8 +316,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if project has limits.network and if so check we are allowed to create another network.
-	if projectName != project.Default && projectConfig != nil && projectConfig["limits.networks"] != "" {
-		networksLimit, err := strconv.Atoi(projectConfig["limits.networks"])
+	if projectName != project.Default && reqProject.Config != nil && reqProject.Config["limits.networks"] != "" {
+		networksLimit, err := strconv.Atoi(reqProject.Config["limits.networks"])
 		if err != nil {
 			return response.InternalError(fmt.Errorf("Invalid project limits.network value: %w", err))
 		}

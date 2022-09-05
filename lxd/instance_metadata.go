@@ -362,7 +362,7 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(inst.Project(), lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

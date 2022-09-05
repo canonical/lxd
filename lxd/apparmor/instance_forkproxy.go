@@ -171,13 +171,13 @@ func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) 
 // ForkproxyProfileName returns the AppArmor profile name.
 func ForkproxyProfileName(inst instance, dev device) string {
 	path := shared.VarPath("")
-	name := fmt.Sprintf("%s_%s_<%s>", dev.Name(), project.Instance(inst.Project(), inst.Name()), path)
+	name := fmt.Sprintf("%s_%s_<%s>", dev.Name(), project.Instance(inst.Project().Name, inst.Name()), path)
 	return profileName("forkproxy", name)
 }
 
 // forkproxyProfileFilename returns the name of the on-disk profile name.
 func forkproxyProfileFilename(inst instance, dev device) string {
-	name := fmt.Sprintf("%s_%s", dev.Name(), project.Instance(inst.Project(), inst.Name()))
+	name := fmt.Sprintf("%s_%s", dev.Name(), project.Instance(inst.Project().Name, inst.Name()))
 	return profileName("forkproxy", name)
 }
 

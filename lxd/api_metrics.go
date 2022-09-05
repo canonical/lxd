@@ -189,7 +189,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 				newMetricsLock.Lock()
 				defer newMetricsLock.Unlock()
 
-				newMetrics[inst.Project()].Merge(instanceMetrics)
+				newMetrics[inst.Project().Name].Merge(instanceMetrics)
 			}(inst)
 		}
 	}
