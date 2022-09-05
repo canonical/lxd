@@ -401,7 +401,37 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 
 	archID, err := osarch.ArchitectureId(arch)
 	if err != nil {
-		return err
+		// If arch is linux32 or linux64, the architecture ID cannot be determined as multiple
+		// architectures have the linux32 or linux64 personality. In this case, assume the native
+		// architecture.
+		arch = runtime.GOARCH
+
+		archID, err = osarch.ArchitectureId(arch)
+		if err != nil {
+			return err
+		}
+
+		// If the instance architecture is 32bit but the local architecture is 64bit, iterate
+		// through the local architecture's personalities until the supported architecture
+		// personality matches the instance's architecture.
+		if len(value) > 0 && value[0] == "linux32" {
+			personalities, err := osarch.ArchitecturePersonalities(archID)
+			if err != nil {
+				return err
+			}
+
+			for id, personality := range personalities {
+				arch, err = osarch.ArchitecturePersonality(personality)
+				if err != nil {
+					return err
+				}
+
+				if arch == value[0] {
+					archID = id
+					break
+				}
+			}
+		}
 	}
 
 	req.Architecture, err = osarch.ArchitectureName(archID)
