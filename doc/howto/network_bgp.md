@@ -28,6 +28,9 @@ For bridge networks, the following addresses and networks are being advertised:
 - Network forward addresses
 - Addresses or subnets specified in `ipv4.routes.external` or `ipv6.routes.external` on an instance NIC that is connected to the bridge network
 
+Make sure to add your subnets to the respective configuration options.
+Otherwise, they won't be advertised.
+
 For physical networks, no addresses are advertised directly at the level of the physical network.
 Instead, the networks, forwards and routes of all downstream networks (the networks that specify the physical network as their uplink network through the `network` option) are advertised in the same way as for bridge networks.
 
@@ -38,7 +41,7 @@ If you need this, filter prefixes on the upstream routers.
 
 ## Configure the BGP server
 
-To configure LXD as a BGP server, set the following server configuration options (see {ref}`server`):
+To configure LXD as a BGP server, set the following server configuration options (see {ref}`server`) on all cluster members:
 
 - `core.bgp_address` - the IP address for the BGP server
 - `core.bgp_asn` - the {abbr}`ASN (Autonomous System Number)` for the local server
@@ -64,6 +67,8 @@ To configure a different address, set `bgp.ipv4.nexthop` or `bgp.ipv6.nexthop`.
 ### Configure BGP peers for OVN networks
 
 If you run an OVN network with an uplink network (`physical` or `bridge`), the uplink network is the one that holds the list of allowed subnets and the BGP configuration.
+Therefore, you must configure BGP peers on the uplink network that contain the information that is required to connect to the BGP server.
+
 Set the following configuration options on the uplink network:
 
 - `bgp.peers.<name>.address` - the peer address to be used by the downstream networks
