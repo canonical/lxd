@@ -9,6 +9,7 @@ type Config struct {
 	Container       *api.Instance                `yaml:"container,omitempty"` // Used by VM backups too.
 	Snapshots       []*api.InstanceSnapshot      `yaml:"snapshots,omitempty"`
 	Pool            *api.StoragePool             `yaml:"pool,omitempty"`
+	Profiles        []*api.Profile               `yaml:"profiles,omitempty"`
 	Volume          *api.StorageVolume           `yaml:"volume,omitempty"`
 	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
 }
