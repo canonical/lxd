@@ -695,26 +695,6 @@ func networkFillType(network *api.Network, netType NetworkType) {
 	}
 }
 
-// NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
-func (c *Cluster) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
-	var nodes map[int64]NetworkNode
-	var err error
-
-	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		nodes, err = tx.NetworkNodes(networkID)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
 // GetNetworkWithInterface returns the network associated with the interface with the given name.
 func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
