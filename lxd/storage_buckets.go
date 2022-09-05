@@ -149,7 +149,7 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	requestProjectName := projectParam(r)
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, requestProjectName)
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, requestProjectName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -267,7 +267,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -349,7 +349,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -488,7 +488,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -583,7 +583,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -708,7 +708,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -813,7 +813,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -886,7 +886,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -967,7 +967,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1065,7 +1065,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	bucketProjectName, _, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}

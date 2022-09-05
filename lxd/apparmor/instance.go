@@ -13,11 +13,12 @@ import (
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Internal copy of the instance interface.
 type instance interface {
-	Project() string
+	Project() api.Project
 	Name() string
 	ExpandedConfig() map[string]string
 	Type() instancetype.Type
@@ -29,7 +30,7 @@ type instance interface {
 // InstanceProfileName returns the instance's AppArmor profile name.
 func InstanceProfileName(inst instance) string {
 	path := shared.VarPath("")
-	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
+	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project().Name, inst.Name()), path)
 	return profileName("", name)
 }
 
@@ -37,13 +38,13 @@ func InstanceProfileName(inst instance) string {
 func InstanceNamespaceName(inst instance) string {
 	// Unlike in profile names, / isn't an allowed character so replace with a -.
 	path := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
-	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project(), inst.Name()), path)
+	name := fmt.Sprintf("%s_<%s>", project.Instance(inst.Project().Name, inst.Name()), path)
 	return profileName("", name)
 }
 
 // instanceProfileFilename returns the name of the on-disk profile name.
 func instanceProfileFilename(inst instance) string {
-	name := project.Instance(inst.Project(), inst.Name())
+	name := project.Instance(inst.Project().Name, inst.Name())
 	return profileName("", name)
 }
 

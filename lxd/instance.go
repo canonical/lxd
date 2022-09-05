@@ -403,7 +403,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	}
 
 	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
-		inst, err := instance.Load(s, dbInst)
+		inst, err := instance.Load(s, dbInst, p)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
 		}
@@ -424,6 +424,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		s := d.State()
 
 		var instanceArgs map[int]db.InstanceArgs
+		projects := make(map[string]*api.Project)
 
 		// Get eligible instances.
 		err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
@@ -436,11 +437,18 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			dbInstances := []dbCluster.Instance{}
 
 			// Filter projects that aren't allowed to have snapshots.
-			for _, p := range allProjects {
-				err = project.AllowSnapshotCreation(tx, &p)
+			for _, dbProject := range allProjects {
+				p, err := dbProject.ToAPI(context.Background(), tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				err = project.AllowSnapshotCreation(p)
 				if err != nil {
 					continue
 				}
+
+				projects[p.Name] = p
 
 				// Get instances.
 				filter := dbCluster.InstanceFilter{Project: &p.Name}
@@ -466,7 +474,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Figure out which need snapshotting (if any).
 		instances := make([]instance.Instance, 0)
 		for _, instArg := range instanceArgs {
-			inst, err := instance.Load(s, instArg)
+			inst, err := instance.Load(s, instArg, *projects[instArg.Project])
 			if err != nil {
 				logger.Error("Failed loading instance for snapshot task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 				continue
@@ -608,9 +616,25 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return fmt.Errorf("Failed loading expired instance snapshots: %w", err)
 			}
 
+			projects := make(map[string]*api.Project)
+
 			expiredSnapshotInstances = make([]instance.Instance, 0)
 			for _, snapshotArg := range snapshotArgs {
-				inst, err := instance.Load(s, snapshotArg)
+				// Load project if not already loaded.
+				p, found := projects[snapshotArg.Project]
+				if !found {
+					dbProject, err := dbCluster.GetProject(context.Background(), tx.Tx(), snapshotArg.Project)
+					if err != nil {
+						return err
+					}
+
+					p, err = dbProject.ToAPI(ctx, tx.Tx())
+					if err != nil {
+						return err
+					}
+				}
+
+				inst, err := instance.Load(s, snapshotArg, *p)
 				if err != nil {
 					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 					continue
