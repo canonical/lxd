@@ -3371,8 +3371,8 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
 func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]string, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
-	revert := revert.New()
-	defer revert.Fail()
+	reverter := revert.New()
+	defer reverter.Fail()
 
 	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, mtu, name string
 	for _, nicItem := range nicConfig {
@@ -3410,7 +3410,28 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 	}
 
-	var qemuNetDev map[string]any
+	var monHook func(m *qmp.Monitor) error
+
+	// configureQueues modifies qemuDev with the queue configuration based on vCPUs.
+	// Returns the number of queues to use with NIC.
+	configureQueues := func() int {
+		// Number of queues is the same as number of vCPUs. Run with a minimum of two queues.
+		queueCount := cpuCount
+		if queueCount < 2 {
+			queueCount = 2
+		}
+
+		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
+		vectors := 2*queueCount + 2
+		if vectors > 0 {
+			qemuDev["mq"] = "on"
+			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+				qemuDev["vectors"] = strconv.Itoa(vectors)
+			}
+		}
+
+		return queueCount
+	}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
@@ -3425,12 +3446,13 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
 		}
 
-		qemuNetDev = map[string]any{
+		qemuNetDev := map[string]any{
 			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":  "tap",
 			"vhost": true,
-			"fd":    fmt.Sprintf("/dev/tap%d", ifindex), // Indicates the file to open and the FD name.
 		}
+
+		queueCount := configureQueues()
 
 		if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
 			qemuDev["driver"] = "virtio-net-pci"
@@ -3440,9 +3462,69 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 
 		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
+
+		monHook = func(m *qmp.Monitor) error {
+			reverter := revert.New()
+			defer reverter.Fail()
+
+			// Open the device once for each queue and pass to QEMU.
+			var fds []string
+			var vhostfds []string
+			for i := 0; i < queueCount; i++ {
+				devFile, err := os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
+				if err != nil {
+					return fmt.Errorf("Error opening netdev file %q: %w", devFile.Name(), err)
+				}
+
+				defer func() { _ = devFile.Close() }() // Close file after device has been added.
+
+				devFDName := fmt.Sprintf("%s:%d", devFile.Name(), 0)
+				info, err := m.SendFileWithFDSet(devFDName, devFile, false)
+				if err != nil {
+					return fmt.Errorf("Failed to send %q file descriptor: %w", devFile.Name(), err)
+				}
+
+				reverter.Add(func() {
+					_ = m.RemoveFDFromFDSet(devFDName)
+				})
+
+				fds = append(fds, fmt.Sprintf("%d", info.FD))
+
+				// Open a vhost-net file handle for each device file handle. For CPU offloading.
+				vhostFile, err := os.OpenFile("/dev/vhost-net", os.O_RDWR, 0)
+				if err != nil {
+					return fmt.Errorf("Error opening netdev file %q: %w", devFile.Name(), err)
+				}
+
+				defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
+
+				vhostFDName := fmt.Sprintf("%s:%d", vhostFile.Name(), 0)
+				info, err = m.SendFileWithFDSet(vhostFDName, vhostFile, false)
+				if err != nil {
+					return fmt.Errorf("Failed to send %q file descriptor: %w", vhostFile.Name(), err)
+				}
+
+				reverter.Add(func() {
+					_ = m.RemoveFDFromFDSet(vhostFDName)
+				})
+
+				vhostfds = append(vhostfds, fmt.Sprintf("%d", info.FD))
+			}
+
+			qemuNetDev["fds"] = strings.Join(fds, ":")
+			qemuNetDev["vhostfds"] = strings.Join(vhostfds, ":")
+
+			err = m.AddNIC(qemuNetDev, qemuDev)
+			if err != nil {
+				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+			}
+
+			reverter.Success()
+			return nil
+		}
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
-		qemuNetDev = map[string]any{
+		qemuNetDev := map[string]any{
 			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":       "tap",
 			"vhost":      true,
@@ -3451,12 +3533,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			"ifname":     nicName,
 		}
 
-		// Number of queues is the same as number of vCPUs. Run with a minimum of two queues.
-		queueCount := cpuCount
-		if queueCount < 2 {
-			queueCount = 2
-		}
-
+		queueCount := configureQueues()
 		if queueCount > 0 {
 			qemuNetDev["queues"] = queueCount
 		}
@@ -3467,17 +3544,17 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			qemuDev["driver"] = "virtio-net-ccw"
 		}
 
-		// Number of vectors is number of vCPUs * 2 (RX/TX) + 2 (config/control MSI-X).
-		vectors := 2*queueCount + 2
-		if vectors > 0 {
-			qemuDev["mq"] = "on"
-			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
-				qemuDev["vectors"] = strconv.Itoa(vectors)
-			}
-		}
-
 		qemuDev["netdev"] = qemuNetDev["id"].(string)
 		qemuDev["mac"] = devHwaddr
+
+		monHook = func(m *qmp.Monitor) error {
+			err := m.AddNIC(qemuNetDev, qemuDev)
+			if err != nil {
+				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+			}
+
+			return nil
+		}
 	} else if pciSlotName != "" {
 		// Detect physical passthrough device.
 		if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
@@ -3499,43 +3576,25 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
 			}
 
-			revert.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
+			reverter.Add(func() { _ = os.Chown(vfioGroupFile, 0, -1) })
 		}
-	}
 
-	if qemuDev["driver"] != "" {
-		// Return a monitor hook to add the NIC via QMP before the VM is started.
-		monHook := func(m *qmp.Monitor) error {
-			fd, found := qemuNetDev["fd"]
-			if found {
-				fileName := fd.(string)
-
-				f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-				if err != nil {
-					return fmt.Errorf("Error opening exta file %q: %w", fileName, err)
-				}
-
-				defer func() { _ = f.Close() }() // Close file after device has been added.
-
-				err = m.SendFile(fileName, f)
-				if err != nil {
-					return fmt.Errorf("Error sending exta file %q: %w", fileName, err)
-				}
-			}
-
-			err := m.AddNIC(qemuNetDev, qemuDev)
+		monHook = func(m *qmp.Monitor) error {
+			err := m.AddNIC(nil, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
 
 			return nil
 		}
-
-		revert.Success()
-		return monHook, nil
 	}
 
-	return nil, fmt.Errorf("Unrecognised device type")
+	if monHook == nil {
+		return nil, fmt.Errorf("Unrecognised device type")
+	}
+
+	reverter.Success()
+	return monHook, nil
 }
 
 // writeNICDevConfig writes the NIC config for the specified device into the NICConfigDir.
