@@ -19,10 +19,13 @@ Migrate instances from LXC to LXD
 : If you are using LXC and want to migrate all or some of your LXC containers to a LXD installation on the same machine, you can use the `lxc-to-lxd` tool.
   The tool analyzes the LXC configuration and copies the data and configuration of your existing LXC containers into new LXD containers.
 
+  See {ref}`migrate-from-lxc` for more information.
+
 ```{toctree}
 :maxdepth: 1
 :hidden:
 
 Move instances <howto/move_instances>
 Import existing machines <howto/import_machines_to_instances>
+Migrate from LXC <howto/migrate_from_lxc>
 ```
