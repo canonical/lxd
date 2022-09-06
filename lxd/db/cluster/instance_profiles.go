@@ -13,6 +13,7 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instance_profiles.mapper.go
 //go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
+//go:generate mapper stmt -e instance_profile objects
 //go:generate mapper stmt -e instance_profile objects-by-ProfileID
 //go:generate mapper stmt -e instance_profile objects-by-InstanceID
 //go:generate mapper stmt -e instance_profile create
