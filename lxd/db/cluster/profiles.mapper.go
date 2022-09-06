@@ -19,40 +19,46 @@ var _ = api.ServerEnvironment{}
 
 var profileObjects = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByID = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   WHERE ( profiles.id = ? )
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByName = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   WHERE ( profiles.name = ? )
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProject = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   WHERE ( project = ? )
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProjectAndName = RegisterStmt(`
 SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   WHERE ( project = ? AND profiles.name = ? )
   ORDER BY projects.id, profiles.name
 `)
 
 var profileID = RegisterStmt(`
-SELECT profiles.id FROM profiles JOIN projects ON profiles.project_id = projects.id
+SELECT profiles.id FROM profiles
+  JOIN projects ON profiles.project_id = projects.id
   WHERE projects.name = ? AND profiles.name = ?
 `)
 
@@ -67,7 +73,7 @@ UPDATE profiles SET name = ? WHERE project_id = (SELECT projects.id FROM project
 
 var profileUpdate = RegisterStmt(`
 UPDATE profiles
-  SET project_id = (SELECT id FROM projects WHERE name = ?), name = ?, description = ?
+  SET project_id = (SELECT projects.id FROM projects WHERE projects.name = ?), name = ?, description = ?
  WHERE id = ?
 `)
 

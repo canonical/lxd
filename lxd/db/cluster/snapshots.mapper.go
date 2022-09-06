@@ -19,47 +19,57 @@ var _ = api.ServerEnvironment{}
 
 var instanceSnapshotObjects = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
-  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  FROM instances_snapshots
+  JOIN projects ON instances.project_id = projects.id
+  JOIN instances ON instances_snapshots.instance_id = instances.id
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByID = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
-  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  FROM instances_snapshots
+  JOIN projects ON instances.project_id = projects.id
+  JOIN instances ON instances_snapshots.instance_id = instances.id
   WHERE ( instances_snapshots.id = ? )
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstance = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
-  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  FROM instances_snapshots
+  JOIN projects ON instances.project_id = projects.id
+  JOIN instances ON instances_snapshots.instance_id = instances.id
   WHERE ( project = ? AND instance = ? )
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstanceAndName = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
-  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  FROM instances_snapshots
+  JOIN projects ON instances.project_id = projects.id
+  JOIN instances ON instances_snapshots.instance_id = instances.id
   WHERE ( project = ? AND instance = ? AND instances_snapshots.name = ? )
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotID = RegisterStmt(`
-SELECT instances_snapshots.id FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+SELECT instances_snapshots.id FROM instances_snapshots
+  JOIN projects ON instances.project_id = projects.id
+  JOIN instances ON instances_snapshots.instance_id = instances.id
   WHERE projects.name = ? AND instances.name = ? AND instances_snapshots.name = ?
 `)
 
 var instanceSnapshotCreate = RegisterStmt(`
 INSERT INTO instances_snapshots (instance_id, name, creation_date, stateful, description, expiry_date)
-  VALUES ((SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?), ?, ?, ?, ?, ?)
+  VALUES ((SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND instances.name = ?), ?, ?, ?, ?, ?)
 `)
 
 var instanceSnapshotRename = RegisterStmt(`
-UPDATE instances_snapshots SET name = ? WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+UPDATE instances_snapshots SET name = ? WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
 var instanceSnapshotDeleteByProjectAndInstanceAndName = RegisterStmt(`
-DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
 // GetInstanceSnapshots returns all available instance_snapshots.
