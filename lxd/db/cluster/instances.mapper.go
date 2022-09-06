@@ -26,97 +26,113 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 var instanceObjectsByID = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.id = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.id = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProject = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndType = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.type = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.type = ? AND node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndNodeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.type = ? AND node = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND node = ? AND instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.type = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.type = ? AND instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNameAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND instances.name = ? AND node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND instances.name = ? AND node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( project = ? AND node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( project = ? AND node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByType = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.type = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.type = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndNameAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.type = ? AND instances.name = ? AND node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND instances.name = ? AND node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByTypeAndNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.type = ? AND node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.type = ? AND node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByNode = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( node = ? ) ORDER BY projects.id, instances.name
+  WHERE ( node = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByNodeAndName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( node = ? AND instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( node = ? AND instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByName = RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE ( instances.name = ? ) ORDER BY projects.id, instances.name
+  WHERE ( instances.name = ? )
+  ORDER BY projects.id, instances.name
 `)
 
 var instanceID = RegisterStmt(`

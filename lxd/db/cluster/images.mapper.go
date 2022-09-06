@@ -26,43 +26,50 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
 var imageObjectsByID = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( images.id = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( images.id = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProject = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( project = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProjectAndCached = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( project = ? AND images.cached = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? AND images.cached = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByProjectAndPublic = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( project = ? AND images.public = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( project = ? AND images.public = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByFingerprint = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( images.fingerprint = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( images.fingerprint = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByCached = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( images.cached = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( images.cached = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByAutoUpdate = RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE ( images.auto_update = ? ) ORDER BY projects.id, images.fingerprint
+  WHERE ( images.auto_update = ? )
+  ORDER BY projects.id, images.fingerprint
 `)
 
 // GetImages returns all available images.

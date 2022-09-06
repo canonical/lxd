@@ -15,16 +15,24 @@ import (
 
 var _ = api.ServerEnvironment{}
 
+var instanceProfileObjects = RegisterStmt(`
+SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
+  FROM instances_profiles
+  ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
+`)
+
 var instanceProfileObjectsByProfileID = RegisterStmt(`
 SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
   FROM instances_profiles
-  WHERE ( instances_profiles.profile_id = ? ) ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
+  WHERE ( instances_profiles.profile_id = ? )
+  ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
 `)
 
 var instanceProfileObjectsByInstanceID = RegisterStmt(`
 SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
   FROM instances_profiles
-  WHERE ( instances_profiles.instance_id = ? ) ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
+  WHERE ( instances_profiles.instance_id = ? )
+  ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
 `)
 
 var instanceProfileCreate = RegisterStmt(`
