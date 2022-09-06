@@ -26,19 +26,22 @@ SELECT instances_snapshots.id, projects.name AS project, instances.name AS insta
 var instanceSnapshotObjectsByID = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE ( instances_snapshots.id = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( instances_snapshots.id = ? )
+  ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstance = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE ( project = ? AND instance = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( project = ? AND instance = ? )
+  ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotObjectsByProjectAndInstanceAndName = RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
-  WHERE ( project = ? AND instance = ? AND instances_snapshots.name = ? ) ORDER BY projects.id, instances.id, instances_snapshots.name
+  WHERE ( project = ? AND instance = ? AND instances_snapshots.name = ? )
+  ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
 
 var instanceSnapshotID = RegisterStmt(`

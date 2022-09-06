@@ -26,13 +26,15 @@ SELECT projects.id, projects.description, projects.name
 var projectObjectsByName = RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
   FROM projects
-  WHERE ( projects.name = ? ) ORDER BY projects.name
+  WHERE ( projects.name = ? )
+  ORDER BY projects.name
 `)
 
 var projectObjectsByID = RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
   FROM projects
-  WHERE ( projects.id = ? ) ORDER BY projects.name
+  WHERE ( projects.id = ? )
+  ORDER BY projects.name
 `)
 
 var projectCreate = RegisterStmt(`
