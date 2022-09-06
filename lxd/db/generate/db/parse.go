@@ -214,6 +214,44 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	return m, nil
 }
 
+// ParseStmt returns the SQL string passed as an argument to a variable declaration of a call to RegisterStmt with the given name.
+// e.g. the SELECT string from 'var instanceObjects = RegisterStmt(`SELECT * from instances...`)'.
+func ParseStmt(pkg *ast.Package, name string) (string, error) {
+	stmtVar := pkg.Scope.Lookup(name)
+	if stmtVar == nil {
+		return "", fmt.Errorf("Failed to find variable named %q", name)
+	}
+
+	if stmtVar.Kind != ast.Var {
+		return "", fmt.Errorf("Object %q is not a variable", name)
+	}
+
+	spec, ok := stmtVar.Decl.(*ast.ValueSpec)
+	if !ok {
+		return "", fmt.Errorf("Object %q is not a variable declaration", name)
+	}
+
+	if len(spec.Values) != 1 && len(spec.Names) != 1 {
+		return "", fmt.Errorf("Object %q must have 1 value, found %d", name, len(spec.Values))
+	}
+
+	expr, ok := spec.Values[0].(*ast.CallExpr)
+	if !ok {
+		return "", fmt.Errorf("Object %q is not variable defined as a function call to RegisterStmt", name)
+	}
+
+	if len(expr.Args) != 1 {
+		return "", fmt.Errorf("Object %q's call to RegisterStmt should have only one argument, found %d", name, len(expr.Args))
+	}
+
+	lit, ok := expr.Args[0].(*ast.BasicLit)
+	if !ok {
+		return "", fmt.Errorf("Object %q's call to RegisterStmt must have a SQL string as its argument", name)
+	}
+
+	return lit.Value, nil
+}
+
 // tableType determines the TableType for the given struct fields.
 func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
 	fieldNames := FieldNames(fields)
