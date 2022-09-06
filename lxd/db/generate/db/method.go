@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/build"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
@@ -44,6 +45,10 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 	parsedPkg, err := ParsePackage(pkgPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if database != "" {
+		database = filepath.Base(database)
 	}
 
 	method := &Method{
