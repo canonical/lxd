@@ -26,13 +26,15 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
 var certificateObjectsByID = RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
-  WHERE ( certificates.id = ? ) ORDER BY certificates.fingerprint
+  WHERE ( certificates.id = ? )
+  ORDER BY certificates.fingerprint
 `)
 
 var certificateObjectsByFingerprint = RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
-  WHERE ( certificates.fingerprint = ? ) ORDER BY certificates.fingerprint
+  WHERE ( certificates.fingerprint = ? )
+  ORDER BY certificates.fingerprint
 `)
 
 var certificateID = RegisterStmt(`

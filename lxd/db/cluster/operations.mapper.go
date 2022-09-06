@@ -26,19 +26,22 @@ SELECT operations.id, operations.uuid, nodes.address AS node_address, operations
 var operationObjectsByNodeID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE ( operations.node_id = ? ) ORDER BY operations.id, operations.uuid
+  WHERE ( operations.node_id = ? )
+  ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE ( operations.id = ? ) ORDER BY operations.id, operations.uuid
+  WHERE ( operations.id = ? )
+  ORDER BY operations.id, operations.uuid
 `)
 
 var operationObjectsByUUID = RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
-  WHERE ( operations.uuid = ? ) ORDER BY operations.id, operations.uuid
+  WHERE ( operations.uuid = ? )
+  ORDER BY operations.id, operations.uuid
 `)
 
 var operationCreateOrReplace = RegisterStmt(`

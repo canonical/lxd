@@ -26,7 +26,8 @@ SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.descripti
 var clusterGroupObjectsByName = RegisterStmt(`
 SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.description, '')
   FROM cluster_groups
-  WHERE ( cluster_groups.name = ? ) ORDER BY cluster_groups.name
+  WHERE ( cluster_groups.name = ? )
+  ORDER BY cluster_groups.name
 `)
 
 var clusterGroupID = RegisterStmt(`
