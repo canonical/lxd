@@ -765,11 +765,70 @@ test_projects_limits() {
 # Set restrictions on projects.
 test_projects_restrictions() {
   # Add a managed network.
-  lxc network create "n-proj$$"
+  netManaged="lxd$$"
+  lxc network create "${netManaged}"
+
+  netUnmanaged="${netManaged}-unm"
+  ip link add "${netUnmanaged}" type bridge
 
   # Create a project and switch to it
   lxc project create p1 -c features.storage.volumes=false
   lxc project switch p1
+
+  # Check with restricted unset and restricted.devices.nic unset that managed & unmanaged networks are accessible.
+  lxc network list | grep -F "${netManaged}"
+  lxc network list | grep -F "${netUnmanaged}"
+  lxc network show "${netManaged}"
+  lxc network show "${netUnmanaged}"
+
+  # Check with restricted unset and restricted.devices.nic=block that managed & unmanaged networks are accessible.
+  lxc project set p1 restricted.devices.nic=block
+  lxc network list | grep -F "${netManaged}"
+  lxc network list | grep -F "${netUnmanaged}"
+  lxc network show "${netManaged}"
+  lxc network show "${netUnmanaged}"
+
+  # Check with restricted=true and restricted.devices.nic=block that managed & unmanaged networks are inaccessible.
+  lxc project set p1 restricted=true
+  ! lxc network list | grep -F "${netManaged}"|| false
+  ! lxc network show "${netManaged}" || false
+  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network show "${netUnmanaged}" || false
+
+  # Check with restricted=true and restricted.devices.nic=managed that managed networks are accessible and that
+  # unmanaged networks are inaccessible.
+  lxc project set p1 restricted.devices.nic=managed
+  lxc network list | grep -F "${netManaged}"
+  lxc network show "${netManaged}"
+  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network show "${netUnmanaged}" || false
+
+  # Check with restricted.devices.nic=allow and restricted.networks.access set to a network other than the existing
+  # managed and unmanaged ones that they are inaccessible.
+  lxc project set p1 restricted.devices.nic=allow
+  lxc project set p1 restricted.networks.access=foo
+  ! lxc network list | grep -F "${netManaged}"|| false
+  ! lxc network show "${netManaged}" || false
+  ! lxc network info "${netManaged}"|| false
+
+  ! lxc network list | grep -F "${netUnmanaged}"|| false
+  ! lxc network show "${netUnmanaged}" || false
+  ! lxc network info "${netUnmanaged}"|| false
+
+  ! lxc network set "${netManaged}" user.foo=bah || false
+  ! lxc network get "${netManaged}" ipv4.address || false
+  ! lxc network info "${netManaged}"|| false
+  ! lxc network delete "${netManaged}" || false
+
+  ! lxc profile device add default eth0 nic nictype=bridge parent=netManaged || false
+  ! lxc profile device add default eth0 nic nictype=bridge parent=netUnmanaged || false
+
+  ip link delete "${netUnmanaged}"
+
+  # Disable restrictions to allow devices to be added to profile.
+  lxc project unset p1 restricted.networks.access
+  lxc project set p1 restricted.devices.nic=managed
+  lxc project set p1 restricted=false
 
   # Add a root device to the default profile of the project and import an image.
   pool="lxdtest-$(basename "${LXD_DIR}")"
@@ -816,7 +875,7 @@ test_projects_restrictions() {
   ! lxc config device add c1 testdir disk source="${TEST_DIR}" path=/mnt || false
 
   # It's possible to attach managed network devices.
-  lxc profile device add default eth0 nic network="n-proj$$"
+  lxc profile device add default eth0 nic network="${netManaged}"
 
   # It's possible to attach disks backed by a pool.
   lxc config device add c1 data disk pool="${pool}" path=/mnt source="v-proj$$"
@@ -895,7 +954,7 @@ test_projects_restrictions() {
   lxc project switch default
   lxc project delete p1
 
-  lxc network delete "n-proj$$"
+  lxc network delete "${netManaged}"
   lxc storage volume delete "${pool}" "v-proj$$"
 }
 
