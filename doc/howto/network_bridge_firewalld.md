@@ -103,7 +103,7 @@ If that is not an option, use the following command to explicitly allow network 
     iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
     iptables -I DOCKER-USER -i <external_interface> -o <network_bridge> -j ACCEPT
 
-To make it stick across reboots, the above can be added to `/etc/network/interfaces` along the lines of:
+To make the configuration persist across reboots, add the commands to `/etc/network/interfaces`:
 
     post-up iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
     post-up iptables -I DOCKER-USER -i <external_interface> -o <network_bridge> -j ACCEPT
