@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/build"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
@@ -15,7 +16,8 @@ import (
 
 // Stmt generates a particular database query statement.
 type Stmt struct {
-	db     string            // Target database (cluster or node)
+	db     string            // Database package receiver
+	dbPkg  *ast.Package      // Package where database related helpers are located.
 	entity string            // Name of the database entity
 	kind   string            // Kind of statement to generate
 	config map[string]string // Configuration parameters
@@ -46,8 +48,24 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 		return nil, err
 	}
 
+	var dbPkg *ast.Package
+	if database != "" {
+		importPkg, err := build.Import(database, "", build.FindOnly)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid import path %q: %w", database, err)
+		}
+
+		dbPkg, err = ParsePackage(importPkg.Dir)
+		if err != nil {
+			return nil, err
+		}
+
+		database = filepath.Base(database)
+	}
+
 	stmt := &Stmt{
 		db:     database,
+		dbPkg:  dbPkg,
 		entity: entity,
 		kind:   kind,
 		config: config,
