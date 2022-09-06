@@ -216,8 +216,13 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 
 // ParseStmt returns the SQL string passed as an argument to a variable declaration of a call to RegisterStmt with the given name.
 // e.g. the SELECT string from 'var instanceObjects = RegisterStmt(`SELECT * from instances...`)'.
-func ParseStmt(pkg *ast.Package, name string) (string, error) {
+func ParseStmt(pkg *ast.Package, dbPkg *ast.Package, name string) (string, error) {
 	stmtVar := pkg.Scope.Lookup(name)
+	if stmtVar == nil && dbPkg != nil {
+		// Fallback to database helper package if provided, if we can't find the variable.
+		stmtVar = dbPkg.Scope.Lookup(name)
+	}
+
 	if stmtVar == nil {
 		return "", fmt.Errorf("Failed to find variable named %q", name)
 	}

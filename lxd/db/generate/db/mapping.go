@@ -413,7 +413,7 @@ func (f *Field) JoinClause(mapping *Mapping, table string) (string, error) {
 // to select the ID to insert into this table.
 // - If a 'joinon' tag is present, but this table is not among the conditions, then the join will be considered indirect,
 // and an empty string will be returned.
-func (f *Field) InsertColumn(pkg *ast.Package, mapping *Mapping, primaryTable string) (string, string, error) {
+func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapping, primaryTable string) (string, string, error) {
 	var column string
 	var value string
 	var err error
@@ -451,9 +451,10 @@ func (f *Field) InsertColumn(pkg *ast.Package, mapping *Mapping, primaryTable st
 			return "", "", fmt.Errorf("'join' tag of field %q of struct %q must be of form <table>.<column>", f.Name, mapping.Name)
 		}
 
-		joinStmt, err := ParseStmt(pkg, stmtCodeVar(lex.Singular(table), "ID"))
+		varName := stmtCodeVar(lex.Singular(table), "ID")
+		joinStmt, err := ParseStmt(pkg, dbPkg, varName)
 		if err != nil {
-			return "", "", fmt.Errorf("Failed to find existing primary key statement for field %q of struct %q: %w", f.Name, mapping.Name, err)
+			return "", "", fmt.Errorf("Failed to find registered statement %q for field %q of struct %q: %w", varName, f.Name, mapping.Name, err)
 		}
 
 		value = fmt.Sprintf("(%s)", strings.Replace(strings.Replace(joinStmt, "`", "", -1), "\n", "", -1))
