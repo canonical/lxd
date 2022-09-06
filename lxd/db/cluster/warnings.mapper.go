@@ -26,37 +26,43 @@ SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, ''
 var warningObjectsByUUID = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( warnings.uuid = ? ) ORDER BY warnings.uuid
+  WHERE ( warnings.uuid = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningObjectsByProject = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( coalesce(project, '') = ? ) ORDER BY warnings.uuid
+  WHERE ( coalesce(project, '') = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningObjectsByStatus = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( warnings.status = ? ) ORDER BY warnings.uuid
+  WHERE ( warnings.status = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCode = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? ) ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCodeAndProject = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? ) ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID = RegisterStmt(`
 SELECT warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
   FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? AND coalesce(warnings.entity_type_code, -1) = ? AND coalesce(warnings.entity_id, -1) = ? ) ORDER BY warnings.uuid
+  WHERE ( coalesce(node, '') = ? AND warnings.type_code = ? AND coalesce(project, '') = ? AND coalesce(warnings.entity_type_code, -1) = ? AND coalesce(warnings.entity_id, -1) = ? )
+  ORDER BY warnings.uuid
 `)
 
 var warningDeleteByUUID = RegisterStmt(`

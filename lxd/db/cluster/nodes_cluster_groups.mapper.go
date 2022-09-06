@@ -26,7 +26,8 @@ SELECT nodes_cluster_groups.group_id, nodes.name AS node
 var nodeClusterGroupObjectsByGroupID = RegisterStmt(`
 SELECT nodes_cluster_groups.group_id, nodes.name AS node
   FROM nodes_cluster_groups JOIN nodes ON nodes_cluster_groups.node_id = nodes.id
-  WHERE ( nodes_cluster_groups.group_id = ? ) ORDER BY nodes_cluster_groups.group_id
+  WHERE ( nodes_cluster_groups.group_id = ? )
+  ORDER BY nodes_cluster_groups.group_id
 `)
 
 var nodeClusterGroupID = RegisterStmt(`
