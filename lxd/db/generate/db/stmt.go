@@ -96,123 +96,52 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity, s.config["table"])
-	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		table = "%s_" + table
-	}
-
+	table := mapping.TableName(s.entity, s.config["table"])
 	boiler := stmts["objects"]
 	fields := mapping.ColumnFields()
 	columns := make([]string, len(fields))
 	for i, field := range fields {
-		if field.IsScalar() {
-			columns[i] = field.Column()
-
-			coalesce, ok := field.Config["coalesce"]
-			if ok {
-				// Handle columns in format "<field> AS <alias>".
-				parts := strings.SplitN(columns[i], " ", 2)
-				columns[i] = fmt.Sprintf("coalesce(%s, %s)", parts[0], coalesce[0])
-
-				if len(parts) > 1 {
-					columns[i] = fmt.Sprintf("%s %s", columns[i], parts[1])
-				}
-			}
-		} else {
-			columns[i] = mapping.FieldColumnName(field.Name, table)
-			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
-			}
-
-			coalesce, ok := field.Config["coalesce"]
-			if ok {
-				columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
-			}
+		column, err := field.SelectColumn(mapping, table)
+		if err != nil {
+			return err
 		}
+
+		columns[i] = column
 	}
 
 	orderBy := []string{}
+	orderByFields := []*Field{}
 	for _, field := range fields {
 		if field.Config.Get("order") != "" {
-			if field.IsScalar() {
-				orderBy = append(orderBy, lex.Plural(lex.Snake(field.Name))+".id")
-			} else {
-				line := mapping.FieldColumnName(field.Name, table)
-				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-					line = strings.Replace(line, "reference", "%s", -1)
-				}
-
-				orderBy = append(orderBy, line)
-			}
+			orderByFields = append(orderByFields, field)
 		}
 	}
 
-	if len(orderBy) < 1 {
-		nk := mapping.NaturalKey()
-		orderBy = make([]string, len(nk))
-		for i, field := range nk {
-			if field.IsScalar() {
-				table, _, err := field.ScalarTableColumn()
-				if err != nil {
-					return err
-				}
-
-				orderBy[i] = table + ".id"
-			} else {
-				orderBy[i] = mapping.FieldColumnName(field.Name, table)
-				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-					orderBy[i] = strings.Replace(orderBy[i], "reference", "%s", -1)
-				}
-			}
-		}
+	if len(orderByFields) < 1 {
+		orderByFields = mapping.NaturalKey()
 	}
 
-	for _, field := range mapping.ScalarFields() {
-		if field.Config.Get("join") != "" && field.Config.Get("leftjoin") != "" {
-			return fmt.Errorf("Cannot join and leftjoin at the same time for field %q of struct %q", field.Name, mapping.Name)
+	for _, field := range orderByFields {
+		column, err := field.OrderBy(mapping, table)
+		if err != nil {
+			return err
 		}
+
+		orderBy = append(orderBy, column)
 	}
 
-	for _, field := range mapping.ScalarFields() {
-		join := field.Config.Get("join")
-		if join == "" {
-			continue
+	joinFields := mapping.ScalarFields()
+	joins := make([]string, 0, len(joinFields))
+	for _, field := range joinFields {
+		join, err := field.JoinClause(mapping, table)
+		if err != nil {
+			return err
 		}
 
-		right := strings.Split(join, ".")[0]
-		joinOn := field.Config.Get("joinon")
-		if joinOn == "" {
-			joinOn = lex.Singular(right) + "_id"
-		}
-
-		via := entityTable(s.entity, s.config["table"])
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"), "")
-		}
-
-		table += fmt.Sprintf(" JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
+		joins = append(joins, join)
 	}
 
-	for _, field := range mapping.ScalarFields() {
-		join := field.Config.Get("leftjoin")
-		if join == "" {
-			continue
-		}
-
-		right := strings.Split(join, ".")[0]
-		joinOn := field.Config.Get("joinon")
-		if joinOn == "" {
-			joinOn = lex.Singular(right) + "_id"
-		}
-
-		via := entityTable(s.entity, s.config["table"])
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"), "")
-		}
-
-		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
-	}
-
+	table += strings.Join(joins, "")
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
@@ -257,8 +186,19 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 			return err
 		}
 
+		table, columnName, err := field.SQLConfig()
+		if err != nil {
+			return err
+		}
+
 		var column string
-		if field.IsScalar() {
+		if table != "" && columnName != "" {
+			if field.IsScalar() {
+				column = columnName
+			} else {
+				column = table + "." + columnName
+			}
+		} else if field.IsScalar() {
 			column = lex.Snake(field.Name)
 		} else {
 			column = mapping.FieldColumnName(field.Name, tableName)
@@ -281,7 +221,6 @@ func (s *Stmt) objectsBy(buf *file.Buffer) error {
 }
 
 func (s *Stmt) create(buf *file.Buffer, replace bool) error {
-	// Support using a different structure or package to pass arguments to Create.
 	entityCreate := lex.Camel(s.entity)
 
 	mapping, err := Parse(s.pkg, entityCreate, s.kind)
@@ -289,69 +228,22 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
+	table := mapping.TableName(s.entity, s.config["table"])
 	all := mapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
-	via := map[string][]*Field{}      // Map scalar fields to their additional indirect fields
-
-	// Filter out indirect fields
-	fields := []*Field{}
+	columns := make([]string, 0, len(all))
+	values := make([]string, 0, len(all))
 	for _, field := range all {
-		if field.IsIndirect() {
-			entity := field.Config.Get("via")
-			via[entity] = append(via[entity], field)
+		column, value, err := field.InsertColumn(s.pkg, mapping, table)
+		if err != nil {
+			return err
+		}
+
+		if column == "" && value == "" {
 			continue
 		}
 
-		fields = append(fields, field)
-	}
-
-	columns := make([]string, len(fields))
-	params := make([]string, len(fields))
-
-	for i, field := range fields {
-		if field.IsScalar() {
-			joinTable, _, err := field.ScalarTableColumn()
-			if err != nil {
-				return err
-			}
-
-			ref := lex.Singular(joinTable)
-			referenceColumn := field.Config.Get("joinon")
-			if referenceColumn == "" {
-				referenceColumn = ref + "_id"
-			}
-
-			columns[i] = referenceColumn
-			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", joinTable, joinTable)
-			for _, other := range via[ref] {
-				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef, "")
-				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, joinTable, otherRef)
-			}
-
-			params[i] += " WHERE"
-			for _, other := range via[ref] {
-				join := other.Config.Get("join")
-				if join == "" {
-					join = other.Config.Get("leftjoin")
-				}
-
-				params[i] += fmt.Sprintf(" %s = ? AND", join)
-			}
-
-			join := field.Config.Get("join")
-			if join == "" {
-				join = field.Config.Get("leftjoin")
-			}
-
-			params[i] += fmt.Sprintf(" %s = ?)", join)
-		} else {
-			columns[i] = field.Column()
-			params[i] = "?"
-
-			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
-			}
-		}
+		columns = append(columns, column)
+		values = append(values, value)
 	}
 
 	tmpl := stmts[s.kind]
@@ -359,15 +251,8 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		tmpl = stmts["replace"]
 	}
 
-	table := entityTable(s.entity, s.config["table"])
-	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-		table = "%s_" + table
-	}
-
-	sql := fmt.Sprintf(
-		tmpl, table,
-		strings.Join(columns, ", "), strings.Join(params, ", "))
-	kind := strings.Replace(s.kind, "-", "_", -1)
+	sql := fmt.Sprintf(tmpl, table, strings.Join(columns, ", "), strings.Join(values, ", "))
+	kind := strings.Replace(s.kind, "-", "_", -2)
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("const %s = `%s`", stmtName, sql)
@@ -384,7 +269,35 @@ func (s *Stmt) id(buf *file.Buffer) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	sql := naturalKeySelect(s.entity, s.config, mapping)
+	table := mapping.TableName(s.entity, s.config["table"])
+	nk := mapping.NaturalKey()
+	where := make([]string, 0, len(nk))
+	joins := make([]string, 0, len(nk))
+	for _, field := range nk {
+		tableName, columnName, err := field.SQLConfig()
+		if err != nil {
+			return err
+		}
+
+		var column string
+		if field.IsScalar() {
+			column = field.JoinConfig()
+
+			join, err := field.JoinClause(mapping, table)
+			joins = append(joins, join)
+			if err != nil {
+				return err
+			}
+		} else if tableName != "" && columnName != "" {
+			column = tableName + "." + columnName
+		} else {
+			column = mapping.FieldColumnName(field.Name, table)
+		}
+
+		where = append(where, fmt.Sprintf("%s = ?", column))
+	}
+
+	sql := fmt.Sprintf(stmts[s.kind], table, table+strings.Join(joins, ""), strings.Join(where, " AND "))
 	stmtName := stmtCodeVar(s.entity, "ID")
 	s.register(buf, stmtName, sql)
 
@@ -397,13 +310,23 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity, s.config["table"])
-	where, err := whereClause(mapping.NaturalKey())
-	if err != nil {
-		return err
+	table := mapping.TableName(s.entity, s.config["table"])
+	nk := mapping.NaturalKey()
+	updates := make([]string, 0, len(nk))
+	for _, field := range nk {
+		column, value, err := field.InsertColumn(s.pkg, mapping, table)
+		if err != nil {
+			return err
+		}
+
+		if column == "" && value == "" {
+			continue
+		}
+
+		updates = append(updates, fmt.Sprintf("%s = %s", column, value))
 	}
 
-	sql := fmt.Sprintf(stmts[s.kind], table, where)
+	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(updates, " AND "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
 	s.register(buf, stmtName, sql)
@@ -411,7 +334,6 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 }
 
 func (s *Stmt) update(buf *file.Buffer) error {
-	// Support using a different structure or package to pass arguments to Create.
 	entityUpdate := lex.Camel(s.entity)
 
 	mapping, err := Parse(s.pkg, entityUpdate, s.kind)
@@ -419,32 +341,23 @@ func (s *Stmt) update(buf *file.Buffer) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	fields := mapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
-
-	updates := make([]string, len(fields))
-
-	for i, field := range fields {
-		if field.IsScalar() {
-			table, column, err := field.ScalarTableColumn()
-			if err != nil {
-				return err
-			}
-
-			referenceColumn := field.Config.Get("joinon")
-			if referenceColumn == "" {
-				referenceColumn = fmt.Sprintf("%s_id", lex.Singular(table))
-			}
-
-			updates[i] = fmt.Sprintf("%s = ", referenceColumn)
-			updates[i] += fmt.Sprintf("(SELECT id FROM %s WHERE %s = ?)", table, column)
-		} else {
-			updates[i] = fmt.Sprintf("%s = ?", field.Column())
+	table := mapping.TableName(s.entity, s.config["table"])
+	all := mapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
+	updates := make([]string, 0, len(all))
+	for _, field := range all {
+		column, value, err := field.InsertColumn(s.pkg, mapping, table)
+		if err != nil {
+			return err
 		}
+
+		if column == "" && value == "" {
+			continue
+		}
+
+		updates = append(updates, fmt.Sprintf("%s = %s", column, value))
 	}
 
-	sql := fmt.Sprintf(
-		stmts[s.kind], entityTable(s.entity, s.config["table"]),
-		strings.Join(updates, ", "), "id = ?")
+	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(updates, ", "), "id = ?")
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
 	s.register(buf, stmtName, sql)
@@ -458,35 +371,34 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 		return err
 	}
 
-	table := entityTable(s.entity, s.config["table"])
-
+	table := mapping.TableName(s.entity, s.config["table"])
 	var where string
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		where = "%s_id = ?"
-		table = "%s_" + table
-	} else {
-		where, err = whereClause(mapping.NaturalKey())
-		if err != nil {
-			return err
-		}
 	}
 
-	fields := []*Field{}
 	if strings.HasPrefix(s.kind, "delete-by") {
 		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
+		conditions := make([]string, 0, len(filters))
 		for _, filter := range filters {
 			field, err := mapping.FilterFieldByName(filter)
 			if err != nil {
 				return err
 			}
 
-			fields = append(fields, field)
+			column, value, err := field.InsertColumn(s.pkg, mapping, table)
+			if err != nil {
+				return err
+			}
+
+			if column == "" && value == "" {
+				continue
+			}
+
+			conditions = append(conditions, fmt.Sprintf("%s = %s", column, value))
 		}
 
-		where, err = whereClause(fields)
-		if err != nil {
-			return err
-		}
+		where = strings.Join(conditions, " AND ")
 	}
 
 	sql := fmt.Sprintf(stmts["delete"], table, where)
@@ -499,130 +411,6 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	}
 
 	return nil
-}
-
-// Return a where clause that filters an entity by the given fields.
-func whereClause(fields []*Field) (string, error) {
-	via := map[string][]*Field{} // Map scalar fields to their additional indirect fields
-
-	// Filter out indirect fields
-	directFields := []*Field{}
-	for _, field := range fields {
-		if field.IsIndirect() {
-			entity := field.Config.Get("via")
-			via[entity] = append(via[entity], field)
-			continue
-		}
-
-		directFields = append(directFields, field)
-	}
-
-	where := make([]string, len(directFields))
-
-	for i, field := range directFields {
-		if field.IsScalar() {
-			joinTable, joinColumn, err := field.ScalarTableColumn()
-			if err != nil {
-				return "", err
-			}
-
-			ref := lex.Singular(joinTable)
-			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", joinTable, joinTable)
-			for _, other := range via[ref] {
-				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef, "")
-				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, joinTable, otherRef)
-			}
-
-			subSelect += " WHERE"
-			for _, other := range via[ref] {
-				otherRef := lex.Snake(other.Name)
-				otherTable := entityTable(otherRef, "")
-				subSelect += fmt.Sprintf(" %s.name = ? AND", otherTable)
-			}
-
-			referenceColumn := field.Config.Get("joinon")
-			if referenceColumn == "" {
-				referenceColumn = fmt.Sprintf("%s_id", ref)
-			}
-
-			subSelect += fmt.Sprintf(" %s.%s = ?", joinTable, joinColumn)
-			where[i] = fmt.Sprintf("%s = (%s)", referenceColumn, subSelect)
-		} else {
-			where[i] = fmt.Sprintf("%s = ?", field.Column())
-		}
-	}
-
-	return strings.Join(where, " AND "), nil
-}
-
-// Return a select statement that returns the ID of an entity given its natural key.
-func naturalKeySelect(entity string, config map[string]string, mapping *Mapping) string {
-	nk := mapping.NaturalKey()
-	table := entityTable(entity, config["table"])
-	criteria := ""
-	for i, field := range nk {
-		if i > 0 {
-			criteria += " AND "
-		}
-
-		var column string
-		if field.IsScalar() {
-			column = field.Config.Get("join")
-			if column == "" {
-				column = field.Config.Get("leftjoin")
-			}
-		} else {
-			column = mapping.FieldColumnName(field.Name, table)
-		}
-
-		criteria += fmt.Sprintf("%s = ?", column)
-	}
-
-	keyFields := mapping.NaturalKey()
-
-	fieldInNaturalKey := func(f *Field) bool {
-		for _, keyField := range keyFields {
-			if keyField.Name == f.Name {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	// Find the scalar (join) fields that are part of the natural key.
-	var scalarKeyFields []*Field
-	for _, field := range mapping.ScalarFields() {
-		if fieldInNaturalKey(field) {
-			scalarKeyFields = append(scalarKeyFields, field)
-		}
-	}
-
-	// Generate join statement for scalar fields that are par of the natural key.
-	for _, field := range scalarKeyFields {
-		join := field.Config.Get("join")
-		if join == "" {
-			join = field.Config.Get("leftjoin")
-		}
-
-		right := strings.Split(join, ".")[0]
-		joinOn := field.Config.Get("joinon")
-		if joinOn == "" {
-			joinOn = lex.Singular(right) + "_id"
-		}
-
-		via := entityTable(entity, config["table"])
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"), "")
-		}
-
-		table += fmt.Sprintf(" JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
-	}
-
-	sql := fmt.Sprintf(stmts["id"], entityTable(entity, config["table"]), table, criteria)
-
-	return sql
 }
 
 // Output a line of code that registers the given statement and declares the
@@ -641,7 +429,6 @@ func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...strin
 
 // Map of boilerplate statements.
 var stmts = map[string]string{
-	"names":   "SELECT %s\n  FROM %s\n  %sORDER BY %s",
 	"objects": "SELECT %s\n  FROM %s\n  ORDER BY %s",
 	"create":  "INSERT INTO %s (%s)\n  VALUES (%s)",
 	"replace": "INSERT OR REPLACE INTO %s (%s)\n VALUES (%s)",
