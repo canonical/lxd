@@ -87,6 +87,10 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
+	if strings.HasPrefix(s.kind, "objects-by") {
+		return s.objectsBy(buf)
+	}
+
 	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
@@ -95,39 +99,6 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	table := entityTable(s.entity, s.config["table"])
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		table = "%s_" + table
-	}
-
-	var where []string
-
-	if strings.HasPrefix(s.kind, "objects-by") {
-		filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
-
-		for _, filter := range filters {
-			if filter == "Parent" {
-				where = append(where, fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity)))
-				continue
-			}
-
-			field, err := mapping.FilterFieldByName(filter)
-			if err != nil {
-				return err
-			}
-
-			var column string
-			if field.IsScalar() {
-				column = lex.Snake(field.Name)
-			} else {
-				column = mapping.FieldColumnName(field.Name, table)
-			}
-
-			coalesce, ok := field.Config["coalesce"]
-			if ok {
-				// Ensure filters operate on the coalesced value for fields using coalesce setting.
-				where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
-			} else {
-				where = append(where, fmt.Sprintf("%s = ? ", column))
-			}
-		}
 	}
 
 	boiler := stmts["objects"]
@@ -242,13 +213,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s = %s.id", right, via, joinOn, right)
 	}
 
-	var filterStr strings.Builder
-	if len(where) > 0 {
-		filterStr.WriteString("WHERE ( ")
-		filterStr.WriteString(strings.Join(where, "AND ") + ") ")
-	}
-
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, filterStr.String(), strings.Join(orderBy, ", "))
+	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
@@ -256,6 +221,61 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	} else {
 		s.register(buf, stmtName, sql)
 	}
+
+	return nil
+}
+
+// objectsBy parses the variable declaration produced by the 'objects' function, and appends a WHERE clause to its SQL
+// string using the objects-by-<FIELD> field suffixes, and then creates a new variable declaration.
+// Strictly, it will look for variables of the form 'var <entity>Objects = <database>.RegisterStmt(`SQL String`)'.
+func (s *Stmt) objectsBy(buf *file.Buffer) error {
+	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
+	if err != nil {
+		return err
+	}
+
+	where := []string{}
+	filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
+	sqlString, err := ParseStmt(s.pkg, stmtCodeVar(s.entity, "objects"))
+	if err != nil {
+		return err
+	}
+
+	queryParts := strings.SplitN(sqlString, "ORDER BY", 2)
+	joinStr := " JOIN"
+	if strings.Contains(queryParts[0], " LEFT JOIN") {
+		joinStr = " LEFT JOIN"
+	}
+
+	preJoin, _, _ := strings.Cut(queryParts[0], joinStr)
+	_, tableName, _ := strings.Cut(preJoin, "FROM ")
+	tableName, _, _ = strings.Cut(tableName, "\n")
+
+	for _, filter := range filters {
+		field, err := mapping.FilterFieldByName(filter)
+		if err != nil {
+			return err
+		}
+
+		var column string
+		if field.IsScalar() {
+			column = lex.Snake(field.Name)
+		} else {
+			column = mapping.FieldColumnName(field.Name, tableName)
+		}
+
+		coalesce, ok := field.Config["coalesce"]
+		if ok {
+			// Ensure filters operate on the coalesced value for fields using coalesce setting.
+			where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
+		} else {
+			where = append(where, fmt.Sprintf("%s = ? ", column))
+		}
+	}
+
+	queryParts[0] = fmt.Sprintf("%sWHERE ( %s)", queryParts[0], strings.Join(where, "AND "))
+	sqlString = strings.Join(queryParts, "\n  ORDER BY")
+	s.register(buf, stmtCodeVar(s.entity, "objects", filters...), sqlString)
 
 	return nil
 }
@@ -608,17 +628,21 @@ func naturalKeySelect(entity string, config map[string]string, mapping *Mapping)
 // Output a line of code that registers the given statement and declares the
 // associated statement code global variable.
 func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...string) {
+	if !strings.HasPrefix(sql, "`") || !strings.HasSuffix(sql, "`") {
+		sql = fmt.Sprintf("`\n%s\n`", sql)
+	}
+
 	if s.db != "" {
-		buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtName, s.db, sql)
+		buf.L("var %s = %s.RegisterStmt(%s)", stmtName, s.db, sql)
 	} else {
-		buf.L("var %s = RegisterStmt(`\n%s\n`)", stmtName, sql)
+		buf.L("var %s = RegisterStmt(%s)", stmtName, sql)
 	}
 }
 
 // Map of boilerplate statements.
 var stmts = map[string]string{
 	"names":   "SELECT %s\n  FROM %s\n  %sORDER BY %s",
-	"objects": "SELECT %s\n  FROM %s\n  %sORDER BY %s",
+	"objects": "SELECT %s\n  FROM %s\n  ORDER BY %s",
 	"create":  "INSERT INTO %s (%s)\n  VALUES (%s)",
 	"replace": "INSERT OR REPLACE INTO %s (%s)\n VALUES (%s)",
 	"id":      "SELECT %s.id FROM %s\n  WHERE %s",
