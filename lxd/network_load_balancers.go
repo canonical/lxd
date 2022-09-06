@@ -130,7 +130,7 @@ var networkLoadBalancerCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -143,6 +143,11 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().LoadBalancers {
@@ -217,7 +222,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -239,6 +244,11 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().LoadBalancers {
@@ -288,7 +298,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -301,6 +311,11 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().LoadBalancers {
@@ -370,7 +385,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -383,6 +398,11 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().LoadBalancers {
@@ -480,7 +500,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -493,6 +513,11 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
+	}
+
+	// Check if project allows access to network.
+	if !project.NetworkAllowed(reqProject.Config, networkName, n.IsManaged()) {
+		return response.SmartError(api.StatusErrorf(http.StatusNotFound, "Network not found"))
 	}
 
 	if !n.Info().LoadBalancers {
