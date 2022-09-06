@@ -125,6 +125,9 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 
 	if post > pre {
 		return nil, fmt.Errorf("Extended attribute list size increased from %d to %d during retrieval", pre, post)
+	} else if post == 0 {
+		// fs may have filtered out all xattrs during the second call
+		return nil, nil
 	}
 
 	split := strings.Split(string(dest), "\x00")
