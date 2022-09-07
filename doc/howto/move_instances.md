@@ -7,7 +7,9 @@ To move an instance from one LXD server to another, use the `lxc move` command:
 
 ```{note}
 When moving a container, you must stop it first.
-See {ref}`live-migration` for more information.
+See {ref}`live-migration-containers` for more information.
+
+When moving a virtual machine, you must either enable {ref}`live-migration-vms` or stop it first.
 ```
 
 You don't need to specify the source remote if it is your default remote, and you can leave out the target instance name if you want to use the same instance name.
@@ -30,7 +32,23 @@ If you need to adapt the configuration for the instance to run on the target ser
 (live-migration)=
 ## Live migration
 
+Live migration means migrating an instance while it is running.
+This method is supported for virtual machines.
+For containers, there is limited support.
+
+(live-migration-vms)=
+### Live migration for virtual machines
+
 Virtual machines can be moved to another server while they are running, thus without any downtime.
+
+To allow for live migration, you must enable support for stateful migration.
+To do so, ensure the following configuration:
+
+* Set [`migration.stateful`](instance-configuration) to `true` on the instance.
+* Set [`size.state`](instance_device_type_disk) of the virtual machine's root disk device to at least the size of the virtual machine's [`limits.memory`](instance-configuration) setting.
+
+(live-migration-containers)=
+### Live migration for containers
 
 For containers, there is limited support for live migration using [{abbr}`CRIU (Checkpoint/Restore in Userspace)`](https://criu.org/).
 However, because of extensive kernel dependencies, only very basic containers (non-`systemd` containers without a network device) can be migrated reliably.
