@@ -72,7 +72,7 @@ func LoadConfig(path string) (*Config, error) {
 	if len(envDefaultRemote) > 0 {
 		c.DefaultRemote = envDefaultRemote
 	} else if c.DefaultRemote == "" {
-		c.DefaultRemote = DefaultConfig.DefaultRemote
+		c.DefaultRemote = DefaultConfig().DefaultRemote
 	}
 
 	// NOTE: Remove this once we only see a small fraction of non-simplestreams users
@@ -105,9 +105,11 @@ func (c *Config) SaveConfig(path string) error {
 		}
 	}
 
+	defaultRemote := DefaultConfig().DefaultRemote
+
 	// Remove the static remotes
 	for k := range StaticRemotes {
-		if k == DefaultConfig.DefaultRemote {
+		if k == defaultRemote {
 			continue
 		}
 
