@@ -138,13 +138,17 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 	// whether it is exclusively attached to remote instance, and if so then we need to forward the request to
 	// the node whereit is currently used. This avoids conflicting with another member when using it locally.
 	if err == db.ErrNoClusterMember {
-		// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-		_, vol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
+		// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+		var dbVolume *db.StorageVolume
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, vol)
+		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, &dbVolume.StorageVolume)
 		if err != nil {
 			return nil, fmt.Errorf("Failed checking if volume %q is available: %w", volumeName, err)
 		}
