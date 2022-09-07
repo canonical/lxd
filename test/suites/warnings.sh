@@ -46,8 +46,8 @@ test_warnings() {
     count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/warnings" --data-urlencode "recursion=0" --data-urlencode "filter=status eq resolved" | jq ".metadata | length")
     [ "${count}" -eq 0 ] || false
 
-    # Acknowledge first warning warning
-    uuid=$(lxc warning list --format json | jq -r '.[0].uuid')
+    # Acknowledge a warning
+    uuid=$(lxc warning list --format json | jq -r '.[] | select(.last_message=="global warning 2") | .uuid')
     lxc warning ack "${uuid}"
 
     # This should hide the acknowledged
@@ -58,7 +58,10 @@ test_warnings() {
     count=$(lxc warning list --all --format json | jq 'length')
     [ "${count}" -eq 3 ] || false
 
+    lxc warning show "${uuid}" | grep "global warning 2"
+
     # Delete warning
     lxc warning rm "${uuid}"
     ! lxc warning list | grep -q "${uuid}" || false
+    ! lxc warning show "${uuid}" || false
 }
