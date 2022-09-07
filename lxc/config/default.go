@@ -45,8 +45,17 @@ var DefaultRemotes = map[string]Remote{
 	"ubuntu-daily": UbuntuDailyRemote,
 }
 
-// DefaultConfig is the default configuration.
-var DefaultConfig = Config{
-	Remotes:       DefaultRemotes,
-	DefaultRemote: "local",
+// DefaultConfig returns the default configuration.
+func DefaultConfig() *Config {
+	// Duplicate remotes from DefaultRemotes.
+	defaultRoutes := make(map[string]Remote, len(DefaultRemotes))
+	for k, v := range DefaultRemotes {
+		defaultRoutes[k] = v
+	}
+
+	return &Config{
+		Remotes:       defaultRoutes,
+		Aliases:       make(map[string]string),
+		DefaultRemote: "local",
+	}
 }
