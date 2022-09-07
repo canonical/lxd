@@ -236,42 +236,6 @@ func (c *ClusterTx) GetStoragePoolVolume(poolID int64, projectName string, volum
 	return volumes[0], nil
 }
 
-// Get all storage volumes attached to a given storage pool of a given volume
-// type, on the given node.
-func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
-	var poolName string
-
-	remoteDrivers := StorageRemoteDriverNames()
-
-	query := fmt.Sprintf(`
-SELECT storage_volumes_all.name
-  FROM storage_volumes_all
-  JOIN projects ON projects.id=storage_volumes_all.project_id
-  join storage_pools ON storage_pools.id=storage_volumes_all.storage_pool_id
- WHERE projects.name=?
-   AND storage_volumes_all.storage_pool_id=?
-   AND storage_volumes_all.type=?
-   AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
-	inargs := []any{project, poolID, volumeType, nodeID}
-	outargs := []any{poolName}
-
-	for _, driver := range remoteDrivers {
-		inargs = append(inargs, driver)
-	}
-
-	result, err := queryScan(c, query, inargs, outargs)
-	if err != nil {
-		return []string{}, err
-	}
-
-	response := []string{}
-	for _, r := range result {
-		response = append(response, r[0].(string))
-	}
-
-	return response, nil
-}
-
 // GetLocalStoragePoolVolumeSnapshotsWithType get all snapshots of a storage volume
 // attached to a given storage pool of a given volume type, on the local member.
 // Returns snapshots slice ordered by when they were created, oldest first.
@@ -375,80 +339,6 @@ func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *
 
 		return nil
 	}, volumeSnapshotID)
-}
-
-// GetLocalStoragePoolVolumesWithType returns all storage volumes attached to a
-// given storage pool of a given volume type, on the current node.
-func (c *Cluster) GetLocalStoragePoolVolumesWithType(projectName string, volumeType int, poolID int64) ([]string, error) {
-	return c.storagePoolVolumesGetType(projectName, volumeType, poolID, c.nodeID)
-}
-
-// Return a single storage volume attached to a given storage pool of a given
-// type, on the node with the given ID.
-func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
-	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
-
-	volumeID, err := c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	isRemoteStorage, err := c.IsRemoteStorage(poolID)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	volumeNode := ""
-
-	if !isRemoteStorage {
-		volumeNode, err = c.storageVolumeNodeGet(volumeID)
-		if err != nil {
-			return -1, nil, err
-		}
-	}
-
-	volumeConfig, err := c.storageVolumeConfigGet(volumeID, isSnapshot)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	volumeDescription, err := c.GetStorageVolumeDescription(volumeID)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	volumeContentType, err := c.getStorageVolumeContentType(volumeID)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	volumeContentTypeName, err := storagePoolVolumeContentTypeToName(volumeContentType)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	storageVolume := api.StorageVolume{
-		Type: volumeTypeName,
-	}
-
-	storageVolume.Name = volumeName
-	storageVolume.Description = volumeDescription
-	storageVolume.Config = volumeConfig
-	storageVolume.Location = volumeNode
-	storageVolume.ContentType = volumeContentTypeName
-
-	return volumeID, &storageVolume, nil
-}
-
-// GetLocalStoragePoolVolume gets a single storage volume attached to a
-// given storage pool of a given type, on the current node in the given project.
-func (c *Cluster) GetLocalStoragePoolVolume(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	return c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
@@ -822,29 +712,6 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 	return nodes, nil
 }
 
-// Return the name of the node a storage volume is on.
-func (c *Cluster) storageVolumeNodeGet(volumeID int64) (string, error) {
-	name := ""
-	query := `
-SELECT nodes.name FROM storage_volumes_all
-  JOIN nodes ON nodes.id=storage_volumes_all.node_id
-   WHERE storage_volumes_all.id=?
-`
-	inargs := []any{volumeID}
-	outargs := []any{&name}
-
-	err := dbQueryRowScan(c, query, inargs, outargs)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
-		}
-
-		return "", err
-	}
-
-	return name, nil
-}
-
 // Get the config of a storage volume.
 func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var err error
@@ -889,44 +756,6 @@ func (c *ClusterTx) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map
 	}
 
 	return config, nil
-}
-
-// GetStorageVolumeDescription gets the description of a storage volume.
-func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
-	var description string
-	query := "SELECT description FROM storage_volumes_all WHERE id=?"
-	inargs := []any{volumeID}
-	outargs := []any{&description}
-
-	err := dbQueryRowScan(c, query, inargs, outargs)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
-		}
-
-		return "", err
-	}
-
-	return description, nil
-}
-
-// getStorageVolumeContentType gets the content type of a storage volume.
-func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
-	var contentType int
-	query := "SELECT content_type FROM storage_volumes_all WHERE id=?"
-	inargs := []any{volumeID}
-	outargs := []any{&contentType}
-
-	err := dbQueryRowScan(c, query, inargs, outargs)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
-		}
-
-		return -1, err
-	}
-
-	return contentType, nil
 }
 
 // GetNextStorageVolumeSnapshotIndex returns the index of the next snapshot of the storage
