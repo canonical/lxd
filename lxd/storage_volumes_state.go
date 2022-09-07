@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -150,12 +151,16 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		state.Usage.Used = uint64(used)
 	}
 
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	total, err := units.ParseByteSizeString(vol.Config["size"])
+	total, err := units.ParseByteSizeString(dbVolume.Config["size"])
 	if err != nil {
 		return response.SmartError(err)
 	}
