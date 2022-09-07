@@ -179,7 +179,7 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 }
 
 // VolumeDBGet loads a volume from the database.
-func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*api.StorageVolume, error) {
+func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*db.StorageVolume, error) {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return nil, fmt.Errorf("Pool is not a lxdBackend")
@@ -190,17 +190,25 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 		return nil, err
 	}
 
-	// Get volume config.
-	_, vol, err := p.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
-	if err != nil {
-		if response.IsNotFoundError(err) {
-			return nil, fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
+	// Get the storage volume.
+	var dbVolume *db.StorageVolume
+	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volDBType, volumeName, true)
+		if err != nil {
+			if response.IsNotFoundError(err) {
+				return fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
+			}
+
+			return err
 		}
 
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	return vol, nil
+	return dbVolume, nil
 }
 
 // VolumeDBCreate creates a volume in the database.

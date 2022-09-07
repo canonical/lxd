@@ -180,47 +180,48 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	volumeID, err := cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config, db.StoragePoolVolumeContentTypeFS)
 	require.NoError(t, err)
 
+	getStoragePoolVolume := func(volumeProjectName string, volumeName string, volumeType int, poolID int64) (*db.StorageVolume, error) {
+		var dbVolume *db.StorageVolume
+		err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbVolume, err = tx.GetStoragePoolVolume(poolID, volumeProjectName, volumeType, volumeName, true)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return dbVolume, nil
+	}
+
 	// The returned volume ID is the one of the volume created on the local
 	// node (node 1).
-	thisVolumeID, _, err := cluster.GetStoragePoolVolume("default", "v1", 1, poolID, 1)
+	thisVolume, err := getStoragePoolVolume("default", "v1", 1, poolID)
 	require.NoError(t, err)
-	assert.Equal(t, volumeID, thisVolumeID)
-
-	// Another volume was created for the second node.
-	_, volume, err := cluster.GetStoragePoolVolume("default", "v1", 1, poolID, 2)
-	require.NoError(t, err)
-	assert.NotNil(t, volume)
-	assert.Equal(t, config, volume.Config)
+	assert.NotNil(t, thisVolume)
+	assert.Equal(t, volumeID, thisVolume.ID)
+	assert.Equal(t, thisVolume.Location, "")
 
 	// Update the volume
 	config["k"] = "v2"
 	err = cluster.UpdateStoragePoolVolume("default", "v1", 1, poolID, "volume 1", config)
 	require.NoError(t, err)
-	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.GetStoragePoolVolume("default", "v1", 1, poolID, nodeID)
-		require.NoError(t, err)
-		assert.Equal(t, "volume 1", volume.Description)
-		assert.Equal(t, config, volume.Config)
-	}
+	volume, err := getStoragePoolVolume("default", "v1", 1, poolID)
+	require.NoError(t, err)
+	assert.Equal(t, "volume 1", volume.Description)
+	assert.Equal(t, config, volume.Config)
 
 	err = cluster.RenameStoragePoolVolume("default", "v1", "v1-new", 1, poolID)
 	require.NoError(t, err)
-	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.GetStoragePoolVolume("default", "v1-new", 1, poolID, nodeID)
-		require.NoError(t, err)
-		assert.NotNil(t, volume)
-	}
-
+	volume, err = getStoragePoolVolume("default", "v1-new", 1, poolID)
 	require.NoError(t, err)
+	assert.NotNil(t, volume)
 
 	// Delete the volume
 	err = cluster.RemoveStoragePoolVolume("default", "v1-new", 1, poolID)
 	require.NoError(t, err)
-	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.GetStoragePoolVolume("default", "v1-new", 1, poolID, nodeID)
-		assert.True(t, response.IsNotFoundError(err))
-		assert.Nil(t, volume)
-	}
+	volume, err = getStoragePoolVolume("default", "v1-new", 1, poolID)
+	assert.True(t, response.IsNotFoundError(err))
+	assert.Nil(t, volume)
 }
 
 // Test creating a volume snapshot.

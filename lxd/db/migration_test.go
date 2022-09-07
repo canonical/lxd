@@ -5,6 +5,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -110,10 +111,25 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "true", pool.Config["zfs.clone_copy"])
 	assert.Equal(t, "Created", pool.Status)
 	assert.Equal(t, []string{"none"}, pool.Locations)
-	volumes, err := c.GetLocalStoragePoolVolumes("default", id, []int{1})
+
+	var dbVolumes []*db.StorageVolume
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		volumeType := db.StoragePoolVolumeTypeImage
+		filters := []db.StorageVolumeFilter{{
+			Type: &volumeType,
+		}}
+
+		dbVolumes, err = tx.GetStoragePoolVolumes(id, true, filters...)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage volumes: %w", err)
+		}
+
+		return nil
+	})
+
 	require.NoError(t, err)
-	assert.Len(t, volumes, 1)
-	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
+	assert.Len(t, dbVolumes, 1)
+	assert.Equal(t, "/foo/bar", dbVolumes[0].Config["source"])
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// The zfs.clone_copy config got a NULL node_id, since it's cluster global.
