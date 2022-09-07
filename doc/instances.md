@@ -47,6 +47,7 @@ The currently supported keys are:
 ```{rst-class} dec-font-size break-col-1 min-width-1-15
 ```
 
+(instance-configuration)=
 Key                                             | Type      | Default           | Live update   | Condition                 | Description
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
 `agent.nic_config`                              | bool      | `false`           | n/a           | virtual machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).

@@ -4,9 +4,7 @@ discourse: 7519,9281,9223
 
 # Virtual Machines
 
-## Introduction
-
-Virtual machines are a new instance type supported by LXD alongside containers.
+Virtual machines are an instance type supported by LXD alongside containers.
 
 They are implemented through the use of `qemu`.
 

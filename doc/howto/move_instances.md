@@ -43,3 +43,9 @@ If you are using the snap, use the following commands to enable CRIU:
     systemctl reload snap.lxd.daemon
 
 Otherwise, make sure you have CRIU installed on both systems.
+
+To optimize the memory transfer for a container, set the [`migration.incremental.memory`](instance-configuration) property to `true` to make use of the pre-copy features in CRIU.
+With this configuration, LXD instructs CRIU to perform a series of memory dumps for the container.
+After each dump, LXD sends the memory dump to the specified remote.
+In an ideal scenario, each memory dump will decrease the delta to the previous memory dump, thereby increasing the percentage of memory that is already synced.
+When the percentage of synced memory is equal to or greater than the threshold specified via [`migration.incremental.memory.goal`](instance-configuration), or the maximum number of allowed iterations specified via [`migration.incremental.memory.iterations`](instance-configuration) is reached, LXD instructs CRIU to perform a final memory dump and transfers it.
