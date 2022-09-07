@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -276,14 +277,18 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 					return err
 				}
 
-				// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-				_, vol, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
+				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+				var dbVolume *db.StorageVolume
+				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					return err
+				})
 				if err != nil {
 					return fmt.Errorf("Failed loading custom volume: %w", err)
 				}
 
 				// Check storage volume is available to mount on this cluster member.
-				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, vol)
+				remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, &dbVolume.StorageVolume)
 				if err != nil {
 					return fmt.Errorf("Failed checking if custom volume is exclusively attached to another instance: %w", err)
 				}
@@ -293,7 +298,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				// Check that block volumes are *only* attached to VM instances.
-				contentType, err := storagePools.VolumeContentTypeNameToContentType(vol.ContentType)
+				contentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
 				if err != nil {
 					return err
 				}
@@ -539,12 +544,16 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			_, volume, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
+			var dbVolume *db.StorageVolume
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+				return err
+			})
 			if err != nil {
 				return nil, err
 			}
 
-			if shared.IsTrue(volume.Config["security.shifted"]) {
+			if shared.IsTrue(dbVolume.Config["security.shifted"]) {
 				ownerShift = "dynamic"
 			}
 		}
@@ -1192,13 +1201,17 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 
 	revert.Add(func() { _, _ = d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
-	_, vol, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, d.pool.ID())
+	var dbVolume *db.StorageVolume
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		if vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
+		if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 			err = d.storagePoolVolumeAttachShift(storageProjectName, d.pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, d.pool.Name(), err)
@@ -1208,7 +1221,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 		}
 	}
 
-	if vol.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
+	if dbVolume.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
 		srcPath, err = d.pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
 			return nil, "", fmt.Errorf("Failed to get disk path: %w", err)
@@ -1406,18 +1419,17 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 }
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
-	// Load the DB records.
-	poolID, pool, _, err := d.state.DB.Cluster.GetStoragePool(poolName)
+	var err error
+	var dbVolume *db.StorageVolume
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
-	if err != nil {
-		return err
-	}
-
-	poolVolumePut := volume.Writable()
+	poolVolumePut := dbVolume.StorageVolume.Writable()
 
 	// Check if unmapped.
 	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
@@ -1465,7 +1477,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 		if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
-			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 				inst, err := instance.Load(d.state, dbInst, project)
 				if err != nil {
 					return err
@@ -1516,7 +1528,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		if lastIdmap != nil {
 			var err error
 
-			if pool.Driver == "zfs" {
+			if d.pool.Driver().Info().Name == "zfs" {
 				err = lastIdmap.UnshiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
@@ -1534,7 +1546,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		if nextIdmap != nil {
 			var err error
 
-			if pool.Driver == "zfs" {
+			if d.pool.Driver().Info().Name == "zfs" {
 				err = nextIdmap.ShiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
@@ -1564,7 +1576,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	// Update last idmap.
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	err = d.state.DB.Cluster.UpdateStoragePoolVolume(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = d.state.DB.Cluster.UpdateStoragePoolVolume(projectName, volumeName, volumeType, d.pool.ID(), poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
 	}
