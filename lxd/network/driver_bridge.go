@@ -1617,10 +1617,9 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		_, err = p.Wait(ctx)
 		if !errors.Is(err, context.DeadlineExceeded) {
 			stderr, _ := ioutil.ReadFile(dnsmasqLogPath)
+			cancel()
 
-			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
-			// don't leave the firewall in an inconsistent state.
-			n.logger.Error("The dnsmasq process exited prematurely", logger.Ctx{"err": err, "stderr": strings.TrimSpace(string(stderr))})
+			return fmt.Errorf("The DNS and DHCP service exited prematurely: %w (%q)", err, strings.TrimSpace(string(stderr)))
 		}
 
 		cancel()
