@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -42,16 +44,17 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 			projectName, volName = project.StorageVolumeParts(volName)
 		}
 
-		volID, _, err := state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volName, volTypeID, poolID)
+		// Get the storage volume.
+		var dbVolume *db.StorageVolume
+		err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volTypeID, volName, true)
+			return err
+		})
 		if err != nil {
-			if response.IsNotFoundError(err) {
-				return -1, fmt.Errorf("Failed to get volume ID for project %q, volume %q, type %q: Volume doesn't exist", projectName, volName, volType)
-			}
-
 			return -1, err
 		}
 
-		return volID, nil
+		return dbVolume.ID, nil
 	}
 }
 
