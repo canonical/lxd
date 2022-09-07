@@ -440,15 +440,15 @@ func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapp
 			}
 		}
 
-		if columnName != "" {
-			column = columnName
-		} else {
-			column = lex.Snake(f.Name) + "_id"
-		}
-
 		table, _, ok := strings.Cut(f.JoinConfig(), ".")
 		if !ok {
 			return "", "", fmt.Errorf("'join' tag of field %q of struct %q must be of form <table>.<column>", f.Name, mapping.Name)
+		}
+
+		if columnName != "" {
+			column = columnName
+		} else {
+			column = lex.Singular(table) + "_id"
 		}
 
 		varName := stmtCodeVar(lex.Singular(table), "ID")
