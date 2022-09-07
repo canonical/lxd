@@ -76,12 +76,12 @@ There are several tags that can be added to fields of a struct that will be pars
 
 Tag                         | Description
 :--                         | :----
+`sql=<table>.<column>`      | Supply an explicit table and column name to use for this struct field.
 `coalesce=<value>`          | Generates a SQL coalesce function with the given value `coalesce(<column>, value)`.
 `order=yes`                 | Override the default `ORDER BY` columns with all fields specifying this tag.
 `join=<joinTable.column>`   | Applies a `JOIN` of the form `JOIN <joinTable> ON <table>.<joinTable_id> = <joinTable.id>`.
 `leftjoin=<table.column>`   | Applies a `LEFT JOIN` of the same form as a `JOIN`.
 `joinon=<table>.<column>`   | Overrides the default `JOIN ON` clause with the given table and column, replacing `<table>.<joinTable_id>` above.
-`via=<otherTable>`          | Applies a nested join when included with a `join` tag.
 `primary=yes`               | Assigns column associated with the field to be sufficient for returning a row from the table. Will default to `Name` if unspecified. Fields with this key will be included in the default 'ORDER BY' clause.
 `omit=<Stmt Types>`         | Omits a given field from consideration for the comma separated list of statement types (`create`, `objects-by-Name`, `update`).
 `ignore=yes`                | Outright ignore the struct field as though it does not exist.
@@ -147,6 +147,8 @@ Most structs will get treated this way, and represent a normal table.
 including a comma separated list to `references=<OtherEntity>` in the code generation directive for `GetMany`, `Create`, or `Update` directives.
 
 * The `Create` method directive for `EntityTable` will expect on the `ID` and `Exist` method directives to be present.
+
+* All `CREATE`, `UPDATE`, and `DELETE` statements that include a joined table will expect a `var <entity>ID = RegisterStmt('SQL String')` to exist for the joining table.
 
 ### ReferenceTable
 

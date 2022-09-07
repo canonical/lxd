@@ -35,7 +35,7 @@ import (
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {
 	ID           int
-	Project      string `db:"primary=yes&join=projects.name&via=instance"`
+	Project      string `db:"primary=yes&join=projects.name&joinon=instances.project_id"`
 	Instance     string `db:"primary=yes&join=instances.name"`
 	Name         string `db:"primary=yes"`
 	CreationDate time.Time
