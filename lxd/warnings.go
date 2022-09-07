@@ -260,7 +260,8 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		resp := dbWarning.ToAPI()
+		resp = dbWarning.ToAPI()
+
 		resp.EntityURL, err = getWarningEntityURL(ctx, tx.Tx(), dbWarning)
 		if err != nil {
 			return err
