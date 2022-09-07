@@ -688,13 +688,21 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Check if a storage volume entry for the instance already exists.
-	_, volume, ctVolErr := d.db.Cluster.GetLocalStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
-	if ctVolErr != nil && !response.IsNotFoundError(ctVolErr) {
-		return ctVolErr
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, instanceDBVolType, backupConf.Container.Name, true)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	// If a storage volume entry exists only proceed if force was specified.
-	if ctVolErr == nil && !force {
+	if dbVolume != nil && !force {
 		return fmt.Errorf(`Storage volume for instance %q already exists in the database. Set "force" to overwrite`, backupConf.Container.Name)
 	}
 
@@ -713,13 +721,13 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
 	}
 
-	if ctVolErr == nil {
-		if volume.Name != backupConf.Volume.Name {
-			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, backupConf.Container.Name)
+	if dbVolume != nil {
+		if dbVolume.Name != backupConf.Volume.Name {
+			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, dbVolume.Name, backupConf.Container.Name)
 		}
 
-		if volume.Type != backupConf.Volume.Type {
-			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backupConf.Volume.Type)
+		if dbVolume.Type != backupConf.Volume.Type {
+			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, dbVolume.Type, backupConf.Volume.Type)
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
@@ -799,13 +807,21 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.db.Cluster.GetLocalStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
-		if csVolErr != nil && !response.IsNotFoundError(csVolErr) {
-			return csVolErr
+		var dbVolume *db.StorageVolume
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, instanceDBVolType, snapInstName, true)
+			if err != nil && !response.IsNotFoundError(err) {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 
 		// If a storage volume entry exists only proceed if force was specified.
-		if csVolErr == nil && !force {
+		if dbVolume != nil && !force {
 			return fmt.Errorf(`Storage volume for snapshot %q already exists in the database. Set "force" to overwrite`, snapInstName)
 		}
 
@@ -816,7 +832,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			}
 		}
 
-		if csVolErr == nil {
+		if dbVolume != nil {
 			err := d.db.Cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 			if err != nil {
 				return err
