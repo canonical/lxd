@@ -81,11 +81,14 @@ func (c *Config) SaveCookies() {
 
 // NewConfig returns a Config, optionally using default remotes.
 func NewConfig(configDir string, defaults bool) *Config {
-	config := &Config{ConfigDir: configDir}
+	var config *Config
 	if defaults {
-		config.Remotes = DefaultConfig.Remotes
-		config.DefaultRemote = DefaultConfig.DefaultRemote
+		config = DefaultConfig()
+	} else {
+		config = &Config{}
 	}
+
+	config.ConfigDir = configDir
 
 	return config
 }
