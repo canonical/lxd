@@ -200,6 +200,88 @@ func (c *ClusterTx) GetStoragePoolBucket(poolID int64, projectName string, membe
 	return buckets[0], nil
 }
 
+// GetStoragePoolLocalBucket returns the local Storage Bucket for the given bucket name.
+// The search is restricted to buckets that belong to this member.
+func (c *ClusterTx) GetStoragePoolLocalBucket(bucketName string) (*StorageBucket, error) {
+	filters := []StorageBucketFilter{{
+		Name: &bucketName,
+	}}
+
+	buckets, err := c.GetStoragePoolBuckets(true, filters...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	for _, bucket := range buckets {
+		if bucket.Location == "" {
+			continue // Ignore buckets on remote storage pools.
+		}
+
+		return bucket, nil
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket not found")
+}
+
+// GetStoragePoolLocalBucketByAccessKey returns the local Storage Bucket for the given bucket access key.
+// The search is restricted to buckets that belong to this member.
+func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(accessKey string) (*StorageBucket, error) {
+	var q *strings.Builder = &strings.Builder{}
+
+	q.WriteString(`
+	SELECT
+		projects.name as project,
+		storage_pools.name,
+		storage_buckets.id,
+		storage_buckets.storage_pool_id,
+		storage_buckets.name,
+		storage_buckets.description,
+		IFNULL(nodes.name, "") as location
+	FROM storage_buckets
+	JOIN projects ON projects.id = storage_buckets.project_id
+	JOIN storage_pools ON storage_pools.id = storage_buckets.storage_pool_id
+	JOIN storage_buckets_keys ON storage_buckets_keys.storage_bucket_id = storage_buckets.id
+	JOIN nodes ON nodes.id = storage_buckets.node_id
+	WHERE storage_buckets.node_id = ?
+	AND storage_buckets_keys.access_key = ?
+	`)
+
+	var err error
+	var buckets []*StorageBucket
+	args := []any{c.nodeID, accessKey}
+
+	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		var bucket StorageBucket
+
+		err := scan(&bucket.Project, &bucket.PoolName, &bucket.ID, &bucket.PoolID, &bucket.Name, &bucket.Description, &bucket.Location)
+		if err != nil {
+			return err
+		}
+
+		buckets = append(buckets, &bucket)
+
+		return nil
+	}, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	bucketsLen := len(buckets)
+	if bucketsLen == 1 {
+		// Populate config.
+		err = storagePoolBucketConfig(c, buckets[0].ID, &buckets[0].StorageBucket)
+		if err != nil {
+			return nil, err
+		}
+
+		return buckets[0], nil
+	} else if bucketsLen > 1 {
+		return nil, api.StatusErrorf(http.StatusConflict, "Multiple storage buckets found for access key")
+	}
+
+	return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket access key not found")
+}
+
 // CreateStoragePoolBucket creates a new Storage Bucket.
 // If memberSpecific is true, then the storage bucket is associated to the current member, rather than being
 // associated to all members.
@@ -441,6 +523,14 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 	var bucketKeyID int64
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		// Check there isn't another bucket with the same access key on the local server.
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		} else if bucket != nil {
+			return api.StatusErrorf(http.StatusConflict, "A bucket key using that access key already exists on this server")
+		}
+
 		// Insert a new Storage Bucket Key record.
 		result, err := tx.tx.Exec(`
 		INSERT INTO storage_buckets_keys
@@ -474,6 +564,14 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 // UpdateStoragePoolBucketKey updates an existing Storage Bucket Key.
 func (c *Cluster) UpdateStoragePoolBucketKey(ctx context.Context, bucketID int64, bucketKeyID int64, info *api.StorageBucketKeyPut) error {
 	return c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		// Check there isn't another bucket with the same access key on the local server.
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+			return err
+		} else if bucket != nil && bucket.ID != bucketID {
+			return api.StatusErrorf(http.StatusConflict, "A bucket key using that access key already exists on this server")
+		}
+
 		// Update existing Storage Bucket Key record.
 		res, err := tx.tx.Exec(`
 		UPDATE storage_buckets_keys

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 
@@ -9,10 +11,14 @@ import (
 
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	lxdRequest "github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/storage/s3"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -146,6 +152,122 @@ func metricsServer(d *Daemon) *http.Server {
 	})
 
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
+}
+
+func storageBucketsServer(d *Daemon) *http.Server {
+	/* Setup the web server */
+	m := mux.NewRouter()
+	m.StrictSlash(false)
+	m.SkipClean(true)
+
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if request contains an access key, and if so try and route it to the associated bucket.
+		accessKey := s3.AuthorizationHeaderAccessKey(r.Header.Get("Authorization"))
+		if accessKey != "" {
+			// Lookup access key to ascertain if it maps to a bucket.
+			var err error
+			var bucket *db.StorageBucket
+			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				bucket, err = tx.GetStoragePoolLocalBucketByAccessKey(accessKey)
+				return err
+			})
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					errResult := s3.Error{Code: s3.ErrorCodeInvalidAccessKeyID}
+					errResult.Response(w)
+
+					return
+				}
+
+				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
+				errResult.Response(w)
+
+				return
+			}
+
+			pool, err := storagePools.LoadByName(d.State(), bucket.PoolName)
+			if err != nil {
+				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
+				errResult.Response(w)
+
+				return
+			}
+
+			minioProc, err := pool.ActivateBucket(bucket.Name, nil)
+			if err != nil {
+				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
+				errResult.Response(w)
+
+				return
+			}
+
+			u := minioProc.URL()
+
+			rproxy := httputil.NewSingleHostReverseProxy(&u)
+			rproxy.ServeHTTP(w, r)
+
+			return
+		}
+
+		// Otherwise treat request as anonymous.
+		listResult := s3.ListAllMyBucketsResult{Owner: s3.Owner{ID: "anonymous"}}
+		listResult.Response(w)
+	})
+
+	// We use the NotFoundHandler to reverse proxy requests to dynamically started local MinIO processes.
+	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathParts := strings.Split(r.RequestURI, "/")
+		bucketName, err := url.PathUnescape(pathParts[1])
+		if err != nil {
+			errResult := s3.Error{Code: s3.ErrorCodeNoSuchBucket, BucketName: pathParts[1]}
+			errResult.Response(w)
+
+			return
+		}
+
+		// Lookup bucket.
+		var bucket *db.StorageBucket
+		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			bucket, err = tx.GetStoragePoolLocalBucket(bucketName)
+			return err
+		})
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				errResult := s3.Error{Code: s3.ErrorCodeNoSuchBucket, BucketName: bucketName}
+				errResult.Response(w)
+
+				return
+			}
+
+			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error(), BucketName: bucketName}
+			errResult.Response(w)
+
+			return
+		}
+
+		pool, err := storagePools.LoadByName(d.State(), bucket.PoolName)
+		if err != nil {
+			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
+			errResult.Response(w)
+
+			return
+		}
+
+		minioProc, err := pool.ActivateBucket(bucketName, nil)
+		if err != nil {
+			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
+			errResult.Response(w)
+
+			return
+		}
+
+		u := minioProc.URL()
+
+		rproxy := httputil.NewSingleHostReverseProxy(&u)
+		rproxy.ServeHTTP(w, r)
+	})
+
+	return &http.Server{Handler: &lxdHttpServer{r: m, d: d}}
 }
 
 type lxdHttpServer struct {

@@ -68,6 +68,14 @@ type Config struct {
 	// HTTP server handling requests for the LXD metrics API.
 	MetricsServer *http.Server
 
+	// StorageBucketsAddress sets the address for the storage buckets endpoint.
+	//
+	// It can be updated after the endpoints are up using StorageBucketsUpdateAddress().
+	StorageBucketsAddress string
+
+	// HTTP server handling requests for the LXD storage buckets API.
+	StorageBucketsServer *http.Server
+
 	// HTTP server handling requests from VMs via the vsock.
 	VsockServer *http.Server
 
@@ -176,13 +184,14 @@ func (e *Endpoints) up(config *Config) error {
 	defer e.mu.Unlock()
 
 	e.servers = map[kind]*http.Server{
-		devlxd:  config.DevLxdServer,
-		local:   config.RestServer,
-		network: config.RestServer,
-		cluster: config.RestServer,
-		pprof:   pprofCreateServer(),
-		metrics: config.MetricsServer,
-		vsock:   config.VsockServer,
+		devlxd:         config.DevLxdServer,
+		local:          config.RestServer,
+		network:        config.RestServer,
+		cluster:        config.RestServer,
+		pprof:          pprofCreateServer(),
+		metrics:        config.MetricsServer,
+		storageBuckets: config.StorageBucketsServer,
+		vsock:          config.VsockServer,
 	}
 
 	e.cert = config.Cert
@@ -316,6 +325,15 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(metrics)
 	}
 
+	if config.StorageBucketsAddress != "" {
+		e.listeners[storageBuckets], err = storageBucketsCreateListener(config.StorageBucketsAddress, e.cert)
+		if err != nil {
+			return err
+		}
+
+		e.serve(storageBuckets)
+	}
+
 	if e.listeners[vsock] != nil {
 		e.serve(vsock)
 	}
@@ -368,6 +386,13 @@ func (e *Endpoints) Down() error {
 
 	if e.listeners[metrics] != nil {
 		err := e.closeListener(metrics)
+		if err != nil {
+			return err
+		}
+	}
+
+	if e.listeners[storageBuckets] != nil {
+		err := e.closeListener(storageBuckets)
 		if err != nil {
 			return err
 		}
@@ -470,15 +495,17 @@ const (
 	cluster
 	metrics
 	vsock
+	storageBuckets
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
 var descriptions = map[kind]string{
-	local:   "REST API Unix socket",
-	devlxd:  "devlxd socket",
-	network: "REST API TCP socket",
-	pprof:   "pprof socket",
-	cluster: "cluster socket",
-	metrics: "metrics socket",
-	vsock:   "VM socket",
+	local:          "REST API Unix socket",
+	devlxd:         "devlxd socket",
+	network:        "REST API TCP socket",
+	pprof:          "pprof socket",
+	cluster:        "cluster socket",
+	metrics:        "metrics socket",
+	vsock:          "VM socket",
+	storageBuckets: "Storage buckets socket",
 }
