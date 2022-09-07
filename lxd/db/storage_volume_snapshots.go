@@ -80,24 +80,22 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(projectName string, volumeName str
 			return err
 		}
 
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, volumeName, volumeType, poolID, func(volumeID int64) error {
-			err = storageVolumeConfigClear(tx.tx, volumeID, true)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigClear(tx.tx, volume.ID, true)
+		if err != nil {
+			return err
+		}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigAdd(tx.tx, volume.ID, volumeConfig, true)
+		if err != nil {
+			return err
+		}
 
-			err = storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription, true)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeDescriptionUpdate(tx.tx, volume.ID, volumeDescription, true)
+		if err != nil {
+			return err
+		}
 
-			return storageVolumeSnapshotExpiryDateUpdate(tx.tx, volumeID, expiryDate)
-		})
+		err = storageVolumeSnapshotExpiryDateUpdate(tx.tx, volume.ID, expiryDate)
 		if err != nil {
 			return err
 		}

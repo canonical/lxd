@@ -739,24 +739,6 @@ func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[strin
 	return nil
 }
 
-// StoragePoolDriver returns the driver of the pool with the given ID.
-func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
-	stmt := "SELECT driver FROM storage_pools WHERE id=?"
-	drivers, err := query.SelectStrings(tx, stmt, id)
-	if err != nil {
-		return "", err
-	}
-
-	switch len(drivers) {
-	case 0:
-		return "", api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
-	case 1:
-		return drivers[0], nil
-	default:
-		return "", fmt.Errorf("more than one pool has the given ID")
-	}
-}
-
 // UpdateStoragePool updates a storage pool.
 func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map[string]string) error {
 	poolID, _, _, err := c.GetStoragePoolInAnyState(poolName)

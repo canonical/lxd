@@ -353,19 +353,17 @@ func (c *Cluster) UpdateStoragePoolVolume(projectName string, volumeName string,
 			return err
 		}
 
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, volumeName, volumeType, poolID, func(volumeID int64) error {
-			err = storageVolumeConfigClear(tx.tx, volumeID, isSnapshot)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigClear(tx.tx, volume.ID, isSnapshot)
+		if err != nil {
+			return err
+		}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, isSnapshot)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigAdd(tx.tx, volume.ID, volumeConfig, isSnapshot)
+		if err != nil {
+			return err
+		}
 
-			return storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription, isSnapshot)
-		})
+		err = storageVolumeDescriptionUpdate(tx.tx, volume.ID, volumeDescription, isSnapshot)
 		if err != nil {
 			return err
 		}
@@ -395,11 +393,12 @@ func (c *Cluster) RemoveStoragePoolVolume(projectName string, volumeName string,
 			return err
 		}
 
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, volumeName, volumeType, poolID, func(volumeID int64) error {
-			_, err := tx.tx.Exec(stmt, volumeID)
+		_, err = tx.tx.Exec(stmt, volume.ID)
+		if err != nil {
 			return err
-		})
-		return err
+		}
+
+		return nil
 	})
 
 	return err
@@ -425,45 +424,15 @@ func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName stri
 			return err
 		}
 
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
-			_, err := tx.tx.Exec(stmt, newVolumeName, volumeID)
+		_, err = tx.tx.Exec(stmt, newVolumeName, volume.ID)
+		if err != nil {
 			return err
-		})
-		return err
+		}
+
+		return nil
 	})
 
 	return err
-}
-
-// This a convenience to replicate a certain volume change to all nodes if the
-// underlying driver is ceph.
-func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volumeName string, volumeType int, poolID int64, f func(int64) error) error {
-	driver, err := storagePoolDriverGet(tx, poolID)
-	if err != nil {
-		return err
-	}
-
-	volumeIDs := []int64{volumeID}
-
-	remoteDrivers := StorageRemoteDriverNames()
-
-	// If this is a ceph volume, we want to duplicate the change across the
-	// the rows for all other nodes.
-	if shared.StringInSlice(driver, remoteDrivers) {
-		volumeIDs, err = storageVolumeIDsGet(tx, project, volumeName, volumeType, poolID)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, volumeID := range volumeIDs {
-		err := f(volumeID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given
@@ -867,30 +836,6 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	}
 
 	return nil
-}
-
-// Get the IDs of all volumes with the given name and type associated with the
-// given pool, regardless of their node_id column.
-func storageVolumeIDsGet(tx *sql.Tx, project, volumeName string, volumeType int, poolID int64) ([]int64, error) {
-	ids, err := query.SelectIntegers(tx, `
-SELECT storage_volumes_all.id
-  FROM storage_volumes_all
-  JOIN projects ON projects.id = storage_volumes_all.project_id
- WHERE projects.name=?
-   AND storage_volumes_all.name=?
-   AND storage_volumes_all.type=?
-   AND storage_volumes_all.storage_pool_id=?
-`, project, volumeName, volumeType, poolID)
-	if err != nil {
-		return nil, err
-	}
-
-	ids64 := make([]int64, len(ids))
-	for i, id := range ids {
-		ids64[i] = int64(id)
-	}
-
-	return ids64, nil
 }
 
 // RemoveStorageVolumeImages removes the volumes associated with the images
