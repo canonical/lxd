@@ -302,7 +302,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := project.AllowBackupCreation(tx, projectName)
 		return err
 	})
@@ -325,7 +325,11 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return resp
 	}
 
-	volumeID, _, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -398,7 +402,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	backup := func(op *operations.Operation) error {
 		args := db.StoragePoolVolumeBackup{
 			Name:                 fullName,
-			VolumeID:             volumeID,
+			VolumeID:             dbVolume.ID,
 			CreationDate:         time.Now(),
 			ExpiryDate:           req.ExpiresAt,
 			VolumeOnly:           volumeOnly,
