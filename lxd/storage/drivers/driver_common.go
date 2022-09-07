@@ -445,8 +445,8 @@ func (d *common) ValidateBucket(bucket Volume) error {
 	return nil
 }
 
-// BucketURL returns the URL of the specified bucket.
-func (d *common) BucketURL(bucketName string) *url.URL {
+// GetBucketURL returns the URL of the specified bucket.
+func (d *common) GetBucketURL(bucketName string) *url.URL {
 	return nil
 }
 

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -13,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/s3/miniod"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
@@ -255,6 +257,14 @@ func (b *mockBackend) UpdateBucketKey(projectName string, bucketName string, key
 }
 
 func (b *mockBackend) DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) ActivateBucket(bucketName string, op *operations.Operation) (*miniod.Process, error) {
+	return nil, nil
+}
+
+func (b *mockBackend) GetBucketURL(bucketName string) *url.URL {
 	return nil
 }
 

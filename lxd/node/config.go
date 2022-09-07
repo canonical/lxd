@@ -97,6 +97,16 @@ func (c *Config) MAASMachine() string {
 	return c.m.GetString("maas.machine")
 }
 
+// StorageBucketsAddress returns the address and port to setup the storage buckets listener on.
+func (c *Config) StorageBucketsAddress() string {
+	objectAddress := c.m.GetString("core.storage_buckets_address")
+	if objectAddress != "" {
+		return util.CanonicalNetworkAddress(objectAddress, shared.HTTPSStorageBucketsDefaultPort)
+	}
+
+	return objectAddress
+}
+
 // StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs.
 func (c *Config) StorageBackupsVolume() string {
 	return c.m.GetString("storage.backups_volume")
@@ -198,6 +208,9 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the metrics server
 	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+
+	// Network address for the storage buckets server
+	"core.storage_buckets_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// MAAS machine this LXD instance is associated with
 	"maas.machine": {},

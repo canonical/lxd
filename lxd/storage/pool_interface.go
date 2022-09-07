@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -12,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/s3/miniod"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 )
@@ -98,6 +100,8 @@ type Pool interface {
 	CreateBucketKey(projectName string, bucketName string, key api.StorageBucketKeysPost, op *operations.Operation) (*api.StorageBucketKey, error)
 	UpdateBucketKey(projectName string, bucketName string, keyName string, key api.StorageBucketKeyPut, op *operations.Operation) error
 	DeleteBucketKey(projectName string, bucketName string, keyName string, op *operations.Operation) error
+	ActivateBucket(bucketName string, op *operations.Operation) (*miniod.Process, error)
+	GetBucketURL(bucketName string) *url.URL
 
 	// Custom volumes.
 	CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error
