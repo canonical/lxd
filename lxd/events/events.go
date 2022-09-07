@@ -200,6 +200,10 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 
 			// Make sure we're not done already
 			if listener.IsClosed() {
+				// Remove the listener from the list
+				s.lock.Lock()
+				delete(s.listeners, listener.id)
+				s.lock.Unlock()
 				return
 			}
 
