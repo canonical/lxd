@@ -236,42 +236,6 @@ func (c *ClusterTx) GetStoragePoolVolume(poolID int64, projectName string, volum
 	return volumes[0], nil
 }
 
-// GetLocalStoragePoolVolumes returns all storage volumes attached to a given
-// storage pool on the current node. If there are no volumes, it returns an
-// empty list as well as a api.StatusError with code set to http.StatusNotFound.
-func (c *Cluster) GetLocalStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
-	return c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
-}
-
-// Returns all storage volumes attached to a given storage pool on the given
-// node. If there are no volumes, it returns an empty list as well as a
-// api.StatusError with code set to http.StatusNotFound.
-func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
-	// Get all storage volumes of all types attached to a given storage pool.
-	result := []*api.StorageVolume{}
-	for _, volumeType := range volumeTypes {
-		volumeNames, err := c.storagePoolVolumesGetType(project, volumeType, poolID, nodeID)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, fmt.Errorf("Failed to fetch volume types: %w", err)
-		}
-
-		for _, volumeName := range volumeNames {
-			_, volume, err := c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to fetch volume type: %w", err)
-			}
-
-			result = append(result, volume)
-		}
-	}
-
-	if len(result) == 0 {
-		return result, api.StatusErrorf(http.StatusNotFound, "Storage pool volume(s) not found")
-	}
-
-	return result, nil
-}
-
 // Get all storage volumes attached to a given storage pool of a given volume
 // type, on the given node.
 func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
