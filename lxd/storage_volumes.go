@@ -591,29 +591,31 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if destination volume exists.
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
-	if !response.IsNotFoundError(err) {
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		}
+
+		err = project.AllowVolumeCreation(tx, projectName, req)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
-		if !req.Source.Refresh {
-			return response.Conflict(fmt.Errorf("Volume name %q already exists", req.Name))
-		}
-	}
-
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return project.AllowVolumeCreation(tx, projectName, req)
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
+	} else if dbVolume != nil && !req.Source.Refresh {
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
 	}
 
 	switch req.Source.Type {
 	case "":
 		return doVolumeCreateOrCopy(d, r, projectParam(r), projectName, poolName, &req)
 	case "copy":
-		if vol != nil {
+		if dbVolume != nil {
 			return doCustomVolumeRefresh(d, r, projectParam(r), projectName, poolName, &req)
 		}
 
@@ -799,13 +801,19 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if destination volume exists.
-	_, _, err = d.db.Cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
-	if !response.IsNotFoundError(err) {
-		if err != nil {
-			return response.SmartError(err)
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		} else if dbVolume != nil {
+			return api.StatusErrorf(http.StatusConflict, "Volume by that name already exists")
 		}
 
-		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	switch req.Source.Type {
@@ -1073,13 +1081,17 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, srcPoolID)
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(srcPoolID, projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Check if a running instance is using it.
-	err = storagePools.VolumeUsedByInstanceDevices(d.State(), srcPoolName, projectName, vol, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByInstanceDevices(d.State(), srcPoolName, projectName, &dbVolume.StorageVolume, true, func(dbInst db.InstanceArgs, project api.Project, usedByDevices []string) error {
 		inst, err := instance.Load(d.State(), dbInst, project)
 		if err != nil {
 			return err
@@ -1097,11 +1109,11 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Detect a rename request.
 	if (req.Pool == "" || req.Pool == srcPoolName) && (projectName == targetProjectName) {
-		return storagePoolVolumeTypePostRename(d, r, srcPoolName, projectName, vol, req)
+		return storagePoolVolumeTypePostRename(d, r, srcPoolName, projectName, &dbVolume.StorageVolume, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, r, srcPoolName, projectName, targetProjectName, vol, req)
+	return storagePoolVolumeTypePostMove(d, r, srcPoolName, projectName, targetProjectName, &dbVolume.StorageVolume, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
@@ -1458,13 +1470,17 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []any{volumeName, vol.Type, vol.Config}
+	etag := []any{volumeName, dbVolume.Type, dbVolume.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -1484,7 +1500,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Possibly check if project limits are honored.
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, vol.Config)
+			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
 		})
 		if err != nil {
 			return response.SmartError(err)
@@ -1494,7 +1510,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// before applying config changes so that changes are applied to the
 		// restored volume.
 		if req.Restore != "" {
-			err = pool.RestoreCustomVolume(projectName, vol.Name, req.Restore, op)
+			err = pool.RestoreCustomVolume(projectName, dbVolume.Name, req.Restore, op)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1504,13 +1520,13 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
 		// the volume's config if only restoring snapshot.
 		if req.Config != nil || req.Restore == "" {
-			err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, op)
+			err = pool.UpdateCustomVolume(projectName, dbVolume.Name, req.Description, req.Config, op)
 			if err != nil {
 				return response.SmartError(err)
 			}
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
-		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
+		inst, err := instance.LoadByProjectAndName(d.State(), projectName, dbVolume.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1522,7 +1538,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeImage {
 		// Handle image update requests.
-		err = pool.UpdateImage(vol.Name, req.Description, req.Config, op)
+		err = pool.UpdateImage(dbVolume.Name, req.Description, req.Config, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1626,13 +1642,17 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag.
-	etag := []any{volumeName, vol.Type, vol.Config}
+	etag := []any{volumeName, dbVolume.Type, dbVolume.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -1650,7 +1670,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Merge current config with requested changes.
-	for k, v := range vol.Config {
+	for k, v := range dbVolume.Config {
 		_, ok := req.Config[k]
 		if !ok {
 			req.Config[k] = v
@@ -1661,7 +1681,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	op := &operations.Operation{}
 	op.SetRequestor(r)
 
-	err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, op)
+	err = pool.UpdateCustomVolume(projectName, dbVolume.Name, req.Description, req.Config, op)
 	if err != nil {
 		return response.SmartError(err)
 	}
