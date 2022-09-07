@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -160,7 +161,10 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Confirm volume exists.
-	_, _, err = s.DB.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, err = tx.GetStoragePoolVolume(poolID, project.Default, db.StoragePoolVolumeTypeCustom, volumeName, true)
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Unable to load storage volume %q: %w", target, err)
 	}
