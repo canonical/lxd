@@ -67,35 +67,35 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 }
 
 // UpdateStorageVolumeSnapshot updates the storage volume snapshot attached to a given storage pool.
-func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
-	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
-	if err != nil {
-		return err
-	}
+func (c *Cluster) UpdateStorageVolumeSnapshot(projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string, expiryDate time.Time) error {
+	var err error
 
 	if !strings.Contains(volumeName, shared.SnapshotDelimiter) {
 		return fmt.Errorf("Volume is not a snapshot")
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
-			err = storageVolumeConfigClear(tx.tx, volumeID, true)
-			if err != nil {
-				return err
-			}
+		volume, err := tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+		if err != nil {
+			return err
+		}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigClear(tx.tx, volume.ID, true)
+		if err != nil {
+			return err
+		}
 
-			err = storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription, true)
-			if err != nil {
-				return err
-			}
+		err = storageVolumeConfigAdd(tx.tx, volume.ID, volumeConfig, true)
+		if err != nil {
+			return err
+		}
 
-			return storageVolumeSnapshotExpiryDateUpdate(tx.tx, volumeID, expiryDate)
-		})
+		err = storageVolumeDescriptionUpdate(tx.tx, volume.ID, volumeDescription, true)
+		if err != nil {
+			return err
+		}
+
+		err = storageVolumeSnapshotExpiryDateUpdate(tx.tx, volume.ID, expiryDate)
 		if err != nil {
 			return err
 		}

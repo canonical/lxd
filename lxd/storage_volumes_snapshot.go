@@ -120,7 +120,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
@@ -188,18 +188,24 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
-	// Ensure that the snapshot doesn't already exist.
-	_, _, err = d.db.Cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, pool.ID())
-	if !response.IsNotFoundError(err) {
-		if err != nil {
-			return response.SmartError(err)
+	var parentDBVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Ensure that the snapshot doesn't already exist.
+		snapDBVolume, err := tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, fmt.Sprintf("%s/%s", volumeName, req.Name), true)
+		if err != nil && !response.IsNotFoundError(err) {
+			return err
+		} else if snapDBVolume != nil {
+			return api.StatusErrorf(http.StatusConflict, "Snapshot %q already in use", req.Name)
 		}
 
-		return response.Conflict(fmt.Errorf("Snapshot '%s' already in use", req.Name))
-	}
+		// Get the parent volume so we can get the config.
+		parentDBVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		if err != nil {
+			return err
+		}
 
-	// Get the parent volume so we can get the config.
-	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -209,7 +215,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetSnapshotExpiry(time.Now(), vol.Config["snapshots.expiry"])
+		expiry, err = shared.GetSnapshotExpiry(time.Now(), parentDBVolume.Config["snapshots.expiry"])
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -657,22 +663,26 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	volID, volume, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	snapshot := api.StorageVolumeSnapshot{}
-	snapshot.Config = volume.Config
-	snapshot.Description = volume.Description
+	snapshot.Config = dbVolume.Config
+	snapshot.Description = dbVolume.Description
 	snapshot.Name = snapshotName
 	snapshot.ExpiresAt = &expiry
-	snapshot.ContentType = volume.ContentType
+	snapshot.ContentType = dbVolume.ContentType
 
 	etag := []any{snapshot.Description, expiry}
 	return response.SyncResponseETag(true, &snapshot, etag)
@@ -773,18 +783,22 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	volID, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []any{vol.Description, expiry}
+	etag := []any{dbVolume.Description, expiry}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -797,7 +811,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, vol.Name, volumeType, req)
+	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, dbVolume.Name, volumeType, req)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_patch
@@ -895,25 +909,26 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	volID, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	var dbVolume *db.StorageVolume
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		return err
+	})
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []any{vol.Description, expiry}
+	etag := []any{dbVolume.Description, expiry}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
 	req := api.StorageVolumeSnapshotPut{
-		Description: vol.Description,
+		Description: dbVolume.Description,
 		ExpiresAt:   &expiry,
 	}
 
@@ -922,7 +937,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, vol.Name, volumeType, req)
+	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, dbVolume.Name, volumeType, req)
 }
 
 func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName string, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
