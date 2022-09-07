@@ -452,16 +452,18 @@ func (c *Cluster) GetLocalStoragePoolVolume(project, volumeName string, volumeTy
 }
 
 // UpdateStoragePoolVolume updates the storage volume attached to a given storage pool.
-func (c *Cluster) UpdateStoragePoolVolume(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
-	if err != nil {
-		return err
-	}
+func (c *Cluster) UpdateStoragePoolVolume(projectName string, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
+	var err error
 
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
+		volume, err := tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+		if err != nil {
+			return err
+		}
+
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = storageVolumeConfigClear(tx.tx, volumeID, isSnapshot)
 			if err != nil {
 				return err
@@ -486,11 +488,8 @@ func (c *Cluster) UpdateStoragePoolVolume(project, volumeName string, volumeType
 
 // RemoveStoragePoolVolume deletes the storage volume attached to a given storage
 // pool.
-func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.GetLocalStoragePoolVolume(project, volumeName, volumeType, poolID)
-	if err != nil {
-		return err
-	}
+func (c *Cluster) RemoveStoragePoolVolume(projectName string, volumeName string, volumeType int, poolID int64) error {
+	var err error
 
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 	var stmt string
@@ -501,7 +500,12 @@ func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
+		volume, err := tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+		if err != nil {
+			return err
+		}
+
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, volumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec(stmt, volumeID)
 			return err
 		})
@@ -512,11 +516,8 @@ func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType
 }
 
 // RenameStoragePoolVolume renames the storage volume attached to a given storage pool.
-func (c *Cluster) RenameStoragePoolVolume(project, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.GetLocalStoragePoolVolume(project, oldVolumeName, volumeType, poolID)
-	if err != nil {
-		return err
-	}
+func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+	var err error
 
 	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
 	var stmt string
@@ -529,7 +530,12 @@ func (c *Cluster) RenameStoragePoolVolume(project, oldVolumeName string, newVolu
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
+		volume, err := tx.GetStoragePoolVolume(poolID, projectName, volumeType, oldVolumeName, true)
+		if err != nil {
+			return err
+		}
+
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volume.ID, projectName, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec(stmt, newVolumeName, volumeID)
 			return err
 		})
