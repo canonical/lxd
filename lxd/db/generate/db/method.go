@@ -311,20 +311,20 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	if mapping.Type == EntityTable {
 		buf.L("// Select.")
 		buf.L("if sqlStmt != nil {")
-		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
+		buf.L("err = query.SelectObjects(ctx, sqlStmt, dest, args...)")
 		buf.L("} else {")
 		buf.L("queryStr := strings.Join(queryParts[:], \"ORDER BY\")")
-		buf.L("err = query.Scan(tx, queryStr, dest, args...)")
+		buf.L("err = query.Scan(ctx, tx, queryStr, dest, args...)")
 		buf.L("}")
 		buf.N()
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("// Select.")
-		buf.L("err = query.Scan(tx, queryStr, dest, args...)")
+		buf.L("err = query.Scan(ctx, tx, queryStr, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
 		buf.L("// Select.")
-		buf.L("err = query.SelectObjects(sqlStmt, dest, args...)")
+		buf.L("err = query.SelectObjects(ctx, sqlStmt, dest, args...)")
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
