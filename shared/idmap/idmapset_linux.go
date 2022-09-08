@@ -591,7 +591,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	tmp := filepath.Dir(dir)
 	tmp, err := filepath.EvalSymlinks(tmp)
 	if err != nil {
-		return fmt.Errorf("Expand symlinks: %w", err)
+		return fmt.Errorf("Failed expanding symlinks of %q: %w", tmp, err)
 	}
 
 	dir = filepath.Join(tmp, filepath.Base(dir))
@@ -669,7 +669,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 					if how != "in" || atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsSupported {
 						err = SetCaps(path, caps, rootUid)
 						if err != nil {
-							logger.Warnf("Unable to set file capabilities on %s", path)
+							logger.Warnf("Unable to set file capabilities on %q: %v", path, err)
 						}
 					}
 				}
