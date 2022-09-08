@@ -120,7 +120,7 @@ func (c *Controller) getDomain(inst Instance) string {
 		return domain
 	}
 
-	return fmt.Sprintf("%s.%s", inst.Project(), domain)
+	return fmt.Sprintf("%s.%s", inst.Project().Name, domain)
 }
 
 func (c *Controller) getDevice(name string, domain string) (gomaasapi.Device, error) {

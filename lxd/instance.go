@@ -476,7 +476,7 @@ func autoCreateInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		for _, instArg := range instanceArgs {
 			inst, err := instance.Load(s, instArg, *projects[instArg.Project])
 			if err != nil {
-				logger.Error("Failed loading instance for snapshot task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+				logger.Error("Failed loading instance for snapshot task", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 				continue
 			}
 
@@ -636,7 +636,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 				inst, err := instance.Load(s, snapshotArg, *p)
 				if err != nil {
-					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+					logger.Error("Failed loading instance for snapshot prune task", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 					continue
 				}
 
@@ -704,7 +704,7 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []i
 		err := snapshot.Delete(true)
 		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
-			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project(), err)
+			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
 		}
 
 		logger.Debug("Deleted instance snapshot", logger.Ctx{"project": snapshot.Project(), "snapshot": snapshot.Name()})
