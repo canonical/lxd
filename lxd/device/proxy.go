@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -238,7 +239,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 
 			p.SetApparmor(apparmor.ForkproxyProfileName(d.inst, d))
 
-			err = p.StartWithFiles(proxyValues.inheritFds)
+			err = p.StartWithFiles(context.Background(), proxyValues.inheritFds)
 			if err != nil {
 				return fmt.Errorf("Failed to start device %q: Failed running: %s %s: %w", d.name, command, strings.Join(forkproxyargs, " "), err)
 			}

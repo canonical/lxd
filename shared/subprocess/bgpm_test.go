@@ -21,7 +21,7 @@ func TestSignalHandling(t *testing.T) {
 		t.Error("Failed process creation: ", err)
 	}
 
-	err = p.Start()
+	err = p.Start(context.Background())
 	if err != nil {
 		t.Error("Failed to start process ", err)
 	}
@@ -90,7 +90,7 @@ func TestStopRestart(t *testing.T) {
 		t.Error("Failed process creation: ", err)
 	}
 
-	err = p.Start()
+	err = p.Start(context.Background())
 	if err != nil {
 		t.Error("Failed to start process: ", err)
 	}
@@ -110,12 +110,12 @@ func TestStopRestart(t *testing.T) {
 		t.Error("Failed to import process: ", err)
 	}
 
-	err = p.Start()
+	err = p.Start(context.Background())
 	if err != nil {
 		t.Error("Failed to start process: ", err)
 	}
 
-	err = p.Restart()
+	err = p.Restart(context.Background())
 	if err != nil {
 		t.Error("Failed to restart process: ", err)
 	}
@@ -144,7 +144,7 @@ func TestProcessStartWaitExit(t *testing.T) {
 		t.Error("Failed process creation: ", err)
 	}
 
-	err = p.Start()
+	err = p.Start(context.Background())
 	if err != nil {
 		t.Error("Failed to start process: ", err)
 	}
