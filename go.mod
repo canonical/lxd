@@ -37,6 +37,7 @@ require (
 	github.com/osrg/gobgp/v3 v3.10.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/sftp v1.13.5
+	github.com/pkg/xattr v0.4.9
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
