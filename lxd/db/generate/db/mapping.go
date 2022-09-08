@@ -430,25 +430,26 @@ func (f *Field) InsertColumn(pkg *ast.Package, dbPkg *ast.Package, mapping *Mapp
 		// If there is a 'joinon' tag present without this table in the condition, then assume there is no column for this field.
 		joinOn := f.Config.Get("joinon")
 		if joinOn != "" {
-			before, _, ok := strings.Cut(joinOn, ".")
+			before, after, ok := strings.Cut(joinOn, ".")
 			if !ok {
 				return "", "", fmt.Errorf("'joinon' tag of field %q of struct %q must be of form '<table>.<column>'", f.Name, mapping.Name)
 			}
 
+			columnName = after
 			if tableName != before {
 				return "", "", nil
 			}
 		}
 
-		if columnName != "" {
-			column = columnName
-		} else {
-			column = lex.Snake(f.Name) + "_id"
-		}
-
 		table, _, ok := strings.Cut(f.JoinConfig(), ".")
 		if !ok {
 			return "", "", fmt.Errorf("'join' tag of field %q of struct %q must be of form <table>.<column>", f.Name, mapping.Name)
+		}
+
+		if columnName != "" {
+			column = columnName
+		} else {
+			column = lex.Singular(table) + "_id"
 		}
 
 		varName := stmtCodeVar(lex.Singular(table), "ID")
