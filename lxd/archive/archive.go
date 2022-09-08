@@ -55,14 +55,10 @@ func ExtractWithFds(cmd string, args []string, allowedCmds []string, stdin io.Re
 	defer func() { _ = apparmor.ArchiveUnload(sysOS, outputPath) }()
 
 	var buffer bytes.Buffer
-	p, err := subprocess.NewProcessWithFds(cmd, args, stdin, output, &nullWriteCloser{&buffer})
-	if err != nil {
-		return fmt.Errorf("Failed to start extract: Failed to creating subprocess: %w", err)
-	}
-
+	p := subprocess.NewProcessWithFds(cmd, args, stdin, output, &nullWriteCloser{&buffer})
 	p.SetApparmor(apparmor.ArchiveProfileName(outputPath))
 
-	err = p.Start()
+	err = p.Start(context.TODO())
 	if err != nil {
 		return fmt.Errorf("Failed to start extract: Failed running: tar: %w", err)
 	}
@@ -101,13 +97,9 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 		}
 
 		pipeReader, pipeWriter := io.Pipe()
-		p, err := subprocess.NewProcessWithFds(unpacker[0], unpacker[1:], ioutil.NopCloser(r), pipeWriter, nil)
-		if err != nil {
-			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed to creating subprocess: %w", err)
-		}
-
+		p := subprocess.NewProcessWithFds(unpacker[0], unpacker[1:], ioutil.NopCloser(r), pipeWriter, nil)
 		p.SetApparmor(apparmor.ArchiveProfileName(outputPath))
-		err = p.Start()
+		err = p.Start(ctx)
 		if err != nil {
 			return nil, cancelFunc, fmt.Errorf("Failed to start unpack: Failed running: %s: %w", unpacker[0], err)
 		}
