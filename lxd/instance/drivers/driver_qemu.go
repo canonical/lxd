@@ -1436,7 +1436,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	_ = op.Reset() // Reset timeout to default.
 
-	err = p.StartWithFiles(fdFiles)
+	err = p.StartWithFiles(context.Background(), fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
