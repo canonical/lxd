@@ -106,22 +106,22 @@ func (p *Process) Stop() error {
 }
 
 // Start will start the given process object.
-func (p *Process) Start() error {
-	return p.start(nil)
+func (p *Process) Start(ctx context.Context) error {
+	return p.start(ctx, nil)
 }
 
 // StartWithFiles will start the given process object with extra file descriptors.
-func (p *Process) StartWithFiles(fds []*os.File) error {
-	return p.start(fds)
+func (p *Process) StartWithFiles(ctx context.Context, fds []*os.File) error {
+	return p.start(ctx, fds)
 }
 
-func (p *Process) start(fds []*os.File) error {
+func (p *Process) start(ctx context.Context, fds []*os.File) error {
 	var cmd *exec.Cmd
 
 	if p.Apparmor != "" && p.hasApparmor() {
-		cmd = exec.Command("aa-exec", append([]string{"-p", p.Apparmor, p.Name}, p.Args...)...)
+		cmd = exec.CommandContext(ctx, "aa-exec", append([]string{"-p", p.Apparmor, p.Name}, p.Args...)...)
 	} else {
-		cmd = exec.Command(p.Name, p.Args...)
+		cmd = exec.CommandContext(ctx, p.Name, p.Args...)
 	}
 
 	cmd.Stdout = p.Stdout
@@ -189,13 +189,13 @@ func (p *Process) start(fds []*os.File) error {
 }
 
 // Restart stop and starts the given process object.
-func (p *Process) Restart() error {
+func (p *Process) Restart(ctx context.Context) error {
 	err := p.Stop()
 	if err != nil {
 		return fmt.Errorf("Unable to stop process: %w", err)
 	}
 
-	err = p.Start()
+	err = p.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("Unable to start process: %w", err)
 	}
