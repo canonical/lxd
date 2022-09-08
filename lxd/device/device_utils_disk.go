@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -380,7 +381,7 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
 	}
 
-	err = proc.StartWithFiles([]*os.File{acceptFile})
+	err = proc.StartWithFiles(context.Background(), []*os.File{acceptFile})
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
@@ -500,7 +501,7 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
 	}
 
-	err = proc.StartWithFiles([]*os.File{unixFile})
+	err = proc.StartWithFiles(context.Background(), []*os.File{unixFile})
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtiofsd: %w", err)
 	}

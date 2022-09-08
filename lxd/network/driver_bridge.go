@@ -1607,7 +1607,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Start dnsmasq.
-		err = p.Start()
+		err = p.Start(context.Background())
 		if err != nil {
 			return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
 		}
@@ -1918,7 +1918,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 	// Apply AppArmor profile.
 	p.SetApparmor(apparmor.ForkdnsProfileName(n))
 
-	err = p.Start()
+	err = p.Start(context.Background())
 	if err != nil {
 		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
 	}
