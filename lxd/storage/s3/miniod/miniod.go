@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -31,6 +32,9 @@ const minioLockPrefix = "minio_"
 
 // minioAdminUser in MinIO.
 const minioAdminUser = "lxd-admin"
+
+// minioBucketDir the directory on the storage volume used for the MinIO bucket.
+const minioBucketDir = "minio"
 
 // Process represents a running minio process.
 type Process struct {
@@ -194,7 +198,7 @@ func EnsureRunning(bucketVol storageDrivers.Volume) (*Process, error) {
 		fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", minioProc.password),
 	)
 
-	bucketPath := bucketVol.MountPath()
+	bucketPath := filepath.Join(bucketVol.MountPath(), minioBucketDir)
 
 	args := []string{
 		"server",
@@ -208,6 +212,14 @@ func EnsureRunning(bucketVol storageDrivers.Volume) (*Process, error) {
 	go func() {
 		err := bucketVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			l.Debug("MinIO bucket starting")
+
+			if !shared.PathExists(bucketPath) {
+				err = os.Mkdir(bucketPath, 0700)
+				if err != nil {
+					return fmt.Errorf("Failed creating MinIO bucket directory: %w", err)
+				}
+			}
+
 			_, stdErr, err := shared.RunCommandSplit(minioProc.cancel, env, nil, "minio", args...)
 			if err != nil && minioProc.cancel.Err() == nil {
 				l.Error("Failed starting MinIO bucket", logger.Ctx{"err": err, "stdErr": stdErr})
