@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/pkg/xattr"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/revert"
@@ -68,109 +69,27 @@ func SetSize(fd int, width int, height int) (err error) {
 	return nil
 }
 
-// This uses ssize_t llistxattr(const char *path, char *list, size_t size); to
-// handle symbolic links (should it in the future be possible to set extended
-// attributed on symlinks): If path is a symbolic link the extended attributes
-// associated with the link itself are retrieved.
-func llistxattr(path string, list []byte) (sz int, err error) {
-	var _p0 *byte
-	_p0, err = unix.BytePtrFromString(path)
+// GetAllXattr retrieves all extended attributes associated with a file, directory or symbolic link.
+func GetAllXattr(path string) (map[string]string, error) {
+	xattrNames, err := xattr.LList(path)
 	if err != nil {
-		return
-	}
-
-	var _p1 unsafe.Pointer
-	if len(list) > 0 {
-		_p1 = unsafe.Pointer(&list[0])
-	} else {
-		_p1 = unsafe.Pointer(nil)
-	}
-
-	r0, _, e1 := unix.Syscall(unix.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
-	sz = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-
-	return
-}
-
-// GetAllXattr retrieves all extended attributes associated with a file,
-// directory or symbolic link.
-func GetAllXattr(path string) (xattrs map[string]string, err error) {
-	// Call llistxattr() twice: First, to determine the size of the buffer
-	// we need to allocate to store the extended attributes, second, to
-	// actually store the extended attributes in the buffer. Also, check if
-	// the size/number of extended attributes hasn't increased between the
-	// two calls.
-	pre, err := llistxattr(path, nil)
-	if err != nil || pre < 0 {
-		if err == unix.EOPNOTSUPP {
+		// Some filesystems don't support llistxattr() for various reasons.
+		// Interpret this as a set of no xattrs, instead of an error.
+		if errors.Is(err, unix.EOPNOTSUPP) {
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("Failed getting extended attributes from %q: %w", path, err)
 	}
 
-	if pre == 0 {
-		return nil, nil
-	}
-
-	dest := make([]byte, pre)
-
-	post, err := llistxattr(path, dest)
-	if err != nil || post < 0 {
-		return nil, err
-	}
-
-	if post > pre {
-		return nil, fmt.Errorf("Extended attribute list size increased from %d to %d during retrieval", pre, post)
-	} else if post == 0 {
-		// fs may have filtered out all xattrs during the second call
-		return nil, nil
-	}
-
-	split := strings.Split(string(dest), "\x00")
-	if split == nil {
-		return nil, fmt.Errorf("No valid extended attribute key found")
-	}
-	// *listxattr functions return a list of  names  as  an unordered array
-	// of null-terminated character strings (attribute names are separated
-	// by null bytes ('\0')), like this: user.name1\0system.name1\0user.name2\0
-	// Since we split at the '\0'-byte the last element of the slice will be
-	// the empty string. We remove it:
-	if split[len(split)-1] == "" {
-		split = split[:len(split)-1]
-	}
-
-	xattrs = make(map[string]string, len(split))
-
-	for _, x := range split {
-		xattr := string(x)
-		// Call Getxattr() twice: First, to determine the size of the
-		// buffer we need to allocate to store the extended attributes,
-		// second, to actually store the extended attributes in the
-		// buffer. Also, check if the size of the extended attribute
-		// hasn't increased between the two calls.
-		pre, err = unix.Getxattr(path, xattr, nil)
-		if err != nil || pre < 0 {
-			return nil, err
+	var xattrs = make(map[string]string, len(xattrNames))
+	for _, xattrName := range xattrNames {
+		value, err := xattr.LGet(path, xattrName)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting %q extended attribute from %q: %w", xattrName, path, err)
 		}
 
-		dest = make([]byte, pre)
-		post := 0
-		if pre > 0 {
-			post, err = unix.Getxattr(path, xattr, dest)
-			if err != nil || post < 0 {
-				return nil, err
-			}
-		}
-
-		if post > pre {
-			return nil, fmt.Errorf("Extended attribute '%s' size increased from %d to %d during retrieval", xattr, pre, post)
-		}
-
-		xattrs[xattr] = string(dest)
+		xattrs[xattrName] = string(value)
 	}
 
 	return xattrs, nil
