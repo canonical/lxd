@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -8,8 +9,8 @@ import (
 
 // SelectObjects executes a statement which must yield rows with a specific
 // columns schema. It invokes the given Dest hook for each yielded row.
-func SelectObjects(stmt *sql.Stmt, rowFunc Dest, args ...any) error {
-	rows, err := stmt.Query(args...)
+func SelectObjects(ctx context.Context, stmt *sql.Stmt, rowFunc Dest, args ...any) error {
+	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return err
 	}
@@ -28,8 +29,8 @@ func SelectObjects(stmt *sql.Stmt, rowFunc Dest, args ...any) error {
 
 // Scan runs a query with inArgs and provides the rowFunc with the scan function for each row.
 // It handles closing the rows and errors from the result set.
-func Scan(tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
-	rows, err := tx.Query(sql, inArgs...)
+func Scan(ctx context.Context, tx *sql.Tx, sql string, rowFunc Dest, inArgs ...any) error {
+	rows, err := tx.QueryContext(ctx, sql, inArgs...)
 	if err != nil {
 		return err
 	}
