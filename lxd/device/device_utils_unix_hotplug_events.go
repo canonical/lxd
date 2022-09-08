@@ -39,7 +39,7 @@ func unixHotplugRegisterHandler(instance instance.Instance, deviceName string, h
 	defer unixHotplugMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", instance.Project().Name, instance.Name(), deviceName)
 	unixHotplugHandlers[key] = handler
 }
 
@@ -49,7 +49,7 @@ func unixHotplugUnregisterHandler(instance instance.Instance, deviceName string)
 	defer unixHotplugMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", instance.Project().Name, instance.Name(), deviceName)
 	delete(unixHotplugHandlers, key)
 }
 
