@@ -42,7 +42,7 @@ func usbRegisterHandler(inst instance.Instance, deviceName string, handler func(
 	defer usbMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
 	usbHandlers[key] = handler
 }
 
@@ -52,7 +52,7 @@ func usbUnregisterHandler(inst instance.Instance, deviceName string) {
 	defer usbMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
 	delete(usbHandlers, key)
 }
 

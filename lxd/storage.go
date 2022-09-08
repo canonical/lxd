@@ -67,7 +67,7 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 			jsonIdmap = "[]"
 		}
 
-		logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"project": container.Project(), "instance": container.Name(), "sourceIdmap": srcIdmap})
+		logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"project": container.Project().Name, "instance": container.Name(), "sourceIdmap": srcIdmap})
 		err := container.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
 		if err != nil {
 			return err
