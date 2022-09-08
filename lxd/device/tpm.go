@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -103,7 +104,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to create new process: %w", err)
 	}
 
-	err = proc.Start()
+	err = proc.Start(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start process %q: %w", "swtpm", err)
 	}
@@ -191,7 +192,7 @@ func (d *tpm) startVM() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Start the TPM emulator.
-	err = proc.Start()
+	err = proc.Start(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start swtpm for device %q: %w", d.name, err)
 	}
