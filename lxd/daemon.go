@@ -77,8 +77,9 @@ type Daemon struct {
 	rbac        *rbac.Server
 
 	// Event servers
-	devlxdEvents *events.DevLXDServer
-	events       *events.Server
+	devlxdEvents     *events.DevLXDServer
+	events           *events.Server
+	internalListener *events.InternalListener
 
 	// Tasks registry for long-running background tasks
 	// Keep clustering tasks separate as they cause a lot of CPU wakeups
@@ -774,6 +775,9 @@ func (d *Daemon) init() error {
 
 	// Setup logger
 	events.LoggingServer = d.events
+
+	// Setup internal event listener
+	d.internalListener = events.NewInternalListener(d.shutdownCtx, d.events)
 
 	// Lets check if there's an existing LXD running
 	err := endpoints.CheckAlreadyRunning(d.UnixSocket())
