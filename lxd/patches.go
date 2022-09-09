@@ -466,21 +466,20 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	revert.Add(func() { _ = tx.Rollback() })
 
 	// Fetch the IDs of all existing nodes.
-	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	nodeIDs, err := query.SelectIntegers(context.TODO(), tx, "SELECT id FROM nodes")
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
-	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
+	poolIDs, err := query.SelectIntegers(context.TODO(), tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current lvm pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this lvm pool and check if it has the lvm.thinpool_name.
-		config, err := query.SelectConfig(
-			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
+		config, err := query.SelectConfig(context.TODO(), tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch of lvm pool config: %w", err)
 		}
