@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -26,11 +27,11 @@ func TestNodeAdd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), id)
 
-	nodes, err := tx.GetNodes()
+	nodes, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
-	node, err := tx.GetNodeByAddress("1.2.3.4:666")
+	node, err := tx.GetNodeByAddress(context.Background(), "1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)
@@ -39,7 +40,7 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, [2]int{cluster.SchemaVersion, len(version.APIExtensions)}, node.Version())
 	assert.False(t, node.IsOffline(20*time.Second))
 
-	node, err = tx.GetNodeByName("buzz")
+	node, err = tx.GetNodeByName(context.Background(), "buzz")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 }
@@ -64,7 +65,7 @@ func TestNodeIsOutdated_SingleNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	outdated, err := tx.NodeIsOutdated()
+	outdated, err := tx.NodeIsOutdated(context.Background())
 	require.NoError(t, err)
 
 	assert.False(t, outdated)
@@ -77,7 +78,7 @@ func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	outdated, err := tx.NodeIsOutdated()
+	outdated, err := tx.NodeIsOutdated(context.Background())
 	require.NoError(t, err)
 
 	assert.False(t, outdated)
@@ -94,7 +95,7 @@ func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
 	err = tx.SetNodeVersion(id, version)
 	require.NoError(t, err)
 
-	outdated, err := tx.NodeIsOutdated()
+	outdated, err := tx.NodeIsOutdated(context.Background())
 	require.NoError(t, err)
 
 	assert.True(t, outdated)
@@ -111,7 +112,7 @@ func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
 	err = tx.SetNodeVersion(id, version)
 	require.NoError(t, err)
 
-	outdated, err := tx.NodeIsOutdated()
+	outdated, err := tx.NodeIsOutdated(context.Background())
 	require.NoError(t, err)
 
 	assert.False(t, outdated)
@@ -137,7 +138,7 @@ func TestRenameNode(t *testing.T) {
 	require.NoError(t, err)
 	err = tx.RenameNode("buzz", "rusp")
 	require.NoError(t, err)
-	node, err := tx.GetNodeByName("rusp")
+	node, err := tx.GetNodeByName(context.Background(), "rusp")
 	require.NoError(t, err)
 	assert.Equal(t, "rusp", node.Name)
 
@@ -161,10 +162,10 @@ func TestRemoveNode(t *testing.T) {
 	err = tx.RemoveNode(id)
 	require.NoError(t, err)
 
-	_, err = tx.GetNodeByName("buzz")
+	_, err = tx.GetNodeByName(context.Background(), "buzz")
 	assert.NoError(t, err)
 
-	_, err = tx.GetNodeByName("rusp")
+	_, err = tx.GetNodeByName(context.Background(), "rusp")
 	assert.True(t, response.IsNotFoundError(err))
 }
 
@@ -181,21 +182,21 @@ func TestSetNodePendingFlag(t *testing.T) {
 	require.NoError(t, err)
 
 	// Pending nodes are skipped from regular listing
-	_, err = tx.GetNodeByName("buzz")
+	_, err = tx.GetNodeByName(context.Background(), "buzz")
 	assert.True(t, response.IsNotFoundError(err))
-	nodes, err := tx.GetNodes()
+	nodes, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 
 	// But the key be retrieved with GetPendingNodeByAddress
-	node, err := tx.GetPendingNodeByAddress("1.2.3.4:666")
+	node, err := tx.GetPendingNodeByAddress(context.Background(), "1.2.3.4:666")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 
 	// Remove the pending flag
 	err = tx.SetNodePendingFlag(id, false)
 	require.NoError(t, err)
-	node, err = tx.GetNodeByName("buzz")
+	node, err = tx.GetNodeByName(context.Background(), "buzz")
 	require.NoError(t, err)
 	assert.Equal(t, id, node.ID)
 }
@@ -211,7 +212,7 @@ func TestSetNodeHeartbeat(t *testing.T) {
 	err = tx.SetNodeHeartbeat("1.2.3.4:666", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	nodes, err := tx.GetNodes()
+	nodes, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
@@ -227,7 +228,7 @@ func TestNodeIsEmpty_Containers(t *testing.T) {
 	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	message, err := tx.NodeIsEmpty(id)
+	message, err := tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "", message)
 
@@ -236,14 +237,14 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `, id)
 	require.NoError(t, err)
 
-	message, err = tx.NodeIsEmpty(id)
+	message, err = tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following containers: foo", message)
 
 	err = tx.ClearNode(id)
 	require.NoError(t, err)
 
-	message, err = tx.NodeIsEmpty(id)
+	message, err = tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "", message)
 }
@@ -266,7 +267,7 @@ INSERT INTO images (id, fingerprint, filename, size, architecture, upload_date, 
 INSERT INTO images_nodes(image_id, node_id) VALUES(1, ?)`, id)
 	require.NoError(t, err)
 
-	message, err := tx.NodeIsEmpty(id)
+	message, err := tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following images: abc", message)
 
@@ -275,7 +276,7 @@ INSERT INTO images_nodes(image_id, node_id) VALUES(1, ?)`, id)
 INSERT INTO images_nodes(image_id, node_id) VALUES(1, 1)`)
 	require.NoError(t, err)
 
-	message, err = tx.NodeIsEmpty(id)
+	message, err = tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "", message)
 }
@@ -297,7 +298,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id, de
   VALUES ('data', 1, ?, ?, 1, '')`, id, db.StoragePoolVolumeTypeCustom)
 	require.NoError(t, err)
 
-	message, err := tx.NodeIsEmpty(id)
+	message, err := tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following custom volumes: data", message)
 }
@@ -317,7 +318,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
+	name, err := tx.GetNodeWithLeastInstances(context.Background(), nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -341,7 +342,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
+	name, err := tx.GetNodeWithLeastInstances(context.Background(), nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -361,7 +362,7 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, operationtype.InstanceCreate)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
+	name, err := tx.GetNodeWithLeastInstances(context.Background(), nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -390,7 +391,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	require.NoError(t, err)
 
 	// The local member is returned despite it has more containers.
-	name, err := tx.GetNodeWithLeastInstances([]int{localArch}, -1, "", nil)
+	name, err := tx.GetNodeWithLeastInstances(context.Background(), []int{localArch}, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }
@@ -402,23 +403,23 @@ func TestUpdateNodeFailureDomain(t *testing.T) {
 	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	domain, err := tx.GetNodeFailureDomain(id)
+	domain, err := tx.GetNodeFailureDomain(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "default", domain)
 
-	assert.NoError(t, tx.UpdateNodeFailureDomain(id, "foo"))
+	assert.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id, "foo"))
 
-	domain, err = tx.GetNodeFailureDomain(id)
+	domain, err = tx.GetNodeFailureDomain(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", domain)
 
-	domains, err := tx.GetNodesFailureDomains()
+	domains, err := tx.GetNodesFailureDomains(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 1}, domains)
 
-	assert.NoError(t, tx.UpdateNodeFailureDomain(id, "default"))
+	assert.NoError(t, tx.UpdateNodeFailureDomain(context.Background(), id, "default"))
 
-	domains, err = tx.GetNodesFailureDomains()
+	domains, err = tx.GetNodesFailureDomains(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]uint64{"0.0.0.0": 0, "1.2.3.4:666": 0}, domains)
 }
@@ -444,7 +445,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `, id)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, testArch, "", nil)
+	name, err := tx.GetNodeWithLeastInstances(context.Background(), nil, testArch, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }

@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestSelectObjects_Error(t *testing.T) {
 			stmt, err := tx.Prepare(c.query)
 			require.NoError(t, err)
 
-			err = query.SelectObjects(stmt, c.dest)
+			err = query.SelectObjects(context.TODO(), stmt, c.dest)
 			assert.EqualError(t, err, c.error)
 		})
 	}
@@ -60,7 +61,7 @@ func TestSelectObjects(t *testing.T) {
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
 	require.NoError(t, err)
 
-	err = query.SelectObjects(stmt, dest, "bar")
+	err = query.SelectObjects(context.TODO(), stmt, dest, "bar")
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, object.ID)
@@ -119,7 +120,7 @@ func TestUpsertObject_Insert(t *testing.T) {
 	}
 
 	sql := "SELECT id, name FROM test WHERE name=?"
-	err = query.Scan(tx, sql, dest, "egg")
+	err = query.Scan(context.TODO(), tx, sql, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, object.ID)
@@ -151,7 +152,7 @@ func TestUpsertObject_Update(t *testing.T) {
 	sql := "SELECT id, name FROM test WHERE name=?"
 	require.NoError(t, err)
 
-	err = query.Scan(tx, sql, dest, "egg")
+	err = query.Scan(context.TODO(), tx, sql, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, object.ID)

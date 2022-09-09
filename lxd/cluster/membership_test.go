@@ -104,8 +104,8 @@ func TestBootstrap(t *testing.T) {
 	require.NoError(t, err)
 
 	// The node-local database has now an entry in the raft_nodes table
-	err = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.GetRaftNodes()
+	err = state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodes, err := tx.GetRaftNodes(ctx)
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
 		assert.Equal(t, uint64(1), nodes[0].ID)
@@ -116,7 +116,7 @@ func TestBootstrap(t *testing.T) {
 
 	// The cluster database has now an entry in the nodes table
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
 		assert.Equal(t, "buzz", nodes[0].Name)
@@ -417,7 +417,7 @@ func TestJoin(t *testing.T) {
 
 	// The node has gone from the cluster db.
 	err = targetState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
 		assert.Len(t, nodes, 1)
 		return nil
@@ -438,7 +438,7 @@ type membershipFixtures struct {
 
 // Set core.https_address to the given value.
 func (h *membershipFixtures) CoreAddress(address string) {
-	err := h.state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config := map[string]string{
 			"core.https_address": address,
 		}
@@ -450,7 +450,7 @@ func (h *membershipFixtures) CoreAddress(address string) {
 
 // Set cluster.https_address to the given value.
 func (h *membershipFixtures) ClusterAddress(address string) {
-	err := h.state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config := map[string]string{
 			"cluster.https_address": address,
 		}
@@ -462,7 +462,7 @@ func (h *membershipFixtures) ClusterAddress(address string) {
 
 // Add the given address to the raft_nodes table.
 func (h *membershipFixtures) RaftNode(address string) {
-	err := h.state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		_, err := tx.CreateRaftNode(address, "rusp")
 		return err
 	})
@@ -472,9 +472,9 @@ func (h *membershipFixtures) RaftNode(address string) {
 // Get the current list of the raft nodes in the raft_nodes table.
 func (h *membershipFixtures) RaftNodes() []db.RaftNode {
 	var nodes []db.RaftNode
-	err := h.state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	require.NoError(h.t, err)
