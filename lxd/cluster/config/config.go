@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -23,7 +24,7 @@ type Config struct {
 
 // Load loads a new Config object with the current cluster configuration
 // values fetched from the database.
-func Load(tx *db.ClusterTx) (*Config, error) {
+func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {

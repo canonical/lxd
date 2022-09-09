@@ -316,7 +316,7 @@ func (c *ClusterTx) GetNodeByName(ctx context.Context, name string) (NodeInfo, e
 
 // GetLocalNodeName returns the name of the node this method is invoked on.
 // Usually you should not use this function directly but instead use the cached State.ServerName value.
-func (c *ClusterTx) GetLocalNodeName() (string, error) {
+func (c *ClusterTx) GetLocalNodeName(ctx context.Context) (string, error) {
 	stmt := "SELECT name FROM nodes WHERE id=?"
 	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {
@@ -334,7 +334,7 @@ func (c *ClusterTx) GetLocalNodeName() (string, error) {
 }
 
 // GetLocalNodeAddress returns the address of the node this method is invoked on.
-func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
+func (c *ClusterTx) GetLocalNodeAddress(ctx context.Context) (string, error) {
 	stmt := "SELECT address FROM nodes WHERE id=?"
 	addresses, err := query.SelectStrings(c.tx, stmt, c.nodeID)
 	if err != nil {
@@ -402,7 +402,7 @@ func (c *ClusterTx) GetNodes(ctx context.Context) ([]NodeInfo, error) {
 //
 // Since there's always at least one node row, even when not-clustered, the
 // return value is greater than zero.
-func (c *ClusterTx) GetNodesCount() (int, error) {
+func (c *ClusterTx) GetNodesCount(ctx context.Context) (int, error) {
 	count, err := query.Count(c.tx, "nodes", "")
 	if err != nil {
 		return 0, fmt.Errorf("failed to count existing nodes: %w", err)
@@ -414,7 +414,7 @@ func (c *ClusterTx) GetNodesCount() (int, error) {
 // RenameNode changes the name of an existing node.
 //
 // Return an error if a node with the same name already exists.
-func (c *ClusterTx) RenameNode(old, new string) error {
+func (c *ClusterTx) RenameNode(ctx context.Context, old string, new string) error {
 	count, err := query.Count(c.tx, "nodes", "name=?", new)
 	if err != nil {
 		return fmt.Errorf("failed to check existing nodes: %w", err)
@@ -1023,7 +1023,7 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 }
 
 // ClearNode removes any instance or image associated with this node.
-func (c *ClusterTx) ClearNode(id int64) error {
+func (c *ClusterTx) ClearNode(ctx context.Context, id int64) error {
 	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err
@@ -1064,7 +1064,7 @@ func (c *ClusterTx) ClearNode(id int64) error {
 // GetNodeOfflineThreshold returns the amount of time that needs to elapse after
 // which a series of unsuccessful heartbeat will make the node be considered
 // offline.
-func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
+func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration, error) {
 	threshold := time.Duration(DefaultOfflineThreshold) * time.Second
 	values, err := query.SelectStrings(
 		c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")

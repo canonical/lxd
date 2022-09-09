@@ -29,7 +29,7 @@ func ClusterGroupToAPI(clusterGroup *cluster.ClusterGroup, nodes []string) *api.
 }
 
 // GetClusterGroupNodes returns a list of nodes of the given cluster group.
-func (c *ClusterTx) GetClusterGroupNodes(groupName string) ([]string, error) {
+func (c *ClusterTx) GetClusterGroupNodes(ctx context.Context, groupName string) ([]string, error) {
 	q := `SELECT nodes.name FROM nodes_cluster_groups
 JOIN nodes ON nodes.id = nodes_cluster_groups.node_id
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id
@@ -40,7 +40,7 @@ WHERE cluster_groups.name = ?`
 
 // GetClusterGroupURIs returns all available ClusterGroup URIs.
 // generator: ClusterGroup URIs
-func (c *ClusterTx) GetClusterGroupURIs(filter cluster.ClusterGroupFilter) ([]string, error) {
+func (c *ClusterTx) GetClusterGroupURIs(ctx context.Context, filter cluster.ClusterGroupFilter) ([]string, error) {
 	var args []any
 	var sql string
 	if filter.Name != nil && filter.ID == nil {
@@ -111,7 +111,7 @@ func (c *ClusterTx) RemoveNodeFromClusterGroup(ctx context.Context, groupName st
 }
 
 //GetClusterGroupsWithNode returns a list of cluster group names the given node belongs to.
-func (c *ClusterTx) GetClusterGroupsWithNode(nodeName string) ([]string, error) {
+func (c *ClusterTx) GetClusterGroupsWithNode(ctx context.Context, nodeName string) ([]string, error) {
 	q := `SELECT cluster_groups.name FROM nodes_cluster_groups
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id
 JOIN nodes ON nodes.id = nodes_cluster_groups.node_id

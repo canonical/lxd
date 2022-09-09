@@ -20,7 +20,7 @@ type Config struct {
 // ConfigLoad loads a new Config object with the current node-local configuration
 // values fetched from the database. An optional list of config value triggers
 // can be passed, each config key must have at most one trigger.
-func ConfigLoad(tx *db.NodeTx) (*Config, error) {
+func ConfigLoad(ctx context.Context, tx *db.NodeTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {

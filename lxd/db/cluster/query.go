@@ -33,7 +33,7 @@ func updateNodeVersion(tx *sql.Tx, address string, apiExtensions int) error {
 
 // Return the number of rows in the nodes table that have their address column
 // set to '0.0.0.0'.
-func selectUnclusteredNodesCount(tx *sql.Tx) (int, error) {
+func selectUnclusteredNodesCount(ctx context.Context, tx *sql.Tx) (int, error) {
 	return query.Count(tx, "nodes", "address='0.0.0.0'")
 }
 

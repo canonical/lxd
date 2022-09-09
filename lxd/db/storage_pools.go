@@ -20,7 +20,7 @@ var StorageRemoteDriverNames func() []string
 
 // GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
-func (c *ClusterTx) GetStoragePoolsLocalConfig() (map[string]map[string]string, error) {
+func (c *ClusterTx) GetStoragePoolsLocalConfig(ctx context.Context) (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 }
 
 // GetStoragePoolID returns the ID of the pool with the given name.
-func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
+func (c *ClusterTx) GetStoragePoolID(ctx context.Context, name string) (int64, error) {
 	stmt := "SELECT id FROM storage_pools WHERE name=?"
 	ids, err := query.SelectIntegers(c.tx, stmt, name)
 	if err != nil {
@@ -63,7 +63,7 @@ func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
 }
 
 // GetStoragePoolDriver returns the driver of the pool with the given ID.
-func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
+func (c *ClusterTx) GetStoragePoolDriver(ctx context.Context, id int64) (string, error) {
 	stmt := "SELECT driver FROM storage_pools WHERE id=?"
 	drivers, err := query.SelectStrings(c.tx, stmt, id)
 	if err != nil {
