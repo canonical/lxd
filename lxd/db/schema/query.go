@@ -13,7 +13,7 @@ import (
 
 // DoesSchemaTableExist return whether the schema table is present in the
 // database.
-func DoesSchemaTableExist(tx *sql.Tx) (bool, error) {
+func DoesSchemaTableExist(ctx context.Context, tx *sql.Tx) (bool, error) {
 	statement := `
 SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 `
@@ -39,7 +39,7 @@ SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 }
 
 // Return all versions in the schema table, in increasing order.
-func selectSchemaVersions(tx *sql.Tx) ([]int, error) {
+func selectSchemaVersions(ctx context.Context, tx *sql.Tx) ([]int, error) {
 	statement := `
 SELECT version FROM schema ORDER BY version
 `
@@ -48,7 +48,7 @@ SELECT version FROM schema ORDER BY version
 
 // Return a list of SQL statements that can be used to create all tables in the
 // database.
-func selectTablesSQL(tx *sql.Tx) ([]string, error) {
+func selectTablesSQL(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	statement := `
 SELECT sql FROM sqlite_master WHERE
   type IN ('table', 'index', 'view', 'trigger') AND

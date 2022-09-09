@@ -3,13 +3,15 @@
 package db
 
 import (
+	"context"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // GetNodesWithOperations returns a list of nodes that have operations.
-func (c *ClusterTx) GetNodesWithOperations(project string) ([]string, error) {
+func (c *ClusterTx) GetNodesWithOperations(ctx context.Context, project string) ([]string, error) {
 	stmt := `
 SELECT DISTINCT nodes.address
   FROM operations
@@ -21,7 +23,7 @@ SELECT DISTINCT nodes.address
 }
 
 // GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.
-func (c *ClusterTx) GetOperationsOfType(projectName string, opType operationtype.Type) ([]cluster.Operation, error) {
+func (c *ClusterTx) GetOperationsOfType(ctx context.Context, projectName string, opType operationtype.Type) ([]cluster.Operation, error) {
 	var ops []cluster.Operation
 
 	stmt := `
