@@ -164,7 +164,7 @@ func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 		return nil
 	}
 
-	config, err := query.SelectConfig(tx, "config", "")
+	config, err := query.SelectConfig(ctx, tx, "config", "")
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ ALTER TABLE raft_nodes ADD COLUMN role INTEGER NOT NULL DEFAULT 0;
 // Copy core.https_address to cluster.https_address in case this node is
 // clustered.
 func updateFromV37(ctx context.Context, tx *sql.Tx) error {
-	count, err := query.Count(tx, "raft_nodes", "")
+	count, err := query.Count(ctx, tx, "raft_nodes", "")
 	if err != nil {
 		return fmt.Errorf("Fetch count of Raft nodes: %w", err)
 	}

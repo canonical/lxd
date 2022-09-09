@@ -14,7 +14,7 @@ func (n *Node) GetAppliedPatches() ([]string, error) {
 	var response []string
 	err := query.Transaction(context.TODO(), n.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		response, err = query.SelectStrings(tx, "SELECT name FROM patches")
+		response, err = query.SelectStrings(ctx, tx, "SELECT name FROM patches")
 		return err
 	})
 	if err != nil {

@@ -141,7 +141,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			targetNodeOffline = node.IsOffline(s.GlobalConfig.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.GetNodeAddressOfInstance(projectName, name, instanceType)
+			address, err := tx.GetNodeAddressOfInstance(ctx, projectName, name, instanceType)
 			if err != nil {
 				return fmt.Errorf("Failed to get address of instance's member: %w", err)
 			}
@@ -556,7 +556,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		sourceAddress, err = tx.GetLocalNodeAddress()
+		sourceAddress, err = tx.GetLocalNodeAddress(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to get local member address: %w", err)
 		}

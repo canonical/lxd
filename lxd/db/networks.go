@@ -21,7 +21,7 @@ import (
 // node-specific config values on the local member (i.e. the ones where node_id
 // equals the ID of the local member).
 func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[string]string, error) {
-	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
+	names, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM networks")
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +29,7 @@ func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[
 	networks := make(map[string]map[string]string, len(names))
 	for _, name := range names {
 		table := "networks_config JOIN networks ON networks.id=networks_config.network_id"
-		config, err := query.SelectConfig(
-			c.tx, table, "networks.name=? AND networks_config.node_id=?",
+		config, err := query.SelectConfig(ctx, c.tx, table, "networks.name=? AND networks_config.node_id=?",
 			name, c.nodeID)
 		if err != nil {
 			return nil, err
@@ -158,7 +157,7 @@ func (c *ClusterTx) getCreatedNetworks(ctx context.Context, projectName string) 
 	// Populate config.
 	for projectName, networks := range projectNetworks {
 		for networkID, network := range networks {
-			networkConfig, err := query.SelectConfig(c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
+			networkConfig, err := query.SelectConfig(ctx, c.tx, "networks_config", "network_id=? AND (node_id=? OR node_id IS NULL)", networkID, c.nodeID)
 			if err != nil {
 				return nil, err
 			}
@@ -184,7 +183,7 @@ func (c *ClusterTx) getCreatedNetworks(ctx context.Context, projectName string) 
 // GetNetworkID returns the ID of the network with the given name.
 func (c *ClusterTx) GetNetworkID(ctx context.Context, projectName string, name string) (int64, error) {
 	stmt := "SELECT id FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, projectName, name)
+	ids, err := query.SelectIntegers(ctx, c.tx, stmt, projectName, name)
 	if err != nil {
 		return -1, err
 	}
@@ -257,7 +256,7 @@ SELECT nodes.name FROM nodes
   LEFT JOIN networks ON networks_nodes.network_id = networks.id
 WHERE networks.id = ? AND networks.state = ?
 `
-	defined, err := query.SelectStrings(c.tx, stmt, networkID, networkPending)
+	defined, err := query.SelectStrings(ctx, c.tx, stmt, networkID, networkPending)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +275,7 @@ WHERE networks.id = ? AND networks.state = ?
 
 	configs := map[string]map[string]string{}
 	for _, node := range nodes {
-		config, err := query.SelectConfig(c.tx, "networks_config", "node_id=?", node.ID)
+		config, err := query.SelectConfig(ctx, c.tx, "networks_config", "node_id=?", node.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -345,7 +344,7 @@ func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, proje
 	}
 
 	// Check that no network entry for this node and network exists yet.
-	count, err = query.Count(c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
+	count, err = query.Count(ctx, c.tx, "networks_nodes", "network_id=? AND node_id=?", networkID, nodeInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -481,7 +480,7 @@ func (c *ClusterTx) NetworkNodes(ctx context.Context, networkID int64) (map[int6
 func (c *ClusterTx) GetNetworkURIs(ctx context.Context, projectID int, project string) ([]string, error) {
 	sql := `SELECT networks.name from networks WHERE networks.project_id = ?`
 
-	names, err := query.SelectStrings(c.tx, sql, projectID)
+	names, err := query.SelectStrings(ctx, c.tx, sql, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
 	}

@@ -427,7 +427,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		var config *clusterConfig.Config
 		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			config, err = clusterConfig.Load(tx)
+			config, err = clusterConfig.Load(ctx, tx)
 			return err
 		})
 		if err != nil {
@@ -548,14 +548,14 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newNodeConfig *node.Config
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		newNodeConfig, err = node.ConfigLoad(tx)
+		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load node config: %w", err)
 		}
 
 		// We currently don't allow changing the cluster.https_address once it's set.
 		if clustered {
-			curConfig, err := tx.Config()
+			curConfig, err := tx.Config(ctx)
 			if err != nil {
 				return fmt.Errorf("Cannot fetch node config from database: %w", err)
 			}
@@ -628,7 +628,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	var newClusterConfig *clusterConfig.Config
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		newClusterConfig, err = clusterConfig.Load(tx)
+		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to load cluster config: %w", err)
 		}

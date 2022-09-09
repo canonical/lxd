@@ -33,7 +33,7 @@ SELECT images.fingerprint
   JOIN images ON images.id = images_nodes.image_id
  WHERE node_id = ?
 `
-	return query.SelectStrings(c.tx, q, c.nodeID)
+	return query.SelectStrings(ctx, c.tx, q, c.nodeID)
 }
 
 // GetImageSource returns the image source with the given ID.
@@ -114,7 +114,7 @@ func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, cre
 	image.UploadedAt = *upload
 
 	// Get the properties
-	properties, err := query.SelectConfig(c.tx, "images_properties", "image_id=?", id)
+	properties, err := query.SelectConfig(ctx, c.tx, "images_properties", "image_id=?", id)
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ SELECT profiles.name FROM profiles
 	JOIN projects ON profiles.project_id = projects.id
 WHERE images_profiles.image_id = ? AND projects.name = ?
 `
-	profiles, err := query.SelectStrings(c.tx, q, id, project)
+	profiles, err := query.SelectStrings(ctx, c.tx, q, id, project)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ SELECT fingerprint
 			project = "default"
 		}
 
-		fingerprints, err = query.SelectStrings(tx.tx, q, project)
+		fingerprints, err = query.SelectStrings(ctx, tx.tx, q, project)
 		return err
 	})
 	if err != nil {
@@ -322,7 +322,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 	var fingerprints []string
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		fingerprints, err = query.SelectStrings(tx.tx, q, args...)
+		fingerprints, err = query.SelectStrings(ctx, tx.tx, q, args...)
 		return err
 	})
 	if err != nil {
@@ -352,7 +352,7 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 			project = "default"
 		}
 
-		count, err := query.Count(tx.tx, table, where, project, fingerprint)
+		count, err := query.Count(ctx, tx.tx, table, where, project, fingerprint)
 		if err != nil {
 			return err
 		}
@@ -384,7 +384,7 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 			project = "default"
 		}
 
-		count, err := query.Count(tx.tx, table, where, project, fingerprint)
+		count, err := query.Count(ctx, tx.tx, table, where, project, fingerprint)
 		if err != nil {
 			return err
 		}
@@ -480,7 +480,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 		return -1, nil, fmt.Errorf("Fill image details: %w", err)
 	}
 
-	err = c.imageFillProfiles(object.ID, &image, profileProject)
+	err = c.imageFillProfiles(ctx, object.ID, &image, profileProject)
 	if err != nil {
 		return -1, nil, fmt.Errorf("Fill image profiles: %w", err)
 	}
@@ -608,17 +608,17 @@ WHERE images.fingerprint = ?
 	var addresses []string  // Addresses of online nodes with the image
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		offlineThreshold, err := tx.GetNodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return err
 		}
 
-		localAddress, err = tx.GetLocalNodeAddress()
+		localAddress, err = tx.GetLocalNodeAddress(ctx)
 		if err != nil {
 			return err
 		}
 
-		allAddresses, err := query.SelectStrings(tx.tx, stmt, fingerprint)
+		allAddresses, err := query.SelectStrings(ctx, tx.tx, stmt, fingerprint)
 		if err != nil {
 			return err
 		}
@@ -706,7 +706,7 @@ SELECT images_aliases.name
 			project = "default"
 		}
 
-		names, err = query.SelectStrings(tx.tx, q, project)
+		names, err = query.SelectStrings(ctx, tx.tx, q, project)
 		return err
 	})
 	if err != nil {
@@ -1069,7 +1069,7 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	var ids []int
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		ids, err = query.SelectIntegers(tx.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
+		ids, err = query.SelectIntegers(ctx, tx.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
 		return err
 	})
 	if err != nil {
@@ -1099,7 +1099,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		poolNames, err = query.SelectStrings(tx.tx, q, args...)
+		poolNames, err = query.SelectStrings(ctx, tx.tx, q, args...)
 		return err
 	})
 	if err != nil {
@@ -1216,7 +1216,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		offlineThreshold, err := tx.GetNodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return err
 		}
@@ -1224,9 +1224,9 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdat
 		var allAddresses []string
 
 		if autoUpdate == nil {
-			allAddresses, err = query.SelectStrings(tx.tx, stmt, fingerprint)
+			allAddresses, err = query.SelectStrings(ctx, tx.tx, stmt, fingerprint)
 		} else {
-			allAddresses, err = query.SelectStrings(tx.tx, stmt, fingerprint, autoUpdate)
+			allAddresses, err = query.SelectStrings(ctx, tx.tx, stmt, fingerprint, autoUpdate)
 		}
 
 		if err != nil {

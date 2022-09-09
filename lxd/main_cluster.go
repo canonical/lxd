@@ -133,7 +133,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 	var nodes []db.RaftNode
 	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}

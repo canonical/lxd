@@ -366,7 +366,7 @@ JOIN nodes ON nodes.id = nodes_cluster_groups.node_id
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id
 WHERE cluster_groups.name = ?`
 
-	return query.SelectStrings(c.tx, q, groupName)
+	return query.SelectStrings(ctx, c.tx, q, groupName)
 }
 
 // GetClusterGroupURIs returns all available ClusterGroup URIs.
@@ -388,7 +388,7 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
-	names, err := query.SelectStrings(c.tx, sql, args...)
+	names, err := query.SelectStrings(ctx, c.tx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +448,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id
 JOIN nodes ON nodes.id = nodes_cluster_groups.node_id
 WHERE nodes.name = ?`
 
-	return query.SelectStrings(c.tx, q, nodeName)
+	return query.SelectStrings(ctx, c.tx, q, nodeName)
 }
 
 // ToAPI returns a LXD API entry.

@@ -561,12 +561,12 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		membersWithOps, err = tx.GetNodesWithOperations(projectName)
+		membersWithOps, err = tx.GetNodesWithOperations(ctx, projectName)
 		if err != nil {
 			return fmt.Errorf("Failed getting members with operations: %w", err)
 		}
 
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
@@ -685,7 +685,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	var nodes []db.NodeInfo
 	memberOps := make(map[string]map[string]dbCluster.Operation)
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
@@ -695,7 +695,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 			return fmt.Errorf("Failed getting members: %w", err)
 		}
 
-		ops, err := tx.GetOperationsOfType(projectName, opType)
+		ops, err := tx.GetOperationsOfType(ctx, projectName, opType)
 		if err != nil {
 			return fmt.Errorf("Failed getting operations for project %q and type %d: %w", projectName, opType, err)
 		}
@@ -1135,7 +1135,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 
 	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get offline threshold.
-		offlineThreshold, err := tx.GetNodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return fmt.Errorf("Load offline threshold config: %w", err)
 		}

@@ -16,7 +16,7 @@ func ResolveWarningsByLocalNodeOlderThan(dbCluster *db.Cluster, date time.Time) 
 	var localName string
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func ResolveWarningsByLocalNodeAndType(dbCluster *db.Cluster, typeCode warningty
 	var localName string
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func ResolveWarningsByLocalNodeAndProjectAndType(dbCluster *db.Cluster, projectN
 	var localName string
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster,
 	var localName string
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -261,7 +261,7 @@ func DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(dbCluster *db.Cluster, 
 	var localName string
 
 	err = dbCluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

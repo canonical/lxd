@@ -520,7 +520,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Can't us d.State().GlobalConfig.TrustPassword() here as global config is not yet updated.
 	var secret string
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(tx)
+		config, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}

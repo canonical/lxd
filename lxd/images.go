@@ -1647,7 +1647,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	var imageVolumes []string
 
 	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -2080,7 +2080,7 @@ func pruneLeftoverImages(d *Daemon) {
 		// Check if dealing with shared image storage.
 		var storageImages string
 		err := d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			nodeConfig, err := node.ConfigLoad(tx)
+			nodeConfig, err := node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return err
 			}
@@ -2119,7 +2119,7 @@ func pruneLeftoverImages(d *Daemon) {
 		var images []string
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			images, err = tx.GetLocalImagesFingerprints()
+			images, err = tx.GetLocalImagesFingerprints(ctx)
 			return err
 		})
 		if err != nil {
@@ -4005,7 +4005,7 @@ func imageSyncBetweenNodes(d *Daemon, r *http.Request, project string, fingerpri
 
 		// -1 means that we want to replicate the image on all nodes
 		if desiredSyncNodeCount == -1 {
-			nodesCount, err := tx.GetNodesCount()
+			nodesCount, err := tx.GetNodesCount(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed to get the number of nodes: %w", err)
 			}

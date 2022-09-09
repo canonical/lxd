@@ -223,12 +223,12 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		return nil, err
 	}
 
-	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	networks, err := tx.GetNetworkURIs(ctx, project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	acls, err := tx.GetNetworkACLURIs(ctx, project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1013,7 +1013,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	networks, err := tx.GetNetworkURIs(ctx, project.ID, project.Name)
 	if err != nil {
 		return false, err
 	}
@@ -1022,7 +1022,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	acls, err := tx.GetNetworkACLURIs(ctx, project.ID, project.Name)
 	if err != nil {
 		return false, err
 	}
