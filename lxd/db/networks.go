@@ -576,7 +576,7 @@ func (c *Cluster) getNetworkByProjectAndName(projectName string, networkName str
 	var nodes map[int64]NetworkNode
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		networkID, networkState, networkType, network, err = c.getPartialNetworkByProjectAndName(tx, projectName, networkName, stateFilter)
+		networkID, networkState, networkType, network, err = c.getPartialNetworkByProjectAndName(ctx, tx, projectName, networkName, stateFilter)
 		if err != nil {
 			return err
 		}
@@ -598,7 +598,7 @@ func (c *Cluster) getNetworkByProjectAndName(projectName string, networkName str
 // getPartialNetworkByProjectAndName gets the network with the given project, name and state.
 // If stateFilter is -1, then a network can be in any state.
 // Returns network ID, network state, network type, and partially populated network info.
-func (c *Cluster) getPartialNetworkByProjectAndName(tx *ClusterTx, projectName string, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
+func (c *Cluster) getPartialNetworkByProjectAndName(ctx context.Context, tx *ClusterTx, projectName string, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
 	var err error
 	var networkID int64 = int64(-1)
 	var network api.Network
@@ -624,7 +624,7 @@ func (c *Cluster) getPartialNetworkByProjectAndName(tx *ClusterTx, projectName s
 
 	q.WriteString(" LIMIT 1")
 
-	err = tx.tx.QueryRow(q.String(), args...).Scan(&networkID, &network.Name, &network.Description, &networkState, &networkType)
+	err = tx.tx.QueryRowContext(ctx, q.String(), args...).Scan(&networkID, &network.Name, &network.Description, &networkState, &networkType)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return -1, -1, -1, nil, api.StatusErrorf(http.StatusNotFound, "Network not found")

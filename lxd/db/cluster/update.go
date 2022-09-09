@@ -1909,7 +1909,7 @@ CREATE TRIGGER storage_volumes_check_id
 	if count > 0 {
 		var maxID int64
 
-		row := tx.QueryRow("SELECT MAX(id) FROM storage_volumes_all LIMIT 1")
+		row := tx.QueryRowContext(ctx, "SELECT MAX(id) FROM storage_volumes_all LIMIT 1")
 		err = row.Scan(&maxID)
 		if err != nil {
 			return err

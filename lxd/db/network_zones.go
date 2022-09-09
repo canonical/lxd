@@ -135,7 +135,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 
 	var projectName string
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.tx.QueryRow(q, name).Scan(&id, &projectName, &zone.Description)
+		err := tx.tx.QueryRowContext(ctx, q, name).Scan(&id, &projectName, &zone.Description)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 	`
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &zone.Description)
+		err := tx.tx.QueryRowContext(ctx, q, projectName, name).Scan(&id, &zone.Description)
 		if err != nil {
 			return err
 		}
@@ -362,7 +362,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 
 	var entries string
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.tx.QueryRow(q, zone, name).Scan(&id, &record.Description, &entries)
+		err := tx.tx.QueryRowContext(ctx, q, zone, name).Scan(&id, &record.Description, &entries)
 		if err != nil {
 			return err
 		}
