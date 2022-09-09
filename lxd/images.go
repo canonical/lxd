@@ -1600,7 +1600,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 				err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					var err error
 
-					nodeInfo, err := tx.GetNodeByAddress(node)
+					nodeInfo, err := tx.GetNodeByAddress(ctx, node)
 					if err != nil {
 						return err
 					}
@@ -1761,7 +1761,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 		var nodeInfo db.NodeInfo
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			nodeInfo, err = tx.GetNodeByAddress(nodeAddress)
+			nodeInfo, err = tx.GetNodeByAddress(ctx, nodeAddress)
 			return err
 		})
 		if err != nil {
@@ -1935,7 +1935,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, source, err = tx.GetImageSource(id)
+		_, source, err = tx.GetImageSource(ctx, id)
 		return err
 	})
 	if err != nil {

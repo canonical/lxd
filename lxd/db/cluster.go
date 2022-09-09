@@ -71,13 +71,13 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 }
 
 //AddNodeToClusterGroup adds a given node to the given cluster group.
-func (c *ClusterTx) AddNodeToClusterGroup(groupName string, nodeName string) error {
-	groupID, err := cluster.GetClusterGroupID(context.TODO(), c.tx, groupName)
+func (c *ClusterTx) AddNodeToClusterGroup(ctx context.Context, groupName string, nodeName string) error {
+	groupID, err := cluster.GetClusterGroupID(ctx, c.tx, groupName)
 	if err != nil {
 		return fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
 
-	nodeInfo, err := c.GetNodeByName(nodeName)
+	nodeInfo, err := c.GetNodeByName(ctx, nodeName)
 	if err != nil {
 		return fmt.Errorf("Failed to get node info: %w", err)
 	}
@@ -91,13 +91,13 @@ func (c *ClusterTx) AddNodeToClusterGroup(groupName string, nodeName string) err
 }
 
 // RemoveNodeFromClusterGroup removes a given node from the given group name.
-func (c *ClusterTx) RemoveNodeFromClusterGroup(groupName string, nodeName string) error {
-	groupID, err := cluster.GetClusterGroupID(context.TODO(), c.tx, groupName)
+func (c *ClusterTx) RemoveNodeFromClusterGroup(ctx context.Context, groupName string, nodeName string) error {
+	groupID, err := cluster.GetClusterGroupID(ctx, c.tx, groupName)
 	if err != nil {
 		return fmt.Errorf("Failed to get cluster group ID: %w", err)
 	}
 
-	nodeInfo, err := c.GetNodeByName(nodeName)
+	nodeInfo, err := c.GetNodeByName(ctx, nodeName)
 	if err != nil {
 		return fmt.Errorf("Failed to get node info: %w", err)
 	}

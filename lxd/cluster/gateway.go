@@ -957,7 +957,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	// Get the names of the raft nodes from the global database.
 	if g.Cluster != nil {
 		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err := tx.GetNodes()
+			nodes, err := tx.GetNodes(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed loading cluster members: %w", err)
 			}

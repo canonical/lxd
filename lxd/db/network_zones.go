@@ -24,7 +24,7 @@ func (c *Cluster) GetNetworkZones(project string) ([]string, error) {
 	var zoneNames []string
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var zoneName string
 
 			err := scan(&zoneName)
@@ -54,7 +54,7 @@ func (c *Cluster) GetNetworkZoneKeys() (map[string]string, error) {
 
 	secrets := map[string]string{}
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var name string
 			var peer string
 			var secret string
@@ -97,7 +97,7 @@ func (c *Cluster) GetNetworksForZone(projectName string, zoneName string) ([]str
 	var networkNames []string
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var networkName string
 
 			err := scan(&networkName)
@@ -140,7 +140,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 			return err
 		}
 
-		err = networkZoneConfig(tx, id, &zone)
+		err = networkZoneConfig(ctx, tx, id, &zone)
 		if err != nil {
 			return fmt.Errorf("Failed loading config: %w", err)
 		}
@@ -179,7 +179,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 			return err
 		}
 
-		err = networkZoneConfig(tx, id, &zone)
+		err = networkZoneConfig(ctx, tx, id, &zone)
 		if err != nil {
 			return fmt.Errorf("Failed loading config: %w", err)
 		}
@@ -198,7 +198,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 }
 
 // networkZoneConfig populates the config map of the Network zone with the given ID.
-func networkZoneConfig(tx *ClusterTx, id int64, zone *api.NetworkZone) error {
+func networkZoneConfig(ctx context.Context, tx *ClusterTx, id int64, zone *api.NetworkZone) error {
 	q := `
 		SELECT key, value
 		FROM networks_zones_config
@@ -206,7 +206,7 @@ func networkZoneConfig(tx *ClusterTx, id int64, zone *api.NetworkZone) error {
 	`
 
 	zone.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -325,7 +325,7 @@ func (c *Cluster) GetNetworkZoneRecordNames(zone int64) ([]string, error) {
 
 	var recordNames []string
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var recordName string
 
 			err := scan(&recordName)
@@ -367,7 +367,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 			return err
 		}
 
-		err = networkZoneRecordConfig(tx, id, &record)
+		err = networkZoneRecordConfig(ctx, tx, id, &record)
 		if err != nil {
 			return fmt.Errorf("Failed loading config: %w", err)
 		}
@@ -392,7 +392,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 }
 
 // networkZoneRecordConfig populates the config map of the network zone record with the given ID.
-func networkZoneRecordConfig(tx *ClusterTx, id int64, record *api.NetworkZoneRecord) error {
+func networkZoneRecordConfig(ctx context.Context, tx *ClusterTx, id int64, record *api.NetworkZoneRecord) error {
 	q := `
 		SELECT key, value
 		FROM networks_zones_records_config
@@ -400,7 +400,7 @@ func networkZoneRecordConfig(tx *ClusterTx, id int64, record *api.NetworkZoneRec
 	`
 
 	record.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

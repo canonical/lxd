@@ -180,7 +180,7 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 			Project: &bucketProjectName,
 		}}
 
-		dbBuckets, err = tx.GetStoragePoolBuckets(memberSpecific, filters...)
+		dbBuckets, err = tx.GetStoragePoolBuckets(ctx, memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage buckets: %w", err)
 		}
@@ -296,7 +296,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 
 	var bucket *db.StorageBucket
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		return err
 	})
 	if err != nil {
@@ -521,7 +521,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 
 		var bucket *db.StorageBucket
 		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			bucket, err = tx.GetStoragePoolBucket(pool.ID(), bucketProjectName, memberSpecific, bucketName)
+			bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 			return err
 		})
 		if err != nil {
@@ -737,7 +737,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	var bucket *db.StorageBucket
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		return err
 	})
 	if err != nil {
@@ -747,7 +747,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	var dbBucketKeys []*db.StorageBucketKey
 
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(bucket.ID)
+		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(ctx, bucket.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage bucket keys: %w", err)
 		}
@@ -1001,12 +1001,12 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 
 	var bucketKey *db.StorageBucketKey
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err := tx.GetStoragePoolBucket(pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		bucket, err := tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		if err != nil {
 			return err
 		}
 
-		bucketKey, err = tx.GetStoragePoolBucketKey(bucket.ID, keyName)
+		bucketKey, err = tx.GetStoragePoolBucketKey(ctx, bucket.ID, keyName)
 		if err != nil {
 			return err
 		}

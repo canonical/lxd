@@ -310,7 +310,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
+			return tx.CreatePendingStoragePool(ctx, targetNode, req.Name, req.Driver, req.Config)
 		})
 		if err != nil {
 			if err == db.ErrAlreadyDefined {
@@ -421,7 +421,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		}
 
 		// Fetch the node-specific configs and check the pool is defined for all nodes.
-		configs, err = tx.GetStoragePoolNodeConfigs(poolID)
+		configs, err = tx.GetStoragePoolNodeConfigs(ctx, poolID)
 		if err != nil {
 			return err
 		}
@@ -929,7 +929,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Get all the volumes using the storage pool on this server.
 			// Only image volumes should remain now.
-			volumes, err := tx.GetStoragePoolVolumes(pool.ID(), true)
+			volumes, err := tx.GetStoragePoolVolumes(ctx, pool.ID(), true)
 			if err != nil {
 				return fmt.Errorf("Failed loading storage volumes: %w", err)
 			}

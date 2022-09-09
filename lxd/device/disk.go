@@ -277,7 +277,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 				var dbVolume *db.StorageVolume
 				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-					dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
 					return err
 				})
 				if err != nil {
@@ -543,7 +543,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 
 			var dbVolume *db.StorageVolume
 			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+				dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
 				return err
 			})
 			if err != nil {
@@ -1196,7 +1196,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1415,7 +1415,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	var err error
 	var dbVolume *db.StorageVolume
 	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(d.pool.ID(), projectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), projectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {

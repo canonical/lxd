@@ -48,7 +48,7 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]clu
 	`
 
 	snapshotIDs := []int{}
-	err := query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var id int
 		var expiry sql.NullTime
 

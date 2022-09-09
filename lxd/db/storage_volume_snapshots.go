@@ -75,7 +75,7 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(projectName string, volumeName str
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		volume, err := tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+		volume, err := tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 	var snapshots []StorageVolumeArgs
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var snap StorageVolumeArgs
 			var snapName string
 			var volName string

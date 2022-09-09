@@ -24,7 +24,7 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 	var aclNames []string
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var aclName string
 
 			err := scan(&aclName)
@@ -54,7 +54,7 @@ func (c *Cluster) GetNetworkACLIDsByNames(project string) (map[string]int64, err
 	acls := make(map[string]int64)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var aclID int64
 			var aclName string
 
@@ -100,7 +100,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 			return err
 		}
 
-		err = networkACLConfig(tx, id, &acl)
+		err = networkACLConfig(ctx, tx, id, &acl)
 		if err != nil {
 			return fmt.Errorf("Failed loading config: %w", err)
 		}
@@ -156,7 +156,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 }
 
 // networkACLConfig populates the config map of the Network ACL with the given ID.
-func networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
+func networkACLConfig(ctx context.Context, tx *ClusterTx, id int64, acl *api.NetworkACL) error {
 	q := `
 		SELECT key, value
 		FROM networks_acls_config
@@ -164,7 +164,7 @@ func networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
 	`
 
 	acl.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
