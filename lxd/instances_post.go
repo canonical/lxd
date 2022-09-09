@@ -1020,7 +1020,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchID, group, allowedGroups)
+			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, group, allowedGroups)
 			return err
 		})
 		if err != nil {

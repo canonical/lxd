@@ -158,7 +158,7 @@ func (c *ClusterTx) createWarning(ctx context.Context, object cluster.Warning) (
 	// Populate the statement arguments.
 	if object.Node != "" {
 		// Ensure node exists
-		_, err = c.GetNodeByName(object.Node)
+		_, err = c.GetNodeByName(ctx, object.Node)
 		if err != nil {
 			return -1, fmt.Errorf("Failed to get node: %w", err)
 		}

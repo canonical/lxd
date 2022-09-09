@@ -38,7 +38,7 @@ type StorageBucket struct {
 // If there are no buckets, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned. If memberSpecific is true, then the search is
 // restricted to buckets that belong to this member or belong to all members.
-func (c *ClusterTx) GetStoragePoolBuckets(memberSpecific bool, filters ...StorageBucketFilter) ([]*StorageBucket, error) {
+func (c *ClusterTx) GetStoragePoolBuckets(ctx context.Context, memberSpecific bool, filters ...StorageBucketFilter) ([]*StorageBucket, error) {
 	var q *strings.Builder = &strings.Builder{}
 	var args []any
 
@@ -120,7 +120,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(memberSpecific bool, filters ...Storag
 	var err error
 	var buckets []*StorageBucket
 
-	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucket StorageBucket
 
 		err := scan(&bucket.Project, &bucket.PoolName, &bucket.ID, &bucket.PoolID, &bucket.Name, &bucket.Description, &bucket.Location)
@@ -138,7 +138,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(memberSpecific bool, filters ...Storag
 
 	// Populate config.
 	for i := range buckets {
-		err = storagePoolBucketConfig(c, buckets[i].ID, &buckets[i].StorageBucket)
+		err = storagePoolBucketConfig(ctx, c, buckets[i].ID, &buckets[i].StorageBucket)
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +148,7 @@ func (c *ClusterTx) GetStoragePoolBuckets(memberSpecific bool, filters ...Storag
 }
 
 // storagePoolBucketConfig populates the config map of the Storage Bucket with the given ID.
-func storagePoolBucketConfig(tx *ClusterTx, bucketID int64, bucket *api.StorageBucket) error {
+func storagePoolBucketConfig(ctx context.Context, tx *ClusterTx, bucketID int64, bucket *api.StorageBucket) error {
 	q := `
 	SELECT
 		key,
@@ -158,7 +158,7 @@ func storagePoolBucketConfig(tx *ClusterTx, bucketID int64, bucket *api.StorageB
 	`
 
 	bucket.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -180,14 +180,14 @@ func storagePoolBucketConfig(tx *ClusterTx, bucketID int64, bucket *api.StorageB
 // GetStoragePoolBucket returns the Storage Bucket for the given Storage Pool ID, Project Name and Bucket Name.
 // If memberSpecific is true, then the search is restricted to buckets that belong to this member or belong
 // to all members.
-func (c *ClusterTx) GetStoragePoolBucket(poolID int64, projectName string, memberSpecific bool, bucketName string) (*StorageBucket, error) {
+func (c *ClusterTx) GetStoragePoolBucket(ctx context.Context, poolID int64, projectName string, memberSpecific bool, bucketName string) (*StorageBucket, error) {
 	filters := []StorageBucketFilter{{
 		PoolID:  &poolID,
 		Project: &projectName,
 		Name:    &bucketName,
 	}}
 
-	buckets, err := c.GetStoragePoolBuckets(memberSpecific, filters...)
+	buckets, err := c.GetStoragePoolBuckets(ctx, memberSpecific, filters...)
 	bucketsLen := len(buckets)
 	if (err == nil && bucketsLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket not found")
@@ -202,12 +202,12 @@ func (c *ClusterTx) GetStoragePoolBucket(poolID int64, projectName string, membe
 
 // GetStoragePoolLocalBucket returns the local Storage Bucket for the given bucket name.
 // The search is restricted to buckets that belong to this member.
-func (c *ClusterTx) GetStoragePoolLocalBucket(bucketName string) (*StorageBucket, error) {
+func (c *ClusterTx) GetStoragePoolLocalBucket(ctx context.Context, bucketName string) (*StorageBucket, error) {
 	filters := []StorageBucketFilter{{
 		Name: &bucketName,
 	}}
 
-	buckets, err := c.GetStoragePoolBuckets(true, filters...)
+	buckets, err := c.GetStoragePoolBuckets(ctx, true, filters...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (c *ClusterTx) GetStoragePoolLocalBucket(bucketName string) (*StorageBucket
 
 // GetStoragePoolLocalBucketByAccessKey returns the local Storage Bucket for the given bucket access key.
 // The search is restricted to buckets that belong to this member.
-func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(accessKey string) (*StorageBucket, error) {
+func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(ctx context.Context, accessKey string) (*StorageBucket, error) {
 	var q *strings.Builder = &strings.Builder{}
 
 	q.WriteString(`
@@ -250,7 +250,7 @@ func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(accessKey string) (*Sto
 	var buckets []*StorageBucket
 	args := []any{c.nodeID, accessKey}
 
-	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucket StorageBucket
 
 		err := scan(&bucket.Project, &bucket.PoolName, &bucket.ID, &bucket.PoolID, &bucket.Name, &bucket.Description, &bucket.Location)
@@ -269,7 +269,7 @@ func (c *ClusterTx) GetStoragePoolLocalBucketByAccessKey(accessKey string) (*Sto
 	bucketsLen := len(buckets)
 	if bucketsLen == 1 {
 		// Populate config.
-		err = storagePoolBucketConfig(c, buckets[0].ID, &buckets[0].StorageBucket)
+		err = storagePoolBucketConfig(ctx, c, buckets[0].ID, &buckets[0].StorageBucket)
 		if err != nil {
 			return nil, err
 		}
@@ -435,7 +435,7 @@ type StorageBucketKey struct {
 // GetStoragePoolBucketKeys returns all storage buckets keys attached to a given storage bucket.
 // If there are no bucket keys, it returns an empty list and no error.
 // Accepts filters for narrowing down the results returned.
-func (c *ClusterTx) GetStoragePoolBucketKeys(bucketID int64, filters ...StorageBucketKeyFilter) ([]*StorageBucketKey, error) {
+func (c *ClusterTx) GetStoragePoolBucketKeys(ctx context.Context, bucketID int64, filters ...StorageBucketKeyFilter) ([]*StorageBucketKey, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []any{bucketID}
 
@@ -479,7 +479,7 @@ func (c *ClusterTx) GetStoragePoolBucketKeys(bucketID int64, filters ...StorageB
 	var err error
 	var bucketKeys []*StorageBucketKey
 
-	err = query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var bucketKey StorageBucketKey
 
 		err := scan(&bucketKey.ID, &bucketKey.Name, &bucketKey.Description, &bucketKey.Role, &bucketKey.AccessKey, &bucketKey.SecretKey)
@@ -499,12 +499,12 @@ func (c *ClusterTx) GetStoragePoolBucketKeys(bucketID int64, filters ...StorageB
 }
 
 // GetStoragePoolBucketKey returns the Storage Bucket Key for the given Bucket ID and Key Name.
-func (c *ClusterTx) GetStoragePoolBucketKey(bucketID int64, keyName string) (*StorageBucketKey, error) {
+func (c *ClusterTx) GetStoragePoolBucketKey(ctx context.Context, bucketID int64, keyName string) (*StorageBucketKey, error) {
 	filters := []StorageBucketKeyFilter{{
 		Name: &keyName,
 	}}
 
-	bucketKeys, err := c.GetStoragePoolBucketKeys(bucketID, filters...)
+	bucketKeys, err := c.GetStoragePoolBucketKeys(ctx, bucketID, filters...)
 	bucketKeysLen := len(bucketKeys)
 	if (err == nil && bucketKeysLen <= 0) || errors.Is(err, sql.ErrNoRows) {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage bucket key not found")
@@ -524,7 +524,7 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		// Check there isn't another bucket with the same access key on the local server.
-		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(ctx, info.AccessKey)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return err
 		} else if bucket != nil {
@@ -565,7 +565,7 @@ func (c *Cluster) CreateStoragePoolBucketKey(ctx context.Context, bucketID int64
 func (c *Cluster) UpdateStoragePoolBucketKey(ctx context.Context, bucketID int64, bucketKeyID int64, info *api.StorageBucketKeyPut) error {
 	return c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
 		// Check there isn't another bucket with the same access key on the local server.
-		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(info.AccessKey)
+		bucket, err := tx.GetStoragePoolLocalBucketByAccessKey(ctx, info.AccessKey)
 		if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 			return err
 		} else if bucket != nil && bucket.ID != bucketID {

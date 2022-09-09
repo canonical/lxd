@@ -206,7 +206,7 @@ func (c *Cluster) GetNetworkLoadBalancer(ctx context.Context, networkID int64, m
 }
 
 // networkLoadBalancerConfig populates the config map of the Network Load Balancer with the given ID.
-func networkLoadBalancerConfig(tx *ClusterTx, loadBalancerID int64, loadBalancer *api.NetworkLoadBalancer) error {
+func networkLoadBalancerConfig(ctx context.Context, tx *ClusterTx, loadBalancerID int64, loadBalancer *api.NetworkLoadBalancer) error {
 	q := `
 	SELECT
 		key,
@@ -216,7 +216,7 @@ func networkLoadBalancerConfig(tx *ClusterTx, loadBalancerID int64, loadBalancer
 	`
 
 	loadBalancer.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -259,7 +259,7 @@ func (c *Cluster) GetNetworkLoadBalancerListenAddresses(networkID int64, memberS
 	loadBalancers := make(map[int64]string)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var listenAddress string
 
@@ -283,7 +283,7 @@ func (c *Cluster) GetNetworkLoadBalancerListenAddresses(networkID int64, memberS
 // GetProjectNetworkLoadBalancerListenAddressesByUplink returns map of Network Load Balancer Listen Addresses
 // that belong to networks connected to the specified uplinkNetworkName.
 // Returns a map keyed on project name and network ID containing a slice of listen addresses.
-func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkNetworkName string) (map[string]map[int64][]string, error) {
+func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx context.Context, uplinkNetworkName string) (map[string]map[int64][]string, error) {
 	// As uplink networks can only be in default project, it is safe to look for networks that reference the
 	// specified uplinkNetworkName in their "network" config property.
 	q := `
@@ -300,7 +300,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkN
 	`
 	loadBalancers := make(map[string]map[int64][]string)
 
-	err := query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -332,7 +332,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkN
 // GetProjectNetworkLoadBalancerListenAddressesOnMember returns map of Network Load Balancer Listen Addresses that
 // belong to to this specific cluster member. Will not include load balancers that do not have a specific member.
 // Returns a map keyed on project name and network ID containing a slice of listen addresses.
-func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember() (map[string]map[int64][]string, error) {
+func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember(ctx context.Context) (map[string]map[int64][]string, error) {
 	q := `
 	SELECT
 		projects.name,
@@ -345,7 +345,7 @@ func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesOnMember() (map[
 	`
 	loadBalancers := make(map[string]map[int64][]string)
 
-	err := query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -410,7 +410,7 @@ func (c *Cluster) GetNetworkLoadBalancers(ctx context.Context, networkID int64, 
 	loadBalancers := make(map[int64]*api.NetworkLoadBalancer)
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
-		err = query.Scan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		err = query.Scan(ctx, tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var loadBalancerID int64 = int64(-1)
 			var backendsJSON, portsJSON string
 			var loadBalancer api.NetworkLoadBalancer
@@ -446,7 +446,7 @@ func (c *Cluster) GetNetworkLoadBalancers(ctx context.Context, networkID int64, 
 
 		// Populate config.
 		for loadBalancerID := range loadBalancers {
-			err = networkLoadBalancerConfig(tx, loadBalancerID, loadBalancers[loadBalancerID])
+			err = networkLoadBalancerConfig(ctx, tx, loadBalancerID, loadBalancers[loadBalancerID])
 			if err != nil {
 				return err
 			}

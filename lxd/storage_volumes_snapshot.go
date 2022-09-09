@@ -191,7 +191,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	var parentDBVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Ensure that the snapshot doesn't already exist.
-		snapDBVolume, err := tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, fmt.Sprintf("%s/%s", volumeName, req.Name), true)
+		snapDBVolume, err := tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, fmt.Sprintf("%s/%s", volumeName, req.Name), true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		} else if snapDBVolume != nil {
@@ -199,7 +199,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		}
 
 		// Get the parent volume so we can get the config.
-		parentDBVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		parentDBVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
 		if err != nil {
 			return err
 		}
@@ -399,7 +399,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		} else {
 			var vol *db.StorageVolume
 			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				vol, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, volume.Name, true)
+				vol, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volume.Name, true)
 				return err
 			})
 			if err != nil {
@@ -665,7 +665,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
 	if err != nil {
@@ -785,7 +785,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
 	if err != nil {
@@ -911,7 +911,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, fullSnapshotName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
 
@@ -1176,7 +1176,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				}
 			}
 
-			allVolumes, err := tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+			allVolumes, err := tx.GetStoragePoolVolumesWithType(ctx, db.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return fmt.Errorf("Failed getting volumes for auto custom volume snapshot task: %w", err)
 			}
@@ -1221,7 +1221,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			var onlineNodeIDs []int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get all the members.
-				nodes, err := tx.GetNodes()
+				nodes, err := tx.GetNodes(ctx)
 				if err != nil {
 					return err
 				}

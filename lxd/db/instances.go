@@ -305,7 +305,7 @@ func (c *Cluster) InstanceList(instanceFunc func(inst InstanceArgs, project api.
 
 // instanceConfigFill function loads config for all specified instances in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceConfigFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -344,7 +344,7 @@ func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int
 
 	q.WriteString(`)`)
 
-	return query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var key, value string
 
@@ -377,7 +377,7 @@ func (c *ClusterTx) instanceConfigFill(snapshotsMode bool, instanceArgs *map[int
 
 // instanceDevicesFill loads the device config for all instances specified in a single query and then updates
 // the entries in the instances map.
-func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceDevicesFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Don't use query parameters for the IN statement to workaround an issue in Dqlite (apparently)
@@ -424,7 +424,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 	q.WriteString(`)`)
 
-	return query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int
 		var deviceType cluster.DeviceType
 		var deviceName, key, value string
@@ -467,7 +467,7 @@ func (c *ClusterTx) instanceDevicesFill(snapshotsMode bool, instanceArgs *map[in
 
 // instanceProfiles loads the profile IDs to apply to an instance (in the application order) for all
 // instanceIDs in a single query and then updates the instanceApplyProfileIDs and profilesByID maps.
-func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
+func (c *ClusterTx) instanceProfilesFill(ctx context.Context, snapshotsMode bool, instanceArgs *map[int]InstanceArgs) error {
 	instances := *instanceArgs
 
 	// Get profiles referenced by instances.
@@ -512,7 +512,7 @@ func (c *ClusterTx) instanceProfilesFill(snapshotsMode bool, instanceArgs *map[i
 	profilesByID := make(map[int]*api.Profile)
 	instanceApplyProfileIDs := make(map[int64][]int, len(instances))
 
-	err := query.Scan(c.Tx(), q.String(), func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var instanceID int64
 		var profileID int
 
@@ -616,20 +616,20 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 	}
 
 	// Populate instance config.
-	err := c.instanceConfigFill(snapshotCount > 0, &instanceArgs)
+	err := c.instanceConfigFill(ctx, snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance config: %w", err)
 	}
 
 	// Populate instance devices.
-	err = c.instanceDevicesFill(snapshotCount > 0, &instanceArgs)
+	err = c.instanceDevicesFill(ctx, snapshotCount > 0, &instanceArgs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance devices: %w", err)
 	}
 
 	// Populate instance profiles if requested.
 	if fillProfiles {
-		err = c.instanceProfilesFill(snapshotCount > 0, &instanceArgs)
+		err = c.instanceProfilesFill(ctx, snapshotCount > 0, &instanceArgs)
 		if err != nil {
 			return nil, fmt.Errorf("Failed loading instance profiles: %w", err)
 		}
@@ -724,7 +724,7 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName str
 		return fmt.Errorf("Failed to get instance's ID: %w", err)
 	}
 
-	node, err := c.GetNodeByName(newNode)
+	node, err := c.GetNodeByName(ctx, newNode)
 	if err != nil {
 		return fmt.Errorf("Failed to get new node's info: %w", err)
 	}

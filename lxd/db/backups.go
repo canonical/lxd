@@ -303,7 +303,7 @@ func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName str
 	var backups []StoragePoolVolumeBackup
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var b StoragePoolVolumeBackup
 			var expiryTime sql.NullTime
 

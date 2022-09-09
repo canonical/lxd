@@ -45,7 +45,7 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 // GetNonPendingNetworkIDs returns a map associating each network name to its ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingNetworkIDs(ctx context.Context) (map[string]map[string]int64, error) {
 	type network struct {
 		id          int64
 		name        string
@@ -54,7 +54,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 
 	networks := []network{}
 	sql := "SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?"
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		n := network{}
 
 		err := scan(&n.id, &n.name, &n.projectName)
@@ -84,14 +84,14 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 
 // GetCreatedNetworks returns a map of api.Network associated to project and network ID.
 // Only networks that have are in state networkCreated are returned.
-func (c *ClusterTx) GetCreatedNetworks() (map[string]map[int64]api.Network, error) {
-	return c.getCreatedNetworks("")
+func (c *ClusterTx) GetCreatedNetworks(ctx context.Context) (map[string]map[int64]api.Network, error) {
+	return c.getCreatedNetworks(ctx, "")
 }
 
 // GetCreatedNetworksByProject returns a map of api.Network in a project associated to network ID.
 // Only networks that have are in state networkCreated are returned.
-func (c *ClusterTx) GetCreatedNetworksByProject(projectName string) (map[int64]api.Network, error) {
-	nets, err := c.getCreatedNetworks(projectName)
+func (c *ClusterTx) GetCreatedNetworksByProject(ctx context.Context, projectName string) (map[int64]api.Network, error) {
+	nets, err := c.getCreatedNetworks(ctx, projectName)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (c *ClusterTx) GetCreatedNetworksByProject(projectName string) (map[int64]a
 
 // getCreatedNetworks returns a map of api.Network associated to project and network ID.
 // Supports an optional projectName filter. If projectName is empty, all networks in created state are returned.
-func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64]api.Network, error) {
+func (c *ClusterTx) getCreatedNetworks(ctx context.Context, projectName string) (map[string]map[int64]api.Network, error) {
 	var sb strings.Builder
 	sb.WriteString(`SELECT projects.name, networks.id, networks.name, coalesce(networks.description, ''), networks.type, networks.state
 	FROM networks
@@ -165,7 +165,7 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 
 			network.Config = networkConfig
 
-			nodes, err := c.NetworkNodes(networkID)
+			nodes, err := c.NetworkNodes(ctx, networkID)
 			if err != nil {
 				return nil, err
 			}
@@ -243,9 +243,9 @@ func (c *ClusterTx) NetworkNodeJoin(networkID, nodeID int64) error {
 // nodes grouped by node name, for the given networkID.
 //
 // If the network is not defined on all nodes, an error is returned.
-func (c *ClusterTx) NetworkNodeConfigs(networkID int64) (map[string]map[string]string, error) {
+func (c *ClusterTx) NetworkNodeConfigs(ctx context.Context, networkID int64) (map[string]map[string]string, error) {
 	// Fetch all nodes.
-	nodes, err := c.GetNodes()
+	nodes, err := c.GetNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ WHERE networks.id = ? AND networks.state = ?
 }
 
 // CreatePendingNetwork creates a new pending network on the node with the given name.
-func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name string, netType NetworkType, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingNetwork(ctx context.Context, node string, projectName string, name string, netType NetworkType, conf map[string]string) error {
 	// First check if a network with the given name exists, and, if so, that it's in the pending state.
 	network := struct {
 		id      int64
@@ -298,7 +298,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 
 	sql := "SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	count := 0
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		// Ensure that there is at most one network with the given name.
 		if count != 0 {
 			return fmt.Errorf("More than one network exists with the given name")
@@ -339,7 +339,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	}
 
 	// Get the ID of the node with the given name.
-	nodeInfo, err := c.GetNodeByName(node)
+	nodeInfo, err := c.GetNodeByName(ctx, node)
 	if err != nil {
 		return err
 	}
@@ -445,7 +445,7 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 }
 
 // NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
-func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
+func (c *ClusterTx) NetworkNodes(ctx context.Context, networkID int64) (map[int64]NetworkNode, error) {
 	nodes := []NetworkNode{}
 
 	sql := `
@@ -453,7 +453,7 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 		JOIN networks_nodes ON networks_nodes.node_id = nodes.id
 		WHERE networks_nodes.network_id = ?
 	`
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		node := NetworkNode{}
 
 		err := scan(&node.ID, &node.Name, &node.State)
@@ -581,7 +581,7 @@ func (c *Cluster) getNetworkByProjectAndName(projectName string, networkName str
 			return err
 		}
 
-		nodes, err = c.networkPopulatePeerInfo(tx, networkID, network, networkState, networkType)
+		nodes, err = c.networkPopulatePeerInfo(ctx, tx, networkID, network, networkState, networkType)
 		if err != nil {
 			return err
 		}
@@ -638,20 +638,20 @@ func (c *Cluster) getPartialNetworkByProjectAndName(tx *ClusterTx, projectName s
 
 // networkPopulatePeerInfo takes a pointer to partially populated network info struct and enriches it.
 // Returns the network cluster member info.
-func (c *Cluster) networkPopulatePeerInfo(tx *ClusterTx, networkID int64, network *api.Network, networkState NetworkState, networkType NetworkType) (map[int64]NetworkNode, error) {
+func (c *Cluster) networkPopulatePeerInfo(ctx context.Context, tx *ClusterTx, networkID int64, network *api.Network, networkState NetworkState, networkType NetworkType) (map[int64]NetworkNode, error) {
 	var err error
 
 	// Populate Status and Type fields by converting from DB values.
 	network.Status = NetworkStateToAPIStatus(networkState)
 	networkFillType(network, networkType)
 
-	err = c.getNetworkConfig(tx, networkID, network)
+	err = c.getNetworkConfig(ctx, tx, networkID, network)
 	if err != nil {
 		return nil, err
 	}
 
 	// Populate Location field.
-	nodes, err := tx.NetworkNodes(networkID)
+	nodes, err := tx.NetworkNodes(ctx, networkID)
 	if err != nil {
 		return nil, err
 	}
@@ -731,7 +731,7 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 	}
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return c.getNetworkConfig(tx, id, &network)
+		return c.getNetworkConfig(ctx, tx, id, &network)
 	})
 	if err != nil {
 		return -1, nil, err
@@ -741,7 +741,7 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 }
 
 // getNetworkConfig populates the config map of the Network with the given ID.
-func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.Network) error {
+func (c *Cluster) getNetworkConfig(ctx context.Context, tx *ClusterTx, networkID int64, network *api.Network) error {
 	q := `
         SELECT key, value
         FROM networks_config
@@ -751,7 +751,7 @@ func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.
 
 	network.Config = map[string]string{}
 
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

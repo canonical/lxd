@@ -42,7 +42,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
-		projectNetworks, err = tx.GetCreatedNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to load all networks: %w", err)
 		}

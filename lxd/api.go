@@ -168,7 +168,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 			var err error
 			var bucket *db.StorageBucket
 			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				bucket, err = tx.GetStoragePoolLocalBucketByAccessKey(accessKey)
+				bucket, err = tx.GetStoragePoolLocalBucketByAccessKey(ctx, accessKey)
 				return err
 			})
 			if err != nil {
@@ -228,7 +228,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 		// Lookup bucket.
 		var bucket *db.StorageBucket
 		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			bucket, err = tx.GetStoragePoolLocalBucket(bucketName)
+			bucket, err = tx.GetStoragePoolLocalBucket(ctx, bucketName)
 			return err
 		})
 		if err != nil {

@@ -690,7 +690,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	// Check if a storage volume entry for the instance already exists.
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, instanceDBVolType, backupConf.Container.Name, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, backupConf.Container.Name, true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
@@ -809,7 +809,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		// Check if a storage volume entry for the snapshot already exists.
 		var dbVolume *db.StorageVolume
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, instanceDBVolType, snapInstName, true)
+			dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, snapInstName, true)
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
 			}

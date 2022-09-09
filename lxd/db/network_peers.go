@@ -192,7 +192,7 @@ func (c *Cluster) GetNetworkPeer(networkID int64, peerName string) (int64, *api.
 			return err
 		}
 
-		err = networkPeerConfig(tx, peerID, &peer)
+		err = networkPeerConfig(ctx, tx, peerID, &peer)
 		if err != nil {
 			return err
 		}
@@ -239,7 +239,7 @@ func networkPeerPopulatePeerInfo(peer *api.NetworkPeer, targetPeerNetworkProject
 }
 
 // networkPeerConfig populates the config map of the Network Peer with the given ID.
-func networkPeerConfig(tx *ClusterTx, peerID int64, peer *api.NetworkPeer) error {
+func networkPeerConfig(ctx context.Context, tx *ClusterTx, peerID int64, peer *api.NetworkPeer) error {
 	q := `
 	SELECT
 		key,
@@ -249,7 +249,7 @@ func networkPeerConfig(tx *ClusterTx, peerID int64, peer *api.NetworkPeer) error
 	`
 
 	peer.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -300,7 +300,7 @@ func (c *Cluster) GetNetworkPeers(networkID int64) (map[int64]*api.NetworkPeer, 
 	peers := make(map[int64]*api.NetworkPeer)
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		err = query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var peerID int64 = int64(-1)
 			var peer api.NetworkPeer
 			var targetPeerNetworkName string
@@ -323,7 +323,7 @@ func (c *Cluster) GetNetworkPeers(networkID int64) (map[int64]*api.NetworkPeer, 
 
 		// Populate config.
 		for peerID := range peers {
-			err = networkPeerConfig(tx, peerID, peers[peerID])
+			err = networkPeerConfig(ctx, tx, peerID, peers[peerID])
 			if err != nil {
 				return err
 			}
@@ -351,7 +351,7 @@ func (c *Cluster) GetNetworkPeerNames(networkID int64) (map[int64]string, error)
 	peers := make(map[int64]string)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var peerID int64 = int64(-1)
 			var peerName string
 
@@ -462,7 +462,7 @@ func (c *Cluster) GetNetworkPeersTargetNetworkIDs(projectName string, networkTyp
 	`
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 			var peerName string
 			var networkName string
 			var targetNetworkID int64 = int64(-1)

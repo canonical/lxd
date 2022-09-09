@@ -162,7 +162,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 
 	// Confirm volume exists.
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err = tx.GetStoragePoolVolume(poolID, project.Default, db.StoragePoolVolumeTypeCustom, volumeName, true)
+		_, err = tx.GetStoragePoolVolume(ctx, poolID, project.Default, db.StoragePoolVolumeTypeCustom, volumeName, true)
 		return err
 	})
 	if err != nil {

@@ -135,7 +135,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all the volumes using the storage pool.
-		volumes, err := tx.GetStoragePoolVolumes(pool.ID(), memberSpecific)
+		volumes, err := tx.GetStoragePoolVolumes(ctx, pool.ID(), memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
@@ -158,7 +158,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 
 				usedBy = append(usedBy, u.String())
 			} else if vol.Type == db.StoragePoolVolumeTypeNameImage {
-				imgProjectNames, err := tx.GetProjectsUsingImage(vol.Name)
+				imgProjectNames, err := tx.GetProjectsUsingImage(ctx, vol.Name)
 				if err != nil {
 					return fmt.Errorf("Failed loading projects using image %q: %w", vol.Name, err)
 				}
@@ -189,7 +189,7 @@ func UsedBy(ctx context.Context, s *state.State, pool Pool, firstOnly bool, memb
 			PoolID: &poolID,
 		}}
 
-		buckets, err := tx.GetStoragePoolBuckets(memberSpecific, filters...)
+		buckets, err := tx.GetStoragePoolBuckets(ctx, memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage buckets: %w", err)
 		}
