@@ -43,6 +43,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/loki"
 	"github.com/lxc/lxd/lxd/maas"
 	networkZone "github.com/lxc/lxd/lxd/network/zone"
 	"github.com/lxc/lxd/lxd/node"
@@ -135,6 +136,8 @@ type Daemon struct {
 
 	// Cluster.
 	serverName string
+
+	lokiClient *loki.Client
 }
 
 type externalAuth struct {
@@ -771,6 +774,27 @@ func (d *Daemon) Init() error {
 	return nil
 }
 
+func (d *Daemon) setupLoki(URL string, cert string, key string, caCert string, labels []string, logLevel string, types []string) error {
+	if d.lokiClient != nil {
+		d.lokiClient.Stop()
+	}
+
+	if URL == "" || logLevel == "" || len(types) == 0 {
+		return nil
+	}
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	d.lokiClient = loki.NewClient(d.shutdownCtx, u, cert, key, caCert, labels, logLevel, types)
+
+	d.internalListener.AddHandler("loki", d.lokiClient.HandleEvent)
+
+	return nil
+}
+
 func (d *Daemon) init() error {
 	var dbWarnings []clusterDB.Warning
 
@@ -1317,9 +1341,18 @@ func (d *Daemon) init() error {
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
 	rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = d.globalConfig.RBACServer()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
+	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
 
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
 	d.globalConfigMu.Unlock()
+
+	// Setup Loki logger.
+	if lokiURL != "" {
+		err = d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Setup RBAC authentication.
 	if rbacAPIURL != "" {
