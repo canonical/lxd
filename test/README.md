@@ -14,7 +14,7 @@ Name                           | Default                   | Description
 :--                            | :---                      | :----------
 `LXD_BACKEND`                  | dir                       | What backend to test against (btrfs, ceph, dir, lvm, zfs, or random)
 `LXD_CEPH_CLUSTER`             | ceph                      | The name of the ceph cluster to create osd pools in
-`LXD_CEPH_CEPHFS`              | ""                        | The cephfs filesystem to use for `cephfs` pools.
+`LXD_CEPH_CEPHFS`              | ""                        | Enables the CephFS tests using the specified cephfs filesystem for `cephfs` pools
 `LXD_CONCURRENT`               | 0                         | Run concurrency tests, very CPU intensive
 `LXD_DEBUG`                    | 0                         | Run lxd, lxc and the shell in debug mode (very verbose)
 `LXD_INSPECT`                  | 0                         | Don't teardown the test environment on failure
