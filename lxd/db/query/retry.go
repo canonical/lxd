@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -25,8 +27,8 @@ func Retry(f func() error) error {
 	for i := 0; i < maxRetries; i++ {
 		err = f()
 		if err != nil {
-			// No point in re-trying or logging a no-row error.
-			if errors.Is(err, sql.ErrNoRows) {
+			// No point in re-trying or logging a no-row or not found error.
+			if errors.Is(err, sql.ErrNoRows) || api.StatusErrorCheck(err, http.StatusNotFound) {
 				break
 			}
 
