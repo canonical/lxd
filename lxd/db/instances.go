@@ -698,7 +698,7 @@ SELECT instances.name, nodes.name, projects.name
 func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName string, newName string, newNode string, volumeType int) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.GetInstancePool(project, oldName)
+	poolName, err := c.GetInstancePool(ctx, project, oldName)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's storage pool name: %w", err)
 	}
@@ -905,7 +905,7 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(ctx context.Context, project st
 }
 
 // GetLocalInstanceWithVsockID returns all available instances with the given config key and value.
-func (c *ClusterTx) GetLocalInstanceWithVsockID(vsockID int) (*cluster.Instance, error) {
+func (c *ClusterTx) GetLocalInstanceWithVsockID(ctx context.Context, vsockID int) (*cluster.Instance, error) {
 	q := `
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id JOIN instances_config ON instances.id = instances_config.instance_id
@@ -915,7 +915,7 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 	inargs := []any{c.nodeID, instancetype.VM, vsockID}
 	inst := cluster.Instance{}
 
-	err := c.tx.QueryRow(q, inargs...).Scan(&inst.ID, &inst.Project, &inst.Name, &inst.Node, &inst.Type, &inst.Architecture, &inst.Ephemeral, &inst.CreationDate, &inst.Stateful, &inst.LastUseDate, &inst.Description, &inst.ExpiryDate)
+	err := c.tx.QueryRowContext(ctx, q, inargs...).Scan(&inst.ID, &inst.Project, &inst.Name, &inst.Node, &inst.Type, &inst.Architecture, &inst.Ephemeral, &inst.CreationDate, &inst.Stateful, &inst.LastUseDate, &inst.Description, &inst.ExpiryDate)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, api.StatusErrorf(http.StatusNotFound, "Instance not found")
@@ -928,7 +928,7 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 }
 
 // GetInstancePool returns the storage pool of a given instance (or snapshot).
-func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (string, error) {
+func (c *ClusterTx) GetInstancePool(ctx context.Context, projectName string, instanceName string) (string, error) {
 	// Strip snapshot name if supplied in instanceName, and lookup the storage pool of the parent instance
 	// as that must always be the same as the snapshot's storage pool.
 	instanceName, _, _ = api.GetParentAndSnapshotName(instanceName)
@@ -956,7 +956,7 @@ SELECT storage_pools.name FROM storage_pools
 		inargs = append(inargs, driver)
 	}
 
-	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
+	err := c.tx.QueryRowContext(ctx, query, inargs...).Scan(outargs...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", api.StatusErrorf(http.StatusNotFound, "Instance storage pool not found")
@@ -994,7 +994,7 @@ SELECT projects.name, instances.name
 WHERE instances.id=?
 `
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.tx.QueryRow(q, id).Scan(&project, &name)
+		return tx.tx.QueryRowContext(ctx, q, id).Scan(&project, &name)
 	})
 
 	if err == sql.ErrNoRows {
@@ -1021,7 +1021,7 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
 	value := ""
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.tx.QueryRow(q, id, key).Scan(&value)
+		return tx.tx.QueryRowContext(ctx, q, id, key).Scan(&value)
 	})
 	if err == sql.ErrNoRows {
 		return "", api.StatusErrorf(http.StatusNotFound, "Instance config not found")
@@ -1130,7 +1130,7 @@ func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) 
 	var poolName string
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		poolName, err = tx.GetInstancePool(project, instanceName)
+		poolName, err = tx.GetInstancePool(ctx, project, instanceName)
 		return err
 	})
 	return poolName, err

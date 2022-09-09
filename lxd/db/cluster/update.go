@@ -230,7 +230,7 @@ CREATE TABLE "storage_buckets_keys" (
 // Also ensures that the default project has features.networks set to true.
 func updateFromV62(ctx context.Context, tx *sql.Tx) error {
 	// Find the default project ID, and what it has features.networks config key set to (if at all).
-	rows := tx.QueryRow(`
+	rows := tx.QueryRowContext(ctx, `
 		SELECT
 			projects.id,
 			IFNULL(projects_config.key, "") as key,
@@ -2314,7 +2314,7 @@ CREATE TRIGGER storage_volumes_check_id
 	if count > 0 {
 		var maxID int64
 
-		row := tx.QueryRow("SELECT MAX(id) FROM storage_volumes_all LIMIT 1")
+		row := tx.QueryRowContext(ctx, "SELECT MAX(id) FROM storage_volumes_all LIMIT 1")
 		err = row.Scan(&maxID)
 		if err != nil {
 			return err

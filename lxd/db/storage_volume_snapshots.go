@@ -39,7 +39,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 			return fmt.Errorf("Increment storage volumes sequence: %w", err)
 		}
 
-		row := tx.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
+		row := tx.tx.QueryRowContext(ctx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
 		err = row.Scan(&volumeID)
 		if err != nil {
 			return err

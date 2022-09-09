@@ -240,7 +240,7 @@ func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 
 	// Get the maximum DB schema.
 	var maxSchema int
-	row := c.tx.QueryRow("SELECT MAX(schema) FROM nodes")
+	row := c.tx.QueryRowContext(ctx, "SELECT MAX(schema) FROM nodes")
 	err := row.Scan(&maxSchema)
 	if err != nil {
 		return version, err
@@ -248,7 +248,7 @@ func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 
 	// Get the maximum API extension.
 	var maxAPI int
-	row = c.tx.QueryRow("SELECT MAX(api_extensions) FROM nodes")
+	row = c.tx.QueryRowContext(ctx, "SELECT MAX(api_extensions) FROM nodes")
 	err = row.Scan(&maxAPI)
 	if err != nil {
 		return version, err
@@ -760,7 +760,7 @@ func (c *ClusterTx) UpdateNodeFailureDomain(ctx context.Context, id int64, domai
 	if domain == "default" {
 		domainID = nil
 	} else {
-		row := c.tx.QueryRow("SELECT id FROM nodes_failure_domains WHERE name=?", domain)
+		row := c.tx.QueryRowContext(ctx, "SELECT id FROM nodes_failure_domains WHERE name=?", domain)
 		err := row.Scan(&domainID)
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -824,7 +824,7 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 `
 	var domain string
 
-	err := c.tx.QueryRow(stmt, id).Scan(&domain)
+	err := c.tx.QueryRowContext(ctx, stmt, id).Scan(&domain)
 	if err != nil {
 		return "", err
 	}
