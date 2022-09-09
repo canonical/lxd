@@ -1763,7 +1763,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	var nodes []db.RaftNode
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	if err != nil {

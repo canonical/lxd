@@ -19,7 +19,7 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	if err != nil {
@@ -44,7 +44,7 @@ func Recover(database *db.Node) error {
 	var info *db.RaftNode
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 		return err
 	})
 	if err != nil {
@@ -132,7 +132,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	var info *db.RaftNode
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 
 		return err
 	})

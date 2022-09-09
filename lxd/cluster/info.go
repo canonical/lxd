@@ -18,7 +18,7 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 	var info *db.RaftNode
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 		return err
 	})
 	if err != nil {
