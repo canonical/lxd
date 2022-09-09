@@ -974,7 +974,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 }
 
 // CreateImage creates a new image.
-func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
+func (c *Cluster) CreateImage(project string, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
