@@ -123,7 +123,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	// From local database.
 	var raftNode *RaftNode
 	err = node.Transaction(context.TODO(), func(ctx context.Context, tx *NodeTx) error {
-		nodes, err := tx.GetRaftNodes()
+		nodes, err := tx.GetRaftNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Load offline threshold config: %w", err)
 		}

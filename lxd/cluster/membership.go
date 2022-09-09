@@ -51,7 +51,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		address = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
-		err = membershipCheckNodeStateForBootstrapOrJoin(tx, address)
+		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, address)
 		if err != nil {
 			return err
 		}
@@ -318,7 +318,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		address = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
-		err = membershipCheckNodeStateForBootstrapOrJoin(tx, address)
+		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, address)
 		if err != nil {
 			return err
 		}
@@ -573,7 +573,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	var raftNodes []db.RaftNode
 	var localAddress string
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		raftNodes, err = tx.GetRaftNodes()
+		raftNodes, err = tx.GetRaftNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -1097,8 +1097,8 @@ func Enabled(node *db.Node) (bool, error) {
 
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
-func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {
-	nodes, err := tx.GetRaftNodes()
+func membershipCheckNodeStateForBootstrapOrJoin(ctx context.Context, tx *db.NodeTx, address string) error {
+	nodes, err := tx.GetRaftNodes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch current raft nodes: %w", err)
 	}

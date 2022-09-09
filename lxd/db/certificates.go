@@ -29,7 +29,7 @@ func (db *DB) UpdateCertificate(ctx context.Context, fingerprint string, cert cl
 }
 
 // GetCertificates returns all available local certificates.
-func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
+func (n *NodeTx) GetCertificates(ctx context.Context) ([]cluster.Certificate, error) {
 	type cert struct {
 		fingerprint string
 		certType    cluster.CertificateType
@@ -39,7 +39,7 @@ func (n *NodeTx) GetCertificates() ([]cluster.Certificate, error) {
 
 	sql := "SELECT fingerprint, type, name, certificate FROM certificates"
 	dbCerts := []cert{}
-	err := query.Scan(n.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, n.tx, sql, func(scan func(dest ...any) error) error {
 		dbCert := cert{}
 
 		err := scan(&dbCert.fingerprint, &dbCert.certType, &dbCert.name, &dbCert.certificate)
