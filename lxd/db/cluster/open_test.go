@@ -183,7 +183,7 @@ INSERT INTO nodes(name, address, schema, api_extensions, arch, description) VALU
 func assertNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		where := "address=? AND schema=? AND api_extensions=?"
-		n, err := query.Count(tx, "nodes", where, address, schema, apiExtensions)
+		n, err := query.Count(ctx, tx, "nodes", where, address, schema, apiExtensions)
 		assert.Equal(t, 1, n, "node does not have expected version")
 		return err
 	})

@@ -16,7 +16,7 @@ func TestConfigLoad_Initial(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	config, err := node.ConfigLoad(tx)
+	config, err := node.ConfigLoad(context.Background(), tx)
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{}, config.Dump())
@@ -33,7 +33,7 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	config, err := node.ConfigLoad(tx)
+	config, err := node.ConfigLoad(context.Background(), tx)
 
 	require.NoError(t, err)
 	values := map[string]any{"core.https_address": "127.0.0.1:666"}
@@ -45,7 +45,7 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	config, err := node.ConfigLoad(tx)
+	config, err := node.ConfigLoad(context.Background(), tx)
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{}, config.Dump())
@@ -57,7 +57,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	config, err := node.ConfigLoad(tx)
+	config, err := node.ConfigLoad(context.Background(), tx)
 	require.NoError(t, err)
 
 	changed, err := config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
@@ -70,7 +70,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 
 	assert.Equal(t, "", config.HTTPSAddress())
 
-	values, err := tx.Config()
+	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, values)
 }
@@ -81,7 +81,7 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	config, err := node.ConfigLoad(tx)
+	config, err := node.ConfigLoad(context.Background(), tx)
 	require.NoError(t, err)
 
 	_, err = config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
@@ -92,7 +92,7 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 
 	assert.Equal(t, "127.0.0.1:666", config.HTTPSAddress())
 
-	values, err := tx.Config()
+	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.https_address": "127.0.0.1:666"}, values)
 }
@@ -108,7 +108,7 @@ func TestHTTPSAddress(t *testing.T) {
 	assert.Equal(t, "", address)
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		require.NoError(t, err)
 		_, err = config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
 		require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestClusterAddress(t *testing.T) {
 	assert.Equal(t, "", address)
 
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		require.NoError(t, err)
 		_, err = config.Replace(map[string]any{"cluster.https_address": "127.0.0.1:666"})
 		require.NoError(t, err)
