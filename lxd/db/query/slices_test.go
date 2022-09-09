@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestStrings_Error(t *testing.T) {
 	for _, c := range testStringsErrorCases {
 		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForSlices(t)
-			values, err := query.SelectStrings(tx, c.query)
+			values, err := query.SelectStrings(context.Background(), tx, c.query)
 			assert.EqualError(t, err, c.error)
 			assert.Nil(t, values)
 		})
@@ -33,7 +34,7 @@ var testStringsErrorCases = []struct {
 // All values yield by the query are returned.
 func TestStrings(t *testing.T) {
 	tx := newTxForSlices(t)
-	values, err := query.SelectStrings(tx, "SELECT name FROM test ORDER BY name")
+	values, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM test ORDER BY name")
 	assert.Nil(t, err)
 	assert.Equal(t, []string{"bar", "foo"}, values)
 }
@@ -43,7 +44,7 @@ func TestIntegers_Error(t *testing.T) {
 	for _, c := range testIntegersErrorCases {
 		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForSlices(t)
-			values, err := query.SelectIntegers(tx, c.query)
+			values, err := query.SelectIntegers(context.Background(), tx, c.query)
 			assert.EqualError(t, err, c.error)
 			assert.Nil(t, values)
 		})
@@ -61,7 +62,7 @@ var testIntegersErrorCases = []struct {
 // All values yield by the query are returned.
 func TestIntegers(t *testing.T) {
 	tx := newTxForSlices(t)
-	values, err := query.SelectIntegers(tx, "SELECT id FROM test ORDER BY id")
+	values, err := query.SelectIntegers(context.Background(), tx, "SELECT id FROM test ORDER BY id")
 	assert.Nil(t, err)
 	assert.Equal(t, []int{0, 1}, values)
 }
@@ -73,7 +74,7 @@ func TestInsertStrings(t *testing.T) {
 	err := query.InsertStrings(tx, "INSERT INTO test(name) VALUES %s", []string{"xx", "yy"})
 	require.NoError(t, err)
 
-	values, err := query.SelectStrings(tx, "SELECT name FROM test ORDER BY name DESC LIMIT 2")
+	values, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM test ORDER BY name DESC LIMIT 2")
 	require.NoError(t, err)
 	assert.Equal(t, values, []string{"yy", "xx"})
 }

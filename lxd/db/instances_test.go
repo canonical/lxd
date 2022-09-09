@@ -424,7 +424,7 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c4")
 
 	instType := instancetype.Container
-	result, err := tx.GetProjectAndInstanceNamesByNodeAddress([]string{"default"}, instType)
+	result, err := tx.GetProjectAndInstanceNamesByNodeAddress(context.Background(), []string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -449,7 +449,7 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 	addContainer(t, tx, nodeID1, "c2")
 
 	instType := instancetype.Container
-	result, err := tx.GetProjectInstanceToNodeMap([]string{"default"}, instType)
+	result, err := tx.GetProjectInstanceToNodeMap(context.Background(), []string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
