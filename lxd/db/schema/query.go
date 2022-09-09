@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -82,7 +83,7 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"))
 }
 
 // Read the given file (if it exists) and executes all queries it contains.
-func execFromFile(tx *sql.Tx, path string, hook Hook) error {
+func execFromFile(ctx context.Context, tx *sql.Tx, path string, hook Hook) error {
 	if !shared.PathExists(path) {
 		return nil
 	}
@@ -93,7 +94,7 @@ func execFromFile(tx *sql.Tx, path string, hook Hook) error {
 	}
 
 	if hook != nil {
-		err := hook(-1, tx)
+		err := hook(ctx, -1, tx)
 		if err != nil {
 			return fmt.Errorf("failed to execute hook: %w", err)
 		}

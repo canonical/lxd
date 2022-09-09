@@ -63,7 +63,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	apiExtensions := version.APIExtensionsCount()
 
 	backupDone := false
-	hook := (func(version int, tx *sql.Tx) error {
+	hook := (func(ctx context.Context, version int, tx *sql.Tx) error {
 		// Check if this is a fresh instance.
 		isUpdate, err := schema.DoesSchemaTableExist(tx)
 		if err != nil {
@@ -114,7 +114,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		return nil
 	})
 
-	check := func(current int, tx *sql.Tx) error {
+	check := func(ctx context.Context, current int, tx *sql.Tx) error {
 		// If we're bootstrapping a fresh schema, skip any check, since
 		// it's safe to assume we are the only node.
 		if current == 0 {
@@ -140,7 +140,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 			return fmt.Errorf("failed to update node version info: %w", err)
 		}
 
-		err = checkClusterIsUpgradable(tx, [2]int{len(updates), apiExtensions})
+		err = checkClusterIsUpgradable(ctx, tx, [2]int{len(updates), apiExtensions})
 		if err == errSomeNodesAreBehind {
 			someNodesAreBehind = true
 			return schema.ErrGracefulAbort
@@ -241,9 +241,9 @@ func dqliteDriverName() string {
 // registered.
 var dqliteDriverSerial uint64
 
-func checkClusterIsUpgradable(tx *sql.Tx, target [2]int) error {
+func checkClusterIsUpgradable(ctx context.Context, tx *sql.Tx, target [2]int) error {
 	// Get the current versions in the nodes table.
-	versions, err := selectNodesVersions(tx)
+	versions, err := selectNodesVersions(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch current nodes versions: %w", err)
 	}
