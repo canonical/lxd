@@ -183,7 +183,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
-	err = s.DB.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
+	err = s.DB.Cluster.UpdateImageLastUseDate(args.Project, hash, time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
