@@ -1,6 +1,7 @@
 package node_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
@@ -65,7 +66,7 @@ func TestDetermineRaftNode(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			node, err := node.DetermineRaftNode(tx)
+			node, err := node.DetermineRaftNode(context.Background(), tx)
 			require.NoError(t, err)
 			if c.node == nil {
 				assert.Nil(t, node)

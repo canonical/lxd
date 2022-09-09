@@ -39,7 +39,7 @@ func TestHeartbeat(t *testing.T) {
 
 	// Artificially mark all nodes as down
 	err := leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
 		for _, node := range nodes {
 			err := tx.SetNodeHeartbeat(node.Address, time.Now().Add(-time.Minute))
@@ -58,7 +58,7 @@ func TestHeartbeat(t *testing.T) {
 
 	// The heartbeat timestamps of all nodes got updated
 	err = leaderState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
 
 		offlineThreshold, err := tx.GetNodeOfflineThreshold()

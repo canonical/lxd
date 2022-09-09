@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
@@ -24,7 +25,7 @@ func TestRaftNodes(t *testing.T) {
 	id2, err := tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
-	nodes, err := tx.GetRaftNodes()
+	nodes, err := tx.GetRaftNodes(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(id1), nodes[0].ID)
@@ -132,7 +133,7 @@ func TestReplaceRaftNodes(t *testing.T) {
 	err = tx.ReplaceRaftNodes(nodes)
 	assert.NoError(t, err)
 
-	newNodes, err := tx.GetRaftNodes()
+	newNodes, err := tx.GetRaftNodes(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, nodes, newNodes)
