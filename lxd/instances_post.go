@@ -548,7 +548,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 	for key, value := range sourceConfig {
 		if !shared.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project(), "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
+			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project().Name, "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
 		}
 
