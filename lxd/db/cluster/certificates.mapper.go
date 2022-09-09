@@ -196,11 +196,6 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 	}
 
 	row := stmt.QueryRowContext(ctx, fingerprint)
-	err = row.Err()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"certificates\" ID: %w", err)
-	}
-
 	var id int64
 	err = row.Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -208,7 +203,7 @@ func GetCertificateID(ctx context.Context, tx *sql.Tx, fingerprint string) (int6
 	}
 
 	if err != nil {
-		return -1, fmt.Errorf("Failed to scan ID: %w", err)
+		return -1, fmt.Errorf("Failed to get \"certificates\" ID: %w", err)
 	}
 
 	return id, nil
