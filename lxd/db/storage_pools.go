@@ -133,7 +133,7 @@ func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 
 // UpdateCephStoragePoolAfterNodeJoin updates internal state to reflect that nodeID is
 // joining a cluster where poolID is a ceph pool.
-func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
+func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(ctx context.Context, poolID int64, nodeID int64) error {
 	// Get the IDs of the other nodes (they should be all linked to
 	// the pool).
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
@@ -209,7 +209,7 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 				return fmt.Errorf("Increment storage volumes sequence: %w", err)
 			}
 
-			row := c.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
+			row := c.tx.QueryRowContext(ctx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
 			err = row.Scan(&snapshotID)
 			if err != nil {
 				return fmt.Errorf("Fetch next storage volume ID: %w", err)
@@ -598,7 +598,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...any) (i
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var state StoragePoolState
 
-		err = tx.tx.QueryRow(q.String(), args...).Scan(&poolID, &pool.Name, &pool.Driver, &pool.Description, &state)
+		err = tx.tx.QueryRowContext(ctx, q.String(), args...).Scan(&poolID, &pool.Name, &pool.Driver, &pool.Description, &state)
 		if err != nil {
 			return err
 		}

@@ -95,7 +95,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	`
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
+		err := tx.tx.QueryRowContext(ctx, q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
 		if err != nil {
 			return err
 		}
@@ -142,7 +142,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.tx.QueryRow(q, networkACLID).Scan(&networkACLName, &projectName)
+		return tx.tx.QueryRowContext(ctx, q, networkACLID).Scan(&networkACLName, &projectName)
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {

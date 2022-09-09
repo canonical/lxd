@@ -77,7 +77,7 @@ func (c *Cluster) CreateNetworkPeer(networkID int64, info *api.NetworkPeersPost)
 
 		var targetPeerID int64 = int64(-1)
 
-		err = tx.tx.QueryRow(q, info.TargetProject, info.TargetNetwork, networkID, localPeerID).Scan(&targetPeerID, &targetPeerNetworkID)
+		err = tx.tx.QueryRowContext(ctx, q, info.TargetProject, info.TargetNetwork, networkID, localPeerID).Scan(&targetPeerID, &targetPeerNetworkID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("Failed looking up mutual peering: %w", err)
 		} else if err == nil {
@@ -183,7 +183,7 @@ func (c *Cluster) GetNetworkPeer(networkID int64, peerName string) (int64, *api.
 	var targetPeerNetworkProject string
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err = tx.tx.QueryRow(q, networkID, peerName).Scan(&peerID, &peer.Name, &peer.Description, &peer.TargetProject, &peer.TargetNetwork, &targetPeerNetworkName, &targetPeerNetworkProject)
+		err = tx.tx.QueryRowContext(ctx, q, networkID, peerName).Scan(&peerID, &peer.Name, &peer.Description, &peer.TargetProject, &peer.TargetNetwork, &targetPeerNetworkName, &targetPeerNetworkProject)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return api.StatusErrorf(http.StatusNotFound, "Network peer not found")
