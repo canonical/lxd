@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -305,7 +306,7 @@ func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetACLSetup.Name(), err)
 	}
 
-	_, err = shared.RunCommand("nft", config.String())
+	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -547,7 +548,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
 	}
 
-	_, err = shared.RunCommand("nft", config.String())
+	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -584,7 +585,7 @@ func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]an
 		return fmt.Errorf("Failed running %q template: %w", tpl.Name(), err)
 	}
 
-	_, err = shared.RunCommand("nft", config.String())
+	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return fmt.Errorf("Failed apply nftables config: %w", err)
 	}
@@ -712,7 +713,7 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 		return fmt.Errorf("Failed running %q template: %w", nftablesNetACLRules.Name(), err)
 	}
 
-	_, err = shared.RunCommand("nft", config.String())
+	err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
 	if err != nil {
 		return err
 	}
@@ -1044,7 +1045,7 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 			return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
 		}
 
-		_, err = shared.RunCommand("nft", config.String())
+		err = shared.RunCommandWithFds(context.TODO(), strings.NewReader(config.String()), nil, "nft", "-f", "-")
 		if err != nil {
 			return err
 		}
