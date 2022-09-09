@@ -395,9 +395,8 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 
 // Mount mounts the storage pool.
 func (b *lxdBackend) Mount() (bool, error) {
-	l := logger.AddContext(b.logger, nil)
-	l.Debug("Mount started")
-	defer l.Debug("Mount finished")
+	b.logger.Debug("Mount started")
+	defer b.logger.Debug("Mount finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -445,9 +444,8 @@ func (b *lxdBackend) Mount() (bool, error) {
 
 // Unmount unmounts the storage pool.
 func (b *lxdBackend) Unmount() (bool, error) {
-	l := logger.AddContext(b.logger, nil)
-	l.Debug("Unmount started")
-	defer l.Debug("Unmount finished")
+	b.logger.Debug("Unmount started")
+	defer b.logger.Debug("Unmount finished")
 
 	return b.driver.Unmount()
 }
