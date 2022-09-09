@@ -20,7 +20,7 @@ import (
 // GetNetworksLocalConfig returns a map associating each network name to its
 // node-specific config values on the local member (i.e. the ones where node_id
 // equals the ID of the local member).
-func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, error) {
+func (c *ClusterTx) GetNetworksLocalConfig(ctx context.Context) (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
 	if err != nil {
 		return nil, err
@@ -182,7 +182,7 @@ func (c *ClusterTx) getCreatedNetworks(ctx context.Context, projectName string) 
 }
 
 // GetNetworkID returns the ID of the network with the given name.
-func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error) {
+func (c *ClusterTx) GetNetworkID(ctx context.Context, projectName string, name string) (int64, error) {
 	stmt := "SELECT id FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?"
 	ids, err := query.SelectIntegers(c.tx, stmt, projectName, name)
 	if err != nil {
@@ -478,7 +478,7 @@ func (c *ClusterTx) NetworkNodes(ctx context.Context, networkID int64) (map[int6
 }
 
 // GetNetworkURIs returns the URIs for the networks with the given project.
-func (c *ClusterTx) GetNetworkURIs(projectID int, project string) ([]string, error) {
+func (c *ClusterTx) GetNetworkURIs(ctx context.Context, projectID int, project string) ([]string, error) {
 	sql := `SELECT networks.name from networks WHERE networks.project_id = ?`
 
 	names, err := query.SelectStrings(c.tx, sql, projectID)

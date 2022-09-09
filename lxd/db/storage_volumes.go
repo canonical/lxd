@@ -507,7 +507,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	return id, nil
 }
 
-func (c *ClusterTx) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	s := fmt.Sprintf(`

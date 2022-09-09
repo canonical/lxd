@@ -3,11 +3,13 @@
 package db
 
 import (
+	"context"
+
 	"github.com/lxc/lxd/lxd/db/query"
 )
 
 // Config fetches all LXD node-level config keys.
-func (n *NodeTx) Config() (map[string]string, error) {
+func (n *NodeTx) Config(ctx context.Context) (map[string]string, error) {
 	return query.SelectConfig(n.tx, "config", "")
 }
 
@@ -18,7 +20,7 @@ func (n *NodeTx) UpdateConfig(values map[string]string) error {
 }
 
 // Config fetches all LXD cluster config keys.
-func (c *ClusterTx) Config() (map[string]string, error) {
+func (c *ClusterTx) Config(ctx context.Context) (map[string]string, error) {
 	return query.SelectConfig(c.tx, "config", "")
 }
 

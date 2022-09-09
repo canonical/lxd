@@ -1,12 +1,13 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
 
 // Count returns the number of rows in the given table.
-func Count(tx *sql.Tx, table string, where string, args ...any) (int, error) {
+func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...any) (int, error) {
 	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)
@@ -44,7 +45,7 @@ func Count(tx *sql.Tx, table string, where string, args ...any) (int, error) {
 
 // CountAll returns a map associating each table name in the database
 // with the total count of its rows.
-func CountAll(tx *sql.Tx) (map[string]int, error) {
+func CountAll(ctx context.Context, tx *sql.Tx) (map[string]int, error) {
 	tables, err := SelectStrings(tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch table names: %w", err)

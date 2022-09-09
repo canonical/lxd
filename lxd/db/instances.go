@@ -45,7 +45,7 @@ type InstanceArgs struct {
 }
 
 // GetInstanceNames returns the names of all containers the given project.
-func (c *ClusterTx) GetInstanceNames(project string) ([]string, error) {
+func (c *ClusterTx) GetInstanceNames(ctx context.Context, project string) ([]string, error) {
 	stmt := `
 SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
@@ -58,7 +58,7 @@ SELECT instances.name FROM instances
 // instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, instType instancetype.Type) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(ctx context.Context, project string, name string, instType instancetype.Type) (string, error) {
 	var stmt string
 
 	args := make([]any, 0, 4) // Expect up to 4 filters.
@@ -149,7 +149,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
-func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, instType instancetype.Type) (map[string][][2]string, error) {
+func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(ctx context.Context, projects []string, instType instancetype.Type) (map[string][][2]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -640,7 +640,7 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 
 // GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
 // instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, instType instancetype.Type) (map[[2]string]string, error) {
+func (c *ClusterTx) GetProjectInstanceToNodeMap(ctx context.Context, projects []string, instType instancetype.Type) (map[[2]string]string, error) {
 	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 

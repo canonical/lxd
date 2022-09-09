@@ -278,7 +278,7 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 }
 
 // Ensure that the schema exists.
-func ensureSchemaTableExists(tx *sql.Tx) error {
+func ensureSchemaTableExists(ctx context.Context, tx *sql.Tx) error {
 	exists, err := DoesSchemaTableExist(tx)
 	if err != nil {
 		return fmt.Errorf("failed to check if schema table is there: %w", err)
@@ -295,7 +295,7 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 
 // Return the highest update version currently applied. Zero means that no
 // updates have been applied yet.
-func queryCurrentVersion(tx *sql.Tx) (int, error) {
+func queryCurrentVersion(ctx context.Context, tx *sql.Tx) (int, error) {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
 		return -1, fmt.Errorf("failed to fetch update versions: %w", err)
@@ -397,7 +397,7 @@ func checkSchemaVersionsHaveNoHoles(versions []int) error {
 }
 
 // Check that all the given updates are applied.
-func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
+func checkAllUpdatesAreApplied(ctx context.Context, tx *sql.Tx, updates []Update) error {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch update versions: %w", err)

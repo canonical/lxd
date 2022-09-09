@@ -316,7 +316,7 @@ func (c *Cluster) DeleteNetworkACL(id int64) error {
 }
 
 // GetNetworkACLURIs returns the URIs for the network ACLs with the given project.
-func (c *ClusterTx) GetNetworkACLURIs(projectID int, project string) ([]string, error) {
+func (c *ClusterTx) GetNetworkACLURIs(ctx context.Context, projectID int, project string) ([]string, error) {
 	sql := `SELECT networks_acls.name from networks_acls WHERE networks_acls.project_id = ?`
 
 	names, err := query.SelectStrings(c.tx, sql, projectID)

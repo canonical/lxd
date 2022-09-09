@@ -26,7 +26,7 @@ var ImageSourceProtocol = map[int]string{
 }
 
 // GetLocalImagesFingerprints returns the fingerprints of all local images.
-func (c *ClusterTx) GetLocalImagesFingerprints() ([]string, error) {
+func (c *ClusterTx) GetLocalImagesFingerprints(ctx context.Context) ([]string, error) {
 	q := `
 SELECT images.fingerprint
   FROM images_nodes
@@ -150,7 +150,7 @@ func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, cre
 	return nil
 }
 
-func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
+func (c *ClusterTx) imageFillProfiles(ctx context.Context, id int, image *api.Image, project string) error {
 	// Check which project name to use
 	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {

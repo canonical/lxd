@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -19,7 +20,7 @@ import (
 // upgraded from a version without clustering to a version that supports
 // clustering, since in those version all data lives in the cluster database
 // (regardless of whether clustering is actually on or off).
-func LoadPreClusteringData(tx *sql.Tx) (*Dump, error) {
+func LoadPreClusteringData(ctx context.Context, tx *sql.Tx) (*Dump, error) {
 	// Sanitize broken foreign key references that might be around from the
 	// time where we didn't enforce foreign key constraints.
 	_, err := tx.Exec(`
