@@ -1438,11 +1438,16 @@ func networkStartup(s *state.State) error {
 		return fmt.Errorf("Failed to load projects: %w", err)
 	}
 
-	// List of networks that need to be started after non-dependent networks.
-	deferredNetworks := make([]network.Network, 0)
-
 	// Build a list of networks to initialise, keyed by project and network name.
-	initNetworks := make(map[network.ProjectNetwork]struct{}, 0)
+	const networkPriorityStandalone = 0 // Start networks not dependent on any other network first.
+	const networkPriorityPhysical = 1   // Start networks dependent on physical interfaces second.
+	const networkPriorityLogical = 2    // Start networks dependent logical networks third.
+	initNetworks := []map[network.ProjectNetwork]struct{}{
+		networkPriorityStandalone: make(map[network.ProjectNetwork]struct{}),
+		networkPriorityPhysical:   make(map[network.ProjectNetwork]struct{}),
+		networkPriorityLogical:    make(map[network.ProjectNetwork]struct{}),
+	}
+
 	for _, projectName := range projectNames {
 		networkNames, err := s.DB.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
@@ -1455,11 +1460,14 @@ func networkStartup(s *state.State) error {
 				NetworkName: networkName,
 			}
 
-			initNetworks[pn] = struct{}{}
+			// Asssume all networks are networkPriorityStandalone initially.
+			initNetworks[networkPriorityStandalone][pn] = struct{}{}
 		}
 	}
 
-	initNetwork := func(n network.Network) error {
+	loadedNetworks := make(map[network.ProjectNetwork]network.Network)
+
+	initNetwork := func(n network.Network, priority int) error {
 		err = n.Start()
 		if err != nil {
 			err = fmt.Errorf("Failed starting: %w", err)
@@ -1476,31 +1484,33 @@ func networkStartup(s *state.State) error {
 			NetworkName: n.Name(),
 		}
 
-		delete(initNetworks, pn)
+		delete(initNetworks[priority], pn)
 
 		_ = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, n.Project(), warningtype.NetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
 
 		return nil
 	}
 
-	errDeferredStartup := fmt.Errorf("Deferred start")
+	loadAndInitNetwork := func(pn network.ProjectNetwork, priority int, firstPass bool) error {
+		var err error
+		var n network.Network
 
-	loadAndInitNetwork := func(projectName, networkName string, firstPass bool) error {
-		n, err := network.LoadByName(s, projectName, networkName)
-		if err != nil {
-			if api.StatusErrorCheck(err, http.StatusNotFound) {
-				// Network has been deleted since we started trying to start it so delete entry.
-				pn := network.ProjectNetwork{
-					ProjectName: n.Project(),
-					NetworkName: n.Name(),
+		if firstPass && loadedNetworks[pn] != nil {
+			// Check if network already loaded from during first pass phase.
+			n = loadedNetworks[pn]
+		} else {
+			n, err = network.LoadByName(s, pn.ProjectName, pn.NetworkName)
+			if err != nil {
+				if api.StatusErrorCheck(err, http.StatusNotFound) {
+					// Network has been deleted since we began trying to start it so delete
+					// entry.
+					delete(initNetworks[priority], pn)
+
+					return nil
 				}
 
-				delete(initNetworks, pn) // Can't start a network that no longer exists.
-
-				return nil
+				return fmt.Errorf("Failed loading: %w", err)
 			}
-
-			return fmt.Errorf("Failed loading: %w", err)
 		}
 
 		netConfig := n.Config()
@@ -1509,14 +1519,24 @@ func networkStartup(s *state.State) error {
 			return fmt.Errorf("Failed validating: %w", err)
 		}
 
-		// Defer network start until after non-dependent networks on first pass.
-		if firstPass && netConfig["network"] != "" {
-			deferredNetworks = append(deferredNetworks, n)
+		// Update network start priority based on dependencies.
+		if netConfig["parent"] != "" && priority != networkPriorityPhysical {
+			// Start networks that depend on physical interfaces existing after
+			// non-dependent networks.
+			delete(initNetworks[priority], pn)
+			initNetworks[networkPriorityPhysical][pn] = struct{}{}
 
-			return errDeferredStartup
+			return nil
+		} else if netConfig["network"] != "" && priority != networkPriorityLogical {
+			// Start networks that depend on other logical networks after networks after
+			// non-dependent networks and networks that depend on physical interfaces.
+			delete(initNetworks[priority], pn)
+			initNetworks[networkPriorityLogical][pn] = struct{}{}
+
+			return nil
 		}
 
-		err = initNetwork(n)
+		err = initNetwork(n, priority)
 		if err != nil {
 			return err
 		}
@@ -1524,35 +1544,28 @@ func networkStartup(s *state.State) error {
 		return nil
 	}
 
-	// Try initializing networks in a random order.
-	for pn := range initNetworks {
-		err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, true)
-		if err != nil {
-			if errors.Is(err, errDeferredStartup) {
+	// Try initializing networks in priority order.
+	for priority := range initNetworks {
+		for pn := range initNetworks[priority] {
+			err := loadAndInitNetwork(pn, priority, true)
+			if err != nil {
+				logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
 				continue
 			}
-
-			logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
-
-			continue
 		}
 	}
 
-	// Bring up deferred networks after non-dependent networks have been started.
-	for _, n := range deferredNetworks {
-		err = initNetwork(n)
-		if err != nil {
-			logger.Error("Failed initializing network", logger.Ctx{"project": n.Project(), "network": n.Name(), "err": err})
+	loadedNetworks = nil // Don't store loaded networks after first pass.
 
-			continue
-		}
+	remainingNetworks := 0
+	for _, networks := range initNetworks {
+		remainingNetworks += len(networks)
 	}
-
-	deferredNetworks = nil // Don't keep references to the deferred networks around from here.
 
 	// For any remaining networks that were not successfully initialised, we now start a go routine to
 	// periodically try to initialize them again in the background.
-	if len(initNetworks) > 0 {
+	if remainingNetworks > 0 {
 		go func() {
 			for {
 				t := time.NewTimer(time.Duration(time.Minute))
@@ -1564,20 +1577,28 @@ func networkStartup(s *state.State) error {
 				case <-t.C:
 					t.Stop()
 
-					// Try initializing remaining networks in random order.
 					tryInstancesStart := false
-					for pn := range initNetworks {
-						err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, false)
-						if err != nil {
-							logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
-							continue
+					// Try initializing networks in priority order.
+					for priority := range initNetworks {
+						for pn := range initNetworks[priority] {
+							err := loadAndInitNetwork(pn, priority, false)
+							if err != nil {
+								logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
+								continue
+							}
+
+							tryInstancesStart = true // We initialized at least one network.
 						}
-
-						tryInstancesStart = true // We initialized at least one network.
 					}
 
-					if len(initNetworks) <= 0 {
+					remainingNetworks := 0
+					for _, networks := range initNetworks {
+						remainingNetworks += len(networks)
+					}
+
+					if remainingNetworks <= 0 {
 						logger.Info("All networks initialized")
 					}
 
@@ -1592,7 +1613,7 @@ func networkStartup(s *state.State) error {
 						}
 					}
 
-					if len(initNetworks) <= 0 {
+					if remainingNetworks <= 0 {
 						return // Our job here is done.
 					}
 				}
