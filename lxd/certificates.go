@@ -245,7 +245,7 @@ func updateCertificateCache(d *Daemon) {
 	}
 
 	// Write out the server certs to the local database to allow the cluster to restart.
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceCertificates(localCerts)
 	})
 	if err != nil {
@@ -269,8 +269,8 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	var dbCerts []dbCluster.Certificate
 	var err error
 
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
-		dbCerts, err = tx.GetCertificates()
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		dbCerts, err = tx.GetCertificates(ctx)
 		return err
 	})
 	if err != nil {

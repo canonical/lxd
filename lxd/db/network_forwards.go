@@ -192,7 +192,7 @@ func (c *Cluster) GetNetworkForward(ctx context.Context, networkID int64, member
 }
 
 // networkForwardConfig populates the config map of the Network Forward with the given ID.
-func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkForward) error {
+func networkForwardConfig(ctx context.Context, tx *ClusterTx, forwardID int64, forward *api.NetworkForward) error {
 	q := `
 	SELECT
 		key,
@@ -202,7 +202,7 @@ func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkFo
 	`
 
 	forward.Config = make(map[string]string)
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -245,7 +245,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecif
 	forwards := make(map[int64]string)
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		return query.Scan(ctx, tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var listenAddress string
 
@@ -269,7 +269,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecif
 // GetProjectNetworkForwardListenAddressesByUplink returns map of Network Forward Listen Addresses that belong to
 // networks connected to the specified uplinkNetworkName.
 // Returns a map keyed on project name and network ID containing a slice of listen addresses.
-func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName string) (map[string]map[int64][]string, error) {
+func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(ctx context.Context, uplinkNetworkName string) (map[string]map[int64][]string, error) {
 	// As uplink networks can only be in default project, it is safe to look for networks that reference the
 	// specified uplinkNetworkName in their "network" config property.
 	q := `
@@ -286,7 +286,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -318,7 +318,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 // GetProjectNetworkForwardListenAddressesOnMember returns map of Network Forward Listen Addresses that belong to
 // to this specific cluster member. Will not include forwards that do not have a specific member.
 // Returns a map keyed on project name and network ID containing a slice of listen addresses.
-func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[string]map[int64][]string, error) {
+func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember(ctx context.Context) (map[string]map[int64][]string, error) {
 	q := `
 	SELECT
 		projects.name,
@@ -331,7 +331,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[strin
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -395,7 +395,7 @@ func (c *Cluster) GetNetworkForwards(ctx context.Context, networkID int64, membe
 	forwards := make(map[int64]*api.NetworkForward)
 
 	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
-		err = query.Scan(tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
+		err = query.Scan(ctx, tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var portsJSON string
 			var forward api.NetworkForward
@@ -423,7 +423,7 @@ func (c *Cluster) GetNetworkForwards(ctx context.Context, networkID int64, membe
 
 		// Populate config.
 		for forwardID := range forwards {
-			err = networkForwardConfig(tx, forwardID, forwards[forwardID])
+			err = networkForwardConfig(ctx, tx, forwardID, forwards[forwardID])
 			if err != nil {
 				return err
 			}

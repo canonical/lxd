@@ -184,7 +184,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
-			nodes, err = tx.GetNodes()
+			nodes, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}

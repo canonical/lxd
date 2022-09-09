@@ -227,7 +227,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
-			dbMembers, err = tx.GetNodes()
+			dbMembers, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}

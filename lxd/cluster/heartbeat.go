@@ -129,7 +129,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	if len(raftNodeMap) > 0 && hbState.cluster != nil {
 		_ = hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for addr, raftNode := range raftNodeMap {
-				_, err := tx.GetPendingNodeByAddress(addr)
+				_, err := tx.GetPendingNodeByAddress(ctx, addr)
 				if err != nil {
 					logger.Errorf("Unaccounted raft node(s) not found in 'nodes' table for heartbeat: %+v", raftNode)
 				}
@@ -328,7 +328,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	var allNodes []db.NodeInfo
 	err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		allNodes, err = tx.GetNodes()
+		allNodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -361,7 +361,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// been elected leader before the former leader had chance to
 	// send us a fresh update through the heartbeat pool.
 	logger.Debug("Heartbeat updating local raft members", logger.Ctx{"members": raftNodes})
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
@@ -411,7 +411,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		var currentNodes []db.NodeInfo
 		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			currentNodes, err = tx.GetNodes()
+			currentNodes, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}

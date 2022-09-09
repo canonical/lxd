@@ -400,7 +400,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		dbVolumes, err = tx.GetStoragePoolVolumes(poolID, memberSpecific, filters...)
+		dbVolumes, err = tx.GetStoragePoolVolumes(ctx, poolID, memberSpecific, filters...)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage volumes: %w", err)
 		}
@@ -593,7 +593,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	// Check if destination volume exists.
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
@@ -803,7 +803,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	// Check if destination volume exists.
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, db.StoragePoolVolumeTypeCustom, req.Name, true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		} else if dbVolume != nil {
@@ -1083,7 +1083,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(srcPoolID, projectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, srcPoolID, projectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1361,7 +1361,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(poolID, volumeProjectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, volumeProjectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1472,7 +1472,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	// Get the existing storage volume.
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1644,7 +1644,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the existing storage volume.
 	var dbVolume *db.StorageVolume
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {
@@ -1780,7 +1780,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), volumeProjectName, volumeType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), volumeProjectName, volumeType, volumeName, true)
 		return err
 	})
 	if err != nil {

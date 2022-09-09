@@ -37,7 +37,7 @@ SELECT images.fingerprint
 }
 
 // GetImageSource returns the image source with the given ID.
-func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
+func (c *ClusterTx) GetImageSource(ctx context.Context, imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 	type imagesSource struct {
 		ID          int
@@ -48,7 +48,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	}
 
 	sources := []imagesSource{}
-	err := query.Scan(c.tx, q, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
 		s := imagesSource{}
 
 		err := scan(&s.ID, &s.Server, &s.Protocol, &s.Certificate, &s.Alias)
@@ -87,7 +87,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 
 // Fill extra image fields such as properties and alias. This is called after
 // fetching a single row from the images table.
-func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
+func (c *ClusterTx) imageFill(ctx context.Context, id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
 		image.CreatedAt = *create
@@ -125,7 +125,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	// Get the aliases
 	aliases := []api.ImageAlias{}
-	err = query.Scan(c.tx, q, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
 		alias := api.ImageAlias{}
 
 		err := scan(&alias.Name, &alias.Description)
@@ -142,7 +142,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	image.Aliases = aliases
 
-	_, source, err := c.GetImageSource(id)
+	_, source, err := c.GetImageSource(ctx, id)
 	if err == nil {
 		image.UpdateSource = &source
 	}
@@ -451,7 +451,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 		filter.Project = &project
 	}
 
-	images, err := c.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
+	images, err := c.getImagesByFingerprintPrefix(ctx, fingerprintPrefix, filter)
 	if err != nil {
 		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
 	}
@@ -473,7 +473,7 @@ func (c *ClusterTx) GetImageByFingerprintPrefix(ctx context.Context, fingerprint
 	image.AutoUpdate = object.AutoUpdate
 
 	err = c.imageFill(
-		object.ID, &image,
+		ctx, object.ID, &image,
 		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 		&object.UploadDate, object.Architecture, object.Type)
 	if err != nil {
@@ -496,7 +496,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	var object cluster.Image
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		images, err := tx.getImagesByFingerprintPrefix(fingerprint, cluster.ImageFilter{})
+		images, err := tx.getImagesByFingerprintPrefix(ctx, fingerprint, cluster.ImageFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed to fetch images: %w", err)
 		}
@@ -515,7 +515,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 		image.AutoUpdate = object.AutoUpdate
 
 		err = tx.imageFill(
-			object.ID, &image,
+			ctx, object.ID, &image,
 			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 			&object.UploadDate, object.Architecture, object.Type)
 		if err != nil {
@@ -533,7 +533,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 
 // getImagesByFingerprintPrefix returns the images with fingerprints matching the prefix.
 // Optional filters 'project' and 'public' will be included if not nil.
-func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter cluster.ImageFilter) ([]cluster.Image, error) {
+func (c *ClusterTx) getImagesByFingerprintPrefix(ctx context.Context, fingerprintPrefix string, filter cluster.ImageFilter) ([]cluster.Image, error) {
 	sql := `
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
 FROM images
@@ -558,7 +558,7 @@ WHERE images.fingerprint LIKE ?
 
 	images := make([]cluster.Image, 0)
 
-	err := query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var img cluster.Image
 
 		err := scan(
@@ -624,7 +624,7 @@ WHERE images.fingerprint = ?
 		}
 
 		for _, address := range allAddresses {
-			node, err := tx.GetNodeByAddress(address)
+			node, err := tx.GetNodeByAddress(ctx, address)
 			if err != nil {
 				return err
 			}
@@ -1244,7 +1244,7 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdat
 		}
 
 		for _, address := range allAddresses {
-			node, err := tx.GetNodeByAddress(address)
+			node, err := tx.GetNodeByAddress(ctx, address)
 			if err != nil {
 				return err
 			}
@@ -1262,7 +1262,7 @@ func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdat
 }
 
 // GetProjectsUsingImage get the project names using an image by fingerprint.
-func (c *ClusterTx) GetProjectsUsingImage(fingerprint string) ([]string, error) {
+func (c *ClusterTx) GetProjectsUsingImage(ctx context.Context, fingerprint string) ([]string, error) {
 	var err error
 	var imgProjectNames []string
 
@@ -1272,7 +1272,7 @@ func (c *ClusterTx) GetProjectsUsingImage(fingerprint string) ([]string, error) 
 		JOIN projects ON projects.id=images.project_id
 		WHERE fingerprint = ?
 	`
-	err = query.Scan(c.Tx(), q, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
 		var imgProjectName string
 		err = scan(&imgProjectName)
 		if err != nil {

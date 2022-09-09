@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,7 +19,7 @@ import (
 //
 // This effectively makes the node act as a database raft node.
 func setRaftRole(t *testing.T, database *db.Node, address string) client.NodeStore {
-	require.NoError(t, database.Transaction(func(tx *db.NodeTx) error {
+	require.NoError(t, database.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		err := tx.UpdateConfig(map[string]string{"cluster.https_address": address})
 		if err != nil {
 			return err

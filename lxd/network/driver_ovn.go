@@ -260,19 +260,19 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
-		projectNetworks, err = tx.GetCreatedNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		// Get all network forward listen addresses for all networks (of any type) connected to our uplink.
-		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName)
+		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, uplinkNetworkName)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 		}
 
 		// Get all network load balancer listen addresses for all networks (of any type) connected to our uplink.
-		projectNetworksLoadBalancersOnUplink, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(uplinkNetworkName)
+		projectNetworksLoadBalancersOnUplink, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, uplinkNetworkName)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 		}
@@ -977,7 +977,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
 	if (uplinkIPv4Net != nil && routerExtPortIPv4 == nil) || (uplinkIPv6Net != nil && routerExtPortIPv6 == nil) {
 		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			allAllocatedIPv4, allAllocatedIPv6, err := n.uplinkAllAllocatedIPs(tx, uplinkNet.Name())
+			allAllocatedIPv4, allAllocatedIPv6, err := n.uplinkAllAllocatedIPs(ctx, tx, uplinkNet.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to get all allocated IPs for uplink: %w", err)
 			}
@@ -1058,9 +1058,9 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 }
 
 // uplinkAllAllocatedIPs gets a list of all IPv4 and IPv6 addresses allocated to OVN networks connected to uplink.
-func (n *ovn) uplinkAllAllocatedIPs(tx *db.ClusterTx, uplinkNetName string) ([]net.IP, []net.IP, error) {
+func (n *ovn) uplinkAllAllocatedIPs(ctx context.Context, tx *db.ClusterTx, uplinkNetName string) ([]net.IP, []net.IP, error) {
 	// Get all managed networks across all projects.
-	projectNetworks, err := tx.GetCreatedNetworks()
+	projectNetworks, err := tx.GetCreatedNetworks(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to load all networks: %w", err)
 	}
@@ -1433,7 +1433,7 @@ func (n *ovn) checkUplinkUse() (bool, error) {
 	var projectNetworks map[string]map[int64]api.Network
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNetworks, err = tx.GetCreatedNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		return err
 	})
 	if err != nil {
@@ -1706,7 +1706,7 @@ func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 
 	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Uplink networks are always from the default project.
-		networks, err := tx.GetCreatedNetworksByProject(project.Default)
+		networks, err := tx.GetCreatedNetworksByProject(ctx, project.Default)
 		if err != nil {
 			return fmt.Errorf("Failed getting uplink networks: %w", err)
 		}
@@ -2435,7 +2435,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	ourNodeID := int(n.state.DB.Cluster.GetNodeID())
 	var nodeIDs []int
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting node list for adding chassis group entry: %w", err)
 		}
@@ -2615,10 +2615,10 @@ func (n *ovn) Rename(newName string) error {
 
 // chassisEnabled checks the cluster config to see if this particular
 // member should act as an OVN chassis.
-func (n *ovn) chassisEnabled(tx *db.ClusterTx) (bool, error) {
+func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error) {
 	// Get the node info.
 	nodeID := tx.GetNodeID()
-	nodes, err := tx.GetNodes()
+	nodes, err := tx.GetNodes(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -2680,7 +2680,7 @@ func (n *ovn) Start() error {
 		}
 
 		// Check if we should enable the chassis.
-		chassisEnabled, err = n.chassisEnabled(tx)
+		chassisEnabled, err = n.chassisEnabled(ctx, tx)
 		if err != nil {
 			return err
 		}

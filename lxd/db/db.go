@@ -97,11 +97,11 @@ func (n *Node) Dir() string {
 // node-level database interactions invoked by the given function. If the
 // function returns no error, all database changes are committed to the
 // node-level database, otherwise they are rolled back.
-func (n *Node) Transaction(f func(*NodeTx) error) error {
+func (n *Node) Transaction(ctx context.Context, f func(context.Context, *NodeTx) error) error {
 	nodeTx := &NodeTx{}
-	return query.Transaction(context.TODO(), n.db, func(ctx context.Context, tx *sql.Tx) error {
+	return query.Transaction(ctx, n.db, func(ctx context.Context, tx *sql.Tx) error {
 		nodeTx.tx = tx
-		return f(nodeTx)
+		return f(ctx, nodeTx)
 	})
 }
 
@@ -245,7 +245,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch nodes: %w", err)
 		}

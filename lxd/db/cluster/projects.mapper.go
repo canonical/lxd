@@ -153,10 +153,10 @@ func GetProjects(ctx context.Context, tx *sql.Tx, filters ...ProjectFilter) ([]P
 
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(sqlStmt, dest, args...)
+		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(tx, queryStr, dest, args...)
+		err = query.Scan(ctx, tx, queryStr, dest, args...)
 	}
 
 	if err != nil {

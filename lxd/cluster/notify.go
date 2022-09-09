@@ -51,7 +51,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			return err
 		}
 
-		nodes, err = tx.GetNodes()
+		nodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}

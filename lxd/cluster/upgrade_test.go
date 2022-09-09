@@ -67,7 +67,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	_ = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	_ = state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
 			{NodeInfo: client.NodeInfo{ID: 1, Address: "0.0.0.0:666"}},
 			{NodeInfo: client.NodeInfo{ID: 2, Address: "1.2.3.4:666"}},
@@ -82,7 +82,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 		require.NoError(t, err)
 
-		node, err := tx.GetNodeByName("buzz")
+		node, err := tx.GetNodeByName(ctx, "buzz")
 		require.NoError(t, err)
 
 		version := node.Version()
@@ -167,7 +167,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 		require.NoError(t, err)
 		_, err = tx.CreateNode("bar", "5.6.7.8")
 		require.NoError(t, err)
-		members, err = tx.GetNodes()
+		members, err = tx.GetNodes(ctx)
 		require.NoError(t, err)
 		return nil
 	})

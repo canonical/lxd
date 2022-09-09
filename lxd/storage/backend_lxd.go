@@ -3341,7 +3341,7 @@ func (b *lxdBackend) UpdateBucket(projectName string, bucketName string, bucket 
 	// Get current config to compare what has changed.
 	var curBucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		curBucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		curBucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
 		return err
 	})
 	if err != nil {
@@ -3435,7 +3435,7 @@ func (b *lxdBackend) DeleteBucket(projectName string, bucketName string, op *ope
 
 	var bucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
 		return err
 	})
 	if err != nil {
@@ -3503,7 +3503,7 @@ func (b *lxdBackend) CreateBucketKey(projectName string, bucketName string, key 
 
 	var bucket *db.StorageBucket
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
 		return err
 	})
 	if err != nil {
@@ -3616,12 +3616,12 @@ func (b *lxdBackend) UpdateBucketKey(projectName string, bucketName string, keyN
 	var bucket *db.StorageBucket
 	var curBucketKey *db.StorageBucketKey
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
 		if err != nil {
 			return err
 		}
 
-		curBucketKey, err = tx.GetStoragePoolBucketKey(bucket.ID, keyName)
+		curBucketKey, err = tx.GetStoragePoolBucketKey(ctx, bucket.ID, keyName)
 		if err != nil {
 			return err
 		}
@@ -3757,12 +3757,12 @@ func (b *lxdBackend) DeleteBucketKey(projectName string, bucketName string, keyN
 	var bucket *db.StorageBucket
 	var bucketKey *db.StorageBucketKey
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(b.id, projectName, memberSpecific, bucketName)
+		bucket, err = tx.GetStoragePoolBucket(ctx, b.id, projectName, memberSpecific, bucketName)
 		if err != nil {
 			return err
 		}
 
-		bucketKey, err = tx.GetStoragePoolBucketKey(bucket.ID, keyName)
+		bucketKey, err = tx.GetStoragePoolBucketKey(ctx, bucket.ID, keyName)
 		if err != nil {
 			return err
 		}

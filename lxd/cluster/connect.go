@@ -123,7 +123,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 			return err
 		}
 
-		nodes, err = tx.GetStorageVolumeNodes(poolID, projectName, volumeName, volumeType)
+		nodes, err = tx.GetStorageVolumeNodes(ctx, poolID, projectName, volumeName, volumeType)
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 		// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 		var dbVolume *db.StorageVolume
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volumeType, volumeName, true)
+			dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
 			return err
 		})
 		if err != nil {
@@ -156,7 +156,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 		if remoteInstance != nil {
 			var instNode db.NodeInfo
 			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				instNode, err = tx.GetNodeByName(remoteInstance.Node)
+				instNode, err = tx.GetNodeByName(ctx, remoteInstance.Node)
 				return err
 			})
 			if err != nil {

@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // GetCurrentAllocations returns the current resource utilization for a given project.
-func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
+func GetCurrentAllocations(ctx context.Context, tx *db.ClusterTx, projectName string) (map[string]api.ProjectStateResource, error) {
 	result := map[string]api.ProjectStateResource{}
 
 	// Get the project.
@@ -81,7 +82,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 		}
 	}
 
-	networks, err := tx.GetCreatedNetworks()
+	networks, err := tx.GetCreatedNetworks(ctx)
 	if err != nil {
 		return nil, err
 	}
