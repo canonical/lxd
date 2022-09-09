@@ -2021,17 +2021,17 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 		}
 
 		if info.Cached {
-			err = d.db.Cluster.InitImageLastUseDate(hash)
+			err = d.db.Cluster.SetImageCachedAndLastUseDate(projectName, hash, info.LastUsedAt)
 			if err != nil {
-				logger.Error("Error setting cached flag", logger.Ctx{"err": err, "fingerprint": hash})
+				logger.Error("Error setting cached flag and last use date", logger.Ctx{"err": err, "fingerprint": hash})
 				continue
 			}
-		}
-
-		err = d.db.Cluster.UpdateImageLastUseDate(hash, info.LastUsedAt)
-		if err != nil {
-			logger.Error("Error setting last use date", logger.Ctx{"err": err, "fingerprint": hash})
-			continue
+		} else {
+			err = d.db.Cluster.UpdateImageLastUseDate(projectName, hash, info.LastUsedAt)
+			if err != nil {
+				logger.Error("Error setting last use date", logger.Ctx{"err": err, "fingerprint": hash})
+				continue
+			}
 		}
 
 		err = d.db.Cluster.MoveImageAlias(id, newID)
