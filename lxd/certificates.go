@@ -270,7 +270,7 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	var err error
 
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		dbCerts, err = tx.GetCertificates()
+		dbCerts, err = tx.GetCertificates(ctx)
 		return err
 	})
 	if err != nil {

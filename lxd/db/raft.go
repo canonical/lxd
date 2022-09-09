@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -34,11 +35,11 @@ const (
 // GetRaftNodes returns information about all LXD nodes that are members of the
 // dqlite Raft cluster (possibly including the local member). If this LXD
 // instance is not running in clustered mode, an empty list is returned.
-func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
+func (n *NodeTx) GetRaftNodes(ctx context.Context) ([]RaftNode, error) {
 	nodes := []RaftNode{}
 
 	sql := "SELECT id, address, role, name FROM raft_nodes ORDER BY id"
-	err := query.Scan(n.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, n.tx, sql, func(scan func(dest ...any) error) error {
 		node := RaftNode{}
 		err := scan(&node.ID, &node.Address, &node.Role, &node.Name)
 		if err != nil {

@@ -143,7 +143,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(`Can't edit cluster configuration as server isn't clustered (missing "cluster.https_address" config)`)
 		}
 
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	if err != nil {
@@ -296,7 +296,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	var nodes []db.RaftNode
 	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	if err != nil {
