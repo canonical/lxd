@@ -492,7 +492,7 @@ func updateFromV18(ctx context.Context, tx *sql.Tx) error {
 	var value string
 
 	// Update container config
-	rows, err := tx.Query("SELECT id, value FROM containers_config WHERE key='limits.memory'")
+	rows, err := tx.QueryContext(ctx, "SELECT id, value FROM containers_config WHERE key='limits.memory'")
 	if err != nil {
 		return err
 	}
@@ -538,7 +538,7 @@ func updateFromV18(ctx context.Context, tx *sql.Tx) error {
 	}
 
 	// Update profiles config
-	rows, err = tx.Query("SELECT id, value FROM profiles_config WHERE key='limits.memory'")
+	rows, err = tx.QueryContext(ctx, "SELECT id, value FROM profiles_config WHERE key='limits.memory'")
 	if err != nil {
 		return err
 	}
@@ -858,7 +858,7 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	}
 
 	// Get the rows with broken foreign keys an nuke them
-	rows, err := tx.Query("PRAGMA foreign_key_check;")
+	rows, err := tx.QueryContext(ctx, "PRAGMA foreign_key_check;")
 	if err != nil {
 		return err
 	}

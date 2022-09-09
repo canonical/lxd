@@ -55,7 +55,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 		data := [][]any{}
 		stmt := fmt.Sprintf("SELECT * FROM %s", table)
 
-		rows, err := tx.Query(stmt)
+		rows, err := tx.QueryContext(ctx, stmt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch rows from %s: %w", table, err)
 		}

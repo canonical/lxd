@@ -33,7 +33,7 @@ SELECT operations.id, operations.uuid, operations.type, nodes.address
   JOIN nodes on nodes.id = operations.node_id
 WHERE (projects.name = ? OR operations.project_id IS NULL) and operations.type = ?
 `
-	rows, err := c.tx.Query(stmt, projectName, opType)
+	rows, err := c.tx.QueryContext(ctx, stmt, projectName, opType)
 	if err != nil {
 		return nil, err
 	}
