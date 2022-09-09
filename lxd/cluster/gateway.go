@@ -601,7 +601,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 		return err
 	}
 
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(nil)
 	})
 	if err != nil {
@@ -667,8 +667,8 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	}
 
 	addresses := []string{}
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.GetRaftNodes()
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodes, err := tx.GetRaftNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -957,7 +957,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	// Get the names of the raft nodes from the global database.
 	if g.Cluster != nil {
 		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err := tx.GetNodes()
+			nodes, err := tx.GetNodes(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed loading cluster members: %w", err)
 			}
@@ -994,7 +994,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	}
 
 	var address string
-	err := g.db.Transaction(func(tx *db.NodeTx) error {
+	err := g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		address, err = tx.GetRaftNodeAddress(1)
 		if err != nil {

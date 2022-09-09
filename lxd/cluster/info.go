@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -15,9 +16,9 @@ import (
 func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 	// Figure out if we actually need to act as dqlite node.
 	var info *db.RaftNode
-	err := database.Transaction(func(tx *db.NodeTx) error {
+	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 		return err
 	})
 	if err != nil {

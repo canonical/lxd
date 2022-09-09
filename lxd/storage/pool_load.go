@@ -47,7 +47,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// Get the storage volume.
 		var dbVolume *db.StorageVolume
 		err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbVolume, err = tx.GetStoragePoolVolume(poolID, projectName, volTypeID, volName, true)
+			dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volTypeID, volName, true)
 			return err
 		})
 		if err != nil {

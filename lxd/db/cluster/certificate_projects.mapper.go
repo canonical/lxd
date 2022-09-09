@@ -66,7 +66,7 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
 	}

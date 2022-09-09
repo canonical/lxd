@@ -242,7 +242,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var nodeInfo NodeInfo
 
 		err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-			nodeInfo, err = tx.GetNodeWithID(entityID)
+			nodeInfo, err = tx.GetNodeWithID(ctx, entityID)
 			if err != nil {
 				return err
 			}

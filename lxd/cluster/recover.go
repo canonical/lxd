@@ -17,9 +17,9 @@ import (
 // ListDatabaseNodes returns a list of database node names.
 func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
-	err := database.Transaction(func(tx *db.NodeTx) error {
+	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		nodes, err = tx.GetRaftNodes()
+		nodes, err = tx.GetRaftNodes(ctx)
 		return err
 	})
 	if err != nil {
@@ -42,9 +42,9 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 func Recover(database *db.Node) error {
 	// Figure out if we actually act as dqlite node.
 	var info *db.RaftNode
-	err := database.Transaction(func(tx *db.NodeTx) error {
+	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 		return err
 	})
 	if err != nil {
@@ -82,7 +82,7 @@ func Recover(database *db.Node) error {
 	}
 
 	// Update the list of raft nodes.
-	err = database.Transaction(func(tx *db.NodeTx) error {
+	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
 			{
 				NodeInfo: client.NodeInfo{
@@ -104,7 +104,7 @@ func Recover(database *db.Node) error {
 
 // updateLocalAddress updates the cluster.https_address for this node.
 func updateLocalAddress(database *db.Node, address string) error {
-	err := database.Transaction(func(tx *db.NodeTx) error {
+	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
@@ -130,9 +130,9 @@ func updateLocalAddress(database *db.Node, address string) error {
 // Addresses and node roles may be updated. Node IDs are read-only.
 func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	var info *db.RaftNode
-	err := database.Transaction(func(tx *db.NodeTx) error {
+	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		info, err = node.DetermineRaftNode(tx)
+		info, err = node.DetermineRaftNode(ctx, tx)
 
 		return err
 	})
@@ -172,7 +172,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	}
 
 	// Replace cluster configuration in local raft_nodes database.
-	err = database.Transaction(func(tx *db.NodeTx) error {
+	err = database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {

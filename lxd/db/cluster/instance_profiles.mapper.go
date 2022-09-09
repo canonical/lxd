@@ -73,7 +73,7 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
@@ -120,7 +120,7 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 	}
 
 	// Select.
-	err = query.SelectObjects(sqlStmt, dest, args...)
+	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}

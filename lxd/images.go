@@ -1600,7 +1600,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 				err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					var err error
 
-					nodeInfo, err := tx.GetNodeByAddress(node)
+					nodeInfo, err := tx.GetNodeByAddress(ctx, node)
 					if err != nil {
 						return err
 					}
@@ -1705,7 +1705,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	// may be different for each cluster member.
 	var imageVolumes []string
 
-	err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -1761,7 +1761,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 		var nodeInfo db.NodeInfo
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			nodeInfo, err = tx.GetNodeByAddress(nodeAddress)
+			nodeInfo, err = tx.GetNodeByAddress(ctx, nodeAddress)
 			return err
 		})
 		if err != nil {
@@ -1935,7 +1935,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		_, source, err = tx.GetImageSource(id)
+		_, source, err = tx.GetImageSource(ctx, id)
 		return err
 	})
 	if err != nil {
@@ -2138,7 +2138,7 @@ func pruneLeftoverImages(d *Daemon) {
 	opRun := func(op *operations.Operation) error {
 		// Check if dealing with shared image storage.
 		var storageImages string
-		err := d.State().DB.Node.Transaction(func(tx *db.NodeTx) error {
+		err := d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			nodeConfig, err := node.ConfigLoad(tx)
 			if err != nil {
 				return err

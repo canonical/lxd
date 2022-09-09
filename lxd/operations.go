@@ -571,7 +571,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
-		nodes, err = tx.GetNodes()
+		nodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting members: %w", err)
 		}
@@ -690,7 +690,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
-		nodes, err = tx.GetNodes()
+		nodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting members: %w", err)
 		}
@@ -1140,7 +1140,7 @@ func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 			return fmt.Errorf("Load offline threshold config: %w", err)
 		}
 
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to get nodes: %w", err)
 		}

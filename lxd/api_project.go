@@ -218,7 +218,7 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		usedBy = append(usedBy, apiImage.URL(version.APIVersion, project.Name).String())
 	}
 
-	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	volumes, err := tx.GetStorageVolumeURIs(ctx, project.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -954,7 +954,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get current limits and usage.
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		result, err := projecthelpers.GetCurrentAllocations(tx, name)
+		result, err := projecthelpers.GetCurrentAllocations(ctx, tx, name)
 		if err != nil {
 			return err
 		}
@@ -1004,7 +1004,7 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 		return false, nil
 	}
 
-	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	volumes, err := tx.GetStorageVolumeURIs(ctx, project.Name)
 	if err != nil {
 		return false, err
 	}

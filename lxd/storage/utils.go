@@ -193,7 +193,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 	// Get the storage volume.
 	var dbVolume *db.StorageVolume
 	err = p.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(pool.ID(), projectName, volDBType, volumeName, true)
+		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volDBType, volumeName, true)
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				return fmt.Errorf("Storage volume %q in project %q of type %q does not exist on pool %q: %w", volumeName, projectName, volumeType, pool.Name(), err)
@@ -880,7 +880,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
 	var storageBackups string
 	var storageImages string
-	err := s.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err

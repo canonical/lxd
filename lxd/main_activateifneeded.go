@@ -142,7 +142,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Check for scheduled volume snapshots
 	var volumes []db.StorageVolumeArgs
 	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		volumes, err = tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+		volumes, err = tx.GetStoragePoolVolumesWithType(ctx, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}

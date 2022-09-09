@@ -68,7 +68,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"source": "/foo"}
-	err = tx.CreatePendingStoragePool("buzz", "pool1", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", config)
 	require.NoError(t, err)
 
 	poolID, err := tx.GetStoragePoolID("pool1")
@@ -76,19 +76,19 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	assert.True(t, poolID > 0)
 
 	config = map[string]string{"source": "/bar"}
-	err = tx.CreatePendingStoragePool("rusp", "pool1", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "rusp", "pool1", "dir", config)
 	require.NoError(t, err)
 
 	// The initial node (whose name is 'none' by default) is missing.
-	_, err = tx.GetStoragePoolNodeConfigs(poolID)
+	_, err = tx.GetStoragePoolNodeConfigs(context.Background(), poolID)
 	require.EqualError(t, err, "Pool not defined on nodes: none")
 
 	config = map[string]string{"source": "/egg"}
-	err = tx.CreatePendingStoragePool("none", "pool1", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "none", "pool1", "dir", config)
 	require.NoError(t, err)
 
 	// Now the storage is defined on all nodes.
-	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(context.Background(), poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 3)
 	assert.Equal(t, map[string]string{"source": "/foo"}, configs["buzz"])
@@ -106,28 +106,28 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"source": "/foo"}
-	err = tx.CreatePendingStoragePool("none", "pool1", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "none", "pool1", "dir", config)
 	require.NoError(t, err)
 
 	config = map[string]string{"source": "/bar"}
-	err = tx.CreatePendingStoragePool("buzz", "pool1", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", config)
 	require.NoError(t, err)
 
 	// Create a second pending pool named pool2 on the same two nodes.
 	config = map[string]string{}
-	err = tx.CreatePendingStoragePool("none", "pool2", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "none", "pool2", "dir", config)
 	require.NoError(t, err)
 
 	poolID, err := tx.GetStoragePoolID("pool2")
 	require.NoError(t, err)
 
 	config = map[string]string{}
-	err = tx.CreatePendingStoragePool("buzz", "pool2", "dir", config)
+	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool2", "dir", config)
 	require.NoError(t, err)
 
 	// The node-level configs of the second pool do not contain any key
 	// from the first pool.
-	configs, err := tx.GetStoragePoolNodeConfigs(poolID)
+	configs, err := tx.GetStoragePoolNodeConfigs(context.Background(), poolID)
 	require.NoError(t, err)
 	assert.Len(t, configs, 2)
 	assert.Equal(t, map[string]string{}, configs["none"])
@@ -143,10 +143,10 @@ func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.CreatePendingStoragePool("buzz", "pool1", "dir", map[string]string{})
+	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", map[string]string{})
 	require.NoError(t, err)
 
-	err = tx.CreatePendingStoragePool("buzz", "pool1", "dir", map[string]string{})
+	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", map[string]string{})
 	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
@@ -155,7 +155,7 @@ func TestStoragePoolsCreatePending_NonExistingNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	err := tx.CreatePendingStoragePool("buzz", "pool1", "dir", map[string]string{})
+	err := tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", map[string]string{})
 	require.True(t, response.IsNotFoundError(err))
 }
 
@@ -183,7 +183,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	getStoragePoolVolume := func(volumeProjectName string, volumeName string, volumeType int, poolID int64) (*db.StorageVolume, error) {
 		var dbVolume *db.StorageVolume
 		err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			dbVolume, err = tx.GetStoragePoolVolume(poolID, volumeProjectName, volumeType, volumeName, true)
+			dbVolume, err = tx.GetStoragePoolVolume(context.Background(), poolID, volumeProjectName, volumeType, volumeName, true)
 			return err
 		})
 		if err != nil {

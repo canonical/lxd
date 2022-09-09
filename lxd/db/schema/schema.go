@@ -23,10 +23,10 @@ type Schema struct {
 
 // Update applies a specific schema change to a database, and returns an error
 // if anything goes wrong.
-type Update func(*sql.Tx) error
+type Update func(context.Context, *sql.Tx) error
 
 // Hook is a callback that gets fired when a update gets applied.
-type Hook func(int, *sql.Tx) error
+type Hook func(context.Context, int, *sql.Tx) error
 
 // Check is a callback that gets fired all the times Schema.Ensure is invoked,
 // before applying any update. It gets passed the version that the schema is
@@ -34,7 +34,7 @@ type Hook func(int, *sql.Tx) error
 // proceeds normally, otherwise it's aborted. If ErrGracefulAbort is returned,
 // the transaction will still be committed, giving chance to this function to
 // perform state changes.
-type Check func(int, *sql.Tx) error
+type Check func(context.Context, int, *sql.Tx) error
 
 // New creates a new schema Schema with the given updates.
 func New(updates []Update) *Schema {
@@ -139,7 +139,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	var current int
 	aborted := false
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
-		err := execFromFile(tx, s.path, s.hook)
+		err := execFromFile(ctx, tx, s.path, s.hook)
 		if err != nil {
 			return fmt.Errorf("failed to execute queries from %s: %w", s.path, err)
 		}
@@ -155,7 +155,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 		}
 
 		if s.check != nil {
-			err := s.check(current, tx)
+			err := s.check(ctx, current, tx)
 			if err == ErrGracefulAbort {
 				// Abort the update gracefully, committing what
 				// we've done so far.
@@ -176,7 +176,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 				return fmt.Errorf("cannot apply fresh schema: %w", err)
 			}
 		} else {
-			err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
+			err = ensureUpdatesAreApplied(ctx, tx, current, s.updates, s.hook)
 			if err != nil {
 				return err
 			}
@@ -347,7 +347,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 }
 
 // Apply any pending update that was not yet applied.
-func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hook) error {
+func ensureUpdatesAreApplied(ctx context.Context, tx *sql.Tx, current int, updates []Update, hook Hook) error {
 	if current > len(updates) {
 		return fmt.Errorf(
 			"schema version '%d' is more recent than expected '%d'",
@@ -362,13 +362,13 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 	// Apply missing updates.
 	for _, update := range updates[current:] {
 		if hook != nil {
-			err := hook(current, tx)
+			err := hook(ctx, current, tx)
 			if err != nil {
 				return fmt.Errorf(
 					"failed to execute hook (version %d): %v", current, err)
 			}
 		}
-		err := update(tx)
+		err := update(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("failed to apply update %d: %w", current, err)
 		}

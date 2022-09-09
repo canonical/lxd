@@ -1,6 +1,8 @@
 package node
 
 import (
+	"context"
+
 	"github.com/canonical/go-dqlite/client"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -27,7 +29,7 @@ import (
 //   in the raft_nodes table, then this node is considered a raft node if
 //   cluster.https_address matches one of the rows in raft_nodes. In that case,
 //   the matching db.RaftNode row is returned, otherwise nil.
-func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
+func DetermineRaftNode(ctx context.Context, tx *db.NodeTx) (*db.RaftNode, error) {
 	config, err := ConfigLoad(tx)
 	if err != nil {
 		return nil, err
@@ -42,7 +44,7 @@ func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
 		return &db.RaftNode{NodeInfo: nodeInfo, Name: ""}, nil
 	}
 
-	nodes, err := tx.GetRaftNodes()
+	nodes, err := tx.GetRaftNodes(ctx)
 	if err != nil {
 		return nil, err
 	}

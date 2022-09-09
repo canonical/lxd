@@ -133,7 +133,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Load target node.
-			node, err := tx.GetNodeByName(targetNode)
+			node, err := tx.GetNodeByName(ctx, targetNode)
 			if err != nil {
 				return fmt.Errorf("Failed to get target node: %w", err)
 			}
@@ -152,7 +152,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 
-			node, err = tx.GetNodeByAddress(address)
+			node, err = tx.GetNodeByAddress(ctx, address)
 			if err != nil {
 				return fmt.Errorf("Failed to get source member for %s: %w", address, err)
 			}
@@ -561,7 +561,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return fmt.Errorf("Failed to get local member address: %w", err)
 		}
 
-		node, err := tx.GetNodeByName(newNode)
+		node, err := tx.GetNodeByName(ctx, newNode)
 		if err != nil {
 			return fmt.Errorf("Failed to get new member address: %w", err)
 		}
@@ -757,7 +757,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		// If the source member is online then get its address so we can connect to it and see if the
 		// instance is running later.
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			sourceMember, err = tx.GetNodeByName(inst.Location())
+			sourceMember, err = tx.GetNodeByName(ctx, inst.Location())
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster member of instance %q", inst.Name())
 			}

@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -30,7 +31,7 @@ func EnsureSchema(db *sql.DB, dir string) (int, error) {
 
 	schema := Schema()
 	schema.File(filepath.Join(dir, "patch.local.sql")) // Optional custom queries
-	schema.Hook(func(version int, tx *sql.Tx) error {
+	schema.Hook(func(ctx context.Context, version int, tx *sql.Tx) error {
 		if !backupDone {
 			logger.Infof("Updating the LXD database schema. Backup made as \"local.db.bak\"")
 			path := filepath.Join(dir, "local.db")

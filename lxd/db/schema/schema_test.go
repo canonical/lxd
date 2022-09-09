@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -223,7 +224,7 @@ func TestSchemaEnsure_FailingUpdate(t *testing.T) {
 func TestSchemaEnsure_FailingHook(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
-	schema.Hook(func(int, *sql.Tx) error { return fmt.Errorf("boom") })
+	schema.Hook(func(context.Context, int, *sql.Tx) error { return fmt.Errorf("boom") })
 	_, err := schema.Ensure(db)
 	assert.EqualError(t, err, "failed to execute hook (version 0): boom")
 
@@ -240,7 +241,7 @@ func TestSchemaEnsure_FailingHook(t *testing.T) {
 // If the schema check callback returns ErrGracefulAbort, the process is
 // aborted, although every change performed so far gets still committed.
 func TestSchemaEnsure_CheckGracefulAbort(t *testing.T) {
-	check := func(current int, tx *sql.Tx) error {
+	check := func(ctx context.Context, current int, tx *sql.Tx) error {
 		_, err := tx.Exec("CREATE TABLE test (n INTEGER)")
 		require.NoError(t, err)
 		return schema.ErrGracefulAbort
@@ -433,7 +434,7 @@ func TestSchema_File_Hook(t *testing.T) {
 
 	// Add a hook that takes care of creating the test table, this shows
 	// that it's run before anything else.
-	schema.Hook(func(version int, tx *sql.Tx) error {
+	schema.Hook(func(ctx context.Context, version int, tx *sql.Tx) error {
 		if version == -1 {
 			_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 			return err
@@ -467,29 +468,29 @@ func newSchemaAndDB(t *testing.T) (*schema.Schema, *sql.DB) {
 }
 
 // An update that does nothing.
-func updateNoop(*sql.Tx) error {
+func updateNoop(context.Context, *sql.Tx) error {
 	return nil
 }
 
 // An update that creates a test table.
-func updateCreateTable(tx *sql.Tx) error {
+func updateCreateTable(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 	return err
 }
 
 // An update that inserts a value into the test table.
-func updateInsertValue(tx *sql.Tx) error {
+func updateInsertValue(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("INSERT INTO test VALUES (1)")
 	return err
 }
 
 // An update that adds a column to the test tabble.
-func updateAddColumn(tx *sql.Tx) error {
+func updateAddColumn(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE test ADD COLUMN name TEXT")
 	return err
 }
 
 // An update that unconditionally fails with an error.
-func updateBoom(tx *sql.Tx) error {
+func updateBoom(ctx context.Context, tx *sql.Tx) error {
 	return fmt.Errorf("boom")
 }

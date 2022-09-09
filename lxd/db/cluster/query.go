@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -38,7 +39,7 @@ func selectUnclusteredNodesCount(tx *sql.Tx) (int, error) {
 
 // Return a slice of binary integer tuples. Each tuple contains the schema
 // version and number of api extensions of a node in the cluster.
-func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
+func selectNodesVersions(ctx context.Context, tx *sql.Tx) ([][2]int, error) {
 	versions := [][2]int{}
 	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE state=0")
 	if err != nil {
@@ -49,7 +50,7 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 		}
 	}
 	defer func() { _ = stmt.Close() }()
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err = query.SelectObjects(ctx, stmt, func(scan func(dest ...any) error) error {
 		version := [2]int{}
 		err := scan(&version[0], &version[1])
 		if err != nil {
