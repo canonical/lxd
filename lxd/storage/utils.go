@@ -880,7 +880,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
 	var storageBackups string
 	var storageImages string
-	err := s.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err

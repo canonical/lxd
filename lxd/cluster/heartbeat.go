@@ -361,7 +361,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// been elected leader before the former leader had chance to
 	// send us a fresh update through the heartbeat pool.
 	logger.Debug("Heartbeat updating local raft members", logger.Ctx{"members": raftNodes})
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {

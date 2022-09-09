@@ -41,7 +41,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 
 	var address string
 
-	err = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
@@ -308,7 +308,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	}
 
 	var address string
-	err := state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
@@ -572,7 +572,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	var err error
 	var raftNodes []db.RaftNode
 	var localAddress string
-	err = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		raftNodes, err = tx.GetRaftNodes()
 		if err != nil {
 			return err
@@ -721,7 +721,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Replace our local list of raft nodes with the given one (which
 	// includes ourselves).
-	err = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		err = tx.ReplaceRaftNodes(nodes)
 		if err != nil {
 			return fmt.Errorf("Failed to set raft nodes: %w", err)
@@ -1082,7 +1082,7 @@ func Count(state *state.State) (int, error) {
 // node.
 func Enabled(node *db.Node) (bool, error) {
 	enabled := false
-	err := node.Transaction(func(tx *db.NodeTx) error {
+	err := node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		addresses, err := tx.GetRaftNodeAddresses()
 		if err != nil {
 			return err

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
@@ -17,7 +19,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 	}
 
 	// Apply the local config.
-	err := state.DB.Node.Transaction(func(tx *db.NodeTx) error {
+	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
