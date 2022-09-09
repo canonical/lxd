@@ -1598,9 +1598,10 @@ func networkStartup(s *state.State) error {
 				}
 			}
 		}()
+	} else {
+		logger.Info("All networks initialized")
 	}
 
-	logger.Info("All networks initialized")
 	return nil
 }
 
