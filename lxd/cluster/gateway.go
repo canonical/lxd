@@ -996,7 +996,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	var address string
 	err := g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		address, err = tx.GetRaftNodeAddress(1)
+		address, err = tx.GetRaftNodeAddress(ctx, 1)
 		if err != nil {
 			if !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed to fetch raft server address: %w", err)

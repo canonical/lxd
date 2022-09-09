@@ -46,14 +46,14 @@ func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...
 // CountAll returns a map associating each table name in the database
 // with the total count of its rows.
 func CountAll(ctx context.Context, tx *sql.Tx) (map[string]int, error) {
-	tables, err := SelectStrings(tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
+	tables, err := SelectStrings(ctx, tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch table names: %w", err)
 	}
 
 	counts := map[string]int{}
 	for _, table := range tables {
-		count, err := Count(tx, table, "")
+		count, err := Count(ctx, tx, table, "")
 		if err != nil {
 			return nil, fmt.Errorf("Failed to count rows of %s: %w", table, err)
 		}

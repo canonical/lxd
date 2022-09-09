@@ -28,8 +28,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// If we are creating a snapshot, figure out the volume
 		// ID of the parent.
-		parentID, err := tx.storagePoolVolumeGetTypeID(
-			project, volumeName, volumeType, poolID, c.nodeID)
+		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, project, volumeName, volumeType, poolID, c.nodeID)
 		if err != nil {
 			return fmt.Errorf("Find parent volume: %w", err)
 		}

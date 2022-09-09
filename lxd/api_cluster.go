@@ -194,12 +194,12 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		pools, err = tx.GetStoragePoolsLocalConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch storage pools configuration: %w", err)
 		}
 
-		networks, err = tx.GetNetworksLocalConfig()
+		networks, err = tx.GetNetworksLocalConfig(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch networks configuration: %w", err)
 		}
@@ -359,7 +359,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
 	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
@@ -442,7 +442,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			config, err := node.ConfigLoad(tx)
+			config, err := node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
@@ -473,7 +473,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Update the cluster.https_address config key.
 		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			config, err := node.ConfigLoad(tx)
+			config, err := node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
@@ -703,7 +703,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		var nodeConfig *node.Config
 		err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			var err error
-			nodeConfig, err = node.ConfigLoad(tx)
+			nodeConfig, err = node.ConfigLoad(ctx, tx)
 			return err
 		})
 		if err != nil {
@@ -1686,7 +1686,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		return tx.RenameNode(name, req.ServerName)
+		return tx.RenameNode(ctx, name, req.ServerName)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -3319,7 +3319,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 			apiClusterGroups := make([]*api.ClusterGroup, len(clusterGroups))
 			for i, clusterGroup := range clusterGroups {
-				members, err := tx.GetClusterGroupNodes(clusterGroup.Name)
+				members, err := tx.GetClusterGroupNodes(ctx, clusterGroup.Name)
 				if err != nil {
 					return err
 				}
@@ -3329,7 +3329,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 			result = apiClusterGroups
 		} else {
-			result, err = tx.GetClusterGroupURIs(dbCluster.ClusterGroupFilter{})
+			result, err = tx.GetClusterGroupURIs(ctx, dbCluster.ClusterGroupFilter{})
 		}
 
 		return err
@@ -3596,7 +3596,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		members, err := tx.GetClusterGroupNodes(name)
+		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
 		}
@@ -3607,7 +3607,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		for _, oldMember := range members {
 			if !shared.StringInSlice(oldMember, req.Members) {
 				// Get all cluster groups this member belongs to.
-				groups, err := tx.GetClusterGroupsWithNode(oldMember)
+				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
 				if err != nil {
 					return err
 				}
@@ -3774,7 +3774,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		members, err := tx.GetClusterGroupNodes(name)
+		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
 		}
@@ -3785,7 +3785,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		for _, oldMember := range members {
 			if !shared.StringInSlice(oldMember, req.Members) {
 				// Get all cluster groups this member belongs to.
-				groups, err := tx.GetClusterGroupsWithNode(oldMember)
+				groups, err := tx.GetClusterGroupsWithNode(ctx, oldMember)
 				if err != nil {
 					return err
 				}
@@ -3862,7 +3862,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		members, err := tx.GetClusterGroupNodes(name)
+		members, err := tx.GetClusterGroupNodes(ctx, name)
 		if err != nil {
 			return err
 		}

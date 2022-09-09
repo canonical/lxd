@@ -21,7 +21,7 @@ var StorageRemoteDriverNames func() []string
 // GetStoragePoolsLocalConfig returns a map associating each storage pool name to
 // its node-specific config values (i.e. the ones where node_id is not NULL).
 func (c *ClusterTx) GetStoragePoolsLocalConfig(ctx context.Context) (map[string]map[string]string, error) {
-	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
+	names, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM storage_pools")
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +31,7 @@ func (c *ClusterTx) GetStoragePoolsLocalConfig(ctx context.Context) (map[string]
 		table := `
 storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config.storage_pool_id
 `
-		config, err := query.SelectConfig(
-			c.tx, table, "storage_pools.name=? AND storage_pools_config.node_id=?",
+		config, err := query.SelectConfig(ctx, c.tx, table, "storage_pools.name=? AND storage_pools_config.node_id=?",
 			name, c.nodeID)
 		if err != nil {
 			return nil, err
@@ -47,7 +46,7 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 // GetStoragePoolID returns the ID of the pool with the given name.
 func (c *ClusterTx) GetStoragePoolID(ctx context.Context, name string) (int64, error) {
 	stmt := "SELECT id FROM storage_pools WHERE name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, name)
+	ids, err := query.SelectIntegers(ctx, c.tx, stmt, name)
 	if err != nil {
 		return -1, err
 	}
@@ -65,7 +64,7 @@ func (c *ClusterTx) GetStoragePoolID(ctx context.Context, name string) (int64, e
 // GetStoragePoolDriver returns the driver of the pool with the given ID.
 func (c *ClusterTx) GetStoragePoolDriver(ctx context.Context, id int64) (string, error) {
 	stmt := "SELECT driver FROM storage_pools WHERE id=?"
-	drivers, err := query.SelectStrings(c.tx, stmt, id)
+	drivers, err := query.SelectStrings(ctx, c.tx, stmt, id)
 	if err != nil {
 		return "", err
 	}
@@ -137,7 +136,7 @@ func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(ctx context.Context, pool
 	// Get the IDs of the other nodes (they should be all linked to
 	// the pool).
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
-	nodeIDs, err := query.SelectIntegers(c.tx, stmt, poolID)
+	nodeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch IDs of nodes with ceph pool: %w", err)
 	}
@@ -163,12 +162,12 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description, p
 SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
   ORDER BY name, type
 `
-	volumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, nodeID)
+	volumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, nodeID)
 	if err != nil {
 		return fmt.Errorf("failed to get joining node's ceph volume IDs: %w", err)
 	}
 
-	otherVolumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, otherNodeID)
+	otherVolumeIDs, err := query.SelectIntegers(ctx, c.tx, stmt, poolID, otherNodeID)
 	if err != nil {
 		return fmt.Errorf("failed to get other node's ceph volume IDs: %w", err)
 	}
@@ -179,8 +178,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 
 	for i, otherVolumeID := range otherVolumeIDs {
 		volumeID := volumeIDs[i]
-		config, err := query.SelectConfig(
-			c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
+		config, err := query.SelectConfig(ctx, c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
 		if err != nil {
 			return fmt.Errorf("failed to get storage volume config: %w", err)
 		}
@@ -195,8 +193,7 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 		}
 
 		// Copy volume snapshots as well.
-		otherSnapshotIDs, err := query.SelectIntegers(c.tx,
-			"SELECT id FROM storage_volumes_snapshots WHERE storage_volume_id = ?",
+		otherSnapshotIDs, err := query.SelectIntegers(ctx, c.tx, "SELECT id FROM storage_volumes_snapshots WHERE storage_volume_id = ?",
 			otherVolumeID)
 		if err != nil {
 			return err
@@ -317,8 +314,7 @@ func (c *ClusterTx) CreatePendingStoragePool(ctx context.Context, node string, n
 	}
 
 	// Check that no storage_pool entry of this node and pool exists yet.
-	count, err = query.Count(
-		c.tx, "storage_pools_nodes", "storage_pool_id=? AND node_id=?", poolID, nodeInfo.ID)
+	count, err = query.Count(ctx, c.tx, "storage_pools_nodes", "storage_pool_id=? AND node_id=?", poolID, nodeInfo.ID)
 	if err != nil {
 		return err
 	}
@@ -448,7 +444,7 @@ SELECT nodes.name FROM nodes
   LEFT JOIN storage_pools ON storage_pools_nodes.storage_pool_id = storage_pools.id
 WHERE storage_pools.id = ? AND storage_pools.state = ?
 `
-	defined, err := query.SelectStrings(c.tx, stmt, poolID, storagePoolPending)
+	defined, err := query.SelectStrings(ctx, c.tx, stmt, poolID, storagePoolPending)
 	if err != nil {
 		return nil, err
 	}
@@ -467,8 +463,7 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 
 	configs := map[string]map[string]string{}
 	for _, node := range nodes {
-		config, err := query.SelectConfig(
-			c.tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, node.ID)
+		config, err := query.SelectConfig(ctx, c.tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, node.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -814,7 +809,7 @@ func (c *Cluster) IsRemoteStorage(poolID int64) (bool, error) {
 	isRemoteStorage := false
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		driver, err := tx.GetStoragePoolDriver(poolID)
+		driver, err := tx.GetStoragePoolDriver(ctx, poolID)
 		if err != nil {
 			return err
 		}

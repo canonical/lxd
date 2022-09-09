@@ -43,7 +43,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
@@ -310,7 +310,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	var address string
 	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
@@ -345,12 +345,12 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	var operations []cluster.Operation
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		pools, err = tx.GetStoragePoolsLocalConfig()
+		pools, err = tx.GetStoragePoolsLocalConfig(ctx)
 		if err != nil {
 			return err
 		}
 
-		networks, err = tx.GetNetworksLocalConfig()
+		networks, err = tx.GetNetworksLocalConfig(ctx)
 		if err != nil {
 			return err
 		}
@@ -459,7 +459,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 				return fmt.Errorf("Failed to add joining node's to the pool: %w", err)
 			}
 
-			driver, err := tx.GetStoragePoolDriver(id)
+			driver, err := tx.GetStoragePoolDriver(ctx, id)
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool driver: %w", err)
 			}
@@ -467,7 +467,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			if shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
-				err := tx.UpdateCephStoragePoolAfterNodeJoin(id, node.ID)
+				err := tx.UpdateCephStoragePoolAfterNodeJoin(ctx, id, node.ID)
 				if err != nil {
 					return fmt.Errorf("Failed to create ceph volumes for joining node: %w", err)
 				}
@@ -578,7 +578,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 			return err
 		}
 
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -690,7 +690,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	address := ""
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetLocalNodeAddress()
+		address, err = tx.GetLocalNodeAddress(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch the address of this cluster member: %w", err)
 		}
@@ -1046,7 +1046,7 @@ func Purge(c *db.Cluster, name string) error {
 			return fmt.Errorf("Failed to get member %q: %w", name, err)
 		}
 
-		err = tx.ClearNode(node.ID)
+		err = tx.ClearNode(ctx, node.ID)
 		if err != nil {
 			return fmt.Errorf("Failed to clear member %q: %w", name, err)
 		}
@@ -1071,7 +1071,7 @@ func Count(state *state.State) (int, error) {
 	var count int
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		count, err = tx.GetNodesCount()
+		count, err = tx.GetNodesCount(ctx)
 		return err
 	})
 
@@ -1083,7 +1083,7 @@ func Count(state *state.State) (int, error) {
 func Enabled(node *db.Node) (bool, error) {
 	enabled := false
 	err := node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		addresses, err := tx.GetRaftNodeAddresses()
+		addresses, err := tx.GetRaftNodeAddresses(ctx)
 		if err != nil {
 			return err
 		}

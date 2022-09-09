@@ -1965,7 +1965,7 @@ CREATE TABLE storage_volumes_backups (
 
 // Attempt to add missing project features.networks feature to default project.
 func updateFromV37(ctx context.Context, tx *sql.Tx) error {
-	ids, err := query.SelectIntegers(tx, `SELECT id FROM projects WHERE name = "default" LIMIT 1`)
+	ids, err := query.SelectIntegers(ctx, tx, `SELECT id FROM projects WHERE name = "default" LIMIT 1`)
 	if err != nil {
 		return err
 	}
@@ -2055,7 +2055,7 @@ ORDER BY storage_volumes.name
 `
 
 	// Get the total number of storage volume rows.
-	count, err := query.Count(tx, "storage_volumes JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id",
+	count, err := query.Count(ctx, tx, "storage_volumes JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id",
 		`storage_pools.driver IN ("ceph", "cephfs")`)
 	if err != nil {
 		return fmt.Errorf("Failed to get storage volumes count: %w", err)
@@ -2121,7 +2121,7 @@ CREATE TABLE storage_volumes_new (
 	}
 
 	// Copy rows from storage_volumes to storage_volumes_new
-	count, err = query.Count(tx, "storage_volumes", "")
+	count, err = query.Count(ctx, tx, "storage_volumes", "")
 	if err != nil {
 		return fmt.Errorf("Failed to get storage_volumes count: %w", err)
 	}
@@ -2159,7 +2159,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 	}
 
 	// Store rows of storage_volumes_config as we need to re-add them at the end.
-	count, err = query.Count(tx, "storage_volumes_config", "")
+	count, err = query.Count(ctx, tx, "storage_volumes_config", "")
 	if err != nil {
 		return fmt.Errorf("Failed to get storage_volumes_config count: %w", err)
 	}
@@ -2189,7 +2189,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 	}
 
 	// Store rows of storage_volumes_snapshots as we need to re-add them at the end.
-	count, err = query.Count(tx, "storage_volumes_snapshots", "")
+	count, err = query.Count(ctx, tx, "storage_volumes_snapshots", "")
 	if err != nil {
 		return fmt.Errorf("Failed to get storage_volumes_snapshots count: %w", err)
 	}
@@ -2220,7 +2220,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 	}
 
 	// Store rows of storage_volumes_snapshots_config as we need to re-add them at the end.
-	count, err = query.Count(tx, "storage_volumes_snapshots_config", "")
+	count, err = query.Count(ctx, tx, "storage_volumes_snapshots_config", "")
 	if err != nil {
 		return fmt.Errorf("Failed to get storage_volumes_snapshots_config count: %w", err)
 	}
@@ -2306,7 +2306,7 @@ CREATE TRIGGER storage_volumes_check_id
 		}
 	}
 
-	count, err = query.Count(tx, "storage_volumes_all", "")
+	count, err = query.Count(ctx, tx, "storage_volumes_all", "")
 	if err != nil {
 		return fmt.Errorf("Failed to get storage_volumes count: %w", err)
 	}
@@ -2515,7 +2515,7 @@ func updateFromV27(ctx context.Context, tx *sql.Tx) error {
 // Bump the sqlite_sequence value for storage volumes, to avoid unique
 // constraint violations when inserting new snapshots.
 func updateFromV26(ctx context.Context, tx *sql.Tx) error {
-	ids, err := query.SelectIntegers(tx, "SELECT coalesce(max(id), 0) FROM storage_volumes_all")
+	ids, err := query.SelectIntegers(ctx, tx, "SELECT coalesce(max(id), 0) FROM storage_volumes_all")
 	if err != nil {
 		return err
 	}
@@ -2527,7 +2527,7 @@ func updateFromV26(ctx context.Context, tx *sql.Tx) error {
 // Create new storage snapshot tables and migrate data to them.
 func updateFromV25(ctx context.Context, tx *sql.Tx) error {
 	// Get the total number of snapshot rows in the storage_volumes table.
-	count, err := query.Count(tx, "storage_volumes", "snapshot=1")
+	count, err := query.Count(ctx, tx, "storage_volumes", "snapshot=1")
 	if err != nil {
 		return fmt.Errorf("Failed to volume snapshot count: %w", err)
 	}
@@ -2570,7 +2570,7 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 	}
 
 	for i, snapshot := range snapshots {
-		config, err := query.SelectConfig(tx,
+		config, err := query.SelectConfig(ctx, tx,
 			"storage_volumes_config", "storage_volume_id=?",
 			snapshot.ID)
 		if err != nil {
@@ -2682,7 +2682,7 @@ CREATE VIEW storage_volumes_all (
 
 		volume := parts[0]
 		name := parts[1]
-		ids, err := query.SelectIntegers(tx, "SELECT id FROM storage_volumes WHERE name=?", volume)
+		ids, err := query.SelectIntegers(ctx, tx, "SELECT id FROM storage_volumes WHERE name=?", volume)
 		if err != nil {
 			return err
 		}
@@ -2716,14 +2716,14 @@ INSERT INTO storage_volumes_snapshots_config(storage_volume_snapshot_id, key, va
 // The ceph.user.name config key is required for Ceph to function.
 func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing Ceph pools.
-	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='ceph'`)
+	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='ceph'`)
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current ceph pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this Ceph pool.
-		config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=?", poolID)
+		config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=?", poolID)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch of ceph pool config: %w", err)
 		}
@@ -2747,13 +2747,13 @@ func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 // The lvm.vg_name config key is required for LVM to function.
 func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
-	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
-	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='lvm'`)
+	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='lvm'`)
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current lvm pools: %w", err)
 	}
@@ -2761,7 +2761,7 @@ func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 	for _, poolID := range poolIDs {
 		for _, nodeID := range nodeIDs {
 			// Fetch the config for this lvm pool.
-			config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
+			config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
 			if err != nil {
 				return fmt.Errorf("Failed to fetch of lvm pool config: %w", err)
 			}
@@ -2789,13 +2789,13 @@ SELECT ?, ?, 'lvm.vg_name', name FROM storage_pools WHERE id=?
 // The zfs.pool_name config key is required for ZFS to function.
 func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
-	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing zfs pools.
-	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
+	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
 	if err != nil {
 		return fmt.Errorf("Failed to get IDs of current zfs pools: %w", err)
 	}
@@ -2803,7 +2803,7 @@ func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 	for _, poolID := range poolIDs {
 		for _, nodeID := range nodeIDs {
 			// Fetch the config for this zfs pool.
-			config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
+			config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
 			if err != nil {
 				return fmt.Errorf("Failed to fetch of zfs pool config: %w", err)
 			}
@@ -3054,7 +3054,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 	}
 
 	// Get the total number of rows in the instances table.
-	count, err := query.Count(tx, "instances", "")
+	count, err := query.Count(ctx, tx, "instances", "")
 	if err != nil {
 		return fmt.Errorf("Failed to count rows in instances table: %w", err)
 	}
@@ -3100,6 +3100,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 	// Fetch all rows in the instances_config table that references
 	// snapshots and index them by instance ID.
 	count, err = query.Count(
+		ctx,
 		tx,
 		"instances_config JOIN instances ON instances_config.instance_id = instances.id",
 		"instances.type = 1")
@@ -3150,6 +3151,7 @@ SELECT instances_config.id, instance_id, key, value
 	// Fetch all rows in the instances_devices table that references
 	// snapshots and index them by instance ID.
 	count, err = query.Count(
+		ctx,
 		tx,
 		"instances_devices JOIN instances ON instances_devices.instance_id = instances.id",
 		"instances.type = 1")
@@ -3200,7 +3202,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 			devicesBySnapshotID[device.InstanceID] = d
 		}
 		// Fetch the config for this device.
-		config, err := query.SelectConfig(tx, "instances_devices_config", "instance_device_id = ?", device.ID)
+		config, err := query.SelectConfig(ctx, tx, "instances_devices_config", "instance_device_id = ?", device.ID)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch snapshots devices config: %w", err)
 		}
@@ -3340,7 +3342,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 	}
 
 	// Make sure that no snapshot is left in the instances table.
-	count, err = query.Count(tx, "instances", "type = 1")
+	count, err = query.Count(ctx, tx, "instances", "type = 1")
 	if err != nil {
 		return fmt.Errorf("Failed to count leftover snapshot rows: %w", err)
 	}
@@ -3508,7 +3510,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 	// Before doing anything save the counts of all tables, so we can later
 	// check that we don't accidentally delete or add anything.
-	counts1, err := query.CountAll(tx)
+	counts1, err := query.CountAll(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("Failed to count rows in current tables: %w", err)
 	}
@@ -3956,7 +3958,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 
 	// Check that the count of all rows in the database is unchanged
 	// (i.e. we didn't accidentally delete or add anything).
-	counts2, err := query.CountAll(tx)
+	counts2, err := query.CountAll(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("Failed to count rows in updated tables: %w", err)
 	}
@@ -4037,23 +4039,20 @@ CREATE TABLE containers_backups (
 // nodes.
 func updateFromV6(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
-	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
 		return fmt.Errorf("failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing zfs pools.
-	poolIDs, err := query.SelectIntegers(tx, `
-SELECT id FROM storage_pools WHERE driver='zfs'
-`)
+	poolIDs, err := query.SelectIntegers(ctx, tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
 	if err != nil {
 		return fmt.Errorf("failed to get IDs of current zfs pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
 		// Fetch the config for this zfs pool and check if it has the zfs.pool_name key
-		config, err := query.SelectConfig(
-			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
+		config, err := query.SelectConfig(ctx, tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
 			return fmt.Errorf("failed to fetch of zfs pool config: %w", err)
 		}
@@ -4090,13 +4089,13 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 // node is able to access those volumes.
 func updateFromV5(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
-	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	nodeIDs, err := query.SelectIntegers(ctx, tx, "SELECT id FROM nodes")
 	if err != nil {
 		return fmt.Errorf("failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing ceph volumes.
-	volumeIDs, err := query.SelectIntegers(tx, `
+	volumeIDs, err := query.SelectIntegers(ctx, tx, `
 SELECT storage_volumes.id FROM storage_volumes
     JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
     WHERE storage_pools.driver='ceph'
@@ -4179,7 +4178,7 @@ FROM storage_volumes
 
 	// Duplicate each volume config row across all nodes.
 	for id, newIDs := range created {
-		config, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", id)
+		config, err := query.SelectConfig(ctx, tx, "storage_volumes_config", "storage_volume_id=?", id)
 		if err != nil {
 			return fmt.Errorf("failed to fetch volume config: %w", err)
 		}

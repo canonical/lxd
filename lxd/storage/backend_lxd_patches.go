@@ -31,7 +31,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 	var localNode string
 
 	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localNode, err = tx.GetLocalNodeName()
+		localNode, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to get local member name: %w", err)
 		}
@@ -61,7 +61,7 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 		var instPoolName string
 		var snapshots []cluster.Instance
 		err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			instPoolName, err = tx.GetInstancePool(p.Name, inst.Name)
+			instPoolName, err = tx.GetInstancePool(ctx, p.Name, inst.Name)
 			if err != nil {
 				if api.StatusErrorCheck(err, http.StatusNotFound) {
 					// If the instance cannot be associated to a pool its got bigger problems

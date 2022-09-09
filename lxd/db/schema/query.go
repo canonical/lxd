@@ -43,7 +43,7 @@ func selectSchemaVersions(ctx context.Context, tx *sql.Tx) ([]int, error) {
 	statement := `
 SELECT version FROM schema ORDER BY version
 `
-	return query.SelectIntegers(tx, statement)
+	return query.SelectIntegers(ctx, tx, statement)
 }
 
 // Return a list of SQL statements that can be used to create all tables in the
@@ -56,7 +56,7 @@ SELECT sql FROM sqlite_master WHERE
   name NOT LIKE 'sqlite_%'
 ORDER BY name
 `
-	return query.SelectStrings(tx, statement)
+	return query.SelectStrings(ctx, tx, statement)
 }
 
 // Create the schema table.

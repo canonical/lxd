@@ -1077,7 +1077,7 @@ func (d *Daemon) init() error {
 	logger.Info("Loading daemon configuration")
 	var daemonConfig *node.Config
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		daemonConfig, err = node.ConfigLoad(tx)
+		daemonConfig, err = node.ConfigLoad(ctx, tx)
 		return err
 	})
 	if err != nil {
@@ -1280,13 +1280,13 @@ func (d *Daemon) init() error {
 	maasMachine := daemonConfig.MAASMachine()
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := clusterConfig.Load(tx)
+		config, err := clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
 
 		// Get the local node (will be used if clustered).
-		serverName, err := tx.GetLocalNodeName()
+		serverName, err := tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

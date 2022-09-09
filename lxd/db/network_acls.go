@@ -319,7 +319,7 @@ func (c *Cluster) DeleteNetworkACL(id int64) error {
 func (c *ClusterTx) GetNetworkACLURIs(ctx context.Context, projectID int, project string) ([]string, error) {
 	sql := `SELECT networks_acls.name from networks_acls WHERE networks_acls.project_id = ?`
 
-	names, err := query.SelectStrings(c.tx, sql, projectID)
+	names, err := query.SelectStrings(ctx, c.tx, sql, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network acl: %w", err)
 	}

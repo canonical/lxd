@@ -22,7 +22,7 @@ func SelectStrings(ctx context.Context, tx *sql.Tx, query string, args ...any) (
 		return nil
 	}
 
-	err := scanSingleColumn(tx, query, args, "TEXT", scan)
+	err := scanSingleColumn(ctx, tx, query, args, "TEXT", scan)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func SelectIntegers(ctx context.Context, tx *sql.Tx, query string, args ...any) 
 		return nil
 	}
 
-	err := scanSingleColumn(tx, query, args, "INTEGER", scan)
+	err := scanSingleColumn(ctx, tx, query, args, "INTEGER", scan)
 	if err != nil {
 		return nil, err
 	}

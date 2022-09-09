@@ -1117,7 +1117,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Name == "" {
-			names, err := tx.GetInstanceNames(targetProjectName)
+			names, err := tx.GetInstanceNames(ctx, targetProjectName)
 			if err != nil {
 				return err
 			}
@@ -1225,7 +1225,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 		var err error
 
 		// Load source node.
-		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, source.Type())
+		nodeAddress, err = tx.GetNodeAddressOfInstance(ctx, projectName, name, source.Type())
 		if err != nil {
 			return fmt.Errorf("Failed to get address of instance's member: %w", err)
 		}

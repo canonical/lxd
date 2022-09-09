@@ -23,7 +23,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 	var storageImages string
 
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
+		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func daemonStorageMount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
+		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}

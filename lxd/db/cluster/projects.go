@@ -82,7 +82,7 @@ SELECT projects_config.value
   JOIN projects ON projects.id=projects_config.project_id
  WHERE projects.name=? AND projects_config.key='features.profiles'
 `
-	values, err := query.SelectStrings(tx, stmt, name)
+	values, err := query.SelectStrings(ctx, tx, stmt, name)
 	if err != nil {
 		return false, fmt.Errorf("Fetch project config: %w", err)
 	}
@@ -98,7 +98,7 @@ SELECT projects_config.value
 func GetProjectNames(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	stmt := "SELECT name FROM projects"
 
-	names, err := query.SelectStrings(tx, stmt)
+	names, err := query.SelectStrings(ctx, tx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project names: %w", err)
 	}
