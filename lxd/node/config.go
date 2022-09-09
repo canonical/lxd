@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/config"
@@ -133,7 +134,7 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 // Deprecated.
 func HTTPSAddress(node *db.Node) (string, error) {
 	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
+	err := node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		config, err = ConfigLoad(tx)
 		return err
@@ -150,7 +151,7 @@ func HTTPSAddress(node *db.Node) (string, error) {
 // Deprecated.
 func ClusterAddress(node *db.Node) (string, error) {
 	var config *Config
-	err := node.Transaction(func(tx *db.NodeTx) error {
+	err := node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		config, err = ConfigLoad(tx)
 		return err
