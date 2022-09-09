@@ -106,7 +106,7 @@ func Recover(database *db.Node) error {
 func updateLocalAddress(database *db.Node, address string) error {
 	err := database.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}

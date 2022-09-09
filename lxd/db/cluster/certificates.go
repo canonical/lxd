@@ -131,7 +131,7 @@ WHERE certificates.fingerprint LIKE ?
 ORDER BY certificates.fingerprint
 		`
 
-	fingerprints, err := query.SelectStrings(tx, sql, fingerprintPrefix+"%")
+	fingerprints, err := query.SelectStrings(ctx, tx, sql, fingerprintPrefix+"%")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch certificates fingerprints matching prefix %q: %w", fingerprintPrefix, err)
 	}

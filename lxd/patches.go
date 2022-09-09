@@ -180,7 +180,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 
 	var serverName string
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName()
+		serverName, err = tx.GetLocalNodeName(ctx)
 		return err
 	})
 	if err != nil {

@@ -26,7 +26,7 @@ type Config struct {
 // values fetched from the database.
 func Load(ctx context.Context, tx *db.ClusterTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
-	values, err := tx.Config()
+	values, err := tx.Config(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch node config from database: %w", err)
 	}

@@ -25,7 +25,7 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 	var localName string
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
+		localName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

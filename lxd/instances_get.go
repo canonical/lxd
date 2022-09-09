@@ -300,12 +300,12 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(filteredProjects, instanceType)
+		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}
 
-		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(filteredProjects, instanceType)
+		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(ctx, filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}

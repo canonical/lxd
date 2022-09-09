@@ -34,7 +34,7 @@ func updateNodeVersion(tx *sql.Tx, address string, apiExtensions int) error {
 // Return the number of rows in the nodes table that have their address column
 // set to '0.0.0.0'.
 func selectUnclusteredNodesCount(ctx context.Context, tx *sql.Tx) (int, error) {
-	return query.Count(tx, "nodes", "address='0.0.0.0'")
+	return query.Count(ctx, tx, "nodes", "address='0.0.0.0'")
 }
 
 // Return a slice of binary integer tuples. Each tuple contains the schema

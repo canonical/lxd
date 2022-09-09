@@ -3010,7 +3010,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 	var err error
 	var serverName string
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName()
+		serverName, err = tx.GetLocalNodeName(ctx)
 		return err
 	})
 	if err != nil {

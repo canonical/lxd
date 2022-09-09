@@ -20,7 +20,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 
 	// Apply the local config.
 	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
+		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}

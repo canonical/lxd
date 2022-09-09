@@ -19,7 +19,7 @@ SELECT DISTINCT nodes.address
   JOIN nodes ON nodes.id = operations.node_id
  WHERE projects.name = ? OR operations.project_id IS NULL
 `
-	return query.SelectStrings(c.tx, stmt, project)
+	return query.SelectStrings(ctx, c.tx, stmt, project)
 }
 
 // GetOperationsOfType returns a list operations that belong to the specified project and have the desired type.

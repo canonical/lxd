@@ -51,7 +51,7 @@ SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
   WHERE projects.name = ? AND instances.type = ?
 `
-	return query.SelectStrings(c.tx, stmt, project, instancetype.Any)
+	return query.SelectStrings(ctx, c.tx, stmt, project, instancetype.Any)
 }
 
 // GetNodeAddressOfInstance returns the address of the node hosting the
@@ -150,7 +150,7 @@ SELECT nodes.id, nodes.address
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
 func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(ctx context.Context, projects []string, instType instancetype.Type) (map[string][][2]string, error) {
-	offlineThreshold, err := c.GetNodeOfflineThreshold()
+	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -703,12 +703,12 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName str
 		return fmt.Errorf("Failed to get instance's storage pool name: %w", err)
 	}
 
-	poolID, err := c.GetStoragePoolID(poolName)
+	poolID, err := c.GetStoragePoolID(ctx, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's storage pool ID: %w", err)
 	}
 
-	poolDriver, err := c.GetStoragePoolDriver(poolID)
+	poolDriver, err := c.GetStoragePoolDriver(ctx, poolID)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's storage pool driver: %w", err)
 	}
@@ -770,7 +770,7 @@ func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName str
 // GetLocalInstancesInProject retuurns all instances of the given type on the local member in the given project.
 // If projectName is empty then all instances in all projects are returned.
 func (c *ClusterTx) GetLocalInstancesInProject(ctx context.Context, filter cluster.InstanceFilter) ([]cluster.Instance, error) {
-	node, err := c.GetLocalNodeName()
+	node, err := c.GetLocalNodeName(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Local node name: %w", err)
 	}
