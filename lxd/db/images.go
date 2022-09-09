@@ -887,11 +887,11 @@ func (c *Cluster) UpdateImageLastUseDate(projectName string, fingerprint string,
 	return err
 }
 
-// InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
-func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
-	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
+// SetImageCachedAndLastUseDate sets the cached and last_use_date field of the image with the given fingerprint.
+func (c *Cluster) SetImageCachedAndLastUseDate(projectName string, fingerprint string, lastUsed time.Time) error {
+	stmt := `UPDATE images SET cached=1, last_use_date=? WHERE fingerprint=? AND project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)`
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		_, err := tx.tx.Exec(stmt, fingerprint)
+		_, err := tx.tx.Exec(stmt, lastUsed, fingerprint, projectName)
 		return err
 	})
 	return err
