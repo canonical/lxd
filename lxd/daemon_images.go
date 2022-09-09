@@ -180,6 +180,14 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 				return nil, err
 			}
 
+			// Mark the image as "cached" if downloading for an instance.
+			if args.SetCached {
+				err := d.db.Cluster.SetImageCachedAndLastUseDate(args.ProjectName, imgInfo.Fingerprint, time.Now().UTC())
+				if err != nil {
+					return nil, fmt.Errorf("Failed setting cached flag and last use date: %w", err)
+				}
+			}
+
 			var id int
 			id, imgInfo, err = d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
