@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 	addVolume(t, tx, poolID, nodeID3, "volume2")
 	addVolume(t, tx, poolID, nodeID2, "volume2")
 
-	nodes, err := tx.GetStorageVolumeNodes(poolID, "default", "volume1", 1)
+	nodes, err := tx.GetStorageVolumeNodes(context.Background(), poolID, "default", "volume1", 1)
 	require.NoError(t, err)
 
 	assert.Equal(t, []db.NodeInfo{

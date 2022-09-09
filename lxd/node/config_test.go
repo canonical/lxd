@@ -1,6 +1,7 @@
 package node_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,7 +107,7 @@ func TestHTTPSAddress(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "", address)
 
-	err = nodeDB.Transaction(func(tx *db.NodeTx) error {
+	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		require.NoError(t, err)
 		_, err = config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
@@ -130,7 +131,7 @@ func TestClusterAddress(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "", address)
 
-	err = nodeDB.Transaction(func(tx *db.NodeTx) error {
+	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		require.NoError(t, err)
 		_, err = config.Replace(map[string]any{"cluster.https_address": "127.0.0.1:666"})
