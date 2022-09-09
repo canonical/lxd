@@ -878,10 +878,10 @@ func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 
 // UpdateImageLastUseDate updates the last_use_date field of the image with the
 // given fingerprint.
-func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
-	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
+func (c *Cluster) UpdateImageLastUseDate(projectName string, fingerprint string, lastUsed time.Time) error {
+	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=? AND project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)`
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		_, err := tx.tx.Exec(stmt, date, fingerprint)
+		_, err := tx.tx.Exec(stmt, lastUsed, fingerprint, projectName)
 		return err
 	})
 	return err
