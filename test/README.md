@@ -21,6 +21,7 @@ Name                           | Default                   | Description
 `LXD_INSPECT`                  | 0                         | Don't teardown the test environment on failure
 `LXD_LOGS `                    | ""                        | Path to a directory to copy all the LXD logs to
 `LXD_OFFLINE`                  | 0                         | Skip anything that requires network access
+`LXD_SKIP_TESTS`               | ""                        | Space-delimited list of test names to skip
 `LXD_TEST_IMAGE`               | "" (busybox test image)   | Path to an image tarball to use instead of the default busybox image
 `LXD_TMPFS`                    | 0                         | Sets up a tmpfs for the whole testsuite to run on (fast but needs memory)
 `LXD_NIC_SRIOV_PARENT`         | ""                        | Enables SR-IOV NIC tests using the specified parent device
