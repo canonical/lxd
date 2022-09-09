@@ -1121,7 +1121,7 @@ func (c *Cluster) GetImages() (map[string][]string, error) {
     SELECT images.fingerprint, projects.name FROM images
       LEFT JOIN projects ON images.project_id = projects.id
 		`
-		rows, err := tx.tx.Query(stmt)
+		rows, err := tx.tx.QueryContext(ctx, stmt)
 		if err != nil {
 			return err
 		}
@@ -1158,7 +1158,7 @@ func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 			LEFT JOIN projects ON images.project_id = projects.id
     WHERE nodes.id = ?
 		`
-		rows, err := tx.tx.Query(stmt, id)
+		rows, err := tx.tx.QueryContext(ctx, stmt, id)
 		if err != nil {
 			return err
 		}

@@ -1392,7 +1392,7 @@ func updateFromV42(ctx context.Context, tx *sql.Tx) error {
 			GROUP BY storage_pool_id, node_id, key, value
 			HAVING rowCount > 1
 		`
-	rows, err := tx.Query(stmt)
+	rows, err := tx.QueryContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
@@ -1458,7 +1458,7 @@ func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 			GROUP BY network_id, node_id, key, value
 			HAVING rowCount > 1
 		`
-	rows, err := tx.Query(stmt)
+	rows, err := tx.QueryContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}

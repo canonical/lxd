@@ -18,7 +18,7 @@ func SelectConfig(ctx context.Context, tx *sql.Tx, table string, where string, a
 		query += fmt.Sprintf(" WHERE %s", where)
 	}
 
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

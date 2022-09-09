@@ -109,7 +109,7 @@ SELECT nodes.id, nodes.address
 
 	var address string
 	var id int64
-	rows, err := c.tx.Query(stmt, args...)
+	rows, err := c.tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +179,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
   ORDER BY instances.id
 `, filters.String())
 
-	rows, err := c.tx.Query(stmt, args...)
+	rows, err := c.tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +664,7 @@ SELECT instances.name, nodes.name, projects.name
   WHERE %s
 `, filters.String())
 
-	rows, err := c.tx.Query(stmt, args...)
+	rows, err := c.tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
