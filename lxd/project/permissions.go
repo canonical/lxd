@@ -1215,7 +1215,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		instances = append(instances, *apiInstance)
 	}
 
-	volumes, err := tx.GetCustomVolumesInProject(projectName)
+	volumes, err := tx.GetCustomVolumesInProject(ctx, projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project custom volumes from database: %w", err)
 	}

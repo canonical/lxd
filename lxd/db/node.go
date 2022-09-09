@@ -95,12 +95,12 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		}
 
 		// Get failure domains.
-		nodesDomains, err := tx.GetNodesFailureDomains()
+		nodesDomains, err := tx.GetNodesFailureDomains(ctx)
 		if err != nil {
 			return fmt.Errorf("Load nodes failure domains: %w", err)
 		}
 
-		domainsNames, err := tx.GetFailureDomainsNames()
+		domainsNames, err := tx.GetFailureDomainsNames(ctx)
 		if err != nil {
 			return fmt.Errorf("Load failure domains names: %w", err)
 		}
@@ -109,7 +109,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		failureDomain = domainsNames[domainID]
 
 		// Get the highest schema and API versions.
-		maxVersion, err = tx.GetNodeMaxVersion()
+		maxVersion, err = tx.GetNodeMaxVersion(ctx)
 		if err != nil {
 			return fmt.Errorf("Get max version: %w", err)
 		}
@@ -217,9 +217,9 @@ func (n NodeInfo) Version() [2]int {
 }
 
 // GetNodeByAddress returns the node with the given network address.
-func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
+func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(false /* not pending */, "address=?", address)
+	nodes, err := c.nodes(ctx, false /* not pending */, "address=?", address)
 	if err != nil {
 		return null, err
 	}
@@ -235,7 +235,7 @@ func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 }
 
 // GetNodeMaxVersion returns the highest version possible on the cluster.
-func (c *ClusterTx) GetNodeMaxVersion() ([2]int, error) {
+func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 	version := [2]int{}
 
 	// Get the maximum DB schema.
@@ -261,9 +261,9 @@ func (c *ClusterTx) GetNodeMaxVersion() ([2]int, error) {
 }
 
 // GetNodeWithID returns the node with the given ID.
-func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
+func (c *ClusterTx) GetNodeWithID(ctx context.Context, nodeID int) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(false /* not pending */, "id=?", nodeID)
+	nodes, err := c.nodes(ctx, false /* not pending */, "id=?", nodeID)
 	if err != nil {
 		return null, err
 	}
@@ -279,9 +279,9 @@ func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
 }
 
 // GetPendingNodeByAddress returns the pending node with the given network address.
-func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
+func (c *ClusterTx) GetPendingNodeByAddress(ctx context.Context, address string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(true /*pending */, "address=?", address)
+	nodes, err := c.nodes(ctx, true /*pending */, "address=?", address)
 	if err != nil {
 		return null, err
 	}
@@ -297,9 +297,9 @@ func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 }
 
 // GetNodeByName returns the node with the given name.
-func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
+func (c *ClusterTx) GetNodeByName(ctx context.Context, name string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes(false /* not pending */, "name=?", name)
+	nodes, err := c.nodes(ctx, false /* not pending */, "name=?", name)
 	if err != nil {
 		return null, err
 	}
@@ -353,8 +353,8 @@ func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
 
 // NodeIsOutdated returns true if there's some cluster node having an API or
 // schema version greater than the node this method is invoked on.
-func (c *ClusterTx) NodeIsOutdated() (bool, error) {
-	nodes, err := c.nodes(false /* not pending */, "")
+func (c *ClusterTx) NodeIsOutdated(ctx context.Context) (bool, error) {
+	nodes, err := c.nodes(ctx, false /* not pending */, "")
 	if err != nil {
 		return false, fmt.Errorf("Failed to fetch nodes: %w", err)
 	}
@@ -394,8 +394,8 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 //
 // If this LXD instance is not clustered, a list with a single node whose
 // address is 0.0.0.0 is returned.
-func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
-	return c.nodes(false /* not pending */, "")
+func (c *ClusterTx) GetNodes(ctx context.Context) ([]NodeInfo, error) {
+	return c.nodes(ctx, false /* not pending */, "")
 }
 
 // GetNodesCount returns the number of nodes in the LXD cluster.
@@ -463,12 +463,12 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 }
 
 // Nodes returns all LXD nodes part of the cluster.
-func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, error) {
+func (c *ClusterTx) nodes(ctx context.Context, pending bool, where string, args ...any) ([]NodeInfo, error) {
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
 
 	nodeRoles := map[int64][]ClusterRole{}
-	err := query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var role int
 
@@ -496,7 +496,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, 
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 	nodeGroups := map[int64][]string{}
 
-	err = query.Scan(c.Tx(), sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.Tx(), sql, func(scan func(dest ...any) error) error {
 		var nodeID int64
 		var group string
 
@@ -539,7 +539,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	// Process node entries
 	nodes := []NodeInfo{}
-	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		node := NodeInfo{}
 		err := scan(&node.ID, &node.Name, &node.Address, &node.Description, &node.Schema, &node.APIExtensions, &node.Heartbeat, &node.Architecture, &node.State)
 		if err != nil {
@@ -706,8 +706,8 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 }
 
 // UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
-func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
-	nodeInfo, err := c.GetNodeWithID(int(id))
+func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, groups []string) error {
+	nodeInfo, err := c.GetNodeWithID(ctx, int(id))
 	if err != nil {
 		return err
 	}
@@ -728,7 +728,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
 		}
 
 		// Add node to new group.
-		err = c.AddNodeToClusterGroup(newGroup, nodeInfo.Name)
+		err = c.AddNodeToClusterGroup(ctx, newGroup, nodeInfo.Name)
 		if err != nil {
 			return fmt.Errorf("Failed to add member to cluster group: %w", err)
 		}
@@ -740,7 +740,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
 		}
 
 		// Remove node from group.
-		err = c.RemoveNodeFromClusterGroup(oldGroup, nodeInfo.Name)
+		err = c.RemoveNodeFromClusterGroup(ctx, oldGroup, nodeInfo.Name)
 		if err != nil {
 			return fmt.Errorf("Failed to remove member from cluster group: %w", err)
 		}
@@ -750,7 +750,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
 }
 
 // UpdateNodeFailureDomain changes the failure domain of a node.
-func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
+func (c *ClusterTx) UpdateNodeFailureDomain(ctx context.Context, id int64, domain string) error {
 	var domainID any
 
 	if domain == "" {
@@ -816,7 +816,7 @@ func (c *ClusterTx) UpdateNodeStatus(id int64, state int) error {
 }
 
 // GetNodeFailureDomain returns the failure domain associated with the node with the given ID.
-func (c *ClusterTx) GetNodeFailureDomain(id int64) (string, error) {
+func (c *ClusterTx) GetNodeFailureDomain(ctx context.Context, id int64) (string, error) {
 	stmt := `
 SELECT coalesce(nodes_failure_domains.name,'default')
   FROM nodes LEFT JOIN nodes_failure_domains ON nodes.failure_domain_id = nodes_failure_domains.id
@@ -834,7 +834,7 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 
 // GetNodesFailureDomains returns a map associating each node address with its
 // failure domain code.
-func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
+func (c *ClusterTx) GetNodesFailureDomains(ctx context.Context) (map[string]uint64, error) {
 	sql := "SELECT address, coalesce(failure_domain_id, 0) FROM nodes"
 	type failureDomain struct {
 		Address         string
@@ -842,7 +842,7 @@ func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
 	}
 
 	rows := []failureDomain{}
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		fd := failureDomain{}
 		err := scan(&fd.Address, &fd.FailureDomainID)
 		if err != nil {
@@ -868,7 +868,7 @@ func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
 
 // GetFailureDomainsNames return a map associating failure domain IDs to their
 // names.
-func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
+func (c *ClusterTx) GetFailureDomainsNames(ctx context.Context) (map[uint64]string, error) {
 	sql := "SELECT id, name FROM nodes_failure_domains"
 
 	type failureDomain struct {
@@ -877,7 +877,7 @@ func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
 	}
 
 	rows := []failureDomain{}
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		fd := failureDomain{}
 		err := scan(&fd.ID, &fd.Name)
 		if err != nil {
@@ -947,7 +947,7 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 // NodeIsEmpty returns an empty string if the node with the given ID has no
 // containers or images associated with it. Otherwise, it returns a message
 // say what's left.
-func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
+func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	// Check if the node has any instances.
 	containers, err := query.SelectStrings(c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
@@ -968,7 +968,7 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 
 	images := []image{}
 	sql := `SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`
-	err = query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		img := image{}
 		err := scan(&img.fingerprint, &img.nodeID)
 		if err != nil {
@@ -1088,13 +1088,13 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get offline threshold: %w", err)
 	}
 
-	nodes, err := c.GetNodes()
+	nodes, err := c.GetNodes(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get current cluster members: %w", err)
 	}
@@ -1230,7 +1230,7 @@ func (c *Cluster) LocalNodeIsEvacuated() bool {
 			return err
 		}
 
-		node, err := tx.GetNodeByName(name)
+		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return nil
 		}

@@ -78,7 +78,7 @@ func MaybeUpdate(state *state.State) error {
 	}
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		outdated, err := tx.NodeIsOutdated()
+		outdated, err := tx.NodeIsOutdated(ctx)
 		if err != nil {
 			return err
 		}

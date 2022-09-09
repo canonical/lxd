@@ -123,7 +123,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 		var projectNetworks map[string]map[int64]api.Network
 
 		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			projectNetworks, err = tx.GetCreatedNetworks()
+			projectNetworks, err = tx.GetCreatedNetworks(ctx)
 			return err
 		})
 		if err != nil {

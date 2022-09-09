@@ -225,7 +225,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 
 		var nodes []db.NodeInfo
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err = tx.GetNodes()
+			nodes, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}
@@ -524,7 +524,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 // having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
 func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNetworks, err := tx.GetCreatedNetworks()
+		projectNetworks, err := tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return err
 		}
@@ -572,7 +572,7 @@ func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 // networks. It was decided that the OVN NIC level equivalent settings were sufficient.
 func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNetworks, err := tx.GetCreatedNetworks()
+		projectNetworks, err := tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return err
 		}
@@ -624,7 +624,7 @@ func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 // patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
 func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectNetworks, err := tx.GetCreatedNetworks()
+		projectNetworks, err := tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return err
 		}
@@ -720,7 +720,7 @@ func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string,
 
 func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 	return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}

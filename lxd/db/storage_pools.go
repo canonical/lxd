@@ -83,7 +83,7 @@ func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 // GetNonPendingStoragePoolsNamesToIDs returns a map associating each storage pool name to its ID.
 //
 // Pending storage pools are skipped.
-func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs(ctx context.Context) (map[string]int64, error) {
 	type pool struct {
 		id   int64
 		name string
@@ -91,7 +91,7 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 
 	sql := "SELECT id, name FROM storage_pools WHERE NOT state=?"
 	pools := []pool{}
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		var p pool
 		err := scan(&p.id, &p.name)
 		if err != nil {
@@ -263,7 +263,7 @@ type StoragePoolNode struct {
 
 // CreatePendingStoragePool creates a new pending storage pool on the node with
 // the given name.
-func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map[string]string) error {
+func (c *ClusterTx) CreatePendingStoragePool(ctx context.Context, node string, name string, driver string, conf map[string]string) error {
 	// First check if a storage pool with the given name exists, and, if
 	// so, that it has a matching driver and it's in the pending state.
 	pool := struct {
@@ -274,7 +274,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 
 	sql := "SELECT id, driver, state FROM storage_pools WHERE name=?"
 	count := 0
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		// Ensure that there is at most one pool with the given name.
 		if count != 0 {
 			return fmt.Errorf("more than one pool exists with the given name")
@@ -311,7 +311,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	}
 
 	// Get the ID of the node with the given name.
-	nodeInfo, err := c.GetNodeByName(node)
+	nodeInfo, err := c.GetNodeByName(ctx, node)
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 }
 
 // storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
-func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+func (c *ClusterTx) storagePoolNodes(ctx context.Context, poolID int64) (map[int64]StoragePoolNode, error) {
 	nodes := []StoragePoolNode{}
 	sql := `
 		SELECT nodes.id, nodes.name, storage_pools_nodes.state FROM nodes
@@ -381,7 +381,7 @@ func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, e
 		WHERE storage_pools_nodes.storage_pool_id = ?
 	`
 
-	err := query.Scan(c.tx, sql, func(scan func(dest ...any) error) error {
+	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		node := StoragePoolNode{}
 
 		err := scan(&node.ID, &node.Name, &node.State)
@@ -434,9 +434,9 @@ func (c *ClusterTx) storagePoolNodeState(poolID int64, state StoragePoolState) e
 // nodes grouped by node name, for the given poolID.
 //
 // If the storage pool is not defined on all nodes, an error is returned.
-func (c *ClusterTx) GetStoragePoolNodeConfigs(poolID int64) (map[string]map[string]string, error) {
+func (c *ClusterTx) GetStoragePoolNodeConfigs(ctx context.Context, poolID int64) (map[string]map[string]string, error) {
 	// Fetch all nodes.
-	nodes, err := c.GetNodes()
+	nodes, err := c.GetNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -605,12 +605,12 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...any) (i
 
 		pool.Status = StoragePoolStateToAPIStatus(state)
 
-		err = c.getStoragePoolConfig(tx, poolID, &pool)
+		err = c.getStoragePoolConfig(ctx, tx, poolID, &pool)
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.storagePoolNodes(poolID)
+		nodes, err = tx.storagePoolNodes(ctx, poolID)
 		if err != nil {
 			return err
 		}
@@ -648,12 +648,12 @@ func StoragePoolStateToAPIStatus(state StoragePoolState) string {
 }
 
 // getStoragePoolConfig populates the config map of the Storage pool with the given ID.
-func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.StoragePool) error {
+func (c *Cluster) getStoragePoolConfig(ctx context.Context, tx *ClusterTx, poolID int64, pool *api.StoragePool) error {
 	q := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
 
 	pool.Config = map[string]string{}
 
-	return query.Scan(tx.Tx(), q, func(scan func(dest ...any) error) error {
+	return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

@@ -71,7 +71,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// Update our own entry in the nodes table.
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Make sure cluster database state is in order.
-		err := membershipCheckClusterStateForBootstrapOrJoin(tx)
+		err := membershipCheckClusterStateForBootstrapOrJoin(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// connection, so new queries will be executed over the new network
 	// connection.
 	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		_, err := tx.GetNodes()
+		_, err := tx.GetNodes(ctx)
 		return err
 	})
 	if err != nil {
@@ -230,7 +230,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	var id int64
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the node can be accepted with these parameters.
-		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
+		err := membershipCheckClusterStateForAccept(ctx, tx, name, address, schema, api)
 		if err != nil {
 			return err
 		}
@@ -439,7 +439,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	// tables with our local configuration.
 	logger.Info("Migrate local data to cluster database")
 	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		node, err := tx.GetPendingNodeByAddress(address)
+		node, err := tx.GetPendingNodeByAddress(ctx, address)
 		if err != nil {
 			return fmt.Errorf("Failed to get ID of joining node: %w", err)
 		}
@@ -448,7 +448,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		tx.NodeID(node.ID)
 
 		// Storage pools.
-		ids, err := tx.GetNonPendingStoragePoolsNamesToIDs()
+		ids, err := tx.GetNonPendingStoragePoolsNamesToIDs(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to get cluster storage pool IDs: %w", err)
 		}
@@ -486,7 +486,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		// Networks.
-		netids, err := tx.GetNonPendingNetworkIDs()
+		netids, err := tx.GetNonPendingNetworkIDs(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to get cluster network IDs: %w", err)
 		}
@@ -594,7 +594,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 
 	var allNodes []db.NodeInfo
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		allNodes, err = tx.GetNodes()
+		allNodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -893,14 +893,14 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	var address string
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.GetNodeByName(name)
+		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return err
 		}
 
 		// Check that the node is eligeable for leaving.
 		if !force {
-			err := membershipCheckClusterStateForLeave(tx, node.ID)
+			err := membershipCheckClusterStateForLeave(ctx, tx, node.ID)
 			if err != nil {
 				return err
 			}
@@ -1001,7 +1001,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		domains, err = tx.GetNodesFailureDomains()
+		domains, err = tx.GetNodesFailureDomains(ctx)
 		if err != nil {
 			return fmt.Errorf("Load failure domains: %w", err)
 		}
@@ -1041,7 +1041,7 @@ func Purge(c *db.Cluster, name string) error {
 
 	return c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
-		node, err := tx.GetNodeByName(name)
+		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("Failed to get member %q: %w", name, err)
 		}
@@ -1125,8 +1125,8 @@ func membershipCheckNodeStateForBootstrapOrJoin(ctx context.Context, tx *db.Node
 
 // Check that cluster-related preconditions are met for bootstrapping or
 // joining a cluster.
-func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
-	nodes, err := tx.GetNodes()
+func membershipCheckClusterStateForBootstrapOrJoin(ctx context.Context, tx *db.ClusterTx) error {
+	nodes, err := tx.GetNodes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch current cluster nodes: %w", err)
 	}
@@ -1139,8 +1139,8 @@ func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
 }
 
 // Check that cluster-related preconditions are met for accepting a new node.
-func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address string, schema int, api int) error {
-	nodes, err := tx.GetNodes()
+func membershipCheckClusterStateForAccept(ctx context.Context, tx *db.ClusterTx, name string, address string, schema int, api int) error {
+	nodes, err := tx.GetNodes(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to fetch current cluster nodes: %w", err)
 	}
@@ -1171,9 +1171,9 @@ func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address
 }
 
 // Check that cluster-related preconditions are met for leaving a cluster.
-func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
+func membershipCheckClusterStateForLeave(ctx context.Context, tx *db.ClusterTx, nodeID int64) error {
 	// Check that it has no containers or images.
-	message, err := tx.NodeIsEmpty(nodeID)
+	message, err := tx.NodeIsEmpty(ctx, nodeID)
 	if err != nil {
 		return err
 	}
@@ -1183,7 +1183,7 @@ func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	}
 
 	// Check that it's not the last node.
-	nodes, err := tx.GetNodes()
+	nodes, err := tx.GetNodes(ctx)
 	if err != nil {
 		return err
 	}

@@ -689,7 +689,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Handle optional service integration on cluster join
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Add the new node to the default cluster group.
-			err := tx.AddNodeToClusterGroup("default", req.ServerName)
+			err := tx.AddNodeToClusterGroup(ctx, "default", req.ServerName)
 			if err != nil {
 				return fmt.Errorf("Failed to add new member to the default cluster group: %w", err)
 			}
@@ -1116,7 +1116,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	var nodes []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the nodes.
-		nodes, err = tx.GetNodes()
+		nodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -1212,7 +1212,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the nodes.
-		nodes, err := tx.GetNodes()
+		nodes, err := tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -1349,7 +1349,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	var nodes []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
-		nodes, err = tx.GetNodes()
+		nodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -1459,7 +1459,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	var node db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
-		node, err = tx.GetNodeByName(name)
+		node, err = tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return err
 		}
@@ -1515,7 +1515,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 
 	// Update the database
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodeInfo, err := tx.GetNodeByName(name)
+		nodeInfo, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("Loading node information: %w", err)
 		}
@@ -1559,13 +1559,13 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 			return fmt.Errorf("Update roles: %w", err)
 		}
 
-		err = tx.UpdateNodeFailureDomain(nodeInfo.ID, req.FailureDomain)
+		err = tx.UpdateNodeFailureDomain(ctx, nodeInfo.ID, req.FailureDomain)
 		if err != nil {
 			return fmt.Errorf("Update failure domain: %w", err)
 		}
 
 		// Update the cluster groups.
-		err = tx.UpdateNodeClusterGroups(nodeInfo.ID, req.Groups)
+		err = tx.UpdateNodeClusterGroups(ctx, nodeInfo.ID, req.Groups)
 		if err != nil {
 			return fmt.Errorf("Update cluster groups: %w", err)
 		}
@@ -1743,12 +1743,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	var localInfo, leaderInfo db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		localInfo, err = tx.GetNodeByAddress(localAddress)
+		localInfo, err = tx.GetNodeByAddress(ctx, localAddress)
 		if err != nil {
 			return fmt.Errorf("Failed loading local member info %q: %w", localAddress, err)
 		}
 
-		leaderInfo, err = tx.GetNodeByAddress(leader)
+		leaderInfo, err = tx.GetNodeByAddress(ctx, leader)
 		if err != nil {
 			return fmt.Errorf("Failed loading leader member info %q: %w", leader, err)
 		}
@@ -2268,7 +2268,7 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 	var allNodes []db.NodeInfo
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		allNodes, err = tx.GetNodes()
+		allNodes, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -2666,7 +2666,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 func evacuateClusterSetState(d *Daemon, name string, state int) error {
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
-		node, err := tx.GetNodeByName(name)
+		node, err := tx.GetNodeByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("Failed to get cluster member by name: %w", err)
 		}
@@ -2797,7 +2797,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Find the least loaded cluster member which supports the architecture.
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{inst.Architecture()}, -1, "", nil)
+				targetNodeName, err = tx.GetNodeWithLeastInstances(ctx, []int{inst.Architecture()}, -1, "", nil)
 				if err != nil {
 					return err
 				}
@@ -2807,7 +2807,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 					return nil
 				}
 
-				targetNode, err = tx.GetNodeByName(targetNodeName)
+				targetNode, err = tx.GetNodeByName(ctx, targetNodeName)
 				if err != nil {
 					return err
 				}
@@ -2979,7 +2979,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			_ = op.UpdateMetadata(metadata)
 
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				sourceNode, err = tx.GetNodeByName(inst.Location())
+				sourceNode, err = tx.GetNodeByName(ctx, inst.Location())
 				if err != nil {
 					return fmt.Errorf("Failed to get node %q: %w", inst.Location(), err)
 				}
@@ -3556,7 +3556,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 				// That is because each member needs to belong to at least one group.
 				if len(groups) > 1 {
 					// Remove member from this group as it belongs to at least one other group.
-					err = tx.RemoveNodeFromClusterGroup(name, oldMember)
+					err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
 					if err != nil {
 						return err
 					}
@@ -3573,7 +3573,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Add new members to the group.
-			err = tx.AddNodeToClusterGroup(name, member)
+			err = tx.AddNodeToClusterGroup(ctx, name, member)
 			if err != nil {
 				return err
 			}
@@ -3709,7 +3709,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Remove member from this group as it belongs to at least one other group.
-				err = tx.RemoveNodeFromClusterGroup(name, oldMember)
+				err = tx.RemoveNodeFromClusterGroup(ctx, name, oldMember)
 				if err != nil {
 					return err
 				}
@@ -3725,7 +3725,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Add new members to the group.
-			err = tx.AddNodeToClusterGroup(name, member)
+			err = tx.AddNodeToClusterGroup(ctx, name, member)
 			if err != nil {
 				return err
 			}

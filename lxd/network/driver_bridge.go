@@ -2514,13 +2514,13 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
-		projectNetworks, err = tx.GetCreatedNetworks()
+		projectNetworks, err = tx.GetCreatedNetworks(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		// Get all network forward listen addresses for forwards assigned to this specific cluster member.
-		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesOnMember()
+		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesOnMember(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 		}
@@ -2893,7 +2893,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			// Load all the networks.
 			var projectNetworks map[string]map[int64]api.Network
 			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				projectNetworks, err = tx.GetCreatedNetworks()
+				projectNetworks, err = tx.GetCreatedNetworks(ctx)
 				return err
 			})
 			if err != nil {
