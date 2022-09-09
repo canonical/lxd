@@ -150,7 +150,7 @@ ALTER TABLE nodes_cluster_groups_new RENAME TO nodes_cluster_groups;
 // have features.storage.volumes=true.
 func updateFromV63(ctx context.Context, tx *sql.Tx) error {
 	// Find all projects that have features.storage.volumes=true and add features.storage.buckets=true.
-	rows, err := tx.Query(`SELECT project_id FROM projects_config WHERE key = "features.storage.volumes" AND value = "true"`)
+	rows, err := tx.QueryContext(ctx, `SELECT project_id FROM projects_config WHERE key = "features.storage.volumes" AND value = "true"`)
 	if err != nil {
 		return fmt.Errorf("Failed getting projects with features.storage.volumes=true: %w", err)
 	}
@@ -1797,7 +1797,7 @@ func updateFromV42(ctx context.Context, tx *sql.Tx) error {
 			GROUP BY storage_pool_id, node_id, key, value
 			HAVING rowCount > 1
 		`
-	rows, err := tx.Query(stmt)
+	rows, err := tx.QueryContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}
@@ -1863,7 +1863,7 @@ func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 			GROUP BY network_id, node_id, key, value
 			HAVING rowCount > 1
 		`
-	rows, err := tx.Query(stmt)
+	rows, err := tx.QueryContext(ctx, stmt)
 	if err != nil {
 		return fmt.Errorf("Failed running query: %w", err)
 	}

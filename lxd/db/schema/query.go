@@ -17,7 +17,7 @@ func DoesSchemaTableExist(ctx context.Context, tx *sql.Tx) (bool, error) {
 	statement := `
 SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 `
-	rows, err := tx.Query(statement)
+	rows, err := tx.QueryContext(ctx, statement)
 	if err != nil {
 		return false, err
 	}

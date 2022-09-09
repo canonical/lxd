@@ -13,7 +13,7 @@ func Count(ctx context.Context, tx *sql.Tx, table string, where string, args ...
 		stmt += fmt.Sprintf(" WHERE %s", where)
 	}
 
-	rows, err := tx.Query(stmt, args...)
+	rows, err := tx.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return -1, err
 	}

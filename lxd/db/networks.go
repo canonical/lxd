@@ -116,7 +116,7 @@ func (c *ClusterTx) getCreatedNetworks(ctx context.Context, projectName string) 
 		args = append(args, projectName)
 	}
 
-	rows, err := c.tx.Query(sb.String(), args...)
+	rows, err := c.tx.QueryContext(ctx, sb.String(), args...)
 	if err != nil {
 		return nil, err
 	}
