@@ -106,7 +106,7 @@ var updates = map[int]schema.Update{
 }
 
 // updateFromV65 fixes typo in cephobject.radosgw.endpoint* settings.
-func updateFromV65(tx *sql.Tx) error {
+func updateFromV65(ctx context.Context, tx *sql.Tx) error {
 	q := `
 	UPDATE storage_pools_config
 	SET key = REPLACE(key, "cephobject.radosgsw.endpoint", "cephobject.radosgw.endpoint")
@@ -121,7 +121,7 @@ func updateFromV65(tx *sql.Tx) error {
 }
 
 // updatefromV64 updates nodes_cluster_groups to include an ID field so that it works well with lxd-generate.
-func updateFromV64(tx *sql.Tx) error {
+func updateFromV64(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "nodes_cluster_groups_new" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -148,7 +148,7 @@ ALTER TABLE nodes_cluster_groups_new RENAME TO nodes_cluster_groups;
 
 // updateFromV63 creates the storage buckets tables and adds features.storage.buckets=true to all projects that
 // have features.storage.volumes=true.
-func updateFromV63(tx *sql.Tx) error {
+func updateFromV63(ctx context.Context, tx *sql.Tx) error {
 	// Find all projects that have features.storage.volumes=true and add features.storage.buckets=true.
 	rows, err := tx.Query(`SELECT project_id FROM projects_config WHERE key = "features.storage.volumes" AND value = "true"`)
 	if err != nil {
@@ -228,7 +228,7 @@ CREATE TABLE "storage_buckets_keys" (
 // updateFromV62 adds unique index to storage_volumes that prevents duplicate volumes when using remote storage
 // pool where the node_id column is NULL.
 // Also ensures that the default project has features.networks set to true.
-func updateFromV62(tx *sql.Tx) error {
+func updateFromV62(ctx context.Context, tx *sql.Tx) error {
 	// Find the default project ID, and what it has features.networks config key set to (if at all).
 	rows := tx.QueryRow(`
 		SELECT
@@ -269,7 +269,7 @@ func updateFromV62(tx *sql.Tx) error {
 }
 
 // updateFromV61 converts config value fields to NOT NULL and config key fields to TEXT (from VARCHAR).
-func updateFromV61(tx *sql.Tx) error {
+func updateFromV61(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "instances_config_new" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -473,7 +473,7 @@ ALTER TABLE "storage_volumes_snapshots_config_new" RENAME TO "storage_volumes_sn
 }
 
 // updateFromV60 creates the networks_load_balancers and networks_load_balancers_config tables.
-func updateFromV60(tx *sql.Tx) error {
+func updateFromV60(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_load_balancers" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -504,7 +504,7 @@ CREATE TABLE "networks_load_balancers_config" (
 	return nil
 }
 
-func updateFromV59(tx *sql.Tx) error {
+func updateFromV59(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_zones_records (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -532,7 +532,7 @@ CREATE TABLE networks_zones_records_config (
 	return nil
 }
 
-func updateFromV58(tx *sql.Tx) error {
+func updateFromV58(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT max(
@@ -545,7 +545,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV57(tx *sql.Tx) error {
+func updateFromV57(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT coalesce(max(max(coalesce(storage_volumes.id, 0)), max(coalesce(storage_volumes_snapshots.id, 0))), 0)
@@ -556,7 +556,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV56(tx *sql.Tx) error {
+func updateFromV56(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
     SELECT max(max(coalesce(storage_volumes.id, 0)), max(coalesce(storage_volumes_snapshots.id, 0)))
@@ -567,7 +567,7 @@ WHERE name='storage_volumes';
 	return err
 }
 
-func updateFromV55(tx *sql.Tx) error {
+func updateFromV55(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW storage_volumes_all;
 
@@ -1375,7 +1375,7 @@ CREATE VIEW storage_volumes_all (
 	return nil
 }
 
-func updateFromV54(tx *sql.Tx) error {
+func updateFromV54(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW certificates_projects_ref;
 DROP VIEW instances_config_ref;
@@ -1397,7 +1397,7 @@ DROP VIEW projects_used_by_ref;
 }
 
 // updateFromV53 creates the cluster_groups and nodes_cluster_groups tables.
-func updateFromV53(tx *sql.Tx) error {
+func updateFromV53(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "cluster_groups" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1426,7 +1426,7 @@ INSERT INTO nodes_cluster_groups (node_id, group_id) SELECT id, 1 FROM nodes;
 }
 
 // updateFromV52 creates the networks_zones and networks_zones_config tables.
-func updateFromV52(tx *sql.Tx) error {
+func updateFromV52(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_zones" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1454,7 +1454,7 @@ CREATE TABLE "networks_zones_config" (
 }
 
 // updateFromV51 creates the networks_peers and networks_peers_config tables.
-func updateFromV51(tx *sql.Tx) error {
+func updateFromV51(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_peers" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1487,7 +1487,7 @@ CREATE TABLE "networks_peers_config" (
 }
 
 // updateFromV50 creates the nodes_config table.
-func updateFromV50(tx *sql.Tx) error {
+func updateFromV50(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "nodes_config" (
 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1507,7 +1507,7 @@ UNIQUE (node_id, key)
 }
 
 // updateFromV49 creates the networks_forwards and networks_forwards_config tables.
-func updateFromV49(tx *sql.Tx) error {
+func updateFromV49(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE "networks_forwards" (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1538,7 +1538,7 @@ CREATE TABLE "networks_forwards_config" (
 }
 
 // updateFromV48 renames the "pending" column to "state" in the "nodes" table.
-func updateFromV48(tx *sql.Tx) error {
+func updateFromV48(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE nodes
 RENAME COLUMN pending TO state;
@@ -1551,7 +1551,7 @@ RENAME COLUMN pending TO state;
 }
 
 // updateFromV47 adds warnings.
-func updateFromV47(tx *sql.Tx) error {
+func updateFromV47(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE warnings (
 	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1582,7 +1582,7 @@ CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_i
 }
 
 // updateFromV46 adds support for restricting certificates to projects.
-func updateFromV46(tx *sql.Tx) error {
+func updateFromV46(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE certificates ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0;
 CREATE TABLE certificates_projects (
@@ -1606,7 +1606,7 @@ CREATE VIEW certificates_projects_ref (fingerprint, value) AS
 }
 
 // updateFromV45 updates projects_used_by_ref to include ceph volumes.
-func updateFromV45(tx *sql.Tx) error {
+func updateFromV45(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -1659,7 +1659,7 @@ CREATE VIEW projects_used_by_ref (name,
 
 // updateFromV44 adds networks_acls table, and adds a foreign key relationship between networks and projects.
 // API extension: network_acl.
-func updateFromV44(tx *sql.Tx) error {
+func updateFromV44(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 DROP VIEW projects_used_by_ref;
 
@@ -1777,7 +1777,7 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // updateFromV43 adds a unique index to the storage_pools_config and networks_config tables.
-func updateFromV43(tx *sql.Tx) error {
+func updateFromV43(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE UNIQUE INDEX storage_pools_unique_storage_pool_id_node_id_key ON storage_pools_config (storage_pool_id, IFNULL(node_id, -1), key);
 		CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON networks_config (network_id, IFNULL(node_id, -1), key);
 	`)
@@ -1790,7 +1790,7 @@ func updateFromV43(tx *sql.Tx) error {
 
 // updateFromV42 removes any duplicated storage pool config rows that have the same value.
 // This can occur when multiple create requests have been issued when setting up a clustered storage pool.
-func updateFromV42(tx *sql.Tx) error {
+func updateFromV42(ctx context.Context, tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
 	stmt := `SELECT storage_pool_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM storage_pools_config
@@ -1856,7 +1856,7 @@ func updateFromV42(tx *sql.Tx) error {
 
 // updateFromV41 removes any duplicated network config rows that have the same value.
 // This can occur when multiple create requests have been issued when setting up a clustered network.
-func updateFromV41(tx *sql.Tx) error {
+func updateFromV41(ctx context.Context, tx *sql.Tx) error {
 	// Find all duplicated config rows and return comma delimited list of affected row IDs for each dupe set.
 	stmt := `SELECT network_id, IFNULL(node_id, -1), key, value, COUNT(*) AS rowCount, GROUP_CONCAT(id, ",") AS dupeRowIDs
 			FROM networks_config
@@ -1921,7 +1921,7 @@ func updateFromV41(tx *sql.Tx) error {
 }
 
 // Add state column to storage_pools_nodes tables. Set existing row's state to 1 ("created").
-func updateFromV40(tx *sql.Tx) error {
+func updateFromV40(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE storage_pools_nodes ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
 		UPDATE storage_pools_nodes SET state = 1;
@@ -1931,7 +1931,7 @@ func updateFromV40(tx *sql.Tx) error {
 }
 
 // Add state column to networks_nodes tables. Set existing row's state to 1 ("created").
-func updateFromV39(tx *sql.Tx) error {
+func updateFromV39(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE networks_nodes ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
 		UPDATE networks_nodes SET state = 1;
@@ -1941,7 +1941,7 @@ func updateFromV39(tx *sql.Tx) error {
 }
 
 // Add storage_volumes_backups table.
-func updateFromV38(tx *sql.Tx) error {
+func updateFromV38(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE storage_volumes_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -1964,7 +1964,7 @@ CREATE TABLE storage_volumes_backups (
 }
 
 // Attempt to add missing project features.networks feature to default project.
-func updateFromV37(tx *sql.Tx) error {
+func updateFromV37(ctx context.Context, tx *sql.Tx) error {
 	ids, err := query.SelectIntegers(tx, `SELECT id FROM projects WHERE name = "default" LIMIT 1`)
 	if err != nil {
 		return err
@@ -1978,7 +1978,7 @@ func updateFromV37(tx *sql.Tx) error {
 }
 
 // Add networks to projects references.
-func updateFromV36(tx *sql.Tx) error {
+func updateFromV36(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -2017,7 +2017,7 @@ CREATE VIEW projects_used_by_ref (name,
 
 // This fixes node IDs of storage volumes on non-remote pools which were
 // wrongly set to NULL.
-func updateFromV35(tx *sql.Tx) error {
+func updateFromV35(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 WITH storage_volumes_tmp (id, node_id)
 AS (
@@ -2045,7 +2045,7 @@ WHERE id IN (SELECT id FROM storage_volumes_tmp) AND node_id IS NULL
 // Remove multiple entries of the same volume when using remote storage.
 // Also, allow node ID to be null for the instances and storage_volumes tables, and set it to null
 // for instances and storage volumes using remote storage.
-func updateFromV34(tx *sql.Tx) error {
+func updateFromV34(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 SELECT storage_volumes.id, storage_volumes.name
 FROM storage_volumes
@@ -2073,7 +2073,7 @@ ORDER BY storage_volumes.name
 	}
 
 	volumes := make([]volume, 0, count)
-	err = query.Scan(tx, stmts, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, stmts, func(scan func(dest ...any) error) error {
 		vol := volume{}
 		err := scan(&vol.ID, &vol.Name)
 		if err != nil {
@@ -2132,7 +2132,7 @@ CREATE TABLE storage_volumes_new (
 SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id, content_type
 FROM storage_volumes`
 
-	err = query.Scan(tx, sqlStr, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sqlStr, func(scan func(dest ...any) error) error {
 		vol := volume{}
 		err := scan(&vol.ID, &vol.Name, &vol.StoragePoolID, &vol.NodeID, &vol.Type, &vol.Description, &vol.ProjectID, &vol.ContentType)
 		if err != nil {
@@ -2173,7 +2173,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 
 	storageVolumeConfigs := make([]volumeConfig, 0, count)
 	sqlStr = `SELECT * FROM storage_volumes_config;`
-	err = query.Scan(tx, sqlStr, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sqlStr, func(scan func(dest ...any) error) error {
 		config := volumeConfig{}
 		err := scan(&config.ID, &config.StorageVolumeID, &config.Key, &config.Value)
 		if err != nil {
@@ -2204,7 +2204,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 
 	sqlStr = `SELECT * FROM storage_volumes_snapshots;`
 	storageVolumeSnapshots := make([]volumeSnapshot, 0, count)
-	err = query.Scan(tx, sqlStr, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sqlStr, func(scan func(dest ...any) error) error {
 		vol := volumeSnapshot{}
 		err := scan(&vol.ID, &vol.StorageVolumeID, &vol.Name, &vol.Description, &vol.ExpiryDate)
 		if err != nil {
@@ -2235,7 +2235,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 	storageVolumeSnapshotConfigs := make([]volumeSnapshotConfig, 0, count)
 
 	sqlStr = `SELECT * FROM storage_volumes_snapshots_config;`
-	err = query.Scan(tx, sqlStr, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sqlStr, func(scan func(dest ...any) error) error {
 		config := volumeSnapshotConfig{}
 		err := scan(&config.ID, &config.StorageVolumeSnapshotID, &config.Key, &config.Value)
 		if err != nil {
@@ -2334,7 +2334,7 @@ CREATE TRIGGER storage_volumes_check_id
 // and set existing networks to project_id 1.
 // This is made a lot more complex because it requires re-creating the referenced tables as there is no way to
 // disable foreign keys temporarily within a transaction.
-func updateFromV33(tx *sql.Tx) error {
+func updateFromV33(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE networks_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -2391,7 +2391,7 @@ ALTER TABLE networks_config_new RENAME TO networks_config;
 }
 
 // Add type field to networks.
-func updateFromV32(tx *sql.Tx) error {
+func updateFromV32(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE networks ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	if err != nil {
 		return fmt.Errorf("Failed to add type column to networks table: %w", err)
@@ -2401,7 +2401,7 @@ func updateFromV32(tx *sql.Tx) error {
 }
 
 // Add failure_domain column to nodes table.
-func updateFromV31(tx *sql.Tx) error {
+func updateFromV31(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE nodes_failure_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -2420,7 +2420,7 @@ ALTER TABLE nodes
 }
 
 // Add content type field to storage volumes.
-func updateFromV30(tx *sql.Tx) error {
+func updateFromV30(ctx context.Context, tx *sql.Tx) error {
 	stmts := `ALTER TABLE storage_volumes ADD COLUMN content_type INTEGER NOT NULL DEFAULT 0;
 UPDATE storage_volumes SET content_type = 1 WHERE type = 3;
 UPDATE storage_volumes SET content_type = 1 WHERE storage_volumes.id IN (
@@ -2468,7 +2468,7 @@ CREATE VIEW storage_volumes_all (
 }
 
 // Add storage volumes to projects references and fix images.
-func updateFromV29(tx *sql.Tx) error {
+func updateFromV29(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW projects_used_by_ref;
 CREATE VIEW projects_used_by_ref (name,
@@ -2501,20 +2501,20 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // Attempt to add missing project feature.
-func updateFromV28(tx *sql.Tx) error {
+func updateFromV28(ctx context.Context, tx *sql.Tx) error {
 	_, _ = tx.Exec("INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');")
 	return nil
 }
 
 // Add expiry date to storage volume snapshots.
-func updateFromV27(tx *sql.Tx) error {
+func updateFromV27(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE storage_volumes_snapshots ADD COLUMN expiry_date DATETIME;")
 	return err
 }
 
 // Bump the sqlite_sequence value for storage volumes, to avoid unique
 // constraint violations when inserting new snapshots.
-func updateFromV26(tx *sql.Tx) error {
+func updateFromV26(ctx context.Context, tx *sql.Tx) error {
 	ids, err := query.SelectIntegers(tx, "SELECT coalesce(max(id), 0) FROM storage_volumes_all")
 	if err != nil {
 		return err
@@ -2525,7 +2525,7 @@ func updateFromV26(tx *sql.Tx) error {
 }
 
 // Create new storage snapshot tables and migrate data to them.
-func updateFromV25(tx *sql.Tx) error {
+func updateFromV25(ctx context.Context, tx *sql.Tx) error {
 	// Get the total number of snapshot rows in the storage_volumes table.
 	count, err := query.Count(tx, "storage_volumes", "snapshot=1")
 	if err != nil {
@@ -2554,7 +2554,7 @@ SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), proj
 
 	// Fetch all snapshot rows in the storage_volumes table.
 	snapshots := make([]snapshot, 0, count)
-	err = query.Scan(tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sql, func(scan func(dest ...any) error) error {
 		s := snapshot{}
 		err := scan(&s.ID, &s.Name, &s.StoragePoolID, &s.NodeID, &s.Type, &s.Description, &s.ProjectID)
 		if err != nil {
@@ -2714,7 +2714,7 @@ INSERT INTO storage_volumes_snapshots_config(storage_volume_snapshot_id, key, va
 }
 
 // The ceph.user.name config key is required for Ceph to function.
-func updateFromV24(tx *sql.Tx) error {
+func updateFromV24(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing Ceph pools.
 	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='ceph'`)
 	if err != nil {
@@ -2745,7 +2745,7 @@ func updateFromV24(tx *sql.Tx) error {
 }
 
 // The lvm.vg_name config key is required for LVM to function.
-func updateFromV23(tx *sql.Tx) error {
+func updateFromV23(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
@@ -2787,7 +2787,7 @@ SELECT ?, ?, 'lvm.vg_name', name FROM storage_pools WHERE id=?
 }
 
 // The zfs.pool_name config key is required for ZFS to function.
-func updateFromV22(tx *sql.Tx) error {
+func updateFromV22(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
@@ -2829,7 +2829,7 @@ SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
 }
 
 // Fix "images_profiles" table (missing UNIQUE).
-func updateFromV21(tx *sql.Tx) error {
+func updateFromV21(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE images_profiles RENAME TO old_images_profiles;
 CREATE TABLE images_profiles (
@@ -2847,7 +2847,7 @@ DROP TABLE old_images_profiles;
 }
 
 // Add "images_profiles" table.
-func updateFromV20(tx *sql.Tx) error {
+func updateFromV20(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE images_profiles (
 	image_id INTEGER NOT NULL,
@@ -2879,7 +2879,7 @@ INSERT INTO images_profiles (image_id, profile_id)
 }
 
 // Add a new "arch" column to the "nodes" table.
-func updateFromV19(tx *sql.Tx) error {
+func updateFromV19(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("PRAGMA ignore_check_constraints=on")
 	if err != nil {
 		return err
@@ -2910,7 +2910,7 @@ func updateFromV19(tx *sql.Tx) error {
 }
 
 // Rename 'containers' to 'instances' in *_used_by_ref views.
-func updateFromV18(tx *sql.Tx) error {
+func updateFromV18(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW profiles_used_by_ref;
 CREATE VIEW profiles_used_by_ref (project,
@@ -2952,7 +2952,7 @@ CREATE VIEW projects_used_by_ref (name,
 }
 
 // Add nodes_roles table.
-func updateFromV17(tx *sql.Tx) error {
+func updateFromV17(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE nodes_roles (
     node_id INTEGER NOT NULL,
@@ -2966,13 +2966,13 @@ CREATE TABLE nodes_roles (
 }
 
 // Add image type column.
-func updateFromV16(tx *sql.Tx) error {
+func updateFromV16(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE images ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
 	return err
 }
 
 // Create new snapshot tables and migrate data to them.
-func updateFromV15(tx *sql.Tx) error {
+func updateFromV15(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE instances_snapshots (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -3072,7 +3072,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 
 	sql := `SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expiry_date FROM instances`
 	instances := make([]instance, 0, count)
-	err = query.Scan(tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sql, func(scan func(dest ...any) error) error {
 		inst := instance{}
 		err := scan(&inst.ID, &inst.Name, &inst.Type, &inst.CreationDate, &inst.Stateful, &inst.Description, &inst.ExpiryDate)
 		if err != nil {
@@ -3121,7 +3121,7 @@ SELECT instances_config.id, instance_id, key, value
   WHERE instances.type = 1
 `
 
-	err = query.Scan(tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sql, func(scan func(dest ...any) error) error {
 		config := instanceConfig{}
 		err := scan(&config.ID, &config.InstanceID, &config.Key, &config.Value)
 		if err != nil {
@@ -3171,7 +3171,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
   WHERE instances.type = 1
 `
 
-	err = query.Scan(tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sql, func(scan func(dest ...any) error) error {
 		d := device{}
 		err := scan(&d.ID, &d.InstanceID, &d.Name, &d.Type)
 		if err != nil {
@@ -3353,7 +3353,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 }
 
 // Rename all containers* tables to instances*/.
-func updateFromV14(tx *sql.Tx) error {
+func updateFromV14(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 ALTER TABLE containers RENAME TO instances;
 ALTER TABLE containers_backups RENAME COLUMN container_id TO instance_id;
@@ -3450,12 +3450,12 @@ CREATE VIEW profiles_used_by_ref (project,
 	return err
 }
 
-func updateFromV13(tx *sql.Tx) error {
+func updateFromV13(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN expiry_date DATETIME;")
 	return err
 }
 
-func updateFromV12(tx *sql.Tx) error {
+func updateFromV12(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 DROP VIEW profiles_used_by_ref;
 CREATE VIEW profiles_used_by_ref (project,
@@ -3479,7 +3479,7 @@ CREATE VIEW profiles_used_by_ref (project,
 	return err
 }
 
-func updateFromV11(tx *sql.Tx) error {
+func updateFromV11(ctx context.Context, tx *sql.Tx) error {
 	// There was at least a case of dangling references to rows in the
 	// containers table that don't exist anymore. So sanitize them before
 	// we move forward. See #5176.
@@ -3527,7 +3527,7 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 	// Use a large timeout since the update might take a while, due to the
 	// new indexes being created.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	stmts = `
@@ -3988,7 +3988,7 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 	return err
 }
 
-func updateFromV10(tx *sql.Tx) error {
+func updateFromV10(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE storage_volumes ADD COLUMN snapshot INTEGER NOT NULL DEFAULT 0;
 UPDATE storage_volumes SET snapshot = 0;
@@ -3998,7 +3998,7 @@ UPDATE storage_volumes SET snapshot = 0;
 }
 
 // Add a new 'type' column to the operations table.
-func updateFromV9(tx *sql.Tx) error {
+func updateFromV9(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 	ALTER TABLE operations ADD COLUMN type INTEGER NOT NULL DEFAULT 0;
 	UPDATE operations SET type = 0;
@@ -4009,13 +4009,13 @@ func updateFromV9(tx *sql.Tx) error {
 
 // The lvm.thinpool_name and lvm.vg_name config keys are node-specific and need
 // to be linked to nodes.
-func updateFromV8(tx *sql.Tx) error {
+func updateFromV8(ctx context.Context, tx *sql.Tx) error {
 	// Moved to patchLvmNodeSpecificConfigKeys, since there's no schema
 	// change. That makes it easier to backport.
 	return nil
 }
 
-func updateFromV7(tx *sql.Tx) error {
+func updateFromV7(ctx context.Context, tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE containers_backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4035,7 +4035,7 @@ CREATE TABLE containers_backups (
 
 // The zfs.pool_name config key is node-specific, and needs to be linked to
 // nodes.
-func updateFromV6(tx *sql.Tx) error {
+func updateFromV6(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
@@ -4088,7 +4088,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 
 // For ceph volumes, add node-specific rows for all existing nodes, since any
 // node is able to access those volumes.
-func updateFromV5(tx *sql.Tx) error {
+func updateFromV5(ctx context.Context, tx *sql.Tx) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
@@ -4129,7 +4129,7 @@ FROM storage_volumes
     WHERE storage_pools.driver='ceph'
 `
 
-	err = query.Scan(tx, sql, func(scan func(dest ...any) error) error {
+	err = query.Scan(ctx, tx, sql, func(scan func(dest ...any) error) error {
 		vol := volume{}
 		err := scan(&vol.ID, &vol.Name, &vol.StoragePoolID, &vol.NodeID, &vol.Type, &vol.Description)
 		if err != nil {
@@ -4199,13 +4199,13 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 	return nil
 }
 
-func updateFromV4(tx *sql.Tx) error {
+func updateFromV4(ctx context.Context, tx *sql.Tx) error {
 	stmt := "UPDATE networks SET state = 1"
 	_, err := tx.Exec(stmt)
 	return err
 }
 
-func updateFromV3(tx *sql.Tx) error {
+func updateFromV3(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE storage_pools_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4222,7 +4222,7 @@ UPDATE storage_pools SET state = 1;
 	return err
 }
 
-func updateFromV2(tx *sql.Tx) error {
+func updateFromV2(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4236,7 +4236,7 @@ CREATE TABLE operations (
 	return err
 }
 
-func updateFromV1(tx *sql.Tx) error {
+func updateFromV1(ctx context.Context, tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -4443,7 +4443,7 @@ CREATE TABLE storage_volumes_config (
 	return err
 }
 
-func updateFromV0(tx *sql.Tx) error {
+func updateFromV0(ctx context.Context, tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `
 CREATE TABLE nodes (
