@@ -287,11 +287,6 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
-	err = row.Err()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
-	}
-
 	var id int64
 	err = row.Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -299,7 +294,7 @@ func GetProjectID(ctx context.Context, tx *sql.Tx, name string) (int64, error) {
 	}
 
 	if err != nil {
-		return -1, fmt.Errorf("Failed to scan ID: %w", err)
+		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
 	}
 
 	return id, nil
