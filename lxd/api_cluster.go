@@ -358,7 +358,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
-	err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
@@ -441,7 +441,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return response.SmartError(err)
 		}
 
-		err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
+		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -472,7 +472,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Update the cluster.https_address config key.
-		err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
+		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -701,7 +701,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		var nodeConfig *node.Config
-		err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+		err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			var err error
 			nodeConfig, err = node.ConfigLoad(tx)
 			return err
@@ -1761,7 +1761,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Get information about the cluster.
 	var nodes []db.RaftNode
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		nodes, err = tx.GetRaftNodes()
 		return err

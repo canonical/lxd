@@ -1076,7 +1076,7 @@ func (d *Daemon) init() error {
 
 	logger.Info("Loading daemon configuration")
 	var daemonConfig *node.Config
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		daemonConfig, err = node.ConfigLoad(tx)
 		return err
 	})
@@ -2061,7 +2061,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 
 	// Accept raft node list from any heartbeat type so that we get freshest data quickly.
 	logger.Debug("Replace current raft nodes", logger.Ctx{"raftMembers": raftNodes})
-	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {

@@ -1705,7 +1705,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	// may be different for each cluster member.
 	var imageVolumes []string
 
-	err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
+	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -2138,7 +2138,7 @@ func pruneLeftoverImages(d *Daemon) {
 	opRun := func(op *operations.Operation) error {
 		// Check if dealing with shared image storage.
 		var storageImages string
-		err := d.State().DB.Node.Transaction(func(tx *db.NodeTx) error {
+		err := d.State().DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 			nodeConfig, err := node.ConfigLoad(tx)
 			if err != nil {
 				return err

@@ -601,7 +601,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 		return err
 	}
 
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(nil)
 	})
 	if err != nil {
@@ -667,7 +667,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	}
 
 	addresses := []string{}
-	err = g.db.Transaction(func(tx *db.NodeTx) error {
+	err = g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		nodes, err := tx.GetRaftNodes()
 		if err != nil {
 			return err
@@ -994,7 +994,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	}
 
 	var address string
-	err := g.db.Transaction(func(tx *db.NodeTx) error {
+	err := g.db.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		address, err = tx.GetRaftNodeAddress(1)
 		if err != nil {
