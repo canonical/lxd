@@ -138,7 +138,24 @@ run_test() {
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
-  ${TEST_CURRENT}
+
+  # shellcheck disable=SC2039,3043
+  local skip=false
+
+  if [ -n "${LXD_SKIP_TESTS:-}" ]; then
+    for testName in ${LXD_SKIP_TESTS}; do
+      if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+          echo "==> SKIP: ${TEST_CURRENT} as specified in LXD_SKIP_TESTS"
+          skip=true
+          break
+      fi
+    done
+  fi
+
+  if [ "${skip}" = false ]; then
+    ${TEST_CURRENT}
+  fi
+
   END_TIME=$(date +%s)
 
   echo "==> TEST DONE: ${TEST_CURRENT_DESCRIPTION} ($((END_TIME-START_TIME))s)"
