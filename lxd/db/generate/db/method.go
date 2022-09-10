@@ -597,15 +597,13 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "ID")))
 	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParams(nk))
-	buf.L("err = row.Err()")
-	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	buf.L("var id int64")
 	buf.L("err = row.Scan(&id)")
 	buf.L("if errors.Is(err, sql.ErrNoRows) {")
 	buf.L(`return -1, api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
 	buf.L("}")
 	buf.N()
-	m.ifErrNotNil(buf, true, "-1", "fmt.Errorf(\"Failed to scan ID: %w\", err)")
+	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	buf.L("return id, nil")
 
 	return nil
