@@ -165,11 +165,6 @@ func GetClusterGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, err
 	}
 
 	row := stmt.QueryRowContext(ctx, name)
-	err = row.Err()
-	if err != nil {
-		return -1, fmt.Errorf("Failed to get \"clusters_groups\" ID: %w", err)
-	}
-
 	var id int64
 	err = row.Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -177,7 +172,7 @@ func GetClusterGroupID(ctx context.Context, tx *sql.Tx, name string) (int64, err
 	}
 
 	if err != nil {
-		return -1, fmt.Errorf("Failed to scan ID: %w", err)
+		return -1, fmt.Errorf("Failed to get \"clusters_groups\" ID: %w", err)
 	}
 
 	return id, nil
