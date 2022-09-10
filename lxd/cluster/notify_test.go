@@ -139,7 +139,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 
 	// Set the address in the config table of the node database.
 	err = h.state.DB.Node.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(tx)
+		config, err := node.ConfigLoad(ctx, tx)
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
 		values := map[string]any{"cluster.https_address": address}

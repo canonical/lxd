@@ -88,7 +88,7 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName
 	var address string // Cluster member address.
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetNodeAddressOfInstance(projectName, instName, instanceType)
+		address, err = tx.GetNodeAddressOfInstance(ctx, projectName, instName, instanceType)
 		return err
 	})
 	if err != nil {
@@ -118,7 +118,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 	var nodes []db.NodeInfo
 	var poolID int64
 	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		poolID, err = tx.GetStoragePoolID(poolName)
+		poolID, err = tx.GetStoragePoolID(ctx, poolName)
 		if err != nil {
 			return err
 		}

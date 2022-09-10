@@ -29,7 +29,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 
 	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.GetNetworksLocalConfig()
+		config, err = tx.GetNetworksLocalConfig(ctx)
 		return err
 	})
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestCreatePendingNetwork(t *testing.T) {
 	err = tx.CreatePendingNetwork(context.Background(), "buzz", project.Default, "network1", db.NetworkTypeBridge, config)
 	require.NoError(t, err)
 
-	networkID, err := tx.GetNetworkID(project.Default, "network1")
+	networkID, err := tx.GetNetworkID(context.Background(), project.Default, "network1")
 	require.NoError(t, err)
 	assert.True(t, networkID > 0)
 

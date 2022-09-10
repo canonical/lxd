@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestConfigLoad_Initial(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{}, config.Dump())
@@ -34,7 +35,7 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 
 	require.NoError(t, err)
 	values := map[string]any{"core.proxy_http": "foo.bar"}
@@ -46,7 +47,7 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{}, config.Dump())
@@ -57,7 +58,7 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
 	_, err = config.Patch(map[string]any{"cluster.offline_threshold": "2"})
@@ -69,7 +70,7 @@ func TestConfigLoad_MaxVotersValidator(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
 	_, err = config.Patch(map[string]any{"cluster.max_voters": "4"})
@@ -82,7 +83,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
 	changed, err := config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
@@ -94,7 +95,7 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 
 	assert.Equal(t, "", config.ProxyHTTP())
 
-	values, err := tx.Config()
+	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, values)
 }
@@ -105,7 +106,7 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	config, err := clusterConfig.Load(tx)
+	config, err := clusterConfig.Load(context.Background(), tx)
 	require.NoError(t, err)
 
 	_, err = config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
@@ -116,7 +117,7 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 
 	assert.Equal(t, "foo.bar", config.ProxyHTTP())
 
-	values, err := tx.Config()
+	values, err := tx.Config(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, values)
 }

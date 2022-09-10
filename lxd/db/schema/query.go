@@ -13,11 +13,11 @@ import (
 
 // DoesSchemaTableExist return whether the schema table is present in the
 // database.
-func DoesSchemaTableExist(tx *sql.Tx) (bool, error) {
+func DoesSchemaTableExist(ctx context.Context, tx *sql.Tx) (bool, error) {
 	statement := `
 SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 `
-	rows, err := tx.Query(statement)
+	rows, err := tx.QueryContext(ctx, statement)
 	if err != nil {
 		return false, err
 	}
@@ -39,16 +39,16 @@ SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 }
 
 // Return all versions in the schema table, in increasing order.
-func selectSchemaVersions(tx *sql.Tx) ([]int, error) {
+func selectSchemaVersions(ctx context.Context, tx *sql.Tx) ([]int, error) {
 	statement := `
 SELECT version FROM schema ORDER BY version
 `
-	return query.SelectIntegers(tx, statement)
+	return query.SelectIntegers(ctx, tx, statement)
 }
 
 // Return a list of SQL statements that can be used to create all tables in the
 // database.
-func selectTablesSQL(tx *sql.Tx) ([]string, error) {
+func selectTablesSQL(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	statement := `
 SELECT sql FROM sqlite_master WHERE
   type IN ('table', 'index', 'view', 'trigger') AND
@@ -56,7 +56,7 @@ SELECT sql FROM sqlite_master WHERE
   name NOT LIKE 'sqlite_%'
 ORDER BY name
 `
-	return query.SelectStrings(tx, statement)
+	return query.SelectStrings(ctx, tx, statement)
 }
 
 // Create the schema table.

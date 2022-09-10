@@ -447,7 +447,7 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 	remoteDrivers := StorageRemoteDriverNames()
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		driver, err := tx.GetStoragePoolDriver(poolID)
+		driver, err := tx.GetStoragePoolDriver(ctx, poolID)
 		if err != nil {
 			return err
 		}
@@ -497,7 +497,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	var id int64
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
-		id, err = tx.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
+		id, err = tx.storagePoolVolumeGetTypeID(ctx, project, volumeName, volumeType, poolID, nodeID)
 		return err
 	})
 	if err != nil {
@@ -507,7 +507,7 @@ func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, 
 	return id, nil
 }
 
-func (c *ClusterTx) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+func (c *ClusterTx) storagePoolVolumeGetTypeID(ctx context.Context, project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
 	s := fmt.Sprintf(`
@@ -527,7 +527,7 @@ SELECT storage_volumes_all.id
 		args = append(args, driver)
 	}
 
-	result, err := query.SelectIntegers(c.tx, s, args...)
+	result, err := query.SelectIntegers(ctx, c.tx, s, args...)
 	if err != nil {
 		return -1, err
 	}
@@ -658,7 +658,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(ctx context.Context, poolID int64, pro
 	if nodeCount == 0 {
 		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 	} else if nodeCount > 1 {
-		driver, err := c.GetStoragePoolDriver(poolID)
+		driver, err := c.GetStoragePoolDriver(ctx, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -908,7 +908,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	}
 
 	for i, volume := range volumes {
-		config, err := query.SelectConfig(c.tx, "storage_volumes_config", "storage_volume_id=?", volume.ID)
+		config, err := query.SelectConfig(ctx, c.tx, "storage_volumes_config", "storage_volume_id=?", volume.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Fetch custom volume config: %w", err)
 		}

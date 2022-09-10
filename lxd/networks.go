@@ -535,7 +535,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		}
 
 		// Fetch the network ID.
-		networkID, err := tx.GetNetworkID(projectName, req.Name)
+		networkID, err := tx.GetNetworkID(ctx, projectName, req.Name)
 		if err != nil {
 			return err
 		}

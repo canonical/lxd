@@ -37,7 +37,7 @@ func TestTransaction_FunctionError(t *testing.T) {
 	tx, err := db.Begin()
 	assert.NoError(t, err)
 
-	tables, err := query.SelectStrings(tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
+	tables, err := query.SelectStrings(context.Background(), tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
 	assert.NoError(t, err)
 	assert.NotContains(t, tables, "test")
 }

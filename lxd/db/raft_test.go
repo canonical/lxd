@@ -45,7 +45,7 @@ func TestGetRaftNodeAddresses(t *testing.T) {
 	_, err = tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
-	addresses, err := tx.GetRaftNodeAddresses()
+	addresses, err := tx.GetRaftNodeAddresses(context.Background())
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"1.2.3.4:666", "5.6.7.8:666"}, addresses)
@@ -62,7 +62,7 @@ func TestGetRaftNodeAddress(t *testing.T) {
 	id, err := tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
-	address, err := tx.GetRaftNodeAddress(id)
+	address, err := tx.GetRaftNodeAddress(context.Background(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "5.6.7.8:666", address)
 }
@@ -81,7 +81,7 @@ func TestCreateFirstRaftNode(t *testing.T) {
 	err = tx.CreateFirstRaftNode("5.6.7.8:666", "test")
 	assert.NoError(t, err)
 
-	address, err := tx.GetRaftNodeAddress(1)
+	address, err := tx.GetRaftNodeAddress(context.Background(), 1)
 	require.NoError(t, err)
 	assert.Equal(t, "5.6.7.8:666", address)
 }

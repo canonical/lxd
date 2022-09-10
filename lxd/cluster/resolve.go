@@ -14,7 +14,7 @@ import (
 func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
 	address := ""
 	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		name, err := tx.GetLocalNodeName()
+		name, err := tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

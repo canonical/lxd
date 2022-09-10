@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func TestNode_Schema(t *testing.T) {
 	db := node.DB()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	n, err := query.Count(tx, "schema", "")
+	n, err := query.Count(context.Background(), tx, "schema", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
 
@@ -41,7 +42,7 @@ func TestCluster_Setup(t *testing.T) {
 	db := cluster.DB()
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	n, err := query.Count(tx, "schema", "")
+	n, err := query.Count(context.Background(), tx, "schema", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
 

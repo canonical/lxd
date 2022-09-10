@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -11,13 +12,13 @@ import (
 // additional WHERE filters can be specified.
 //
 // Returns a map of key names to their associated values.
-func SelectConfig(tx *sql.Tx, table string, where string, args ...any) (map[string]string, error) {
+func SelectConfig(ctx context.Context, tx *sql.Tx, table string, where string, args ...any) (map[string]string, error) {
 	query := fmt.Sprintf("SELECT key, value FROM %s", table)
 	if where != "" {
 		query += fmt.Sprintf(" WHERE %s", where)
 	}
 
-	rows, err := tx.Query(query, args...)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

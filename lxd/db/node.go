@@ -89,7 +89,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	// From cluster database.
 	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Get offline threshold.
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return fmt.Errorf("Load offline threshold config: %w", err)
 		}
@@ -240,7 +240,7 @@ func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 
 	// Get the maximum DB schema.
 	var maxSchema int
-	row := c.tx.QueryRow("SELECT MAX(schema) FROM nodes")
+	row := c.tx.QueryRowContext(ctx, "SELECT MAX(schema) FROM nodes")
 	err := row.Scan(&maxSchema)
 	if err != nil {
 		return version, err
@@ -248,7 +248,7 @@ func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 
 	// Get the maximum API extension.
 	var maxAPI int
-	row = c.tx.QueryRow("SELECT MAX(api_extensions) FROM nodes")
+	row = c.tx.QueryRowContext(ctx, "SELECT MAX(api_extensions) FROM nodes")
 	err = row.Scan(&maxAPI)
 	if err != nil {
 		return version, err
@@ -316,9 +316,9 @@ func (c *ClusterTx) GetNodeByName(ctx context.Context, name string) (NodeInfo, e
 
 // GetLocalNodeName returns the name of the node this method is invoked on.
 // Usually you should not use this function directly but instead use the cached State.ServerName value.
-func (c *ClusterTx) GetLocalNodeName() (string, error) {
+func (c *ClusterTx) GetLocalNodeName(ctx context.Context) (string, error) {
 	stmt := "SELECT name FROM nodes WHERE id=?"
-	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)
+	names, err := query.SelectStrings(ctx, c.tx, stmt, c.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -334,9 +334,9 @@ func (c *ClusterTx) GetLocalNodeName() (string, error) {
 }
 
 // GetLocalNodeAddress returns the address of the node this method is invoked on.
-func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
+func (c *ClusterTx) GetLocalNodeAddress(ctx context.Context) (string, error) {
 	stmt := "SELECT address FROM nodes WHERE id=?"
-	addresses, err := query.SelectStrings(c.tx, stmt, c.nodeID)
+	addresses, err := query.SelectStrings(ctx, c.tx, stmt, c.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -402,8 +402,8 @@ func (c *ClusterTx) GetNodes(ctx context.Context) ([]NodeInfo, error) {
 //
 // Since there's always at least one node row, even when not-clustered, the
 // return value is greater than zero.
-func (c *ClusterTx) GetNodesCount() (int, error) {
-	count, err := query.Count(c.tx, "nodes", "")
+func (c *ClusterTx) GetNodesCount(ctx context.Context) (int, error) {
+	count, err := query.Count(ctx, c.tx, "nodes", "")
 	if err != nil {
 		return 0, fmt.Errorf("failed to count existing nodes: %w", err)
 	}
@@ -414,8 +414,8 @@ func (c *ClusterTx) GetNodesCount() (int, error) {
 // RenameNode changes the name of an existing node.
 //
 // Return an error if a node with the same name already exists.
-func (c *ClusterTx) RenameNode(old, new string) error {
-	count, err := query.Count(c.tx, "nodes", "name=?", new)
+func (c *ClusterTx) RenameNode(ctx context.Context, old string, new string) error {
+	count, err := query.Count(ctx, c.tx, "nodes", "name=?", new)
 	if err != nil {
 		return fmt.Errorf("failed to check existing nodes: %w", err)
 	}
@@ -712,7 +712,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(ctx context.Context, id int64, group
 		return err
 	}
 
-	oldGroups, err := c.GetClusterGroupsWithNode(nodeInfo.Name)
+	oldGroups, err := c.GetClusterGroupsWithNode(ctx, nodeInfo.Name)
 	if err != nil {
 		return err
 	}
@@ -760,7 +760,7 @@ func (c *ClusterTx) UpdateNodeFailureDomain(ctx context.Context, id int64, domai
 	if domain == "default" {
 		domainID = nil
 	} else {
-		row := c.tx.QueryRow("SELECT id FROM nodes_failure_domains WHERE name=?", domain)
+		row := c.tx.QueryRowContext(ctx, "SELECT id FROM nodes_failure_domains WHERE name=?", domain)
 		err := row.Scan(&domainID)
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -824,7 +824,7 @@ SELECT coalesce(nodes_failure_domains.name,'default')
 `
 	var domain string
 
-	err := c.tx.QueryRow(stmt, id).Scan(&domain)
+	err := c.tx.QueryRowContext(ctx, stmt, id).Scan(&domain)
 	if err != nil {
 		return "", err
 	}
@@ -949,7 +949,7 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 // say what's left.
 func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	// Check if the node has any instances.
-	containers, err := query.SelectStrings(c.tx, "SELECT name FROM instances WHERE node_id=?", id)
+	containers, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get instances for node %d: %w", id, err)
 	}
@@ -1006,9 +1006,13 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	}
 
 	// Check if the node has any custom volumes.
-	volumes, err := query.SelectStrings(
-		c.tx, "SELECT storage_volumes.name FROM storage_volumes JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id WHERE storage_volumes.node_id=? AND storage_volumes.type=? AND storage_pools.driver NOT IN ('ceph', 'cephfs')",
-		id, StoragePoolVolumeTypeCustom)
+	sql = `
+SELECT storage_volumes.name
+  FROM storage_volumes
+  JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
+  WHERE storage_volumes.node_id=? AND storage_volumes.type=? AND storage_pools.driver NOT IN ('ceph', 'cephfs')
+`
+	volumes, err := query.SelectStrings(ctx, c.tx, sql, id, StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get custom volumes for node %d: %w", id, err)
 	}
@@ -1023,14 +1027,14 @@ func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 }
 
 // ClearNode removes any instance or image associated with this node.
-func (c *ClusterTx) ClearNode(id int64) error {
+func (c *ClusterTx) ClearNode(ctx context.Context, id int64) error {
 	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err
 	}
 
 	// Get the IDs of the images this node is hosting.
-	ids, err := query.SelectIntegers(c.tx, "SELECT image_id FROM images_nodes WHERE node_id=?", id)
+	ids, err := query.SelectIntegers(ctx, c.tx, "SELECT image_id FROM images_nodes WHERE node_id=?", id)
 	if err != nil {
 		return err
 	}
@@ -1043,7 +1047,7 @@ func (c *ClusterTx) ClearNode(id int64) error {
 
 	// Delete the image as well if this was the only node with it.
 	for _, id := range ids {
-		count, err := query.Count(c.tx, "images_nodes", "image_id=?", id)
+		count, err := query.Count(ctx, c.tx, "images_nodes", "image_id=?", id)
 		if err != nil {
 			return err
 		}
@@ -1064,10 +1068,9 @@ func (c *ClusterTx) ClearNode(id int64) error {
 // GetNodeOfflineThreshold returns the amount of time that needs to elapse after
 // which a series of unsuccessful heartbeat will make the node be considered
 // offline.
-func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
+func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration, error) {
 	threshold := time.Duration(DefaultOfflineThreshold) * time.Second
-	values, err := query.SelectStrings(
-		c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")
+	values, err := query.SelectStrings(ctx, c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")
 	if err != nil {
 		return -1, err
 	}
@@ -1089,7 +1092,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
 func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
-	threshold, err := c.GetNodeOfflineThreshold()
+	threshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get offline threshold: %w", err)
 	}
@@ -1167,14 +1170,13 @@ func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, 
 		}
 
 		// Fetch the number of instances already created on this node.
-		created, err := query.Count(c.tx, "instances", "node_id=?", node.ID)
+		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", node.ID)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get instances count: %w", err)
 		}
 
 		// Fetch the number of instances currently being created on this node.
-		pending, err := query.Count(
-			c.tx, "operations", "node_id=? AND type=?", node.ID, operationtype.InstanceCreate)
+		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", node.ID, operationtype.InstanceCreate)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
@@ -1225,7 +1227,7 @@ func (c *Cluster) LocalNodeIsEvacuated() bool {
 	isEvacuated := false
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		name, err := tx.GetLocalNodeName()
+		name, err := tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

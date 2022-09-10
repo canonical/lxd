@@ -500,7 +500,7 @@ func DqliteLatestSegment() (string, error) {
 func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	return c.retry(func() error {
 		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
-			return tx.QueryRow(q, args...).Scan(outargs...)
+			return tx.QueryRowContext(ctx, q, args...).Scan(outargs...)
 		})
 	})
 }
@@ -510,7 +510,7 @@ func doDbScan(c *Cluster, q string, args []any, outargs []any) ([][]any, error) 
 
 	err := c.retry(func() error {
 		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
-			rows, err := tx.Query(q, args...)
+			rows, err := tx.QueryContext(ctx, q, args...)
 			if err != nil {
 				return err
 			}
