@@ -65,7 +65,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	backupDone := false
 	hook := (func(ctx context.Context, version int, tx *sql.Tx) error {
 		// Check if this is a fresh instance.
-		isUpdate, err := schema.DoesSchemaTableExist(tx)
+		isUpdate, err := schema.DoesSchemaTableExist(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("failed to check if schema table exists: %w", err)
 		}
@@ -76,7 +76,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 
 		// Check if we're clustered
 		clustered := true
-		n, err := selectUnclusteredNodesCount(tx)
+		n, err := selectUnclusteredNodesCount(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}
@@ -122,7 +122,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		}
 
 		// Check if we're clustered
-		n, err := selectUnclusteredNodesCount(tx)
+		n, err := selectUnclusteredNodesCount(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}

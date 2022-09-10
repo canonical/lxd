@@ -46,7 +46,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
 		if err != nil {
 			return err
 		}

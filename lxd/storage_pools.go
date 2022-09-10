@@ -405,7 +405,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		var err error
 
 		// Check that the pool was defined at all. Must come before partially created checks.
-		poolID, err = tx.GetStoragePoolID(req.Name)
+		poolID, err = tx.GetStoragePoolID(ctx, req.Name)
 		if err != nil {
 			return err
 		}

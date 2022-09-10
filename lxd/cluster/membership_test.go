@@ -239,13 +239,13 @@ func TestAccept(t *testing.T) {
 	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
-		state.GlobalConfig, err = clusterConfig.Load(tx)
+		state.GlobalConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
 
 		// Get the local node (will be used if clustered).
-		state.ServerName, err = tx.GetLocalNodeName()
+		state.ServerName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -305,13 +305,13 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	err = targetState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		targetState.GlobalConfig, err = clusterConfig.Load(tx)
+		targetState.GlobalConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
 
 		// Get the local node (will be used if clustered).
-		targetState.ServerName, err = tx.GetLocalNodeName()
+		targetState.ServerName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}
@@ -358,13 +358,13 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		state.GlobalConfig, err = clusterConfig.Load(tx)
+		state.GlobalConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
 
 		// Get the local node (will be used if clustered).
-		state.ServerName, err = tx.GetLocalNodeName()
+		state.ServerName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

@@ -30,7 +30,7 @@ import (
 //   cluster.https_address matches one of the rows in raft_nodes. In that case,
 //   the matching db.RaftNode row is returned, otherwise nil.
 func DetermineRaftNode(ctx context.Context, tx *db.NodeTx) (*db.RaftNode, error) {
-	config, err := ConfigLoad(tx)
+	config, err := ConfigLoad(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

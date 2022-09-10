@@ -881,7 +881,7 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 	var storageBackups string
 	var storageImages string
 	err := s.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
+		nodeConfig, err := node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return err
 		}

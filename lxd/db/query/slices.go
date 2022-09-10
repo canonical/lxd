@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -8,7 +9,7 @@ import (
 
 // SelectStrings executes a statement which must yield rows with a single string
 // column. It returns the list of column values.
-func SelectStrings(tx *sql.Tx, query string, args ...any) ([]string, error) {
+func SelectStrings(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]string, error) {
 	values := []string{}
 	scan := func(rows *sql.Rows) error {
 		var value string
@@ -21,7 +22,7 @@ func SelectStrings(tx *sql.Tx, query string, args ...any) ([]string, error) {
 		return nil
 	}
 
-	err := scanSingleColumn(tx, query, args, "TEXT", scan)
+	err := scanSingleColumn(ctx, tx, query, args, "TEXT", scan)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +32,7 @@ func SelectStrings(tx *sql.Tx, query string, args ...any) ([]string, error) {
 
 // SelectIntegers executes a statement which must yield rows with a single integer
 // column. It returns the list of column values.
-func SelectIntegers(tx *sql.Tx, query string, args ...any) ([]int, error) {
+func SelectIntegers(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]int, error) {
 	values := []int{}
 	scan := func(rows *sql.Rows) error {
 		var value int
@@ -44,7 +45,7 @@ func SelectIntegers(tx *sql.Tx, query string, args ...any) ([]int, error) {
 		return nil
 	}
 
-	err := scanSingleColumn(tx, query, args, "INTEGER", scan)
+	err := scanSingleColumn(ctx, tx, query, args, "INTEGER", scan)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +79,8 @@ func InsertStrings(tx *sql.Tx, stmt string, values []string) error {
 // Execute the given query and ensure that it yields rows with a single column
 // of the given database type. For every row yielded, execute the given
 // scanner.
-func scanSingleColumn(tx *sql.Tx, query string, args []any, typeName string, scan scanFunc) error {
-	rows, err := tx.Query(query, args...)
+func scanSingleColumn(ctx context.Context, tx *sql.Tx, query string, args []any, typeName string, scan scanFunc) error {
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

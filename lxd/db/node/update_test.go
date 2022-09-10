@@ -22,7 +22,7 @@ func TestUpdateFromV38_RaftNodes(t *testing.T) {
 	require.NoError(t, err)
 
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
-		roles, err := query.SelectIntegers(tx, "SELECT role FROM raft_nodes")
+		roles, err := query.SelectIntegers(ctx, tx, "SELECT role FROM raft_nodes")
 		require.NoError(t, err)
 		assert.Equal(t, roles, []int{0})
 		return nil
@@ -50,7 +50,7 @@ func TestUpdateFromV36_DropTables(t *testing.T) {
 	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
 		stmt := "SELECT name FROM sqlite_master WHERE type='table'"
-		current, err = query.SelectStrings(tx, stmt)
+		current, err = query.SelectStrings(ctx, tx, stmt)
 		return err
 	})
 	require.NoError(t, err)

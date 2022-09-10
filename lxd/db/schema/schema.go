@@ -144,12 +144,12 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 			return fmt.Errorf("failed to execute queries from %s: %w", s.path, err)
 		}
 
-		err = ensureSchemaTableExists(tx)
+		err = ensureSchemaTableExists(ctx, tx)
 		if err != nil {
 			return err
 		}
 
-		current, err = queryCurrentVersion(tx)
+		current, err = queryCurrentVersion(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -204,12 +204,12 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 func (s *Schema) Dump(db *sql.DB) (string, error) {
 	var statements []string
 	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
-		err := checkAllUpdatesAreApplied(tx, s.updates)
+		err := checkAllUpdatesAreApplied(ctx, tx, s.updates)
 		if err != nil {
 			return err
 		}
 
-		statements, err = selectTablesSQL(tx)
+		statements, err = selectTablesSQL(ctx, tx)
 		return err
 	})
 	if err != nil {
@@ -278,8 +278,8 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 }
 
 // Ensure that the schema exists.
-func ensureSchemaTableExists(tx *sql.Tx) error {
-	exists, err := DoesSchemaTableExist(tx)
+func ensureSchemaTableExists(ctx context.Context, tx *sql.Tx) error {
+	exists, err := DoesSchemaTableExist(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to check if schema table is there: %w", err)
 	}
@@ -295,8 +295,8 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 
 // Return the highest update version currently applied. Zero means that no
 // updates have been applied yet.
-func queryCurrentVersion(tx *sql.Tx) (int, error) {
-	versions, err := selectSchemaVersions(tx)
+func queryCurrentVersion(ctx context.Context, tx *sql.Tx) (int, error) {
+	versions, err := selectSchemaVersions(ctx, tx)
 	if err != nil {
 		return -1, fmt.Errorf("failed to fetch update versions: %w", err)
 	}
@@ -309,7 +309,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 			return -1, fmt.Errorf("failed to insert missing schema version 31")
 		}
 
-		versions, err = selectSchemaVersions(tx)
+		versions, err = selectSchemaVersions(ctx, tx)
 		if err != nil {
 			return -1, fmt.Errorf("failed to fetch update versions: %w", err)
 		}
@@ -317,7 +317,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 
 	// Fix broken schema version between 37 and 38
 	if hasVersion(37) && !hasVersion(38) {
-		count, err := query.Count(tx, "config", "key = 'cluster.https_address'")
+		count, err := query.Count(ctx, tx, "config", "key = 'cluster.https_address'")
 		if err != nil {
 			return -1, fmt.Errorf("Failed to check if cluster.https_address is set: %w", err)
 		}
@@ -397,8 +397,8 @@ func checkSchemaVersionsHaveNoHoles(versions []int) error {
 }
 
 // Check that all the given updates are applied.
-func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
-	versions, err := selectSchemaVersions(tx)
+func checkAllUpdatesAreApplied(ctx context.Context, tx *sql.Tx, updates []Update) error {
+	versions, err := selectSchemaVersions(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch update versions: %w", err)
 	}

@@ -95,7 +95,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	`
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
+		err := tx.tx.QueryRowContext(ctx, q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
 		if err != nil {
 			return err
 		}
@@ -142,7 +142,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return tx.tx.QueryRow(q, networkACLID).Scan(&networkACLName, &projectName)
+		return tx.tx.QueryRowContext(ctx, q, networkACLID).Scan(&networkACLName, &projectName)
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -316,10 +316,10 @@ func (c *Cluster) DeleteNetworkACL(id int64) error {
 }
 
 // GetNetworkACLURIs returns the URIs for the network ACLs with the given project.
-func (c *ClusterTx) GetNetworkACLURIs(projectID int, project string) ([]string, error) {
+func (c *ClusterTx) GetNetworkACLURIs(ctx context.Context, projectID int, project string) ([]string, error) {
 	sql := `SELECT networks_acls.name from networks_acls WHERE networks_acls.project_id = ?`
 
-	names, err := query.SelectStrings(c.tx, sql, projectID)
+	names, err := query.SelectStrings(ctx, c.tx, sql, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network acl: %w", err)
 	}

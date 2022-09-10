@@ -61,7 +61,7 @@ func TestHeartbeat(t *testing.T) {
 		nodes, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
 
-		offlineThreshold, err := tx.GetNodeOfflineThreshold()
+		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
 		require.NoError(t, err)
 
 		for _, node := range nodes {
@@ -232,13 +232,13 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	require.NoError(f.t, err)
 
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		state.GlobalConfig, err = clusterConfig.Load(tx)
+		state.GlobalConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
 			return err
 		}
 
 		// Get the local node (will be used if clustered).
-		state.ServerName, err = tx.GetLocalNodeName()
+		state.ServerName, err = tx.GetLocalNodeName(ctx)
 		if err != nil {
 			return err
 		}

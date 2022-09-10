@@ -48,7 +48,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 
 	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		config, err = tx.GetStoragePoolsLocalConfig()
+		config, err = tx.GetStoragePoolsLocalConfig(ctx)
 		return err
 	})
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	err = tx.CreatePendingStoragePool(context.Background(), "buzz", "pool1", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.GetStoragePoolID("pool1")
+	poolID, err := tx.GetStoragePoolID(context.Background(), "pool1")
 	require.NoError(t, err)
 	assert.True(t, poolID > 0)
 
@@ -118,7 +118,7 @@ func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
 	err = tx.CreatePendingStoragePool(context.Background(), "none", "pool2", "dir", config)
 	require.NoError(t, err)
 
-	poolID, err := tx.GetStoragePoolID("pool2")
+	poolID, err := tx.GetStoragePoolID(context.Background(), "pool2")
 	require.NoError(t, err)
 
 	config = map[string]string{}

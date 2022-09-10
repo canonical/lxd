@@ -49,14 +49,14 @@ func TestGetNodesCount(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	count, err := tx.GetNodesCount()
+	count, err := tx.GetNodesCount(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 1, count) // There's always at least one node.
 
 	_, err = tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	count, err = tx.GetNodesCount()
+	count, err = tx.GetNodesCount(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
@@ -122,7 +122,7 @@ func TestGetLocalNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	name, err := tx.GetLocalNodeName()
+	name, err := tx.GetLocalNodeName(context.Background())
 	require.NoError(t, err)
 
 	// The default node 1 has a conventional name 'none'.
@@ -136,7 +136,7 @@ func TestRenameNode(t *testing.T) {
 
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	err = tx.RenameNode("buzz", "rusp")
+	err = tx.RenameNode(context.Background(), "buzz", "rusp")
 	require.NoError(t, err)
 	node, err := tx.GetNodeByName(context.Background(), "rusp")
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestRenameNode(t *testing.T) {
 
 	_, err = tx.CreateNode("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
-	err = tx.RenameNode("rusp", "buzz")
+	err = tx.RenameNode(context.Background(), "rusp", "buzz")
 	assert.Equal(t, db.ErrAlreadyDefined, err)
 }
 
@@ -241,7 +241,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	require.NoError(t, err)
 	assert.Equal(t, "Node still has the following containers: foo", message)
 
-	err = tx.ClearNode(id)
+	err = tx.ClearNode(context.Background(), id)
 	require.NoError(t, err)
 
 	message, err = tx.NodeIsEmpty(context.Background(), id)

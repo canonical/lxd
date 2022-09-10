@@ -23,7 +23,7 @@ import (
 func TestLoadPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
-	dump, err := db.LoadPreClusteringData(tx)
+	dump, err := db.LoadPreClusteringData(context.Background(), tx)
 	require.NoError(t, err)
 
 	// config
@@ -47,7 +47,7 @@ func TestLoadPreClusteringData(t *testing.T) {
 func TestImportPreClusteringData(t *testing.T) {
 	tx := newPreClusteringTx(t)
 
-	dump, err := db.LoadPreClusteringData(tx)
+	dump, err := db.LoadPreClusteringData(context.Background(), tx)
 	require.NoError(t, err)
 
 	dir, store, cleanup := db.NewTestDqliteServer(t)
@@ -78,7 +78,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	// config
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		config, err := tx.Config()
+		config, err := tx.Config(ctx)
 		require.NoError(t, err)
 		values := map[string]string{"core.trust_password": "sekret"}
 		assert.Equal(t, values, config)
@@ -133,18 +133,18 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// The zfs.clone_copy config got a NULL node_id, since it's cluster global.
-		config, err := query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id IS NULL")
+		config, err := query.SelectConfig(ctx, tx.Tx(), "storage_pools_config", "node_id IS NULL")
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 
 		// The other config keys are node-specific.
-		config, err = query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id=?", 1)
+		config, err = query.SelectConfig(ctx, tx.Tx(), "storage_pools_config", "node_id=?", 1)
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{"source": "/foo/bar", "size": "123", "volatile.initial_source": "/foo/bar", "zfs.pool_name": "mypool"}, config)
 
 		// Storage volumes have now a node_id key set to 1 (the ID of
 		// the default node).
-		ids, err := query.SelectIntegers(tx.Tx(), "SELECT node_id FROM storage_volumes")
+		ids, err := query.SelectIntegers(ctx, tx.Tx(), "SELECT node_id FROM storage_volumes")
 		require.NoError(t, err)
 		assert.Equal(t, []int{1}, ids)
 
