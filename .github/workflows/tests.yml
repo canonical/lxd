@@ -33,7 +33,7 @@ jobs:
           sudo mv shellcheck-v0.8.0/shellcheck /bin/shellcheck
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download go dependencies
         run: |
