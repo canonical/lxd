@@ -210,7 +210,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
 
 	// Attach to the instance console
-	op, err := d.ConsoleInstance(name, req, &consoleArgs)
+	op, err := d.ConsoleInstanceDynamic(name, req, &consoleArgs)
 	if err != nil {
 		return err
 	}
