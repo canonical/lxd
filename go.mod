@@ -69,6 +69,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/grafana/dskit v0.0.0-20220831093637-e414922a81f2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect

@@ -367,6 +367,8 @@ github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a h1:N2b2mb4Gki1SlF3W
 github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a/go.mod h1:IEJaV4/6J0VpoQ33kFCUUP6umRjrcBVEbOva6XCub/Q=
 github.com/gostaticanalysis/analysisutil v0.0.0-20190318220348-4088753ea4d3/go.mod h1:eEOZF4jCKGi+aprrirO9e7WKB3beBRtWgqGunKl6pKE=
 github.com/gostaticanalysis/analysisutil v0.0.3/go.mod h1:eEOZF4jCKGi+aprrirO9e7WKB3beBRtWgqGunKl6pKE=
+github.com/grafana/dskit v0.0.0-20220831093637-e414922a81f2 h1:xHYLBYuV9wizl9b2zXCb43BoxBOfc9TsEinU6GhS88M=
+github.com/grafana/dskit v0.0.0-20220831093637-e414922a81f2/go.mod h1:/5aJR4AjaYbxhowVIdjeDDEem0EYSJh26HLD1U4Mc44=
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.0/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/go-grpc-middleware v1.1.0/go.mod h1:f5nM7jw/oeRSadq3xCzHAvxcr8HZnzsqU6ILg/0NiiE=
 github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 h1:+9834+KizmvFV7pXQGSXQTsaWhq2GjuNUt0aUU0YBYw=
