@@ -3,13 +3,20 @@ discourse: 12281,11735
 relatedlinks: https://grafana.com/grafana/dashboards/15726
 ---
 
+(instance-metrics)=
 # Instance metrics
 
 ```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY
 ```
 
-LXD provides metrics for all running instances. Those covers CPU, memory, network, disk and process usage and are meant to be consumed by Prometheus and likely graphed in Grafana.
+<!-- Include start metrics intro -->
+LXD collects metrics for all running instances.
+These metrics cover the CPU, memory, network, disk and process usage.
+They are meant to be consumed by Prometheus, and you can use Grafana to display the metrics as graphs.
+<!-- Include end metrics intro -->
+
 In cluster environments, LXD will only return the values for instances running on the server being accessed. It's expected that each cluster member will be scraped separately.
+
 The instance metrics are updated when calling the `/1.0/metrics` endpoint.
 They are cached for 8s to handle multiple scrapers. Fetching metrics is a relatively expensive operation for LXD to perform so consider scraping at a higher than default interval
 if the impact is too high.
