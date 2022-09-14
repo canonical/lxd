@@ -155,7 +155,7 @@ files**.
 
 ## Networking issues
 
-In a larger [Production Environment](production-setup.md), it is common to have
+In a larger [Production Environment](performance-tuning), it is common to have
 multiple VLANs and have LXD clients attached directly to those VLANs. Be aware that
 if you are using `netplan` and `systemd-networkd`, you will encounter some bugs that
 could cause catastrophic issues.
