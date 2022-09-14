@@ -2,6 +2,8 @@ package validate
 
 import (
 	"bytes"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/url"
@@ -753,6 +755,18 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		return nil
 	}
+}
+
+// IsX509Certificate checks if the value is a valid x509 PEM Certificate.
+func IsX509Certificate(value string) error {
+	certBlock, _ := pem.Decode([]byte(value))
+	if certBlock == nil {
+		return fmt.Errorf("Invalid certificate")
+	}
+
+	_, err := x509.ParseCertificate(certBlock.Bytes)
+
+	return err
 }
 
 // IsAbsFilePath checks if value is an absolute file path.
