@@ -1,4 +1,4 @@
-(production-setup)=
+(server-settings)=
 # Server settings for a LXD production setup
 
 To allow your LXD server to run a large number of instances, configure the following settings to avoid hitting server limits.
