@@ -1,45 +1,44 @@
 (network-increase-bandwidth)=
 # How to increase the network bandwidth
 
-If you have at least 1GbE NIC on your LXD host with a lot of local
-activity (container - container connections, or host - container
-connections), or you have 1GbE or better internet connection on your LXD
-host it worth play with `txqueuelen`. These settings work even better with
-10GbE NIC.
+You can increase the network bandwidth of your LXD setup by configuring the transmit queue length (`txqueuelen`).
+This change makes sense in the following scenarios:
 
-#### Server Changes
+- You have a NIC with 1 GbE or higher on a LXD host with a lot of local activity (instance-instance connections or host-instance connections).
+- You have an internet connection with 1 GbE or higher on your LXD host.
 
-##### `txqueuelen`
+The more instances you use, the more you can benefit from this tweak.
 
-You need to change `txqueuelen` of your real NIC to 10000 (not sure
-about the best possible value for you), and change and change `lxdbr0`
-interface `txqueuelen` to 10000.
+```{note}
+The following instructions use a `txqueuelen` value of 10000, which is commonly used with 10GbE NICs, and a `net.core.netdev_max_backlog` value of 182757.
+Depending on your network, you might need to use different values.
 
-In Debian-based distributions, you can change `txqueuelen` permanently in `/etc/network/interfaces`.
-You can add for example: `up ip link set eth0 txqueuelen 10000` to your interface configuration to set the `txqueuelen` value on boot.
-You could set `txqueuelen` temporary (for test purpose) with `ifconfig <interface> txqueuelen 10000`.
+In general, you should use small `txqueuelen` values with slow devices with a high latency, and high `txqueuelen` values with devices with a low latency.
+For the `net.core.netdev_max_backlog` value, a good guideline is to use the minimum value of the `net.ipv4.tcp_mem` configuration.
+```
 
-##### `/etc/sysctl.conf`
+## Increase the network bandwidth on the LXD host
 
-You also need to increase `net.core.netdev_max_backlog` value.
-You can add `net.core.netdev_max_backlog = 182757` to `/etc/sysctl.conf` to set it permanently (after reboot)
-You set `netdev_max_backlog` temporary (for test purpose) with `echo 182757 > /proc/sys/net/core/netdev_max_backlog`
-Note: You can find this value too high, most people prefer set `netdev_max_backlog` = `net.ipv4.tcp_mem` min. value.
-For example I use this values `net.ipv4.tcp_mem = 182757 243679 365514`
+Complete the following steps to increase the network bandwidth on the LXD host:
 
-#### Containers changes
+1. Increase the transmit queue length (`txqueuelen`) of both the real NIC and the LXD NIC (for example, `lxdbr0`).
+   You can do this temporarily for testing with the following command:
 
-You also need to change the `txqueuelen` value for all your Ethernet interfaces in containers.
-In Debian-based distributions, you can change `txqueuelen` permanently in `/etc/network/interfaces`.
-You can add for example `up ip link set eth0 txqueuelen 10000` to your interface configuration to set the `txqueuelen` value on boot.
+       ifconfig <interface> txqueuelen 10000
 
-#### Notes regarding this change
+   To make the change permanent, add the following command to your interface configuration in `/etc/network/interfaces`:
 
-10000 `txqueuelen` value commonly used with 10GbE NICs. Basically small
-`txqueuelen` values used with slow devices with a high latency, and higher
-with devices with low latency. I personally have like 3-5% improvement
-with these settings for local (host with container, container vs
-container) and internet connections. Good thing about `txqueuelen` value
-tweak, the more containers you use, the more you can be can benefit from
-this tweak. And you can always temporary set this values and check this
-tweak in your environment without LXD host reboot.
+       up ip link set eth0 txqueuelen 10000
+
+1. Increase the receive queue length (`net.core.netdev_max_backlog`).
+   You can do this temporarily for testing with the following command:
+
+       echo 182757 > /proc/sys/net/core/netdev_max_backlog
+
+   To make the change permanent, add the following configuration to `/etc/sysctl.conf`:
+
+       net.core.netdev_max_backlog = 182757
+
+## Increase the transmit queue length on the instances
+
+You must also change the `txqueuelen` value for all Ethernet interfaces in your instances, in the same way as described for the LXD host.
