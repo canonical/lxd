@@ -75,7 +75,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return validate.IsNetworkAddressV4List(value)
+		return validate.IsListOf(validate.IsNetworkAddressV4)(value)
 	}
 
 	rules["ipv6.address"] = func(value string) error {
@@ -105,7 +105,7 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		return validate.IsNetworkAddressV6List(value)
+		return validate.IsListOf(validate.IsNetworkAddressV6)(value)
 	}
 
 	rules["mode"] = func(value string) error {

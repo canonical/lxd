@@ -80,8 +80,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields, instConf)
-	rules["ipv4.address"] = validate.Optional(validate.IsNetworkAddressV4List)
-	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
+	rules["ipv4.address"] = validate.Optional(validate.IsListOf(validate.IsNetworkAddressV4))
+	rules["ipv6.address"] = validate.Optional(validate.IsListOf(validate.IsNetworkAddressV6))
 	rules["gvrp"] = validate.Optional(validate.IsBool)
 	rules["ipv4.neighbor_probe"] = validate.Optional(validate.IsBool)
 	rules["ipv6.neighbor_probe"] = validate.Optional(validate.IsBool)
