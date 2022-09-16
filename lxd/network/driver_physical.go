@@ -44,7 +44,7 @@ func (n *physical) Validate(config map[string]string) error {
 		"ipv6.gateway":                validate.Optional(validate.IsNetworkAddressCIDRV6),
 		"ipv4.ovn.ranges":             validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 		"ipv6.ovn.ranges":             validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
-		"ipv4.routes":                 validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
+		"ipv4.routes":                 validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		"ipv4.routes.anycast":         validate.Optional(validate.IsBool),
 		"ipv6.routes":                 validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
 		"ipv6.routes.anycast":         validate.Optional(validate.IsBool),
