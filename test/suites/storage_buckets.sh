@@ -32,9 +32,15 @@ test_storage_buckets() {
 
   lxd_backend=$(storage_backend "$LXD_DIR")
 
-  # Only run cephobject bucket tests if LXD_CEPH_CEPHOBJECT_RADOSGW specified.
-  if [ "$lxd_backend" = "ceph" ] && [ -z "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
-    echo "==> SKIP: storage bucket tests for cephobject as LXD_CEPH_CEPHOBJECT_RADOSGW not specified"
+  if [ "$lxd_backend" = "ceph" ]; then
+    if [ -z "${LXD_CEPH_CEPHOBJECT_RADOSGW:-}" ]; then
+      # Check LXD_CEPH_CEPHOBJECT_RADOSGW specified for ceph bucket tests.
+      export TEST_UNMET_REQUIREMENT="LXD_CEPH_CEPHOBJECT_RADOSGW not specified"
+      return
+    fi
+  elif ! which minio ; then
+    # Check minio is installed for local storage pool buckets.
+    export TEST_UNMET_REQUIREMENT="minio command not found"
     return
   fi
 
