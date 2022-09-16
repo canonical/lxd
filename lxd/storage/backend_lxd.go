@@ -3824,7 +3824,7 @@ func (b *lxdBackend) ActivateBucket(bucketName string, op *operations.Operation)
 
 	vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketName, nil)
 
-	return miniod.EnsureRunning(vol)
+	return miniod.EnsureRunning(b.state, vol)
 }
 
 // GetBucketURL returns S3 URL for bucket.
