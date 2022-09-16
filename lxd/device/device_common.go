@@ -26,7 +26,7 @@ type deviceCommon struct {
 func (d *deviceCommon) init(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
 	logCtx := logger.Ctx{"driver": conf["type"], "device": name}
 	if inst != nil {
-		logCtx["project"] = inst.Project()
+		logCtx["project"] = inst.Project().Name
 		logCtx["instance"] = inst.Name()
 	}
 
