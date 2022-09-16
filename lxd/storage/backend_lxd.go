@@ -3282,6 +3282,8 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 			return err
 		}
 
+		revert.Add(func() { _ = b.driver.DeleteVolume(storageBucket, op) })
+
 		// Start minio process.
 		minioProc, err := b.ActivateBucket(bucket.Name, op)
 		if err != nil {
