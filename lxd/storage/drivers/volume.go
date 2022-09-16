@@ -211,9 +211,9 @@ func (v Volume) EnsureMountPath() error {
 		revert.Add(func() { _ = os.Remove(volPath) })
 	}
 
-	// Set very restrictive mode 0100 for non-custom and non-image volumes.
+	// Set very restrictive mode 0100 for non-custom, non-bucket and non-image volumes.
 	mode := os.FileMode(0711)
-	if v.volType != VolumeTypeCustom && v.volType != VolumeTypeImage {
+	if v.volType != VolumeTypeCustom && v.volType != VolumeTypeImage && v.volType != VolumeTypeBucket {
 		mode = os.FileMode(0100)
 	}
 
