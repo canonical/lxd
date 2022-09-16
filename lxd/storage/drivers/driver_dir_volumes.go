@@ -29,6 +29,10 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	revert := revert.New()
 	defer revert.Fail()
 
+	if shared.PathExists(vol.MountPath()) {
+		return fmt.Errorf("Volume path %q already exists", vol.MountPath())
+	}
+
 	// Create the volume itself.
 	err := vol.EnsureMountPath()
 	if err != nil {

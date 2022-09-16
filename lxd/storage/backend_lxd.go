@@ -3282,6 +3282,8 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 			return err
 		}
 
+		revert.Add(func() { _ = b.driver.DeleteVolume(storageBucket, op) })
+
 		// Start minio process.
 		minioProc, err := b.ActivateBucket(bucket.Name, op)
 		if err != nil {
@@ -3822,7 +3824,7 @@ func (b *lxdBackend) ActivateBucket(bucketName string, op *operations.Operation)
 
 	vol := b.GetVolume(drivers.VolumeTypeBucket, drivers.ContentTypeFS, bucketName, nil)
 
-	return miniod.EnsureRunning(vol)
+	return miniod.EnsureRunning(b.state, vol)
 }
 
 // GetBucketURL returns S3 URL for bucket.

@@ -1,13 +1,16 @@
 package miniod
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/minio/madmin-go"
@@ -17,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/state"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -146,7 +150,7 @@ var miniosMu sync.Mutex
 var minios = make(map[string]*Process)
 
 // EnsureRunning starts a MinIO process for the bucket (if not already running) and returns running Process.
-func EnsureRunning(bucketVol storageDrivers.Volume) (*Process, error) {
+func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, error) {
 	bucketName := bucketVol.Name()
 
 	// Prevent concurrent spawning of same bucket.
@@ -213,16 +217,70 @@ func EnsureRunning(bucketVol storageDrivers.Volume) (*Process, error) {
 		err := bucketVol.MountTask(func(mountPath string, op *operations.Operation) error {
 			l.Debug("MinIO bucket starting")
 
+			var newDirMode os.FileMode = os.ModeDir | 0700
+
 			if !shared.PathExists(bucketPath) {
-				err = os.Mkdir(bucketPath, 0700)
+				err = os.Mkdir(bucketPath, newDirMode)
 				if err != nil {
-					return fmt.Errorf("Failed creating MinIO bucket directory: %w", err)
+					return fmt.Errorf("Failed creating MinIO bucket directory %q: %w", bucketPath, err)
 				}
 			}
 
-			_, stdErr, err := shared.RunCommandSplit(minioProc.cancel, env, nil, "minio", args...)
+			dirInfo, err := os.Lstat(bucketPath)
+			if err != nil {
+				return fmt.Errorf("Failed getting MinIO bucket directory info %q: %w", bucketPath, err)
+			}
+
+			dirMode, dirUID, dirGID := shared.GetOwnerMode(dirInfo)
+
+			// Ensure file ownership is correct.
+			if uint32(dirUID) != s.OS.UnprivUID || uint32(dirGID) != s.OS.UnprivGID {
+				l.Debug("Setting MinIO bucket ownership", logger.Ctx{"currentOwner": dirUID, "currentGroup": dirGID, "newOwner": s.OS.UnprivUID, "newGroup": s.OS.UnprivGID})
+				err = filepath.Walk(bucketPath, func(path string, _ os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+
+					err = os.Chown(path, int(s.OS.UnprivUID), int(s.OS.UnprivGID))
+					if err != nil {
+						return fmt.Errorf("Failed setting ownership on MinIO bucket file %q: %w", path, err)
+					}
+
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+
+			// Ensure permissions are correct.
+			if dirMode != newDirMode {
+				l.Debug("Setting MinIO bucket permissions", logger.Ctx{"currentMode": dirMode, "newMode": newDirMode})
+				err = os.Chmod(bucketPath, newDirMode)
+				if err != nil {
+					return fmt.Errorf("Failed setting permissions on MinIO bucket directory %q: %w", bucketPath, err)
+				}
+			}
+
+			cmd := exec.CommandContext(minioProc.cancel, "minio", args...)
+			cmd.Env = env
+
+			// Drop privileges.
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Credential: &syscall.Credential{
+					Uid: s.OS.UnprivUID,
+					Gid: s.OS.UnprivGID,
+				},
+			}
+
+			// Capture stderr.
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err = cmd.Run()
 			if err != nil && minioProc.cancel.Err() == nil {
-				l.Error("Failed starting MinIO bucket", logger.Ctx{"err": err, "stdErr": stdErr})
+				l.Error("Failed starting MinIO bucket", logger.Ctx{"err": err, "stdErr": stderr.String(), "stdout": stdout.String()})
 			} else {
 				l.Debug("MinIO bucket stopped")
 			}
