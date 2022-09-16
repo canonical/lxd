@@ -243,10 +243,10 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.dhcp":         validate.Optional(validate.IsBool),
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp.expiry":  validate.IsAny,
-		"ipv4.dhcp.ranges":  validate.Optional(validate.IsNetworkRangeV4List),
-		"ipv4.routes":       validate.Optional(validate.IsNetworkV4List),
+		"ipv4.dhcp.ranges":  validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
+		"ipv4.routes":       validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		"ipv4.routing":      validate.Optional(validate.IsBool),
-		"ipv4.ovn.ranges":   validate.Optional(validate.IsNetworkRangeV4List),
+		"ipv4.ovn.ranges":   validate.Optional(validate.IsListOf(validate.IsNetworkRangeV4)),
 
 		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf("none", "auto")(value) == nil {
@@ -262,10 +262,10 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":                     validate.IsAny,
 		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
-		"ipv6.dhcp.ranges":                     validate.Optional(validate.IsNetworkRangeV6List),
-		"ipv6.routes":                          validate.Optional(validate.IsNetworkV6List),
+		"ipv6.dhcp.ranges":                     validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
+		"ipv6.routes":                          validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
 		"ipv6.routing":                         validate.Optional(validate.IsBool),
-		"ipv6.ovn.ranges":                      validate.Optional(validate.IsNetworkRangeV6List),
+		"ipv6.ovn.ranges":                      validate.Optional(validate.IsListOf(validate.IsNetworkRangeV6)),
 		"dns.domain":                           validate.IsAny,
 		"dns.mode":                             validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
 		"dns.search":                           validate.IsAny,
