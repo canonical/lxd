@@ -135,6 +135,7 @@ start_external_auth_daemon "${LXD_DIR}"
 run_test() {
   TEST_CURRENT=${1}
   TEST_CURRENT_DESCRIPTION=${2:-${1}}
+  TEST_UNMET_REQUIREMENT=""
 
   echo "==> TEST BEGIN: ${TEST_CURRENT_DESCRIPTION}"
   START_TIME=$(date +%s)
@@ -142,6 +143,7 @@ run_test() {
   # shellcheck disable=SC2039,3043
   local skip=false
 
+  # Skip test if requested.
   if [ -n "${LXD_SKIP_TESTS:-}" ]; then
     for testName in ${LXD_SKIP_TESTS}; do
       if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
@@ -153,7 +155,24 @@ run_test() {
   fi
 
   if [ "${skip}" = false ]; then
+    # Run test.
     ${TEST_CURRENT}
+
+    # Check whether test was skipped due to unmet requirements, and if so check if the test is required and fail.
+    if [ -n "${TEST_UNMET_REQUIREMENT}" ]; then
+      if [ -n "${LXD_REQUIRED_TESTS:-}" ]; then
+        for testName in ${LXD_REQUIRED_TESTS}; do
+          if [ "test_${testName}" = "${TEST_CURRENT}" ]; then
+              echo "==> REQUIRED: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
+              false
+              return
+          fi
+        done
+      else
+        # Skip test if its requirements are not met and is not specified in required tests.
+        echo "==> SKIP: ${TEST_CURRENT} ${TEST_UNMET_REQUIREMENT}"
+      fi
+    fi
   fi
 
   END_TIME=$(date +%s)
