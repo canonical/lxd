@@ -27,4 +27,4 @@ Name                           | Default                   | Description
 `LXD_IB_PHYSICAL_PARENT`       | ""                        | Enables Infiniband physical tests using the specified parent device
 `LXD_IB_SRIOV_PARENT`          | ""                        | Enables Infiniband SR-IOV tests using the specified parent device
 `LXD_NIC_BRIDGED_DRIVER`       | ""                        | Specifies bridged NIC driver for tests (either native or openvswitch, defaults to native)
-
+`LXD_REQUIRED_TESTS`           | ""                        | Space-delimited list of test names that must not be skipped if their prerequisites are not met
