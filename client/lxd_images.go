@@ -675,7 +675,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 	}
 
 	// Handle profile list overrides.
-	if args.Profiles != nil {
+	if args != nil && args.Profiles != nil {
 		if !r.HasExtension("image_copy_profile") {
 			return nil, fmt.Errorf("The server is missing the required \"image_copy_profile\" API extension")
 		}
