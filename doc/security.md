@@ -68,6 +68,16 @@ Note, however, that those aren't root safe, and a user with root access in such 
 More details on container security and the kernel features we use can be found on the
 [LXC security page](https://linuxcontainers.org/lxc/security/).
 
+### Container name leakage
+
+The default server configuration makes it easy to list all cgroups on a system and, by extension, all running containers.
+
+You can prevent this name leakage by blocking access to `/sys/kernel/slab` and `/proc/sched_debug` before you start any containers.
+To do so, run the following commands:
+
+    chmod 400 /proc/sched_debug
+    chmod 700 /sys/kernel/slab/
+
 ## Network security
 
 Make sure to configure your network interfaces to be secure.
