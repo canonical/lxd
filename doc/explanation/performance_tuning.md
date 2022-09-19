@@ -11,6 +11,8 @@ LXD provides a benchmarking tool to evaluate the performance of your system.
 You can use the tool to initialize or launch a number of containers and measure the time it takes for the system to create the containers.
 By running the tool repeatedly with different LXD configurations, system settings or even hardware setups, you can compare the performance and evaluate which is the ideal configuration.
 
+See {ref}`benchmark-performance` for instructions on running the tool.
+
 ## Monitor instance metrics
 
 % Include content from [../metrics.md](../metrics.md)
@@ -49,6 +51,7 @@ See {ref}`network-increase-bandwidth` for instructions.
 :maxdepth: 1
 :hidden:
 
+Benchmark performance <../howto/benchmark_performance>
 Increase bandwidth <../howto/network_increase_bandwidth>
 Server settings <../reference/server_settings>
 ```
