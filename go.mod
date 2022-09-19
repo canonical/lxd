@@ -2,8 +2,6 @@ module github.com/lxc/lxd
 
 go 1.18
 
-replace google.golang.org/grpc/naming => google.golang.org/grpc v1.29.1
-
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
