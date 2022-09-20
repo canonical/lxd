@@ -114,6 +114,8 @@ Storage volumes can be of the following types:
 : You can add one or more custom storage volumes to hold data that you want to store separately from your instances.
   Custom storage volumes can be shared between instances, and they are retained until you delete them.
 
+  You can also use custom storage volumes to hold your backups or images.
+
   You must specify the storage pool for the custom volume when you create it.
 
 (storage-content-types)=
