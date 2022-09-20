@@ -2,6 +2,7 @@
 discourse: 10877
 ---
 
+(howto-storage-move-volume)=
 # How to move or copy storage volumes
 
 You can {ref}`copy <storage-copy-volume>` or {ref}`move <storage-move-volume>` custom storage volumes from one storage pool to another, or copy or rename them within the same storage pool.
