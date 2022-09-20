@@ -6,6 +6,7 @@ You could think of a storage pool as the disk that is used to store data, while 
 In addition to storage volumes, there are storage buckets, which use the [Amazon {abbr}`S3 (Simple Storage Service)`](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) protocol.
 Like storage volumes, storage buckets are part of a storage pool.
 
+(storage-pools)=
 ## Storage pools
 
 During initialization, LXD prompts you to create a first storage pool.
@@ -21,6 +22,11 @@ The following storage drivers are supported:
 - [Ceph RBD - `ceph`](storage-ceph)
 - [CephFS - `cephfs`](storage-cephfs)
 - [Ceph Object - `cephobject`](storage-cephobject)
+
+See the following how-to guides for additional information:
+
+- {ref}`howto-storage-pools`
+- {ref}`howto-storage-create-instance`
 
 (storage-location)=
 ### Data storage location
@@ -98,6 +104,12 @@ In the default profile, this pool is set to the storage pool that was created du
 When you create an instance, LXD automatically creates the required storage volumes for it.
 You can create additional storage volumes.
 
+See the following how-to guides for additional information:
+
+- {ref}`howto-storage-volumes`
+- {ref}`howto-storage-move-volume`
+- {ref}`howto-storage-backup-volume`
+
 (storage-volume-types)=
 ### Storage volume types
 
@@ -157,3 +169,7 @@ Each storage bucket is assigned one or more access keys, which the applications 
 Storage buckets can be located on local storage (with `dir`, `btrfs`, `lvm` or `zfs` pools) or on remote storage (with `cephobject` pools).
 
 To enable storage buckets for local storage pool drivers and allow applications to access the buckets via the S3 protocol, you must configure the `core.storage_buckets_address` server setting (see {ref}`server`).
+
+See the following how-to guide for additional information:
+
+- {ref}`howto-storage-buckets`

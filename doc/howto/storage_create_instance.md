@@ -1,3 +1,4 @@
+(howto-storage-create-instance)=
 # How to create an instance in a specific storage pool
 
 Instance storage volumes are created in the storage pool that is specified by the instance's root disk device.

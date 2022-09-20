@@ -2,9 +2,10 @@
 discourse: 1333
 ---
 
+(howto-storage-pools)=
 # How to manage storage pools
 
-See the following sections for instructions on how to create, configure, view and resize storage pools.
+See the following sections for instructions on how to create, configure, view and resize {ref}`storage-pools`.
 
 (storage-create-pool)=
 ## Create a storage pool
