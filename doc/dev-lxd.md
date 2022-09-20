@@ -1,6 +1,7 @@
 # Communication between instance and host
 
-## Introduction
+```{youtube} https://www.youtube.com/watch?v=xZSnqqWykmo
+```
 
 Communication between the hosted workload (instance) and its host while
 not strictly needed is a pretty useful feature.
@@ -11,6 +12,10 @@ created and set up for all LXD instances.
 This file is a Unix socket which processes inside the instance can
 connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
+
+```{note}
+[`security.devlxd`](instance-configuration) must be set to `true` (which is the default) for an instance to allow access to the socket.
+```
 
 ## Implementation details
 
