@@ -88,6 +88,9 @@ In the default profile, this pool is set to the storage pool that was created du
 (storage-volumes)=
 ## Storage volumes
 
+```{youtube} https://www.youtube.com/watch?v=dvQ111pbqtk
+```
+
 When you create an instance, LXD automatically creates the required storage volumes for it.
 You can create additional storage volumes.
 
