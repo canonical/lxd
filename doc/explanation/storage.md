@@ -3,6 +3,7 @@
 LXD stores its data in storage pools, divided into storage volumes of different content types (like images or instances).
 You could think of a storage pool as the disk that is used to store data, while storage volumes are different partitions on this disk that are used for specific purposes.
 
+(storage-pools)=
 ## Storage pools
 
 During initialization, LXD prompts you to create a first storage pool.
@@ -17,6 +18,11 @@ The following storage drivers are supported:
 - [ZFS - `zfs`](storage-zfs)
 - [Ceph RBD - `ceph`](storage-ceph)
 - [CephFS - `cephfs`](storage-cephfs)
+
+See the following how-to guides for additional information:
+
+- {ref}`howto-storage-pools`
+- {ref}`howto-storage-create-instance`
 
 (storage-location)=
 ### Data storage location
@@ -93,6 +99,12 @@ In the default profile, this pool is set to the storage pool that was created du
 
 When you create an instance, LXD automatically creates the required storage volumes for it.
 You can create additional storage volumes.
+
+See the following how-to guides for additional information:
+
+- {ref}`howto-storage-volumes`
+- {ref}`howto-storage-move-volume`
+- {ref}`howto-storage-backup-volume`
 
 (storage-volume-types)=
 ### Storage volume types

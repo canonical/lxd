@@ -1,6 +1,7 @@
+(howto-storage-volumes)=
 # How to manage storage volumes
 
-See the following sections for instructions on how to create, configure, view and resize storage volumes.
+See the following sections for instructions on how to create, configure, view and resize {ref}`storage-volumes`.
 
 ## Create a custom storage volume
 
