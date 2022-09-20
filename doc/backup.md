@@ -2,6 +2,7 @@
 discourse: 11296
 ---
 
+(backups)=
 # Backing up a LXD server
 
 ## What to back up

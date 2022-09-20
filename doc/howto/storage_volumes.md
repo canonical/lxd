@@ -59,7 +59,7 @@ If you want to use a different device name, you can add it to the command:
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name> <device_name>
 
 (storage-configure-IO)=
-### Configure I/O limits
+#### Configure I/O limits
 
 When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.
 To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits.
@@ -78,6 +78,21 @@ Because the limits apply to a whole physical disk rather than a partition or pat
 All I/O limits only apply to actual block device access.
 Therefore, consider the file system's own overhead when setting limits.
 Access to cached data is not affected by the limit.
+
+(storage-volume-special)=
+### Use the volume for backups or images
+
+Instead of attaching a custom volume to an instance as a disk device, you can also use it as a special kind of volume to store {ref}`backups <backups>` or {ref}`images <image-handling>`.
+
+To do so, you must set the corresponding {ref}`server`:
+
+- To use a custom volume to store the backup tarballs:
+
+      lxc config set storage.backups_volume <pool_name>/<volume_name>
+
+- To use a custom volume to store the image tarballs:
+
+      lxc config set storage.images_volume <pool_name>/<volume_name>
 
 (storage-configure-volume)=
 ## Configure storage volume settings
