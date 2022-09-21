@@ -240,7 +240,7 @@ You can add targets at any place in the documentation. However, if there is no h
   - References a target and specifies a title.
 * - ``[`option name\](a_random_target)``
   - [`option name`](a_random_target)
-  - [`option name`](https://) (link is broken)
+  - [`option name`](a_random_target) (link is broken)
   - Use Markdown syntax if you need markup on the link text.
 ```
 
