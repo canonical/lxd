@@ -46,11 +46,17 @@ DELETE FROM instances_profiles WHERE instance_id = ?
 
 // GetProfileInstances returns all available Instances for the Profile.
 // generator: instance_profile GetMany
-func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Instance, error) {
+func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int, filters ...InstanceFilter) ([]Instance, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
+
+	for _, filter := range filters {
+		if filter.ID != nil {
+			return nil, fmt.Errorf("Cannot filter on ID of Instance when retrieving from \"instances_profiles\"")
+		}
+	}
 
 	sqlStmt, err := Stmt(tx, instanceProfileObjectsByProfileID)
 	if err != nil {
@@ -78,14 +84,23 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
 
-	result := make([]Instance, len(objects))
-	for i, object := range objects {
-		instance, err := GetInstances(ctx, tx, InstanceFilter{ID: &object.InstanceID})
-		if err != nil {
-			return nil, err
-		}
+	// We will need at least one filter to apply an ID to, if we have any.
+	if len(filters) == 0 && len(objects) > 0 {
+		filters = []InstanceFilter{{}}
+	}
 
-		result[i] = instance[0]
+	// Ensure we have a complete set of filters for each returned ID.
+	idFilters := make([]InstanceFilter, 0, len(objects)*len(filters))
+	for _, object := range objects {
+		for _, filter := range filters {
+			filter.ID = &object.InstanceID
+			idFilters = append(idFilters, filter)
+		}
+	}
+
+	result, err := GetInstances(ctx, tx, idFilters...)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
@@ -93,11 +108,17 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 
 // GetInstanceProfiles returns all available Profiles for the Instance.
 // generator: instance_profile GetMany
-func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Profile, error) {
+func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ProfileFilter) ([]Profile, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
+
+	for _, filter := range filters {
+		if filter.ID != nil {
+			return nil, fmt.Errorf("Cannot filter on ID of Profile when retrieving from \"instances_profiles\"")
+		}
+	}
 
 	sqlStmt, err := Stmt(tx, instanceProfileObjectsByInstanceID)
 	if err != nil {
@@ -125,14 +146,23 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
 
-	result := make([]Profile, len(objects))
-	for i, object := range objects {
-		profile, err := GetProfiles(ctx, tx, ProfileFilter{ID: &object.ProfileID})
-		if err != nil {
-			return nil, err
-		}
+	// We will need at least one filter to apply an ID to, if we have any.
+	if len(filters) == 0 && len(objects) > 0 {
+		filters = []ProfileFilter{{}}
+	}
 
-		result[i] = profile[0]
+	// Ensure we have a complete set of filters for each returned ID.
+	idFilters := make([]ProfileFilter, 0, len(objects)*len(filters))
+	for _, object := range objects {
+		for _, filter := range filters {
+			filter.ID = &object.ProfileID
+			idFilters = append(idFilters, filter)
+		}
+	}
+
+	result, err := GetProfiles(ctx, tx, idFilters...)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil

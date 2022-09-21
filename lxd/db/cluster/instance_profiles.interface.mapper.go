@@ -11,11 +11,11 @@ import (
 type InstanceProfileGenerated interface {
 	// GetProfileInstances returns all available Instances for the Profile.
 	// generator: instance_profile GetMany
-	GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Instance, error)
+	GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int, filters ...InstanceFilter) ([]Instance, error)
 
 	// GetInstanceProfiles returns all available Profiles for the Instance.
 	// generator: instance_profile GetMany
-	GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Profile, error)
+	GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int, filters ...ProfileFilter) ([]Profile, error)
 
 	// CreateInstanceProfiles adds a new instance_profile to the database.
 	// generator: instance_profile Create

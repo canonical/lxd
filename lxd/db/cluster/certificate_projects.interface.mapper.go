@@ -11,7 +11,7 @@ import (
 type CertificateProjectGenerated interface {
 	// GetCertificateProjects returns all available Projects for the Certificate.
 	// generator: certificate_project GetMany
-	GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) ([]Project, error)
+	GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int, filters ...ProjectFilter) ([]Project, error)
 
 	// DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
 	// generator: certificate_project DeleteMany

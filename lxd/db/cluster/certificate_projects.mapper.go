@@ -39,11 +39,17 @@ DELETE FROM certificates_projects WHERE certificate_id = ?
 
 // GetCertificateProjects returns all available Projects for the Certificate.
 // generator: certificate_project GetMany
-func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) ([]Project, error) {
+func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int, filters ...ProjectFilter) ([]Project, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]CertificateProject, 0)
+
+	for _, filter := range filters {
+		if filter.ID != nil {
+			return nil, fmt.Errorf("Cannot filter on ID of Project when retrieving from \"certificates_projects\"")
+		}
+	}
 
 	sqlStmt, err := Stmt(tx, certificateProjectObjectsByCertificateID)
 	if err != nil {
@@ -71,14 +77,23 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
 	}
 
-	result := make([]Project, len(objects))
-	for i, object := range objects {
-		project, err := GetProjects(ctx, tx, ProjectFilter{ID: &object.ProjectID})
-		if err != nil {
-			return nil, err
-		}
+	// We will need at least one filter to apply an ID to, if we have any.
+	if len(filters) == 0 && len(objects) > 0 {
+		filters = []ProjectFilter{{}}
+	}
 
-		result[i] = project[0]
+	// Ensure we have a complete set of filters for each returned ID.
+	idFilters := make([]ProjectFilter, 0, len(objects)*len(filters))
+	for _, object := range objects {
+		for _, filter := range filters {
+			filter.ID = &object.ProjectID
+			idFilters = append(idFilters, filter)
+		}
+	}
+
+	result, err := GetProjects(ctx, tx, idFilters...)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
