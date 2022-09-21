@@ -5,7 +5,7 @@
 ```
 
 <!-- Include start Ceph intro -->
-[Ceph](https://ceph.io/) is an open-source storage platform that stores its data in a storage cluster based on {abbr}`RADOS (Reliable Autonomic Distributed Object Store)`.
+[Ceph](https://ceph.io/en/) is an open-source storage platform that stores its data in a storage cluster based on {abbr}`RADOS (Reliable Autonomic Distributed Object Store)`.
 It is highly scalable and, as a distributed system without a single point of failure, very reliable.
 
 Ceph provides different components for block storage and for file systems.
