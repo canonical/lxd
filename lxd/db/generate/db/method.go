@@ -154,6 +154,8 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := lex.Camel(m.entity)
 
+	tableName := mapping.TableName(m.entity, m.config["table"])
+
 	err = m.signature(buf, false)
 	if err != nil {
 		return err
@@ -219,6 +221,13 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.N()
 		buf.L("queryStr = strings.Join(queryParts, \" ORDER BY\")")
 	} else if mapping.Type == AssociationTable {
+		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		buf.L("for _, filter := range filters {")
+		buf.L("if filter.ID != nil {")
+		buf.L(`return nil, fmt.Errorf("Cannot filter on ID of %s when retrieving from \"%s\"")`, ref, tableName)
+		buf.L("}")
+		buf.L("}")
+		buf.N()
 		filter := m.config["struct"] + "ID"
 		if m.db == "" {
 			buf.L("sqlStmt, err := Stmt(tx, %s)", stmtCodeVar(m.entity, "objects", filter))
@@ -436,14 +445,23 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	switch mapping.Type {
 	case AssociationTable:
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
-		buf.L("result := make([]%s, len(objects))", ref)
-		buf.L("for i, object := range objects {")
-		buf.L("%s, err := Get%s(ctx, tx, %sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
-
-		m.ifErrNotNil(buf, true, "nil", "err")
-		buf.L("result[i] = %s[0]", lex.Minuscule(ref))
+		filterName := entityFilter(ref)
+		buf.L("// We will need at least one filter to apply an ID to, if we have any.")
+		buf.L("if len(filters) == 0 && len(objects) > 0 {")
+		buf.L("filters = []%s{%s{}}", filterName, filterName)
 		buf.L("}")
 		buf.N()
+		buf.L("// Ensure we have a complete set of filters for each returned ID.")
+		buf.L("idFilters := make([]%s, 0, len(objects) * len(filters))", filterName)
+		buf.L("for _, object := range objects {")
+		buf.L("for _, filter := range filters {")
+		buf.L("filter.ID = &object.%sID", ref)
+		buf.L("idFilters = append(idFilters, filter)")
+		buf.L("}")
+		buf.L("}")
+		buf.N()
+		buf.L("result, err := Get%s(ctx, tx, idFilters...)", lex.Plural(ref))
+		m.ifErrNotNil(buf, true, "nil", "err")
 		buf.L("return result, nil")
 	case ReferenceTable:
 		buf.L("resultMap := map[int][]%s{}", mapping.Name)
@@ -1174,7 +1192,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		switch operation(m.kind) {
 		case "GetMany":
 			comment = fmt.Sprintf("returns all available %s for the %s.", lex.Plural(ref), m.config["struct"])
-			args += fmt.Sprintf("%sID int", lex.Minuscule(m.config["struct"]))
+			args += fmt.Sprintf("%sID int, filters ...%s", lex.Minuscule(m.config["struct"]), entityFilter(ref))
 			rets = fmt.Sprintf("([]%s, error)", ref)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
