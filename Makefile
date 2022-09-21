@@ -112,8 +112,8 @@ ifeq "$(LXD_OFFLINE)" ""
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
-.PHONY: doc
-doc:
+.PHONY: doc-setup
+doc-setup:
 	@echo "Setting up documentation build environment"
 	python3 -m venv .sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
@@ -123,7 +123,9 @@ doc:
 	ln -sf ../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../deps/swagger-ui/dist/swagger-ui.css .sphinx/_static/swagger-ui/
 	wget -N -P .sphinx/_static/download https://linuxcontainers.org/static/img/favicon.ico https://linuxcontainers.org/static/img/containers.png https://linuxcontainers.org/static/img/containers.small.png
 	rm -Rf doc/html
-	make doc-incremental
+
+.PHONY: doc
+doc: doc-setup doc-incremental
 
 .PHONY: doc-incremental
 doc-incremental:
