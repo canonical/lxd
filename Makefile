@@ -140,6 +140,10 @@ doc-serve:
 doc-spellcheck: doc
 	. $(SPHINXENV) ; python3 -m pyspelling -c .sphinx/.spellcheck.yaml
 
+.PHONY: doc-linkcheck
+doc-linkcheck: doc-setup
+	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b linkcheck doc/ doc/html/
+
 .PHONY: doc-lint
 doc-lint:
 	.sphinx/.markdownlint/doc-lint.sh
