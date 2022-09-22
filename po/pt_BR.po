@@ -3543,8 +3543,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -6948,8 +6948,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
@@ -7160,3 +7160,7 @@ msgstr "sim"
 #~ "### type: bridge\n"
 #~ "###\n"
 #~ "### Note que o nome é exibido, porém não pode ser alterado."
+
+#, fuzzy, c-format
+#~ msgid "Admin password for %s:"
+#~ msgstr "Senha de administrador para %s: "
