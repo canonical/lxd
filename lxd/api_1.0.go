@@ -709,6 +709,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	rbacChanged := false
 	bgpChanged := false
 	dnsChanged := false
+	lokiChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -764,6 +765,20 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			rbacChanged = true
 		case "core.bgp_asn":
 			bgpChanged = true
+		case "loki.api.url":
+			fallthrough
+		case "loki.auth.username":
+			fallthrough
+		case "loki.auth.password":
+			fallthrough
+		case "loki.api.ca_cert":
+			fallthrough
+		case "loki.labels":
+			fallthrough
+		case "loki.loglevel":
+			fallthrough
+		case "loki.types":
+			lokiChanged = true
 		}
 	}
 
@@ -899,6 +914,19 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := s.DNS.Reconfigure(address)
 		if err != nil {
 			return err
+		}
+	}
+
+	if lokiChanged {
+		lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := clusterConfig.LokiServer()
+
+		if lokiURL == "" || lokiLoglevel == "" || len(lokiTypes) == 0 {
+			d.internalListener.RemoveHandler("loki")
+		} else {
+			err := d.setupLoki(lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

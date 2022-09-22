@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
@@ -203,6 +205,22 @@ func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
 }
 
+// LokiServer returns all the Loki settings needed to connect to a server.
+func (c *Config) LokiServer() (string, string, string, string, []string, string, []string) {
+	var types []string
+	var labels []string
+
+	if c.m.GetString("loki.types") != "" {
+		types = strings.Split(c.m.GetString("loki.types"), ",")
+	}
+
+	if c.m.GetString("loki.labels") != "" {
+		labels = strings.Split(c.m.GetString("loki.labels"), ",")
+	}
+
+	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), labels, c.m.GetString("loki.loglevel"), types
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -272,6 +290,13 @@ var ConfigSchema = config.Schema{
 	"images.default_architecture":    {Validator: validate.Optional(validate.IsArchitecture)},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"instances.nic.host_name":        {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
+	"loki.auth.username":             {},
+	"loki.auth.password":             {Hidden: true},
+	"loki.api.ca_cert":               {},
+	"loki.api.url":                   {},
+	"loki.labels":                    {},
+	"loki.loglevel":                  {Validator: logLevelValidator},
+	"loki.types":                     {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging")))},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
 	"rbac.agent.url":                 {},
@@ -286,6 +311,19 @@ var ConfigSchema = config.Schema{
 	// OVN networking global keys.
 	"network.ovn.integration_bridge":    {Default: "br-int"},
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
+}
+
+func logLevelValidator(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := logrus.ParseLevel(value)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func offlineThresholdDefault() string {
