@@ -2051,3 +2051,16 @@ This also introduces a change whereby network access is controlled by the projec
 ## `storage_buckets_local`
 
 This introduces the ability to use storage buckets on local storage pools by setting the new `core.storage_buckets_address` global configuration setting.
+
+## `loki`
+
+This adds support for sending life cycle and logging events to a Loki server.
+
+It adds the following global configuration keys:
+
+* `loki.api.ca_cert`: CA certificate which can be used when sending events to the Loki server
+* `loki.api.url`: URL to the Loki server
+* `loki.auth.username` and `loki.auth.password`: Used if Loki is behind a reverse proxy with basic authentication enabled
+* `loki.labels`: Comma-separated list of values which are to be used as labels for Loki events.
+* `loki.loglevel`: Minimum log level for events sent to the Loki server.
+* `loki.types`: Types of events which are to be sent to the Loki server (`lifecycle` and/or `logging`).
