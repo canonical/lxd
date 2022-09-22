@@ -14,6 +14,7 @@ currently supported:
 - `instances` (instance configuration)
 - `maas` (MAAS integration)
 - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
+- `loki` (External log aggregation system)
 
 ```{rst-class} break-col-4 min-width-4-8
 ```
@@ -56,6 +57,13 @@ Key                                 | Type      | Scope     | Default           
 `images.default_architecture`       | string    | -         | -                                 | Default architecture which should be used in mixed architecture cluster
 `images.remote_cache_expiry`        | integer   | global    | `10`                              | Number of days after which an unused cached remote image will be flushed
 `instances.nic.host_name`           | string    | global    | `random`                          | If it is set to `random` then use the random host interface names but if it's set to mac, then generate a name in the form `lxd<mac_address>`(MAC without leading 2 digits).
+`loki.api.ca_cert`                  | string    | global    | -                                 | The CA certificate for the Loki server
+`loki.api.url`                      | string    | global    | -                                 | The URL to the Loki server
+`loki.auth.password`                | string    | global    | -                                 | The password used for authentication
+`loki.auth.username`                | string    | global    | -                                 | The username used for authentication
+`loki.labels`                       | string    | global    | -                                 | Comma-separated list of values which should be used as labels for a Loki log entry
+`loki.loglevel`                     | string    | global    | -                                 | Minimum log level to send to Loki server
+`loki.types`                        | string    | global    | -                                 | Type of events to send to Loki server (`lifecycle` and/or `logging`)
 `maas.api.key`                      | string    | global    | -                                 | API key to manage MAAS
 `maas.api.url`                      | string    | global    | -                                 | URL of the MAAS server
 `maas.machine`                      | string    | local     | host name                         | Name of this LXD host in MAAS
