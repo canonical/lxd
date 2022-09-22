@@ -347,6 +347,7 @@ var APIExtensions = []string{
 	"metrics_cpu_effective_total",
 	"projects_networks_restricted_access",
 	"storage_buckets_local",
+	"loki",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
