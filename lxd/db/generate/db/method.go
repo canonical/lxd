@@ -8,6 +8,7 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
@@ -86,6 +87,9 @@ func (m *Method) Generate(buf *file.Buffer) error {
 
 	switch operation(m.kind) {
 	case "GetMany":
+		if m.entity == "certificate" {
+			return m.getMany2(buf)
+		}
 		return m.getMany(buf)
 	case "GetOne":
 		return m.getOne(buf)
@@ -130,7 +134,204 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 		}
 	}
 
-	return m.signature(buf, true)
+	return m.signature(buf, true, "")
+}
+
+// FIXME: getMany2 is an alternate implementation of `getMany` supporting hand-written statements.
+// This will produce as many functions as there are registered statements with unique labels and extra args.
+// A registered statement variable name must be of the form
+// `select<Struct>Objects<Label>With<Arg1AndArg2...>By<Filter1AndFilter1>...`.
+// - `Label` is an optional unique name that can be given to describe the function/query action (eg. GetInstancesNamedFoo)
+// - `With<Arg>` fields are optional arguments that are required, but are not fields of the filter struct. This is useful
+// for queries with joins.
+// - `By<Filter>` fields are used to create the necessary validation for the fields of the EntityFilter struct that are
+// required.
+func (m *Method) getMany2(buf *file.Buffer) error {
+	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
+	if err != nil {
+		return fmt.Errorf("Failed to parse entity struct: %q for method %q: %w", m.entity, m.kind, err)
+	}
+
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		return m.getManyReferenceTable(buf, mapping)
+	}
+
+	// AssociationTables are not supported, as we should create handwritten queries using the `With` and `Label` fields.
+	if mapping.Type == AssociationTable {
+		return fmt.Errorf("Struct %q does not support the method %q", mapping.Name, m.kind)
+	}
+
+	// Create generic query functions with no validation.
+	m.getManyTemplateFuncs(buf, mapping)
+
+	// Get all the select statements matching the entity.
+	stmtMap, err := GetAllSelectStmts(m.pkg, mapping.Name)
+	if err != nil {
+		return fmt.Errorf("Failed to parse all registered SELECT statements for struct %q: %w", mapping.Name, err)
+	}
+
+	labelList := make([]string, 0, len(stmtMap))
+	for label := range stmtMap {
+		labelList = append(labelList, label)
+	}
+
+	// Sort the slice, as map keys don't have consistent ordering.
+	sort.Strings(labelList)
+	for _, label := range labelList {
+		stmtsByArgs := stmtMap[label]
+		// Order the statements by their extra args and filters.
+		stmtsByArgsAndFilters := make(map[string]map[string]string, len(stmtsByArgs))
+		argList := make([]string, 0, len(stmtsByArgs))
+		for args, stmts := range stmtsByArgs {
+			_, ok := stmtsByArgsAndFilters[args]
+			if !ok {
+				stmtsByArgsAndFilters[args] = map[string]string{}
+			}
+
+			for _, stmt := range stmts {
+				_, filters, _ := strings.Cut(stmt, "By")
+				stmtsByArgsAndFilters[args][filters] = stmt
+			}
+
+			argList = append(argList, args)
+		}
+
+		// Sort the slice, as map keys don't have consistent ordering.
+		sort.Strings(argList)
+		for _, extraArgs := range argList {
+			// Create a new `GetMany` function for each label and extra-argument combination.
+			err = m.newGetManyFunc(buf, label, extraArgs, stmtsByArgsAndFilters[extraArgs], mapping)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// newGetManyFunc creates a new `Get<Entities>` function.
+// - With a label, the function name will be `Get<Entities>Label`. Only statements including the label
+// will be considered.
+// - With extraArgs, the function name will be `Get<Entities>LabelWith<ExtraArgs>`. Additional parameters for the extra
+// args will be included in the function signature. Only statements including both the
+// label and the extra args will be considered.
+func (m *Method) newGetManyFunc(buf *file.Buffer, label string, extraArgs string, stmts map[string]string, mapping *Mapping) error {
+	argSet := []string{}
+	fieldSet := []Field{}
+	extraArgList := strings.Split(extraArgs, "And")
+	if extraArgs != "" {
+		for _, arg := range extraArgList {
+			typ, err := GetExtraArgType(arg)
+			if err != nil {
+				return err
+			}
+
+			fieldSet = append(fieldSet, Field{Name: arg, Type: Type{Name: typ, Code: TypeColumn}})
+			argSet = append(argSet, fmt.Sprintf("%s %s", lex.Minuscule(arg), typ))
+		}
+	}
+
+	err := m.signature(buf, false, label, argSet...)
+	if err != nil {
+		return err
+	}
+
+	defer m.end(buf)
+
+	filters, ignoredFilters := GetStmtFilters(stmts, mapping.Filters)
+	buf.L("var err error")
+	buf.L("var sqlStmt *sql.Stmt")
+	buf.L("args := []any{}")
+	buf.L("queryParts := [2]string{}")
+	buf.N()
+
+	buf.L("if len(filters) == 0 {")
+	_, ok := stmts[""]
+	if ok {
+		if m.db == "" {
+			buf.L("sqlStmt, err = Stmt(tx, %s)", stmts[""])
+		} else {
+			buf.L("sqlStmt, err = %s.Stmt(tx, %s)", m.db, stmts[""])
+		}
+
+		m.ifErrNotNil(buf, false, "nil", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmts[""]))
+	} else {
+		buf.L(`return nil, fmt.Errorf("No statement exists for an empty %sFilter")`, mapping.Name)
+	}
+
+	buf.L("}")
+	buf.N()
+	index := "i"
+	if len(filters) == 0 {
+		index = "_"
+	}
+	buf.L("for %s, filter := range filters {", index)
+	for i, filter := range filters {
+		branch := "if"
+		if i > 0 {
+			branch = "} else if"
+		}
+
+		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
+		var args string
+		for _, extraArg := range fieldSet {
+			args += fmt.Sprintf("%s,", lex.Minuscule(extraArg.Name))
+		}
+
+		for _, name := range filter {
+			args += fmt.Sprintf("filter.%s,", name)
+		}
+
+		buf.L("args = append(args, []any{%s}...)", args)
+		buf.L("if len(filters) == 1 {")
+		if m.db == "" {
+			buf.L("sqlStmt, err = Stmt(tx, %s)", stmts[strings.Join(filter, "And")])
+		} else {
+			buf.L("sqlStmt, err = %s.Stmt(tx, %s)", m.db, stmts[strings.Join(filter, "And")])
+		}
+
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmts[strings.Join(filter, "And")]))
+		buf.L("break")
+		buf.L("}")
+		buf.N()
+		if m.db != "" {
+			buf.L("query, err := %s.StmtString(%s)", m.db, stmts[strings.Join(filter, "And")])
+		} else {
+			buf.L("query, err := StmtString(%s)", stmts[strings.Join(filter, "And")])
+		}
+
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmts[strings.Join(filter, "And")]))
+		buf.L("parts := strings.SplitN(query, \"ORDER BY\", 2)")
+		buf.L("if i == 0 {")
+		buf.L("copy(queryParts[:], parts)")
+		buf.L("continue")
+		buf.L("}")
+		buf.N()
+		buf.L("_, where, _ := strings.Cut(parts[0], \"WHERE\")")
+		buf.L("queryParts[0] += \"OR\" + where")
+	}
+
+	branch := "if"
+	if len(filters) > 0 {
+		branch = "} else if"
+	}
+
+	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
+	buf.L("return nil, fmt.Errorf(\"Cannot filter on empty %s\")", entityFilter(mapping.Name))
+	buf.L("} else {")
+	buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
+	buf.L("}")
+	buf.L("}")
+	buf.N()
+	buf.L("if sqlStmt != nil {")
+	buf.L("return get%s(ctx, sqlStmt, args...)", lex.Plural(mapping.Name))
+	buf.L("} else {")
+	buf.L("queryStr := strings.Join(queryParts[:], \"ORDER BY\")")
+	buf.L("return get%sRaw(ctx, tx, queryStr, args...)", lex.Plural(mapping.Name))
+	buf.L("}")
+
+	return nil
 }
 
 func (m *Method) getMany(buf *file.Buffer) error {
