@@ -62,23 +62,66 @@ UPDATE certificates
  WHERE id = ?
 `)
 
+// getCertificates can be used to run handwritten queries to return a slice of objects.
+func getCertificates(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Certificate, error) {
+	objects := make([]Certificate, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := Certificate{}
+		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getCertificates can be used to run handwritten queries to return a slice of objects.
+func getCertificatesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Certificate, error) {
+	objects := make([]Certificate, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := Certificate{}
+		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
 func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
 	var err error
-
-	// Result slice.
-	objects := make([]Certificate, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
 	var sqlStmt *sql.Stmt
 	args := []any{}
 	queryParts := [2]string{}
 
 	if len(filters) == 0 {
-		sqlStmt, err = Stmt(tx, certificateObjects)
+		sqlStmt, err = Stmt(tx, selectCertificateObjects)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
+			return nil, fmt.Errorf("Failed to get \"selectCertificateObjects\" prepared statement: %w", err)
 		}
 	}
 
@@ -86,17 +129,17 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 		if filter.ID != nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
 			args = append(args, []any{filter.ID}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, certificateObjectsByID)
+				sqlStmt, err = Stmt(tx, selectCertificateObjectsByID)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"certificateObjectsByID\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsByID\" prepared statement: %w", err)
 				}
 
 				break
 			}
 
-			query, err := StmtString(certificateObjectsByID)
+			query, err := StmtString(selectCertificateObjectsByID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsByID\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -110,17 +153,17 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 		} else if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 			args = append(args, []any{filter.Fingerprint}...)
 			if len(filters) == 1 {
-				sqlStmt, err = Stmt(tx, certificateObjectsByFingerprint)
+				sqlStmt, err = Stmt(tx, selectCertificateObjectsByFingerprint)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to get \"certificateObjectsByFingerprint\" prepared statement: %w", err)
+					return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsByFingerprint\" prepared statement: %w", err)
 				}
 
 				break
 			}
 
-			query, err := StmtString(certificateObjectsByFingerprint)
+			query, err := StmtString(selectCertificateObjectsByFingerprint)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get \"certificateObjects\" prepared statement: %w", err)
+				return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsByFingerprint\" prepared statement: %w", err)
 			}
 
 			parts := strings.SplitN(query, "ORDER BY", 2)
@@ -138,32 +181,150 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		c := Certificate{}
-		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, c)
-
-		return nil
-	}
-
-	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		return getCertificates(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		return getCertificatesRaw(ctx, tx, queryStr, args...)
+	}
+}
+
+// GetCertificatesWithProjectID returns all available certificates.
+// generator: certificate GetMany
+func GetCertificatesWithProjectID(ctx context.Context, tx *sql.Tx, projectID int, filters ...CertificateFilter) ([]Certificate, error) {
+	var err error
+	var sqlStmt *sql.Stmt
+	args := []any{}
+	queryParts := [2]string{}
+
+	if len(filters) == 0 {
+		return nil, fmt.Errorf("No statement exists for an empty CertificateFilter")
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
+	for i, filter := range filters {
+		if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{projectID, filter.Fingerprint}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, selectCertificateObjectsWithProjectIDByFingerprint)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsWithProjectIDByFingerprint\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(selectCertificateObjectsWithProjectIDByFingerprint)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsWithProjectIDByFingerprint\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+			return nil, fmt.Errorf("Cannot filter on empty CertificateFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
 	}
 
-	return objects, nil
+	if sqlStmt != nil {
+		return getCertificates(ctx, sqlStmt, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		return getCertificatesRaw(ctx, tx, queryStr, args...)
+	}
+}
+
+// GetCertificatesInAnyProject returns all available certificates.
+// generator: certificate GetMany
+func GetCertificatesInAnyProject(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
+	var err error
+	var sqlStmt *sql.Stmt
+	args := []any{}
+	queryParts := [2]string{}
+
+	if len(filters) == 0 {
+		sqlStmt, err = Stmt(tx, selectCertificateObjectsInAnyProject)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsInAnyProject\" prepared statement: %w", err)
+		}
+	}
+
+	for _, filter := range filters {
+		if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+			return nil, fmt.Errorf("Cannot filter on empty CertificateFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
+	}
+
+	if sqlStmt != nil {
+		return getCertificates(ctx, sqlStmt, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		return getCertificatesRaw(ctx, tx, queryStr, args...)
+	}
+}
+
+// GetCertificatesOfTypeServerWithProjectID returns all available certificates.
+// generator: certificate GetMany
+func GetCertificatesOfTypeServerWithProjectID(ctx context.Context, tx *sql.Tx, projectID int, filters ...CertificateFilter) ([]Certificate, error) {
+	var err error
+	var sqlStmt *sql.Stmt
+	args := []any{}
+	queryParts := [2]string{}
+
+	if len(filters) == 0 {
+		sqlStmt, err = Stmt(tx, selectCertificateObjectsOfTypeServerWithProjectID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsOfTypeServerWithProjectID\" prepared statement: %w", err)
+		}
+	}
+
+	for i, filter := range filters {
+		if filter.Fingerprint != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+			args = append(args, []any{projectID, filter.Fingerprint}...)
+			if len(filters) == 1 {
+				sqlStmt, err = Stmt(tx, selectCertificateObjectsOfTypeServerWithProjectIDByFingerprint)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsOfTypeServerWithProjectIDByFingerprint\" prepared statement: %w", err)
+				}
+
+				break
+			}
+
+			query, err := StmtString(selectCertificateObjectsOfTypeServerWithProjectIDByFingerprint)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to get \"selectCertificateObjectsOfTypeServerWithProjectIDByFingerprint\" prepared statement: %w", err)
+			}
+
+			parts := strings.SplitN(query, "ORDER BY", 2)
+			if i == 0 {
+				copy(queryParts[:], parts)
+				continue
+			}
+
+			_, where, _ := strings.Cut(parts[0], "WHERE")
+			queryParts[0] += "OR" + where
+		} else if filter.ID == nil && filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
+			return nil, fmt.Errorf("Cannot filter on empty CertificateFilter")
+		} else {
+			return nil, fmt.Errorf("No statement exists for the given Filter")
+		}
+	}
+
+	if sqlStmt != nil {
+		return getCertificates(ctx, sqlStmt, args...)
+	} else {
+		queryStr := strings.Join(queryParts[:], "ORDER BY")
+		return getCertificatesRaw(ctx, tx, queryStr, args...)
+	}
 }
 
 // GetCertificate returns the certificate with the given key.
