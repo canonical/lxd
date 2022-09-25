@@ -35,6 +35,56 @@ import (
 //go:generate mapper method -i -e certificate DeleteMany-by-Name-and-Type
 //go:generate mapper method -i -e certificate Update struct=Certificate
 
+// New naming structure for object stmts.
+var selectCertificateObjects = certificateObjects
+var selectCertificateObjectsByID = certificateObjectsByID
+var selectCertificateObjectsByFingerprint = certificateObjectsByFingerprint
+
+// A handwritten statement fetching all the certificates that belong to a project.
+// This statement has the label "InAnyProject", but no extra arguments.
+// This will be considered in a generated function called `GetCertificatesInAnyProject`.
+var selectCertificateObjectsInAnyProject = RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  JOIN certificates_projects ON certificate.id = certificates_projects.certificate_id
+  ORDER BY certificates.fingerprint
+`)
+
+// A handwritten statement fetching all the certificates matching the project.
+// This statement has no label, but has the extra argument "ProjectID".
+// This will be considered in a generated function called `GetCertificatesWithProjectID`.
+// The generated function will also have a `projectID` argument option.
+var selectCertificateObjectsWithProjectIDByFingerprint = RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  JOIN certificates_projects ON certificate.id = certificates_projects.certificate_id
+  WHERE ( certificate_projects.project_id = ? AND certificates.fingerprint = ? )
+  ORDER BY certificates.fingerprint
+`)
+
+// A handwritten statement fetching all the server type certificates matching the project.
+// This statement has label "OfTypeServer" and the extra argument "ProjectID".
+// This statement will be considered in a generated function called `GetCertificatesOfTypeServerWithProjectID`.
+// The generated function will also have a `projectID` argument option.
+var selectCertificateObjectsOfTypeServerWithProjectID = RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  JOIN certificates_projects ON certificate.id = certificates_projects.certificate_id
+  WHERE ( certificate_projects.project_id = ? AND certificates.type = 2 )
+  ORDER BY certificates.fingerprint
+`)
+
+// This statement will be considered in the same `GetCertificatesOfTypeServerWithProjectID` function as above.
+// The `ByFingerprint` suffix will update this function to allow a query if only the `Fingerprint` field of the
+// given `CertificateFilter`s is not nil.
+var selectCertificateObjectsOfTypeServerWithProjectIDByFingerprint = RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  JOIN certificates_projects ON certificate.id = certificates_projects.certificate_id
+  WHERE ( certificate_projects.project_id = ? AND certificates.type = 2 AND certificates.fingerprint = ? )
+  ORDER BY certificates.fingerprint
+`)
+
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
 	ID          int
