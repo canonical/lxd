@@ -1447,3 +1447,40 @@ func (m *Method) ifErrNotNil(buf *file.Buffer, newLine bool, rets ...string) {
 func (m *Method) end(buf *file.Buffer) {
 	buf.L("}")
 }
+
+// FIXME: Move reference table handling for `getMany` to its own function to reduce clutter.
+func (m *Method) getManyReferenceTable(buf *file.Buffer, mapping *Mapping) error {
+	return nil
+}
+
+// getManyTemplateFuncs returns two functions that can be used to perform generic queries without validation, and return
+// a slice of objects matching the entity. One function will accept pre-registered statements, and the other will accept
+// raw queries.
+func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) {
+	tableName := mapping.TableName(m.entity, m.config["table"])
+	// Create a function supporting prepared statements.
+	buf.L("// get%s can be used to run handwritten queries to return a slice of objects.", lex.Plural(mapping.Name))
+	buf.L("func get%s(ctx context.Context, stmt *sql.Stmt, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	buf.L("objects := make([]%s, 0)", mapping.Name)
+	buf.N()
+	buf.L("dest := %s", destFunc("objects", lex.Camel(m.entity), mapping.ColumnFields()))
+	buf.N()
+	buf.L("err := query.SelectObjects(ctx, stmt, dest, args...)")
+	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, tableName))
+	buf.L("	return objects, nil")
+	buf.L("}")
+	buf.N()
+
+	// Create a function supporting raw queries.
+	buf.L("// get%s can be used to run handwritten queries to return a slice of objects.", lex.Plural(mapping.Name))
+	buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	buf.L("objects := make([]%s, 0)", mapping.Name)
+	buf.N()
+	buf.L("dest := %s", destFunc("objects", lex.Camel(m.entity), mapping.ColumnFields()))
+	buf.N()
+	buf.L("err := query.Scan(ctx, tx, sql, dest, args...)")
+	m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, tableName))
+	buf.L("	return objects, nil")
+	buf.L("}")
+	buf.N()
+}
