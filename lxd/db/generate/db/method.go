@@ -124,7 +124,7 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 		refFields := strings.Split(m.config["references"], ",")
 		for _, fieldName := range refFields {
 			m.ref = fieldName
-			err := m.signature(buf, true)
+			err := m.signature(buf, true, "")
 			if err != nil {
 				return err
 			}
@@ -355,7 +355,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := lex.Camel(m.entity)
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -679,7 +679,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 func (m *Method) getRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	err := m.signature(buf, false)
+	err := m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -732,7 +732,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -783,7 +783,7 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -824,7 +824,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -863,7 +863,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 	}
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1031,7 +1031,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 func (m *Method) createRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	err := m.signature(buf, false)
+	err := m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1083,7 +1083,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1136,7 +1136,7 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1264,7 +1264,7 @@ func (m *Method) update(buf *file.Buffer) error {
 
 func (m *Method) updateRefs(buf *file.Buffer, refMapping *Mapping) error {
 	m.ref = refMapping.Name
-	err := m.signature(buf, false)
+	err := m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1292,7 +1292,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	err = m.signature(buf, false)
+	err = m.signature(buf, false, "")
 	if err != nil {
 		return err
 	}
@@ -1354,7 +1354,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 }
 
 // signature generates a method or interface signature with comments, arguments, and return values.
-func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
+func (m *Method) signature(buf *file.Buffer, isInterface bool, label string, extraArgs ...string) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
@@ -1446,7 +1446,12 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		case "GetMany":
 			if m.ref == "" {
 				comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-				args += fmt.Sprintf("filters ...%s", entityFilter(m.entity))
+				argList := strings.Join(extraArgs, ", ")
+				if argList != "" {
+					argList += ", "
+				}
+
+				args += fmt.Sprintf("%sfilters ...%s", argList, entityFilter(m.entity))
 				rets = fmt.Sprintf("(%s, error)", lex.Slice(lex.Camel(m.entity)))
 			} else {
 				comment = fmt.Sprintf("returns all available %s %s", mapping.Name, lex.Plural(m.ref))
@@ -1557,10 +1562,10 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		}
 	}
 
-	return m.begin(buf, comment, args, rets, isInterface)
+	return m.begin(buf, label, comment, args, rets, isInterface, extraArgs...)
 }
 
-func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) error {
+func (m *Method) begin(buf *file.Buffer, label string, comment string, args string, rets string, isInterface bool, extraArgs ...string) error {
 	mapping, err := Parse(m.pkg, lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
@@ -1588,7 +1593,21 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 		case "URIs":
 			name = fmt.Sprintf("Get%sURIs", entity)
 		case "GetMany":
-			name = fmt.Sprintf("Get%s", lex.Plural(entity))
+			altName := label
+			for i, arg := range extraArgs {
+				if i == 0 {
+					altName += "With"
+				}
+
+				parts := strings.Split(arg, " ")
+				altName += lex.Camel(parts[0])
+
+				if i != len(extraArgs)-1 {
+					altName += "And"
+				}
+			}
+
+			name = fmt.Sprintf("Get%s%s", lex.Plural(entity), altName)
 		case "GetOne":
 			name = fmt.Sprintf("Get%s", entity)
 		case "ID":
