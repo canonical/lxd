@@ -139,6 +139,11 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
+	err = m.getManyTemplateFuncs(buf, mapping)
+	if err != nil {
+		return err
+	}
+
 	if m.config["references"] != "" {
 		refFields := strings.Split(m.config["references"], ",")
 		for _, fieldName := range refFields {
@@ -304,27 +309,24 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.N()
 	}
 
-	buf.N()
-	buf.L("// Dest function for scanning a row.")
-	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
-	buf.N()
 	if mapping.Type == EntityTable {
 		buf.L("// Select.")
 		buf.L("if sqlStmt != nil {")
-		buf.L("err = query.SelectObjects(ctx, sqlStmt, dest, args...)")
+		buf.L("objects, err = get%s(ctx, sqlStmt, args...)", lex.Plural(mapping.Name))
 		buf.L("} else {")
 		buf.L("queryStr := strings.Join(queryParts[:], \"ORDER BY\")")
-		buf.L("err = query.Scan(ctx, tx, queryStr, dest, args...)")
+		buf.L("objects, err = get%sRaw(ctx, tx, queryStr, args...)", lex.Plural(mapping.Name))
 		buf.L("}")
 		buf.N()
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("// Select.")
-		buf.L("err = query.Scan(ctx, tx, queryStr, dest, args...)")
+		buf.L("objects, err = get%sRaw(ctx, tx, queryStr, parent, args...)", lex.Plural(mapping.Name))
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%%s_%s\" table: %%w", parent, err)`, entityTable(m.entity, m.config["table"])))
 	} else {
+		buf.N()
 		buf.L("// Select.")
-		buf.L("err = query.SelectObjects(ctx, sqlStmt, dest, args...)")
+		buf.L("objects, err = get%s(ctx, sqlStmt, args...)", lex.Plural(mapping.Name))
 		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
@@ -1441,4 +1443,82 @@ func (m *Method) ifErrNotNil(buf *file.Buffer, newLine bool, rets ...string) {
 
 func (m *Method) end(buf *file.Buffer) {
 	buf.L("}")
+}
+
+// getManyTemplateFuncs returns two functions that can be used to perform generic queries without validation, and return
+// a slice of objects matching the entity. One function will accept pre-registered statements, and the other will accept
+// raw queries.
+func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error {
+	if mapping.Type == AssociationTable {
+		if m.config["struct"] != "" && strings.HasSuffix(mapping.Name, m.config["struct"]) {
+			return nil
+		}
+	}
+
+	tableName := mapping.TableName(m.entity, m.config["table"])
+	// Create a function to get the column names to use with SELECT statements for the entity.
+	buf.L("// %sColumns returns a string of column names to be used with a SELECT statement for the entity.", lex.Minuscule(mapping.Name))
+	buf.L("// Use this function when building statements to retrieve database entries matching the %s entity.", mapping.Name)
+	buf.L("func %sColumns() string {", lex.Minuscule(mapping.Name))
+	columns := make([]string, len(mapping.Fields))
+	for i, field := range mapping.Fields {
+		column, err := field.SelectColumn(mapping, tableName)
+		if err != nil {
+			return err
+		}
+
+		columns[i] = column
+	}
+
+	buf.L("return \"%s\"", strings.Join(columns, ", "))
+	buf.L("}")
+	buf.N()
+
+	// Create a function supporting prepared statements.
+	buf.L("// get%s can be used to run handwritten sql.Stmts to return a slice of objects.", lex.Plural(mapping.Name))
+	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
+		buf.L("func get%s(ctx context.Context, stmt *sql.Stmt, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	} else {
+		buf.L("func get%s(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	}
+
+	buf.L("objects := make([]%s, 0)", mapping.Name)
+	buf.N()
+	buf.L("dest := %s", destFunc("objects", lex.Camel(m.entity), mapping.ColumnFields()))
+	buf.N()
+	buf.L("err := query.SelectObjects(ctx, stmt, dest, args...)")
+	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, tableName))
+	} else {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", parent, err)`, tableName))
+	}
+
+	buf.L("	return objects, nil")
+	buf.L("}")
+	buf.N()
+
+	// Create a function supporting raw queries.
+	buf.L("// get%s can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
+	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
+		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	} else {
+		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
+	}
+
+	buf.L("objects := make([]%s, 0)", mapping.Name)
+	buf.N()
+	buf.L("dest := %s", destFunc("objects", lex.Camel(m.entity), mapping.ColumnFields()))
+	buf.N()
+	buf.L("err := query.Scan(ctx, tx, sql, dest, args...)")
+	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, tableName))
+	} else {
+		m.ifErrNotNil(buf, true, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", parent, err)`, tableName))
+	}
+
+	buf.L("	return objects, nil")
+	buf.L("}")
+	buf.N()
+
+	return nil
 }
