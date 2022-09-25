@@ -52,6 +52,74 @@ var defaultPackages = []string{
 	"lxd/db",
 }
 
+// GetExtraArgType returns the type for the given extra arg supplied to a `GetMany` call.
+func GetExtraArgType(arg string) (string, error) {
+	stringSuffixes := []string{"UUID", "Name", "Fingerprint"}
+	for _, suffix := range stringSuffixes {
+		if strings.HasSuffix(arg, suffix) {
+			return "string", nil
+		}
+	}
+
+	intSuffixes := []string{"ID"}
+	for _, suffix := range intSuffixes {
+		if strings.HasSuffix(arg, suffix) {
+			return "int", nil
+		}
+	}
+
+	allSuffixes := strings.Join(stringSuffixes, ", ") + ", " + strings.Join(intSuffixes, ", ")
+
+	return "", fmt.Errorf("arg %q is not a valid argument. It must be suffixed with one of %s", arg, allSuffixes)
+}
+
+// GetAllSelectStmts returns all the registered SELECT statements of the correct format for the entity.
+// Statements must be named `select<Entity>Objects<Label>With<ExtraArg1AndExtraArg2>By<Filter1AndFilter2>`
+// The returned map will order all statements by their associated extra args, and all of those combinations by their
+// associated label.
+func GetAllSelectStmts(pkg *ast.Package, structName string) (map[string]map[string][]string, error) {
+	objects := pkg.Scope.Objects
+
+	stmtMap := map[string]map[string][]string{}
+	prefix := fmt.Sprintf("select%sObjects", structName)
+	for name := range objects {
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		// Fields after 'By' should be included in the filter struct.
+		rest, filters, ok := strings.Cut(name, "By")
+		if ok && filters == "" {
+			return nil, fmt.Errorf("Found statement with 'By' keyword but no filters")
+		}
+
+		// Fields after 'With' are additional arguments not included in the filter struct. These will have their own methods.
+		rest, extraArgs, ok := strings.Cut(rest, "With")
+		if ok && extraArgs == "" {
+			return nil, fmt.Errorf("Found statement with 'With' keyword but no extra arguments")
+		}
+
+		_, label, _ := strings.Cut(rest, "Objects")
+		_, ok = stmtMap[label]
+		if !ok {
+			stmtMap[label] = map[string][]string{}
+		}
+
+		_, ok = stmtMap[label][extraArgs]
+		if !ok {
+			stmtMap[label][extraArgs] = []string{}
+		}
+
+		stmtMap[label][extraArgs] = append(stmtMap[label][extraArgs], name)
+	}
+
+	if len(stmtMap) == 0 {
+		return nil, fmt.Errorf("Found no registered statements of the form 'select<Entity>Objects...'")
+	}
+
+	return stmtMap, nil
+}
+
 // FiltersFromStmt parses all filtering statement defined for the given entity. It
 // returns all supported combinations of filters, sorted by number of criteria, and
 // the corresponding set of unused filters from the Filter struct.
@@ -80,6 +148,35 @@ func FiltersFromStmt(pkg *ast.Package, kind string, entity string, filters []*Fi
 				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
 			}
 		}
+		ignoredFilters = append(ignoredFilters, ignoredFilterGroup)
+	}
+
+	return stmtFilters, ignoredFilters
+}
+
+// GetStmtFilters parses the given list of statements and returns all supported combinations of their filters, sorted by
+// number of criteria. Also returns the corresponding set of unused filters for that statement from the Filter struct.
+func GetStmtFilters(stmtsByFilter map[string]string, allFilters []*Field) ([][]string, [][]string) {
+	stmtFilters := [][]string{}
+	for filters := range stmtsByFilter {
+		if filters == "" {
+			continue
+		}
+
+		stmtFilters = append(stmtFilters, strings.Split(filters, "And"))
+	}
+
+	stmtFilters = sortFilters(stmtFilters)
+	ignoredFilters := [][]string{}
+
+	for _, filterGroup := range stmtFilters {
+		ignoredFilterGroup := []string{}
+		for _, filter := range allFilters {
+			if !shared.StringInSlice(filter.Name, filterGroup) {
+				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
+			}
+		}
+
 		ignoredFilters = append(ignoredFilters, ignoredFilterGroup)
 	}
 
