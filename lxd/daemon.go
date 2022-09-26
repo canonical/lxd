@@ -482,8 +482,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
 	if c.Path == "" {
 		uri = fmt.Sprintf("/%s", version)
-	} else {
+	} else if version != "" {
 		uri = fmt.Sprintf("/%s/%s", version, c.Path)
+	} else {
+		uri = fmt.Sprintf("/%s", c.Path)
 	}
 
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
