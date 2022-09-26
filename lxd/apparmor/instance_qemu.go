@@ -39,6 +39,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .ovmfPath }}/OVMF_CODE.fd              kr,
   /usr/share/qemu/**                        kr,
   /usr/share/seabios/**                     kr,
+  owner @{PROC}/@{pid}/cpuset               r,
   owner @{PROC}/@{pid}/task/@{tid}/comm     rw,
   {{ .rootPath }}/etc/nsswitch.conf         r,
   {{ .rootPath }}/etc/passwd                r,
