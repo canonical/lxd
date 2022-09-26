@@ -120,6 +120,17 @@ jobs:
         run: |
           make doc-spellcheck
 
+  linkcheck:
+    name: Check links (documentation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run linkchecker
+        run: |
+          make doc-linkcheck
+
   markdownlint:
     name: Markdownlint (documentation)
     runs-on: ubuntu-latest
