@@ -137,7 +137,8 @@ ogp_image = "https://linuxcontainers.org/static/img/containers.png"
 # Links to ignore when checking links
 
 linkcheck_ignore = [
-    'https://127.0.0.1:8443/1.0'
+    'https://127.0.0.1:8443/1.0',
+    'https://web.libera.chat/#lxc'
 ]
 
 # Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)

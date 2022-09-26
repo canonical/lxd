@@ -41,7 +41,7 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 - [Contribute to the project](contributing.md)
 - [Get support](support.md)
 - [Watch tutorials and announcements on YouTube](https://www.youtube.com/c/LXDvideos)
-- [Discuss on IRC](https://kiwiirc.com/client/irc.libera.chat/lxc) (see [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed)
+- [Discuss on IRC](https://web.libera.chat/#lxc) (see [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed)
 - [Ask and answer questions on the forum](https://discuss.linuxcontainers.org)
 - [Join the mailing lists](https://lists.linuxcontainers.org)
 
