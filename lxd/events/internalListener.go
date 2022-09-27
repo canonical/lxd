@@ -32,20 +32,23 @@ func NewInternalListener(ctx context.Context, server *Server) *InternalListener 
 // startListener creates a new listener connection and listener. Also, it starts the gorountines
 // needed to notify any registered handlers about new events.
 func (l *InternalListener) startListener() {
+	var err error
+
 	// Create a listener if necessary. This avoids having a listener around if there are no
 	// handlers.
 	l.listenerCtx, l.listenerCancel = context.WithCancel(l.ctx)
 	aEnd, bEnd := memorypipe.NewPipePair(l.listenerCtx)
 	listenerConnection := NewSimpleListenerConnection(aEnd)
 
-	listener, err := l.server.AddListener("", true, listenerConnection, []string{"lifecycle", "logging"}, []EventSource{EventSourcePull}, nil, nil)
+	l.listener, err = l.server.AddListener("", true, listenerConnection, []string{"lifecycle", "logging"}, []EventSource{EventSourcePull}, nil, nil)
 	if err != nil {
 		return
 	}
 
 	go func(ctx context.Context) {
-		listener.Wait(ctx)
-		listener.Close()
+		l.listener.Wait(ctx)
+		l.listener.Close()
+		l.listener = nil
 	}(l.listenerCtx)
 
 	go func(ctx context.Context, handlers map[string]EventHandler) {
