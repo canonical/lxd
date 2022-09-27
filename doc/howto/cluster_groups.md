@@ -1,3 +1,7 @@
+---
+discourse: 12716
+---
+
 (cluster-groups)=
 # How to set up cluster groups
 
