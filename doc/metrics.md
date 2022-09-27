@@ -197,6 +197,7 @@ scrape_configs:
 
 The following metrics are provided:
 
+* `lxd_cpu_effective_total`
 * `lxd_cpu_seconds_total{cpu="<cpu>", mode="<mode>"}`
 * `lxd_disk_read_bytes_total{device="<dev>"}`
 * `lxd_disk_reads_completed_total{device="<dev>"}`
