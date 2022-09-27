@@ -1,3 +1,7 @@
+---
+discourse: 11330
+---
+
 (cluster-manage)=
 # How to manage a cluster
 
