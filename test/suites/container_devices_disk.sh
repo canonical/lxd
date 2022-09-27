@@ -15,7 +15,7 @@ test_container_devices_disk() {
 }
 
 test_container_devices_disk_shift() {
-  if ! grep -q shiftfs /proc/filesystems; then
+  if ! grep -q shiftfs /proc/filesystems || [ -n "${LXD_SHIFTFS_DISABLE:-}" ]; then
     return
   fi
 
