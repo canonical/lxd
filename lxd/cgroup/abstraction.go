@@ -1027,26 +1027,33 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 		scanner := bufio.NewScanner(strings.NewReader(val))
 
 		for scanner.Scan() {
-			var (
-				devID           string
-				readBytes       uint64
-				readsCompleted  uint64
-				writtenBytes    uint64
-				writesCompleted uint64
-				discardBytes    uint64
-			)
+			devID, stats, _ := strings.Cut(scanner.Text(), " ")
+			ioStats := &IOStats{}
 
-			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, &readBytes, &writtenBytes, &readsCompleted, &writesCompleted, &discardBytes)
-			if err != nil {
-				return nil, fmt.Errorf("Failed parsing io.stat (%q): %w", scanner.Text(), err)
+			for _, statPart := range strings.Split(stats, " ") {
+				statName, statValueStr, found := strings.Cut(statPart, "=")
+				if !found {
+					return nil, fmt.Errorf("Failed extracting io.stat %q (from %q)", statPart, scanner.Text())
+				}
+
+				statValue, err := strconv.ParseUint(statValueStr, 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("Failed parsing io.stat %q %q (from %q): %w", statName, statValueStr, scanner.Text(), err)
+				}
+
+				switch statName {
+				case "rbytes":
+					ioStats.ReadBytes = statValue
+				case "wbytes":
+					ioStats.WrittenBytes = statValue
+				case "rios":
+					ioStats.ReadsCompleted = statValue
+				case "wios":
+					ioStats.WritesCompleted = statValue
+				}
 			}
 
-			ioMap[partMap[devID]] = &IOStats{
-				ReadBytes:       readBytes,
-				ReadsCompleted:  readsCompleted,
-				WrittenBytes:    writtenBytes,
-				WritesCompleted: writesCompleted,
-			}
+			ioMap[partMap[devID]] = ioStats
 		}
 
 		return ioMap, nil

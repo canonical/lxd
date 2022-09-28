@@ -163,29 +163,44 @@ test_security_protection() {
   lxc profile unset default security.protection.delete
 
   # Test shifting protection
-  if ! grep -q shiftfs /proc/filesystems || [ -n "${LXD_SHIFTFS_DISABLE:-}" ]; then
-    lxc init testimage c1
-    lxc start c1
-    lxc stop c1 --force
 
-    lxc profile set default security.protection.shift true
-    lxc start c1
-    lxc stop c1 --force
+  # Respawn LXD with kernel ID shifting support disabled to force manual shifting.
+  shutdown_lxd "${LXD_DIR}"
+  lxdShiftfsDisable=${LXD_SHIFTFS_DISABLE:-}
+  lxdIdmappedMountsDisable=${LXD_IDMAPPED_MOUNTS_DISABLE:-}
 
-    lxc publish c1 --alias=protected
-    lxc image delete protected
+  export LXD_SHIFTFS_DISABLE=1
+  export LXD_IDMAPPED_MOUNTS_DISABLE=1
+  respawn_lxd "${LXD_DIR}" true
 
-    lxc snapshot c1
-    lxc publish c1/snap0 --alias=protected
-    lxc image delete protected
+  lxc init testimage c1
+  lxc start c1
+  lxc stop c1 --force
 
-    lxc config set c1 security.privileged true
-    ! lxc start c1 || false
-    lxc config set c1 security.protection.shift false
-    lxc start c1
-    lxc stop c1 --force
+  lxc profile set default security.protection.shift true
+  lxc start c1
+  lxc stop c1 --force
 
-    lxc delete c1
-    lxc profile unset default security.protection.shift
-  fi
+  lxc publish c1 --alias=protected
+  lxc image delete protected
+
+  lxc snapshot c1
+  lxc publish c1/snap0 --alias=protected
+  lxc image delete protected
+
+  lxc config set c1 security.privileged true
+  ! lxc start c1 || false
+  lxc config set c1 security.protection.shift false
+  lxc start c1
+  lxc stop c1 --force
+
+  lxc delete c1
+  lxc profile unset default security.protection.shift
+
+  # Respawn LXD to restore default kernel shifting support.
+  shutdown_lxd "${LXD_DIR}"
+  export LXD_SHIFTFS_DISABLE="${lxdShiftfsDisable}"
+  export LXD_IDMAPPED_MOUNTS_DISABLE="${lxdIdmappedMountsDisable}"
+
+  respawn_lxd "${LXD_DIR}" true
 }
