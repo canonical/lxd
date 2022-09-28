@@ -1306,9 +1306,7 @@ func (d *Daemon) init() error {
 	d.globalConfigMu.Lock()
 	bgpASN = d.globalConfig.BGPASN()
 
-	d.proxy = shared.ProxyFromConfig(
-		d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts(),
-	)
+	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
 	candidAPIURL, candidAPIKey, candidExpiry, candidDomains = d.globalConfig.CandidServer()
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
