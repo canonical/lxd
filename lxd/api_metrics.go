@@ -79,6 +79,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Wait until daemon is fully started.
+	<-d.waitReady.Done()
+
 	// Figure out the projects to retrieve.
 	var projectNames []string
 
