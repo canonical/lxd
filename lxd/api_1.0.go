@@ -693,7 +693,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 }
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
-	// Don't apply changes to settings until daemon is full started.
+	// Don't apply changes to settings until daemon is fully started.
 	<-d.waitReady.Done()
 
 	s := d.State()
