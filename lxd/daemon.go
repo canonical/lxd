@@ -60,6 +60,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -117,7 +118,7 @@ type Daemon struct {
 
 	// Status control.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
-	readyChan      chan struct{}      // Closed when LXD is fully ready
+	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
 	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
@@ -196,7 +197,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		db:             &db.DB{},
 		os:             os,
 		setupChan:      make(chan struct{}),
-		readyChan:      make(chan struct{}),
+		waitReady:      cancel.New(context.Background()),
 		shutdownCtx:    shutdownCtx,
 		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
@@ -1591,7 +1592,7 @@ func (d *Daemon) Ready() error {
 	deviceTaskBalance(s)
 
 	// Unblock incoming requests
-	close(d.readyChan)
+	d.waitReady.Cancel()
 
 	return nil
 }
