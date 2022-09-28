@@ -174,7 +174,7 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Don't mess with containers while in setup mode.
-	<-d.readyChan
+	<-d.waitReady.Done()
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
