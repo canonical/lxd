@@ -1530,47 +1530,7 @@ func (d *Daemon) init() error {
 		logger.Warn("Failed to resolve warnings", logger.Ctx{"err": err})
 	}
 
-	// Run the post initialization actions
-	err = d.Ready()
-	if err != nil {
-		return err
-	}
-
-	logger.Info("Daemon started")
-
-	return nil
-}
-
-func (d *Daemon) startClusterTasks() {
-	// Add initial event listeners from global database members.
-	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
-	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
-
-	// Heartbeats
-	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
-
-	// Auto-sync images across the cluster (hourly)
-	d.clusterTasks.Add(autoSyncImagesTask(d))
-
-	// Remove orphaned operations
-	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
-
-	// Start all background tasks
-	d.clusterTasks.Start(d.shutdownCtx)
-}
-
-func (d *Daemon) stopClusterTasks() {
-	_ = d.clusterTasks.Stop(3 * time.Second)
-	d.clusterTasks = task.Group{}
-}
-
-func (d *Daemon) Ready() error {
-	// Check if clustered
-	clustered, err := cluster.Enabled(d.db.Node)
-	if err != nil {
-		return err
-	}
-
+	// Start cluster tasks if needed.
 	if clustered {
 		d.startClusterTasks()
 	}
@@ -1635,7 +1595,32 @@ func (d *Daemon) Ready() error {
 	// Unblock incoming requests
 	d.waitReady.Cancel()
 
+	logger.Info("Daemon started")
+
 	return nil
+}
+
+func (d *Daemon) startClusterTasks() {
+	// Add initial event listeners from global database members.
+	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
+	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
+
+	// Heartbeats
+	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
+
+	// Auto-sync images across the cluster (hourly)
+	d.clusterTasks.Add(autoSyncImagesTask(d))
+
+	// Remove orphaned operations
+	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
+
+	// Start all background tasks
+	d.clusterTasks.Start(d.shutdownCtx)
+}
+
+func (d *Daemon) stopClusterTasks() {
+	_ = d.clusterTasks.Stop(3 * time.Second)
+	d.clusterTasks = task.Group{}
 }
 
 // numRunningInstances returns the number of running instances.
