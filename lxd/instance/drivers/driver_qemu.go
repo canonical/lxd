@@ -6211,6 +6211,11 @@ func (d *qemu) Info() instance.Info {
 		return data
 	}
 
+	if !shared.PathExists("/dev/vsock") {
+		data.Error = fmt.Errorf("Vsock support is missing (no /dev/vsock)")
+		return data
+	}
+
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
 		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded")
