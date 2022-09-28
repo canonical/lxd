@@ -1441,6 +1441,8 @@ func (d *Daemon) init() error {
 	// Cleanup leftover images.
 	pruneLeftoverImages(d)
 
+	var instances []instance.Instance
+
 	if !d.os.MockMode {
 		// Start the scheduler
 		go deviceEventListener(d.State())
@@ -1457,9 +1459,15 @@ func (d *Daemon) init() error {
 			return err
 		}
 
+		// Must occur after d.devmonitor has been initialised.
+		instances, err = instance.LoadNodeAll(d.State(), instancetype.Any)
+		if err != nil {
+			return fmt.Errorf("Failed loading local instances: %w", err)
+		}
+
 		// Register devices on running instances to receive events and reconnect to VM monitor sockets.
 		// This should come after the event handler go routines have been started.
-		devicesRegister(d.State())
+		devicesRegister(instances)
 
 		// Setup seccomp handler
 		if d.os.SeccompListener {
@@ -1576,21 +1584,13 @@ func (d *Daemon) init() error {
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
 
-	// Get daemon state struct
-	s := d.State()
-
 	// Restore instances
 	if !d.db.Cluster.LocalNodeIsEvacuated() {
-		instances, err := instance.LoadNodeAll(s, instancetype.Any)
-		if err != nil {
-			return fmt.Errorf("Failed loading instances to restore: %w", err)
-		}
-
-		instancesStart(s, instances)
+		instancesStart(d.State(), instances)
 	}
 
 	// Re-balance in case things changed while LXD was down
-	deviceTaskBalance(s)
+	deviceTaskBalance(d.State())
 
 	// Unblock incoming requests
 	d.waitReady.Cancel()
