@@ -76,7 +76,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
 	// Don't mess with containers while in setup mode
-	<-d.readyChan
+	<-d.waitReady.Done()
 
 	c, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
