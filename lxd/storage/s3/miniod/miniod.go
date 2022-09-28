@@ -48,6 +48,7 @@ type Process struct {
 	username     string
 	password     string
 	cancel       *cancel.Canceller
+	err          error
 }
 
 // URL of MinIO process.
@@ -139,6 +140,12 @@ func (p *Process) WaitReady(ctx context.Context) error {
 		err = ctx.Err()
 		if err != nil {
 			p.cancel.Cancel()
+
+			// If process failed to start then return start error.
+			if p.err != nil {
+				return p.err
+			}
+
 			return err
 		}
 
@@ -278,9 +285,9 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr
 
-			err = cmd.Run()
-			if err != nil && minioProc.cancel.Err() == nil {
-				l.Error("Failed starting MinIO bucket", logger.Ctx{"err": err, "stdErr": stderr.String(), "stdout": stdout.String()})
+			minioProc.err = cmd.Run()
+			if minioProc.err != nil && minioProc.cancel.Err() == nil {
+				l.Error("Failed starting MinIO bucket", logger.Ctx{"err": minioProc.err, "stdErr": stderr.String(), "stdout": stdout.String()})
 			} else {
 				l.Debug("MinIO bucket stopped")
 			}
