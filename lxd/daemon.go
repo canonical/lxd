@@ -28,6 +28,7 @@ import (
 	"gopkg.in/macaroon-bakery.v3/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v3/httpbakery"
 
+	"github.com/lxc/lxd/lxd/acme"
 	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
@@ -140,6 +141,9 @@ type Daemon struct {
 	serverName string
 
 	lokiClient *loki.Client
+
+	// HTTP-01 challenge provider for ACME
+	http01Provider acme.HTTP01Provider
 }
 
 type externalAuth struct {
@@ -200,6 +204,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		devlxdEvents:   devlxdEvents,
 		events:         lxdEvents,
 		db:             &db.DB{},
+		http01Provider: acme.NewHTTP01Provider(),
 		os:             os,
 		setupChan:      make(chan struct{}),
 		waitReady:      cancel.New(context.Background()),
@@ -1583,6 +1588,9 @@ func (d *Daemon) init() error {
 
 		// Remove resolved warnings (daily)
 		d.tasks.Add(pruneResolvedWarningsTask(d))
+
+		// Auto-renew server certificate (daily)
+		d.tasks.Add(autoRenewCertificateTask(d))
 	}
 
 	// Start all background tasks
