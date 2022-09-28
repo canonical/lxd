@@ -645,6 +645,26 @@ func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVN
 	return portGroups, nil
 }
 
+// logicalSwitchParseExcludeIPs parses the ips into OVN exclude_ips format.
+func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, error) {
+	excludeIPs := make([]string, 0, len(ips))
+	for _, v := range ips {
+		if v.Start == nil || v.Start.To4() == nil {
+			return nil, fmt.Errorf("Invalid exclude IPv4 range start address")
+		} else if v.End == nil {
+			excludeIPs = append(excludeIPs, v.Start.String())
+		} else {
+			if v.End != nil && v.End.To4() == nil {
+				return nil, fmt.Errorf("Invalid exclude IPv4 range end address")
+			}
+
+			excludeIPs = append(excludeIPs, fmt.Sprintf("%s..%s", v.Start.String(), v.End.String()))
+		}
+	}
+
+	return excludeIPs, nil
+}
+
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
 	var removeOtherConfigKeys []string
@@ -663,15 +683,45 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 	}
 
 	if len(opts.ExcludeIPv4) > 0 {
-		excludeIPs := make([]string, 0, len(opts.ExcludeIPv4))
-		for _, v := range opts.ExcludeIPv4 {
-			if v.Start == nil {
-				return fmt.Errorf("Invalid exclude IPv4 range start address")
-			} else if v.End == nil {
-				excludeIPs = append(excludeIPs, v.Start.String())
-			} else {
-				excludeIPs = append(excludeIPs, fmt.Sprintf("%s..%s", v.Start.String(), v.End.String()))
-			}
+		excludeIPs, err := o.logicalSwitchParseExcludeIPs(opts.ExcludeIPv4)
+		if err != nil {
+			return err
+		}
+
+		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
+	}
+
+	// Clear any unused keys first.
+	if len(removeOtherConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_switch", string(switchName), "other_config"}, removeOtherConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Only run command if at least one setting is specified.
+	if len(args) > 3 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LogicalSwitchDHCPv4RevervationsSet sets the DHCPv4 IP reservations.
+func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedIPs []shared.IPRange) error {
+	var removeOtherConfigKeys []string
+	args := []string{"set", "logical_switch", string(switchName)}
+
+	if len(reservedIPs) > 0 {
+		excludeIPs, err := o.logicalSwitchParseExcludeIPs(reservedIPs)
+		if err != nil {
+			return err
 		}
 
 		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
