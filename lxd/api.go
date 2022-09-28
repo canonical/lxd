@@ -161,6 +161,9 @@ func storageBucketsServer(d *Daemon) *http.Server {
 	m.SkipClean(true)
 
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Wait until daemon is fully started.
+		<-d.waitReady.Done()
+
 		// Check if request contains an access key, and if so try and route it to the associated bucket.
 		accessKey := s3.AuthorizationHeaderAccessKey(r.Header.Get("Authorization"))
 		if accessKey != "" {
@@ -216,6 +219,9 @@ func storageBucketsServer(d *Daemon) *http.Server {
 
 	// We use the NotFoundHandler to reverse proxy requests to dynamically started local MinIO processes.
 	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Wait until daemon is fully started.
+		<-d.waitReady.Done()
+
 		pathParts := strings.Split(r.RequestURI, "/")
 		bucketName, err := url.PathUnescape(pathParts[1])
 		if err != nil {

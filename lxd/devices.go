@@ -587,14 +587,8 @@ func deviceEventListener(s *state.State) {
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
 // This also has the effect of actively reconnecting to any running VM monitor sockets.
-func devicesRegister(s *state.State) {
+func devicesRegister(instances []instance.Instance) {
 	logger.Debug("Registering running instances")
-
-	instances, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		logger.Error("Problem loading instances list", logger.Ctx{"err": err})
-		return
-	}
 
 	for _, inst := range instances {
 		if !inst.IsRunning() { // For VMs this will also trigger a connection to the QMP socket if running.

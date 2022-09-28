@@ -173,8 +173,8 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
-	// Don't mess with containers while in setup mode.
-	<-d.readyChan
+	// Don't mess with instances while in setup mode.
+	<-d.waitReady.Done()
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
