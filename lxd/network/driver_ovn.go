@@ -4731,7 +4731,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 
 		// Get the instances IPs.
 		for devName, dev := range devices {
-			if dev["type"] != "nic" || dev["network"] != n.name {
+			if !isInUseByDevice(n.name, dev) {
 				continue
 			}
 
