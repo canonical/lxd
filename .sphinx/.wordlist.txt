@@ -51,6 +51,7 @@ DHCPv
 DNS
 DNSSEC
 DoS
+Dqlite
 DRM
 EB
 Ebit

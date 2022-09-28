@@ -4,27 +4,39 @@
 ```{youtube} https://www.youtube.com/watch?v=nrOR6yaO_MY
 ```
 
-LXD can be run in clustering mode, where any number of LXD servers share the same distributed database and can be managed uniformly using the `lxc` client or the REST API.
+To spread the total workload over several servers, LXD can be run in clustering mode.
+In this scenario, any number of LXD servers share the same distributed database that holds the configuration for the cluster members and their instances.
+The LXD cluster can be managed uniformly using the `lxc` client or the REST API.
 
-Note that this feature was introduced as part of the API extension "clustering".
+This feature was introduced as part of the [`clustering`](api-extensions.md#clustering) API extension and is available since LXD 3.0.
 
+(clustering-members)=
 ## Cluster members
 
-It is strongly recommended that the number of nodes in the cluster be at least three, so the cluster can survive the loss of at least one node and still be able to establish quorum for its distributed state (which is kept in a SQLite database replicated using the Raft algorithm).
-If the number of nodes is less than three, then only one node in the cluster will store the SQLite database.
-When the third node joins the cluster, both the second and third nodes will receive a replica of the database.
+A LXD cluster consists of one bootstrap server and at least two further cluster members.
+It stores its state in a [distributed database](../database.md), which is a [Dqlite](https://dqlite.io/) database replicated using the Raft algorithm.
 
+While you could create a cluster with only two members, it is strongly recommended that the number of cluster members be at least three.
+With this setup, the cluster can survive the loss of at least one member and still be able to establish quorum for its distributed state.
+
+When you create the cluster, the Dqlite database runs on only the bootstrap server until a third member joins the cluster.
+Then both the second and the third server receive a replica of the database.
+
+See {ref}`cluster-form` for more information.
+
+(clustering-member-roles)=
 ### Member roles
 
-The cluster uses a distributed [database](../database.md) to store its state.
-All nodes in the cluster need to access such distributed database in order to serve user requests.
+In a cluster with three members, all members replicate the distributed database that stores the state of the cluster.
+If the cluster has more members, only some of them replicate the database.
+The remaining members have access to the database, but don't replicate it.
 
-If the cluster has many nodes, only some of them will be picked to replicate database data.
-Each node that is picked can replicate data either as "voter" or as "stand-by".
-The database (and hence the cluster) will remain available as long as a majority of voters is online.
-A stand-by node will automatically be promoted to voter when another voter is shutdown gracefully or when its detected to be offline.
+At each time, there is an elected cluster leader that monitors the health of the other members.
 
-At each time there will be an elected cluster leader that will monitor the health of the other nodes.
+Each member that replicates the database has either the role of a *voter* or of a *stand-by*.
+If the cluster leader goes offline, one of the voters is elected as the new leader.
+If a voter member goes offline, a stand-by member is automatically promoted to voter.
+The database (and hence the cluster) remains available as long as a majority of voters is online.
 
 The following roles can be assigned to LXD cluster members.
 Automatic roles are assigned by LXD itself and cannot be modified by the user.
@@ -37,86 +49,101 @@ Automatic roles are assigned by LXD itself and cannot be modified by the user.
 | `event-hub`           | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
 | `ovn-chassis`         | no            | Uplink gateway candidate for OVN networks |
 
-The default number of voting nodes is 3 and the default number of stand-by nodes is 2.
-This means that your cluster will remain operation as long as you switch off at most one voting node at a time.
+The default number of voter members ([`cluster.max_voters`](server)) is three.
+The default number of stand-by members ([`cluster.max_standby`](server)) is two.
+With this configuration, your cluster will remain operational as long as you switch off at most one voting member at a time.
 
-You can change the desired number of voting and stand-by nodes with:
+See {ref}`cluster-manage` for more information.
 
-```bash
-lxc config set cluster.max_voters <n>
-```
+(clustering-offline-members)=
+#### Offline members and fault tolerance
 
-and
+If a cluster member is down for more than the configured offline threshold, its status is marked as offline.
+In this case, no operations are possible on this member, and neither are operations that require a state change across all members.
 
-```bash
-lxc config set cluster.max_standby <n>
-```
+As soon as the offline member comes back online, operations are available again.
 
-with the constraint that the maximum number of voters must be odd and must be least 3, while the maximum number of stand-by nodes must be between 0 and 5.
+If the member that goes offline is the leader itself, the other members will elect a new leader.
 
-#### Offline nodes and fault tolerance
+If you can't or don't want to bring the server back online, you can [delete it from the cluster](cluster-manage-delete-members).
 
-If a node is down for more than 20 seconds, its status will be marked as OFFLINE and no operation will be possible on it, as well as operations that require a state change across all nodes.
-
-If the node that goes offline is the leader itself, the other nodes will elect a new leader.
-
-As soon as the offline node comes back online, operations will be available again.
-
-If you can't or don't want to bring the node back online, you can delete it from the cluster using `lxc cluster remove --force <node name>`.
-
-You can tweak the amount of seconds after which a non-responding node will be considered offline by running:
-
-```bash
-lxc config set cluster.offline_threshold <n seconds>
-```
-
+You can tweak the amount of seconds after which a non-responding member is considered offline by setting the [`cluster.offline_threshold`](server) configuration.
+The default value is 20 seconds.
 The minimum value is 10 seconds.
+
+See {ref}`cluster-recover` for more information.
 
 #### Failure domains
 
-Failure domains can be used to indicate which nodes should be given preference when trying to assign roles to a cluster member that has been shutdown or has crashed.
-For example, if a cluster member that currently has the database role gets shutdown, LXD will try to assign its database role to another cluster member in the same failure domain, if one is available.
+You can use failure domains to indicate which cluster members should be given preference when assigning roles to a cluster member that has gone offline.
+For example, if a cluster member that currently has the database role gets shut down, LXD tries to assign its database role to another cluster member in the same failure domain, if one is available.
 
-To change the failure domain of a cluster member you can use the `lxc cluster edit <member>` command line tool, or the `PUT /1.0/cluster/<member>` REST API.
+To update the failure domain of a cluster member, use the `lxc cluster edit <member>` command and change the `failure_domain` property from `default` to another string.
 
+(clustering-member-config)=
 ### Member configuration
 
-Note that all further nodes joining the cluster must have identical configuration to the bootstrap node, in terms of storage pools and networks.
-The only configuration that can be node-specific are the `source` and `size` keys for storage pools and the `bridge.external_interfaces` key for networks.
+LXD cluster members are generally assumed to be identical systems.
+This means that all LXD servers joining a cluster must have an identical configuration to the bootstrap server, in terms of storage pools and networks.
 
-As mentioned previously, LXD cluster members are generally assumed to be identical systems.
+To accommodate things like slightly different disk ordering or network interface naming, there is an exception for some configuration options related to storage and networks, which are member-specific.
 
-However to accommodate things like slightly different disk ordering or network interface naming, LXD records some settings as being server-specific.
-When such settings are present in a cluster, any new server being added will have to provide a value for it.
+When such settings are present in a cluster, any server that is being added must provide a value for them.
+Most often, this is done through the interactive `lxd init` command, which asks the user for the value for a number of configuration keys related to storage or networks.
 
-This is most often done through the interactive `lxd init` which will ask the user for the value for a number of configuration keys related to storage or networks.
+Those settings typically include:
 
-Those typically cover:
+- The source device and size for a storage pool
+- The name for a ZFS zpool, LVM thin pool or LVM volume group
+- External interfaces and BGP next-hop for a bridged network
+- The name of the parent network device for managed `physical` or `macvlan` networks
 
-- Source device for a storage pool (leaving empty would create a loop)
-- Name for a ZFS zpool (defaults to the name of the LXD pool)
-- External interfaces for a bridged network (empty would add none)
-- Name of the parent network device for managed `physical` or `macvlan` networks (must be set)
+See {ref}`cluster-config-storage` and {ref}`cluster-config-networks` for more information.
 
-It's possible to lookup the questions ahead of time (useful for scripting) by querying the `/1.0/cluster` API endpoint.
+If you want to look up the questions ahead of time (which can be useful for scripting), query the `/1.0/cluster` API endpoint.
 This can be done through `lxc query /1.0/cluster` or through other API clients.
 
 ## Images
 
-By default, LXD will replicate images on as many cluster members as you have database members.
-This typically means up to 3 copies within the cluster.
+By default, LXD replicates images on as many cluster members as there are database members.
+This typically means up to three copies within the cluster.
 
-That number can be increased to improve fault tolerance and likelihood of the image being locally available.
-
-The special value of "-1" may be used to have the image copied on all nodes.
-
-You can disable the image replication in the cluster by setting the count down to 1:
-
-```bash
-lxc config set cluster.images_minimal_replica 1
-```
+You can increase that number to improve fault tolerance and the likelihood of the image being locally available.
+To do so, set the [`cluster.images_minimal_replica`](server) configuration.
+The special value of `-1` can be used to have the image copied to all cluster members.
 
 ## Cluster groups
 
-In a LXD cluster, members can be added to cluster groups.
-By default, all members belong to the `default` group.
+In a LXD cluster, you can add members to cluster groups.
+You can use these cluster groups to launch instances on a cluster member that belongs to a subset of all available members.
+For example, you could create a cluster group for all members that have a GPU and then launch all instances that require a GPU on this cluster group.
+
+By default, all cluster members belong to the `default` group.
+
+See {ref}`cluster-groups` and {ref}`cluster-target-instance` for more information.
+
+(clustering-assignment)=
+## Automatic assignment of instances
+
+In a cluster setup, each instance lives on one of the cluster members.
+When you launch an instance, you can target it to a specific cluster member, to a cluster group or have LXD automatically assign it to a cluster member.
+
+By default, the automatic assignment picks the cluster member that has the lowest number of instances.
+If several members have the same amount of instances, one of the members is chosen at random.
+
+However, you can control this behavior with the [`scheduler.instance`](cluster-member-config) configuration option:
+
+- If `scheduler.instance` is set to `all` for a cluster member, this cluster member is selected for an instance if:
+
+   - The instance is created without `--target` and the cluster member has the lowest number of instances.
+   - The instance is targeted to live on this cluster member.
+   - The instance is targeted to live on a member of a cluster group that the cluster member is a part of, and the cluster member has the lowest number of instances compared to the other members of the cluster group.
+
+- If `scheduler.instance` is set to `manual` for a cluster member, this cluster member is selected for an instance if:
+
+   - The instance is targeted to live on this cluster member.
+
+- If `scheduler.instance` is set to `group` for a cluster member, this cluster member is selected for an instance if:
+
+   - The instance is targeted to live on this cluster member.
+   - The instance is targeted to live on a member of a cluster group that the cluster member is a part of, and the cluster member has the lowest number of instances compared to the other members of the cluster group.

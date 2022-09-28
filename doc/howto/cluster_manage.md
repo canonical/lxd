@@ -23,9 +23,12 @@ and
 lxc config set cluster.max_standby <n>
 ```
 
+(cluster-manage-delete-members)=
 ## Deleting nodes
 
 To cleanly delete a node from the cluster use `lxc cluster remove <node name>`.
+
+`lxc cluster remove --force <node name>`.
 
 ## Upgrading nodes
 
