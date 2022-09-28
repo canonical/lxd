@@ -801,9 +801,41 @@ func (n *ovn) getRouterIntPortIPv4Net() string {
 	return n.config["ipv4.address"]
 }
 
+// parseRouterIntPortIPv4Net returns OVN logical router internal port IPv4 address and subnet parsed (if set).
+func (n *ovn) parseRouterIntPortIPv4Net() (net.IP, *net.IPNet, error) {
+	ipNet := n.getRouterIntPortIPv4Net()
+
+	if validate.IsOneOf("none", "")(ipNet) != nil {
+		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(ipNet)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed parsing router's internal port IPv4 Net: %w", err)
+		}
+
+		return routerIntPortIPv4, routerIntPortIPv4Net, nil
+	}
+
+	return nil, nil, nil
+}
+
 // getRouterIntPortIPv4Net returns OVN logical router internal port IPv6 address and subnet.
 func (n *ovn) getRouterIntPortIPv6Net() string {
 	return n.config["ipv6.address"]
+}
+
+// parseRouterIntPortIPv6Net returns OVN logical router internal port IPv6 address and subnet parsed (if set).
+func (n *ovn) parseRouterIntPortIPv6Net() (net.IP, *net.IPNet, error) {
+	ipNet := n.getRouterIntPortIPv6Net()
+
+	if validate.IsOneOf("none", "")(ipNet) != nil {
+		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(ipNet)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed parsing router's internal port IPv6 Net: %w", err)
+		}
+
+		return routerIntPortIPv4, routerIntPortIPv4Net, nil
+	}
+
+	return nil, nil, nil
 }
 
 // getDomainName returns OVN DHCP domain name.
@@ -1792,8 +1824,8 @@ func (n *ovn) setup(update bool) error {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	var routerExtPortIPv4, routerIntPortIPv4, routerExtPortIPv6, routerIntPortIPv6 net.IP
-	var routerExtPortIPv4Net, routerIntPortIPv4Net, routerExtPortIPv6Net, routerIntPortIPv6Net *net.IPNet
+	var routerExtPortIPv4, routerExtPortIPv6 net.IP
+	var routerExtPortIPv4Net, routerExtPortIPv6Net *net.IPNet
 
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
@@ -1887,18 +1919,14 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
-		routerIntPortIPv4, routerIntPortIPv4Net, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
-		if err != nil {
-			return fmt.Errorf("Failed parsing router's internal port IPv4 Net: %w", err)
-		}
+	routerIntPortIPv4, routerIntPortIPv4Net, err := n.parseRouterIntPortIPv4Net()
+	if err != nil {
+		return fmt.Errorf("Failed parsing router's internal port IPv4 Net: %w", err)
 	}
 
-	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
-		routerIntPortIPv6, routerIntPortIPv6Net, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
-		if err != nil {
-			return fmt.Errorf("Failed parsing router's internal port IPv6 Net: %w", err)
-		}
+	routerIntPortIPv6, routerIntPortIPv6Net, err := n.parseRouterIntPortIPv6Net()
+	if err != nil {
+		return fmt.Errorf("Failed parsing router's internal port IPv6 Net: %w", err)
 	}
 
 	// Create chassis group.
@@ -3472,20 +3500,14 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			_ = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
 		})
 
-		var routerIntPortIPv4, routerIntPortIPv6 net.IP
-
-		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
-			routerIntPortIPv4, _, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
-			if err != nil {
-				return "", fmt.Errorf("Failed parsing local router's peering port IPv4 Net: %w", err)
-			}
+		routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
+		if err != nil {
+			return "", fmt.Errorf("Failed parsing local router's peering port IPv4 Net: %w", err)
 		}
 
-		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
-			routerIntPortIPv6, _, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
-			if err != nil {
-				return "", fmt.Errorf("Failed parsing local router's peering port IPv6 Net: %w", err)
-			}
+		routerIntPortIPv6, _, err := n.parseRouterIntPortIPv6Net()
+		if err != nil {
+			return "", fmt.Errorf("Failed parsing local router's peering port IPv6 Net: %w", err)
 		}
 
 		// Add routes to peer routers, and security policies for each peer port on local router.
@@ -3794,7 +3816,7 @@ func (n *ovn) DHCPv4Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
+	_, subnet, err := n.parseRouterIntPortIPv4Net()
 	if err != nil {
 		return nil
 	}
@@ -3809,14 +3831,16 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 		return nil
 	}
 
-	_, subnet, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
+	_, subnet, err := n.parseRouterIntPortIPv6Net()
 	if err != nil {
 		return nil
 	}
 
-	ones, _ := subnet.Mask.Size()
-	if ones < 64 {
-		return nil // OVN only supports DHCPv6 allocated using EUI64 (which requires at least a /64).
+	if subnet != nil {
+		ones, _ := subnet.Mask.Size()
+		if ones < 64 {
+			return nil // OVN only supports DHCPv6 allocated using EUI64 (which needs at least a /64).
+		}
 	}
 
 	return subnet
@@ -4888,12 +4912,12 @@ func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRout
 		TargetRouterRoutes: localNICRoutes, // Pre-fill with local NIC routes.
 	}
 
-	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
-		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
-		if err != nil {
-			return nil, fmt.Errorf("Failed parsing local router's peering port IPv4 net: %w", err)
-		}
+	routerIntPortIPv4, routerIntPortIPv4Net, err := n.parseRouterIntPortIPv4Net()
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing local router's peering port IPv4 net: %w", err)
+	}
 
+	if routerIntPortIPv4 != nil && routerIntPortIPv4Net != nil {
 		// Add a copy of the CIDR subnet to the target router's routes.
 		opts.TargetRouterRoutes = append(opts.TargetRouterRoutes, *routerIntPortIPv4Net)
 
@@ -4903,12 +4927,12 @@ func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRout
 		opts.LocalRouterPortIPs = append(opts.LocalRouterPortIPs, *routerIntPortIPv4Net)
 	}
 
-	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
-		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
-		if err != nil {
-			return nil, fmt.Errorf("Failed parsing local router's peering port IPv6 net: %w", err)
-		}
+	routerIntPortIPv6, routerIntPortIPv6Net, err := n.parseRouterIntPortIPv6Net()
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing local router's peering port IPv6 net: %w", err)
+	}
 
+	if routerIntPortIPv6 != nil && routerIntPortIPv6Net != nil {
 		// Add a copy of the CIDR subnet to the target router's routers.
 		opts.TargetRouterRoutes = append(opts.TargetRouterRoutes, *routerIntPortIPv6Net)
 
@@ -4935,12 +4959,12 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	opts.TargetRouterPort = targetOVNNet.getLogicalRouterPeerPortName(n.ID())
 	opts.TargetRouterPortMAC = targetRouterMAC
 
-	if validate.IsOneOf("none", "")(targetOVNNet.getRouterIntPortIPv4Net()) != nil {
-		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(targetOVNNet.getRouterIntPortIPv4Net())
-		if err != nil {
-			return fmt.Errorf("Failed parsing target router's peering port IPv4 net: %w", err)
-		}
+	routerIntPortIPv4, routerIntPortIPv4Net, err := targetOVNNet.parseRouterIntPortIPv4Net()
+	if err != nil {
+		return fmt.Errorf("Failed parsing target router's peering port IPv4 net: %w", err)
+	}
 
+	if routerIntPortIPv4 != nil && routerIntPortIPv4Net != nil {
 		// Add a copy of the CIDR subnet to the local router's routers.
 		opts.LocalRouterRoutes = append(opts.LocalRouterRoutes, *routerIntPortIPv4Net)
 
@@ -4950,12 +4974,12 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 		opts.TargetRouterPortIPs = append(opts.TargetRouterPortIPs, *routerIntPortIPv4Net)
 	}
 
-	if validate.IsOneOf("none", "")(targetOVNNet.getRouterIntPortIPv6Net()) != nil {
-		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(targetOVNNet.getRouterIntPortIPv6Net())
-		if err != nil {
-			return fmt.Errorf("Failed parsing target router's peering port IPv6 net: %w", err)
-		}
+	routerIntPortIPv6, routerIntPortIPv6Net, err := targetOVNNet.parseRouterIntPortIPv6Net()
+	if err != nil {
+		return fmt.Errorf("Failed parsing target router's peering port IPv6 net: %w", err)
+	}
 
+	if routerIntPortIPv6 != nil && routerIntPortIPv6Net != nil {
 		// Add a copy of the CIDR subnet to the local router's routers.
 		opts.LocalRouterRoutes = append(opts.LocalRouterRoutes, *routerIntPortIPv6Net)
 
