@@ -51,6 +51,11 @@ type proxyProcInfo struct {
 	inheritFds     []*os.File
 }
 
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *proxy) CanHotPlug() bool {
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
