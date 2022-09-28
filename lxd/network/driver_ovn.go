@@ -1808,6 +1808,39 @@ func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (s
 	return "", fmt.Errorf(`Option "network" is required`)
 }
 
+// getDHCPv4Reservations returns list DHCP IPv4 reservations from NICs connected to this network.
+func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
+	routerIntPortIPv4, _, err := n.parseRouterIntPortIPv4Net()
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing router's internal port IPv4 Net for DHCP reservation: %w", err)
+	}
+
+	var dhcpReserveIPv4s []shared.IPRange
+
+	if routerIntPortIPv4 != nil {
+		dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
+	}
+
+	err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		// Skip NICs that specify a NIC type that is not the same as our own.
+		if !shared.StringInSlice(nicConfig["nictype"], []string{"", "ovn"}) {
+			return nil
+		}
+
+		ip := net.ParseIP(nicConfig["ipv4.address"])
+		if ip != nil {
+			dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: ip})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dhcpReserveIPv4s, nil
+}
+
 func (n *ovn) setup(update bool) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
