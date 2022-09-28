@@ -1855,6 +1855,12 @@ func (n *ovn) setup(update bool) error {
 		updatedConfig["bridge.mtu"] = fmt.Sprintf("%d", bridgeMTU)
 	}
 
+	// Get a list of all NICs connected to this network that have static DHCP IPv4 reservations.
+	dhcpReserveIPv4s, err := n.getDHCPv4Reservations()
+	if err != nil {
+		return fmt.Errorf("Failed getting DHCPv4 IP reservations: %w", err)
+	}
+
 	// Apply any config dynamically generated to the current config and store back to DB in single transaction.
 	if len(updatedConfig) > 0 {
 		for k, v := range updatedConfig {
@@ -2118,16 +2124,11 @@ func (n *ovn) setup(update bool) error {
 		revert.Add(func() { _ = client.LogicalSwitchDelete(n.getIntSwitchName()) })
 	}
 
-	var excludeIPV4 []shared.IPRange
-	if routerIntPortIPv4 != nil {
-		excludeIPV4 = []shared.IPRange{{Start: routerIntPortIPv4}}
-	}
-
 	// Setup IP allocation config on logical switch.
 	err = client.LogicalSwitchSetIPAllocation(n.getIntSwitchName(), &openvswitch.OVNIPAllocationOpts{
 		PrefixIPv4:  routerIntPortIPv4Net,
 		PrefixIPv6:  routerIntPortIPv6Net,
-		ExcludeIPv4: excludeIPV4,
+		ExcludeIPv4: dhcpReserveIPv4s,
 	})
 	if err != nil {
 		return fmt.Errorf("Failed setting IP allocation settings on internal switch: %w", err)
