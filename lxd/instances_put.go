@@ -75,8 +75,8 @@ func coalesceErrors(local bool, errors map[string]error) error {
 func instancesPut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
-	// Don't mess with containers while in setup mode
-	<-d.readyChan
+	// Don't mess with instances while in setup mode.
+	<-d.waitReady.Done()
 
 	c, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {

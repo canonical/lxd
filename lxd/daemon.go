@@ -62,6 +62,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -119,7 +120,7 @@ type Daemon struct {
 
 	// Status control.
 	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
-	readyChan      chan struct{}      // Closed when LXD is fully ready
+	waitReady      *cancel.Canceller  // Cancelled when LXD is fully ready
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
 	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
@@ -200,7 +201,7 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 		db:             &db.DB{},
 		os:             os,
 		setupChan:      make(chan struct{}),
-		readyChan:      make(chan struct{}),
+		waitReady:      cancel.New(context.Background()),
 		shutdownCtx:    shutdownCtx,
 		shutdownCancel: shutdownCancel,
 		shutdownDoneCh: make(chan error),
@@ -1333,9 +1334,7 @@ func (d *Daemon) init() error {
 	d.globalConfigMu.Lock()
 	bgpASN = d.globalConfig.BGPASN()
 
-	d.proxy = shared.ProxyFromConfig(
-		d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts(),
-	)
+	d.proxy = shared.ProxyFromConfig(d.globalConfig.ProxyHTTPS(), d.globalConfig.ProxyHTTP(), d.globalConfig.ProxyIgnoreHosts())
 
 	candidAPIURL, candidAPIKey, candidExpiry, candidDomains = d.globalConfig.CandidServer()
 	maasAPIURL, maasAPIKey = d.globalConfig.MAASController()
@@ -1442,6 +1441,8 @@ func (d *Daemon) init() error {
 	// Cleanup leftover images.
 	pruneLeftoverImages(d)
 
+	var instances []instance.Instance
+
 	if !d.os.MockMode {
 		// Start the scheduler
 		go deviceEventListener(d.State())
@@ -1458,9 +1459,15 @@ func (d *Daemon) init() error {
 			return err
 		}
 
+		// Must occur after d.devmonitor has been initialised.
+		instances, err = instance.LoadNodeAll(d.State(), instancetype.Any)
+		if err != nil {
+			return fmt.Errorf("Failed loading local instances: %w", err)
+		}
+
 		// Register devices on running instances to receive events and reconnect to VM monitor sockets.
 		// This should come after the event handler go routines have been started.
-		devicesRegister(d.State())
+		devicesRegister(instances)
 
 		// Setup seccomp handler
 		if d.os.SeccompListener {
@@ -1531,47 +1538,7 @@ func (d *Daemon) init() error {
 		logger.Warn("Failed to resolve warnings", logger.Ctx{"err": err})
 	}
 
-	// Run the post initialization actions
-	err = d.Ready()
-	if err != nil {
-		return err
-	}
-
-	logger.Info("Daemon started")
-
-	return nil
-}
-
-func (d *Daemon) startClusterTasks() {
-	// Add initial event listeners from global database members.
-	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
-	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
-
-	// Heartbeats
-	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
-
-	// Auto-sync images across the cluster (hourly)
-	d.clusterTasks.Add(autoSyncImagesTask(d))
-
-	// Remove orphaned operations
-	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
-
-	// Start all background tasks
-	d.clusterTasks.Start(d.shutdownCtx)
-}
-
-func (d *Daemon) stopClusterTasks() {
-	_ = d.clusterTasks.Stop(3 * time.Second)
-	d.clusterTasks = task.Group{}
-}
-
-func (d *Daemon) Ready() error {
-	// Check if clustered
-	clustered, err := cluster.Enabled(d.db.Node)
-	if err != nil {
-		return err
-	}
-
+	// Start cluster tasks if needed.
 	if clustered {
 		d.startClusterTasks()
 	}
@@ -1617,26 +1584,43 @@ func (d *Daemon) Ready() error {
 	// Start all background tasks
 	d.tasks.Start(d.shutdownCtx)
 
-	// Get daemon state struct
-	s := d.State()
-
 	// Restore instances
 	if !d.db.Cluster.LocalNodeIsEvacuated() {
-		instances, err := instance.LoadNodeAll(s, instancetype.Any)
-		if err != nil {
-			return fmt.Errorf("Failed loading instances to restore: %w", err)
-		}
-
-		instancesStart(s, instances)
+		instancesStart(d.State(), instances)
 	}
 
 	// Re-balance in case things changed while LXD was down
-	deviceTaskBalance(s)
+	deviceTaskBalance(d.State())
 
 	// Unblock incoming requests
-	close(d.readyChan)
+	d.waitReady.Cancel()
+
+	logger.Info("Daemon started")
 
 	return nil
+}
+
+func (d *Daemon) startClusterTasks() {
+	// Add initial event listeners from global database members.
+	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
+	go cluster.EventsUpdateListeners(d.endpoints, d.db.Cluster, d.serverCert, nil, d.events.Inject)
+
+	// Heartbeats
+	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
+
+	// Auto-sync images across the cluster (hourly)
+	d.clusterTasks.Add(autoSyncImagesTask(d))
+
+	// Remove orphaned operations
+	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
+
+	// Start all background tasks
+	d.clusterTasks.Start(d.shutdownCtx)
+}
+
+func (d *Daemon) stopClusterTasks() {
+	_ = d.clusterTasks.Stop(3 * time.Second)
+	d.clusterTasks = task.Group{}
 }
 
 // numRunningInstances returns the number of running instances.

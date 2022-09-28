@@ -221,9 +221,7 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
 
-	select {
-	case <-d.readyChan:
-	default:
+	if d.waitReady.Err() == nil {
 		return response.Unavailable(fmt.Errorf("LXD daemon not ready yet"))
 	}
 
