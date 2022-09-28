@@ -73,17 +73,19 @@ Depending on your use case, you might need more advanced rules and the example c
 ### UFW: Add rules for the bridge
 
 If UFW has a rule to drop all unrecognized traffic, it blocks the traffic to and from the LXD bridge.
-In this case, you must add rules to allow traffic to and from the bridge.
+In this case, you must add rules to allow traffic to and from the bridge, as well as allowing traffic forwarded to it.
 
 To do so, run the following commands:
 
     sudo ufw allow in on <network_bridge>
     sudo ufw route allow in on <network_bridge>
+    sudo ufw route allow out on <network_bridge>
 
 For example:
 
     sudo ufw allow in on lxdbr0
     sudo ufw route allow in on lxdbr0
+    sudo ufw route allow out on lxdbr0
 
 % Repeat warning from above
 ```{include} network_bridge_firewalld.md
