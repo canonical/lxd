@@ -4748,7 +4748,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 			// Add the leases.
 			for _, ip := range devIPs {
 				leaseType := "dynamic"
-				if dev["ipv4.addres"] == ip.String() || dev["ipv6.address"] == ip.String() {
+				if dev["ipv4.address"] == ip.String() || dev["ipv6.address"] == ip.String() {
 					leaseType = "static"
 				}
 
