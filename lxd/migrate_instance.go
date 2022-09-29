@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/checkpoint-restore/go-criu/v6/crit"
 	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
 	"google.golang.org/protobuf/proto"
@@ -209,39 +209,14 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 // The function readCriuStatsDump() reads the CRIU 'stats-dump' file
 // in path and returns the pages_written, pages_skipped_parent, error.
 func readCriuStatsDump(path string) (uint64, uint64, error) {
-	statsDump := shared.AddSlash(path) + "stats-dump"
-	in, err := ioutil.ReadFile(statsDump)
+	// Get dump statistics with crit
+	dumpStats, err := crit.GetDumpStats(path)
 	if err != nil {
-		logger.Errorf("Error reading CRIU's 'stats-dump' file: %s", err.Error())
-		return 0, 0, err
-	}
-
-	// According to the CRIU file image format it starts with two magic values.
-	// First magic IMG_SERVICE: 1427134784
-	if binary.LittleEndian.Uint32(in[0:4]) != 1427134784 {
-		msg := "IMG_SERVICE(1427134784) criu magic not found"
-		logger.Errorf(msg)
-		return 0, 0, fmt.Errorf(msg)
-	}
-	// Second magic STATS: 1460220678
-	if binary.LittleEndian.Uint32(in[4:8]) != 1460220678 {
-		msg := "STATS(1460220678) criu magic not found"
-		logger.Errorf(msg)
-		return 0, 0, fmt.Errorf(msg)
-	}
-
-	// Next, read the size of the image payload
-	size := binary.LittleEndian.Uint32(in[8:12])
-
-	statsEntry := &migration.StatsEntry{}
-	if err = proto.Unmarshal(in[12:12+size], statsEntry); err != nil {
 		logger.Errorf("Failed to parse CRIU's 'stats-dump' file: %s", err.Error())
 		return 0, 0, err
 	}
 
-	written := statsEntry.GetDump().GetPagesWritten()
-	skipped := statsEntry.GetDump().GetPagesSkippedParent()
-	return written, skipped, nil
+	return dumpStats.GetPagesWritten(), dumpStats.GetPagesSkippedParent(), nil
 }
 
 type preDumpLoopArgs struct {
