@@ -45,7 +45,6 @@ import (
 //     type: string
 //     example: default
 // responses:
-// responses:
 //   "200":
 //     description: API endpoints
 //     schema:

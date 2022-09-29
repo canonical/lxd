@@ -494,6 +494,7 @@ func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProj
 // Add a storage volume
 //
 // Creates a new storage volume (type specific endpoint).
+// Will return an empty sync response on simple volume creation but an operation on copy or migration.
 //
 // ---
 // consumes:
@@ -518,6 +519,8 @@ func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProj
 //     schema:
 //       $ref: "#/definitions/StorageVolumesPost"
 // responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
 //   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
@@ -713,6 +716,7 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 // Add a storage volume
 //
 // Creates a new storage volume.
+// Will return an empty sync response on simple volume creation but an operation on copy or migration.
 //
 // ---
 // consumes:
@@ -737,6 +741,8 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 //     schema:
 //       $ref: "#/definitions/StorageVolumesPost"
 // responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
 //   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
