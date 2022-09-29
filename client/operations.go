@@ -105,34 +105,7 @@ func (op *operation) Refresh() error {
 
 // Wait lets you wait until the operation reaches a final state.
 func (op *operation) Wait() error {
-	op.handlerLock.Lock()
-	// Check if not done already
-	if op.StatusCode.IsFinal() {
-		if op.Err != "" {
-			op.handlerLock.Unlock()
-			return errors.New(op.Err)
-		}
-
-		op.handlerLock.Unlock()
-		return nil
-	}
-
-	op.handlerLock.Unlock()
-
-	// Make sure we have a listener setup
-	err := op.setupListener()
-	if err != nil {
-		return err
-	}
-
-	<-op.chActive
-
-	// We're done, parse the result
-	if op.Err != "" {
-		return errors.New(op.Err)
-	}
-
-	return nil
+	return op.WaitContext(context.Background())
 }
 
 // WaitContext lets you wait until the operation reaches a final state with context.Context.
