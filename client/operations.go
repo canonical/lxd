@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,6 +105,11 @@ func (op *operation) Refresh() error {
 
 // Wait lets you wait until the operation reaches a final state.
 func (op *operation) Wait() error {
+	return op.WaitContext(context.Background())
+}
+
+// WaitContext lets you wait until the operation reaches a final state with context.Context.
+func (op *operation) WaitContext(ctx context.Context) error {
 	op.handlerLock.Lock()
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
@@ -124,7 +130,11 @@ func (op *operation) Wait() error {
 		return err
 	}
 
-	<-op.chActive
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-op.chActive:
+	}
 
 	// We're done, parse the result
 	if op.Err != "" {
