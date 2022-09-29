@@ -1,6 +1,7 @@
 package device
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/mdlayher/netx/eui64"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
@@ -172,6 +174,15 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	// Apply network level config options to device config before validation.
 	d.config["mtu"] = netConfig["bridge.mtu"]
 
+	// Check there isn't another NIC with any of the same addresses specified on the same network.
+	// Can only validate this when the instance is supplied (and not doing profile validation).
+	if d.inst != nil {
+		err := d.checkAddressConflict()
+		if err != nil {
+			return err
+		}
+	}
+
 	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 
 	// Now run normal validation.
@@ -209,6 +220,60 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	return nil
+}
+
+// checkAddressConflict checks for conflicting IP/MAC addresses on another NIC connected to same network.
+// Can only validate this when the instance is supplied (and not doing profile validation).
+// Returns api.StatusError with status code set to http.StatusConflict if conflicting address found.
+func (d *nicOVN) checkAddressConflict() error {
+	ourNICIPs := make(map[string]net.IP, 2)
+	ourNICIPs["ipv4.address"] = net.ParseIP(d.config["ipv4.address"])
+	ourNICIPs["ipv6.address"] = net.ParseIP(d.config["ipv6.address"])
+
+	ourNICMAC, _ := net.ParseMAC(d.config["hwaddr"])
+	if ourNICMAC == nil {
+		ourNICMAC, _ = net.ParseMAC(d.volatileGet()["hwaddr"])
+	}
+
+	// Check if any instance devices use this network.
+	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		// Skip NICs that specify a NIC type that is not the same as our own.
+		if !shared.StringInSlice(nicConfig["nictype"], []string{"", "ovn"}) {
+			return nil
+		}
+
+		// Skip our own device. This avoids triggering duplicate device errors during
+		// updates or when making temporary copies of our instance during migrations.
+		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
+			return nil
+		}
+
+		// Check NIC's MAC address doesn't match this NIC's MAC address.
+		devNICMAC, _ := net.ParseMAC(nicConfig["hwaddr"])
+		if devNICMAC == nil {
+			devNICMAC, _ = net.ParseMAC(inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)])
+		}
+
+		if ourNICMAC != nil && devNICMAC != nil && bytes.Equal(ourNICMAC, devNICMAC) {
+			return api.StatusErrorf(http.StatusConflict, "MAC address %q already defined on another NIC", devNICMAC.String())
+		}
+
+		// Check NIC's static IPs don't match this NIC's static IPs.
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
+			if d.config[key] == "" {
+				continue // No static IP specified on this NIC.
+			}
+
+			// Parse IPs to avoid being tripped up by presentation differences.
+			devNICIP := net.ParseIP(nicConfig[key])
+
+			if ourNICIPs[key] != nil && devNICIP != nil && ourNICIPs[key].Equal(devNICIP) {
+				return api.StatusErrorf(http.StatusConflict, "IP address %q already defined on another NIC", devNICIP.String())
+			}
+		}
+
+		return nil
+	})
 }
 
 // PreStartCheck checks the managed parent network is available (if relevant).
