@@ -749,6 +749,55 @@ func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedI
 	return nil
 }
 
+// LogicalSwitchDHCPv4RevervationsGet gets the DHCPv4 IP reservations.
+func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared.IPRange, error) {
+	excludeIPsRaw, err := o.nbctl("get", "logical_switch", string(switchName), "other_config:exclude_ips")
+	if err != nil {
+		return nil, err
+	}
+
+	excludeIPsRaw = strings.TrimSpace(excludeIPsRaw)
+
+	// Check if no dynamic IPs set.
+	if excludeIPsRaw == "[]" {
+		return []shared.IPRange{}, nil
+	}
+
+	excludeIPsRaw, err = unquote(excludeIPsRaw)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting exclude_ips: %w", err)
+	}
+
+	excludeIPsParts := shared.SplitNTrimSpace(strings.TrimSpace(excludeIPsRaw), " ", -1, true)
+	excludeIPs := make([]shared.IPRange, 0, len(excludeIPsParts))
+
+	for _, excludeIPsPart := range excludeIPsParts {
+		ip := net.ParseIP(excludeIPsPart) // Check if single IP part.
+		if ip == nil {
+			// Check if IP range part.
+			start, end, found := strings.Cut(excludeIPsPart, "..")
+			if found {
+				startIP := net.ParseIP(start)
+				endIP := net.ParseIP(end)
+
+				if startIP == nil || endIP == nil {
+					return nil, fmt.Errorf("Invalid exclude_ips range: %q", excludeIPsPart)
+				}
+
+				// Add range IP part to list.
+				excludeIPs = append(excludeIPs, shared.IPRange{Start: startIP, End: endIP})
+			} else {
+				return nil, fmt.Errorf("Unrecognised exclude_ips part: %q", excludeIPsPart)
+			}
+		} else {
+			// Add single IP part to list.
+			excludeIPs = append(excludeIPs, shared.IPRange{Start: ip})
+		}
+	}
+
+	return excludeIPs, nil
+}
+
 // LogicalSwitchDHCPv4OptionsSet creates or updates a DHCPv4 option set associated with the specified switchName
 // and subnet. If uuid is non-empty then the record that exists with that ID is updated, otherwise a new record
 // is created.
