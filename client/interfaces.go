@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ type Operation interface {
 	RemoveHandler(target *EventTarget) (err error)
 	Refresh() (err error)
 	Wait() (err error)
+	WaitContext(ctx context.Context) error
 }
 
 // The RemoteOperation type represents an Operation that may be using multiple servers.
