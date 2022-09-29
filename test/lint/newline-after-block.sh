@@ -2,7 +2,8 @@
 
 echo "Checking that functional blocks are followed by newlines..."
 
-files=$(git ls-files --cached --modified --others "*.go")
+# Check all .go files except the protobuf bindings (.pb.go)
+files=$(git ls-files --cached --modified --others '*.go' ':!:*.pb.go')
 
 exit_code=0
 for file in $files
