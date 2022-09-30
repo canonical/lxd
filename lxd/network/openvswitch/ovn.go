@@ -1330,7 +1330,9 @@ func (o *OVN) LogicalSwitchPortCleanup(portName OVNSwitchPort, switchName OVNSwi
 	args = o.logicalSwitchPortDeleteAppendArgs(args, portName)
 
 	// Remove DNS records.
-	args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID, false)
+	if dnsUUID != "" {
+		args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID, false)
+	}
 
 	_, err = o.nbctl(args...)
 	if err != nil {
