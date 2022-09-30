@@ -3462,6 +3462,14 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	revert.Add(func() { _ = client.LogicalSwitchPortDeleteDNS(n.getIntSwitchName(), dnsUUID, false) })
 
+	// If NIC has static IPv4 address then ensure a DHCPv4 reservation exists.
+	if opts.DeviceConfig["ipv4.address"] != "" && dnsIPv4 != nil {
+		err = n.instanceDevicePortDHCPv4ReservationAdd(client, dnsIPv4)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	// Publish NIC's IPs on uplink network if NAT is disabled and using l2proxy ingress mode on uplink.
 	if shared.StringInSlice(opts.UplinkConfig["ovn.ingress_mode"], []string{"l2proxy", ""}) {
 		for _, k := range []string{"ipv4.nat", "ipv6.nat"} {
