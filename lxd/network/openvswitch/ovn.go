@@ -645,6 +645,26 @@ func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVN
 	return portGroups, nil
 }
 
+// logicalSwitchParseExcludeIPs parses the ips into OVN exclude_ips format.
+func (o *OVN) logicalSwitchParseExcludeIPs(ips []shared.IPRange) ([]string, error) {
+	excludeIPs := make([]string, 0, len(ips))
+	for _, v := range ips {
+		if v.Start == nil || v.Start.To4() == nil {
+			return nil, fmt.Errorf("Invalid exclude IPv4 range start address")
+		} else if v.End == nil {
+			excludeIPs = append(excludeIPs, v.Start.String())
+		} else {
+			if v.End != nil && v.End.To4() == nil {
+				return nil, fmt.Errorf("Invalid exclude IPv4 range end address")
+			}
+
+			excludeIPs = append(excludeIPs, fmt.Sprintf("%s..%s", v.Start.String(), v.End.String()))
+		}
+	}
+
+	return excludeIPs, nil
+}
+
 // LogicalSwitchSetIPAllocation sets the IP allocation config on the logical switch.
 func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllocationOpts) error {
 	var removeOtherConfigKeys []string
@@ -663,15 +683,9 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 	}
 
 	if len(opts.ExcludeIPv4) > 0 {
-		excludeIPs := make([]string, 0, len(opts.ExcludeIPv4))
-		for _, v := range opts.ExcludeIPv4 {
-			if v.Start == nil {
-				return fmt.Errorf("Invalid exclude IPv4 range start address")
-			} else if v.End == nil {
-				excludeIPs = append(excludeIPs, v.Start.String())
-			} else {
-				excludeIPs = append(excludeIPs, fmt.Sprintf("%s..%s", v.Start.String(), v.End.String()))
-			}
+		excludeIPs, err := o.logicalSwitchParseExcludeIPs(opts.ExcludeIPv4)
+		if err != nil {
+			return err
 		}
 
 		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
@@ -697,6 +711,91 @@ func (o *OVN) LogicalSwitchSetIPAllocation(switchName OVNSwitch, opts *OVNIPAllo
 	}
 
 	return nil
+}
+
+// LogicalSwitchDHCPv4RevervationsSet sets the DHCPv4 IP reservations.
+func (o *OVN) LogicalSwitchDHCPv4RevervationsSet(switchName OVNSwitch, reservedIPs []shared.IPRange) error {
+	var removeOtherConfigKeys []string
+	args := []string{"set", "logical_switch", string(switchName)}
+
+	if len(reservedIPs) > 0 {
+		excludeIPs, err := o.logicalSwitchParseExcludeIPs(reservedIPs)
+		if err != nil {
+			return err
+		}
+
+		args = append(args, fmt.Sprintf("other_config:exclude_ips=%s", strings.Join(excludeIPs, " ")))
+	} else {
+		removeOtherConfigKeys = append(removeOtherConfigKeys, "exclude_ips")
+	}
+
+	// Clear any unused keys first.
+	if len(removeOtherConfigKeys) > 0 {
+		removeArgs := append([]string{"remove", "logical_switch", string(switchName), "other_config"}, removeOtherConfigKeys...)
+		_, err := o.nbctl(removeArgs...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Only run command if at least one setting is specified.
+	if len(args) > 3 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LogicalSwitchDHCPv4RevervationsGet gets the DHCPv4 IP reservations.
+func (o *OVN) LogicalSwitchDHCPv4RevervationsGet(switchName OVNSwitch) ([]shared.IPRange, error) {
+	excludeIPsRaw, err := o.nbctl("get", "logical_switch", string(switchName), "other_config:exclude_ips")
+	if err != nil {
+		return nil, err
+	}
+
+	excludeIPsRaw = strings.TrimSpace(excludeIPsRaw)
+
+	// Check if no dynamic IPs set.
+	if excludeIPsRaw == "[]" {
+		return []shared.IPRange{}, nil
+	}
+
+	excludeIPsRaw, err = unquote(excludeIPsRaw)
+	if err != nil {
+		return nil, fmt.Errorf("Failed unquoting exclude_ips: %w", err)
+	}
+
+	excludeIPsParts := shared.SplitNTrimSpace(strings.TrimSpace(excludeIPsRaw), " ", -1, true)
+	excludeIPs := make([]shared.IPRange, 0, len(excludeIPsParts))
+
+	for _, excludeIPsPart := range excludeIPsParts {
+		ip := net.ParseIP(excludeIPsPart) // Check if single IP part.
+		if ip == nil {
+			// Check if IP range part.
+			start, end, found := strings.Cut(excludeIPsPart, "..")
+			if found {
+				startIP := net.ParseIP(start)
+				endIP := net.ParseIP(end)
+
+				if startIP == nil || endIP == nil {
+					return nil, fmt.Errorf("Invalid exclude_ips range: %q", excludeIPsPart)
+				}
+
+				// Add range IP part to list.
+				excludeIPs = append(excludeIPs, shared.IPRange{Start: startIP, End: endIP})
+			} else {
+				return nil, fmt.Errorf("Unrecognised exclude_ips part: %q", excludeIPsPart)
+			}
+		} else {
+			// Add single IP part to list.
+			excludeIPs = append(excludeIPs, shared.IPRange{Start: ip})
+		}
+	}
+
+	return excludeIPs, nil
 }
 
 // LogicalSwitchDHCPv4OptionsSet creates or updates a DHCPv4 option set associated with the specified switchName
@@ -1164,25 +1263,30 @@ func (o *OVN) LogicalSwitchPortGetDNS(portName OVNSwitchPort) (OVNDNSUUID, strin
 	return OVNDNSUUID(dnsUUID), dnsName, ips, nil
 }
 
-// logicalSwitchPortDeleteDNSAppendArgs adds the command arguments to remove DNS records for a switch port.
+// logicalSwitchPortDeleteDNSAppendArgs adds the command arguments to remove DNS records from a switch port.
+// If destroyEntry the DNS entry record itself is also removed, otherwise it is just cleared but left in place.
 // Returns args with the commands added to it.
-func (o *OVN) logicalSwitchPortDeleteDNSAppendArgs(args []string, switchName OVNSwitch, dnsUUID OVNDNSUUID) []string {
+func (o *OVN) logicalSwitchPortDeleteDNSAppendArgs(args []string, switchName OVNSwitch, dnsUUID OVNDNSUUID, destroyEntry bool) []string {
 	if len(args) > 0 {
 		args = append(args, "--")
 	}
 
-	args = append(args,
-		"remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--",
-		"destroy", "dns", string(dnsUUID),
-	)
+	args = append(args, "remove", "logical_switch", string(switchName), "dns_records", string(dnsUUID), "--")
+
+	if destroyEntry {
+		args = append(args, "destroy", "dns", string(dnsUUID))
+	} else {
+		args = append(args, "clear", "dns", string(dnsUUID), "records")
+	}
 
 	return args
 }
 
-// LogicalSwitchPortDeleteDNS removes DNS records for a switch port.
-func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID) error {
+// LogicalSwitchPortDeleteDNS removes DNS records from a switch port.
+// If destroyEntry the DNS entry record itself is also removed, otherwise it is just cleared but left in place.
+func (o *OVN) LogicalSwitchPortDeleteDNS(switchName OVNSwitch, dnsUUID OVNDNSUUID, destroyEntry bool) error {
 	// Remove DNS record association from switch, and remove DNS record entry itself.
-	_, err := o.nbctl(o.logicalSwitchPortDeleteDNSAppendArgs(nil, switchName, dnsUUID)...)
+	_, err := o.nbctl(o.logicalSwitchPortDeleteDNSAppendArgs(nil, switchName, dnsUUID, destroyEntry)...)
 	if err != nil {
 		return err
 	}
@@ -1226,7 +1330,9 @@ func (o *OVN) LogicalSwitchPortCleanup(portName OVNSwitchPort, switchName OVNSwi
 	args = o.logicalSwitchPortDeleteAppendArgs(args, portName)
 
 	// Remove DNS records.
-	args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID)
+	if dnsUUID != "" {
+		args = o.logicalSwitchPortDeleteDNSAppendArgs(args, switchName, dnsUUID, false)
+	}
 
 	_, err = o.nbctl(args...)
 	if err != nil {
