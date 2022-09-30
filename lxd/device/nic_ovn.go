@@ -33,8 +33,10 @@ type ovnNet interface {
 	network.Network
 
 	InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, externalRoutes []*net.IPNet) error
+	InstanceDevicePortAdd(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortStart(opts *network.OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error)
 	InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *network.OVNInstanceNICStopOpts) error
+	InstanceDevicePortRemove(instanceUUID string, deviceName string, deviceConfig deviceConfig.Device) error
 	InstanceDevicePortDynamicIPs(instanceUUID string, deviceName string) ([]net.IP, error)
 }
 
@@ -274,6 +276,11 @@ func (d *nicOVN) checkAddressConflict() error {
 
 		return nil
 	})
+}
+
+// Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
+func (d *nicOVN) Add() error {
+	return d.network.InstanceDevicePortAdd(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
 }
 
 // PreStartCheck checks the managed parent network is available (if relevant).
@@ -666,7 +673,7 @@ func (d *nicOVN) Remove() error {
 		}
 	}
 
-	return nil
+	return d.network.InstanceDevicePortRemove(d.inst.LocalConfig()["volatile.uuid"], d.name, d.config)
 }
 
 // State gets the state of an OVN NIC by querying the OVN Northbound logical switch port record.
