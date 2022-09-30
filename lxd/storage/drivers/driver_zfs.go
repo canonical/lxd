@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
@@ -129,7 +130,9 @@ func (d *zfs) Info() Info {
 }
 
 // ensureInitialDatasets creates missing initial datasets or configures existing ones with current policy.
-func (d zfs) ensureInitialDatasets() error {
+// Accepts warnOnExistingPolicyApplyError argument, if true will warn rather than fail if applying current policy
+// to an existing dataset fails.
+func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 	args := make([]string, 0, len(zfsDefaultSettings))
 	for k, v := range zfsDefaultSettings {
 		args = append(args, fmt.Sprintf("%s=%s", k, v))
@@ -137,7 +140,11 @@ func (d zfs) ensureInitialDatasets() error {
 
 	err := d.setDatasetProperties(d.config["zfs.pool_name"], args...)
 	if err != nil {
-		return err
+		if warnOnExistingPolicyApplyError {
+			d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": d.config["zfs.pool_name"], "err": err})
+		} else {
+			return fmt.Errorf("Failed applying policy to existing dataset %q: %w", d.config["zfs.pool_name"], err)
+		}
 	}
 
 	for _, dataset := range d.initialDatasets() {
@@ -153,13 +160,15 @@ func (d zfs) ensureInitialDatasets() error {
 		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
 		if d.checkDataset(datasetPath) {
 			err := d.setDatasetProperties(datasetPath, properties...)
-			if err != nil {
-				return err
+			if warnOnExistingPolicyApplyError {
+				d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": datasetPath, "err": err})
+			} else {
+				return fmt.Errorf("Failed applying policy to existing dataset %q: %w", datasetPath, err)
 			}
 		} else {
 			err := d.createDataset(datasetPath, properties...)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed creating dataset %q: %w", datasetPath, err)
 			}
 		}
 	}
@@ -305,7 +314,7 @@ func (d *zfs) Create() error {
 	revert.Add(func() { _ = d.Delete(nil) })
 
 	// Apply our default configuration.
-	err := d.ensureInitialDatasets()
+	err := d.ensureInitialDatasets(false)
 	if err != nil {
 		return err
 	}
@@ -445,7 +454,7 @@ func (d *zfs) Mount() (bool, error) {
 	}
 
 	// Apply our default configuration.
-	err = d.ensureInitialDatasets()
+	err = d.ensureInitialDatasets(true)
 	if err != nil {
 		return false, err
 	}
