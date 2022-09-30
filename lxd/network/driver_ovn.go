@@ -3181,9 +3181,10 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	return nil
 }
 
-// InstanceDevicePortAdd sets up an instance device port to the internal logical switch and returns the port name.
+// InstanceDevicePortStart sets up an instance device port to the internal logical switch.
 // Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
-func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
+// Returns the logical switch port name.
+func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
 	if opts.InstanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
@@ -3671,8 +3672,8 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
 }
 
-// InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
+// InstanceDevicePortStop deletes an instance device port from the internal logical switch.
+func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
 	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
 	instancePortName := ovsExternalOVNPort
 	source := "OVS"
@@ -4032,7 +4033,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", logger.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-					_, err = n.InstanceDevicePortSetup(&OVNInstanceNICSetupOpts{
+					_, err = n.InstanceDevicePortStart(&OVNInstanceNICSetupOpts{
 						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
 						DeviceName:   devName,
