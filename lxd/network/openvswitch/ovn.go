@@ -72,9 +72,6 @@ const ovnExtIDLXDSwitchPort = "lxd_switch_port"
 const ovnExtIDLXDProjectID = "lxd_project_id"
 const ovnExtIDLXDPortGroup = "lxd_port_group"
 
-// ErrOVNNoPortIPs used when no IPs are found for a logical port.
-var ErrOVNNoPortIPs = fmt.Errorf("No port IPs")
-
 // OVNIPv6RAOpts IPv6 router advertisements options that can be applied to a router.
 type OVNIPv6RAOpts struct {
 	SendPeriodic       bool
@@ -1071,69 +1068,9 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 	return dynamicIPs, nil
 }
 
-// LogicalSwitchPortSetDNS sets up the switch DNS records for the DNS name resolving to the IPs of the switch port.
-// Attempts to find at most one IP for each IP protocol, preferring static addresses over dynamic.
+// LogicalSwitchPortSetDNS sets up the switch port DNS records for the DNS name.
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
-func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string) (OVNDNSUUID, net.IP, net.IP, error) {
-	var dnsIPv4, dnsIPv6 net.IP
-
-	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP variable.
-	// If the found IP is needed, stores into the relevant dnsIPvP{X} variable and returns true.
-	checkAndStoreIP := func(ip net.IP) bool {
-		if ip != nil {
-			isV4 := ip.To4() != nil
-			if dnsIPv4 == nil && isV4 {
-				dnsIPv4 = ip
-				return true
-			} else if dnsIPv6 == nil && !isV4 {
-				dnsIPv6 = ip
-				return true
-			}
-		}
-
-		return false
-	}
-
-	// Get static and dynamic IPs for switch port.
-	staticAddressesRaw, err := o.nbctl("lsp-get-addresses", string(portName))
-	if err != nil {
-		return "", nil, nil, err
-	}
-
-	staticAddresses := strings.Split(strings.TrimSpace(staticAddressesRaw), " ")
-	hasDynamic := false
-	for _, staticAddress := range staticAddresses {
-		// Record that there should be at least one dynamic address (may be a MAC address though).
-		if staticAddress == "dynamic" {
-			hasDynamic = true
-			continue
-		}
-
-		// Try and find the first IPv4 and IPv6 addresses from the static address list.
-		if checkAndStoreIP(net.ParseIP(staticAddress)) {
-			if dnsIPv4 != nil && dnsIPv6 != nil {
-				break // We've found all we wanted.
-			}
-		}
-	}
-
-	// Get dynamic IPs for switch port if indicated and needed.
-	if hasDynamic && (dnsIPv4 == nil || dnsIPv6 == nil) {
-		dynamicIPs, err := o.LogicalSwitchPortDynamicIPs(portName)
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		for _, dynamicIP := range dynamicIPs {
-			// Try and find the first IPv4 and IPv6 addresses from the dynamic address list.
-			if checkAndStoreIP(dynamicIP) {
-				if dnsIPv4 != nil && dnsIPv6 != nil {
-					break // We've found all we wanted.
-				}
-			}
-		}
-	}
-
+func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPv4 net.IP, dnsIPv6 net.IP) (OVNDNSUUID, error) {
 	// Create a list of IPs for the DNS record.
 	dnsIPs := make([]string, 0, 2)
 	if dnsIPv4 != nil {
@@ -1144,36 +1081,41 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 		dnsIPs = append(dnsIPs, dnsIPv6.String())
 	}
 
-	if len(dnsIPs) <= 0 {
-		return "", nil, nil, ErrOVNNoPortIPs
-	}
-
 	// Check if existing DNS record exists for switch port.
 	dnsUUID, err := o.nbctl("--format=csv", "--no-headings", "--data=bare", "--colum=_uuid", "find", "dns",
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	)
 	if err != nil {
-		return "", nil, nil, err
+		return "", err
 	}
 
 	cmdArgs := []string{
-		fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), strings.Join(dnsIPs, " ")),
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitch, switchName),
 		fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDSwitchPort, portName),
 	}
 
+	// Only include DNS name record if IPs supplied.
+	if len(dnsIPs) > 0 {
+		cmdArgs = append(cmdArgs, fmt.Sprintf(`records={"%s"="%s"}`, strings.ToLower(dnsName), strings.Join(dnsIPs, " ")))
+	}
+
 	dnsUUID = strings.TrimSpace(dnsUUID)
 	if dnsUUID != "" {
+		// Clear any existing DNS name if no IPs supplied.
+		if len(dnsIPs) < 1 {
+			cmdArgs = append(cmdArgs, "--", "clear", "dns", string(dnsUUID), "records")
+		}
+
 		// Update existing record if exists.
 		_, err = o.nbctl(append([]string{"set", "dns", dnsUUID}, cmdArgs...)...)
 		if err != nil {
-			return "", nil, nil, err
+			return "", err
 		}
 	} else {
 		// Create new record if needed.
 		dnsUUID, err = o.nbctl(append([]string{"create", "dns"}, cmdArgs...)...)
 		if err != nil {
-			return "", nil, nil, err
+			return "", err
 		}
 
 		dnsUUID = strings.TrimSpace(dnsUUID)
@@ -1182,10 +1124,10 @@ func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPo
 	// Add DNS record to switch DNS records.
 	_, err = o.nbctl("add", "logical_switch", string(switchName), "dns_records", dnsUUID)
 	if err != nil {
-		return "", nil, nil, err
+		return "", err
 	}
 
-	return OVNDNSUUID(dnsUUID), dnsIPv4, dnsIPv6, nil
+	return OVNDNSUUID(dnsUUID), nil
 }
 
 // LogicalSwitchPortGetDNS returns the logical switch port DNS info (UUID, name and IPs).
