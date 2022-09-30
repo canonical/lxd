@@ -3241,9 +3241,10 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	return nil
 }
 
-// InstanceDevicePortAdd sets up an instance device port to the internal logical switch and returns the port name.
+// InstanceDevicePortStart sets up an instance device port to the internal logical switch.
 // Accepts a list of ACLs being removed from the NIC device (if called as part of a NIC update).
-func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
+// Returns the logical switch port name.
+func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACLsRemove []string) (openvswitch.OVNSwitchPort, error) {
 	if opts.InstanceUUID == "" {
 		return "", fmt.Errorf("Instance UUID is required")
 	}
@@ -3253,7 +3254,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		return "", err
 	}
 
-	ips := []net.IP{}
+	staticIPs := []net.IP{}
 	for _, key := range []string{"ipv4.address", "ipv6.address"} {
 		if opts.DeviceConfig[key] == "" {
 			continue
@@ -3264,7 +3265,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Invalid %s value %q", key, opts.DeviceConfig[key])
 		}
 
-		ips = append(ips, ip)
+		staticIPs = append(staticIPs, ip)
 	}
 
 	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
@@ -3327,9 +3328,9 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			// addresses have been added, then add an EUI64 static IPv6 address so that the switch port has an
 			// IPv6 address that will be used to generate a DNS record. This works around a limitation in OVN
 			// that prevents us requesting dynamic IPv6 address allocation when static IPv4 allocation is used.
-			if len(ips) > 0 {
+			if len(staticIPs) > 0 {
 				hasIPv6 := false
-				for _, ip := range ips {
+				for _, ip := range staticIPs {
 					if ip.To4() == nil {
 						hasIPv6 = true
 						break
@@ -3343,7 +3344,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 					}
 
 					// Add EUI64 to list of static IPs for instance port.
-					ips = append(ips, eui64IP)
+					staticIPs = append(staticIPs, eui64IP)
 				}
 			}
 		}
@@ -3359,7 +3360,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		DHCPv4OptsID: dhcpV4ID,
 		DHCPv6OptsID: dhcpv6ID,
 		MAC:          mac,
-		IPs:          ips,
+		IPs:          staticIPs,
 	}, true)
 	if err != nil {
 		return "", err
@@ -3368,21 +3369,57 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 	revert.Add(func() { _ = client.LogicalSwitchPortDelete(instancePortName) })
 
 	// Add DNS records for port's IPs, and retrieve the IP addresses used.
-	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
-	var dnsUUID openvswitch.OVNDNSUUID
 	var dnsIPv4, dnsIPv6 net.IP
 
-	// Retry a few times in case port has not yet allocated dynamic IPs.
-	for i := 0; i < 5; i++ {
-		dnsUUID, dnsIPv4, dnsIPv6, err = client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName)
-		if err == openvswitch.ErrOVNNoPortIPs {
-			time.Sleep(100 * time.Millisecond)
-			continue
+	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP.
+	// If the found IP is needed, stores into the relevant dnsIPvP{X} variable.
+	checkAndStoreIP := func(ip net.IP) {
+		if ip != nil {
+			isV4 := ip.To4() != nil
+			if dhcpv4Subnet != nil && dnsIPv4 == nil && isV4 {
+				dnsIPv4 = ip
+			} else if dhcpv6Subnet != nil && dnsIPv6 == nil && !isV4 {
+				dnsIPv6 = ip
+			}
 		}
-
-		break
 	}
 
+	// Populate DNS IP variables with any static IPs first before checking if we need to extract dynamic IPs.
+	for _, staticIP := range staticIPs {
+		checkAndStoreIP(staticIP)
+	}
+
+	// Get dynamic IPs for switch port if DHCP in use and any IPs are assigned dynamically.
+	if (dnsIPv4 == nil && dhcpv4Subnet != nil) || (dnsIPv6 == nil && dhcpv6Subnet != nil) {
+		var dynamicIPs []net.IP
+
+		// Retry a few times in case port has not yet allocated dynamic IPs.
+		for i := 0; i < 5; i++ {
+			dynamicIPs, err = client.LogicalSwitchPortDynamicIPs(instancePortName)
+			if err != nil {
+				return "", err
+			}
+
+			if len(dynamicIPs) > 0 {
+				break
+			}
+
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		for _, dynamicIP := range dynamicIPs {
+			// Try and find the first IPv4 and IPv6 addresses from the dynamic address list.
+			checkAndStoreIP(dynamicIP)
+		}
+
+		// Check, after considering all dynamic IPs, whether we have got the required ones.
+		if (dnsIPv4 == nil && dhcpv4Subnet != nil) || (dnsIPv6 == nil && dhcpv6Subnet != nil) {
+			return "", fmt.Errorf("Insufficient dynamic addresses allocated")
+		}
+	}
+
+	dnsName := fmt.Sprintf("%s.%s", opts.DNSName, n.getDomainName())
+	dnsUUID, err := client.LogicalSwitchPortSetDNS(n.getIntSwitchName(), instancePortName, dnsName, dnsIPv4, dnsIPv6)
 	if err != nil {
 		return "", fmt.Errorf("Failed setting DNS for %q: %w", dnsName, err)
 	}
@@ -3695,8 +3732,8 @@ func (n *ovn) InstanceDevicePortDynamicIPs(instanceUUID string, deviceName strin
 	return client.LogicalSwitchPortDynamicIPs(instancePortName)
 }
 
-// InstanceDevicePortDelete deletes an instance device port from the internal logical switch.
-func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
+// InstanceDevicePortStop deletes an instance device port from the internal logical switch.
+func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPort, opts *OVNInstanceNICStopOpts) error {
 	// Decide whether to use OVS provided OVN port name or internally derived OVN port name.
 	instancePortName := ovsExternalOVNPort
 	source := "OVS"
@@ -4056,7 +4093,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
 					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", logger.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
-					_, err = n.InstanceDevicePortSetup(&OVNInstanceNICSetupOpts{
+					_, err = n.InstanceDevicePortStart(&OVNInstanceNICSetupOpts{
 						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
 						DeviceName:   devName,
