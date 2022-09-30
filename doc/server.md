@@ -62,8 +62,8 @@ Key                                 | Type      | Scope     | Default           
 `loki.auth.password`                | string    | global    | -                                 | The password used for authentication
 `loki.auth.username`                | string    | global    | -                                 | The username used for authentication
 `loki.labels`                       | string    | global    | -                                 | Comma-separated list of values which should be used as labels for a Loki log entry
-`loki.loglevel`                     | string    | global    | -                                 | Minimum log level to send to Loki server
-`loki.types`                        | string    | global    | -                                 | Type of events to send to Loki server (`lifecycle` and/or `logging`)
+`loki.loglevel`                     | string    | global    | `info`                            | Minimum log level to send to Loki server
+`loki.types`                        | string    | global    | `lifecycle,logging`               | Comma-separated list of events to send to Loki server (`lifecycle` and/or `logging`)
 `maas.api.key`                      | string    | global    | -                                 | API key to manage MAAS
 `maas.api.url`                      | string    | global    | -                                 | URL of the MAAS server
 `maas.machine`                      | string    | local     | host name                         | Name of this LXD host in MAAS
