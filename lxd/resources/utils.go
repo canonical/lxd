@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,7 +21,7 @@ func isDir(name string) bool {
 }
 
 func readUint(path string) (uint64, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -36,7 +35,7 @@ func readUint(path string) (uint64, error) {
 }
 
 func readInt(path string) (int64, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return -1, err
 	}
@@ -74,7 +73,7 @@ func sysfsExists(path string) bool {
 
 func sysfsNumaNode(path string) (uint64, error) {
 	// List all the directory entries
-	entries, err := ioutil.ReadDir(path)
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return 0, err
 	}
