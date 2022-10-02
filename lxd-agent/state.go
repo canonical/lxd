@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -49,7 +49,7 @@ func cpuState() api.InstanceStateCPU {
 
 	if shared.PathExists("/sys/fs/cgroup/cpuacct/cpuacct.usage") {
 		// CPU usage in seconds
-		value, err = ioutil.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
+		value, err = os.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
 		if err != nil {
 			cpu.Usage = -1
 			return cpu
@@ -65,7 +65,7 @@ func cpuState() api.InstanceStateCPU {
 
 		return cpu
 	} else if shared.PathExists("/sys/fs/cgroup/cpu.stat") {
-		stats, err := ioutil.ReadFile("/sys/fs/cgroup/cpu.stat")
+		stats, err := os.ReadFile("/sys/fs/cgroup/cpu.stat")
 		if err != nil {
 			cpu.Usage = -1
 			return cpu
@@ -105,7 +105,7 @@ func memoryState() api.InstanceStateMemory {
 	memory.Usage = int64(stats.MemTotalBytes) - int64(stats.MemFreeBytes)
 
 	// Memory peak in bytes
-	value, err := ioutil.ReadFile("/sys/fs/cgroup/memory/memory.max_usage_in_bytes")
+	value, err := os.ReadFile("/sys/fs/cgroup/memory/memory.max_usage_in_bytes")
 	valueInt, err1 := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 	if err == nil && err1 == nil {
 		memory.UsagePeak = valueInt
@@ -149,25 +149,25 @@ func networkState() map[string]api.InstanceStateNetwork {
 		}
 
 		// Counters
-		value, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_bytes", iface.Name))
+		value, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_bytes", iface.Name))
 		valueInt, err1 := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesSent = valueInt
 		}
 
-		value, err = ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", iface.Name))
+		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", iface.Name))
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.BytesReceived = valueInt
 		}
 
-		value, err = ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_packets", iface.Name))
+		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/tx_packets", iface.Name))
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsSent = valueInt
 		}
 
-		value, err = ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_packets", iface.Name))
+		value, err = os.ReadFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_packets", iface.Name))
 		valueInt, err1 = strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
 		if err == nil && err1 == nil {
 			network.Counters.PacketsReceived = valueInt
@@ -224,7 +224,7 @@ func processesState() int64 {
 	// Go through the pid list, adding new pids at the end so we go through them all
 	for i := 0; i < len(pids); i++ {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
-		fcont, err := ioutil.ReadFile(fname)
+		fcont, err := os.ReadFile(fname)
 		if err != nil {
 			// the process terminated during execution of this loop
 			continue
