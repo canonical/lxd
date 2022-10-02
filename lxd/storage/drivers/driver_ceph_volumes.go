@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -1084,7 +1083,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
-	errMsg, err := ioutil.ReadAll(stderr)
+	errMsg, err := io.ReadAll(stderr)
 	if err != nil {
 		return nil, err
 	}

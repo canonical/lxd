@@ -3,7 +3,7 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -258,7 +258,7 @@ func (d *zfs) version() (string, error) {
 
 	// Loaded kernel module version
 	if shared.PathExists("/sys/module/zfs/version") {
-		out, err := ioutil.ReadFile("/sys/module/zfs/version")
+		out, err := os.ReadFile("/sys/module/zfs/version")
 		if err == nil {
 			return strings.TrimSpace(string(out)), nil
 		}
@@ -337,7 +337,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	}
 
 	// Read any error.
-	output, _ := ioutil.ReadAll(stderr)
+	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
 	errs := []error{}
@@ -392,7 +392,7 @@ func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper f
 	}
 
 	// Read any error.
-	output, _ := ioutil.ReadAll(stderr)
+	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
 	errs := []error{}
