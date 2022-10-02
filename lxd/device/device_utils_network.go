@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,7 +53,7 @@ func NetworkSetDevMTU(devName string, mtu uint32) error {
 
 // NetworkGetDevMAC retrieves the current MAC setting for a named network device.
 func NetworkGetDevMAC(devName string) (string, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
+	content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
 	if err != nil {
 		return "", err
 	}

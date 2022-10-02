@@ -2,7 +2,6 @@ package device
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -236,7 +235,7 @@ func (d *usb) postStop() error {
 func (d *usb) loadUsb() ([]USBEvent, error) {
 	result := []USBEvent{}
 
-	ents, err := ioutil.ReadDir(usbDevPath)
+	ents, err := os.ReadDir(usbDevPath)
 	if err != nil {
 		/* if there are no USB devices, let's render an empty list,
 		 * i.e. no usb devices */
@@ -298,7 +297,7 @@ func (d *usb) loadRawValues(p string) (map[string]string, error) {
 	}
 
 	for k := range values {
-		v, err := ioutil.ReadFile(path.Join(p, k))
+		v, err := os.ReadFile(path.Join(p, k))
 		if err != nil {
 			return nil, err
 		}
