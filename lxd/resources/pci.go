@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,7 +36,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 	}
 
 	// List all PCI devices
-	entries, err := ioutil.ReadDir(sysBusPci)
+	entries, err := os.ReadDir(sysBusPci)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list %q: %w", sysBusPci, err)
 	}
@@ -59,7 +58,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 			device.Driver = filepath.Base(linkTarget)
 
 			// Try to get the version, fallback to kernel version
-			out, err := ioutil.ReadFile(filepath.Join(driverPath, "module", "version"))
+			out, err := os.ReadFile(filepath.Join(driverPath, "module", "version"))
 			if err == nil {
 				device.DriverVersion = strings.TrimSpace(string(out))
 			} else {
@@ -85,7 +84,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		// Get product ID node
 		deviceDevicePath := filepath.Join(devicePath, "device")
 		if sysfsExists(deviceDevicePath) {
-			id, err := ioutil.ReadFile(deviceDevicePath)
+			id, err := os.ReadFile(deviceDevicePath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceDevicePath, err)
 			}
@@ -96,7 +95,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		// Get vendor ID node
 		deviceVendorPath := filepath.Join(devicePath, "vendor")
 		if sysfsExists(deviceVendorPath) {
-			id, err := ioutil.ReadFile(deviceVendorPath)
+			id, err := os.ReadFile(deviceVendorPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", deviceVendorPath, err)
 			}
@@ -139,7 +138,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		// Get VPD info
 		vpdSysPath := filepath.Join(devicePath, "vpd")
 		if sysfsExists(vpdSysPath) {
-			data, err := ioutil.ReadFile(vpdSysPath)
+			data, err := os.ReadFile(vpdSysPath)
 
 			// If the file is readable, parse the VPD data.
 			if err == nil {
