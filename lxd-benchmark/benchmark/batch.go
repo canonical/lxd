@@ -1,7 +1,7 @@
 package benchmark
 
 import (
-	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 )
@@ -10,7 +10,7 @@ func getBatchSize(parallel int) (int, error) {
 	batchSize := parallel
 	if batchSize < 1 {
 		// Detect the number of parallel actions
-		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
+		cpus, err := os.ReadDir("/sys/bus/cpu/devices")
 		if err != nil {
 			return -1, err
 		}
