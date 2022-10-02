@@ -3,7 +3,6 @@ package rsync
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -177,14 +176,14 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	select {
 	case conn = <-chConn:
 		if conn == nil {
-			output, _ := ioutil.ReadAll(stderr)
+			output, _ := io.ReadAll(stderr)
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
 			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
-		output, _ := ioutil.ReadAll(stderr)
+		output, _ := io.ReadAll(stderr)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
@@ -230,7 +229,7 @@ func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress
 	}()
 
 	// Wait for rsync to complete.
-	output, err := ioutil.ReadAll(stderr)
+	output, err := io.ReadAll(stderr)
 	if err != nil {
 		_ = cmd.Process.Kill()
 		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
@@ -328,7 +327,7 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 		return err
 	}
 
-	output, err := ioutil.ReadAll(stderr)
+	output, err := io.ReadAll(stderr)
 	if err != nil {
 		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
 	}
