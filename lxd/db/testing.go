@@ -5,7 +5,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ import (
 // NewTestNode creates a new Node for testing purposes, along with a function
 // that can be used to clean it up when done.
 func NewTestNode(t *testing.T) (*Node, func()) {
-	dir, err := ioutil.TempDir("", "lxd-db-test-node-")
+	dir, err := os.MkdirTemp("", "lxd-db-test-node-")
 	require.NoError(t, err)
 
 	db, err := OpenNode(dir, nil)
@@ -139,7 +138,7 @@ func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 func newDir(t *testing.T) (string, func()) {
 	t.Helper()
 
-	dir, err := ioutil.TempDir("", "dqlite-replication-test-")
+	dir, err := os.MkdirTemp("", "dqlite-replication-test-")
 	assert.NoError(t, err)
 
 	cleanup := func() {
