@@ -2,7 +2,6 @@ package device
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -263,7 +262,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 	ourEncRelDestFile := filesystem.PathNameEncode(strings.TrimPrefix(ourDestPath, "/"))
 
 	// Load all existing host devices.
-	dents, err := ioutil.ReadDir(devicesPath)
+	dents, err := os.ReadDir(devicesPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -381,7 +380,7 @@ func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 // Accepts an optional file prefix that will be used to narrow the selection of files to remove.
 func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, optPrefix string, runConf *deviceConfig.RunConfig) error {
 	// Load all devices.
-	dents, err := ioutil.ReadDir(devicesPath)
+	dents, err := os.ReadDir(devicesPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -487,7 +486,7 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 	}
 
 	// Load all devices.
-	dents, err := ioutil.ReadDir(devicesPath)
+	dents, err := os.ReadDir(devicesPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err

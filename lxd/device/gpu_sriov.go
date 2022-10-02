@@ -2,7 +2,7 @@ package device
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -227,7 +227,7 @@ func (d *gpuSRIOV) findFreeVirtualFunction(parentDev pcidev.Device) (int, error)
 	// Get number of currently enabled VFs.
 	sriovNumVFs := fmt.Sprintf("/sys/bus/pci/devices/%s/sriov_numvfs", parentDev.SlotName)
 
-	sriovNumVfsBuf, err := ioutil.ReadFile(sriovNumVFs)
+	sriovNumVfsBuf, err := os.ReadFile(sriovNumVFs)
 	if err != nil {
 		return 0, err
 	}
