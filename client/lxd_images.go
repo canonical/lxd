@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -417,7 +416,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		contentType = "application/octet-stream"
 	} else {
 		// If split image, we need mime encoding
-		tmpfile, err := ioutil.TempFile("", "lxc_image_")
+		tmpfile, err := os.CreateTemp("", "lxc_image_")
 		if err != nil {
 			return nil, err
 		}
@@ -762,14 +761,14 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 
 	// Relay mode
 	if args != nil && args.Mode == "relay" {
-		metaFile, err := ioutil.TempFile("", "lxc_image_")
+		metaFile, err := os.CreateTemp("", "lxc_image_")
 		if err != nil {
 			return nil, err
 		}
 
 		defer func() { _ = os.Remove(metaFile.Name()) }()
 
-		rootfsFile, err := ioutil.TempFile("", "lxc_image_")
+		rootfsFile, err := os.CreateTemp("", "lxc_image_")
 		if err != nil {
 			return nil, err
 		}

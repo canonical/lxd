@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -156,7 +155,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				}
 
 				// Create temporary file for the delta
-				deltaFile, err := ioutil.TempFile("", "lxc_image_")
+				deltaFile, err := os.CreateTemp("", "lxc_image_")
 				if err != nil {
 					return nil, err
 				}
@@ -172,7 +171,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 				}
 
 				// Create temporary file for the delta
-				patchedFile, err := ioutil.TempFile("", "lxc_image_")
+				patchedFile, err := os.CreateTemp("", "lxc_image_")
 				if err != nil {
 					return nil, err
 				}
