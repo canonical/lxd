@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -15,7 +14,7 @@ import (
 // not exist, it returns a default configuration.
 func LoadConfig(path string) (*Config, error) {
 	// Open the config file
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read the configuration file: %w", err)
 	}
@@ -36,7 +35,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Apply the global (system-wide) remotes
 	globalConf := NewConfig("", false)
-	content, err = ioutil.ReadFile(globalConf.GlobalConfigPath("config.yml"))
+	content, err = os.ReadFile(globalConf.GlobalConfigPath("config.yml"))
 	if err == nil {
 		err = yaml.Unmarshal(content, &globalConf)
 		if err != nil {

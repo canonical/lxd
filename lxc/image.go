@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -412,7 +411,7 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
-		contents, err := ioutil.ReadAll(os.Stdin)
+		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
@@ -669,7 +668,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 		return "", fmt.Errorf(i18n.G("Must run as root to import from directory"))
 	}
 
-	outFile, err := ioutil.TempFile("", "lxd_image_")
+	outFile, err := os.CreateTemp("", "lxd_image_")
 	if err != nil {
 		return "", err
 	}

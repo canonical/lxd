@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 	"strings"
 
@@ -705,7 +704,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			return fmt.Errorf(i18n.G("Unsupported instance type: %s"), inst.Type)
 		}
 
-		stuff, err := ioutil.ReadAll(log)
+		stuff, err := io.ReadAll(log)
 		if err != nil {
 			return err
 		}
