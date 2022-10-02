@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ func TestNotifyUpgradeCompleted(t *testing.T) {
 // The task function checks if the node is out of date and runs whatever is in
 // LXD_CLUSTER_UPDATE if so.
 func TestMaybeUpdate_Upgrade(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
 
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -61,7 +60,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	stamp := filepath.Join(dir, "stamp")
 	script := filepath.Join(dir, "cluster-upgrade")
 	data := []byte(fmt.Sprintf("#!/bin/sh\ntouch %s\n", stamp))
-	err = ioutil.WriteFile(script, data, 0755)
+	err = os.WriteFile(script, data, 0755)
 	require.NoError(t, err)
 
 	state, cleanup := state.NewTestState(t)
@@ -105,7 +104,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 
 // If the node is up-to-date, nothing is done.
 func TestMaybeUpdate_NothingToDo(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
 
 	defer func() { _ = os.RemoveAll(dir) }()
@@ -114,7 +113,7 @@ func TestMaybeUpdate_NothingToDo(t *testing.T) {
 	stamp := filepath.Join(dir, "stamp")
 	script := filepath.Join(dir, "cluster-upgrade")
 	data := []byte(fmt.Sprintf("#!/bin/sh\ntouch %s\n", stamp))
-	err = ioutil.WriteFile(script, data, 0755)
+	err = os.WriteFile(script, data, 0755)
 	require.NoError(t, err)
 
 	state, cleanup := state.NewTestState(t)
