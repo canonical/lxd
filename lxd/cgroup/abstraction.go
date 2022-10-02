@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -924,7 +924,7 @@ func (cg *CGroup) GetOOMKills() (int64, error) {
 
 // GetIOStats returns disk stats.
 func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
-	partitions, err := ioutil.ReadFile("/proc/partitions")
+	partitions, err := os.ReadFile("/proc/partitions")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/partitions: %w", err)
 	}
