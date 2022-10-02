@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -32,7 +31,7 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 
 	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, io.ReadCloser(dataSocket), nil, nil)
 
-	output, err := ioutil.ReadAll(stderr)
+	output, err := io.ReadAll(stderr)
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()

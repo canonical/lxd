@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -172,12 +171,12 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 		} else {
 			var err error
 
-			clientCrt, err = ioutil.ReadFile(certPath)
+			clientCrt, err = os.ReadFile(certPath)
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to read client certificate: %w", err)
 			}
 
-			clientKey, err = ioutil.ReadFile(keyPath)
+			clientKey, err = os.ReadFile(keyPath)
 			if err != nil {
 				return nil, "", fmt.Errorf("Failed to read client key: %w", err)
 			}
@@ -193,7 +192,7 @@ func connectTarget(url string, certPath string, keyPath string, authType string,
 			},
 		}
 
-		f, err := ioutil.TempFile("", "lxd-migrate_")
+		f, err := os.CreateTemp("", "lxd-migrate_")
 		if err != nil {
 			return nil, "", err
 		}
