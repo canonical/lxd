@@ -1,7 +1,6 @@
 package endpoints_test
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -93,7 +92,7 @@ func TestEndpoints_LocalAlreadyRunning(t *testing.T) {
 
 // Create a UnixListener using a random and unique file name.
 func newUnixListener(t *testing.T) *net.UnixListener {
-	file, err := ioutil.TempFile("", "lxd-endpoints-test")
+	file, err := os.CreateTemp("", "lxd-endpoints-test")
 	require.NoError(t, err)
 
 	path := file.Name()
