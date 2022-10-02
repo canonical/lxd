@@ -3,7 +3,6 @@ package shared_test
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +13,7 @@ import (
 // A new key pair is generated if none exists and saved to the appropriate
 // files.
 func TestKeyPairAndCA(t *testing.T) {
-	dir, err := ioutil.TempDir("", "lxd-shared-test-")
+	dir, err := os.MkdirTemp("", "lxd-shared-test-")
 	if err != nil {
 		t.Errorf("failed to create temporary dir: %v", err)
 	}

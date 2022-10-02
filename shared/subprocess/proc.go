@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -228,7 +227,7 @@ func (p *Process) Save(path string) error {
 		return fmt.Errorf("Unable to serialize process struct to YAML: %w", err)
 	}
 
-	err = ioutil.WriteFile(path, dat, 0644)
+	err = os.WriteFile(path, dat, 0644)
 	if err != nil {
 		return fmt.Errorf("Unable to write to file '%s': %w", path, err)
 	}
