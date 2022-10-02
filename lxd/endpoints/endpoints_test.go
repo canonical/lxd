@@ -3,7 +3,7 @@ package endpoints_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -27,7 +27,7 @@ import (
 // associated with the endpoints (e.g. the temporary LXD var dir and any
 // goroutine that was spawned by the tomb).
 func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()) {
-	dir, err := ioutil.TempDir("", "lxd-endpoints-test-")
+	dir, err := os.MkdirTemp("", "lxd-endpoints-test-")
 	require.NoError(t, err)
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "devlxd"), 0755))
 
@@ -86,7 +86,7 @@ func newServer() *http.Server {
 		w.Header().Set("Content-Type", "application/json")
 		_ = util.WriteJSON(w, api.ResponseRaw{}, nil)
 	})
-	return &http.Server{Handler: mux, ErrorLog: log.New(ioutil.Discard, "", 0)}
+	return &http.Server{Handler: mux, ErrorLog: log.New(io.Discard, "", 0)}
 }
 
 // Set the environment-variable for socket-based activation using the given
