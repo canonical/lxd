@@ -1,7 +1,6 @@
 package node_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -37,7 +36,7 @@ func TestEnsureSchema(t *testing.T) {
 
 // Create a new temporary directory, along with a function to clean it up.
 func newDir(t *testing.T) (string, func()) {
-	dir, err := ioutil.TempDir("", "lxd-db-node-test-")
+	dir, err := os.MkdirTemp("", "lxd-db-node-test-")
 	require.NoError(t, err)
 
 	cleanup := func() {

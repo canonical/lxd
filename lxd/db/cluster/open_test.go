@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -194,7 +193,7 @@ func assertNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensi
 func newDir(t *testing.T) (string, func()) {
 	t.Helper()
 
-	dir, err := ioutil.TempDir("", "dqlite-replication-test-")
+	dir, err := os.MkdirTemp("", "dqlite-replication-test-")
 	assert.NoError(t, err)
 
 	cleanup := func() {

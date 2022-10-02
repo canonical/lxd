@@ -3,7 +3,6 @@ package file
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -49,7 +48,7 @@ import (
 	if path == "-" {
 		_, err = os.Stdout.Write(bytes)
 	} else {
-		err = ioutil.WriteFile(path, []byte(content), 0644)
+		err = os.WriteFile(path, []byte(content), 0644)
 	}
 
 	if err != nil {
@@ -64,7 +63,7 @@ func resetInterface(path string, imports []string, buildComment string) error {
 		parts := strings.Split(path, ".")
 		interfacePath := strings.Join(parts[:len(parts)-2], ".") + ".interface.mapper.go"
 		content := fmt.Sprintf("%spackage %s", buildComment, os.Getenv("GOPACKAGE"))
-		err := ioutil.WriteFile(interfacePath, []byte(content), 0644)
+		err := os.WriteFile(interfacePath, []byte(content), 0644)
 		return err
 	}
 
