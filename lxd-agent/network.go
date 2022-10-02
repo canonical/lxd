@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -63,7 +62,7 @@ func serverTLSConfig() (*tls.Config, error) {
 // reconfigureNetworkInterfaces checks for the existence of files under NICConfigDir in the config share.
 // Each file is named <device>.json and contains the Device Name, NIC Name, MTU and MAC address.
 func reconfigureNetworkInterfaces() {
-	nicDirEntries, err := ioutil.ReadDir(deviceConfig.NICConfigDir)
+	nicDirEntries, err := os.ReadDir(deviceConfig.NICConfigDir)
 	if err != nil {
 		// Abort if configuration folder does not exist (nothing to do), otherwise log and return.
 		if os.IsNotExist(err) {
@@ -78,7 +77,7 @@ func reconfigureNetworkInterfaces() {
 	nicData := make(map[string]deviceConfig.NICConfig, len(nicDirEntries))
 
 	for _, f := range nicDirEntries {
-		nicBytes, err := ioutil.ReadFile(filepath.Join(deviceConfig.NICConfigDir, f.Name()))
+		nicBytes, err := os.ReadFile(filepath.Join(deviceConfig.NICConfigDir, f.Name()))
 		if err != nil {
 			logger.Error("Could not read network interface configuration file", logger.Ctx{"err": err})
 		}

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -158,12 +157,12 @@ func stopDevlxdServer(d *Daemon) error {
 }
 
 func getClient(CID int, port int, serverCertificate string) (*http.Client, error) {
-	agentCert, err := ioutil.ReadFile("agent.crt")
+	agentCert, err := os.ReadFile("agent.crt")
 	if err != nil {
 		return nil, err
 	}
 
-	agentKey, err := ioutil.ReadFile("agent.key")
+	agentKey, err := os.ReadFile("agent.key")
 	if err != nil {
 		return nil, err
 	}
