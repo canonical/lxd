@@ -3,7 +3,6 @@ package dnsmasq
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -52,7 +51,7 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 	}
 
 	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName), []byte(line+"\n"), 0644)
+	err := os.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName), []byte(line+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -188,7 +187,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	IPv6s := make(map[[16]byte]DHCPAllocation)
 
 	// First read all statically allocated IPs.
-	files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+	files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
 	if err != nil && os.IsNotExist(err) {
 		return nil, nil, err
 	}
