@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -629,7 +628,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		}
 	} else {
 		// Dealing with unified tarballs require an initial unpack to a temporary directory.
-		tempDir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_image_unpack_")
+		tempDir, err := os.MkdirTemp(shared.VarPath("images"), "lxd_image_unpack_")
 		if err != nil {
 			return -1, err
 		}
