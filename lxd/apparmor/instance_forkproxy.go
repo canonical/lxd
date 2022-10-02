@@ -2,7 +2,6 @@ package apparmor
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -195,7 +194,7 @@ func ForkproxyLoad(sysOS *sys.OS, inst instance, dev device) error {
 	 * force a recompile.
 	 */
 	profile := filepath.Join(aaPath, "profiles", forkproxyProfileFilename(inst, dev))
-	content, err := ioutil.ReadFile(profile)
+	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -206,7 +205,7 @@ func ForkproxyLoad(sysOS *sys.OS, inst instance, dev device) error {
 	}
 
 	if string(content) != string(updated) {
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		err = os.WriteFile(profile, []byte(updated), 0600)
 		if err != nil {
 			return err
 		}
