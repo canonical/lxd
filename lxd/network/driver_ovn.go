@@ -3,10 +3,10 @@ package network
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -1660,7 +1660,7 @@ func (n *ovn) FillConfig(config map[string]string) error {
 	}
 
 	if config["ipv6.address"] == "" {
-		content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
+		content, err := os.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 		if err == nil && string(content) == "0\n" {
 			config["ipv6.address"] = "auto"
 		}
