@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -122,7 +121,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 		}
 
 		if config["ipv6.address"] == "" {
-			content, err := ioutil.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
+			content, err := os.ReadFile("/proc/sys/net/ipv6/conf/default/disable_ipv6")
 			if err == nil && string(content) == "0\n" {
 				config["ipv6.address"] = "auto"
 			}
@@ -1118,14 +1117,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Allow forwarding.
 		if n.config["ipv6.routing"] == "" || shared.IsTrue(n.config["ipv6.routing"]) {
 			// Get a list of proc entries.
-			entries, err := ioutil.ReadDir("/proc/sys/net/ipv6/conf/")
+			entries, err := os.ReadDir("/proc/sys/net/ipv6/conf/")
 			if err != nil {
 				return err
 			}
 
 			// First set accept_ra to 2 for everything.
 			for _, entry := range entries {
-				content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()))
+				content, err := os.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()))
 				if err == nil && string(content) != "1\n" {
 					continue
 				}
@@ -1546,7 +1545,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
-		err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0644)
+		err = os.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0644)
 		if err != nil {
 			return err
 		}
@@ -1616,7 +1615,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
 		_, err = p.Wait(ctx)
 		if !errors.Is(err, context.DeadlineExceeded) {
-			stderr, _ := ioutil.ReadFile(dnsmasqLogPath)
+			stderr, _ := os.ReadFile(dnsmasqLogPath)
 			cancel()
 
 			return fmt.Errorf("The DNS and DHCP service exited prematurely: %w (%q)", err, strings.TrimSpace(string(stderr)))
@@ -3023,7 +3022,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		return leases, nil
 	}
 
-	content, err := ioutil.ReadFile(leaseFile)
+	content, err := os.ReadFile(leaseFile)
 	if err != nil {
 		return nil, err
 	}
