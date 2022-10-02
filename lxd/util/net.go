@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -272,7 +272,7 @@ func IsWildCardAddress(address string) bool {
 // SysctlGet retrieves the value of a sysctl file in /proc/sys.
 func SysctlGet(path string) (string, error) {
 	// Read the current content
-	content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/%s", path))
+	content, err := os.ReadFile(fmt.Sprintf("/proc/sys/%s", path))
 	if err != nil {
 		return "", err
 	}
@@ -299,7 +299,7 @@ func SysctlSet(parts ...string) error {
 			return nil
 		}
 
-		err = ioutil.WriteFile(fmt.Sprintf("/proc/sys/%s", path), []byte(newValue), 0)
+		err = os.WriteFile(fmt.Sprintf("/proc/sys/%s", path), []byte(newValue), 0)
 		if err != nil {
 			return err
 		}
