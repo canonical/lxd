@@ -4,7 +4,6 @@ package idmap
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"unsafe"
@@ -472,7 +471,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 }
 
 func SupportsVFS3Fscaps(prefix string) bool {
-	tmpfile, err := ioutil.TempFile(prefix, ".lxd_fcaps_v3_")
+	tmpfile, err := os.CreateTemp(prefix, ".lxd_fcaps_v3_")
 	if err != nil {
 		return false
 	}
