@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -124,7 +123,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = metadataFile.Close() }()
 
-	data, err := ioutil.ReadAll(metadataFile)
+	data, err := io.ReadAll(metadataFile)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -231,7 +230,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 
 		defer func() { _ = metadataFile.Close() }()
 
-		data, err := ioutil.ReadAll(metadataFile)
+		data, err := io.ReadAll(metadataFile)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -357,7 +356,7 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 
 	// Update the metadata.
 	metadataPath := filepath.Join(inst.Path(), "metadata.yaml")
-	err = ioutil.WriteFile(metadataPath, data, 0644)
+	err = os.WriteFile(metadataPath, data, 0644)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -470,14 +469,14 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 
 		// List templates
 		templatesPath := filepath.Join(c.Path(), "templates")
-		filesInfo, err := ioutil.ReadDir(templatesPath)
+		entries, err := os.ReadDir(templatesPath)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		for _, info := range filesInfo {
-			if !info.IsDir() {
-				templates = append(templates, info.Name())
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				templates = append(templates, entry.Name())
 			}
 		}
 
@@ -503,7 +502,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 
 	defer func() { _ = template.Close() }()
 
-	tempfile, err := ioutil.TempFile("", "lxd_template")
+	tempfile, err := os.CreateTemp("", "lxd_template")
 	if err != nil {
 		return response.SmartError(err)
 	}

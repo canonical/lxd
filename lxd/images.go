@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/rand"
 	"mime"
@@ -131,7 +130,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	if fields[0] == "squashfs" {
 		// 'tar2sqfs' do not support writing to stdout. So write to a temporary
 		//  file first and then replay the compressed content to outfile.
-		tempfile, err := ioutil.TempFile("", "lxd_compress_")
+		tempfile, err := os.CreateTemp("", "lxd_compress_")
 		if err != nil {
 			return err
 		}
@@ -230,7 +229,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	info.Type = c.Type().String()
 
 	// Build the actual image file
-	imageFile, err := ioutil.TempFile(builddir, "lxd_build_image_")
+	imageFile, err := os.CreateTemp(builddir, "lxd_build_image_")
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +556,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 	if ctype == "multipart/form-data" {
 		// Create a temporary file for the image tarball
-		imageTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
+		imageTarf, err := os.CreateTemp(builddir, "lxd_tar_")
 		if err != nil {
 			return nil, err
 		}
@@ -608,7 +607,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 
 		// Create a temporary file for the rootfs tarball
-		rootfsTarf, err := ioutil.TempFile(builddir, "lxd_tar_")
+		rootfsTarf, err := os.CreateTemp(builddir, "lxd_tar_")
 		if err != nil {
 			return nil, err
 		}
@@ -940,7 +939,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// create a directory under which we keep everything while building
-	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
+	builddir, err := os.MkdirTemp(shared.VarPath("images"), "lxd_build_")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -957,7 +956,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Store the post data to disk
-	post, err := ioutil.TempFile(builddir, "lxd_post_")
+	post, err := os.CreateTemp(builddir, "lxd_post_")
 	if err != nil {
 		cleanup(builddir, nil)
 		return response.InternalError(err)
@@ -2186,7 +2185,7 @@ func pruneLeftoverImages(d *Daemon) {
 		}
 
 		// Look at what's in the images directory
-		entries, err := ioutil.ReadDir(shared.VarPath("images"))
+		entries, err := os.ReadDir(shared.VarPath("images"))
 		if err != nil {
 			return fmt.Errorf("Unable to list the images directory: %w", err)
 		}
@@ -2848,13 +2847,13 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		return response.PreconditionFailed(err)
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
-	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr1 := io.NopCloser(bytes.NewBuffer(body))
+	rdr2 := io.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
 	err = json.NewDecoder(rdr1).Decode(&reqRaw)
@@ -3828,21 +3827,21 @@ func imageSecret(d *Daemon, r *http.Request) response.Response {
 
 func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
 	// Prepare the temp files
-	buildDir, err := ioutil.TempDir(imagesDir, "lxd_build_")
+	buildDir, err := os.MkdirTemp(imagesDir, "lxd_build_")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for download: %w", err)
 	}
 
 	defer func() { _ = os.RemoveAll(buildDir) }()
 
-	metaFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
+	metaFile, err := os.CreateTemp(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = metaFile.Close() }()
 
-	rootfsFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
+	rootfsFile, err := os.CreateTemp(buildDir, "lxd_tar_")
 	if err != nil {
 		return err
 	}

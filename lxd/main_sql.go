@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/olekukonko/tablewriter"
@@ -78,7 +78,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 
 	if query == "-" {
 		// Read from stdin
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Failed to read from stdin: %w", err)
 		}
