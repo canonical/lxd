@@ -3,7 +3,7 @@
 package sys
 
 import (
-	"io/ioutil"
+	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
@@ -214,7 +214,7 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 	}
 
 	// Fill in the boot time.
-	out, err := ioutil.ReadFile("/proc/stat")
+	out, err := os.ReadFile("/proc/stat")
 	if err != nil {
 		return nil, err
 	}
