@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -132,7 +131,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		stuff, err := ioutil.ReadAll(log)
+		stuff, err := io.ReadAll(log)
 		if err != nil {
 			return err
 		}
@@ -262,7 +261,7 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		}
 
 		// Generate a random file name.
-		path, err := ioutil.TempFile(conf.ConfigPath("sockets"), "*.spice")
+		path, err := os.CreateTemp(conf.ConfigPath("sockets"), "*.spice")
 		if err != nil {
 			return err
 		}

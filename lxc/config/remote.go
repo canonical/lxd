@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"runtime"
@@ -253,7 +252,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 
 	// Server certificate
 	if shared.PathExists(c.ServerCertPath(name)) {
-		content, err := ioutil.ReadFile(c.ServerCertPath(name))
+		content, err := os.ReadFile(c.ServerCertPath(name))
 		if err != nil {
 			return nil, err
 		}
@@ -268,7 +267,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 
 	// Client certificate
 	if shared.PathExists(c.ConfigPath("client.crt")) {
-		content, err := ioutil.ReadFile(c.ConfigPath("client.crt"))
+		content, err := os.ReadFile(c.ConfigPath("client.crt"))
 		if err != nil {
 			return nil, err
 		}
@@ -278,7 +277,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 
 	// Client CA
 	if shared.PathExists(c.ConfigPath("client.ca")) {
-		content, err := ioutil.ReadFile(c.ConfigPath("client.ca"))
+		content, err := os.ReadFile(c.ConfigPath("client.ca"))
 		if err != nil {
 			return nil, err
 		}
@@ -288,7 +287,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 
 	// Client key
 	if shared.PathExists(c.ConfigPath("client.key")) {
-		content, err := ioutil.ReadFile(c.ConfigPath("client.key"))
+		content, err := os.ReadFile(c.ConfigPath("client.key"))
 		if err != nil {
 			return nil, err
 		}
