@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -30,7 +30,7 @@ func (c *cmdConsole) findCommand(name string) string {
 	path, _ := exec.LookPath(name)
 	if path == "" {
 		// Let's see if it's not in the usual location.
-		programs, err := ioutil.ReadDir("\\Program Files")
+		programs, err := os.ReadDir("\\Program Files")
 		if err != nil {
 			return ""
 		}

@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 
@@ -187,7 +187,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	content, err := ioutil.ReadAll(template)
+	content, err := io.ReadAll(template)
 	if err != nil {
 		return err
 	}

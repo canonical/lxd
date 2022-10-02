@@ -6,7 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -264,7 +264,7 @@ func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
-		contents, err := ioutil.ReadAll(os.Stdin)
+		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}

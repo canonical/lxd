@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -265,7 +265,7 @@ func (c *cmdNetworkLoadBalancerCreate) Run(cmd *cobra.Command, args []string) er
 	// If stdin isn't a terminal, read yaml from it.
 	var loadBalancerPut api.NetworkLoadBalancerPut
 	if !termios.IsTerminal(getStdinFd()) {
-		contents, err := ioutil.ReadAll(os.Stdin)
+		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
@@ -550,7 +550,7 @@ func (c *cmdNetworkLoadBalancerEdit) Run(cmd *cobra.Command, args []string) erro
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
-		contents, err := ioutil.ReadAll(os.Stdin)
+		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}

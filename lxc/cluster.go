@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -633,7 +633,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
-		contents, err := ioutil.ReadAll(os.Stdin)
+		contents, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
@@ -1009,12 +1009,12 @@ func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) err
 		return fmt.Errorf(i18n.G("Could not find certificate key file path: %s"), keyFile)
 	}
 
-	cert, err := ioutil.ReadFile(certFile)
+	cert, err := os.ReadFile(certFile)
 	if err != nil {
 		return fmt.Errorf(i18n.G("Could not read certificate file: %s with error: %v"), certFile, err)
 	}
 
-	key, err := ioutil.ReadFile(keyFile)
+	key, err := os.ReadFile(keyFile)
 	if err != nil {
 		return fmt.Errorf(i18n.G("Could not read certificate key file: %s with error: %v"), keyFile, err)
 	}
@@ -1031,7 +1031,7 @@ func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) err
 
 	certf := conf.ServerCertPath(resource.remote)
 	if shared.PathExists(certf) {
-		err = ioutil.WriteFile(certf, cert, 0644)
+		err = os.WriteFile(certf, cert, 0644)
 		if err != nil {
 			return fmt.Errorf(i18n.G("Could not write new remote certificate for remote '%s' with error: %v"), resource.remote, err)
 		}

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -189,7 +188,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create temp file
-	f, err := ioutil.TempFile("", "lxd_file_edit_")
+	f, err := os.CreateTemp("", "lxd_file_edit_")
 	if err != nil {
 		return fmt.Errorf(i18n.G("Unable to create a temporary file: %v"), err)
 	}
@@ -345,7 +344,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		logger.Infof("Pulling %s from %s (%s)", targetPath, pathSpec[1], resp.Type)
 
 		if resp.Type == "symlink" {
-			linkTarget, err := ioutil.ReadAll(buf)
+			linkTarget, err := io.ReadAll(buf)
 			if err != nil {
 				return err
 			}
@@ -765,7 +764,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string,
 
 		progress.Done("")
 	} else if resp.Type == "symlink" {
-		linkTarget, err := ioutil.ReadAll(buf)
+		linkTarget, err := io.ReadAll(buf)
 		if err != nil {
 			return err
 		}
@@ -819,7 +818,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source st
 
 			args.Type = "symlink"
 			args.Content = bytes.NewReader([]byte(symlinkTarget))
-			readCloser = ioutil.NopCloser(args.Content)
+			readCloser = io.NopCloser(args.Content)
 		} else {
 			// File handling
 			f, err := os.Open(p)
