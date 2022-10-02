@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -227,7 +227,7 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 				return
 			}
 
-			buf, err := ioutil.ReadAll(r)
+			buf, err := io.ReadAll(r)
 			if err != nil {
 				logger.Debugf("Failed to read message: %v", err)
 				break
@@ -417,7 +417,7 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	post := api.InstanceConsolePost{}
-	buf, err := ioutil.ReadAll(r.Body)
+	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.BadRequest(err)
 	}

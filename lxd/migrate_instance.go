@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -533,7 +532,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
-		checkpointDir, err := ioutil.TempDir("", "lxd_checkpoint_")
+		checkpointDir, err := os.MkdirTemp("", "lxd_checkpoint_")
 		if err != nil {
 			return abort(err)
 		}
@@ -1165,7 +1164,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 		if live && c.src.instance.Type() == instancetype.Container {
 			var err error
-			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
+			imagesDir, err = os.MkdirTemp("", "lxd_restore_")
 			if err != nil {
 				restore <- err
 				return

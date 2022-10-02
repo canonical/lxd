@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -320,7 +320,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
-			buf, err := ioutil.ReadAll(r)
+			buf, err := io.ReadAll(r)
 			if err != nil {
 				// Check if command process has finished normally, if so, no need to kill it.
 				select {
@@ -509,7 +509,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	post := api.InstanceExecPost{}
-	buf, err := ioutil.ReadAll(r.Body)
+	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.BadRequest(err)
 	}

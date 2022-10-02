@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -134,7 +133,7 @@ func instanceLogsGet(d *Daemon, r *http.Request) response.Response {
 	result := []string{}
 
 	fullName := project.Instance(projectName, name)
-	dents, err := ioutil.ReadDir(shared.LogPath(fullName))
+	dents, err := os.ReadDir(shared.LogPath(fullName))
 	if err != nil {
 		return response.SmartError(err)
 	}

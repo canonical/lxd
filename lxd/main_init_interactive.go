@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -424,7 +423,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 		// At this time, only the Ubuntu kernel supports the Fan, detect it
 		fanKernel := false
 		if shared.PathExists("/proc/sys/kernel/version") {
-			content, _ := ioutil.ReadFile("/proc/sys/kernel/version")
+			content, _ := os.ReadFile("/proc/sys/kernel/version")
 			if content != nil && strings.Contains(string(content), "Ubuntu") {
 				fanKernel = true
 			}

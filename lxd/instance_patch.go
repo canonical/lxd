@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -94,13 +94,13 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 		return response.PreconditionFailed(err)
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
-	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr1 := io.NopCloser(bytes.NewBuffer(body))
+	rdr2 := io.NopCloser(bytes.NewBuffer(body))
 
 	reqRaw := shared.Jmap{}
 	err = json.NewDecoder(rdr1).Decode(&reqRaw)
