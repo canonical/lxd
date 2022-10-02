@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -99,7 +99,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	case "GET":
 		_ = writeJSON(w, http.StatusOK, schemaResponse)
 	case "POST":
-		content, err := ioutil.ReadAll(req.Body)
+		content, err := io.ReadAll(req.Body)
 		if err != nil {
 			s.bakeryFail(w, "failed to read request: %v", err)
 			return
