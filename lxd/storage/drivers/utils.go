@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,7 +25,7 @@ const MinBlockBoundary = 8192
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
 	// List all entries.
-	entries, err := ioutil.ReadDir(path)
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -319,7 +318,7 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	}
 
 	// Read any error.
-	output, err := ioutil.ReadAll(stderr)
+	output, err := io.ReadAll(stderr)
 	if err != nil {
 		logger.Errorf("Problem reading btrfs send stderr: %s", err)
 	}
@@ -558,7 +557,7 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 
 // receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
 func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error) {
-	files, err := ioutil.ReadDir(receivePath)
+	files, err := os.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}
@@ -569,7 +568,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error
 	}
 
 	// Check contents of target path is expected after receive.
-	newFiles, err := ioutil.ReadDir(receivePath)
+	newFiles, err := os.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}

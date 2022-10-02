@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -968,7 +967,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 // do so. Returns bool indicating if map was needed and device path e.g. "/dev/rbd<idx>" for an RBD image.
 func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string, error) {
 	// List all RBD devices.
-	files, err := ioutil.ReadDir("/sys/devices/rbd")
+	files, err := os.ReadDir("/sys/devices/rbd")
 	if err != nil && !os.IsNotExist(err) {
 		return false, "", err
 	}
@@ -989,7 +988,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 		}
 
 		// Get the pool for the RBD device.
-		devPoolName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/pool", fName))
+		devPoolName, err := os.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/pool", fName))
 		if err != nil {
 			// Skip if no pool file.
 			if os.IsNotExist(err) {
@@ -1005,7 +1004,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 		}
 
 		// Get the volume name for the RBD device.
-		devName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/name", fName))
+		devName, err := os.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/name", fName))
 		if err != nil {
 			// Skip if no name file.
 			if os.IsNotExist(err) {
@@ -1026,7 +1025,7 @@ func (d *ceph) getRBDMappedDevPath(vol Volume, mapIfMissing bool) (bool, string,
 		}
 
 		// Get the snapshot name for the RBD device (if exists).
-		devSnap, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/current_snap", fName))
+		devSnap, err := os.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/current_snap", fName))
 		if err != nil && !os.IsNotExist(err) {
 			return false, "", err
 		}
@@ -1092,14 +1091,18 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 // "pool2":
 //
 // The pool layout on "l1" would be:
+//
 //	pool1/container_a
 //	pool1/container_a@snapshot_snap0
 //	pool1/container_a@snapshot_snap1
 //
 // Then we need to send:
+//
 //	rbd export-diff pool1/container_a@snapshot_snap0 - | rbd import-diff - pool2/container_a
+//
 // (Note that pool2/container_a must have been created by the receiving LXD
 // instance before.)
+//
 //	rbd export-diff pool1/container_a@snapshot_snap1 --from-snap snapshot_snap0 - | rbd import-diff - pool2/container_a
 //	rbd export-diff pool1/container_a --from-snap snapshot_snap1 - | rbd import-diff - pool2/container_a
 func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, tracker *ioprogress.ProgressTracker) error {
@@ -1151,7 +1154,7 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 		return err
 	}
 
-	output, _ := ioutil.ReadAll(stderr)
+	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
 	errs := []error{}
@@ -1209,7 +1212,7 @@ func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWr
 	}
 
 	// Read any error.
-	output, _ := ioutil.ReadAll(stderr)
+	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
 	errs := []error{}
