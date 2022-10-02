@@ -2,7 +2,7 @@ package cgroup
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +17,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 	// Locate the base path for each controller.
 	rw.paths = map[string]string{}
 
-	controllers, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cgroup", pid))
+	controllers, err := os.ReadFile(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (rw *fileReadWriter) Get(version Backend, controller string, key string) (s
 		path = filepath.Join(rw.paths["unified"], key)
 	}
 
-	value, err := ioutil.ReadFile(path)
+	value, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -86,5 +86,5 @@ func (rw *fileReadWriter) Set(version Backend, controller string, key string, va
 		path = filepath.Join(rw.paths["unified"], key)
 	}
 
-	return ioutil.WriteFile(path, []byte(value), 0600)
+	return os.WriteFile(path, []byte(value), 0600)
 }
