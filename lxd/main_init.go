@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -154,7 +153,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Path %s doesn't exist", config.Cluster.ClusterCertificatePath)
 		}
 
-		content, err := ioutil.ReadFile(config.Cluster.ClusterCertificatePath)
+		content, err := os.ReadFile(config.Cluster.ClusterCertificatePath)
 		if err != nil {
 			return err
 		}

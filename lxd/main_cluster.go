@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,7 +169,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 	var content []byte
 	if !termios.IsTerminal(unix.Stdin) {
-		content, err = ioutil.ReadAll(os.Stdin)
+		content, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}

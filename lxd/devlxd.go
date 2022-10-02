@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -335,7 +334,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 	origpid := pid
 
 	for pid > 1 {
-		cmdline, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +363,7 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return inst.(instance.Container), nil
 		}
 
-		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+		status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 		if err != nil {
 			return nil, err
 		}

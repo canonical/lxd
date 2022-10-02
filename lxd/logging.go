@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -53,7 +52,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	}
 
 	// List the directory.
-	entries, err := ioutil.ReadDir(state.OS.LogDir)
+	entries, err := os.ReadDir(state.OS.LogDir)
 	if err != nil {
 		return err
 	}
@@ -67,14 +66,19 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	newestFile := func(path string, dir os.FileInfo) time.Time {
 		newest := dir.ModTime()
 
-		entries, err := ioutil.ReadDir(path)
+		entries, err := os.ReadDir(path)
 		if err != nil {
 			return newest
 		}
 
 		for _, entry := range entries {
-			if entry.ModTime().After(newest) {
-				newest = entry.ModTime()
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
+			if info.ModTime().After(newest) {
+				newest = info.ModTime()
 			}
 		}
 
@@ -94,19 +98,31 @@ func expireLogs(ctx context.Context, state *state.State) error {
 			continue
 		}
 
+		// Skip if we are unable to read the file info, e.g. the file might
+		// be deleted.
+		fi, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
 		// Check if the instance still exists.
-		if shared.StringInSlice(entry.Name(), names) {
-			instDirEntries, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
+		if shared.StringInSlice(fi.Name(), names) {
+			instDirEntries, err := os.ReadDir(shared.LogPath(fi.Name()))
 			if err != nil {
 				return err
 			}
 
 			for _, instDirEntry := range instDirEntries {
-				path := shared.LogPath(entry.Name(), instDirEntry.Name())
+				path := shared.LogPath(fi.Name(), instDirEntry.Name())
+
+				instInfo, err := instDirEntry.Info()
+				if err != nil {
+					continue
+				}
 
 				// Deal with directories (snapshots).
-				if instDirEntry.IsDir() {
-					newest := newestFile(path, instDirEntry)
+				if instInfo.IsDir() {
+					newest := newestFile(path, instInfo)
 					if time.Since(newest).Hours() >= 48 {
 						err := os.RemoveAll(path)
 						if err != nil {
@@ -118,9 +134,9 @@ func expireLogs(ctx context.Context, state *state.State) error {
 				}
 
 				// Only remove old log files (keep other files, such as conf, pid, monitor etc).
-				if strings.HasSuffix(instDirEntry.Name(), ".log") || strings.HasSuffix(instDirEntry.Name(), ".log.old") {
+				if strings.HasSuffix(instInfo.Name(), ".log") || strings.HasSuffix(instInfo.Name(), ".log.old") {
 					// Remove any log file which wasn't modified in the past 48 hours.
-					if time.Since(instDirEntry.ModTime()).Hours() >= 48 {
+					if time.Since(instInfo.ModTime()).Hours() >= 48 {
 						err := os.Remove(path)
 						if err != nil {
 							return err
@@ -130,8 +146,8 @@ func expireLogs(ctx context.Context, state *state.State) error {
 			}
 		} else {
 			// Empty directory if unchanged in the past 24 hours.
-			path := shared.LogPath(entry.Name())
-			newest := newestFile(path, entry)
+			path := shared.LogPath(fi.Name())
+			newest := newestFile(path, fi)
 			if time.Since(newest).Hours() >= 24 {
 				err := os.RemoveAll(path)
 				if err != nil {

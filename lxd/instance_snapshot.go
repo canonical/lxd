@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -622,12 +622,12 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
+	rdr1 := io.NopCloser(bytes.NewBuffer(body))
 
 	raw := shared.Jmap{}
 	err = json.NewDecoder(rdr1).Decode(&raw)
@@ -637,8 +637,8 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
-		rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
-		rdr3 := ioutil.NopCloser(bytes.NewBuffer(body))
+		rdr2 := io.NopCloser(bytes.NewBuffer(body))
+		rdr3 := io.NopCloser(bytes.NewBuffer(body))
 
 		req := api.InstancePost{}
 		err = json.NewDecoder(rdr2).Decode(&req)

@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -39,7 +40,7 @@ func instanceSaveCache() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(shared.CachePath("instance_types.yaml"), data, 0600)
+	err = os.WriteFile(shared.CachePath("instance_types.yaml"), data, 0600)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func instanceLoadCache() error {
 		return nil
 	}
 
-	content, err := ioutil.ReadFile(shared.CachePath("instance_types.yaml"))
+	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 			return fmt.Errorf("Failed to get %s", url)
 		}
 
-		content, err := ioutil.ReadAll(resp.Body)
+		content, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
