@@ -11,7 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -162,7 +162,7 @@ func main() {
 
 	if raw.StatusCode != http.StatusOK {
 		fmt.Println("http error", raw.StatusCode)
-		result, err := ioutil.ReadAll(raw.Body)
+		result, err := io.ReadAll(raw.Body)
 		if err != nil {
 			os.Exit(1)
 		}
@@ -210,7 +210,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		value, err := ioutil.ReadAll(raw.Body)
+		value, err := io.ReadAll(raw.Body)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
