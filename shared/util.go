@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -516,7 +515,7 @@ func DirCopy(source string, dest string) error {
 	}
 
 	// Copy all files.
-	entries, err := ioutil.ReadDir(source)
+	entries, err := os.ReadDir(source)
 	if err != nil {
 		return fmt.Errorf("failed to read source directory %s: %w", source, err)
 	}
@@ -806,7 +805,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 
 	if inPath == "" {
 		// If provided input, create a new file
-		f, err = ioutil.TempFile("", "lxd_editor_")
+		f, err = os.CreateTemp("", "lxd_editor_")
 		if err != nil {
 			return []byte{}, err
 		}
@@ -855,7 +854,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return []byte{}, err
 	}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,7 +42,7 @@ func TestUrlsJoin(t *testing.T) {
 
 func TestFileCopy(t *testing.T) {
 	helloWorld := []byte("hello world\n")
-	source, err := ioutil.TempFile("", "")
+	source, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Error(err)
 		return
@@ -59,7 +59,7 @@ func TestFileCopy(t *testing.T) {
 
 	_ = source.Close()
 
-	dest, err := ioutil.TempFile("", "")
+	dest, err := os.CreateTemp("", "")
 	defer func() { _ = os.Remove(dest.Name()) }()
 	if err != nil {
 		t.Error(err)
@@ -80,7 +80,7 @@ func TestFileCopy(t *testing.T) {
 		return
 	}
 
-	content, err := ioutil.ReadAll(dest2)
+	content, err := io.ReadAll(dest2)
 	if err != nil {
 		t.Error(err)
 		return
@@ -93,7 +93,7 @@ func TestFileCopy(t *testing.T) {
 }
 
 func TestDirCopy(t *testing.T) {
-	dir, err := ioutil.TempDir("", "lxd-shared-util-")
+	dir, err := os.MkdirTemp("", "lxd-shared-util-")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dir) }()
 
@@ -112,8 +112,8 @@ func TestDirCopy(t *testing.T) {
 	require.NoError(t, os.Mkdir(source, 0755))
 	require.NoError(t, os.Mkdir(filepath.Join(source, dir1), 0755))
 	require.NoError(t, os.Mkdir(filepath.Join(source, dir2), 0755))
-	require.NoError(t, ioutil.WriteFile(filepath.Join(source, file1), content1, 0755))
-	require.NoError(t, ioutil.WriteFile(filepath.Join(source, file2), content2, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(source, file1), content1, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(source, file2), content2, 0755))
 
 	require.NoError(t, DirCopy(source, dest))
 
@@ -121,11 +121,11 @@ func TestDirCopy(t *testing.T) {
 		assert.True(t, PathExists(filepath.Join(dest, path)))
 	}
 
-	bytes, err := ioutil.ReadFile(filepath.Join(dest, file1))
+	bytes, err := os.ReadFile(filepath.Join(dest, file1))
 	require.NoError(t, err)
 	assert.Equal(t, content1, bytes)
 
-	bytes, err = ioutil.ReadFile(filepath.Join(dest, file2))
+	bytes, err = os.ReadFile(filepath.Join(dest, file2))
 	require.NoError(t, err)
 	assert.Equal(t, content2, bytes)
 }

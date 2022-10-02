@@ -3,7 +3,7 @@ package simplestreams
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -76,7 +76,7 @@ func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
 		return nil, false
 	}
 
-	body, err := ioutil.ReadFile(cacheName)
+	body, err := os.ReadFile(cacheName)
 	if err != nil {
 		_ = os.Remove(cacheName)
 		return nil, false
@@ -133,7 +133,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 		return nil, fmt.Errorf("Unable to fetch %s: %s", uri, r.Status)
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	if s.cachePath != "" {
 		cacheName := filepath.Join(s.cachePath, fileName)
 		_ = os.Remove(cacheName)
-		_ = ioutil.WriteFile(cacheName, body, 0644)
+		_ = os.WriteFile(cacheName, body, 0644)
 	}
 
 	return body, nil
