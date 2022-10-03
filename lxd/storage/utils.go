@@ -529,7 +529,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		cmd := []string{"prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath}
 		imgJSON, err := apparmor.QemuImg(sysOS, cmd, imgPath, "")
 		if err != nil {
-			return -1, fmt.Errorf("Failed reading image info %q: %w", dstPath, err)
+			return -1, fmt.Errorf("Failed reading image info %q: %w", imgPath, err)
 		}
 
 		imgInfo := struct {
