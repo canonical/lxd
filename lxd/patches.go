@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -680,7 +679,7 @@ func patchMoveBackupsInstances(name string, d *Daemon) error {
 		return fmt.Errorf("Failed creating instances backup directory %q: %w", backupsPath, err)
 	}
 
-	backups, err := ioutil.ReadDir(shared.VarPath("backups"))
+	backups, err := os.ReadDir(shared.VarPath("backups"))
 	if err != nil {
 		return fmt.Errorf("Failed listing existing backup directory %q: %w", shared.VarPath("backups"), err)
 	}

@@ -2,7 +2,6 @@ package device
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -405,7 +404,7 @@ func (d *gpuPhysical) deviceNumStringToUint32(devNum string) (uint32, uint32, er
 
 // getNvidiaNonCardDevices returns device information about Nvidia non-card devices.
 func (d *gpuPhysical) getNvidiaNonCardDevices() ([]nvidiaNonCardDevice, error) {
-	nvidiaEnts, err := ioutil.ReadDir("/dev")
+	nvidiaEnts, err := os.ReadDir("/dev")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, err

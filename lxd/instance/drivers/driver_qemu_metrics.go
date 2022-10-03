@@ -3,7 +3,6 @@ package drivers
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -173,7 +172,7 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 	cpuMetrics := map[string]metrics.CPUMetrics{}
 
 	for i, threadID := range threadIDs {
-		pid, err := ioutil.ReadFile(d.pidFilePath())
+		pid, err := os.ReadFile(d.pidFilePath())
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +183,7 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 			continue
 		}
 
-		content, err := ioutil.ReadFile(statFile)
+		content, err := os.ReadFile(statFile)
 		if err != nil {
 			return nil, err
 		}

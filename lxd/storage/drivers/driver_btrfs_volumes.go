@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -206,7 +205,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	}
 
 	// Create a temporary directory to unpack the backup into.
-	tmpUnpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
+	tmpUnpackDir, err := os.MkdirTemp(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create temporary directory %q: %w", tmpUnpackDir, err)
 	}
@@ -493,7 +492,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 	// Inspect negotiated features to see if we are expecting to get a metadata migration header frame.
 	if shared.StringInSlice(migration.BTRFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
-		buf, err := ioutil.ReadAll(conn)
+		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading BTRFS migration header: %w", err)
 		}
@@ -647,7 +646,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
 	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
-	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
+	tmpVolumesMountPoint, err := os.MkdirTemp(instancesPath, "migration.")
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
 	}
@@ -1162,7 +1161,7 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 
 	sourcePath := vol.MountPath()
 	poolPath := GetPoolMountPath(d.name)
-	tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+	tmpDir, err := os.MkdirTemp(poolPath, "backup.")
 	if err != nil {
 		return "", nil, err
 	}
@@ -1277,7 +1276,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	if volSrcArgs.Refresh && shared.StringInSlice(migration.BTRFSFeatureSubvolumeUUIDs, volSrcArgs.MigrationType.Features) {
 		migrationHeader = &BTRFSMetaDataHeader{}
 
-		buf, err := ioutil.ReadAll(conn)
+		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading BTRFS migration header: %w", err)
 		}
@@ -1414,7 +1413,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
 	// Create a temporary directory which will act as the parent directory of the read-only snapshot.
-	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
+	tmpVolumesMountPoint, err := os.MkdirTemp(instancesPath, "migration.")
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
 	}
@@ -1512,7 +1511,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 		// Create temporary file to store output of btrfs send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := ioutil.TempFile(backupsPath, fmt.Sprintf("%s_btrfs", backup.WorkingDirPrefix))
+		tmpFile, err := os.CreateTemp(backupsPath, fmt.Sprintf("%s_btrfs", backup.WorkingDirPrefix))
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for BTRFS backup: %w", err)
 		}
@@ -1643,7 +1642,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 	sourceVolume := vol.MountPath()
 	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
-	tmpInstanceMntPoint, err := ioutil.TempDir(instancesPath, "backup.")
+	tmpInstanceMntPoint, err := os.MkdirTemp(instancesPath, "backup.")
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under %q: %w", instancesPath, err)
 	}

@@ -5,9 +5,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"time"
 
@@ -41,7 +41,7 @@ func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
 		certFilePath = shared.HostPath(certFilePath)
 
 		// Read in the cert file.
-		certs, err := ioutil.ReadFile(certFilePath)
+		certs, err := os.ReadFile(certFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed reading %q: %w", certFilePath, err)
 		}

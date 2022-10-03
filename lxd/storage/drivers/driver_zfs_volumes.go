@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -736,7 +735,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	if shared.StringInSlice(migration.ZFSFeatureMigrationHeader, volTargetArgs.MigrationType.Features) {
 		// The source will send all of its snapshots with their respective GUID.
-		buf, err := ioutil.ReadAll(conn)
+		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
 		}
@@ -1503,7 +1502,7 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	}
 
 	// List all the device nodes.
-	entries, err := ioutil.ReadDir("/dev")
+	entries, err := os.ReadDir("/dev")
 	if err != nil {
 		return "", fmt.Errorf("Failed to read /dev: %w", err)
 	}
@@ -1616,7 +1615,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
-	errMsg, err := ioutil.ReadAll(stderr)
+	errMsg, err := io.ReadAll(stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -1922,7 +1921,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	var migrationHeader ZFSMetaDataHeader
 
 	if volSrcArgs.Refresh && shared.StringInSlice(migration.ZFSFeatureMigrationHeader, volSrcArgs.MigrationType.Features) {
-		buf, err := ioutil.ReadAll(conn)
+		buf, err := io.ReadAll(conn)
 		if err != nil {
 			return fmt.Errorf("Failed reading ZFS migration header: %w", err)
 		}
@@ -2078,7 +2077,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	defer revert.Fail()
 
 	poolPath := GetPoolMountPath(d.name)
-	tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+	tmpDir, err := os.MkdirTemp(poolPath, "backup.")
 	if err != nil {
 		return "", nil, err
 	}
@@ -2183,7 +2182,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 		// Create temporary file to store output of ZFS send.
 		backupsPath := shared.VarPath("backups")
-		tmpFile, err := ioutil.TempFile(backupsPath, fmt.Sprintf("%s_zfs", backup.WorkingDirPrefix))
+		tmpFile, err := os.CreateTemp(backupsPath, fmt.Sprintf("%s_zfs", backup.WorkingDirPrefix))
 		if err != nil {
 			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}

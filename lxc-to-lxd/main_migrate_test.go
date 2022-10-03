@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -93,7 +92,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 	}
 
-	lxcPath, err := ioutil.TempDir("", "lxc-to-lxd-test-")
+	lxcPath, err := os.MkdirTemp("", "lxc-to-lxd-test-")
 	require.NoError(t, err)
 	defer require.NoError(t, os.RemoveAll(lxcPath))
 
@@ -202,7 +201,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 		},
 	}
 
-	lxcPath, err := ioutil.TempDir("", "lxc-to-lxd-test-")
+	lxcPath, err := os.MkdirTemp("", "lxc-to-lxd-test-")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(lxcPath) }()
 

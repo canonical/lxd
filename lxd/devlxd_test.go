@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -40,7 +40,7 @@ func (d DevLxdDialer) DevLxdDial(ctx context.Context, network, path string) (net
 func setupDir() error {
 	var err error
 
-	testDir, err = ioutil.TempDir("", "lxd_test_devlxd_")
+	testDir, err = os.MkdirTemp("", "lxd_test_devlxd_")
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func TestHttpRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := ioutil.ReadAll(raw.Body)
+	resp, err := io.ReadAll(raw.Body)
 	if err != nil {
 		t.Fatal(err)
 	}

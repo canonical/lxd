@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -77,7 +77,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
-	stats, err := ioutil.ReadFile("/proc/stat")
+	stats, err := os.ReadFile("/proc/stat")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/stat: %w", err)
 	}
@@ -159,7 +159,7 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 }
 
 func getTotalProcesses(d *Daemon) (uint64, error) {
-	entries, err := ioutil.ReadDir("/proc")
+	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return 0, fmt.Errorf("Failed to read dir %q: %w", "/proc", err)
 	}
@@ -180,7 +180,7 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 
 		cmdlinePath := filepath.Join("/proc", entry.Name(), "cmdline")
 
-		cmdline, err := ioutil.ReadFile(cmdlinePath)
+		cmdline, err := os.ReadFile(cmdlinePath)
 		if err != nil {
 			continue
 		}
@@ -196,7 +196,7 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 }
 
 func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
-	diskStats, err := ioutil.ReadFile("/proc/diskstats")
+	diskStats, err := os.ReadFile("/proc/diskstats")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/diskstats: %w", err)
 	}
@@ -245,7 +245,7 @@ func getDiskMetrics(d *Daemon) (map[string]metrics.DiskMetrics, error) {
 }
 
 func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, error) {
-	mounts, err := ioutil.ReadFile("/proc/mounts")
+	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/mounts: %w", err)
 	}
@@ -287,7 +287,7 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 }
 
 func getMemoryMetrics(d *Daemon) (metrics.MemoryMetrics, error) {
-	content, err := ioutil.ReadFile("/proc/meminfo")
+	content, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return metrics.MemoryMetrics{}, fmt.Errorf("Failed to read /proc/meminfo: %w", err)
 	}

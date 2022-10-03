@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -2400,7 +2399,7 @@ func (d *lxc) Start(stateful bool) error {
 		lxcLog := ""
 		logPath := filepath.Join(d.LogPath(), "lxc.log")
 		if shared.PathExists(logPath) {
-			logContent, err := ioutil.ReadFile(logPath)
+			logContent, err := os.ReadFile(logPath)
 			if err == nil {
 				for _, line := range strings.Split(string(logContent), "\n") {
 					fields := strings.Fields(line)
@@ -4724,7 +4723,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	if !shared.PathExists(fnam) {
 		// Generate a new metadata.yaml.
-		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -4774,7 +4773,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 		// Write the actual file.
 		fnam = filepath.Join(tempDir, "metadata.yaml")
-		err = ioutil.WriteFile(fnam, data, 0644)
+		err = os.WriteFile(fnam, data, 0644)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -4798,7 +4797,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 		}
 	} else {
 		// Parse the metadata.
-		content, err := ioutil.ReadFile(fnam)
+		content, err := os.ReadFile(fnam)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -4822,7 +4821,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 		if properties != nil || !expiration.IsZero() {
 			// Generate a new metadata.yaml.
-			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+			tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -4840,7 +4839,7 @@ func (d *lxc) Export(w io.Writer, properties map[string]string, expiration time.
 
 			// Write the actual file.
 			fnam = filepath.Join(tempDir, "metadata.yaml")
-			err = ioutil.WriteFile(fnam, data, 0644)
+			err = os.WriteFile(fnam, data, 0644)
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -5144,7 +5143,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 	}
 
 	// Parse the metadata
-	content, err := ioutil.ReadFile(fname)
+	content, err := os.ReadFile(fname)
 	if err != nil {
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
@@ -5254,7 +5253,7 @@ func (d *lxc) templateApplyNow(trigger instance.TemplateTrigger) error {
 			defer func() { _ = w.Close() }()
 
 			// Read the template
-			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
+			tplString, err := os.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
 			if err != nil {
 				return fmt.Errorf("Failed to read template file: %w", err)
 			}
@@ -5477,7 +5476,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 
 		// Write PID file.
 		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
-		err = ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		err = os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -5550,7 +5549,7 @@ func (d *lxc) stopForkfile() {
 	defer func() { locking.Lock(d.forkfileRunningLockName())() }()
 
 	// Try to send SIGINT to forkfile to speed up shutdown.
-	content, err := ioutil.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
+	content, err := os.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
 	if err != nil {
 		return
 	}
@@ -5965,7 +5964,7 @@ func (d *lxc) processesState() int64 {
 	// Go through the pid list, adding new pids at the end so we go through them all
 	for i := 0; i < len(pids); i++ {
 		fname := fmt.Sprintf("/proc/%d/task/%d/children", pids[i], pids[i])
-		fcont, err := ioutil.ReadFile(fname)
+		fcont, err := os.ReadFile(fname)
 		if err != nil {
 			// the process terminated during execution of this loop
 			continue
@@ -6072,12 +6071,12 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	var tmpMount string
 	var err error
 	if shared.IsDir(source) {
-		tmpMount, err = ioutil.TempDir(d.ShmountsPath(), "lxdmount_")
+		tmpMount, err = os.MkdirTemp(d.ShmountsPath(), "lxdmount_")
 		if err != nil {
 			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
 	} else {
-		f, err := ioutil.TempFile(d.ShmountsPath(), "lxdmount_")
+		f, err := os.CreateTemp(d.ShmountsPath(), "lxdmount_")
 		if err != nil {
 			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
@@ -6315,7 +6314,7 @@ func (d *lxc) removeUnixDevices() error {
 	}
 
 	// Load the directory listing
-	dents, err := ioutil.ReadDir(d.DevicesPath())
+	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
 		return err
 	}
@@ -6482,7 +6481,7 @@ func (d *lxc) removeDiskDevices() error {
 	}
 
 	// Load the directory listing
-	dents, err := ioutil.ReadDir(d.DevicesPath())
+	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
 		return err
 	}
@@ -6990,7 +6989,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name})
 
-	mounts, err := ioutil.ReadFile("/proc/mounts")
+	mounts, err := os.ReadFile("/proc/mounts")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read /proc/mounts: %w", err)
 	}
@@ -7083,7 +7082,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 				if shared.PathExists(backingFilePath) {
 					// Read backing file
-					backingFile, err := ioutil.ReadFile(backingFilePath)
+					backingFile, err := os.ReadFile(backingFilePath)
 					if err != nil {
 						return nil, fmt.Errorf("Failed to read %s: %w", backingFilePath, err)
 					}
@@ -7129,7 +7128,7 @@ func (d *lxc) loadRawLXCConfig() error {
 	}
 
 	// Write to temp config file.
-	f, err := ioutil.TempFile("", "lxd_config_")
+	f, err := os.CreateTemp("", "lxd_config_")
 	if err != nil {
 		return err
 	}

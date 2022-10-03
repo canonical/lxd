@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ import (
 
 func tlsConfig(uid uint32) (*tls.Config, error) {
 	// Load the client certificate.
-	content, err := ioutil.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.crt"))
+	content, err := os.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.crt"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client certificate: %w", err)
 	}
@@ -24,7 +24,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 	tlsClientCert := string(content)
 
 	// Load the client key.
-	content, err = ioutil.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.key"))
+	content, err = os.ReadFile(filepath.Join("users", fmt.Sprintf("%d", uid), "client.key"))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open client key: %w", err)
 	}
@@ -37,7 +37,7 @@ func tlsConfig(uid uint32) (*tls.Config, error) {
 		certPath = shared.VarPath("server.crt")
 	}
 
-	content, err = ioutil.ReadFile(certPath)
+	content, err = os.ReadFile(certPath)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open server certificate: %w", err)
 	}

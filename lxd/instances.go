@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -336,14 +335,14 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 		instancetype.VM:        shared.VarPath("virtual-machines"),
 	}
 
-	instanceTypeNames := make(map[instancetype.Type][]os.FileInfo, 2)
+	instanceTypeNames := make(map[instancetype.Type][]os.DirEntry, 2)
 
-	instanceTypeNames[instancetype.Container], err = ioutil.ReadDir(instancePaths[instancetype.Container])
+	instanceTypeNames[instancetype.Container], err = os.ReadDir(instancePaths[instancetype.Container])
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	instanceTypeNames[instancetype.VM], err = ioutil.ReadDir(instancePaths[instancetype.VM])
+	instanceTypeNames[instancetype.VM], err = os.ReadDir(instancePaths[instancetype.VM])
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}

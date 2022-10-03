@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -75,7 +74,7 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 	crlFilename := filepath.Join(dir, "ca.crl")
 	var crl *pkix.CertificateList
 	if PathExists(crlFilename) {
-		data, err := ioutil.ReadFile(crlFilename)
+		data, err := os.ReadFile(crlFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -383,7 +382,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 }
 
 func ReadCert(fpath string) (*x509.Certificate, error) {
-	cf, err := ioutil.ReadFile(fpath)
+	cf, err := os.ReadFile(fpath)
 	if err != nil {
 		return nil, err
 	}

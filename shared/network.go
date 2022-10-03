@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -121,7 +120,7 @@ func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCA
 	}
 
 	if tlsClientCAFile != "" {
-		caCertificates, err := ioutil.ReadFile(tlsClientCAFile)
+		caCertificates, err := os.ReadFile(tlsClientCAFile)
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +229,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 				break
 			}
 
-			buf, err := ioutil.ReadAll(r)
+			buf, err := io.ReadAll(r)
 			if err != nil {
 				logger.Debug("WebsocketRecvStream got error writing to writer", logger.Ctx{"err": err})
 				break
@@ -351,7 +350,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 			break
 		}
 
-		buf, err := ioutil.ReadAll(r)
+		buf, err := io.ReadAll(r)
 		if err != nil {
 			logger.Debug("DefaultWriter got error writing to writer", logger.Ctx{"err": err})
 			break

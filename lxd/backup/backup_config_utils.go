@@ -3,7 +3,6 @@ package backup
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -73,7 +72,7 @@ func ConfigToInstanceDBArgs(state *state.State, c *config.Config, projectName st
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.
 func ParseConfigYamlFile(path string) (*config.Config, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

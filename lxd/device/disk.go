@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1664,7 +1663,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 	// Build a list of all valid block devices
 	validBlocks := []string{}
 
-	dents, err := ioutil.ReadDir("/sys/class/block/")
+	dents, err := os.ReadDir("/sys/class/block/")
 	if err != nil {
 		return nil, err
 	}
@@ -1679,7 +1678,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			continue
 		}
 
-		block, err := ioutil.ReadFile(fmt.Sprintf("%s/dev", fPath))
+		block, err := os.ReadFile(fmt.Sprintf("%s/dev", fPath))
 		if err != nil {
 			return nil, err
 		}
@@ -2028,7 +2027,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
+	err = os.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
 	if err != nil {
 		return "", err
 	}
@@ -2042,7 +2041,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
+	err = os.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
 	if err != nil {
 		return "", err
 	}
@@ -2054,7 +2053,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	}
 
 	if networkConfig != "" {
-		err = ioutil.WriteFile(filepath.Join(scratchDir, "network-config"), []byte(networkConfig), 0400)
+		err = os.WriteFile(filepath.Join(scratchDir, "network-config"), []byte(networkConfig), 0400)
 		if err != nil {
 			return "", err
 		}
@@ -2066,7 +2065,7 @@ local-hostname: %s
 %s
 `, d.inst.Name(), d.inst.Name(), instanceConfig["user.meta-data"])
 
-	err = ioutil.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaData), 0400)
+	err = os.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaData), 0400)
 	if err != nil {
 		return "", err
 	}

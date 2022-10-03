@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -97,7 +96,7 @@ func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string
 		}
 
 		pipeReader, pipeWriter := io.Pipe()
-		p := subprocess.NewProcessWithFds(unpacker[0], unpacker[1:], ioutil.NopCloser(r), pipeWriter, nil)
+		p := subprocess.NewProcessWithFds(unpacker[0], unpacker[1:], io.NopCloser(r), pipeWriter, nil)
 		p.SetApparmor(apparmor.ArchiveProfileName(outputPath))
 		err = p.Start(ctx)
 		if err != nil {
@@ -206,7 +205,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 
 	var readCloser io.ReadCloser
 	if reader != nil {
-		readCloser = ioutil.NopCloser(reader)
+		readCloser = io.NopCloser(reader)
 	}
 
 	err = ExtractWithFds(command, args, allowedCmds, readCloser, sysOS, outputDir)

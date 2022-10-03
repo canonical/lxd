@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -170,7 +169,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	var stdin io.ReadCloser
 	stdin = os.Stdin
 	if c.flagDisableStdin {
-		stdin = ioutil.NopCloser(bytes.NewReader(nil))
+		stdin = io.NopCloser(bytes.NewReader(nil))
 	}
 
 	stdout := getStdout()

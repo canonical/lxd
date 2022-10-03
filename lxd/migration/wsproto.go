@@ -2,7 +2,7 @@ package migration
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -25,7 +25,7 @@ func ProtoRecv(ws *websocket.Conn, msg proto.Message) error {
 		return fmt.Errorf("Only binary messages allowed")
 	}
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}

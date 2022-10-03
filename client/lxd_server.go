@@ -2,7 +2,7 @@ package lxd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -184,7 +184,7 @@ func (r *ProtocolLXD) GetMetrics() (string, error) {
 	}
 
 	// Get the content.
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

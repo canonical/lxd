@@ -3,7 +3,6 @@
 package sys
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
@@ -51,7 +50,7 @@ func (s *OS) initAppArmor() []cluster.Warning {
 
 	/* Detect existing AppArmor stack */
 	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
-		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
+		contentBytes, err := os.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
 		if err == nil && string(contentBytes) == "yes\n" {
 			s.AppArmorStacked = true
 		}
@@ -103,7 +102,7 @@ func haveMacAdmin() bool {
 
 // Returns true if AppArmor stacking support is available.
 func appArmorCanStack() bool {
-	contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
+	contentBytes, err := os.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
 	if err != nil {
 		return false
 	}
@@ -112,7 +111,7 @@ func appArmorCanStack() bool {
 		return false
 	}
 
-	contentBytes, err = ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
+	contentBytes, err = os.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
 	if err != nil {
 		return false
 	}

@@ -1,7 +1,6 @@
 package apparmor
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -30,7 +29,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 
 	// dnsmasq
 	profile := filepath.Join(aaPath, "profiles", dnsmasqProfileFilename(n))
-	content, err := ioutil.ReadFile(profile)
+	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -41,7 +40,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 	}
 
 	if string(content) != string(updated) {
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		err = os.WriteFile(profile, []byte(updated), 0600)
 		if err != nil {
 			return err
 		}
@@ -55,7 +54,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 	// forkdns
 	if n.Config()["bridge.mode"] == "fan" {
 		profile := filepath.Join(aaPath, "profiles", forkdnsProfileFilename(n))
-		content, err := ioutil.ReadFile(profile)
+		content, err := os.ReadFile(profile)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -66,7 +65,7 @@ func NetworkLoad(sysOS *sys.OS, n network) error {
 		}
 
 		if string(content) != string(updated) {
-			err = ioutil.WriteFile(profile, []byte(updated), 0600)
+			err = os.WriteFile(profile, []byte(updated), 0600)
 			if err != nil {
 				return err
 			}

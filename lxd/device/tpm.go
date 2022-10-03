@@ -3,7 +3,6 @@ package device
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -140,7 +139,7 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	line, err := ioutil.ReadFile(logPath)
+	line, err := os.ReadFile(logPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read %q: %w", logPath, err)
 	}

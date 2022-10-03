@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -72,7 +71,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	// Vendor and product
 	deviceVendorPath := filepath.Join(devicePath, "vendor")
 	if sysfsExists(deviceVendorPath) {
-		id, err := ioutil.ReadFile(deviceVendorPath)
+		id, err := os.ReadFile(deviceVendorPath)
 		if err != nil {
 			return fmt.Errorf("Failed to read %q: %w", deviceVendorPath, err)
 		}
@@ -82,7 +81,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 
 	deviceDevicePath := filepath.Join(devicePath, "device")
 	if sysfsExists(deviceDevicePath) {
-		id, err := ioutil.ReadFile(deviceDevicePath)
+		id, err := os.ReadFile(deviceDevicePath)
 		if err != nil {
 			return fmt.Errorf("Failed to read %q: %w", deviceDevicePath, err)
 		}
@@ -117,7 +116,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 		card.Driver = filepath.Base(linkTarget)
 
 		// Try to get the version, fallback to kernel version
-		out, err := ioutil.ReadFile(filepath.Join(driverPath, "module", "version"))
+		out, err := os.ReadFile(filepath.Join(driverPath, "module", "version"))
 		if err == nil {
 			card.DriverVersion = strings.TrimSpace(string(out))
 		} else {
@@ -130,7 +129,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if sysfsExists(netPath) {
 		card.Ports = []api.ResourcesNetworkCardPort{}
 
-		entries, err := ioutil.ReadDir(netPath)
+		entries, err := os.ReadDir(netPath)
 		if err != nil {
 			return fmt.Errorf("Failed to list %q: %w", netPath, err)
 		}
@@ -159,7 +158,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 
 			// Add MAC address
 			if info.Address == "" && sysfsExists(filepath.Join(interfacePath, "address")) {
-				address, err := ioutil.ReadFile(filepath.Join(interfacePath, "address"))
+				address, err := os.ReadFile(filepath.Join(interfacePath, "address"))
 				if err != nil {
 					return fmt.Errorf("Failed to read %q: %w", filepath.Join(interfacePath, "address"), err)
 				}
@@ -185,7 +184,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 				if sysfsExists(madPath) {
 					ibPort := info.Port + 1
 
-					entries, err := ioutil.ReadDir(madPath)
+					entries, err := os.ReadDir(madPath)
 					if err != nil {
 						return fmt.Errorf("Failed to list %q: %w", madPath, err)
 					}
@@ -205,7 +204,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 							continue
 						}
 
-						dev, err := ioutil.ReadFile(filepath.Join(madPath, entryName, "dev"))
+						dev, err := os.ReadFile(filepath.Join(madPath, entryName, "dev"))
 						if err != nil {
 							return fmt.Errorf("Failed to read %q: %w", filepath.Join(madPath, entryName, "dev"), err)
 						}
@@ -224,7 +223,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 
 				verbsPath := filepath.Join(devicePath, "infiniband_verbs")
 				if sysfsExists(verbsPath) {
-					entries, err := ioutil.ReadDir(verbsPath)
+					entries, err := os.ReadDir(verbsPath)
 					if err != nil {
 						return fmt.Errorf("Failed to list %q: %w", verbsPath, err)
 					}
@@ -237,7 +236,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 							continue
 						}
 
-						dev, err := ioutil.ReadFile(filepath.Join(verbsPath, verbName, "dev"))
+						dev, err := os.ReadFile(filepath.Join(verbsPath, verbName, "dev"))
 						if err != nil {
 							return fmt.Errorf("Failed to read %q: %w", filepath.Join(verbsPath, verbName, "dev"), err)
 						}
@@ -299,7 +298,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 	// Detect all Networks available through kernel network interface
 	if sysfsExists(sysClassNet) {
-		entries, err := ioutil.ReadDir(sysClassNet)
+		entries, err := os.ReadDir(sysClassNet)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to list %q: %w", sysClassNet, err)
 		}
@@ -365,7 +364,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 	// Detect remaining Networks on PCI bus
 	if sysfsExists(sysBusPci) {
-		entries, err := ioutil.ReadDir(sysBusPci)
+		entries, err := os.ReadDir(sysBusPci)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to list %q: %w", sysBusPci, err)
 		}
@@ -385,7 +384,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				continue
 			}
 
-			class, err := ioutil.ReadFile(filepath.Join(devicePath, "class"))
+			class, err := os.ReadFile(filepath.Join(devicePath, "class"))
 			if err != nil {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "class"), err)
 			}
@@ -524,13 +523,13 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		bonding := api.NetworkStateBond{}
 
 		// Bond mode.
-		strValue, err := ioutil.ReadFile(filepath.Join(bondPath, "mode"))
+		strValue, err := os.ReadFile(filepath.Join(bondPath, "mode"))
 		if err == nil {
 			bonding.Mode = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
 		}
 
 		// Bond transmit policy.
-		strValue, err = ioutil.ReadFile(filepath.Join(bondPath, "xmit_hash_policy"))
+		strValue, err = os.ReadFile(filepath.Join(bondPath, "xmit_hash_policy"))
 		if err == nil {
 			bonding.TransmitPolicy = strings.Split(strings.TrimSpace(string(strValue)), " ")[0]
 		}
@@ -554,13 +553,13 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		}
 
 		// MII state.
-		strValue, err = ioutil.ReadFile(filepath.Join(bondPath, "mii_status"))
+		strValue, err = os.ReadFile(filepath.Join(bondPath, "mii_status"))
 		if err == nil {
 			bonding.MIIState = strings.TrimSpace(string(strValue))
 		}
 
 		// Lower devices.
-		strValue, err = ioutil.ReadFile(filepath.Join(bondPath, "slaves"))
+		strValue, err = os.ReadFile(filepath.Join(bondPath, "slaves"))
 		if err == nil {
 			bonding.LowerDevices = strings.Split(strings.TrimSpace(string(strValue)), " ")
 		}
@@ -574,7 +573,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		bridge := api.NetworkStateBridge{}
 
 		// Bridge ID.
-		strValue, err := ioutil.ReadFile(filepath.Join(bridgePath, "bridge_id"))
+		strValue, err := os.ReadFile(filepath.Join(bridgePath, "bridge_id"))
 		if err == nil {
 			bridge.ID = strings.TrimSpace(string(strValue))
 		}
@@ -606,7 +605,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 		// Upper devices.
 		bridgeIfPath := fmt.Sprintf("/sys/class/net/%s/brif", name)
 		if sysfsExists(bridgeIfPath) {
-			entries, err := ioutil.ReadDir(bridgeIfPath)
+			entries, err := os.ReadDir(bridgeIfPath)
 			if err == nil {
 				bridge.UpperDevices = []string{}
 				for _, entry := range entries {
@@ -628,7 +627,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 
 	vlanPath := "/proc/net/vlan/config"
 	if sysfsExists(vlanPath) {
-		entries, err := ioutil.ReadFile(vlanPath)
+		entries, err := os.ReadFile(vlanPath)
 		if err != nil {
 			return nil, err
 		}
@@ -679,7 +678,7 @@ func GetNetworkCounters(name string) (*api.NetworkStateCounters, error) {
 	counters := api.NetworkStateCounters{}
 
 	// Get counters
-	content, err := ioutil.ReadFile("/proc/net/dev")
+	content, err := os.ReadFile("/proc/net/dev")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &counters, nil
