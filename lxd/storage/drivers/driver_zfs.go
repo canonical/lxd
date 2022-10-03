@@ -159,14 +159,16 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 
 		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
 		if d.checkDataset(datasetPath) {
-			err := d.setDatasetProperties(datasetPath, properties...)
-			if warnOnExistingPolicyApplyError {
-				d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": datasetPath, "err": err})
-			} else {
-				return fmt.Errorf("Failed applying policy to existing dataset %q: %w", datasetPath, err)
+			err = d.setDatasetProperties(datasetPath, properties...)
+			if err != nil {
+				if warnOnExistingPolicyApplyError {
+					d.logger.Warn("Failed applying policy to existing dataset", logger.Ctx{"dataset": datasetPath, "err": err})
+				} else {
+					return fmt.Errorf("Failed applying policy to existing dataset %q: %w", datasetPath, err)
+				}
 			}
 		} else {
-			err := d.createDataset(datasetPath, properties...)
+			err = d.createDataset(datasetPath, properties...)
 			if err != nil {
 				return fmt.Errorf("Failed creating dataset %q: %w", datasetPath, err)
 			}
