@@ -43,41 +43,59 @@ func (nwc *nullWriteCloser) Close() error {
 	return nil
 }
 
+// QemuImg runs qemu-img with an AppArmor profile based on the imgPath and dstPath supplied.
+// The first element of the cmd slice is expected to be a priority limiting command (such as nice or prlimit) and
+// will be added as an allowed command to the AppArmor profile. The remaining elements of the cmd slice are
+// expected to be the qemu-img command and its arguments.
 func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (string, error) {
-	allowedCmds := []string{"qemu-img"}
 	//It is assumed that command starts with a program which sets resource limits, like prlimit or nice
-	allowedCmds = append(allowedCmds, cmd[0])
+	allowedCmds := []string{"qemu-img", cmd[0]}
 
 	allowedCmdPaths := []string{}
 	for _, c := range allowedCmds {
 		cmdPath, err := exec.LookPath(c)
 		if err != nil {
-			return "", fmt.Errorf("Failed to start qemu-img: Failed to find executable: %w", err)
+			return "", fmt.Errorf("Failed to find executable %q: %w", c, err)
 		}
 
 		allowedCmdPaths = append(allowedCmdPaths, cmdPath)
 	}
 
-	err := qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
-	if err != nil {
-		return "", fmt.Errorf("Failed to start extract: Failed to load profile: %w", err)
+	// Attempt to deref all paths.
+	imgFullPath, err := filepath.EvalSymlinks(imgPath)
+	if err == nil {
+		imgPath = imgFullPath
 	}
 
-	defer func() { _ = qemuImgDelete(sysOS, imgPath) }()
-	defer func() { _ = qemuImgUnload(sysOS, imgPath) }()
+	if dstPath != "" {
+		dstFullPath, err := filepath.EvalSymlinks(dstPath)
+		if err == nil {
+			dstPath = dstFullPath
+		}
+	}
+
+	err = qemuImgProfileLoad(sysOS, imgPath, dstPath, allowedCmdPaths)
+	if err != nil {
+		return "", fmt.Errorf("Failed to load qemu-img profile: %w", err)
+	}
+
+	defer func() {
+		_ = qemuImgUnload(sysOS, imgPath)
+		_ = qemuImgDelete(sysOS, imgPath)
+	}()
 
 	var buffer bytes.Buffer
 	var output bytes.Buffer
 	p := subprocess.NewProcessWithFds(cmd[0], cmd[1:], nil, &nullWriteCloser{&output}, &nullWriteCloser{&buffer})
 	if err != nil {
-		return "", fmt.Errorf("Failed to start extract: Failed to creating subprocess: %w", err)
+		return "", fmt.Errorf("Failed creating qemu-img subprocess: %w", err)
 	}
 
 	p.SetApparmor(qemuImgProfileName(imgPath))
 
 	err = p.Start(context.Background())
 	if err != nil {
-		return "", fmt.Errorf("Failed to start extract: Failed running: qemu-img: %w", err)
+		return "", fmt.Errorf("Failed running qemu-img: %w", err)
 	}
 
 	_, err = p.Wait(context.Background())
