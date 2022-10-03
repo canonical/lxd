@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -866,7 +865,7 @@ func CreateProfile(s *state.State, c Instance) error {
 		return err
 	}
 
-	return ioutil.WriteFile(ProfilePath(c), []byte(profile), 0600)
+	return os.WriteFile(ProfilePath(c), []byte(profile), 0600)
 }
 
 // DeleteProfile removes a seccomp profile.
@@ -1112,7 +1111,7 @@ func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state
 
 // TaskIDs returns the task IDs for a process.
 func TaskIDs(pid int) (int64, int64, int64, int64, error) {
-	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	status, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
 		return -1, -1, -1, -1, err
 	}
@@ -1195,7 +1194,7 @@ func FindTGID(procFd int) (int, error) {
 	}
 
 	statusFile = os.NewFile(uintptr(fd), "/proc/<pid>/status")
-	status, err := ioutil.ReadAll(statusFile)
+	status, err := io.ReadAll(statusFile)
 	_ = statusFile.Close()
 	if err != nil {
 		return -1, err
@@ -1753,7 +1752,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance uptime.
-	pidStat, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", siov.msg.init_pid))
+	pidStat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", siov.msg.init_pid))
 	if err != nil {
 		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))

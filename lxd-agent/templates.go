@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -20,7 +19,7 @@ func templatesApply(path string) ([]string, error) {
 	}
 
 	// Parse the metadata.
-	content, err := ioutil.ReadFile(metaName)
+	content, err := os.ReadFile(metaName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read metadata: %w", err)
 	}

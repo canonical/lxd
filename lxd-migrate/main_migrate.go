@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -503,7 +502,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the temporary directory to be used for the mounts
-	path, err := ioutil.TempDir("", "lxd-migrate_mount_")
+	path, err := os.MkdirTemp("", "lxd-migrate_mount_")
 	if err != nil {
 		return err
 	}
@@ -534,7 +533,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		fullPath = path
 		target := filepath.Join(path, "root.img")
 
-		err := ioutil.WriteFile(target, nil, 0644)
+		err := os.WriteFile(target, nil, 0644)
 		if err != nil {
 			return fmt.Errorf("Failed to create %q: %w", target, err)
 		}

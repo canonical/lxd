@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -594,7 +593,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
-	errMsg, err := ioutil.ReadAll(stderr)
+	errMsg, err := io.ReadAll(stderr)
 	if err != nil {
 		return nil, err
 	}
@@ -1139,7 +1138,7 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 		snapshots = append(snapshots, snapName)
 	}
 
-	errMsg, err := ioutil.ReadAll(stderr)
+	errMsg, err := io.ReadAll(stderr)
 	if err != nil {
 		return nil, err
 	}

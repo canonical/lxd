@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -496,7 +495,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		return response.EmptySyncResponse
 	} else if type_ == "symlink" {
 		// Figure out target.
-		target, err := ioutil.ReadAll(r.Body)
+		target, err := io.ReadAll(r.Body)
 		if err != nil {
 			return response.InternalError(err)
 		}

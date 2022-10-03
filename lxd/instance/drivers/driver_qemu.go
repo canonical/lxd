@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -482,22 +481,22 @@ func (d *qemu) generateAgentCert() (string, string, string, string, error) {
 	}
 
 	// Read all the files
-	agentCert, err := ioutil.ReadFile(agentCertFile)
+	agentCert, err := os.ReadFile(agentCertFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	agentKey, err := ioutil.ReadFile(agentKeyFile)
+	agentKey, err := os.ReadFile(agentKeyFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	clientCert, err := ioutil.ReadFile(clientCertFile)
+	clientCert, err := os.ReadFile(clientCertFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	clientKey, err := ioutil.ReadFile(clientKeyFile)
+	clientKey, err := os.ReadFile(clientKeyFile)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -1447,7 +1446,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	_, err = p.Wait(context.Background())
 	if err != nil {
-		stderr, _ := ioutil.ReadFile(d.EarlyLogFilePath())
+		stderr, _ := os.ReadFile(d.EarlyLogFilePath())
 		err = fmt.Errorf("Failed to run: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
 		op.Done(err)
 		return err
@@ -2159,17 +2158,17 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "server.crt"), []byte(clientCert), 0400)
+	err = os.WriteFile(filepath.Join(configDrivePath, "server.crt"), []byte(clientCert), 0400)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "agent.crt"), []byte(agentCert), 0400)
+	err = os.WriteFile(filepath.Join(configDrivePath, "agent.crt"), []byte(agentCert), 0400)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "agent.key"), []byte(agentKey), 0400)
+	err = os.WriteFile(filepath.Join(configDrivePath, "agent.key"), []byte(agentKey), 0400)
 	if err != nil {
 		return err
 	}
@@ -2201,7 +2200,7 @@ StartLimitBurst=10
 WantedBy=multi-user.target
 `
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
+	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
 	if err != nil {
 		return err
 	}
@@ -2247,7 +2246,7 @@ rmdir "${PREFIX}/.mnt"
 chown -R root:root "${PREFIX}"
 `
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
+	err = os.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-setup"), []byte(lxdAgentSetupScript), 0500)
 	if err != nil {
 		return err
 	}
@@ -2259,7 +2258,7 @@ chown -R root:root "${PREFIX}"
 	}
 
 	lxdAgentRules := `ACTION=="add", SYMLINK=="virtio-ports/org.linuxcontainers.lxd", TAG+="systemd", ACTION=="add", RUN+="/bin/systemctl start lxd-agent.service"`
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
+	err = os.WriteFile(filepath.Join(configDrivePath, "udev", "99-lxd-agent.rules"), []byte(lxdAgentRules), 0400)
 	if err != nil {
 		return err
 	}
@@ -2294,7 +2293,7 @@ echo "LXD agent has been installed, reboot to confirm setup."
 echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent"
 `
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
+	err = os.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
 	if err != nil {
 		return err
 	}
@@ -2358,7 +2357,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 	}
 
 	// Parse the metadata.
-	content, err := ioutil.ReadFile(fname)
+	content, err := os.ReadFile(fname)
 	if err != nil {
 		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
@@ -2423,7 +2422,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			defer func() { _ = w.Close() }()
 
 			// Read the template.
-			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
+			tplString, err := os.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
 			if err != nil {
 				return fmt.Errorf("Failed to read template file: %w", err)
 			}
@@ -2816,7 +2815,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
-	err = ioutil.WriteFile(agentMountFile, agentMountJSON, 0400)
+	err = os.WriteFile(agentMountFile, agentMountJSON, 0400)
 	if err != nil {
 		return "", nil, fmt.Errorf("Failed writing agent mounts file: %w", err)
 	}
@@ -2826,7 +2825,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Write the config file to disk.
 	sb := qemuStringifyCfg(cfg...)
 	configPath := filepath.Join(d.LogPath(), "qemu.conf")
-	return configPath, monHooks, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
+	return configPath, monHooks, os.WriteFile(configPath, []byte(sb.String()), 0640)
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
@@ -3439,7 +3438,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
-		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
+		content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
 		if err != nil {
 			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
 		}
@@ -3631,7 +3630,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 
 	nicFile := filepath.Join(d.Path(), "config", deviceConfig.NICConfigDir, fmt.Sprintf("%s.json", filesystem.PathNameEncode(nicConfig.DeviceName)))
 
-	err = ioutil.WriteFile(nicFile, nicConfigBytes, 0700)
+	err = os.WriteFile(nicFile, nicConfigBytes, 0700)
 	if err != nil {
 		return fmt.Errorf("Failed writing NIC config: %w", err)
 	}
@@ -3836,7 +3835,7 @@ func (d *qemu) pidFilePath() string {
 
 // pid gets the PID of the running qemu process. Returns 0 if PID file or process not found, and -1 if err non-nil.
 func (d *qemu) pid() (int, error) {
-	pidStr, err := ioutil.ReadFile(d.pidFilePath())
+	pidStr, err := os.ReadFile(d.pidFilePath())
 	if os.IsNotExist(err) {
 		return 0, nil // PID file has gone.
 	}
@@ -3851,7 +3850,7 @@ func (d *qemu) pid() (int, error) {
 	}
 
 	cmdLineProcFilePath := fmt.Sprintf("/proc/%d/cmdline", pid)
-	cmdLine, err := ioutil.ReadFile(cmdLineProcFilePath)
+	cmdLine, err := os.ReadFile(cmdLineProcFilePath)
 	if err != nil {
 		return 0, nil // Process has gone.
 	}
@@ -4870,7 +4869,7 @@ func (d *qemu) removeUnixDevices() error {
 	}
 
 	// Load the directory listing.
-	dents, err := ioutil.ReadDir(d.DevicesPath())
+	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
 		return err
 	}
@@ -4899,7 +4898,7 @@ func (d *qemu) removeDiskDevices() error {
 	}
 
 	// Load the directory listing.
-	dents, err := ioutil.ReadDir(d.DevicesPath())
+	dents, err := os.ReadDir(d.DevicesPath())
 	if err != nil {
 		return err
 	}
@@ -5144,7 +5143,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	if !shared.PathExists(fnam) {
 		// Generate a new metadata.yaml.
-		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+		tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -5194,7 +5193,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 		// Write the actual file.
 		fnam = filepath.Join(tempDir, "metadata.yaml")
-		err = ioutil.WriteFile(fnam, data, 0644)
+		err = os.WriteFile(fnam, data, 0644)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -5217,7 +5216,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 	} else {
 		// Parse the metadata.
-		content, err := ioutil.ReadFile(fnam)
+		content, err := os.ReadFile(fnam)
 		if err != nil {
 			_ = tarWriter.Close()
 			d.logger.Error("Failed exporting instance", ctxMap)
@@ -5241,7 +5240,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 		if properties != nil || !expiration.IsZero() {
 			// Generate a new metadata.yaml.
-			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+			tempDir, err := os.MkdirTemp("", "lxd_lxd_metadata_")
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -5259,7 +5258,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 			// Write the actual file.
 			fnam = filepath.Join(tempDir, "metadata.yaml")
-			err = ioutil.WriteFile(fnam, data, 0644)
+			err = os.WriteFile(fnam, data, 0644)
 			if err != nil {
 				_ = tarWriter.Close()
 				d.logger.Error("Failed exporting instance", ctxMap)
@@ -5292,7 +5291,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	}
 
 	// Convert from raw to qcow2 and add to tarball.
-	tmpPath, err := ioutil.TempDir(shared.VarPath("images"), "lxd_export_")
+	tmpPath, err := os.MkdirTemp(shared.VarPath("images"), "lxd_export_")
 	if err != nil {
 		return meta, err
 	}
@@ -6279,7 +6278,7 @@ func (d *qemu) Info() instance.Info {
 }
 
 func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
-	pidFile, err := ioutil.TempFile("", "")
+	pidFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return false, err
 	}
@@ -6318,7 +6317,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		return false, err
 	}
 
-	content, err := ioutil.ReadAll(pidFile)
+	content, err := io.ReadAll(pidFile)
 	if err != nil {
 		return false, err
 	}

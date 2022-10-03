@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/lxc/lxd/lxd/db/query"
@@ -88,7 +87,7 @@ func execFromFile(ctx context.Context, tx *sql.Tx, path string, hook Hook) error
 		return nil
 	}
 
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}

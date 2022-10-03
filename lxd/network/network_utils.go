@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"math/rand"
 	"net"
@@ -260,7 +259,7 @@ func isInUseByDevice(networkName string, d deviceConfig.Device) bool {
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
 func GetDevMTU(devName string) (uint32, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
+	content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
 	if err != nil {
 		return 0, err
 	}
@@ -441,7 +440,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		config := n.Config()
 
 		// Wipe everything clean.
-		files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+		files, err := os.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
 		if err != nil {
 			return err
 		}
@@ -797,7 +796,7 @@ func GetLeaseAddresses(networkName string, hwaddr string) ([]net.IP, error) {
 		return nil, fmt.Errorf("Leases file not found for network %q", networkName)
 	}
 
-	content, err := ioutil.ReadFile(leaseFile)
+	content, err := os.ReadFile(leaseFile)
 	if err != nil {
 		return nil, err
 	}

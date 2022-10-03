@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,7 +123,7 @@ func (d *cephfs) Create() error {
 	}
 
 	// Create a temporary mountpoint.
-	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
+	mountPath, err := os.MkdirTemp("", "lxd_cephfs_")
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}
@@ -184,7 +183,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 
 	// Create a temporary mountpoint.
-	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
+	mountPath, err := os.MkdirTemp("", "lxd_cephfs_")
 	if err != nil {
 		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}

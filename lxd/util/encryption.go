@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"golang.org/x/crypto/scrypt"
@@ -84,18 +84,18 @@ func LoadServerCert(dir string) (*shared.CertInfo, error) {
 // WriteCert writes the given material to the appropriate certificate files in
 // the given LXD var directory.
 func WriteCert(dir, prefix string, cert, key, ca []byte) error {
-	err := ioutil.WriteFile(filepath.Join(dir, prefix+".crt"), cert, 0644)
+	err := os.WriteFile(filepath.Join(dir, prefix+".crt"), cert, 0644)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(dir, prefix+".key"), key, 0600)
+	err = os.WriteFile(filepath.Join(dir, prefix+".key"), key, 0600)
 	if err != nil {
 		return err
 	}
 
 	if ca != nil {
-		err = ioutil.WriteFile(filepath.Join(dir, prefix+".ca"), ca, 0644)
+		err = os.WriteFile(filepath.Join(dir, prefix+".ca"), ca, 0644)
 		if err != nil {
 			return err
 		}

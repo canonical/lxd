@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,7 +97,7 @@ func genericVFSVolumeSnapshots(d Driver, vol Volume, op *operations.Operation) (
 	snapshotDir := GetVolumeSnapshotDir(d.Name(), vol.volType, vol.name)
 	snapshots := []string{}
 
-	ents, err := ioutil.ReadDir(snapshotDir)
+	ents, err := os.ReadDir(snapshotDir)
 	if err != nil {
 		// If the snapshots directory doesn't exist, there are no snapshots.
 		if os.IsNotExist(err) {
@@ -709,7 +708,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 				allowedCmds = append(allowedCmds, unpacker[0])
 			}
 
-			err = archive.ExtractWithFds("tar", args, allowedCmds, ioutil.NopCloser(r), sysOS, f)
+			err = archive.ExtractWithFds("tar", args, allowedCmds, io.NopCloser(r), sysOS, f)
 			if err != nil {
 				return fmt.Errorf("Error starting unpack: %w", err)
 			}
@@ -1074,7 +1073,7 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 		}
 
 		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType][0])
-		ents, err := ioutil.ReadDir(volTypePath)
+		ents, err := os.ReadDir(volTypePath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to list directory %q for volume type %q: %w", volTypePath, volType, err)
 		}

@@ -3,7 +3,6 @@ package resources
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -24,7 +23,7 @@ func GetCPUIsolated() []int64 {
 
 	isolatedCpusInt := []int64{}
 	if sysfsExists(isolatedPath) {
-		buf, err := ioutil.ReadFile(isolatedPath)
+		buf, err := os.ReadFile(isolatedPath)
 		if err != nil {
 			return isolatedCpusInt
 		}
@@ -85,7 +84,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	caches := []api.ResourcesCPUCache{}
 
 	// List all the caches
-	entries, err := ioutil.ReadDir(path)
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list %q: %w", path, err)
 	}
@@ -112,7 +111,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		cache.Level = cacheLevel
 
 		// Get the cache size
-		content, err := ioutil.ReadFile(filepath.Join(entryPath, "size"))
+		content, err := os.ReadFile(filepath.Join(entryPath, "size"))
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "size"), err)
@@ -136,7 +135,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		}
 
 		// Get the cache type
-		cacheType, err := ioutil.ReadFile(filepath.Join(entryPath, "type"))
+		cacheType, err := os.ReadFile(filepath.Join(entryPath, "type"))
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "type"), err)
@@ -208,7 +207,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	cpuInfo := bufio.NewScanner(f)
 
 	// List all the CPUs
-	entries, err := ioutil.ReadDir(sysDevicesCPU)
+	entries, err := os.ReadDir(sysDevicesCPU)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to list %q: %w", sysDevicesCPU, err)
 	}

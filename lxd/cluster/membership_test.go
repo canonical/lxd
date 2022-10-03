@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -35,7 +35,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 				f.ClusterAddress("1.2.3.4:666")
 				f.RaftNode("5.6.7.8:666")
 				filename := filepath.Join(f.state.OS.VarDir, "cluster.crt")
-				_ = ioutil.WriteFile(filename, []byte{}, 0644)
+				_ = os.WriteFile(filename, []byte{}, 0644)
 			},
 			"Inconsistent state: found leftover cluster certificate",
 		},

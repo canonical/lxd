@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ type lxdTestSuite struct {
 const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 
 func (suite *lxdTestSuite) SetupTest() {
-	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
+	tmpdir, err := os.MkdirTemp("", "lxd_testrun_")
 	if err != nil {
 		suite.T().Errorf("failed to create temp dir: %v", err)
 	}

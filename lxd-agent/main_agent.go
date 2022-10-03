@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -262,7 +261,7 @@ func (c *cmdAgent) mountHostShares() {
 		return
 	}
 
-	b, err := ioutil.ReadFile(agentMountsFile)
+	b, err := os.ReadFile(agentMountsFile)
 	if err != nil {
 		logger.Errorf("Failed to load agent mounts file %q: %v", agentMountsFile, err)
 	}

@@ -5,7 +5,6 @@ package subprocess
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -53,7 +52,7 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 
 // ImportProcess imports a saved process into a subprocess object.
 func ImportProcess(path string) (*Process, error) {
-	dat, err := ioutil.ReadFile(path)
+	dat, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read PID file %q: %w", path, err)
 	}

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"reflect"
 	"sort"
@@ -143,7 +143,7 @@ func GetExistingAliases(aliases []string, allAliases []api.ImageAliasesEntry) []
 func getConfig(args ...string) (map[string]string, error) {
 	if len(args) == 2 && !strings.Contains(args[0], "=") {
 		if args[1] == "-" && !termios.IsTerminal(getStdinFd()) {
-			buf, err := ioutil.ReadAll(os.Stdin)
+			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
 				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
 			}
@@ -163,7 +163,7 @@ func getConfig(args ...string) (map[string]string, error) {
 		}
 
 		if fields[1] == "-" && !termios.IsTerminal(getStdinFd()) {
-			buf, err := ioutil.ReadAll(os.Stdin)
+			buf, err := io.ReadAll(os.Stdin)
 			if err != nil {
 				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
 			}

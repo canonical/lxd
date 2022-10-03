@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -195,7 +194,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	volStorageName := project.StorageVolume(project.Default, volumeName)
 	mountpoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
 
-	entries, err := ioutil.ReadDir(mountpoint)
+	entries, err := os.ReadDir(mountpoint)
 	if err != nil {
 		return fmt.Errorf("Failed to list %q: %w", mountpoint, err)
 	}
@@ -243,7 +242,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		// Remove the source content.
-		entries, err := ioutil.ReadDir(source)
+		entries, err := os.ReadDir(source)
 		if err != nil {
 			return err
 		}

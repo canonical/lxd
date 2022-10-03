@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,7 +166,7 @@ func parseConfig(path string) ([]string, error) {
 
 			if shared.PathExists(value) {
 				if shared.IsDir(value) {
-					files, err := ioutil.ReadDir(value)
+					files, err := os.ReadDir(value)
 					if err != nil {
 						return nil, err
 					}

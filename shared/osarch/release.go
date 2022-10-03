@@ -2,7 +2,6 @@ package osarch
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -20,7 +19,7 @@ func GetLSBRelease() (map[string]string, error) {
 func getLSBRelease(filename string) (map[string]string, error) {
 	osRelease := make(map[string]string)
 
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return osRelease, nil

@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -113,18 +113,18 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 	}
 
 	// Get parent dev_port and dev_id values.
-	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parentDev))
+	pfDevPort, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", parentDev))
 	if err != nil {
 		return "", -1, err
 	}
 
-	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parentDev))
+	pfDevID, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", parentDev))
 	if err != nil {
 		return "", -1, err
 	}
 
 	// Get number of currently enabled VFs.
-	sriovNumVFsBuf, err := ioutil.ReadFile(sriovNumVFsFile)
+	sriovNumVFsBuf, err := os.ReadFile(sriovNumVFsFile)
 	if err != nil {
 		return "", -1, err
 	}
@@ -135,7 +135,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 	}
 
 	// Get number of possible VFs.
-	sriovTotalVFsBuf, err := ioutil.ReadFile(sriovTotalVFsFile)
+	sriovTotalVFsBuf, err := os.ReadFile(sriovTotalVFsFile)
 	if err != nil {
 		return "", -1, err
 	}
@@ -165,7 +165,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 		logger.Debugf("Attempting to grow available VFs from %d to %d on device %q", sriovNumVFs, sriovTotalVFs, parentDev)
 
 		// Bump the number of VFs to the maximum if not there yet.
-		err = ioutil.WriteFile(sriovNumVFsFile, []byte(fmt.Sprintf("%d", sriovTotalVFs)), 0644)
+		err = os.WriteFile(sriovNumVFsFile, []byte(fmt.Sprintf("%d", sriovTotalVFs)), 0644)
 		if err != nil {
 			return "", -1, fmt.Errorf("Failed growing available VFs from %d to %d on device %q: %w", sriovNumVFs, sriovTotalVFs, parentDev, err)
 		}
@@ -199,7 +199,7 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 			continue // The vfListPath won't exist if the VF has been unbound and used with a VM.
 		}
 
-		ents, err := ioutil.ReadDir(vfListPath)
+		ents, err := os.ReadDir(vfListPath)
 		if err != nil {
 			return -1, "", fmt.Errorf("Failed reading VF interface directory %q: %w", vfListPath, err)
 		}
@@ -219,12 +219,12 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 			}
 
 			// Get VF dev_port and dev_id values.
-			vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, nicName))
+			vfDevPort, err := os.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, nicName))
 			if err != nil {
 				return -1, "", err
 			}
 
-			vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, nicName))
+			vfDevID, err := os.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, nicName))
 			if err != nil {
 				return -1, "", err
 			}
@@ -304,14 +304,14 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 // switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
 // It returns the PF name, representor port name, VF name, and VF ID.
 func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (string, string, string, int, error) {
-	nics, err := ioutil.ReadDir(sysClassNet)
+	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
 	}
 
 	findRepresentorPort := func(pfSwitchID string, vfID int) string {
 		for _, nic := range nics {
-			nicSwitchID, err := ioutil.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
+			nicSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
 			if err != nil {
 				continue // Skip non-physical interfaces.
 			}
@@ -321,7 +321,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 			}
 
 			// Check if this representor port matches the PF and VF by parsing phys_port_name.
-			physPortName, err := ioutil.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_port_name"))
+			physPortName, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_port_name"))
 			if err != nil {
 				continue // Skip interfaes with no physical port name.
 			}
@@ -350,7 +350,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 
 	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).
 	for _, port := range ports {
-		physPortName, err := ioutil.ReadFile(filepath.Join(sysClassNet, port, "phys_port_name"))
+		physPortName, err := os.ReadFile(filepath.Join(sysClassNet, port, "phys_port_name"))
 		if err != nil {
 			continue // Skip non-physical ports connected to bridge.
 		}
@@ -367,7 +367,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 			continue
 		}
 
-		physSwitchID, err := ioutil.ReadFile(filepath.Join(sysClassNet, port, "phys_switch_id"))
+		physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, port, "phys_switch_id"))
 		if err != nil {
 			continue
 		}

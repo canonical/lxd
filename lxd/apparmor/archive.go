@@ -1,7 +1,6 @@
 package apparmor
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +45,7 @@ profile "{{.name}}" {
 // ArchiveLoad ensures that the archive's policy is loaded into the kernel.
 func ArchiveLoad(sysOS *sys.OS, outputPath string, allowedCommandPaths []string) error {
 	profile := filepath.Join(aaPath, "profiles", ArchiveProfileFilename(outputPath))
-	content, err := ioutil.ReadFile(profile)
+	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -57,7 +56,7 @@ func ArchiveLoad(sysOS *sys.OS, outputPath string, allowedCommandPaths []string)
 	}
 
 	if string(content) != string(updated) {
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		err = os.WriteFile(profile, []byte(updated), 0600)
 		if err != nil {
 			return err
 		}
