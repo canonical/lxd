@@ -326,7 +326,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 
 	vsockID := d.vsockID() // Default to using the vsock ID that will be used on next start.
 
-	// But if vsock ID from last VM start is present in volatie, then use that.
+	// But if vsock ID from last VM start is present in volatile, then use that.
 	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
 	// after the VM's instance ID has changed.
 	if d.localConfig["volatile.vsock_id"] != "" {
