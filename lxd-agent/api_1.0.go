@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -10,8 +11,9 @@ import (
 	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/vsock"
-	lxdshared "github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -42,7 +44,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		AuthMethods:   []string{"tls"},
 	}
 
-	uname, err := lxdshared.Uname()
+	uname, err := shared.Uname()
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -173,4 +175,40 @@ func getClient(CID int, port int, serverCertificate string) (*http.Client, error
 	}
 
 	return client, nil
+}
+
+func startHTTPServer(d *Daemon, debug bool) error {
+	// Setup the listener.
+	l, err := vsock.Listen(shared.HTTPSDefaultPort)
+	if err != nil {
+		return fmt.Errorf("Failed to listen on vsock: %w", err)
+	}
+
+	logger.Info("Started vsock listener")
+
+	// Load the expected server certificate.
+	cert, err := shared.ReadCert("server.crt")
+	if err != nil {
+		return fmt.Errorf("Failed to read client certificate: %w", err)
+	}
+
+	tlsConfig, err := serverTLSConfig()
+	if err != nil {
+		return fmt.Errorf("Failed to get TLS config: %w", err)
+	}
+
+	// Prepare the HTTP server.
+	servers["http"] = restServer(tlsConfig, cert, debug, d)
+
+	// Start the server.
+	go func() {
+		err := servers["http"].Serve(networkTLSListener(l, tlsConfig))
+		if !errors.Is(err, http.ErrServerClosed) {
+			errChan <- err
+		}
+
+		l.Close()
+	}()
+
+	return nil
 }

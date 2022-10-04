@@ -124,32 +124,16 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Setup the listener.
-	l, err := vsock.Listen(shared.HTTPSDefaultPort)
-	if err != nil {
-		return fmt.Errorf("Failed to listen on vsock: %w", err)
-	}
-
-	logger.Info("Started vsock listener")
-
 	// Mount shares from host.
 	c.mountHostShares()
 
-	// Load the expected server certificate.
-	cert, err := shared.ReadCert("server.crt")
-	if err != nil {
-		return fmt.Errorf("Failed to read client certificate: %w", err)
-	}
-
-	tlsConfig, err := serverTLSConfig()
-	if err != nil {
-		return fmt.Errorf("Failed to get TLS config: %w", err)
-	}
-
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
-	// Prepare the HTTP server.
-	servers["http"] = restServer(tlsConfig, cert, c.global.flagLogDebug, d)
+	// Start the server.
+	err = startHTTPServer(d, c.global.flagLogDebug)
+	if err != nil {
+		return fmt.Errorf("Failed to start HTTP server: %w", err)
+	}
 
 	// Create a cancellation context.
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -157,11 +141,28 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Start status notifier in background.
 	cancelStatusNotifier := c.startStatusNotifier(ctx, d.chConnected)
 
-	// Start the server.
+	// Check context ID periodically, and restart the HTTP server if needed.
 	go func() {
-		err := servers["http"].Serve(networkTLSListener(l, tlsConfig))
-		if err != nil {
-			errChan <- err
+		for range time.Tick(30 * time.Second) {
+			cid, err := vsock.ContextID()
+			if err != nil {
+				continue
+			}
+
+			if d.localCID == cid {
+				continue
+			}
+
+			// Restart server
+			servers["http"].Close()
+
+			err = startHTTPServer(d, c.global.flagLogDebug)
+			if err != nil {
+				errChan <- err
+			}
+
+			// Update context ID.
+			d.localCID = cid
 		}
 	}()
 
