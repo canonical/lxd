@@ -922,21 +922,21 @@ This introduces container IP filtering (`security.ipv4_filtering` and `security.
 Rework the resources API at `/1.0/resources`, especially:
 
 * CPU
-  * Fix reporting to track sockets, cores and threads
-  * Track NUMA node per core
-  * Track base and turbo frequency per socket
-  * Track current frequency per core
-  * Add CPU cache information
-  * Export the CPU architecture
-  * Show online/offline status of threads
+   * Fix reporting to track sockets, cores and threads
+   * Track NUMA node per core
+   * Track base and turbo frequency per socket
+   * Track current frequency per core
+   * Add CPU cache information
+   * Export the CPU architecture
+   * Show online/offline status of threads
 * Memory
-  * Add huge-pages tracking
-  * Track memory consumption per NUMA node too
+   * Add huge-pages tracking
+   * Track memory consumption per NUMA node too
 * GPU
-  * Split DRM information to separate struct
-  * Export device names and nodes in DRM struct
-  * Export device name and node in NVIDIA struct
-  * Add SR-IOV VF tracking
+   * Split DRM information to separate struct
+   * Export device names and nodes in DRM struct
+   * Export device name and node in NVIDIA struct
+   * Add SR-IOV VF tracking
 
 ## `container_exec_user_group_cwd`
 
