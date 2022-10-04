@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
-	lxdshared "github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -45,7 +44,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		AuthMethods:   []string{"tls"},
 	}
 
-	uname, err := lxdshared.Uname()
+	uname, err := shared.Uname()
 	if err != nil {
 		return response.InternalError(err)
 	}
