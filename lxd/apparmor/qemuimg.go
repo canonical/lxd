@@ -23,15 +23,27 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   capability dac_override,
   capability dac_read_search,
 
-  {{range $index, $element := .allowedCmdPaths}}
-  	{{$element}} mixr,
-  {{- end }}
+{{range $index, $element := .allowedCmdPaths}}
+  {{$element}} mixr,
+{{- end }}
 
   {{ .pathToImg }} rk,
 
-  {{- if .dstPath }}
-    {{ .dstPath }} rwk,
-  {{- end }}
+{{- if .dstPath }}
+  {{ .dstPath }} rwk,
+{{- end }}
+
+{{- if .snap }}
+  # Snap-specific libraries
+  /snap/lxd/*/lib/**.so* mr,
+{{- end }}
+
+{{if .libraryPath -}}
+  # Entries from LD_LIBRARY_PATH
+{{range $index, $element := .libraryPath}}
+  {{$element}}/** mr,
+{{- end }}
+{{- end }}
 }
 `))
 
@@ -159,6 +171,8 @@ func qemuImgProfile(imgPath string, dstPath string, allowedCmdPaths []string) (s
 		"pathToImg":       imgPath,
 		"dstPath":         dstPath,
 		"allowedCmdPaths": allowedCmdPaths,
+		"snap":            shared.InSnap(),
+		"libraryPath":     strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 	})
 	if err != nil {
 		return "", err
