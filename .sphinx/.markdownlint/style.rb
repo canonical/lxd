@@ -9,3 +9,4 @@ exclude_rule 'MD022'
 exclude_rule 'MD031'
 rule 'MD026', :punctuation => '.,;:!'
 rule 'MD003', :style => :atx
+rule 'MD007', :indent => 3

@@ -1,4 +1,3 @@
-.tmp/doc/authentication.md:61: MD007 Unordered list indentation
 .tmp/doc/howto/import_machines_to_instances.md:62: MD034 Bare URL used
 .tmp/doc/howto/network_forwards.md:58: MD004 Unordered list style
 .tmp/doc/howto/network_forwards.md:62: MD004 Unordered list style

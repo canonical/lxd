@@ -49,13 +49,13 @@ authentication support in the `/dev/lxd/sock` API.
 ### API structure
 
 * `/`
-  * `/1.0`
-    * `/1.0/config`
-      * `/1.0/config/{key}`
-    * `/1.0/devices`
-    * `/1.0/events`
-    * `/1.0/images/{fingerprint}/export`
-    * `/1.0/meta-data`
+   * `/1.0`
+      * `/1.0/config`
+         * `/1.0/config/{key}`
+      * `/1.0/devices`
+      * `/1.0/events`
+      * `/1.0/images/{fingerprint}/export`
+      * `/1.0/meta-data`
 
 ### API details
 
