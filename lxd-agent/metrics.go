@@ -275,9 +275,8 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 			stats.FSType = fsType
 		}
 
-		stats.SizeBytes = statfs.Blocks * uint64(statfs.Bsize)
-		stats.SizeBytes = statfs.Blocks * uint64(statfs.Bsize)
-		stats.SizeBytes = statfs.Blocks * uint64(statfs.Bsize)
+		stats.AvailableBytes = statfs.Bavail * uint64(statfs.Bsize)
+		stats.FreeBytes = statfs.Bfree * uint64(statfs.Bsize)
 		stats.SizeBytes = statfs.Blocks * uint64(statfs.Bsize)
 
 		out[fields[0]] = stats
