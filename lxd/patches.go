@@ -340,7 +340,11 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 		}
 
 		// Only apply patch on leader, otherwise wait for it to be applied.
-		clusterAddress, err := node.ClusterAddress(d.db.Node)
+		var localConfig *node.Config
+		err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+			localConfig, err = node.ConfigLoad(ctx, tx)
+			return err
+		})
 		if err != nil {
 			return err
 		}
@@ -354,7 +358,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 			return err
 		}
 
-		if clusterAddress == leaderAddress {
+		if localConfig.ClusterAddress() == leaderAddress {
 			break // Apply change on leader node.
 		}
 
