@@ -685,6 +685,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Update the daemon config.
 	d.globalConfigMu.Lock()
 	d.globalConfig = newClusterConfig
+	d.localConfig = newNodeConfig
 	d.globalConfigMu.Unlock()
 
 	// Run any update triggers.
