@@ -133,6 +133,7 @@ type Daemon struct {
 
 	// Configuration.
 	globalConfig   *clusterConfig.Config
+	localConfig    *node.Config
 	globalConfigMu sync.Mutex
 
 	// Cluster.
@@ -445,6 +446,7 @@ func (d *Daemon) State() *state.State {
 
 	d.globalConfigMu.Lock()
 	globalConfig := d.globalConfig
+	localConfig := d.localConfig
 	d.globalConfigMu.Unlock()
 
 	return &state.State{
@@ -464,6 +466,7 @@ func (d *Daemon) State() *state.State {
 		InstanceTypes:          instanceTypes,
 		DevMonitor:             d.devmonitor,
 		GlobalConfig:           globalConfig,
+		LocalConfig:            localConfig,
 		ServerName:             d.serverName,
 	}
 }
@@ -1076,7 +1079,7 @@ func (d *Daemon) init() error {
 		d.shutdownCtx,
 		d.db.Node,
 		networkCert,
-		d.serverCert,
+		d.State,
 		cluster.Latency(d.config.RaftLatency),
 		cluster.LogLevel(clusterLogLevel))
 	if err != nil {
@@ -1104,20 +1107,19 @@ func (d *Daemon) init() error {
 	}
 
 	logger.Info("Loading daemon configuration")
-	var daemonConfig *node.Config
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		daemonConfig, err = node.ConfigLoad(ctx, tx)
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	address := daemonConfig.HTTPSAddress()
-	clusterAddress := daemonConfig.ClusterAddress()
-	debugAddress := daemonConfig.DebugAddress()
-	metricsAddress := daemonConfig.MetricsAddress()
-	storageBucketsAddress := daemonConfig.StorageBucketsAddress()
+	address := d.localConfig.HTTPSAddress()
+	clusterAddress := d.localConfig.ClusterAddress()
+	debugAddress := d.localConfig.DebugAddress()
+	metricsAddress := d.localConfig.MetricsAddress()
+	storageBucketsAddress := d.localConfig.StorageBucketsAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1285,8 +1287,8 @@ func (d *Daemon) init() error {
 	}
 
 	// Get daemon configuration.
-	bgpAddress := daemonConfig.BGPAddress()
-	bgpRouterID := daemonConfig.BGPRouterID()
+	bgpAddress := d.localConfig.BGPAddress()
+	bgpRouterID := d.localConfig.BGPRouterID()
 	bgpASN := int64(0)
 
 	candidAPIURL := ""
@@ -1294,7 +1296,7 @@ func (d *Daemon) init() error {
 	candidDomains := ""
 	candidExpiry := int64(0)
 
-	dnsAddress := daemonConfig.DNSAddress()
+	dnsAddress := d.localConfig.DNSAddress()
 
 	rbacAPIURL := ""
 	rbacAPIKey := ""
@@ -1306,7 +1308,7 @@ func (d *Daemon) init() error {
 
 	maasAPIURL := ""
 	maasAPIKey := ""
-	maasMachine := daemonConfig.MAASMachine()
+	maasMachine := d.localConfig.MAASMachine()
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(ctx, tx)
@@ -2091,7 +2093,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 		return
 	}
 
-	localAddress, _ := node.ClusterAddress(d.db.Node)
+	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	if hbData.FullStateList {
 		// If there is an ongoing heartbeat round (and by implication this is the leader), then this could
@@ -2112,7 +2114,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 			return
 		}
 
-		logger.Info("Partial heartbeat received", logger.Ctx{"local": localAddress})
+		logger.Info("Partial heartbeat received", logger.Ctx{"local": localClusterAddress})
 	}
 }
 
@@ -2130,10 +2132,10 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		return
 	}
 
-	localAddress, _ := node.ClusterAddress(d.db.Node)
+	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	if !heartbeatData.FullStateList || len(heartbeatData.Members) <= 0 {
-		logger.Error("Heartbeat member refresh task called with partial state list", logger.Ctx{"local": localAddress})
+		logger.Error("Heartbeat member refresh task called with partial state list", logger.Ctx{"local": localClusterAddress})
 		return
 	}
 
@@ -2149,14 +2151,14 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 
 	// Handle potential OVN chassis changes.
-	err := networkUpdateOVNChassis(s, heartbeatData, localAddress)
+	err := networkUpdateOVNChassis(s, heartbeatData, localClusterAddress)
 	if err != nil {
 		stateChangeTaskFailure = true
 		logger.Error("Error restarting OVN networks", logger.Ctx{"err": err})
 	}
 
 	if d.hasMemberStateChanged(heartbeatData) {
-		logger.Info("Cluster member state has changed", logger.Ctx{"local": localAddress})
+		logger.Info("Cluster member state has changed", logger.Ctx{"local": localClusterAddress})
 
 		// Refresh cluster certificates cached.
 		updateCertificateCache(d)
@@ -2165,7 +2167,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		err := networkUpdateForkdnsServersTask(s, heartbeatData)
 		if err != nil {
 			stateChangeTaskFailure = true
-			logger.Error("Error refreshing forkdns", logger.Ctx{"err": err, "local": localAddress})
+			logger.Error("Error refreshing forkdns", logger.Ctx{"err": err, "local": localClusterAddress})
 		}
 	}
 
@@ -2221,10 +2223,10 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// can upgrade some member.
 		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
 			d.clusterMembershipMutex.Lock()
-			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localAddress})
+			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localAddress})
+				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
 
 			d.clusterMembershipMutex.Unlock()
@@ -2232,10 +2234,10 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
-			logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localAddress})
+			logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
 			err := upgradeNodesWithoutRaftRole(d)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-				logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localAddress})
+				logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
 
 			d.clusterMembershipMutex.Unlock()

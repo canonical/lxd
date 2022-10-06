@@ -8,7 +8,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -32,17 +31,15 @@ const (
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
 func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
-	address, err := node.ClusterAddress(state.DB.Node)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch node address: %w", err)
-	}
+	localClusterAddress := state.LocalConfig.ClusterAddress()
 
 	// Fast-track the case where we're not clustered at all.
-	if address == "" {
+	if localClusterAddress == "" {
 		nullNotifier := func(func(lxd.InstanceServer) error) error { return nil }
 		return nullNotifier, nil
 	}
 
+	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -64,7 +61,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 
 	peers := []string{}
 	for _, node := range nodes {
-		if node.Address == address || node.Address == "0.0.0.0" {
+		if node.Address == localClusterAddress || node.Address == "0.0.0.0" {
 			continue // Exclude ourselves
 		}
 

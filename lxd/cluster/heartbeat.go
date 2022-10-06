@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/warningtype"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/warnings"
@@ -320,10 +319,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	// Address of this node.
-	localAddress, err := node.ClusterAddress(g.db)
-	if err != nil {
-		logger.Error("Failed to fetch local cluster address", logger.Ctx{"err": err})
-	}
+	localClusterAddress := g.state().LocalConfig.ClusterAddress()
 
 	var allNodes []db.NodeInfo
 	err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -350,10 +346,10 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	if mode != hearbeatNormal {
 		// Log unscheduled heartbeats with a higher level than normal heartbeats.
-		logger.Info("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localAddress})
+		logger.Info("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localClusterAddress})
 	} else {
 		// Don't spam the normal log with regular heartbeat messages.
-		logger.Debug("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localAddress})
+		logger.Debug("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localClusterAddress})
 	}
 
 	// Replace the local raft_nodes table immediately because it
@@ -365,11 +361,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warn("Failed to replace local raft members", logger.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+		logger.Warn("Failed to replace local raft members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
 		return
 	}
 
-	if localAddress == "" {
+	if localClusterAddress == "" {
 		logger.Error("No local address set, aborting heartbeat round", logger.Ctx{"mode": modeStr})
 		return
 	}
@@ -388,19 +384,21 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		spreadDuration = heartbeatInterval
 	}
 
+	serverCert := g.state().ServerCert()
+
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if mode == hearbeatInitial {
 		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 	} else {
 		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 	}
 
 	// Check if context has been cancelled.
@@ -419,7 +417,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localClusterAddress})
 			return
 		}
 
@@ -443,7 +441,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		// If any new nodes found, send heartbeat to just them (with full node state).
 		if len(newNodes) > 0 {
 			hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-			hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
+			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newNodes, 0)
 		}
 	}
 
@@ -483,7 +481,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	// If the context has been cancelled, return prematurely after saving the members we did manage to ping.
 	if ctxErr != nil {
-		logger.Warn("Aborting heartbeat round", logger.Ctx{"err": ctxErr, "mode": modeStr, "local": localAddress})
+		logger.Warn("Aborting heartbeat round", logger.Ctx{"err": ctxErr, "mode": modeStr, "local": localClusterAddress})
 		return
 	}
 
@@ -499,10 +497,10 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	if mode != hearbeatNormal {
 		// Log unscheduled heartbeats with a higher level than normal heartbeats.
-		logger.Info("Completed heartbeat round", logger.Ctx{"duration": duration, "local": localAddress})
+		logger.Info("Completed heartbeat round", logger.Ctx{"duration": duration, "local": localClusterAddress})
 	} else {
 		// Don't spam the normal log with regular heartbeat messages.
-		logger.Debug("Completed heartbeat round", logger.Ctx{"duration": duration, "local": localAddress})
+		logger.Debug("Completed heartbeat round", logger.Ctx{"duration": duration, "local": localClusterAddress})
 	}
 }
 

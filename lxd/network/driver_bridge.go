@@ -1378,16 +1378,13 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Setup clustered DNS.
-		clusterAddress, err := node.ClusterAddress(n.state.DB.Node)
-		if err != nil {
-			return err
-		}
+		localClusterAddress := n.state.LocalConfig.ClusterAddress()
 
 		// If clusterAddress is non-empty, this indicates the intention for this node to be
 		// part of a cluster and so we should ensure that dnsmasq and forkdns are started
 		// in cluster mode. Note: During LXD initialisation the cluster may not actually be
 		// setup yet, but we want the DNS processes to be ready for when it is.
-		if clusterAddress != "" {
+		if localClusterAddress != "" {
 			dnsClustered = true
 		}
 
