@@ -1676,7 +1676,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	}
 
 	// Skip own node
-	address, _ := node.ClusterAddress(d.db.Node)
+	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	// Get the IDs of all storage pools on which a storage volume
 	// for the requested image currently exists.
@@ -1694,7 +1694,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	}
 
 	for _, nodeAddress := range nodes {
-		if nodeAddress == address {
+		if nodeAddress == localClusterAddress {
 			continue
 		}
 
@@ -3913,11 +3913,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// In order to only have one task operation executed per image when syncing the images
 		// across the cluster, only leader node can launch the task, no others.
-		localAddress, err := node.ClusterAddress(d.db.Node)
-		if err != nil {
-			logger.Error("Failed to get current cluster member address", logger.Ctx{"err": err})
-			return
-		}
+		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -3929,7 +3925,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		if localAddress != leader {
+		if localClusterAddress != leader {
 			logger.Debug("Skipping image synchronization task since we're not leader")
 			return
 		}
