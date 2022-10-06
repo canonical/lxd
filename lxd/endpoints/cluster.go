@@ -12,8 +12,8 @@ import (
 )
 
 // ClusterAddress returns the cluster address of the cluster endpoint, or an
-// empty string if there's no cluster endpoint.
-func (e *Endpoints) ClusterAddress() string {
+// empty string if there's no cluster endpoint or the cluster endpoint is provided by the network listener.
+func (e *Endpoints) clusterAddress() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
@@ -34,7 +34,7 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 		address = util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 	}
 
-	oldAddress := e.ClusterAddress()
+	oldAddress := e.clusterAddress()
 	if address == oldAddress {
 		return nil
 	}
