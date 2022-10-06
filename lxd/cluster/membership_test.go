@@ -74,7 +74,8 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 
 			serverCert := shared.TestingKeyPair()
 			state.ServerCert = func() *shared.CertInfo { return serverCert }
-			gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
+
+			gateway := newGateway(t, state.DB.Node, serverCert, state)
 			defer func() { _ = gateway.Shutdown() }()
 
 			err := cluster.Bootstrap(state, gateway, "buzz")
@@ -88,8 +89,9 @@ func TestBootstrap(t *testing.T) {
 	defer cleanup()
 
 	serverCert := shared.TestingKeyPair()
-	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
 	state.ServerCert = func() *shared.CertInfo { return serverCert }
+
+	gateway := newGateway(t, state.DB.Node, serverCert, state)
 	defer func() { _ = gateway.Shutdown() }()
 
 	mux := http.NewServeMux()
@@ -212,7 +214,9 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			defer cleanup()
 
 			serverCert := shared.TestingKeyPair()
-			gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
+			state.ServerCert = func() *shared.CertInfo { return serverCert }
+
+			gateway := newGateway(t, state.DB.Node, serverCert, state)
 			defer func() { _ = gateway.Shutdown() }()
 
 			c.setup(&membershipFixtures{t: t, state: state})
@@ -229,7 +233,9 @@ func TestAccept(t *testing.T) {
 	defer cleanup()
 
 	serverCert := shared.TestingKeyPair()
-	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
+	state.ServerCert = func() *shared.CertInfo { return serverCert }
+
+	gateway := newGateway(t, state.DB.Node, serverCert, state)
 	defer func() { _ = gateway.Shutdown() }()
 
 	f := &membershipFixtures{t: t, state: state}
@@ -274,7 +280,9 @@ func TestJoin(t *testing.T) {
 	targetState, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	targetGateway := newGateway(t, targetState.DB.Node, targetCert, targetCert)
+	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
+
+	targetGateway := newGateway(t, targetState.DB.Node, targetCert, targetState)
 	defer func() { _ = targetGateway.Shutdown() }()
 
 	altServerCert := shared.TestingAltKeyPair()
@@ -339,7 +347,9 @@ func TestJoin(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	gateway := newGateway(t, state.DB.Node, targetCert, altServerCert)
+	state.ServerCert = func() *shared.CertInfo { return altServerCert }
+
+	gateway := newGateway(t, state.DB.Node, targetCert, state)
 
 	defer func() { _ = gateway.Shutdown() }()
 

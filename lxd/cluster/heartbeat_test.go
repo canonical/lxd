@@ -16,6 +16,7 @@ import (
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/db"
 	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
@@ -206,7 +207,8 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 
 	serverCert := shared.TestingKeyPair()
 	state.ServerCert = func() *shared.CertInfo { return serverCert }
-	gateway := newGateway(f.t, state.DB.Node, serverCert, serverCert)
+
+	gateway := newGateway(f.t, state.DB.Node, serverCert, state)
 	f.cleanups = append(f.cleanups, func() { _ = gateway.Shutdown() })
 
 	mux := http.NewServeMux()
@@ -244,6 +246,12 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 		}
 
 		return nil
+	})
+	require.NoError(f.t, err)
+
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		state.LocalConfig, err = node.ConfigLoad(ctx, tx)
+		return err
 	})
 	require.NoError(f.t, err)
 
