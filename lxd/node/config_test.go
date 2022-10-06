@@ -127,20 +127,32 @@ func TestClusterAddress(t *testing.T) {
 	nodeDB, cleanup := db.NewTestNode(t)
 	defer cleanup()
 
-	address, err := node.ClusterAddress(nodeDB)
-	require.NoError(t, err)
-	assert.Equal(t, "", address)
-
-	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(ctx, tx)
-		require.NoError(t, err)
-		_, err = config.Replace(map[string]any{"cluster.https_address": "127.0.0.1:666"})
-		require.NoError(t, err)
-		return nil
+	var err error
+	var nodeConfig *node.Config
+	err = nodeDB.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
 	})
 	require.NoError(t, err)
 
-	address, err = node.ClusterAddress(nodeDB)
+	assert.Equal(t, "", nodeConfig.ClusterAddress())
+
+	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		_, err = nodeConfig.Replace(map[string]any{"cluster.https_address": "127.0.0.1:666"})
+		return err
+	})
 	require.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:666", address)
+
+	err = nodeDB.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "127.0.0.1:666", nodeConfig.ClusterAddress())
 }
