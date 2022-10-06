@@ -384,19 +384,21 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		spreadDuration = heartbeatInterval
 	}
 
+	serverCert := g.state().ServerCert()
+
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if mode == hearbeatInitial {
 		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localClusterAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localClusterAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 	} else {
 		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localClusterAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
 	}
 
 	// Check if context has been cancelled.
@@ -439,7 +441,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		// If any new nodes found, send heartbeat to just them (with full node state).
 		if len(newNodes) > 0 {
 			hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-			hbState.Send(ctx, g.networkCert, g.serverCert(), localClusterAddress, newNodes, 0)
+			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newNodes, 0)
 		}
 	}
 
