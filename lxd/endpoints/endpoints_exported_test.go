@@ -42,7 +42,7 @@ func (e *Endpoints) NetworkAddressAndCert() (string, *shared.CertInfo) {
 // endpoint. This method is supposed to be used in conjunction with
 // the httpGetOverTLSSocket test helper.
 func (e *Endpoints) ClusterAddressAndCert() (string, *shared.CertInfo) {
-	return e.ClusterAddress(), e.cert
+	return e.clusterAddress(), e.cert
 }
 
 // Set the file descriptor number marker that will be used when detecting

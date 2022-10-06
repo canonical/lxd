@@ -65,7 +65,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 		return nil
 	}
 
-	clusterAddress := e.ClusterAddress()
+	clusterAddress := e.clusterAddress()
 
 	logger.Infof("Update network address")
 
