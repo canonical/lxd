@@ -358,8 +358,10 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
-	err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(ctx, tx)
+	var err error
+	var config *node.Config
+	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		config, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
@@ -387,6 +389,11 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = config
+	d.globalConfigMu.Unlock()
 
 	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ClusterBootstrap, resources, nil, run, nil, nil, r)
 	if err != nil {
@@ -428,6 +435,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.SmartError(err)
 	}
 
+	var config *node.Config
+
 	if address == "" {
 		// As the user always provides a server address, but no networking
 		// was setup on this node, let's do the job and open the
@@ -442,7 +451,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			config, err := node.ConfigLoad(ctx, tx)
+			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
@@ -473,7 +482,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Update the cluster.https_address config key.
 		err := d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-			config, err := node.ConfigLoad(ctx, tx)
+			config, err = node.ConfigLoad(ctx, tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
@@ -487,6 +496,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return response.SmartError(err)
 		}
 	}
+
+	// Update local config cache.
+	d.globalConfigMu.Lock()
+	d.localConfig = config
+	d.globalConfigMu.Unlock()
 
 	// Client parameters to connect to the target cluster node.
 	serverCert := d.serverCert()
