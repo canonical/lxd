@@ -31,6 +31,17 @@ func TestNewNotifier(t *testing.T) {
 	f := notifyFixtures{t: t, state: state}
 	defer f.Nodes(cert, 3)()
 
+	// Populate state.LocalConfig after nodes created above.
+	var err error
+	var nodeConfig *node.Config
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	state.LocalConfig = nodeConfig
+
 	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAll)
 	require.NoError(t, err)
 
@@ -69,6 +80,18 @@ func TestNewNotify_NotifyAllError(t *testing.T) {
 	defer f.Nodes(cert, 3)()
 
 	f.Down(1)
+
+	// Populate state.LocalConfig after nodes created above.
+	var err error
+	var nodeConfig *node.Config
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	state.LocalConfig = nodeConfig
+
 	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAll)
 	assert.Nil(t, notifier)
 	require.Error(t, err)
@@ -87,6 +110,18 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	defer f.Nodes(cert, 3)()
 
 	f.Down(1)
+
+	// Populate state.LocalConfig after nodes created above.
+	var err error
+	var nodeConfig *node.Config
+	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+		nodeConfig, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	state.LocalConfig = nodeConfig
+
 	notifier, err := cluster.NewNotifier(state, cert, cert, cluster.NotifyAlive)
 	assert.NoError(t, err)
 
