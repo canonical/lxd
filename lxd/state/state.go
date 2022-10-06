@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/fsmonitor"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 )
@@ -66,6 +67,9 @@ type State struct {
 
 	// Global configuration
 	GlobalConfig *clusterConfig.Config
+
+	// Local configuration
+	LocalConfig *node.Config
 
 	// Local server name.
 	ServerName string
