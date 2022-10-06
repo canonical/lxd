@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -40,7 +41,7 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
-func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
+func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, stateFunc func() *state.State, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	o := newOptions()
@@ -59,6 +60,7 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 		upgradeCh:   make(chan struct{}),
 		acceptCh:    make(chan net.Conn),
 		store:       &dqliteNodeStore{},
+		state:       stateFunc,
 	}
 
 	err := gateway.init(false)
@@ -132,6 +134,9 @@ type Gateway struct {
 
 	// Abstract unix socket that the local dqlite task is listening to.
 	bindAddress string
+
+	// State function.
+	state func() *state.State
 }
 
 // Current dqlite protocol version.
