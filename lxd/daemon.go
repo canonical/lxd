@@ -1079,7 +1079,6 @@ func (d *Daemon) init() error {
 		d.shutdownCtx,
 		d.db.Node,
 		networkCert,
-		d.serverCert,
 		d.State,
 		cluster.Latency(d.config.RaftLatency),
 		cluster.LogLevel(clusterLogLevel))
