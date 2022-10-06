@@ -153,7 +153,9 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, state.DB.Node, address)
 
-	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
+	state.ServerCert = func() *shared.CertInfo { return serverCert }
+
+	gateway := newGateway(t, state.DB.Node, serverCert, state)
 	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {

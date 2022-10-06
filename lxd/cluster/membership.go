@@ -1012,7 +1012,7 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if !shared.StringInSlice(node.Address, unavailableMembers) && HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
+		if !shared.StringInSlice(node.Address, unavailableMembers) && HasConnectivity(gateway.networkCert, gateway.state().ServerCert(), node.Address) {
 			cluster[node.NodeInfo] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}

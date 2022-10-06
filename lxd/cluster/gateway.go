@@ -41,7 +41,7 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
-func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, stateFunc func() *state.State, options ...Option) (*Gateway, error) {
+func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, stateFunc func() *state.State, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	o := newOptions()
@@ -53,7 +53,6 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 		shutdownCtx: shutdownCtx,
 		db:          db,
 		networkCert: networkCert,
-		serverCert:  serverCert,
 		options:     o,
 		ctx:         ctx,
 		cancel:      cancel,
@@ -83,7 +82,6 @@ type HeartbeatHandler func(w http.ResponseWriter, r *http.Request, isLeader bool
 type Gateway struct {
 	db          *db.Node
 	networkCert *shared.CertInfo
-	serverCert  func() *shared.CertInfo
 	options     *options
 
 	// The raft instance to use for creating the dqlite driver. It's nil if
@@ -159,7 +157,7 @@ func setDqliteVersionHeader(request *http.Request) {
 func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[cluster.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
-		if !tlsCheckCert(r, g.networkCert, g.serverCert(), trustedCerts()) {
+		if !tlsCheckCert(r, g.networkCert, g.state().ServerCert(), trustedCerts()) {
 			g.lock.RUnlock()
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
 			return
@@ -491,7 +489,7 @@ func (g *Gateway) TransferLeadership() error {
 			return err
 		}
 
-		if !HasConnectivity(g.networkCert, g.serverCert(), address) {
+		if !HasConnectivity(g.networkCert, g.state().ServerCert(), address) {
 			continue
 		}
 
@@ -665,7 +663,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 	// If this isn't a raft node, contact a raft node and ask for the
 	// address of the current leader.
-	config, err := tlsClientConfig(g.networkCert, g.serverCert())
+	config, err := tlsClientConfig(g.networkCert, g.state().ServerCert())
 	if err != nil {
 		return "", err
 	}
@@ -1021,7 +1019,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 }
 
 func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
-	config, err := tlsClientConfig(g.networkCert, g.serverCert())
+	config, err := tlsClientConfig(g.networkCert, g.state().ServerCert())
 	if err != nil {
 		return nil, err
 	}
