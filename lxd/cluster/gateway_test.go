@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -28,7 +29,12 @@ func TestGateway_Single(t *testing.T) {
 	defer cleanup()
 
 	cert := shared.TestingKeyPair()
-	gateway := newGateway(t, node, cert, cert)
+
+	s := &state.State{
+		ServerCert: func() *shared.CertInfo { return cert },
+	}
+
+	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
@@ -88,7 +94,11 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, node, address)
 
-	gateway := newGateway(t, node, cert, cert)
+	s := &state.State{
+		ServerCert: func() *shared.CertInfo { return cert },
+	}
+
+	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
@@ -129,7 +139,11 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, node, address)
 
-	gateway := newGateway(t, node, cert, cert)
+	s := &state.State{
+		ServerCert: func() *shared.CertInfo { return cert },
+	}
+
+	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
 	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
@@ -168,7 +182,11 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	address := server.Listener.Addr().String()
 	setRaftRole(t, node, address)
 
-	gateway := newGateway(t, node, cert, cert)
+	s := &state.State{
+		ServerCert: func() *shared.CertInfo { return cert },
+	}
+
+	gateway := newGateway(t, node, cert, s)
 	defer func() { _ = gateway.Shutdown() }()
 
 	nodes, err := gateway.RaftNodes()
@@ -180,10 +198,10 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error happens.
-func newGateway(t *testing.T, node *db.Node, networkCert *shared.CertInfo, serverCert *shared.CertInfo) *cluster.Gateway {
+func newGateway(t *testing.T, node *db.Node, networkCert *shared.CertInfo, s *state.State) *cluster.Gateway {
 	require.NoError(t, os.Mkdir(filepath.Join(node.Dir(), "global"), 0755))
-	serverCertFunc := func() *shared.CertInfo { return serverCert }
-	gateway, err := cluster.NewGateway(context.Background(), node, networkCert, serverCertFunc, nil, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
+	stateFunc := func() *state.State { return s }
+	gateway, err := cluster.NewGateway(context.Background(), node, networkCert, stateFunc, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
 	require.NoError(t, err)
 	return gateway
 }
