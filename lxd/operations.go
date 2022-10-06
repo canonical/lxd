@@ -16,7 +16,6 @@ import (
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -583,10 +582,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get local address.
-	localClusterAddress, err := node.ClusterAddress(d.db.Node)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed getting member local cluster address: %w", err))
-	}
+	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	memberOnline := func(memberAddress string) bool {
 		for _, node := range nodes {
@@ -716,10 +712,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	}
 
 	// Get local address.
-	localClusterAddress, err := node.ClusterAddress(d.db.Node)
-	if err != nil {
-		return nil, fmt.Errorf("Failed getting member local cluster address: %w", err)
-	}
+	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	memberOnline := func(memberAddress string) bool {
 		for _, node := range nodes {
@@ -1083,11 +1076,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		localAddress, err := node.ClusterAddress(d.db.Node)
-		if err != nil {
-			logger.Error("Failed to get current cluster member address", logger.Ctx{"err": err})
-			return
-		}
+		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -1099,7 +1088,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		if localAddress != leader {
+		if localClusterAddress != leader {
 			logger.Debug("Skipping remove orphaned operations task since we're not leader")
 			return
 		}
