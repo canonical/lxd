@@ -133,6 +133,7 @@ type Daemon struct {
 
 	// Configuration.
 	globalConfig   *clusterConfig.Config
+	localConfig    *node.Config
 	globalConfigMu sync.Mutex
 
 	// Cluster.
@@ -445,6 +446,7 @@ func (d *Daemon) State() *state.State {
 
 	d.globalConfigMu.Lock()
 	globalConfig := d.globalConfig
+	localConfig := d.localConfig
 	d.globalConfigMu.Unlock()
 
 	return &state.State{
@@ -464,6 +466,7 @@ func (d *Daemon) State() *state.State {
 		InstanceTypes:          instanceTypes,
 		DevMonitor:             d.devmonitor,
 		GlobalConfig:           globalConfig,
+		LocalConfig:            localConfig,
 		ServerName:             d.serverName,
 	}
 }
@@ -1104,20 +1107,19 @@ func (d *Daemon) init() error {
 	}
 
 	logger.Info("Loading daemon configuration")
-	var daemonConfig *node.Config
 	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		daemonConfig, err = node.ConfigLoad(ctx, tx)
+		d.localConfig, err = node.ConfigLoad(ctx, tx)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	address := daemonConfig.HTTPSAddress()
-	clusterAddress := daemonConfig.ClusterAddress()
-	debugAddress := daemonConfig.DebugAddress()
-	metricsAddress := daemonConfig.MetricsAddress()
-	storageBucketsAddress := daemonConfig.StorageBucketsAddress()
+	address := d.localConfig.HTTPSAddress()
+	clusterAddress := d.localConfig.ClusterAddress()
+	debugAddress := d.localConfig.DebugAddress()
+	metricsAddress := d.localConfig.MetricsAddress()
+	storageBucketsAddress := d.localConfig.StorageBucketsAddress()
 
 	if os.Getenv("LISTEN_PID") != "" {
 		d.systemdSocketActivated = true
@@ -1285,8 +1287,8 @@ func (d *Daemon) init() error {
 	}
 
 	// Get daemon configuration.
-	bgpAddress := daemonConfig.BGPAddress()
-	bgpRouterID := daemonConfig.BGPRouterID()
+	bgpAddress := d.localConfig.BGPAddress()
+	bgpRouterID := d.localConfig.BGPRouterID()
 	bgpASN := int64(0)
 
 	candidAPIURL := ""
@@ -1294,7 +1296,7 @@ func (d *Daemon) init() error {
 	candidDomains := ""
 	candidExpiry := int64(0)
 
-	dnsAddress := daemonConfig.DNSAddress()
+	dnsAddress := d.localConfig.DNSAddress()
 
 	rbacAPIURL := ""
 	rbacAPIKey := ""
@@ -1306,7 +1308,7 @@ func (d *Daemon) init() error {
 
 	maasAPIURL := ""
 	maasAPIKey := ""
-	maasMachine := daemonConfig.MAASMachine()
+	maasMachine := d.localConfig.MAASMachine()
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := clusterConfig.Load(ctx, tx)
