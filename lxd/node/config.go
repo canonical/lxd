@@ -129,23 +129,6 @@ func (c *Config) Patch(patch map[string]any) (map[string]string, error) {
 	return c.update(values)
 }
 
-// HTTPSAddress is a convenience for loading the node configuration and
-// returning the value of core.https_address.
-// Deprecated.
-func HTTPSAddress(node *db.Node) (string, error) {
-	var config *Config
-	err := node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
-		var err error
-		config, err = ConfigLoad(ctx, tx)
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return config.HTTPSAddress(), nil
-}
-
 func (c *Config) update(values map[string]any) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
