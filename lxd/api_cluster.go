@@ -1124,12 +1124,12 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	var err error
-	var nodes []db.NodeInfo
+	var members []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the nodes.
-		nodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		return nil
@@ -1145,8 +1145,8 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 
 	if recursion {
 		result := []api.ClusterMember{}
-		for _, node := range nodes {
-			member, err := node.ToAPI(s.DB.Cluster, s.DB.Node, leader)
+		for _, member := range members {
+			member, err := member.ToAPI(s.DB.Cluster, s.DB.Node, leader)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1158,7 +1158,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	urls := []string{}
-	for _, node := range nodes {
+	for _, node := range members {
 		url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.Name)
 		urls = append(urls, url)
 	}
@@ -1223,18 +1223,18 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the nodes.
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		// Filter to online members.
-		for _, node := range nodes {
-			if node.State == db.ClusterMemberStateEvacuated || node.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+		for _, member := range members {
+			if member.State == db.ClusterMemberStateEvacuated || member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
 				continue
 			}
 
-			onlineNodeAddresses = append(onlineNodeAddresses, node.Address)
+			onlineNodeAddresses = append(onlineNodeAddresses, member.Address)
 		}
 
 		return nil
@@ -1357,12 +1357,12 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var nodes []db.NodeInfo
+	var members []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
-		nodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		return nil
@@ -1376,12 +1376,12 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	for _, node := range nodes {
-		if node.Name != name {
+	for _, member := range members {
+		if member.Name != name {
 			continue
 		}
 
-		member, err := node.ToAPI(s.DB.Cluster, s.DB.Node, leader)
+		member, err := member.ToAPI(s.DB.Cluster, s.DB.Node, leader)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -2026,7 +2026,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			members, err = tx.GetNodes(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed getting members: %w", err)
+				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
 			return nil
@@ -2273,21 +2273,21 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 		return nil
 	}
 
-	var allNodes []db.NodeInfo
+	var members []db.NodeInfo
 	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		allNodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to get current cluster nodes: %w", err)
+		return err
 	}
 
-	return cluster.UpgradeMembersWithoutRole(d.gateway, allNodes)
+	return cluster.UpgradeMembersWithoutRole(d.gateway, members)
 }
 
 // Post a change role request to the member with the given address. The nodes
