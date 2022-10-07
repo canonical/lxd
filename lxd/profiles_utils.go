@@ -31,7 +31,7 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 
 	// Profiles can be applied to any instance type, so just use instancetype.Any type for validation so that
 	// instance type specific validation checks are not performed.
-	err = instance.ValidDevices(d.State(), p, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ValidDevices(d.State(), p, instancetype.Any, deviceConfig.NewDevices(req.Devices), nil)
 	if err != nil {
 		return err
 	}
