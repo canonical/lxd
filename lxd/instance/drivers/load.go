@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -67,44 +68,66 @@ func load(s *state.State, args db.InstanceArgs, p api.Project) (instance.Instanc
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
-	// Empty device list
-	if devices == nil {
+func validDevices(state *state.State, p api.Project, instanceType instancetype.Type, localDevices deviceConfig.Devices, expandedDevices deviceConfig.Devices) error {
+	instConf := &common{
+		dbType:          instanceType,
+		localDevices:    localDevices.Clone(),
+		expandedDevices: expandedDevices.Clone(),
+		project:         p,
+	}
+
+	var checkedDevices []string
+
+	checkDevices := func(devices deviceConfig.Devices, expanded bool) error {
+		// Check each device individually using the device package.
+		for deviceName, deviceConfig := range devices {
+			if expanded && shared.StringInSlice(deviceName, checkedDevices) {
+				continue // Don't check the device twice if present in both local and expanded.
+			}
+
+			// Enforce a maximum name length of 64 characters.
+			// This is a safe maximum allowing use for sockets and other filesystem use.
+			if len(deviceName) > 64 {
+				return fmt.Errorf("The maximum device name length is 64 characters")
+			}
+
+			err := device.Validate(instConf, state, deviceName, deviceConfig)
+			if err != nil {
+				if expanded && errors.Is(err, device.ErrUnsupportedDevType) {
+					// Skip unsupported devices in expanded config.
+					// This allows mixed instance type profiles to be used where some devices
+					// are only supported with specific instance types.
+					continue
+				}
+
+				return fmt.Errorf("Device validation failed for %q: %w", deviceName, err)
+			}
+
+			checkedDevices = append(checkedDevices, deviceName)
+		}
+
 		return nil
 	}
 
-	instConf := &common{
-		dbType:       instanceType,
-		localDevices: devices.Clone(),
-		project:      p,
+	// Check each local device individually using the device package.
+	// Use the cloned config from instConf.localDevices so that the driver cannot modify it.
+	err := checkDevices(instConf.localDevices, false)
+	if err != nil {
+		return err
 	}
 
-	// In non-expanded validation expensive checks should be avoided.
-	if expanded {
-		// The devices being validated are already expanded, so just use the same
-		// devices clone as we used for the main devices config.
-		instConf.expandedDevices = instConf.localDevices
-	}
-
-	// Check each device individually using the device package.
-	// Use instConf.localDevices so that the cloned config is passed into the driver, so it cannot modify it.
-	for name, config := range instConf.localDevices {
-		// Enforce a maximum name length of 64 characters (safe maximum allowing use for sockets and other filesystem use).
-		if len(name) > 64 {
-			return fmt.Errorf("The maximum device name length is 64 characters")
-		}
-
-		err := device.Validate(instConf, state, name, config)
-		if err != nil {
-			return fmt.Errorf("Device validation failed for %q: %w", name, err)
-		}
-	}
-
-	// Check we have a root disk if in expanded validation mode.
-	if expanded {
-		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
+	if len(expandedDevices) > 0 {
+		// Check we have a root disk if in expanded validation mode.
+		_, _, err := shared.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return fmt.Errorf("Failed detecting root disk device: %w", err)
+		}
+
+		// Check each expanded device individually using the device package.
+		// Use the cloned config from instConf.expandedDevices so that the driver cannot modify it.
+		err = checkDevices(instConf.expandedDevices, true)
+		if err != nil {
+			return err
 		}
 	}
 
