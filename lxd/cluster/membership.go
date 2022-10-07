@@ -39,7 +39,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		return err
 	}
 
-	var address string
+	var localClusterAddress string
 
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
@@ -48,16 +48,16 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
 
-		address = config.ClusterAddress()
+		localClusterAddress = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
-		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, address)
+		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, localClusterAddress)
 		if err != nil {
 			return err
 		}
 
 		// Add ourselves as first raft node
-		err = tx.CreateFirstRaftNode(address, serverName)
+		err = tx.CreateFirstRaftNode(localClusterAddress, serverName)
 		if err != nil {
 			return fmt.Errorf("Failed to insert first raft node: %w", err)
 		}
@@ -77,7 +77,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		err = tx.BootstrapNode(serverName, address)
+		err = tx.BootstrapNode(serverName, localClusterAddress)
 		if err != nil {
 			return fmt.Errorf("Failed updating cluster member: %w", err)
 		}
@@ -307,7 +307,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		return fmt.Errorf("Member name must not be empty")
 	}
 
-	var address string
+	var localClusterAddress string
 	err := state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(ctx, tx)
@@ -315,10 +315,10 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return fmt.Errorf("Failed to fetch node configuration: %w", err)
 		}
 
-		address = config.ClusterAddress()
+		localClusterAddress = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
-		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, address)
+		err = membershipCheckNodeStateForBootstrapOrJoin(ctx, tx, localClusterAddress)
 		if err != nil {
 			return err
 		}
@@ -400,7 +400,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	// If we are listed among the database nodes, join the raft cluster.
 	var info *db.RaftNode
 	for _, node := range raftNodes {
-		if node.Address == address {
+		if node.Address == localClusterAddress {
 			info = &node
 		}
 	}
@@ -439,7 +439,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	// tables with our local configuration.
 	logger.Info("Migrate local data to cluster database")
 	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		node, err := tx.GetPendingNodeByAddress(ctx, address)
+		node, err := tx.GetPendingNodeByAddress(ctx, localClusterAddress)
 		if err != nil {
 			return fmt.Errorf("Failed to get ID of joining node: %w", err)
 		}
@@ -571,7 +571,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 
 	var err error
 	var raftNodes []db.RaftNode
-	var localAddress string
+	var localClusterAddress string
 	err = state.DB.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
 		raftNodes, err = tx.GetRaftNodes(ctx)
 		if err != nil {
@@ -583,12 +583,12 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 			return err
 		}
 
-		localAddress = config.ClusterAddress()
+		localClusterAddress = config.ClusterAddress()
 
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current raft members", logger.Ctx{"err": err, "local": localAddress})
+		logger.Warn("Failed to get current raft members", logger.Ctx{"err": err, "local": localClusterAddress})
 		return
 	}
 
@@ -602,7 +602,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "local": localAddress})
+		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "local": localClusterAddress})
 		return
 	}
 
@@ -619,9 +619,9 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	}()
 
 	// Notify all other members of the change in membership.
-	logger.Info("Sending member change notification heartbeat to all members", logger.Ctx{"local": localAddress})
+	logger.Info("Sending member change notification heartbeat to all members", logger.Ctx{"local": localClusterAddress})
 	for _, node := range allNodes {
-		if node.Address == localAddress {
+		if node.Address == localClusterAddress {
 			continue
 		}
 
