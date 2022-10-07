@@ -366,19 +366,19 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
 
-		clusterAddress := config.ClusterAddress()
-		if clusterAddress != "" {
+		localClusterAddress := config.ClusterAddress()
+		if localClusterAddress != "" {
 			return nil
 		}
 
-		address := config.HTTPSAddress()
+		localHTTPSAddress := config.HTTPSAddress()
 
-		if util.IsWildCardAddress(address) {
-			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", address)
+		if util.IsWildCardAddress(localHTTPSAddress) {
+			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", localClusterAddress)
 		}
 
 		_, err = config.Patch(map[string]any{
-			"cluster.https_address": address,
+			"cluster.https_address": localHTTPSAddress,
 		})
 		if err != nil {
 			return fmt.Errorf("Copy core.https_address to cluster.https_address: %w", err)
@@ -430,14 +430,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
 	}
 
-	address, err := node.HTTPSAddress(d.db.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	var config *node.Config
 
-	if address == "" {
+	if localHTTPSAddress == "" {
 		// As the user always provides a server address, but no networking
 		// was setup on this node, let's do the job and open the
 		// port. We'll use the same address both for the REST API and
@@ -466,18 +463,18 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return response.SmartError(err)
 		}
 
-		address = req.ServerAddress
+		localHTTPSAddress = req.ServerAddress
 	} else {
 		// The user has previously set core.https_address and
 		// is now providing a cluster address as well. If they
 		// differ we need to listen to it.
-		if !util.IsAddressCovered(req.ServerAddress, address) {
+		if !util.IsAddressCovered(req.ServerAddress, localHTTPSAddress) {
 			err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
 			if err != nil {
 				return response.SmartError(err)
 			}
 
-			address = req.ServerAddress
+			localHTTPSAddress = req.ServerAddress
 		}
 
 		// Update the cluster.https_address config key.
@@ -488,7 +485,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			}
 
 			_, err = config.Patch(map[string]any{
-				"cluster.https_address": address,
+				"cluster.https_address": localHTTPSAddress,
 			})
 			return err
 		})
@@ -619,7 +616,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Now request for this node to be added to the list of cluster nodes.
-		info, err := clusterAcceptMember(client, req.ServerName, address, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
+		info, err := clusterAcceptMember(client, req.ServerName, localHTTPSAddress, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return fmt.Errorf("Failed request to add member: %w", err)
 		}
@@ -2024,19 +2021,28 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// First node forwards request to all other cluster nodes
 	if !isClusterNotification(r) {
-		servers, err := d.gateway.NodeStore().Get(context.Background())
+		// Get all members in cluster.
+		var members []db.NodeInfo
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting members: %w", err)
+			}
+
+			return nil
+		})
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
-		for _, server := range servers {
-			if server.Address == localClusterAddress {
+		for _, member := range members {
+			if member.Address == localClusterAddress {
 				continue
 			}
 
-			client, err := cluster.Connect(server.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			client, err := cluster.Connect(member.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}

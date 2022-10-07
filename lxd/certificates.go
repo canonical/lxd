@@ -24,7 +24,6 @@ import (
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/lifecycle"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -496,6 +495,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	localHTTPSAddress := d.State().LocalConfig.HTTPSAddress()
+
 	// Quick check.
 	if req.Token && req.Certificate != "" {
 		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
@@ -506,12 +507,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Tokens can only be issued for client certificates"))
 		}
 
-		address, err := node.HTTPSAddress(d.db.Node)
-		if err != nil {
-			return response.InternalError(fmt.Errorf("Failed to fetch node address: %w", err))
-		}
-
-		if address == "" {
+		if localHTTPSAddress == "" {
 			return response.BadRequest(fmt.Errorf("Can't issue token when server isn't listening on network"))
 		}
 	}
@@ -628,12 +624,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		// Get all addresses the server is listening on. This is encoded in the certificate token,
 		// so that the client will not have to specify a server address. The client will iterate
 		// through all these addresses until it can connect to one of them.
-		address, err := node.HTTPSAddress(d.db.Node)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		addresses, err := util.ListenAddresses(address)
+		addresses, err := util.ListenAddresses(localHTTPSAddress)
 		if err != nil {
 			return response.InternalError(err)
 		}

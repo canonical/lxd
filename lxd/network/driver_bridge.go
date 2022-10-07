@@ -32,7 +32,6 @@ import (
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -1942,16 +1941,13 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	}
 
 	addresses := []string{}
-	localAddress, err := node.HTTPSAddress(n.state.DB.Node)
-	if err != nil {
-		return err
-	}
+	localClusterAddress := n.state.LocalConfig.ClusterAddress()
 
 	n.logger.Info("Refreshing forkdns peers")
 
 	networkCert := n.state.Endpoints.NetworkCert()
 	for _, node := range heartbeatData.Members {
-		if node.Address == localAddress {
+		if node.Address == localClusterAddress {
 			// No need to query ourselves.
 			continue
 		}

@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -195,11 +194,8 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Get local address.
-		localAddress, err := node.HTTPSAddress(d.db.Node)
-		if err != nil {
-			return err
-		}
+		// Get local cluster address.
+		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 		// Record the results.
 		failures := map[string]error{}
@@ -213,7 +209,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				defer wgAction.Done()
 
 				// Special handling for the local member.
-				if node.Address == localAddress {
+				if node.Address == localClusterAddress {
 					err := localAction(false)
 					if err != nil {
 						failuresLock.Lock()
