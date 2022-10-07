@@ -39,7 +39,7 @@ import (
 )
 
 // ValidDevices is linked from instance/drivers.validDevices to validate device config.
-var ValidDevices func(state *state.State, p api.Project, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
+var ValidDevices func(state *state.State, p api.Project, instanceType instancetype.Type, localDevices deviceConfig.Devices, expandedDevices deviceConfig.Devices) error
 
 // Load is linked from instance/drivers.load to allow different instance types to be loaded.
 var Load func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, error)
