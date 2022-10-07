@@ -319,7 +319,12 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	// Address of this node.
-	localClusterAddress := g.state().LocalConfig.ClusterAddress()
+	var localClusterAddress string
+	s := g.state()
+
+	if s.LocalConfig != nil {
+		localClusterAddress = s.LocalConfig.ClusterAddress()
+	}
 
 	var allNodes []db.NodeInfo
 	err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
