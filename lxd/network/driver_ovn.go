@@ -2493,17 +2493,17 @@ func (n *ovn) addChassisGroupEntry() error {
 		return fmt.Errorf("Failed generating stable random chassis group priority: %w", err)
 	}
 
-	// Get all nodes in cluster.
-	ourNodeID := int(n.state.DB.Cluster.GetNodeID())
-	var nodeIDs []int
+	// Get all members in cluster.
+	ourMemberID := int(n.state.DB.Cluster.GetNodeID())
+	var memberIDs []int
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting node list for adding chassis group entry: %w", err)
+			return fmt.Errorf("Failed getting cluster members for adding chassis group entry: %w", err)
 		}
 
-		for _, node := range nodes {
-			nodeIDs = append(nodeIDs, int(node.ID))
+		for _, member := range members {
+			memberIDs = append(memberIDs, int(member.ID))
 		}
 
 		return nil
@@ -2513,14 +2513,14 @@ func (n *ovn) addChassisGroupEntry() error {
 	}
 
 	// Sort the nodes based on ID for stable priority generation.
-	sort.Ints(nodeIDs)
+	sort.Ints(memberIDs)
 
 	// Generate a random priority from the seed for each node until we find a match for our node ID.
 	// In this way the chassis priority for this node will be set to a per-node stable random value.
 	var priority uint
-	for _, nodeID := range nodeIDs {
+	for _, memberID := range memberIDs {
 		priority = uint(r.Intn(ovnChassisPriorityMax + 1))
-		if nodeID == ourNodeID {
+		if memberID == ourMemberID {
 			break
 		}
 	}
@@ -2530,7 +2530,7 @@ func (n *ovn) addChassisGroupEntry() error {
 		return fmt.Errorf("Failed adding OVS chassis %q with priority %d to chassis group %q: %w", chassisID, priority, chassisGroupName, err)
 	}
 
-	n.logger.Debug("Chassis group entry added", logger.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
+	n.logger.Debug("Chassis group entry added", logger.Ctx{"chassisGroup": chassisGroupName, "memberID": ourMemberID, "priority": priority})
 
 	return nil
 }
@@ -2678,11 +2678,11 @@ func (n *ovn) Rename(newName string) error {
 // chassisEnabled checks the cluster config to see if this particular
 // member should act as an OVN chassis.
 func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error) {
-	// Get the node info.
-	nodeID := tx.GetNodeID()
-	nodes, err := tx.GetNodes(ctx)
+	// Get the member info.
+	memberID := tx.GetNodeID()
+	members, err := tx.GetNodes(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("Failed getting cluster members: %w", err)
 	}
 
 	// Determine whether to add ourselves as a chassis.
@@ -2690,9 +2690,9 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 	// enable if the local server has the role.
 	enableChassis := -1
 
-	for _, node := range nodes {
+	for _, member := range members {
 		hasRole := false
-		for _, role := range node.Roles {
+		for _, role := range member.Roles {
 			if role == db.ClusterRoleOVNChassis {
 				hasRole = true
 				break
@@ -2700,7 +2700,7 @@ func (n *ovn) chassisEnabled(ctx context.Context, tx *db.ClusterTx) (bool, error
 		}
 
 		if hasRole {
-			if node.ID == nodeID {
+			if member.ID == memberID {
 				// Local node has the OVN chassis role, enable chassis.
 				enableChassis = 1
 				break
