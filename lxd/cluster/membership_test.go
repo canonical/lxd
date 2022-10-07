@@ -61,7 +61,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 				f.ClusterAddress("1.2.3.4:666")
 				f.ClusterNode("5.6.7.8:666")
 			},
-			"Inconsistent state: found leftover entries in nodes",
+			"Inconsistent state: Found leftover entries in cluster members",
 		},
 	}
 
@@ -118,11 +118,11 @@ func TestBootstrap(t *testing.T) {
 
 	// The cluster database has now an entry in the nodes table
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
-		require.Len(t, nodes, 1)
-		assert.Equal(t, "buzz", nodes[0].Name)
-		assert.Equal(t, address, nodes[0].Address)
+		require.Len(t, members, 1)
+		assert.Equal(t, "buzz", members[0].Name)
+		assert.Equal(t, address, members[0].Address)
 		return nil
 	})
 	require.NoError(t, err)
@@ -427,9 +427,9 @@ func TestJoin(t *testing.T) {
 
 	// The node has gone from the cluster db.
 	err = targetState.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		require.NoError(t, err)
-		assert.Len(t, nodes, 1)
+		assert.Len(t, members, 1)
 		return nil
 	})
 	require.NoError(t, err)
