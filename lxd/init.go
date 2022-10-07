@@ -153,7 +153,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 
 	// Apply network configuration function.
 	applyNetwork := func(network internalClusterPostNetwork) error {
-		_, _, err := d.UseProject(network.Project).GetNetwork(network.Name)
+		currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
 		if err != nil {
 			// Create the network if doesn't exist.
 			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
@@ -164,12 +164,6 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Setup reverter.
 			revert.Add(func() { _ = d.UseProject(network.Project).DeleteNetwork(network.Name) })
 		} else {
-			// Get the current network.
-			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
-			if err != nil {
-				return fmt.Errorf("Failed to retrieve current network %q in project %q: %w", network.Name, network.Project, err)
-			}
-
 			// Prepare the update.
 			newNetwork := api.NetworkPut{}
 			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)

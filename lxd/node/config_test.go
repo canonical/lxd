@@ -103,22 +103,36 @@ func TestHTTPSAddress(t *testing.T) {
 	nodeDB, cleanup := db.NewTestNode(t)
 	defer cleanup()
 
-	address, err := node.HTTPSAddress(nodeDB)
-	require.NoError(t, err)
-	assert.Equal(t, "", address)
-
+	var err error
+	var config *node.Config
 	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
-		config, err := node.ConfigLoad(ctx, tx)
-		require.NoError(t, err)
-		_, err = config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
-		require.NoError(t, err)
-		return nil
+		config, err = node.ConfigLoad(ctx, tx)
+		return err
 	})
 	require.NoError(t, err)
 
-	address, err = node.HTTPSAddress(nodeDB)
 	require.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:666", address)
+	assert.Equal(t, "", config.HTTPSAddress())
+
+	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+		config, err = node.ConfigLoad(ctx, tx)
+		if err != nil {
+			return err
+		}
+
+		_, err = config.Replace(map[string]any{"core.https_address": "127.0.0.1:666"})
+		return err
+	})
+	require.NoError(t, err)
+
+	err = nodeDB.Transaction(context.Background(), func(ctx context.Context, tx *db.NodeTx) error {
+		config, err = node.ConfigLoad(ctx, tx)
+		return err
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:666", config.HTTPSAddress())
 }
 
 // The cluster.https_address config key is fetched from the db with a new
