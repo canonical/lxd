@@ -2064,3 +2064,17 @@ It adds the following global configuration keys:
 * `loki.labels`: Comma-separated list of values which are to be used as labels for Loki events.
 * `loki.loglevel`: Minimum log level for events sent to the Loki server.
 * `loki.types`: Types of events which are to be sent to the Loki server (`lifecycle` and/or `logging`).
+
+## `acme`
+
+This adds ACME support, which allows [Let's Encrypt](https://letsencrypt.org/) or other ACME services to issue certificates.
+
+It adds the following global configuration keys:
+
+* `acme.domain`: The domain for which the certificate should be issued.
+* `acme.email`: The email address used for the account of the ACME service.
+* `acme.ca_url`: The directory URL of the ACME service, defaults to `https://acme-v02.api.letsencrypt.org/directory`.
+
+It also adds the following endpoint, which is required for the HTTP-01 challenge:
+
+* `/.well-known/acme-challenge/<token>`
