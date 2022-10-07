@@ -152,7 +152,11 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 	// connection.
 	err = state.DB.Cluster.ExitExclusive(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, err := tx.GetNodes(ctx)
-		return err
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Cluster database initialization failed: %w", err)
@@ -592,9 +596,9 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return
 	}
 
-	var allNodes []db.NodeInfo
+	var members []db.NodeInfo
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		allNodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -607,7 +611,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	}
 
 	// Setup a full-state notification heartbeat.
-	hbState.Update(true, raftNodes, allNodes, gateway.HeartbeatOfflineThreshold)
+	hbState.Update(true, raftNodes, members, gateway.HeartbeatOfflineThreshold)
 
 	var wg sync.WaitGroup
 
@@ -620,8 +624,8 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 
 	// Notify all other members of the change in membership.
 	logger.Info("Sending member change notification heartbeat to all members", logger.Ctx{"local": localClusterAddress})
-	for _, node := range allNodes {
-		if node.Address == localClusterAddress {
+	for _, member := range members {
+		if member.Address == localClusterAddress {
 			continue
 		}
 
@@ -629,7 +633,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		go func(address string) {
 			_ = HeartbeatNode(context.Background(), address, state.Endpoints.NetworkCert(), state.ServerCert(), hbState)
 			wg.Done()
-		}(node.Address)
+		}(member.Address)
 	}
 
 	// Wait until all members have been notified (or at least have had a change to be notified).
@@ -1123,13 +1127,13 @@ func membershipCheckNodeStateForBootstrapOrJoin(ctx context.Context, tx *db.Node
 // Check that cluster-related preconditions are met for bootstrapping or
 // joining a cluster.
 func membershipCheckClusterStateForBootstrapOrJoin(ctx context.Context, tx *db.ClusterTx) error {
-	nodes, err := tx.GetNodes(ctx)
+	members, err := tx.GetNodes(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch current cluster nodes: %w", err)
+		return fmt.Errorf("Failed getting cluster members: %w", err)
 	}
 
-	if len(nodes) != 1 {
-		return fmt.Errorf("Inconsistent state: found leftover entries in nodes")
+	if len(members) != 1 {
+		return fmt.Errorf("Inconsistent state: Found leftover entries in cluster members")
 	}
 
 	return nil
@@ -1137,29 +1141,29 @@ func membershipCheckClusterStateForBootstrapOrJoin(ctx context.Context, tx *db.C
 
 // Check that cluster-related preconditions are met for accepting a new node.
 func membershipCheckClusterStateForAccept(ctx context.Context, tx *db.ClusterTx, name string, address string, schema int, api int) error {
-	nodes, err := tx.GetNodes(ctx)
+	members, err := tx.GetNodes(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to fetch current cluster nodes: %w", err)
+		return fmt.Errorf("Failed getting cluster members: %w", err)
 	}
 
-	if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
+	if len(members) == 1 && members[0].Address == "0.0.0.0" {
 		return fmt.Errorf("Clustering isn't enabled")
 	}
 
-	for _, node := range nodes {
-		if node.Name == name {
+	for _, member := range members {
+		if member.Name == name {
 			return fmt.Errorf("The cluster already has a member with name: %s", name)
 		}
 
-		if node.Address == address {
+		if member.Address == address {
 			return fmt.Errorf("The cluster already has a member with address: %s", address)
 		}
 
-		if node.Schema != schema {
+		if member.Schema != schema {
 			return fmt.Errorf("The joining server version doesn't match (expected %s with DB schema %v)", version.Version, schema)
 		}
 
-		if node.APIExtensions != api {
+		if member.APIExtensions != api {
 			return fmt.Errorf("The joining server version doesn't match (expected %s with API count %v)", version.Version, api)
 		}
 	}
@@ -1179,13 +1183,13 @@ func membershipCheckClusterStateForLeave(ctx context.Context, tx *db.ClusterTx, 
 		return fmt.Errorf(message)
 	}
 
-	// Check that it's not the last node.
-	nodes, err := tx.GetNodes(ctx)
+	// Check that it's not the last member.
+	members, err := tx.GetNodes(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed getting cluster members: %w", err)
 	}
 
-	if len(nodes) == 1 {
+	if len(members) == 1 {
 		return fmt.Errorf("Member is the only member in the cluster")
 	}
 

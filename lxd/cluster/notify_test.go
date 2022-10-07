@@ -199,9 +199,9 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 func (h *notifyFixtures) Address(i int) string {
 	var address string
 	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		require.NoError(h.t, err)
-		address = nodes[i].Address
+		address = members[i].Address
 		return nil
 	})
 	require.NoError(h.t, err)
@@ -211,9 +211,9 @@ func (h *notifyFixtures) Address(i int) string {
 // Mark the i'th node as down.
 func (h *notifyFixtures) Down(i int) {
 	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		require.NoError(h.t, err)
-		err = tx.SetNodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
+		err = tx.SetNodeHeartbeat(members[i].Address, time.Now().Add(-time.Minute))
 		require.NoError(h.t, err)
 		return nil
 	})
