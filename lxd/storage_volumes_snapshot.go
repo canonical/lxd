@@ -1217,24 +1217,24 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		if len(remoteVolumes) > 0 {
 			// Get list of cluster members.
-			var nodeCount int
+			var memberCount int
 			var onlineNodeIDs []int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get all the members.
-				nodes, err := tx.GetNodes(ctx)
+				members, err := tx.GetNodes(ctx)
 				if err != nil {
-					return err
+					return fmt.Errorf("Failed getting cluster members: %w", err)
 				}
 
-				nodeCount = len(nodes)
+				memberCount = len(members)
 
 				// Filter to online members.
-				for _, node := range nodes {
-					if node.IsOffline(s.GlobalConfig.OfflineThreshold()) {
+				for _, member := range members {
+					if member.IsOffline(s.GlobalConfig.OfflineThreshold()) {
 						continue
 					}
 
-					onlineNodeIDs = append(onlineNodeIDs, node.ID)
+					onlineNodeIDs = append(onlineNodeIDs, member.ID)
 				}
 
 				return nil
@@ -1247,7 +1247,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			// Skip snapshotting remote custom volumes if there are no online members, as we can't be
 			// sure that the cluster isn't partitioned and we may end up attempting the snapshot on
 			// multiple members.
-			if nodeCount > 1 && len(onlineNodeIDs) <= 0 {
+			if memberCount > 1 && len(onlineNodeIDs) <= 0 {
 				logger.Error("Skipping remote volumes for auto custom volume snapshot task due to no online members")
 			} else {
 				for _, v := range remoteVolumes {
@@ -1255,7 +1255,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 					// to perform the snapshot from. This avoids taking the snapshot on every
 					// member and spreads the load taking the snapshots across the online
 					// cluster members.
-					if nodeCount > 1 {
+					if memberCount > 1 {
 						selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), onlineNodeIDs)
 						if err != nil {
 							logger.Error("Failed scheduling remote auto custom volume snapshot task", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})

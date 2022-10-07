@@ -556,7 +556,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	// Get all nodes with running operations in this project.
 	var membersWithOps []string
 	var offlineThreshold time.Duration
-	var nodes []db.NodeInfo
+	var members []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
@@ -570,9 +570,9 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
-		nodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting members: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		return nil
@@ -585,10 +585,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	memberOnline := func(memberAddress string) bool {
-		for _, node := range nodes {
-			if node.Address == memberAddress {
-				if node.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat})
+		for _, member := range members {
+			if member.Address == memberAddress {
+				if member.IsOffline(offlineThreshold) {
+					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat})
 					return false
 				}
 
@@ -678,7 +678,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 
 	// Get all operations of the specified type in project.
 	var offlineThreshold time.Duration
-	var nodes []db.NodeInfo
+	var members []db.NodeInfo
 	memberOps := make(map[string]map[string]dbCluster.Operation)
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
@@ -686,9 +686,9 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
-		nodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting members: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		ops, err := tx.GetOperationsOfType(ctx, projectName, opType)
@@ -715,10 +715,10 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
 	memberOnline := func(memberAddress string) bool {
-		for _, node := range nodes {
-			if node.Address == memberAddress {
-				if node.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations by type list", logger.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat, "opType": opType})
+		for _, member := range members {
+			if member.Address == memberAddress {
+				if member.IsOffline(offlineThreshold) {
+					logger.Warn("Excluding offline member from operations by type list", logger.Ctx{"member": member.Name, "address": member.Address, "ID": member.ID, "lastHeartbeat": member.Heartbeat, "opType": opType})
 					return false
 				}
 
@@ -1129,18 +1129,18 @@ func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 			return fmt.Errorf("Load offline threshold config: %w", err)
 		}
 
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to get nodes: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		for _, node := range nodes {
+		for _, member := range members {
 			// Skip online nodes
-			if !node.IsOffline(offlineThreshold) {
+			if !member.IsOffline(offlineThreshold) {
 				continue
 			}
 
-			err = dbCluster.DeleteOperations(ctx, tx.Tx(), node.ID)
+			err = dbCluster.DeleteOperations(ctx, tx.Tx(), member.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to delete operations: %w", err)
 			}

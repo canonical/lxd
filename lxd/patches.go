@@ -222,11 +222,11 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 			}
 		}
 
-		var nodes []db.NodeInfo
+		var members []db.NodeInfo
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err = tx.GetNodes(ctx)
+			members, err = tx.GetNodes(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
 			return nil
@@ -236,10 +236,10 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 		}
 
 		missingCerts := false
-		for _, n := range nodes {
-			_, found := trustedServerCerts[n.Name]
+		for _, member := range members {
+			_, found := trustedServerCerts[member.Name]
 			if !found {
-				logger.Warnf("Missing trusted server certificate for cluster member %q", n.Name)
+				logger.Warnf("Missing trusted server certificate for cluster member %q", member.Name)
 				missingCerts = true
 				break
 			}
@@ -722,13 +722,13 @@ func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string,
 
 func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
 	return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		for _, node := range nodes {
-			err := tx.UpdateNodeRoles(node.ID, nil)
+		for _, member := range members {
+			err := tx.UpdateNodeRoles(member.ID, nil)
 			if err != nil {
 				return err
 			}

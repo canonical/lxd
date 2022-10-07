@@ -409,17 +409,17 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		if !netTypeInfo.NodeSpecificConfig && clientType != clusterRequest.ClientTypeJoiner {
 			// Create pending entry for each node.
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				nodes, err := tx.GetNodes(ctx)
+				members, err := tx.GetNodes(ctx)
 				if err != nil {
-					return err
+					return fmt.Errorf("Failed getting cluster members: %w", err)
 				}
 
-				for _, node := range nodes {
+				for _, member := range members {
 					// Don't pass in any config, as these nodes don't have any node-specific
 					// config and we don't want to create duplicate global config.
-					err = tx.CreatePendingNetwork(ctx, node.Name, projectName, req.Name, netType.DBType(), nil)
+					err = tx.CreatePendingNetwork(ctx, member.Name, projectName, req.Name, netType.DBType(), nil)
 					if err != nil && !errors.Is(err, db.ErrAlreadyDefined) {
-						return fmt.Errorf("Failed creating pending network for node %q: %w", node.Name, err)
+						return fmt.Errorf("Failed creating pending network for member %q: %w", member.Name, err)
 					}
 				}
 
