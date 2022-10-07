@@ -1120,14 +1120,19 @@ func (d *qemu) Start(stateful bool) error {
 	postStartHooks := []func() error{}
 
 	sortedDevices := d.expandedDevices.Sorted()
-	startDevices := make([]device.Device, len(sortedDevices))
+	startDevices := make([]device.Device, 0, len(sortedDevices))
 
 	// Load devices in sorted order, this ensures that device mounts are added in path order.
 	// Loading all devices first means that validation of all devices occurs before starting any of them.
-	for i, entry := range sortedDevices {
+	for _, entry := range sortedDevices {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
+
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			return fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
 		}
 
@@ -1138,7 +1143,7 @@ func (d *qemu) Start(stateful bool) error {
 			return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
 		}
 
-		startDevices[i] = dev
+		startDevices = append(startDevices, dev)
 	}
 
 	// Start devices in order.
@@ -4956,6 +4961,10 @@ func (d *qemu) cleanupDevices() {
 	for _, entry := range d.expandedDevices.Reversed() {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			// Just log an error, but still allow the device to be stopped if usable device returned.
 			d.logger.Error("Failed stop validation for device", logger.Ctx{"device": entry.Name, "err": err})
 		}
@@ -6386,6 +6395,10 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 
 		dev, err := d.deviceLoad(d, k, m)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			d.logger.Warn("Failed state validation for device", logger.Ctx{"device": k, "err": err})
 			continue
 		}
