@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/acme"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -2019,11 +2020,43 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %w", err))
 	}
 
+	err = updateClusterCertificate(r.Context(), d, r, req)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
+
+	return response.EmptySyncResponse
+}
+
+func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, req api.ClusterCertificatePut) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	newClusterCertFilename := shared.VarPath(acme.ClusterCertFilename)
+
 	// First node forwards request to all other cluster nodes
-	if !isClusterNotification(r) {
+	if r == nil || !isClusterNotification(r) {
+		oldCertBytes, err := os.ReadFile(shared.VarPath("cluster.crt"))
+		if err != nil {
+			return err
+		}
+
+		keyBytes, err := os.ReadFile(shared.VarPath("cluster.key"))
+		if err != nil {
+			return err
+		}
+
+		oldReq := api.ClusterCertificatePut{
+			ClusterCertificate:    string(oldCertBytes),
+			ClusterCertificateKey: string(keyBytes),
+		}
+
 		// Get all members in cluster.
 		var members []db.NodeInfo
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 			members, err = tx.GetNodes(ctx)
 			if err != nil {
 				return fmt.Errorf("Failed getting members: %w", err)
@@ -2032,47 +2065,84 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 			return nil
 		})
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
-		for _, member := range members {
+		revert.Add(func() {
+			// If distributing the new certificate fails, store the certificate. This new file will
+			// be considered when running the auto renewal again.
+			err = os.WriteFile(newClusterCertFilename, []byte(req.ClusterCertificate), 0600)
+			if err != nil {
+				logger.Error("Failed storing new certificate", logger.Ctx{"err": err})
+			}
+		})
+
+		newCertInfo, err := shared.KeyPairFromRaw([]byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey))
+		if err != nil {
+			return err
+		}
+
+		for i := range members {
+			member := members[i]
+
 			if member.Address == localClusterAddress {
 				continue
 			}
 
 			client, err := cluster.Connect(member.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return response.SmartError(err)
+				return err
 			}
 
 			err = client.UpdateClusterCertificate(req, "")
 			if err != nil {
-				return response.SmartError(err)
+				return err
 			}
+
+			// When reverting the certificate, we need to connect to the cluster members using the
+			// new certificate otherwise we'll get a bad certificate error.
+			revert.Add(func() {
+				client, err := cluster.Connect(member.Address, newCertInfo, d.serverCert(), r, true)
+				if err != nil {
+					logger.Error("Failed to connect to cluster member", logger.Ctx{"address": member.Address, "err": err})
+					return
+				}
+
+				err = client.UpdateClusterCertificate(oldReq, "")
+				if err != nil {
+					logger.Error("Failed to update cluster certificate on cluster member", logger.Ctx{"address": member.Address, "err": err})
+				}
+			})
 		}
 	}
 
-	err = util.WriteCert(d.os.VarDir, "cluster", certBytes, keyBytes, nil)
+	err := util.WriteCert(d.os.VarDir, "cluster", []byte(req.ClusterCertificate), []byte(req.ClusterCertificateKey), nil)
 	if err != nil {
-		return response.SmartError(err)
+		return err
+	}
+
+	if shared.PathExists(newClusterCertFilename) {
+		err := os.Remove(newClusterCertFilename)
+		if err != nil {
+			return fmt.Errorf("Failed to remove cluster certificate: %w", err)
+		}
 	}
 
 	// Get the new cluster certificate struct
 	cert, err := util.LoadClusterCert(d.os.VarDir)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	// Update the certificate on the network endpoint and gateway
 	d.endpoints.NetworkUpdateCert(cert)
 	d.gateway.NetworkUpdateCert(cert)
 
-	requestor := request.CreateRequestor(r)
-	s.Events.SendLifecycle(projectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
+	revert.Success()
 
-	return response.EmptySyncResponse
+	return nil
 }
 
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
