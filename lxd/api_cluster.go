@@ -2021,19 +2021,28 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 
 	// First node forwards request to all other cluster nodes
 	if !isClusterNotification(r) {
-		servers, err := d.gateway.NodeStore().Get(context.Background())
+		// Get all members in cluster.
+		var members []db.NodeInfo
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting members: %w", err)
+			}
+
+			return nil
+		})
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		localClusterAddress := d.State().LocalConfig.ClusterAddress()
 
-		for _, server := range servers {
-			if server.Address == localClusterAddress {
+		for _, member := range members {
+			if member.Address == localClusterAddress {
 				continue
 			}
 
-			client, err := cluster.Connect(server.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			client, err := cluster.Connect(member.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}
