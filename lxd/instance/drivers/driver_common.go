@@ -1189,6 +1189,10 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 	for _, entry := range d.expandedDevices.Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			// If device conflicts with another device then do not call the deviceAdd function below
 			// as this could cause the original device to be disrupted (such as allowing conflicting
 			// static NIC DHCP leases to be created). Instead just log an error.
@@ -1230,6 +1234,10 @@ func (d *common) devicesRegister(inst instance.Instance) {
 	for _, entry := range d.ExpandedDevices().Sorted() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			d.logger.Error("Failed register validation for device", logger.Ctx{"err": err, "device": entry.Name})
 			continue
 		}
@@ -1258,6 +1266,10 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			// Just log an error, but still allow the device to be removed if usable device returned.
 			l.Error("Failed remove validation for device", logger.Ctx{"err": err})
 		}
@@ -1291,6 +1303,10 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			if userRequested {
 				return fmt.Errorf("Failed add validation for device %q: %w", entry.Name, err)
 			}
@@ -1334,6 +1350,10 @@ func (d *common) devicesUpdate(inst instance.Instance, removeDevices deviceConfi
 		l := d.logger.AddContext(logger.Ctx{"device": entry.Name, "userRequested": userRequested})
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			if userRequested {
 				return fmt.Errorf("Failed update validation for device %q: %w", entry.Name, err)
 			}
@@ -1381,6 +1401,10 @@ func (d *common) devicesRemove(inst instance.Instance) {
 	for _, entry := range d.expandedDevices.Reversed() {
 		dev, err := d.deviceLoad(inst, entry.Name, entry.Config)
 		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // Skip unsupported device (allows for mixed instance type profiles).
+			}
+
 			// Just log an error, but still allow the device to be removed if usable device returned.
 			d.logger.Error("Failed remove validation for device", logger.Ctx{"device": entry.Name, "err": err})
 		}
