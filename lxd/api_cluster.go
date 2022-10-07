@@ -366,19 +366,19 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
 
-		clusterAddress := config.ClusterAddress()
-		if clusterAddress != "" {
+		localClusterAddress := config.ClusterAddress()
+		if localClusterAddress != "" {
 			return nil
 		}
 
-		address := config.HTTPSAddress()
+		localHTTPSAddress := config.HTTPSAddress()
 
-		if util.IsWildCardAddress(address) {
-			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", address)
+		if util.IsWildCardAddress(localHTTPSAddress) {
+			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", localClusterAddress)
 		}
 
 		_, err = config.Patch(map[string]any{
-			"cluster.https_address": address,
+			"cluster.https_address": localHTTPSAddress,
 		})
 		if err != nil {
 			return fmt.Errorf("Copy core.https_address to cluster.https_address: %w", err)
