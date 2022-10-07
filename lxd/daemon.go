@@ -1115,8 +1115,8 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	address := d.localConfig.HTTPSAddress()
-	clusterAddress := d.localConfig.ClusterAddress()
+	localHTTPAddress := d.localConfig.HTTPSAddress()
+	localClusterAddress := d.localConfig.ClusterAddress()
 	debugAddress := d.localConfig.DebugAddress()
 	metricsAddress := d.localConfig.MetricsAddress()
 	storageBucketsAddress := d.localConfig.StorageBucketsAddress()
@@ -1133,8 +1133,8 @@ func (d *Daemon) init() error {
 		RestServer:            restServer(d),
 		DevLxdServer:          devLxdServer(d),
 		LocalUnixSocketGroup:  d.config.Group,
-		NetworkAddress:        address,
-		ClusterAddress:        clusterAddress,
+		NetworkAddress:        localHTTPAddress,
+		ClusterAddress:        localClusterAddress,
 		DebugAddress:          debugAddress,
 		MetricsAddress:        metricsAddress,
 		MetricsServer:         metricsServer(d),
@@ -1185,7 +1185,7 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteClient.LogDebug))
 		}
 
-		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
+		d.db.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, localClusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
