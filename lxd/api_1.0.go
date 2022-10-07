@@ -225,12 +225,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 	srv.Auth = "trusted"
 
-	address, err := node.HTTPSAddress(d.db.Node)
-	if err != nil {
-		return response.InternalError(err)
-	}
+	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
-	addresses, err := util.ListenAddresses(address)
+	addresses, err := util.ListenAddresses(localHTTPSAddress)
 	if err != nil {
 		return response.InternalError(err)
 	}
