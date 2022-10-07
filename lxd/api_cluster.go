@@ -430,14 +430,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
 	}
 
-	address, err := node.HTTPSAddress(d.db.Node)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	localHTTPSAddress := s.LocalConfig.HTTPSAddress()
 
 	var config *node.Config
 
-	if address == "" {
+	if localHTTPSAddress == "" {
 		// As the user always provides a server address, but no networking
 		// was setup on this node, let's do the job and open the
 		// port. We'll use the same address both for the REST API and
@@ -466,18 +463,18 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return response.SmartError(err)
 		}
 
-		address = req.ServerAddress
+		localHTTPSAddress = req.ServerAddress
 	} else {
 		// The user has previously set core.https_address and
 		// is now providing a cluster address as well. If they
 		// differ we need to listen to it.
-		if !util.IsAddressCovered(req.ServerAddress, address) {
+		if !util.IsAddressCovered(req.ServerAddress, localHTTPSAddress) {
 			err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
 			if err != nil {
 				return response.SmartError(err)
 			}
 
-			address = req.ServerAddress
+			localHTTPSAddress = req.ServerAddress
 		}
 
 		// Update the cluster.https_address config key.
@@ -488,7 +485,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			}
 
 			_, err = config.Patch(map[string]any{
-				"cluster.https_address": address,
+				"cluster.https_address": localHTTPSAddress,
 			})
 			return err
 		})
@@ -619,7 +616,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Now request for this node to be added to the list of cluster nodes.
-		info, err := clusterAcceptMember(client, req.ServerName, address, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
+		info, err := clusterAcceptMember(client, req.ServerName, localHTTPSAddress, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return fmt.Errorf("Failed request to add member: %w", err)
 		}
