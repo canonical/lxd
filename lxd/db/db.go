@@ -245,33 +245,33 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	err = clusterDB.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
-		nodes, err := tx.GetNodes(ctx)
+		members, err := tx.GetNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to fetch nodes: %w", err)
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
-		nodeID := int64(-1)
-		if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
+		memberID := int64(-1)
+		if len(members) == 1 && members[0].Address == "0.0.0.0" {
 			// We're not clustered
-			nodeID = 1
+			memberID = 1
 		} else {
-			for _, node := range nodes {
-				if node.Address == address {
-					nodeID = node.ID
+			for _, member := range members {
+				if member.Address == address {
+					memberID = member.ID
 					break
 				}
 			}
 		}
 
-		if nodeID < 0 {
+		if memberID < 0 {
 			return fmt.Errorf("No node registered with address %s", address)
 		}
 
 		// Set the local member ID
-		clusterDB.NodeID(nodeID)
+		clusterDB.NodeID(memberID)
 
 		// Delete any operation tied to this member
-		err = cluster.DeleteOperations(ctx, tx.tx, nodeID)
+		err = cluster.DeleteOperations(ctx, tx.tx, memberID)
 		if err != nil {
 			return err
 		}

@@ -40,7 +40,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 	}
 
 	var err error
-	var nodes []db.NodeInfo
+	var members []db.NodeInfo
 	var offlineThreshold time.Duration
 	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
@@ -48,9 +48,9 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			return err
 		}
 
-		nodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting cluster members: %w", err)
 		}
 
 		return nil
@@ -60,20 +60,20 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 	}
 
 	peers := []string{}
-	for _, node := range nodes {
-		if node.Address == localClusterAddress || node.Address == "0.0.0.0" {
+	for _, member := range members {
+		if member.Address == localClusterAddress || member.Address == "0.0.0.0" {
 			continue // Exclude ourselves
 		}
 
-		if node.IsOffline(offlineThreshold) {
+		if member.IsOffline(offlineThreshold) {
 			// Even if the heartbeat timestamp is not recent
 			// enough, let's try to connect to the node, just in
 			// case the heartbeat is lagging behind for some reason
 			// and the node is actually up.
-			if !HasConnectivity(networkCert, serverCert, node.Address) {
+			if !HasConnectivity(networkCert, serverCert, member.Address) {
 				switch policy {
 				case NotifyAll:
-					return nil, fmt.Errorf("peer node %s is down", node.Address)
+					return nil, fmt.Errorf("peer node %s is down", member.Address)
 				case NotifyAlive:
 					continue // Just skip this node
 				case NotifyTryAll:
@@ -81,7 +81,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 			}
 		}
 
-		peers = append(peers, node.Address)
+		peers = append(peers, member.Address)
 	}
 
 	notifier := func(hook func(lxd.InstanceServer) error) error {

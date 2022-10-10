@@ -959,23 +959,23 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	// Get the names of the raft nodes from the global database.
 	if g.Cluster != nil {
 		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			nodes, err := tx.GetNodes(ctx)
+			members, err := tx.GetNodes(ctx)
 			if err != nil {
-				return fmt.Errorf("Failed loading cluster members: %w", err)
+				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
-			nodesByAddress := make(map[string]db.NodeInfo, len(nodes))
-			for _, node := range nodes {
-				nodesByAddress[node.Address] = node
+			membersByAddress := make(map[string]db.NodeInfo, len(members))
+			for _, member := range members {
+				membersByAddress[member.Address] = member
 			}
 
 			for i, server := range servers {
-				node, found := nodesByAddress[server.Address]
+				member, found := membersByAddress[server.Address]
 				if !found {
 					logger.Warn("Cluster member info not found", logger.Ctx{"address": server.Address})
 				}
 
-				raftNodes[i].Name = node.Name
+				raftNodes[i].Name = member.Name
 			}
 
 			return nil
