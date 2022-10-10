@@ -215,19 +215,18 @@ func hubAddresses(localAddress string, members map[int64]APIHeartbeatMember) ([]
 }
 
 // EventsUpdateListeners refreshes the cluster event listener connections.
-func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, inject events.InjectFunc) {
+func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, hbMembers map[int64]APIHeartbeatMember, inject events.InjectFunc) {
 	listenersUpdateLock.Lock()
 	defer listenersUpdateLock.Unlock()
 
 	// If no heartbeat members provided, populate from global database.
-	if members == nil {
-		var dbMembers []db.NodeInfo
+	if hbMembers == nil {
+		var err error
+		var members []db.NodeInfo
 		var offlineThreshold time.Duration
 
-		err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			var err error
-
-			dbMembers, err = tx.GetNodes(ctx)
+		err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			members, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}
@@ -244,42 +243,42 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			return
 		}
 
-		members = make(map[int64]APIHeartbeatMember, len(dbMembers))
-		for _, dbMember := range dbMembers {
-			members[dbMember.ID] = APIHeartbeatMember{
-				ID:            dbMember.ID,
-				Name:          dbMember.Name,
-				Address:       dbMember.Address,
-				LastHeartbeat: dbMember.Heartbeat,
-				Online:        !dbMember.IsOffline(offlineThreshold),
-				Roles:         dbMember.Roles,
+		hbMembers = make(map[int64]APIHeartbeatMember, len(members))
+		for _, member := range members {
+			hbMembers[member.ID] = APIHeartbeatMember{
+				ID:            member.ID,
+				Name:          member.Name,
+				Address:       member.Address,
+				LastHeartbeat: member.Heartbeat,
+				Online:        !member.IsOffline(offlineThreshold),
+				Roles:         member.Roles,
 			}
 		}
 	}
 
 	localAddress := endpoints.NetworkAddress()
-	hubAddresses, localEventMode := hubAddresses(localAddress, members)
+	hubAddresses, localEventMode := hubAddresses(localAddress, hbMembers)
 
 	keepListeners := make(map[string]struct{})
 	wg := sync.WaitGroup{}
-	for _, member := range members {
+	for _, hbMember := range hbMembers {
 		// Don't bother trying to connect to ourselves or offline members.
-		if member.Address == localAddress || !member.Online {
+		if hbMember.Address == localAddress || !hbMember.Online {
 			continue
 		}
 
-		if localEventMode != EventModeFullMesh && !RoleInSlice(db.ClusterRoleEventHub, member.Roles) {
+		if localEventMode != EventModeFullMesh && !RoleInSlice(db.ClusterRoleEventHub, hbMember.Roles) {
 			continue // Skip non-event-hub members if we are operating in event-hub mode.
 		}
 
 		listenersLock.Lock()
-		listener, ok := listeners[member.Address]
+		listener, ok := listeners[hbMember.Address]
 
 		// If the member already has a listener associated to it, check that the listener is still active.
 		// If it is, just move on to next member, but if not then we'll try to connect again.
 		if ok {
 			if listener.IsActive() {
-				keepListeners[member.Address] = struct{}{} // Add to current listeners list.
+				keepListeners[hbMember.Address] = struct{}{} // Add to current listeners list.
 				listener.SetEventMode(localEventMode, eventHubPushCh)
 				listenersLock.Unlock()
 				continue
@@ -288,16 +287,16 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// Disconnect and delete listener, but don't delete any listenersNotify entry as there
 			// might be something waiting for a future connection.
 			listener.Disconnect()
-			delete(listeners, member.Address)
+			delete(listeners, hbMember.Address)
 			listenersLock.Unlock()
 
 			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
-			logger.Info("Removed inactive member event listener client", logger.Ctx{"local": localAddress, "remote": member.Address})
+			logger.Info("Removed inactive member event listener client", logger.Ctx{"local": localAddress, "remote": hbMember.Address})
 		} else {
 			listenersLock.Unlock()
 		}
 
-		keepListeners[member.Address] = struct{}{} // Add to current listeners list.
+		keepListeners[hbMember.Address] = struct{}{} // Add to current listeners list.
 
 		// Connect to remote concurrently and add to active listeners if successful.
 		wg.Add(1)
@@ -334,7 +333,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
 			l.Info("Added member event listener client")
-		}(member)
+		}(hbMember)
 	}
 
 	wg.Wait()
@@ -367,7 +366,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		logger.Info("Removed old member event listener client", logger.Ctx{"local": localAddress, "remote": removedAddress})
 	}
 
-	if len(members) > 1 && len(keepListeners) <= 0 {
+	if len(hbMembers) > 1 && len(keepListeners) <= 0 {
 		logger.Error("No active cluster event listener clients", logger.Ctx{"local": localAddress})
 	}
 }

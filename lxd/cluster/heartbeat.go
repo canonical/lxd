@@ -326,10 +326,9 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		localClusterAddress = s.LocalConfig.ClusterAddress()
 	}
 
-	var allNodes []db.NodeInfo
+	var members []db.NodeInfo
 	err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		allNodes, err = tx.GetNodes(ctx)
+		members, err = tx.GetNodes(ctx)
 		if err != nil {
 			return err
 		}
@@ -395,15 +394,15 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
 	if mode == hearbeatInitial {
-		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
+		hbState.Update(false, raftNodes, members, g.HeartbeatOfflineThreshold)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 
 		// We have the latest set of node states now, lets send that state set to all nodes.
 		hbState.FullStateList = true
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 	} else {
-		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, allNodes, spreadDuration)
+		hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
+		hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, members, spreadDuration)
 	}
 
 	// Check if context has been cancelled.
@@ -411,10 +410,10 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	// Look for any new node which appeared since sending last heartbeat.
 	if ctxErr == nil {
-		var currentNodes []db.NodeInfo
+		var currentMembers []db.NodeInfo
 		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			currentNodes, err = tx.GetNodes(ctx)
+			currentMembers, err = tx.GetNodes(ctx)
 			if err != nil {
 				return err
 			}
@@ -426,11 +425,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			return
 		}
 
-		newNodes := []db.NodeInfo{}
-		for _, currentNode := range currentNodes {
+		newMembers := []db.NodeInfo{}
+		for _, currentMember := range currentMembers {
 			existing := false
-			for _, node := range allNodes {
-				if node.Address == currentNode.Address && node.ID == currentNode.ID {
+			for _, member := range members {
+				if member.Address == currentMember.Address && member.ID == currentMember.ID {
 					existing = true
 					break
 				}
@@ -438,15 +437,15 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 			if !existing {
 				// We found a new node
-				allNodes = append(allNodes, currentNode)
-				newNodes = append(newNodes, currentNode)
+				members = append(members, currentMember)
+				newMembers = append(newMembers, currentMember)
 			}
 		}
 
 		// If any new nodes found, send heartbeat to just them (with full node state).
-		if len(newNodes) > 0 {
-			hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newNodes, 0)
+		if len(newMembers) > 0 {
+			hbState.Update(true, raftNodes, members, g.HeartbeatOfflineThreshold)
+			hbState.Send(ctx, g.networkCert, serverCert, localClusterAddress, newMembers, 0)
 		}
 	}
 

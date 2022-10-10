@@ -178,14 +178,14 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			return localAction(true)
 		}
 
-		// Get all online nodes.
-		var nodes []db.NodeInfo
+		// Get all members in cluster.
+		var members []db.NodeInfo
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
-			nodes, err = tx.GetNodes(ctx)
+			members, err = tx.GetNodes(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
 			return nil
@@ -203,17 +203,17 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		wgAction := sync.WaitGroup{}
 
 		networkCert := d.endpoints.NetworkCert()
-		for _, node := range nodes {
+		for _, member := range members {
 			wgAction.Add(1)
-			go func(node db.NodeInfo) {
+			go func(member db.NodeInfo) {
 				defer wgAction.Done()
 
 				// Special handling for the local member.
-				if node.Address == localClusterAddress {
+				if member.Address == localClusterAddress {
 					err := localAction(false)
 					if err != nil {
 						failuresLock.Lock()
-						failures[node.Name] = err
+						failures[member.Name] = err
 						failuresLock.Unlock()
 					}
 
@@ -221,10 +221,10 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Connect to the remote server.
-				client, err := cluster.Connect(node.Address, networkCert, d.serverCert(), r, true)
+				client, err := cluster.Connect(member.Address, networkCert, d.serverCert(), r, true)
 				if err != nil {
 					failuresLock.Lock()
-					failures[node.Name] = err
+					failures[member.Name] = err
 					failuresLock.Unlock()
 					return
 				}
@@ -235,7 +235,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				op, err := client.UpdateInstances(req, "")
 				if err != nil {
 					failuresLock.Lock()
-					failures[node.Name] = err
+					failures[member.Name] = err
 					failuresLock.Unlock()
 					return
 				}
@@ -243,11 +243,11 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 				err = op.Wait()
 				if err != nil {
 					failuresLock.Lock()
-					failures[node.Name] = err
+					failures[member.Name] = err
 					failuresLock.Unlock()
 					return
 				}
-			}(node)
+			}(member)
 		}
 
 		wgAction.Wait()
