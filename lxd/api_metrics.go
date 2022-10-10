@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -108,6 +109,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Prepare response.
 	metricSet := metrics.NewMetricSet(nil)
+
+	// Add internal metrics.
+	metricSet.Merge(internalMetrics(d))
 
 	// Review the cache.
 	metricsCacheLock.Lock()
@@ -218,4 +222,64 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	metricsCacheLock.Unlock()
 
 	return response.SyncResponsePlain(true, metricSet.String())
+}
+
+func internalMetrics(d *Daemon) *metrics.MetricSet {
+	out := metrics.NewMetricSet(nil)
+
+	_ = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
+		warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+		if err != nil {
+			logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
+		} else {
+			// Total number of warnings
+			out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
+		}
+
+		operations, err := dbCluster.GetOperations(ctx, tx.Tx())
+		if err != nil {
+			logger.Warn("Failed to get operations", logger.Ctx{"err": err})
+		} else {
+			// Total number of operations
+			out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+		}
+
+		return nil
+	})
+
+	// Daemon uptime
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(d.startTime).Seconds()})
+
+	// Number of goroutines
+	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})
+
+	// Go memory stats
+	var ms runtime.MemStats
+
+	runtime.ReadMemStats(&ms)
+
+	out.AddSamples(metrics.GoAllocBytes, metrics.Sample{Value: float64(ms.Alloc)})
+	out.AddSamples(metrics.GoAllocBytesTotal, metrics.Sample{Value: float64(ms.TotalAlloc)})
+	out.AddSamples(metrics.GoBuckHashSysBytes, metrics.Sample{Value: float64(ms.BuckHashSys)})
+	out.AddSamples(metrics.GoFreesTotal, metrics.Sample{Value: float64(ms.Frees)})
+	out.AddSamples(metrics.GoGCSysBytes, metrics.Sample{Value: float64(ms.GCSys)})
+	out.AddSamples(metrics.GoHeapAllocBytes, metrics.Sample{Value: float64(ms.HeapAlloc)})
+	out.AddSamples(metrics.GoHeapIdleBytes, metrics.Sample{Value: float64(ms.HeapIdle)})
+	out.AddSamples(metrics.GoHeapInuseBytes, metrics.Sample{Value: float64(ms.HeapInuse)})
+	out.AddSamples(metrics.GoHeapObjects, metrics.Sample{Value: float64(ms.HeapObjects)})
+	out.AddSamples(metrics.GoHeapReleasedBytes, metrics.Sample{Value: float64(ms.HeapReleased)})
+	out.AddSamples(metrics.GoHeapSysBytes, metrics.Sample{Value: float64(ms.HeapSys)})
+	out.AddSamples(metrics.GoLookupsTotal, metrics.Sample{Value: float64(ms.Lookups)})
+	out.AddSamples(metrics.GoMallocsTotal, metrics.Sample{Value: float64(ms.Mallocs)})
+	out.AddSamples(metrics.GoMCacheInuseBytes, metrics.Sample{Value: float64(ms.MCacheInuse)})
+	out.AddSamples(metrics.GoMCacheSysBytes, metrics.Sample{Value: float64(ms.MCacheSys)})
+	out.AddSamples(metrics.GoMSpanInuseBytes, metrics.Sample{Value: float64(ms.MSpanInuse)})
+	out.AddSamples(metrics.GoMSpanSysBytes, metrics.Sample{Value: float64(ms.MSpanSys)})
+	out.AddSamples(metrics.GoNextGCBytes, metrics.Sample{Value: float64(ms.NextGC)})
+	out.AddSamples(metrics.GoOtherSysBytes, metrics.Sample{Value: float64(ms.OtherSys)})
+	out.AddSamples(metrics.GoStackInuseBytes, metrics.Sample{Value: float64(ms.StackInuse)})
+	out.AddSamples(metrics.GoStackSysBytes, metrics.Sample{Value: float64(ms.StackSys)})
+	out.AddSamples(metrics.GoSysBytes, metrics.Sample{Value: float64(ms.Sys)})
+
+	return out
 }
