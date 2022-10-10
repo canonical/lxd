@@ -640,7 +640,7 @@ func (d *qemu) onStop(target string) error {
 		_ = op.Reset() // Reset timeout to default.
 
 		// Destroy ephemeral virtual machines.
-		err = d.Delete(true)
+		err = d.delete(true)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -4991,6 +4991,23 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
+	if err != nil {
+		return fmt.Errorf("Failed to create instance delete operation: %w", err)
+	}
+
+	defer op.Done(nil)
+
+	return d.delete(force)
+}
+
+// Delete the instance without creating an operation lock.
+func (d *qemu) delete(force bool) error {
+	if d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
+	}
+
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
