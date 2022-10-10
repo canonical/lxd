@@ -287,7 +287,20 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	}
 
 	sort.SliceStable(snapshots, func(i, j int) bool {
-		return snapshots[i].CreationDate().Before(snapshots[j].CreationDate())
+		iCreation := snapshots[i].CreationDate()
+		jCreation := snapshots[j].CreationDate()
+
+		// Prefer sorting by creation date.
+		if iCreation.Before(jCreation) {
+			return true
+		}
+
+		// But if creation date is the same, then sort by ID.
+		if iCreation.Equal(jCreation) && snapshots[i].ID() < snapshots[j].ID() {
+			return true
+		}
+
+		return false
 	})
 
 	return snapshots, nil
