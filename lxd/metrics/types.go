@@ -92,6 +92,58 @@ const (
 	NetworkTransmitPacketsTotal
 	// ProcsTotal represents the number of running processes.
 	ProcsTotal
+	// OperationsTotal represents the number of running operations.
+	OperationsTotal
+	// WarningsTotal represents the number of active warnings.
+	WarningsTotal
+	// UptimeSeconds represents the daemon uptime in seconds.
+	UptimeSeconds
+	// GoGoroutines represents the number of goroutines that currently exist..
+	GoGoroutines
+	// GoAllocBytes represents the number of bytes allocated and still in use.
+	GoAllocBytes
+	// GoAllocBytesTotal represents the total number of bytes allocated, even if freed.
+	GoAllocBytesTotal
+	// GoSysBytes represents the number of bytes obtained from system.
+	GoSysBytes
+	// GoLookupsTotal represents the total number of pointer lookups.
+	GoLookupsTotal
+	// GoMallocsTotal represents the total number of mallocs.
+	GoMallocsTotal
+	// GoFreesTotal represents the total number of frees.
+	GoFreesTotal
+	// GoHeapAllocBytes represents the number of heap bytes allocated and still in use.
+	GoHeapAllocBytes
+	// GoHeapSysBytes represents the number of heap bytes obtained from system.
+	GoHeapSysBytes
+	// GoHeapIdleBytes represents the number of heap bytes waiting to be used.
+	GoHeapIdleBytes
+	// GoHeapInuseBytes represents the number of heap bytes that are in use.
+	GoHeapInuseBytes
+	// GoHeapReleasedBytes represents the number of heap bytes released to OS.
+	GoHeapReleasedBytes
+	// GoHeapObjects represents the number of allocated objects.
+	GoHeapObjects
+	// GoStackInuseBytes represents the number of bytes in use by the stack allocator.
+	GoStackInuseBytes
+	// GoStackSysBytes represents the number of bytes obtained from system for stack allocator.
+	GoStackSysBytes
+	// GoMSpanInuseBytes represents the number of bytes in use by mspan structures.
+	GoMSpanInuseBytes
+	// GoMSpanSysBytes represents the number of bytes used for mspan structures obtained from system.
+	GoMSpanSysBytes
+	// GoMCacheInuseBytes represents the number of bytes in use by mcache structures.
+	GoMCacheInuseBytes
+	// GoMCacheSysBytes represents the number of bytes used for mcache structures obtained from system.
+	GoMCacheSysBytes
+	// GoBuckHashSysBytes represents the number of bytes used by the profiling bucket hash table.
+	GoBuckHashSysBytes
+	// GoGCSysBytes represents the number of bytes used for garbage collection system metadata.
+	GoGCSysBytes
+	// GoOtherSysBytes represents the number of bytes used for other system allocations.
+	GoOtherSysBytes
+	// GoNextGCBytes represents the number of heap bytes when next garbage collection will take place.
+	GoNextGCBytes
 )
 
 // MetricNames associates a metric type to its name.
@@ -105,6 +157,29 @@ var MetricNames = map[MetricType]string{
 	FilesystemAvailBytes:        "lxd_filesystem_avail_bytes",
 	FilesystemFreeBytes:         "lxd_filesystem_free_bytes",
 	FilesystemSizeBytes:         "lxd_filesystem_size_bytes",
+	GoAllocBytes:                "lxd_go_alloc_bytes",
+	GoAllocBytesTotal:           "lxd_go_alloc_bytes_total",
+	GoBuckHashSysBytes:          "lxd_go_buck_hash_sys_bytes",
+	GoFreesTotal:                "lxd_go_frees_total",
+	GoGCSysBytes:                "lxd_go_gc_sys_bytes",
+	GoGoroutines:                "lxd_go_goroutines",
+	GoHeapAllocBytes:            "lxd_go_heap_alloc_bytes",
+	GoHeapIdleBytes:             "lxd_go_heap_idle_bytes",
+	GoHeapInuseBytes:            "lxd_go_heap_inuse_bytes",
+	GoHeapObjects:               "lxd_go_heap_objects",
+	GoHeapReleasedBytes:         "lxd_go_heap_released_bytes",
+	GoHeapSysBytes:              "lxd_go_heap_sys_bytes",
+	GoLookupsTotal:              "lxd_go_lookups_total",
+	GoMallocsTotal:              "lxd_go_mallocs_total",
+	GoMCacheInuseBytes:          "lxd_go_mcache_inuse_bytes",
+	GoMCacheSysBytes:            "lxd_go_mcache_sys_bytes",
+	GoMSpanInuseBytes:           "lxd_go_mspan_inuse_bytes",
+	GoMSpanSysBytes:             "lxd_go_mspan_sys_bytes",
+	GoNextGCBytes:               "lxd_go_next_gc_bytes",
+	GoOtherSysBytes:             "lxd_go_other_sys_bytes",
+	GoStackInuseBytes:           "lxd_go_stack_inuse_bytes",
+	GoStackSysBytes:             "lxd_go_stack_sys_bytes",
+	GoSysBytes:                  "lxd_go_sys_bytes",
 	MemoryActiveAnonBytes:       "lxd_memory_Active_anon_bytes",
 	MemoryActiveFileBytes:       "lxd_memory_Active_file_bytes",
 	MemoryActiveBytes:           "lxd_memory_Active_bytes",
@@ -133,7 +208,10 @@ var MetricNames = map[MetricType]string{
 	NetworkTransmitDropTotal:    "lxd_network_transmit_drop_total",
 	NetworkTransmitErrsTotal:    "lxd_network_transmit_errs_total",
 	NetworkTransmitPacketsTotal: "lxd_network_transmit_packets_total",
+	OperationsTotal:             "lxd_operations_total",
 	ProcsTotal:                  "lxd_procs_total",
+	UptimeSeconds:               "lxd_uptime_seconds",
+	WarningsTotal:               "lxd_warnings_total",
 }
 
 // MetricHeaders represents the metric headers which contain help messages as specified by OpenMetrics.
@@ -147,6 +225,29 @@ var MetricHeaders = map[MetricType]string{
 	FilesystemAvailBytes:        "# HELP lxd_filesystem_avail_bytes The number of available space in bytes.",
 	FilesystemFreeBytes:         "# HELP lxd_filesystem_free_bytes The number of free space in bytes.",
 	FilesystemSizeBytes:         "# HELP lxd_filesystem_size_bytes The size of the filesystem in bytes.",
+	GoAllocBytes:                "# HELP lxd_go_alloc_bytes Number of bytes allocated and still in use.",
+	GoAllocBytesTotal:           "# HELP lxd_go_alloc_bytes_total Total number of bytes allocated, even if freed.",
+	GoBuckHashSysBytes:          "# HELP lxd_go_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table.",
+	GoFreesTotal:                "# HELP lxd_go_frees_total Total number of frees.",
+	GoGCSysBytes:                "# HELP lxd_go_gc_sys_bytes Number of bytes used for garbage collection system metadata.",
+	GoGoroutines:                "# HELP lxd_go_goroutines Number of goroutines that currently exist.",
+	GoHeapAllocBytes:            "# HELP lxd_go_heap_alloc_bytes Number of heap bytes allocated and still in use.",
+	GoHeapIdleBytes:             "# HELP lxd_go_heap_idle_bytes Number of heap bytes waiting to be used.",
+	GoHeapInuseBytes:            "# HELP lxd_go_heap_inuse_bytes Number of heap bytes that are in use.",
+	GoHeapObjects:               "# HELP lxd_go_heap_objects Number of allocated objects.",
+	GoHeapReleasedBytes:         "# HELP lxd_go_heap_released_bytes Number of heap bytes released to OS.",
+	GoHeapSysBytes:              "# HELP lxd_go_heap_sys_bytes Number of heap bytes obtained from system.",
+	GoLookupsTotal:              "# HELP lxd_go_lookups_total Total number of pointer lookups.",
+	GoMallocsTotal:              "# HELP lxd_go_mallocs_total Total number of mallocs.",
+	GoMCacheInuseBytes:          "# HELP lxd_go_mcache_inuse_bytes Number of bytes in use by mcache structures.",
+	GoMCacheSysBytes:            "# HELP lxd_go_mcache_sys_bytes Number of bytes used for mcache structures obtained from system.",
+	GoMSpanInuseBytes:           "# HELP lxd_go_mspan_inuse_bytes Number of bytes in use by mspan structures.",
+	GoMSpanSysBytes:             "# HELP lxd_go_mspan_sys_bytes Number of bytes used for mspan structures obtained from system.",
+	GoNextGCBytes:               "# HELP lxd_go_next_gc_bytes Number of heap bytes when next garbage collection will take place.",
+	GoOtherSysBytes:             "# HELP lxd_go_other_sys_bytes Number of bytes used for other system allocations.",
+	GoStackInuseBytes:           "# HELP lxd_go_stack_inuse_bytes Number of bytes in use by the stack allocator.",
+	GoStackSysBytes:             "# HELP lxd_go_stack_sys_bytes Number of bytes obtained from system for stack allocator.",
+	GoSysBytes:                  "# HELP lxd_go_sys_bytes Number of bytes obtained from system.",
 	MemoryActiveAnonBytes:       "# HELP lxd_memory_Active_anon_bytes The amount of anonymous memory on active LRU list.",
 	MemoryActiveFileBytes:       "# HELP lxd_memory_Active_file_bytes The amount of file-backed memory on active LRU list.",
 	MemoryActiveBytes:           "# HELP lxd_memory_Active_bytes The amount of memory on active LRU list.",
@@ -175,5 +276,8 @@ var MetricHeaders = map[MetricType]string{
 	NetworkTransmitDropTotal:    "# HELP lxd_network_transmit_drop_total The amount of transmitted dropped bytes on a given interface.",
 	NetworkTransmitErrsTotal:    "# HELP lxd_network_transmit_errs_total The amount of transmitted errors on a given interface.",
 	NetworkTransmitPacketsTotal: "# HELP lxd_network_transmit_packets_total The amount of transmitted packets on a given interface.",
+	OperationsTotal:             "# HELP lxd_operations_total The number of running operations",
 	ProcsTotal:                  "# HELP lxd_procs_total The number of running processes.",
+	UptimeSeconds:               "# HELP lxd_uptime_seconds The daemon uptime in seconds.",
+	WarningsTotal:               "# HELP lxd_warnings_total The number of active warnings.",
 }
