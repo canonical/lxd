@@ -407,6 +407,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	// Prepare the body
+	var ioErr error
 	var body io.Reader
 	var contentType string
 	if args.RootfsFile == nil {
@@ -415,74 +416,67 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 
 		contentType = "application/octet-stream"
 	} else {
-		// If split image, we need mime encoding
-		tmpfile, err := os.CreateTemp("", "lxc_image_")
-		if err != nil {
-			return nil, err
-		}
-
-		defer func() { _ = os.Remove(tmpfile.Name()) }()
-
+		pr, pw := io.Pipe()
 		// Setup the multipart writer
-		w := multipart.NewWriter(tmpfile)
+		w := multipart.NewWriter(pw)
 
-		// Metadata file
-		fw, err := w.CreateFormFile("metadata", args.MetaName)
-		if err != nil {
-			return nil, err
-		}
+		go func() {
+			defer func() {
+				w.Close()
+				pw.Close()
+			}()
 
-		_, err = io.Copy(fw, args.MetaFile)
-		if err != nil {
-			return nil, err
-		}
+			// Metadata file
+			fw, ioErr := w.CreateFormFile("metadata", args.MetaName)
+			if ioErr != nil {
+				return
+			}
 
-		// Rootfs file
-		if args.Type == "virtual-machine" {
-			fw, err = w.CreateFormFile("rootfs.img", args.RootfsName)
-		} else {
-			fw, err = w.CreateFormFile("rootfs", args.RootfsName)
-		}
+			_, ioErr = io.Copy(fw, args.MetaFile)
+			if ioErr != nil {
+				return
+			}
 
-		if err != nil {
-			return nil, err
-		}
+			// Rootfs file
+			if args.Type == "virtual-machine" {
+				fw, ioErr = w.CreateFormFile("rootfs.img", args.RootfsName)
+			} else {
+				fw, ioErr = w.CreateFormFile("rootfs", args.RootfsName)
+			}
 
-		_, err = io.Copy(fw, args.RootfsFile)
-		if err != nil {
-			return nil, err
-		}
+			if ioErr != nil {
+				return
+			}
 
-		// Done writing to multipart
-		err = w.Close()
-		if err != nil {
-			return nil, err
-		}
+			_, ioErr = io.Copy(fw, args.RootfsFile)
+			if ioErr != nil {
+				return
+			}
 
-		// Figure out the size of the whole thing
-		size, err := tmpfile.Seek(0, 2)
-		if err != nil {
-			return nil, err
-		}
+			// Done writing to multipart
+			ioErr = w.Close()
+			if ioErr != nil {
+				return
+			}
 
-		_, err = tmpfile.Seek(0, 0)
-		if err != nil {
-			return nil, err
-		}
+			ioErr = pw.Close()
+			if ioErr != nil {
+				return
+			}
+		}()
 
 		// Setup progress handler
 		if args.ProgressHandler != nil {
 			body = &ioprogress.ProgressReader{
-				ReadCloser: tmpfile,
+				ReadCloser: pr,
 				Tracker: &ioprogress.ProgressTracker{
-					Length: size,
-					Handler: func(percent int64, speed int64) {
-						args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
+					Handler: func(received int64, speed int64) {
+						args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(received, 2), units.GetByteSizeString(speed, 2))})
 					},
 				},
 			}
 		} else {
-			body = tmpfile
+			body = pr
 		}
 
 		contentType = w.FormDataContentType()
@@ -545,6 +539,10 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	defer func() { _ = resp.Body.Close() }()
+
+	if ioErr != nil {
+		return nil, err
+	}
 
 	// Handle errors
 	response, _, err := lxdParseResponse(resp)
