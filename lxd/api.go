@@ -93,6 +93,10 @@ func restServer(d *Daemon) *http.Server {
 		d.createCmd(mux, "internal", c)
 	}
 
+	for _, c := range apiACME {
+		d.createCmd(mux, "", c)
+	}
+
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")

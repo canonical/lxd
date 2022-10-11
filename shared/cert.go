@@ -94,6 +94,18 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 	return info, nil
 }
 
+// KeyPairFromRaw returns a CertInfo from the raw certificate and key.
+func KeyPairFromRaw(certificate []byte, key []byte) (*CertInfo, error) {
+	keypair, err := tls.X509KeyPair(certificate, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CertInfo{
+		keypair: keypair,
+	}, nil
+}
+
 // CertInfo captures TLS certificate information about a certain public/private
 // keypair and an optional CA certificate and CRL.
 //

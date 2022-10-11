@@ -172,6 +172,87 @@ In an unrestricted project, only the `auditor` and the `user` roles are suitable
 In a {ref}`restricted project <projects-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
 ```
 
+## TLS server certificate
+
+LXD supports issuing server certificates using {abbr}`ACME (Automatic Certificate Management Environment)` services, for example, [Let's Encrypt](https://letsencrypt.org/).
+
+To enable this feature, set the following {ref}`server`:
+
+- `acme.domain`: The domain for which the certificate should be issued.
+- `acme.email`: The email address used for the account of the ACME service.
+- `acme.agree_tos`: Must be set to `true` to agree to the ACME service's terms of service.
+- `acme.ca_url`: The directory URL of the ACME service. By default, LXD uses "Let's Encrypt".
+
+For this feature to work, LXD must be reachable from port 80.
+This can be achieved by using a reverse proxy such as [HAProxy](http://www.haproxy.org/).
+
+Here's a minimal HAProxy configuration that uses `lxd.example.net` as the domain.
+After the certificate has been issued, LXD will be reachable from `https://lxd.example.net/`.
+
+```
+# Global configuration
+global
+  log /dev/log local0
+  chroot /var/lib/haproxy
+  stats socket /run/haproxy/admin.sock mode 660 level admin
+  stats timeout 30s
+  user haproxy
+  group haproxy
+  daemon
+  ssl-default-bind-options ssl-min-ver TLSv1.2
+  tune.ssl.default-dh-param 2048
+  maxconn 100000
+
+# Default settings
+defaults
+  mode tcp
+  timeout connect 5s
+  timeout client 30s
+  timeout client-fin 30s
+  timeout server 120s
+  timeout tunnel 6h
+  timeout http-request 5s
+  maxconn 80000
+
+# HTTP dispatcher
+frontend http-dispatcher
+  bind :80
+  mode http
+
+  # Backend selection
+  tcp-request inspect-delay 5s
+
+  # Dispatch
+  default_backend http-403
+  use_backend http-301 if { hdr(host) -i lxd.example.net }
+
+# SNI dispatcher
+frontend sni-dispatcher
+  bind :443
+  mode tcp
+
+  # Backend selection
+  tcp-request inspect-delay 5s
+
+  # require TLS
+  tcp-request content reject unless { req.ssl_hello_type 1 }
+
+  # Dispatch
+  default_backend http-403
+  use_backend lxd-nodes if { req.ssl_sni -i lxd.example.net }
+
+# LXD nodes
+backend lxd-nodes
+  mode tcp
+
+  option tcp-check
+
+  # Multiple servers should be listed when running a cluster
+  server lxd-node01 1.2.3.4:8443 check
+  server lxd-node02 1.2.3.5:8443 check
+  server lxd-node03 1.2.3.6:8443 check
+```
+
 ## Failure scenarios
 
 In the following scenarios, authentication is expected to fail.
