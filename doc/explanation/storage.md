@@ -158,6 +158,9 @@ Each storage volume uses one of the following content types:
 (storage-buckets)=
 ## Storage buckets
 
+```{youtube} https://www.youtube.com/watch?v=T1EeXPrjkEY
+```
+
 Storage buckets provide object storage functionality via the S3 protocol.
 
 They can be used in a way that is similar to custom storage volumes.
