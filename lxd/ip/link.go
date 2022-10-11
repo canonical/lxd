@@ -327,7 +327,7 @@ func (l *Link) Delete() error {
 }
 
 // BridgeVLANAdd adds a new vlan filter entry.
-func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool, master bool) error {
+func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool) error {
 	cmd := []string{"vlan", "add", "dev", l.Name, "vid", vid}
 
 	if pvid {
@@ -340,9 +340,7 @@ func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool, ma
 
 	if self {
 		cmd = append(cmd, "self")
-	}
-
-	if master {
+	} else {
 		cmd = append(cmd, "master")
 	}
 
@@ -355,14 +353,12 @@ func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool, ma
 }
 
 // BridgeVLANDelete removes an existing vlan filter entry.
-func (l *Link) BridgeVLANDelete(vid string, self bool, master bool) error {
+func (l *Link) BridgeVLANDelete(vid string, self bool) error {
 	cmd := []string{"vlan", "del", "dev", l.Name, "vid", vid}
 
 	if self {
 		cmd = append(cmd, "self")
-	}
-
-	if master {
+	} else {
 		cmd = append(cmd, "master")
 	}
 
