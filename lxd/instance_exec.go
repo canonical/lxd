@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
@@ -43,10 +44,8 @@ type execWs struct {
 	instance              instance.Instance
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
-	requiredConnectedCtx  context.Context
-	requiredConnectedDone func()
-	controlConnectedCtx   context.Context
-	controlConnectedDone  func()
+	waitRequiredConnected *cancel.Canceller
+	waitControlConnected  *cancel.Canceller
 	fds                   map[int]string
 	s                     *state.State
 }
@@ -90,7 +89,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				s.conns[fd] = conn
 
 				if fd == execWSControl {
-					s.controlConnectedDone() // Control connection connected.
+					s.waitControlConnected.Cancel() // Control connection connected.
 				}
 
 				for i, c := range s.conns {
@@ -109,7 +108,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 					}
 				}
 
-				s.requiredConnectedDone() // All required connections now connected.
+				s.waitRequiredConnected.Cancel() // All required connections now connected.
 				return nil
 			} else if !found {
 				return fmt.Errorf("Unknown websocket number")
@@ -140,7 +139,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
 	select {
-	case <-s.requiredConnectedCtx.Done():
+	case <-s.waitRequiredConnected.Done():
 		break
 	case <-time.After(time.Second * 5):
 		return fmt.Errorf("Timed out waiting for websockets to connect")
@@ -240,7 +239,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			s.controlConnectedDone() // Request control go routine to end if no control connection.
+			s.waitControlConnected.Cancel() // Request control go routine to end if no control connection.
 		} else {
 			err = conn.Close() // Close control connection (will cause control go routine to end).
 			if err != nil && cmdErr == nil {
@@ -286,7 +285,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	go func() {
 		defer wgEOF.Done()
 
-		<-s.controlConnectedCtx.Done() // Indicates control connection has started or command has ended.
+		<-s.waitControlConnected.Done() // Indicates control connection has started or command has ended.
 
 		s.connsLock.Lock()
 		conn := s.conns[execWSControl]
@@ -430,7 +429,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// can also be used indicate that the command has already finished.
 						// In either case there is no need to kill the command, but if not
 						// then it is our responsibility to kill the command now.
-						if s.controlConnectedCtx.Err() == nil {
+						if s.waitControlConnected.Err() == nil {
 							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
 							cmdKillOnce.Do(cmdKill)
 						}
@@ -627,8 +626,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStderr] = nil
 		}
 
-		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-		ws.controlConnectedCtx, ws.controlConnectedDone = context.WithCancel(context.Background())
+		ws.waitRequiredConnected = cancel.New(context.Background())
+		ws.waitControlConnected = cancel.New(context.Background())
 
 		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
