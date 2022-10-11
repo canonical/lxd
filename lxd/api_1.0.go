@@ -708,6 +708,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	bgpChanged := false
 	dnsChanged := false
 	lokiChanged := false
+	acmeDomainChanged := false
+	acmeCAURLChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -777,6 +779,10 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "loki.types":
 			lokiChanged = true
+		case "acme.ca_url":
+			acmeCAURLChanged = true
+		case "acme.domain":
+			acmeDomainChanged = true
 		}
 	}
 
@@ -925,6 +931,13 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if acmeCAURLChanged || acmeDomainChanged {
+		err := autoRenewCertificate(d.shutdownCtx, d, acmeCAURLChanged)
+		if err != nil {
+			return err
 		}
 	}
 

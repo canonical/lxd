@@ -221,6 +221,11 @@ func (c *Config) LokiServer() (string, string, string, string, []string, string,
 	return c.m.GetString("loki.api.url"), c.m.GetString("loki.auth.username"), c.m.GetString("loki.auth.password"), c.m.GetString("loki.api.ca_cert"), labels, c.m.GetString("loki.loglevel"), types
 }
 
+// ACME returns all ACME settings needed for certificate renewal.
+func (c *Config) ACME() (string, string, string, bool) {
+	return c.m.GetString("acme.domain"), c.m.GetString("acme.email"), c.m.GetString("acme.ca_url"), c.m.GetBool("acme.agree_tos")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -262,6 +267,10 @@ func (c *Config) update(values map[string]any) (map[string]string, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
+	"acme.ca_url":                    {},
+	"acme.domain":                    {},
+	"acme.email":                     {},
+	"acme.agree_tos":                 {Type: config.Bool},
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
