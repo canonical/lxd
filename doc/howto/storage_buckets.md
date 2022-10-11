@@ -1,6 +1,9 @@
 (howto-storage-buckets)=
 # How to manage storage buckets and keys
 
+```{youtube} https://www.youtube.com/watch?v=T1EeXPrjkEY
+```
+
 See the following sections for instructions on how to create, configure, view and resize {ref}`storage-buckets` and how to manage storage bucket keys.
 
 ## Manage storage buckets
