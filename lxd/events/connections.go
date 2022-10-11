@@ -100,6 +100,9 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		}
 	}()
 
+	t := time.NewTicker(pingInterval)
+	defer t.Stop()
+
 	for {
 		if ctx.Err() != nil {
 			return
@@ -121,7 +124,7 @@ func (e *websockListenerConnection) Reader(ctx context.Context, recvFunc EventHa
 		e.lock.Unlock()
 
 		select {
-		case <-time.After(pingInterval):
+		case <-t.C:
 		case <-ctx.Done():
 			return
 		}
