@@ -1498,6 +1498,98 @@ test_clustering_update_cert() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_update_cert_reversion() {
+  # shellcheck disable=2039,3043
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Bootstrap a node to steal its certs
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert_path=$(mktemp -p "${TEST_DIR}" XXX)
+  key_path=$(mktemp -p "${TEST_DIR}" XXX)
+
+  # Save the certs
+  cp "${LXD_ONE_DIR}/cluster.crt" "${cert_path}"
+  cp "${LXD_ONE_DIR}/cluster.key" "${key_path}"
+
+  # Tear down the instance
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  teardown_clustering_netns
+  teardown_clustering_bridge
+  kill_lxd "${LXD_ONE_DIR}"
+
+  # Set up again
+  setup_clustering_bridge
+
+  # Bootstrap the first node
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # quick check
+  ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Shutdown third node
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  kill_lxd "${LXD_THREE_DIR}"
+
+  # Send update request
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster update-cert "${cert_path}" "${key_path}" -q || false
+
+  ! cmp -s "${LXD_ONE_DIR}/cluster.crt" "${cert_path}" || false
+  ! cmp -s "${LXD_TWO_DIR}/cluster.crt" "${cert_path}" || false
+
+  ! cmp -s "${LXD_ONE_DIR}/cluster.key" "${key_path}" || false
+  ! cmp -s "${LXD_TWO_DIR}/cluster.key" "${key_path}" || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
 test_clustering_join_api() {
   # shellcheck disable=2039,2034,3043
   local LXD_DIR LXD_NETNS
