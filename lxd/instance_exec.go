@@ -30,6 +30,7 @@ import (
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
+	"github.com/lxc/lxd/shared/tcp"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -87,6 +88,31 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			val, found := s.conns[fd]
 			if found && val == nil {
 				s.conns[fd] = conn
+
+				// Set TCP timeout options.
+				remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
+				if remoteTCP != nil {
+					err = tcp.SetTimeouts(remoteTCP)
+					if err != nil {
+						logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+					}
+				}
+
+				// Start channel keep alive to run until channel is closed.
+				go func() {
+					pingInterval := time.Second * 10
+					t := time.NewTicker(pingInterval)
+					defer t.Stop()
+
+					for {
+						err := conn.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+						if err != nil {
+							return
+						}
+
+						<-t.C
+					}
+				}()
 
 				if fd == execWSControl {
 					s.waitControlConnected.Cancel() // Control connection connected.
