@@ -214,6 +214,16 @@ defaults
   timeout http-request 5s
   maxconn 80000
 
+# Default backend - Return HTTP 301 (TLS upgrade)
+backend http-301
+  mode http
+  redirect scheme https code 301
+
+# Default backend - Return HTTP 403
+backend http-403
+  mode http
+  http-request deny deny_status 403
+
 # HTTP dispatcher
 frontend http-dispatcher
   bind :80
