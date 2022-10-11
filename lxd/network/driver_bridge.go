@@ -763,15 +763,10 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 	// Enable VLAN filtering for Linux bridges.
 	if n.config["bridge.driver"] != "openvswitch" {
+		// Enable filtering.
 		err = BridgeVLANFilterSetStatus(n.name, "1")
 		if err != nil {
-			n.logger.Warn(fmt.Sprintf("%v", err))
-		}
-
-		// Set the default PVID for new ports to 1.
-		err = BridgeVLANSetDefaultPVID(n.name, "1")
-		if err != nil {
-			n.logger.Warn(fmt.Sprintf("%v", err))
+			n.logger.Warn(fmt.Sprintf("Failed enabling VLAN filtering: %v", err))
 		}
 	}
 
