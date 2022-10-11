@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/tcp"
 )
 
 // ProtocolLXD represents a LXD API server.
@@ -427,10 +428,19 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		return nil, err
 	}
 
+	// Set TCP timeout options.
+	remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
+	if remoteTCP != nil {
+		err = tcp.SetTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+		}
+	}
+
 	// Log the data
 	logger.Debugf("Connected to the websocket: %v", url)
 
-	return conn, err
+	return conn, nil
 }
 
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {

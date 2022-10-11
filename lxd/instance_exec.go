@@ -27,8 +27,10 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
+	"github.com/lxc/lxd/shared/tcp"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -43,10 +45,8 @@ type execWs struct {
 	instance              instance.Instance
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
-	requiredConnectedCtx  context.Context
-	requiredConnectedDone func()
-	controlConnectedCtx   context.Context
-	controlConnectedDone  func()
+	waitRequiredConnected *cancel.Canceller
+	waitControlConnected  *cancel.Canceller
 	fds                   map[int]string
 	s                     *state.State
 }
@@ -89,8 +89,33 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			if found && val == nil {
 				s.conns[fd] = conn
 
+				// Set TCP timeout options.
+				remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
+				if remoteTCP != nil {
+					err = tcp.SetTimeouts(remoteTCP)
+					if err != nil {
+						logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+					}
+				}
+
+				// Start channel keep alive to run until channel is closed.
+				go func() {
+					pingInterval := time.Second * 10
+					t := time.NewTicker(pingInterval)
+					defer t.Stop()
+
+					for {
+						err := conn.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+						if err != nil {
+							return
+						}
+
+						<-t.C
+					}
+				}()
+
 				if fd == execWSControl {
-					s.controlConnectedDone() // Control connection connected.
+					s.waitControlConnected.Cancel() // Control connection connected.
 				}
 
 				for i, c := range s.conns {
@@ -98,7 +123,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 						// Due to a historical bug in the LXC CLI command, we cannot force
 						// the client to connect a control socket when in non-interactive
 						// mode. This is because the older CLI tools did not connect this
-						// channel and so we would prevent the older CLIs connecitng to
+						// channel and so we would prevent the older CLIs connecting to
 						// newer servers. So skip the control connection from being
 						// considered as a required connection in this case.
 						continue
@@ -109,7 +134,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 					}
 				}
 
-				s.requiredConnectedDone() // All required connections now connected.
+				s.waitRequiredConnected.Cancel() // All required connections now connected.
 				return nil
 			} else if !found {
 				return fmt.Errorf("Unknown websocket number")
@@ -140,7 +165,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
 	select {
-	case <-s.requiredConnectedCtx.Done():
+	case <-s.waitRequiredConnected.Done():
 		break
 	case <-time.After(time.Second * 5):
 		return fmt.Errorf("Timed out waiting for websockets to connect")
@@ -223,13 +248,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	attachedChildIsDead := make(chan struct{})
+	waitAttachedChildIsDead := cancel.New(context.Background())
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.
 	finisher := func(cmdResult int, cmdErr error) error {
 		// Close this before closing the control connection so control handler can detect command ending.
-		close(attachedChildIsDead)
+		waitAttachedChildIsDead.Cancel()
 
 		for _, tty := range ttys {
 			_ = tty.Close()
@@ -240,7 +265,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			s.controlConnectedDone() // Request control go routine to end if no control connection.
+			s.waitControlConnected.Cancel() // Request control go routine to end if no control connection.
 		} else {
 			err = conn.Close() // Close control connection (will cause control go routine to end).
 			if err != nil && cmdErr == nil {
@@ -286,7 +311,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	go func() {
 		defer wgEOF.Done()
 
-		<-s.controlConnectedCtx.Done() // Indicates control connection has started or command has ended.
+		<-s.waitControlConnected.Done() // Indicates control connection has started or command has ended.
 
 		s.connsLock.Lock()
 		conn := s.conns[execWSControl]
@@ -303,10 +328,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			mt, r, err := conn.NextReader()
 			if err != nil || mt == websocket.CloseMessage {
 				// Check if command process has finished normally, if so, no need to kill it.
-				select {
-				case <-attachedChildIsDead:
+				if waitAttachedChildIsDead.Err() != nil {
 					return
-				default:
 				}
 
 				if mt == websocket.CloseMessage {
@@ -323,10 +346,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			buf, err := io.ReadAll(r)
 			if err != nil {
 				// Check if command process has finished normally, if so, no need to kill it.
-				select {
-				case <-attachedChildIsDead:
+				if waitAttachedChildIsDead.Err() != nil {
 					return
-				default:
 				}
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
@@ -391,7 +412,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
 				// need special signal handling provided by netutils.WebsocketExecMirror.
-				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], waitAttachedChildIsDead.Done(), int(ptys[0].Fd()))
 			} else {
 				// For VMs we are just relaying the websockets between client and lxd-agent, so no
 				// need for the special signal handling provided by netutils.WebsocketExecMirror.
@@ -430,7 +451,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// can also be used indicate that the command has already finished.
 						// In either case there is no need to kill the command, but if not
 						// then it is our responsibility to kill the command now.
-						if s.controlConnectedCtx.Err() == nil {
+						if s.waitControlConnected.Err() == nil {
 							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
 							cmdKillOnce.Do(cmdKill)
 						}
@@ -627,8 +648,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStderr] = nil
 		}
 
-		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-		ws.controlConnectedCtx, ws.controlConnectedDone = context.WithCancel(context.Background())
+		ws.waitRequiredConnected = cancel.New(context.Background())
+		ws.waitControlConnected = cancel.New(context.Background())
 
 		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
