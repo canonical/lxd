@@ -1,118 +1,123 @@
 (cluster-recover)=
 # How to recover a cluster
 
-You can tweak the amount of seconds after which a non-responding node will be
-considered offline by running:
+It might happen that one or several members of your cluster go offline or become unreachable.
+In that case, no operations are possible on this member, and neither are operations that require a state change across all members.
+See {ref}`clustering-offline-members` for more information.
 
-```bash
-lxc config set cluster.offline_threshold <n seconds>
+If you can bring the offline cluster members back or delete them from the cluster, operation resumes as normal.
+If this is not possible, there are a few ways to recover the cluster, depending on the scenario that caused the failure.
+See the following sections for details.
+
+```{note}
+When your cluster is in a state that needs recovery, most `lxc` commands do not work, because the LXD client cannot connect to the LXD daemon.
+
+Therefore, the commands to recover the cluster are provided directly by the LXD daemon (`lxd`).
+Run `lxd cluster --help` for an overview of all available commands.
 ```
 
 ## Recover from quorum loss
 
-Every LXD cluster has up to 3 members that serve as database nodes. If you
-permanently lose a majority of the cluster members that are serving as database
-nodes (for example you have a 3-member cluster and you lose 2 members), the
-cluster will become unavailable. However, if at least one database node has
-survived, you will be able to recover the cluster.
+Every LXD cluster has a specific number of members (configured through [`cluster.max_voters`](server)) that serve as voting members of the distributed database.
+If you permanently lose a majority of these cluster members (for example, you have a three-member cluster and you lose two members), the cluster loses quorum and becomes unavailable.
+However, if at least one database member survives, it is possible to recover the cluster.
 
-In order to check which cluster members are configured as database nodes, log on
-any survived member of your cluster and run the command:
+To do so, complete the following steps:
 
-```
-lxd cluster list-database
-```
+1. Log on to any surviving member of your cluster and run the following command:
 
-This will work even if the LXD daemon is not running.
+       sudo lxd cluster list-database
 
-Among the listed members, pick the one that has survived and log into it (if it
-differs from the one you have run the command on).
+   This command shows which cluster members have one of the database roles.
+1. Pick one of the listed database members that is still online as the new leader.
+   Log on to the machine (if it differs from the one you are already logged on to).
+1. Make sure that the LXD daemon is not running on the machine.
+   For example, if you're using the snap:
 
-Now make sure the LXD daemon is not running and then issue the command:
+       sudo snap stop lxd
 
-```
-lxd cluster recover-from-quorum-loss
-```
+1. Log on to all other cluster members that are still online and stop the LXD daemon.
+1. On the server that you picked as the new leader, run the following command:
 
-At this point you can restart the LXD daemon and the database should be back
-online.
+       sudo lxd cluster recover-from-quorum-loss
 
-Note that no information has been deleted from the database, in particular all
-information about the cluster members that you have lost is still there,
-including the metadata about their instances. This can help you with further
-recovery steps in case you need to re-create the lost instances.
+1. Start the LXD daemon again on all machines, starting with the new leader.
+   For example, if you're using the snap:
 
-In order to permanently delete the cluster members that you have lost, you can
-run the command:
+       sudo snap start lxd
 
-```
-lxc cluster remove <name> --force
-```
+The database should now be back online.
+No information has been deleted from the database.
+All information about the cluster members that you have lost is still there, including the metadata about their instances.
+This can help you with further recovery steps if you need to re-create the lost instances.
 
-Note that this time you have to use the regular `lxc` command line tool, not
-`lxd`.
+To permanently delete the cluster members that you have lost, force-remove them.
+See {ref}`cluster-manage-delete-members`.
 
 ## Recover cluster members with changed addresses
 
-If some members of your cluster are no longer reachable, or if the cluster itself
-is unreachable due to a change in IP address or listening port number, the
-cluster can be reconfigured.
+If some members of your cluster are no longer reachable, or if the cluster itself is unreachable due to a change in IP address or listening port number, you can reconfigure the cluster.
 
-On each member of the cluster, with LXD not running, run the following command:
+To do so, edit the cluster configuration on each member of the cluster and change the IP addresses or listening port numbers as required.
+You cannot remove any members during this process.
+The cluster configuration must contain the description of the full cluster, so you must do the changes for all cluster members on all cluster members.
 
-```
-lxd cluster edit
-```
+You can edit the {ref}`clustering-member-roles` of the different members, but with the following limitations:
 
-Note that all commands in this section will use `lxd` instead of `lxc`.
+- A cluster member that does not have a `database*` role cannot become a voter, because it might lack a global database.
+- At least two members must remain voters (except in the case of a two-member cluster, where one voter suffices), or there will be no quorum.
 
-This will present a YAML representation of this node's last recorded information
-about the rest of the cluster:
+Log on to each cluster member and complete the following steps:
 
-```yaml
-# Latest dqlite segment ID: 1234
+1. Stop the LXD daemon.
+   For example, if you're using the snap:
 
-members:
-  - id: 1             # Internal ID of the node (Read-only)
-    name: node1       # Name of the cluster member (Read-only)
-    address: 10.0.0.10:8443 # Last known address of the node (Writeable)
-    role: voter             # Last known role of the node (Writeable)
-  - id: 2
-   name: node2
-    address: 10.0.0.11:8443
-    role: stand-by
-  - id: 3
-   name: node3
-    address: 10.0.0.12:8443
-    role: spare
-```
+       sudo snap stop lxd
 
-Members may not be removed from this configuration, and a spare node cannot become
-a voter, as it may lack a global database. Importantly, keep in mind that at least
-2 nodes must remain voters (except in the case of a 2-member cluster, where 1 voter
-suffices), or there will be no quorum.
+1. Run the following command:
 
-Once the necessary changes have been made, repeat the process on each member of the
-cluster. Upon reloading LXD on each member, the cluster in its entirety should be
-back online with all nodes reporting in.
+       sudo lxd cluster edit
 
-Note that no information has been deleted from the database, all information
-about the cluster members and their instances is still there.
+1. Edit the YAML representation of the information that this cluster member has about the rest of the cluster:
 
-## Manually altering Raft membership
+   ```yaml
+   # Latest dqlite segment ID: 1234
 
-There might be situations in which you need to manually alter the Raft
-membership configuration of the cluster because some unexpected behavior
-occurred.
+   members:
+     - id: 1             # Internal ID of the member (Read-only)
+       name: server1     # Name of the cluster member (Read-only)
+       address: 192.0.2.10:8443 # Last known address of the member (Writeable)
+       role: voter              # Last known role of the member (Writeable)
+     - id: 2             # Internal ID of the member (Read-only)
+       name: server2     # Name of the cluster member (Read-only)
+       address: 192.0.2.11:8443 # Last known address of the member (Writeable)
+       role: stand-by           # Last known role of the member (Writeable)
+     - id: 3             # Internal ID of the member (Read-only)
+       name: server3     # Name of the cluster member (Read-only)
+       address: 192.0.2.12:8443 # Last known address of the member (Writeable)
+       role: spare              # Last known role of the member (Writeable)
+   ```
 
-For example if you have a cluster member that was removed uncleanly it might not
-show up in `lxc cluster list` but still be part of the Raft configuration (you
-can see that with `lxd sql local "SELECT * FROM raft_nodes"`).
+   You can edit the addresses and the roles.
 
-In that case you can run:
+After doing the changes on all cluster members, start the LXD daemon on all members again.
+For example, if you're using the snap:
 
-```bash
-lxd cluster remove-raft-node <address>
-```
+    sudo snap start lxd
 
-to remove the leftover node.
+The cluster should now be fully available again with all members reporting in.
+No information has been deleted from the database.
+All information about the cluster members and their instances is still there.
+
+## Manually alter Raft membership
+
+In some situations, you might need to manually alter the Raft membership configuration of the cluster because of some unexpected behavior.
+
+For example, if you have a cluster member that was removed uncleanly, it might not show up in `lxc cluster list` but still be part of the Raft configuration.
+To see the Raft configuration, run the following command:
+
+    lxd sql local "SELECT * FROM raft_nodes"
+
+In that case, run the following command to remove the leftover node:
+
+    lxd cluster remove-raft-node <address>
