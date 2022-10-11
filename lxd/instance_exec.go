@@ -222,13 +222,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	attachedChildIsDead := make(chan struct{})
+	waitAttachedChildIsDead := cancel.New(context.Background())
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.
 	finisher := func(cmdResult int, cmdErr error) error {
 		// Close this before closing the control connection so control handler can detect command ending.
-		close(attachedChildIsDead)
+		waitAttachedChildIsDead.Cancel()
 
 		for _, tty := range ttys {
 			_ = tty.Close()
@@ -302,10 +302,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			mt, r, err := conn.NextReader()
 			if err != nil || mt == websocket.CloseMessage {
 				// Check if command process has finished normally, if so, no need to kill it.
-				select {
-				case <-attachedChildIsDead:
+				if waitAttachedChildIsDead.Err() != nil {
 					return
-				default:
 				}
 
 				if mt == websocket.CloseMessage {
@@ -322,10 +320,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			buf, err := io.ReadAll(r)
 			if err != nil {
 				// Check if command process has finished normally, if so, no need to kill it.
-				select {
-				case <-attachedChildIsDead:
+				if waitAttachedChildIsDead.Err() != nil {
 					return
-				default:
 				}
 
 				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
@@ -390,7 +386,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
 				// need special signal handling provided by netutils.WebsocketExecMirror.
-				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], waitAttachedChildIsDead.Done(), int(ptys[0].Fd()))
 			} else {
 				// For VMs we are just relaying the websockets between client and lxd-agent, so no
 				// need for the special signal handling provided by netutils.WebsocketExecMirror.
