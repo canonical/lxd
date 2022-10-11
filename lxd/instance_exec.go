@@ -97,7 +97,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 						// Due to a historical bug in the LXC CLI command, we cannot force
 						// the client to connect a control socket when in non-interactive
 						// mode. This is because the older CLI tools did not connect this
-						// channel and so we would prevent the older CLIs connecitng to
+						// channel and so we would prevent the older CLIs connecting to
 						// newer servers. So skip the control connection from being
 						// considered as a required connection in this case.
 						continue
