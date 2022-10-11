@@ -1501,12 +1501,12 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 			return err
 		}
 
-		// If the default is different to the specified untagged VLAN or if tagged VLAN is set to "none"
-		// then remove the default untagged membership.
-		if defaultPVID != d.config["vlan"] || d.config["vlan"] == "none" {
+		// If the bridge has a default PVID and it is different to the specified untagged VLAN or if tagged
+		// VLAN is set to "none" then remove the default untagged membership.
+		if defaultPVID != "0" && (defaultPVID != d.config["vlan"] || d.config["vlan"] == "none") {
 			err = link.BridgeVLANDelete(defaultPVID, false, false)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed removing default PVID membership: %w", err)
 			}
 		}
 
