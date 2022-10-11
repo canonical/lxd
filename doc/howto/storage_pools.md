@@ -149,6 +149,7 @@ Use the existing Ceph Object Gateway `https://www.example.com/radosgw` to create
 ````
 `````
 
+(storage-pools-cluster)=
 ### Create a storage pool in a cluster
 
 If you are running a LXD cluster and want to add a storage pool, you must create the storage pool for each cluster member separately.
