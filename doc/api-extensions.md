@@ -2078,3 +2078,14 @@ It adds the following global configuration keys:
 It also adds the following endpoint, which is required for the HTTP-01 challenge:
 
 * `/.well-known/acme-challenge/<token>`
+
+## `internal_metrics`
+
+This adds internal metrics to the list of metrics.
+These include:
+
+* Total running operations
+* Total active warnings
+* Daemon uptime in seconds
+* Go memory stats
+* Number of goroutines
