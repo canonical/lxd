@@ -1,3 +1,4 @@
+(network-external)=
 # External networks
 
 <!-- Include start external intro -->

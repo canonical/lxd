@@ -44,6 +44,7 @@ See {ref}`network-types` for a list of available network types and links to thei
 
 If you do not specify a `--type` argument, the default type of `bridge` is used.
 
+(network-create-cluster)=
 ### Create a network in a cluster
 
 If you are running a LXD cluster and want to create a network, you must create the network for each cluster member separately.
