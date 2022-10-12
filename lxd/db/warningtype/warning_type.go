@@ -56,6 +56,8 @@ const (
 	InstanceTypeNotOperational
 	// StoragePoolUnvailable represents a storage pool that cannot be initialized on the local server.
 	StoragePoolUnvailable
+	// UnableToUpdateClusterCertificate represents the unable to update cluster certificate warning.
+	UnableToUpdateClusterCertificate
 )
 
 // TypeNames associates a warning code to its name.
@@ -85,6 +87,7 @@ var TypeNames = map[Type]string{
 	InstanceAutostartFailure:               "Failed to autostart instance",
 	InstanceTypeNotOperational:             "Instance type not operational",
 	StoragePoolUnvailable:                  "Storage pool unavailable",
+	UnableToUpdateClusterCertificate:       "Unable to update cluster certificate",
 }
 
 // Severity returns the severity of the warning type.
@@ -140,6 +143,8 @@ func (t Type) Severity() Severity {
 		return SeverityLow
 	case StoragePoolUnvailable:
 		return SeverityHigh
+	case UnableToUpdateClusterCertificate:
+		return SeverityLow
 	}
 
 	return SeverityLow
