@@ -2,23 +2,33 @@
 discourse: 12716
 ---
 
-(cluster-groups)=
+(howto-cluster-groups)=
 # How to set up cluster groups
 
-Cluster members can be assigned to groups using the `lxc cluster group assign` command:
+Cluster members can be assigned to {ref}`cluster-groups`.
+By default, all cluster members belong to the `default` group.
 
-```bash
-lxc cluster group create gpu
-lxc cluster group assign cluster:node1 gpu
+To create a cluster group, use the `lxc cluster group create` command.
+For example:
+
+    lxc cluster group create gpu
+
+To assign a cluster member to a specific group, use the `lxc cluster group assign` command.
+For example:
+
+    lxc cluster group assign server1 gpu
+
+## Launch an instance on a cluster group member
+
+With cluster groups, you can target an instance to run on one of the members of the cluster group, instead of targeting it to run on a specific member.
+
+```{note}
+[`scheduler.instance`](cluster-member-config) must be set to either `all` (the default) or `group` to allow instances to be targeted to a cluster group.
+
+See {ref}`clustering-assignment` for more information.
 ```
 
-With cluster groups, it's possible to target specific groups instead of individual members.
-This is done by using the `@` prefix when using `--target`.
+To launch an instance on a member of a cluster group, follow the instructions in {ref}`cluster-target-instance`, but use the group name prefixed with `@` for the `--target` flag.
+For example:
 
-An example:
-
-```bash
-lxc launch ubuntu:22.04 cluster:ubuntu --target=@gpu
-```
-
-This will cause the instance to be created on a cluster member belonging to `gpu` group if `scheduler.instance` is set to either `all` (default) or `group`.
+    lxc launch images:ubuntu/22.04 c1 --target=@gpu

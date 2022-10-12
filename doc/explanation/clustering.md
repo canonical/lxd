@@ -112,6 +112,7 @@ You can increase that number to improve fault tolerance and the likelihood of th
 To do so, set the [`cluster.images_minimal_replica`](server) configuration.
 The special value of `-1` can be used to have the image copied to all cluster members.
 
+(cluster-groups)=
 ## Cluster groups
 
 In a LXD cluster, you can add members to cluster groups.
@@ -120,7 +121,7 @@ For example, you could create a cluster group for all members that have a GPU an
 
 By default, all cluster members belong to the `default` group.
 
-See {ref}`cluster-groups` and {ref}`cluster-target-instance` for more information.
+See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more information.
 
 (clustering-assignment)=
 ## Automatic assignment of instances
