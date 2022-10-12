@@ -1,60 +1,53 @@
 (cluster-config-networks)=
 # How to configure networks for a cluster
 
-As mentioned above, all nodes must have identical networks defined.
+All members of a cluster must have identical networks defined.
+The only configuration keys that may differ between networks on different members are [`bridge.external_interfaces`](network-bridge-options), [`parent`](network-external), [`bgp.ipv4.nexthop`](network-bridge-options) and [`bgp.ipv6.nexthop`](network-bridge-options).
+See {ref}`clustering-member-config` for more information.
 
-The only difference between networks on different nodes might be their optional configuration keys.
-When defining a new network on a specific clustered node the only valid optional configuration keys you can pass
-are `bridge.external_interfaces` and `parent`, as these can be different on each node (see documentation about
-[network configuration](../networks.md) for a definition of each).
+Creating additional networks is a two-step process:
 
-To create a new network, you first have to define it across all nodes, for example:
+1. Define and configure the new network across all cluster members.
+   For example, for a cluster that has three members:
 
-```bash
-lxc network create --target node1 my-network
-lxc network create --target node2 my-network
-```
+       lxc network create --target server1 my-network
+       lxc network create --target server2 my-network
+       lxc network create --target server3 my-network
 
-At this point the network hasn't been actually created yet, but just defined
-(it's state is marked as Pending if you run `lxc network list`).
+   ```{note}
+   You can pass only the member-specific configuration keys `bridge.external_interfaces`, `parent`, `bgp.ipv4.nexthop` and `bgp.ipv6.nexthop`.
+   Passing other configuration keys results in an error.
+   ```
 
-Now run:
+   These commands define the network, but they don't create it.
+   If you run `lxc network list`, you can see that the network is marked as "pending".
+1. Run the following command to instantiate the network on all cluster members:
 
-```bash
-lxc network create my-network
-```
+       lxc network create my-network
 
-The network will be instantiated on all nodes. If you didn't define it on a particular node, or a node is down,
-an error will be returned.
+   ```{note}
+   You can add configuration keys that are not member-specific to this command.
+   ```
 
-You can pass to this final `network create` command any configuration key which is not node-specific (see above).
+   If you missed a cluster member when defining the network, or if a cluster member is down, you get an error.
+
+Also see {ref}`network-create-cluster`.
 
 ## Separate REST API and clustering networks
 
-You can configure different networks for the REST API endpoint of your clients
-and for internal traffic between the nodes of your cluster (for example in order
-to use a virtual address for your REST API, with DNS round robin).
+You can configure different networks for the REST API endpoint of your clients and for internal traffic between the members of your cluster.
+This separation can be useful, for example, to use a virtual address for your REST API, with DNS round robin.
 
-To do that, you need to bootstrap the first node of the cluster using the
-`cluster.https_address` configuration key. For example, when using preseed:
+To do so, you must specify different addresses for [`cluster.https_address`](server) (the address for internal cluster traffic) and [`core.https_address`](server) (the address for the REST API):
 
-```yaml
-config:
-  core.trust_password: sekret
-  core.https_address: my.lxd.cluster:8443
-  cluster.https_address: 10.55.60.171:8443
-...
-```
+1. Create your cluster as usual, and make sure to use the address that you want to use for internal cluster traffic as the cluster address.
+   This address is set as the `cluster.https_address` configuration.
+1. After joining your members, set the `core.https_address` configuration to the address for the REST API.
+   For example:
 
-(the rest of the preseed YAML is the same as above).
+       lxc config set core.https_address 0.0.0.0:8443
 
-To join a new node, first set its REST API address, for instance using the
-`lxc` client:
-
-```bash
-lxc config set core.https_address my.lxd.cluster:8443
-```
-
-and then use the ```PUT /1.0/cluster``` API endpoint as usual, specifying the
-address of the joining node with the ```server_address``` field. If you use
-preseed, the YAML payload would be exactly like the one above.
+   ```{note}
+   `core.https_address` is specific to the cluster member, so you can use different addresses on different members.
+   You can also use a wildcard address to make the member listen on multiple interfaces.
+   ```
