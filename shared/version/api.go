@@ -349,6 +349,7 @@ var APIExtensions = []string{
 	"storage_buckets_local",
 	"loki",
 	"acme",
+	"internal_metrics",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
