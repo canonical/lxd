@@ -15,7 +15,9 @@ currently supported:
 - `instances` (instance configuration)
 - `loki` (External log aggregation system)
 - `maas` (MAAS integration)
+- `network` (OVN integration)
 - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
+- `storage` (storage configuration)
 
 ```{rst-class} break-col-4 min-width-4-8
 ```
