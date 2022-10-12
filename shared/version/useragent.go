@@ -27,7 +27,7 @@ func getUserAgent() string {
 		panic(err)
 	}
 
-	osTokens := []string{cases.Title(language.English).String(arch)}
+	osTokens := []string{cases.Title(language.English).String(runtime.GOOS), arch}
 	osTokens = append(osTokens, getPlatformVersionStrings()...)
 
 	// Initial version string
