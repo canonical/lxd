@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
+	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -34,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -2039,6 +2041,12 @@ func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, r
 
 	// First node forwards request to all other cluster nodes
 	if r == nil || !isClusterNotification(r) {
+		var err error
+
+		revert.Add(func() {
+			_ = d.db.Cluster.UpsertWarningLocalNode("", -1, -1, warningtype.UnableToUpdateClusterCertificate, err.Error())
+		})
+
 		oldCertBytes, err := os.ReadFile(shared.VarPath("cluster.crt"))
 		if err != nil {
 			return err
@@ -2073,7 +2081,7 @@ func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, r
 		revert.Add(func() {
 			// If distributing the new certificate fails, store the certificate. This new file will
 			// be considered when running the auto renewal again.
-			err = os.WriteFile(newClusterCertFilename, []byte(req.ClusterCertificate), 0600)
+			err := os.WriteFile(newClusterCertFilename, []byte(req.ClusterCertificate), 0600)
 			if err != nil {
 				logger.Error("Failed storing new certificate", logger.Ctx{"err": err})
 			}
@@ -2084,6 +2092,8 @@ func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, r
 			return err
 		}
 
+		var client lxd.InstanceServer
+
 		for i := range members {
 			member := members[i]
 
@@ -2091,7 +2101,7 @@ func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, r
 				continue
 			}
 
-			client, err := cluster.Connect(member.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			client, err = cluster.Connect(member.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return err
 			}
@@ -2139,6 +2149,9 @@ func updateClusterCertificate(ctx context.Context, d *Daemon, r *http.Request, r
 	// Update the certificate on the network endpoint and gateway
 	d.endpoints.NetworkUpdateCert(cert)
 	d.gateway.NetworkUpdateCert(cert)
+
+	// Resolve warning of this type
+	_ = warnings.ResolveWarningsByLocalNodeAndType(d.db.Cluster, warningtype.UnableToUpdateClusterCertificate)
 
 	revert.Success()
 
