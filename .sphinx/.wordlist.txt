@@ -74,6 +74,7 @@ Gibit
 GID
 GIDs
 Golang
+goroutines
 GPUs
 Grafana
 HAProxy
@@ -245,6 +246,7 @@ unmanaged
 unmount
 unmounting
 uplink
+uptime
 userspace
 UUID
 vCPU
