@@ -351,6 +351,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 			// Follow the symlink
 			if targetPath == "-" || c.file.flagRecursive {
+				i := 0
 				for {
 					newPath := strings.TrimSuffix(string(linkTarget), "\n")
 					if !strings.HasPrefix(newPath, "/") {
@@ -364,6 +365,17 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 					if resp.Type != "symlink" {
 						break
+					}
+
+					i++
+					if i > 255 {
+						return fmt.Errorf("Too many links")
+					}
+
+					// Update link target for next iteration.
+					linkTarget, err = io.ReadAll(buf)
+					if err != nil {
+						return err
 					}
 				}
 			} else {
