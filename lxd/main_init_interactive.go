@@ -117,7 +117,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 		config.Cluster.Enabled = true
 
 		askForServerName := func() error {
-			config.Cluster.ServerName, err = cli.AskString(fmt.Sprintf("What name should be used to identify this node in the cluster? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
+			config.Cluster.ServerName, err = cli.AskString(fmt.Sprintf("What member name should be used to identify this server in the cluster? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
 			if err != nil {
 				return err
 			}
@@ -151,7 +151,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			return nil
 		}
 
-		serverAddress, err := cli.AskString(fmt.Sprintf("What IP address or DNS name should be used to reach this node? [default=%s]: ", address), address, validateServerAddress)
+		serverAddress, err := cli.AskString(fmt.Sprintf("What IP address or DNS name should be used to reach this server? [default=%s]: ", address), address, validateServerAddress)
 		if err != nil {
 			return err
 		}
@@ -266,7 +266,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 
 					certDigest := shared.CertFingerprint(cert)
 					fmt.Printf("Cluster fingerprint: %s\n", certDigest)
-					fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing node.\n")
+					fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing cluster member.\n")
 
 					validator := func(input string) error {
 						if input == certDigest {
