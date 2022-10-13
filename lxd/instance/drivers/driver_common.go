@@ -35,6 +35,12 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// ErrExecCommandNotFound indicates the command is not found.
+var ErrExecCommandNotFound = fmt.Errorf("Command not found")
+
+// ErrExecCommandNotExecutable indicates the command is not executable.
+var ErrExecCommandNotExecutable = fmt.Errorf("Command not executable")
+
 // ErrInstanceIsStopped indicates that the instance is stopped.
 var ErrInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
 
