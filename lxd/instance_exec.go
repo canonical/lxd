@@ -471,7 +471,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	exitStatus, err := cmd.Wait()
-	l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
+	l.Debug("Instance process stopped", logger.Ctx{"err": err, "exitStatus": exitStatus})
+
 	return finisher(exitStatus, err)
 }
 
@@ -715,7 +716,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		l.Debug("Instance process started")
 
 		exitStatus, err := cmd.Wait()
-		l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
+		l.Debug("Instance process stopped", logger.Ctx{"err": err, "exitStatus": exitStatus})
 		if err != nil {
 			return err
 		}
