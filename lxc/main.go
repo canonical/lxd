@@ -287,7 +287,11 @@ To easily setup a local LXD server in a virtual machine, consider using: https:/
 
 		// Default error handling
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+
+		// If custom exit status not set, use default error status.
+		if globalCmd.ret == 0 {
+			globalCmd.ret = 1
+		}
 	}
 
 	if globalCmd.ret != 0 {
