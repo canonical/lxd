@@ -35,6 +35,14 @@ func (c *lxcCmd) Signal(sig unix.Signal) error {
 func (c *lxcCmd) Wait() (int, error) {
 	exitStatus, err := shared.ExitStatus(c.cmd.Wait())
 
+	// Convert special exit statuses into errors.
+	switch exitStatus {
+	case 127:
+		err = ErrExecCommandNotFound
+	case 126:
+		err = ErrExecCommandNotExecutable
+	}
+
 	return exitStatus, err
 }
 

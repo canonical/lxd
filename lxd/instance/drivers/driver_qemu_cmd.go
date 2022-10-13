@@ -53,13 +53,29 @@ func (c *qemuCmd) Signal(sig unix.Signal) error {
 // Wait for the command to end and returns its exit code and any error.
 func (c *qemuCmd) Wait() (int, error) {
 	err := c.cmd.Wait()
+
+	exitStatus := -1
+	opAPI := c.cmd.Get()
+	if opAPI.Metadata != nil {
+		exitStatusRaw, ok := opAPI.Metadata["return"].(float64)
+		if ok {
+			exitStatus = int(exitStatusRaw)
+
+			// Convert special exit statuses into errors.
+			switch exitStatus {
+			case 127:
+				err = ErrExecCommandNotFound
+			case 126:
+				err = ErrExecCommandNotExecutable
+			}
+		}
+	}
+
 	if err != nil {
-		return -1, err
+		return exitStatus, err
 	}
 
 	<-c.dataDone
-
-	exitStatus := int(c.cmd.Get().Metadata["return"].(float64))
 
 	if c.cleanupFunc != nil {
 		defer c.cleanupFunc()
