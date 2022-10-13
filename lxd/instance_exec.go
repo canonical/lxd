@@ -471,7 +471,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	exitStatus, err := cmd.Wait()
-	l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
+	l.Debug("Instance process stopped", logger.Ctx{"err": err, "exitStatus": exitStatus})
+
 	return finisher(exitStatus, err)
 }
 
@@ -714,17 +715,17 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
 		l.Debug("Instance process started")
 
-		exitStatus, err := cmd.Wait()
-		l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
-		if err != nil {
-			return err
-		}
+		exitStatus, cmdErr := cmd.Wait()
+		l.Debug("Instance process stopped", logger.Ctx{"err": cmdErr, "exitStatus": exitStatus})
 
 		metadata["return"] = exitStatus
-
 		err = op.ExtendMetadata(metadata)
 		if err != nil {
 			l.Error("Error updating metadata for cmd", logger.Ctx{"err": err, "cmd": post.Command})
+		}
+
+		if cmdErr != nil {
+			return cmdErr
 		}
 
 		return nil

@@ -203,15 +203,20 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 
 	// Wait for the operation to complete
 	err = op.Wait()
+	opAPI := op.Get()
+	if opAPI.Metadata != nil {
+		exitStatusRaw, ok := opAPI.Metadata["return"].(float64)
+		if ok {
+			c.global.ret = int(exitStatusRaw)
+		}
+	}
+
 	if err != nil {
 		return err
 	}
 
-	opAPI := op.Get()
-
 	// Wait for any remaining I/O to be flushed
 	<-execArgs.DataDone
 
-	c.global.ret = int(opAPI.Metadata["return"].(float64))
 	return nil
 }

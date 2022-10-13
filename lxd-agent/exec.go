@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -356,9 +357,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if err != nil {
 		exitStatus := -1
 
-		if errors.Is(err, exec.ErrNotFound) {
+		if errors.Is(err, exec.ErrNotFound) || os.IsNotExist(err) {
 			exitStatus = 127
-			err = nil // Allow the exit code to be returned.
+		} else if errors.Is(err, fs.ErrPermission) {
+			exitStatus = 126
 		}
 
 		return finisher(exitStatus, err)
@@ -502,6 +504,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	exitStatus, err := shared.ExitStatus(cmd.Wait())
 
-	l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
+	l.Debug("Instance process stopped", logger.Ctx{"err": err, "exitStatus": exitStatus})
 	return finisher(exitStatus, nil)
 }
