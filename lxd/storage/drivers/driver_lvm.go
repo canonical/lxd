@@ -572,6 +572,12 @@ func (d *lvm) Mount() (bool, error) {
 		for {
 			thinpoolExists, _ := d.thinpoolExists(d.config["lvm.vg_name"], d.thinpoolName())
 			if thinpoolExists {
+				thinpoolName := fmt.Sprintf("%s/%s", d.config["lvm.vg_name"], d.thinpoolName())
+				_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", thinpoolName)
+				if err != nil {
+					return false, fmt.Errorf("Failed activating LVM thin pool volume %q: %w", thinpoolName, err)
+				}
+
 				break
 			}
 
@@ -590,6 +596,36 @@ func (d *lvm) Mount() (bool, error) {
 // Unmount unmounts the storage pool (this does nothing).
 // LVM doesn't currently support unmounting, please see https://github.com/lxc/lxd/issues/9278
 func (d *lvm) Unmount() (bool, error) {
+	// If loop backed, enable auto release of the loop device.
+	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
+		// Check if VG exists before we do anthing, this will indicate if its our unmount or not.
+		vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
+		if !vgExists {
+			return false, nil
+		}
+
+		loopDevPath, err := d.openLoopFile(d.config["source"])
+		if err != nil {
+			return false, err
+		}
+
+		defer func() { _ = loopDeviceAutoDetach(loopDevPath) }()
+
+		if d.usesThinpool() {
+			// Deactivate thinpool volume so that the loop device can be released.
+			thinpoolExists, _ := d.thinpoolExists(d.config["lvm.vg_name"], d.thinpoolName())
+			if thinpoolExists {
+				thinpoolName := fmt.Sprintf("%s/%s", d.config["lvm.vg_name"], d.thinpoolName())
+				_, err := shared.RunCommand("lvchange", "--activate", "n", thinpoolName)
+				if err != nil {
+					return false, fmt.Errorf("Failed deactivating LVM thin pool volume %q: %w", thinpoolName, err)
+				}
+			}
+		}
+
+		return true, nil
+	}
+
 	return false, nil
 }
 
