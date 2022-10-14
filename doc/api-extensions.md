@@ -3,7 +3,7 @@
 The changes below were introduced to the LXD API after the 1.0 API was finalized.
 
 They are all backward compatible and can be detected by client tools by
-looking at the `api_extensions` field in `GET /1.0/`.
+looking at the `api_extensions` field in `GET /1.0`.
 
 ## `storage_zfs_remove_snapshots`
 
@@ -896,7 +896,7 @@ decide to trigger various actions.
 ## `lxc_features`
 
 This introduces the `lxc_features` section output from the `lxc info` command
-via the `GET /1.0/` route. It outputs the result of checks for key features being present in the
+via the `GET /1.0` route. It outputs the result of checks for key features being present in the
 underlying LXC library.
 
 ## `container_nic_ipvlan`
