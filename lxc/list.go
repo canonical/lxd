@@ -255,10 +255,10 @@ func (c *cmdList) evaluateShorthandFilter(key string, value string, inst *api.In
 	return false
 }
 
-func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
+func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, instances []api.Instance, filters []string, columns []column) error {
 	threads := 10
-	if len(cinfos) < threads {
-		threads = len(cinfos)
+	if len(instances) < threads {
+		threads = len(instances)
 	}
 
 	// Shortcut when needing state and snapshot info.
@@ -303,7 +303,7 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 			}()
 		}
 
-		for _, info := range cinfos {
+		for _, info := range instances {
 			cInfoQueue <- info.Name
 		}
 
@@ -367,36 +367,36 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 		}()
 	}
 
-	for _, cInfo := range cinfos {
+	for _, inst := range instances {
 		for _, column := range columns {
-			if column.NeedsState && cInfo.IsActive() {
+			if column.NeedsState && inst.IsActive() {
 				cStatesLock.Lock()
-				_, ok := cStates[cInfo.Name]
+				_, ok := cStates[inst.Name]
 				cStatesLock.Unlock()
 				if ok {
 					continue
 				}
 
 				cStatesLock.Lock()
-				cStates[cInfo.Name] = nil
+				cStates[inst.Name] = nil
 				cStatesLock.Unlock()
 
-				cStatesQueue <- cInfo.Name
+				cStatesQueue <- inst.Name
 			}
 
 			if column.NeedsSnapshots {
 				cSnapshotsLock.Lock()
-				_, ok := cSnapshots[cInfo.Name]
+				_, ok := cSnapshots[inst.Name]
 				cSnapshotsLock.Unlock()
 				if ok {
 					continue
 				}
 
 				cSnapshotsLock.Lock()
-				cSnapshots[cInfo.Name] = nil
+				cSnapshots[inst.Name] = nil
 				cSnapshotsLock.Unlock()
 
-				cSnapshotsQueue <- cInfo.Name
+				cSnapshotsQueue <- inst.Name
 			}
 		}
 	}
@@ -407,11 +407,11 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 	cSnapshotsWg.Wait()
 
 	// Convert to Instance
-	data := make([]api.InstanceFull, len(cinfos))
-	for i := range cinfos {
-		data[i].Instance = cinfos[i]
-		data[i].State = cStates[cinfos[i].Name]
-		data[i].Snapshots = cSnapshots[cinfos[i].Name]
+	data := make([]api.InstanceFull, len(instances))
+	for i := range instances {
+		data[i].Instance = instances[i]
+		data[i].State = cStates[instances[i].Name]
+		data[i].Snapshots = cSnapshots[instances[i].Name]
 	}
 
 	return c.showInstances(data, filters, columns)
@@ -503,31 +503,31 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	if needsData && d.HasExtension("container_full") {
 		// Using the GetInstancesFull shortcut
-		var cts []api.InstanceFull
+		var instances []api.InstanceFull
 
 		serverFilters, clientFilters := getServerSupportedFilters(filters, api.InstanceFull{})
+
 		if c.flagAllProjects {
-			cts, err = d.GetInstancesFullAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
+			instances, err = d.GetInstancesFullAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
 		} else {
-			cts, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
+			instances, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
 		}
 
 		if err != nil {
 			return err
 		}
 
-		return c.showInstances(cts, clientFilters, columns)
+		return c.showInstances(instances, clientFilters, columns)
 	}
 
 	// Get the list of instances
-	var cts []api.Instance
-	var ctslist []api.Instance
+	var instances []api.Instance
 	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Instance{})
 
 	if c.flagAllProjects {
-		ctslist, err = d.GetInstancesAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
+		instances, err = d.GetInstancesAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
 	} else {
-		ctslist, err = d.GetInstancesWithFilter(api.InstanceTypeAny, serverFilters)
+		instances, err = d.GetInstancesWithFilter(api.InstanceTypeAny, serverFilters)
 	}
 
 	if err != nil {
@@ -535,16 +535,17 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Apply filters
-	for _, cinfo := range ctslist {
-		if !c.shouldShow(clientFilters, &cinfo, nil, true) {
+	instancesFiltered := []api.Instance{}
+	for _, inst := range instances {
+		if !c.shouldShow(clientFilters, &inst, nil, true) {
 			continue
 		}
 
-		cts = append(cts, cinfo)
+		instancesFiltered = append(instancesFiltered, inst)
 	}
 
 	// Fetch any remaining data and render the table
-	return c.listInstances(conf, d, cts, clientFilters, columns)
+	return c.listInstances(conf, d, instancesFiltered, clientFilters, columns)
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
