@@ -417,17 +417,21 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 	return c.showInstances(data, filters, columns)
 }
 
-func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, columns []column) error {
+func (c *cmdList) showInstances(instances []api.InstanceFull, filters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
-	for _, ct := range cts {
-		if !c.shouldShow(filters, &ct.Instance, ct.State, false) {
+	instancesFiltered := []api.InstanceFull{}
+
+	for _, inst := range instances {
+		if !c.shouldShow(filters, &inst.Instance, inst.State, false) {
 			continue
 		}
 
+		instancesFiltered = append(instancesFiltered, inst)
+
 		col := []string{}
 		for _, column := range columns {
-			col = append(col, column.Data(ct))
+			col = append(col, column.Data(inst))
 		}
 
 		data = append(data, col)
@@ -440,7 +444,7 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, column
 		headers = append(headers, column.Name)
 	}
 
-	return utils.RenderTable(c.flagFormat, headers, data, cts)
+	return utils.RenderTable(c.flagFormat, headers, data, instancesFiltered)
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
