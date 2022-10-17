@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network/acl"
@@ -122,4 +123,9 @@ func nicCheckNamesUnique(instConf instance.ConfigReader) error {
 	}
 
 	return nil
+}
+
+// nicCheckDNSNameConflict returns if instNameA matches instNameB (case insensitive).
+func nicCheckDNSNameConflict(instNameA string, instNameB string) bool {
+	return strings.EqualFold(instNameA, instNameB)
 }
