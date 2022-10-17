@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -203,6 +204,11 @@ func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
 }
 
+// ClusterJoinTokenExpiry returns the cluster join token expiry.
+func (c *Config) ClusterJoinTokenExpiry() string {
+	return c.m.GetString("cluster.join_token_expiry")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -247,6 +253,7 @@ var ConfigSchema = config.Schema{
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
+	"cluster.join_token_expiry":      {Type: config.String, Default: "3H", Validator: expiryValidator},
 	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
 	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
 	"core.metrics_authentication":    {Type: config.Bool, Default: "true"},
@@ -285,6 +292,15 @@ var ConfigSchema = config.Schema{
 	// OVN networking global keys.
 	"network.ovn.integration_bridge":    {Default: "br-int"},
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
+}
+
+func expiryValidator(value string) error {
+	_, err := shared.GetExpiry(time.Time{}, value)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func offlineThresholdDefault() string {
