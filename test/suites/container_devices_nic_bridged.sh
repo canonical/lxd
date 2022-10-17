@@ -42,6 +42,9 @@ test_container_devices_nic_bridged() {
 
   lxc init testimage "${ctName}" -p "${ctName}"
 
+  # Temporarily disconnect instance from network so the device name checks don't trigger duplicate instance errors.
+  lxc config device add "${ctName}" eth0 none
+
   # Test device name validation.
   lxc config device add "${ctName}" 127.0.0.1 nic network=${brName}
   lxc config device remove "${ctName}" 127.0.0.1
@@ -54,6 +57,9 @@ test_container_devices_nic_bridged() {
   ! lxc config device add "${ctName}" .invalid nic network=${brName} || false
   ! lxc config device add "${ctName}" ./invalid nic network=${brName} || false
   ! lxc config device add "${ctName}" ../invalid nic network=${brName} || false
+
+  # Restore eth0 from profile.
+  lxc config device remove "${ctName}" eth0
 
   # Start instance.
   lxc start "${ctName}"
