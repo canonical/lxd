@@ -3,8 +3,8 @@ discourse: 12281,11735
 relatedlinks: https://grafana.com/grafana/dashboards/15726
 ---
 
-(instance-metrics)=
-# Instance metrics
+(metrics)=
+# Metrics
 
 ```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY
 ```
@@ -193,9 +193,9 @@ scrape_configs:
       server_name: 'saturn'
 ```
 
-## Provided metrics
+## Provided instance metrics
 
-The following metrics are provided:
+The following instance metrics are provided:
 
 * `lxd_cpu_seconds_total{cpu="<cpu>", mode="<mode>"}`
 * `lxd_disk_read_bytes_total{device="<dev>"}`
