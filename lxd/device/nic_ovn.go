@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/mdlayher/netx/eui64"
 
@@ -248,6 +249,11 @@ func (d *nicOVN) checkAddressConflict() error {
 		// updates or when making temporary copies of our instance during migrations.
 		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
 			return nil
+		}
+
+		// Check there isn't another instance with the same DNS name connected to managed network.
+		if d.network != nil && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+			return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
 		}
 
 		// Check NIC's MAC address doesn't match this NIC's MAC address.
