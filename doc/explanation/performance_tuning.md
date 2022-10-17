@@ -24,7 +24,7 @@ See {ref}`benchmark-performance` for instructions on running the tool.
 You should regularly monitor the metrics to evaluate the resources that your instances use.
 The numbers help you to determine if there are any spikes or bottlenecks, or if usage patterns change and require updates to your configuration.
 
-See {ref}`instance-metrics` for more information about metrics collection.
+See {ref}`metrics` for more information about metrics collection.
 
 ## Tune server settings
 
