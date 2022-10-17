@@ -1215,6 +1215,11 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
+	expiry, err := shared.GetExpiry(time.Now(), d.State().GlobalConfig.ClusterJoinTokenExpiry())
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	// Get target addresses for existing online members, so that it can be encoded into the join token so that
 	// the joining member will not have to specify a joining address during the join process.
 	// Use anonymous interface type to align with how the API response will be returned for consistency when
@@ -1300,6 +1305,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		"secret":      joinSecret,
 		"fingerprint": fingerprint,
 		"addresses":   onlineNodeAddresses,
+		"expiresAt":   expiry,
 	}
 
 	resources := map[string][]string{}
