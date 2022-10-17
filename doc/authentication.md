@@ -172,6 +172,7 @@ In an unrestricted project, only the `auditor` and the `user` roles are suitable
 In a {ref}`restricted project <projects-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
 ```
 
+(authentication-server-certificate)=
 ## TLS server certificate
 
 LXD supports issuing server certificates using {abbr}`ACME (Automatic Certificate Management Environment)` services, for example, [Let's Encrypt](https://letsencrypt.org/).

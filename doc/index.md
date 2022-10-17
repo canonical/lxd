@@ -56,6 +56,7 @@ images
 storage
 networks
 operation
+clustering
 restapi_landing
 internals
 external_resources
