@@ -103,6 +103,16 @@ func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
 		Addresses:   make([]string, 0, len(addresses)),
 	}
 
+	expiresAtStr, ok := op.Metadata["expiresAt"].(string)
+	if ok {
+		expiresAt, err := time.Parse(time.RFC3339Nano, expiresAtStr)
+		if err != nil {
+			return nil, err
+		}
+
+		joinToken.ExpiresAt = expiresAt
+	}
+
 	for i, address := range addresses {
 		addressString, ok := address.(string)
 		if !ok {
