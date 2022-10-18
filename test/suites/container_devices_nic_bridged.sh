@@ -42,24 +42,22 @@ test_container_devices_nic_bridged() {
 
   lxc init testimage "${ctName}" -p "${ctName}"
 
-  # Temporarily disconnect instance from network so the device name checks don't trigger duplicate instance errors.
-  lxc config device add "${ctName}" eth0 none
+  # Check that adding another NIC to the same network fails because it triggers duplicate instance DNS name checks.
+  # Because this would effectively cause 2 NICs with the same instance name to be connected to the same network.
+  ! lxc config device add "${ctName}" eth1 nic network=${brName} || false
 
-  # Test device name validation.
-  lxc config device add "${ctName}" 127.0.0.1 nic network=${brName}
+  # Test device name validation (use vlan=1 to avoid trigger instance DNS name conflict detection).
+  lxc config device add "${ctName}" 127.0.0.1 nic network=${brName} vlan=1
   lxc config device remove "${ctName}" 127.0.0.1
-  lxc config device add "${ctName}" ::1 nic network=${brName}
+  lxc config device add "${ctName}" ::1 nic network=${brName} vlan=1
   lxc config device remove "${ctName}" ::1
-  lxc config device add "${ctName}" _valid-name nic network=${brName}
+  lxc config device add "${ctName}" _valid-name nic network=${brName} vlan=1
   lxc config device remove "${ctName}" _valid-name
-  lxc config device add "${ctName}" /foo nic network=${brName}
+  lxc config device add "${ctName}" /foo nic network=${brName} vlan=1
   lxc config device remove "${ctName}" /foo
-  ! lxc config device add "${ctName}" .invalid nic network=${brName} || false
-  ! lxc config device add "${ctName}" ./invalid nic network=${brName} || false
-  ! lxc config device add "${ctName}" ../invalid nic network=${brName} || false
-
-  # Restore eth0 from profile.
-  lxc config device remove "${ctName}" eth0
+  ! lxc config device add "${ctName}" .invalid nic network=${brName} vlan=1 || false
+  ! lxc config device add "${ctName}" ./invalid nic network=${brName} vlan=1 || false
+  ! lxc config device add "${ctName}" ../invalid nic network=${brName} vlan=1 || false
 
   # Start instance.
   lxc start "${ctName}"
