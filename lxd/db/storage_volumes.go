@@ -263,7 +263,8 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// correct deltas.
 	queryStr := fmt.Sprintf(`
   SELECT
-    storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date,
+    storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description,
+    storage_volumes_snapshots.creation_date, storage_volumes_snapshots.expiry_date,
     storage_volumes.content_type
   FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
@@ -291,7 +292,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 			var expiryDate sql.NullTime
 			var contentType int
 
-			err := scan(&s.ID, &snapName, &s.Description, &expiryDate, &contentType)
+			err := scan(&s.ID, &snapName, &s.Description, &s.CreationDate, &expiryDate, &contentType)
 			if err != nil {
 				return err
 			}
