@@ -26,34 +26,33 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	snapshotName = parts[1]
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		// If we are creating a snapshot, figure out the volume
-		// ID of the parent.
+		// Figure out the volume ID of the parent.
 		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, project, volumeName, volumeType, poolID, c.nodeID)
 		if err != nil {
-			return fmt.Errorf("Find parent volume: %w", err)
+			return fmt.Errorf("Failed finding parent volume record for snapshot: %w", err)
 		}
 
 		_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
 		if err != nil {
-			return fmt.Errorf("Increment storage volumes sequence: %w", err)
+			return fmt.Errorf("Failed incrementing storage volumes sequence: %w", err)
 		}
 
 		row := tx.tx.QueryRowContext(ctx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
 		err = row.Scan(&volumeID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting storage volumes sequence: %w", err)
 		}
 
 		_, err = tx.tx.Exec(
 			"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
 			volumeID, parentID, snapshotName, volumeDescription, expiryDate)
 		if err != nil {
-			return fmt.Errorf("Insert volume snapshot: %w", err)
+			return fmt.Errorf("Failed creating volume snapshot record: %w", err)
 		}
 
 		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
 		if err != nil {
-			return fmt.Errorf("Insert storage volume configuration: %w", err)
+			return fmt.Errorf("Failed inserting storage volume snapshot record configuration: %w", err)
 		}
 
 		return nil
