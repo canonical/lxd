@@ -1270,7 +1270,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			}
 
 			// Validate config and create database entry for new storage volume from source volume config.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnap.Config, snapExpiryDate, contentType, false)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnap.Config, srcSnap.CreatedAt, snapExpiryDate, contentType, false)
 			if err != nil {
 				return err
 			}
