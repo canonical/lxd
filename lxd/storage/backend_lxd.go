@@ -749,38 +749,58 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		defer postHookRevert.Fail()
 
 		// Create database entry for new storage volume.
-		// If the backup restore interface provides volume config use it, otherwise use default volume
-		// config for the storage pool.
 		var volumeDescription string
 		var volumeConfig map[string]string
+		volumeCreationDate := inst.CreationDate()
+
 		if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+			// If the backup restore interface provides volume config use it, otherwise use
+			// default volume config for the storage pool.
 			volumeDescription = srcBackup.Config.Volume.Description
 			volumeConfig = srcBackup.Config.Volume.Config
+
+			// Use volume's creation date if available.
+			if !srcBackup.Config.Volume.CreatedAt.IsZero() {
+				volumeCreationDate = srcBackup.Config.Volume.CreatedAt
+			}
 		}
 
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, volumeCreationDate, time.Time{}, contentType, true)
 		if err != nil {
 			return err
 		}
 
 		postHookRevert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
-		// If the backup restore interface provides volume snapshot config use it, otherwise use default
-		// volume config for the storage pool.
 		for i, backupFileSnap := range srcBackup.Snapshots {
 			var volumeSnapDescription string
 			var volumeSnapConfig map[string]string
 			var volumeSnapExpiryDate time.Time
+			var volumeSnapCreationDate time.Time
 
 			// Check if snapshot volume config is available for restore and matches snapshot name.
-			if srcBackup.Config != nil && len(srcBackup.Config.VolumeSnapshots) >= i-1 && srcBackup.Config.VolumeSnapshots[i] != nil && srcBackup.Config.VolumeSnapshots[i].Name == backupFileSnap {
-				volumeSnapDescription = srcBackup.Config.VolumeSnapshots[i].Description
-				volumeSnapConfig = srcBackup.Config.VolumeSnapshots[i].Config
+			if srcBackup.Config != nil {
+				if len(srcBackup.Config.Snapshots) >= i-1 && srcBackup.Config.Snapshots[i] != nil && srcBackup.Config.Snapshots[i].Name == backupFileSnap {
+					// Use instance snapshot's creation date if snap info available.
+					volumeSnapCreationDate = srcBackup.Config.Snapshots[i].CreatedAt
+				}
 
-				if srcBackup.Config.VolumeSnapshots[i].ExpiresAt != nil {
-					volumeSnapExpiryDate = *srcBackup.Config.VolumeSnapshots[i].ExpiresAt
+				if len(srcBackup.Config.VolumeSnapshots) >= i-1 && srcBackup.Config.VolumeSnapshots[i] != nil && srcBackup.Config.VolumeSnapshots[i].Name == backupFileSnap {
+					// If the backup restore interface provides volume snapshot config use it,
+					// otherwise use default volume config for the storage pool.
+					volumeSnapDescription = srcBackup.Config.VolumeSnapshots[i].Description
+					volumeSnapConfig = srcBackup.Config.VolumeSnapshots[i].Config
+
+					if srcBackup.Config.VolumeSnapshots[i].ExpiresAt != nil {
+						volumeSnapExpiryDate = *srcBackup.Config.VolumeSnapshots[i].ExpiresAt
+					}
+
+					// Use volume's creation date if available.
+					if !srcBackup.Config.VolumeSnapshots[i].CreatedAt.IsZero() {
+						volumeSnapCreationDate = srcBackup.Config.VolumeSnapshots[i].CreatedAt
+					}
 				}
 			}
 
@@ -788,7 +808,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapExpiryDate, contentType, true)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapCreationDate, volumeSnapExpiryDate, contentType, true)
 			if err != nil {
 				return err
 			}
