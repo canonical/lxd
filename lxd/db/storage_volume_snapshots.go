@@ -17,7 +17,7 @@ import (
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
+func (c *Cluster) CreateStorageVolumeSnapshot(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
 	var snapshotName string
@@ -27,7 +27,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the volume ID of the parent.
-		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, project, volumeName, volumeType, poolID, c.nodeID)
+		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
 		if err != nil {
 			return fmt.Errorf("Failed finding parent volume record for snapshot: %w", err)
 		}
