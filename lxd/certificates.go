@@ -401,6 +401,16 @@ func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.Certificate
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
 
+		expiresAt, ok := foundOp.Metadata["expiresAt"]
+		if ok {
+			expiry, _ := expiresAt.(time.Time)
+
+			// Check if token has expired.
+			if time.Now().After(expiry) {
+				return nil, api.StatusErrorf(http.StatusForbidden, "Token has expired")
+			}
+		}
+
 		return foundOp, nil
 	}
 
