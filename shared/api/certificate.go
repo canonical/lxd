@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"encoding/json"
+	"time"
 )
 
 // CertificateTypeClient indicates a client certificate type.
@@ -110,6 +111,10 @@ type CertificateAddToken struct {
 	// The random join secret
 	// Example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
 	Secret string `json:"secret" yaml:"secret"`
+
+	// The token's expiry date.
+	// Example: 2021-03-23T17:38:37.753398689-04:00
+	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
 }
 
 // String encodes the certificate add token as JSON and then base64.
