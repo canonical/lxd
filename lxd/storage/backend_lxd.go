@@ -4395,7 +4395,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	if !args.Refresh {
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
+		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Now().UTC(), time.Time{}, vol.ContentType(), true)
 		if err != nil {
 			return err
 		}
@@ -4411,6 +4411,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			snapConfig := vol.Config() // Use parent volume config by default.
 			snapDescription := args.Description
 			snapExpiryDate := time.Time{}
+			snapCreationDate := time.Time{}
 
 			// If the source snapshot config is available, use that.
 			if srcInfo != nil && srcInfo.Config != nil {
@@ -4426,13 +4427,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 						snapExpiryDate = *srcSnap.ExpiresAt
 					}
 
+					snapCreationDate = srcSnap.CreatedAt
+
 					break
 				}
 			}
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, projectName, newSnapshotName, snapDescription, vol.Type(), true, snapConfig, snapExpiryDate, vol.ContentType(), true)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, snapDescription, vol.Type(), true, snapConfig, snapCreationDate, snapExpiryDate, vol.ContentType(), true)
 			if err != nil {
 				return err
 			}
