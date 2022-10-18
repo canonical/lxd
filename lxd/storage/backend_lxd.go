@@ -4887,7 +4887,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	}
 
 	// Validate config and create database entry for restored storage volume.
-	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType), false)
+	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, poolVol.Volume.CreatedAt, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType), false)
 	if err != nil {
 		return err
 	}
@@ -4906,7 +4906,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 		}
 
 		// Validate config and create database entry for restored storage volume.
-		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVolumeConfig, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false)
+		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVolumeConfig, poolVolSnap.CreatedAt, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false)
 		if err != nil {
 			return err
 		}
