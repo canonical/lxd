@@ -161,7 +161,7 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 // GetExpiredStorageVolumeSnapshots returns a list of expired volume snapshots.
 func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error) {
 	q := `
-	SELECT storage_volumes_snapshots.id, storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
+	SELECT storage_volumes_snapshots.id, storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.creation_date, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
 	FROM storage_volumes_snapshots
 	JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
 	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
@@ -177,7 +177,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 			var volName string
 			var expiryTime sql.NullTime
 
-			err := scan(&snap.ID, &volName, &snapName, &expiryTime, &snap.PoolName, &snap.ProjectName)
+			err := scan(&snap.ID, &volName, &snapName, &snap.CreationDate, &expiryTime, &snap.PoolName, &snap.ProjectName)
 			if err != nil {
 				return err
 			}
