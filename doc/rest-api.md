@@ -142,6 +142,7 @@ Code  | Meaning
 110   | Frozen
 111   | Thawed
 112   | Error
+113   | Ready
 200   | Success
 400   | Failure
 401   | Canceled
