@@ -163,7 +163,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	// Check if we got a cluster join token, if so, fill in the config with it.
 	if config.Cluster != nil && config.Cluster.ClusterToken != "" {
-		joinToken, err := clusterMemberJoinTokenDecode(config.Cluster.ClusterToken)
+		joinToken, err := shared.JoinTokenDecode(config.Cluster.ClusterToken)
 		if err != nil {
 			return fmt.Errorf("Invalid cluster join token: %w", err)
 		}

@@ -304,38 +304,6 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 	return nil
 }
 
-// clusterMemberJoinTokenDecode decodes a base64 and JSON encode join token.
-func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
-	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
-	if err != nil {
-		return nil, err
-	}
-
-	var j api.ClusterMemberJoinToken
-	err = json.Unmarshal(joinTokenJSON, &j)
-	if err != nil {
-		return nil, err
-	}
-
-	if j.ServerName == "" {
-		return nil, fmt.Errorf("No server name in join token")
-	}
-
-	if len(j.Addresses) < 1 {
-		return nil, fmt.Errorf("No cluster member addresses in join token")
-	}
-
-	if j.Secret == "" {
-		return nil, fmt.Errorf("No secret in join token")
-	}
-
-	if j.Fingerprint == "" {
-		return nil, fmt.Errorf("No certificate fingerprint in join token")
-	}
-
-	return &j, nil
-}
-
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
@@ -553,7 +521,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if cluster member join token supplied as password.
-		joinToken, err := clusterMemberJoinTokenDecode(req.Password)
+		joinToken, err := shared.JoinTokenDecode(req.Password)
 		if err == nil {
 			// If so then check there is a matching join operation.
 			joinOp, err := clusterMemberJoinTokenValid(d, r, project.Default, joinToken)

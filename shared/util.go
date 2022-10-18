@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
@@ -26,6 +28,7 @@ import (
 	"github.com/flosch/pongo2"
 
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
@@ -1313,4 +1316,36 @@ func SplitNTrimSpace(s string, sep string, n int, nilIfEmpty bool) []string {
 	}
 
 	return parts
+}
+
+// JoinTokenDecode decodes a base64 and JSON encode join token.
+func JoinTokenDecode(input string) (*api.ClusterMemberJoinToken, error) {
+	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var j api.ClusterMemberJoinToken
+	err = json.Unmarshal(joinTokenJSON, &j)
+	if err != nil {
+		return nil, err
+	}
+
+	if j.ServerName == "" {
+		return nil, fmt.Errorf("No server name in join token")
+	}
+
+	if len(j.Addresses) < 1 {
+		return nil, fmt.Errorf("No cluster member addresses in join token")
+	}
+
+	if j.Secret == "" {
+		return nil, fmt.Errorf("No secret in join token")
+	}
+
+	if j.Fingerprint == "" {
+		return nil, fmt.Errorf("No certificate fingerprint in join token")
+	}
+
+	return &j, nil
 }
