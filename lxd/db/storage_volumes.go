@@ -131,7 +131,8 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 			IFNULL(nodes.name, "") as location,
 			storage_volumes_all.type,
 			storage_volumes_all.content_type,
-			storage_volumes_all.description
+			storage_volumes_all.description,
+			storage_volumes_all.creation_date
 		FROM storage_volumes_all
 		JOIN projects ON projects.id = storage_volumes_all.project_id
 		LEFT JOIN nodes ON nodes.id = storage_volumes_all.node_id
@@ -195,7 +196,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 		var contentType int = int(-1)
 		var vol StorageVolume
 
-		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
+		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description, &vol.CreatedAt)
 		if err != nil {
 			return err
 		}
