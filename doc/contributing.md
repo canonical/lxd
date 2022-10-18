@@ -1,3 +1,7 @@
+---
+relatedlinks: https://www.youtube.com/watch?v=pqV0Z1qwbkg
+---
+
 % Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)
 ```{include} ../CONTRIBUTING.md
     :end-before: <!-- Include end contributing -->
