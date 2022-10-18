@@ -109,6 +109,7 @@ func (c *Cluster) GetStorageVolumeSnapshotWithID(snapshotID int) (StorageVolumeA
 SELECT
 	volumes.id,
 	volumes.name,
+	volumes.creation_date,
 	storage_pools.name,
 	volumes.type,
 	projects.name
@@ -118,7 +119,7 @@ JOIN storage_pools ON storage_pools.id=volumes.storage_pool_id
 WHERE volumes.id=?
 `
 	arg1 := []any{snapshotID}
-	outfmt := []any{&args.ID, &args.Name, &args.PoolName, &args.Type, &args.ProjectName}
+	outfmt := []any{&args.ID, &args.Name, &args.CreationDate, &args.PoolName, &args.Type, &args.ProjectName}
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
