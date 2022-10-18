@@ -509,6 +509,7 @@ CREATE TABLE "storage_volumes" (
     description TEXT NOT NULL,
     project_id INTEGER NOT NULL,
     content_type INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z",
     UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES "storage_pools" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE,
@@ -522,7 +523,8 @@ CREATE VIEW storage_volumes_all (
          type,
          description,
          project_id,
-         content_type) AS
+         content_type,
+         creation_date) AS
   SELECT id,
          name,
          storage_pool_id,
@@ -530,7 +532,8 @@ CREATE VIEW storage_volumes_all (
          type,
          description,
          project_id,
-         content_type
+         content_type,
+         creation_date
     FROM storage_volumes UNION
   SELECT storage_volumes_snapshots.id,
          printf('%s/%s',
@@ -541,7 +544,8 @@ CREATE VIEW storage_volumes_all (
          storage_volumes.type,
          storage_volumes_snapshots.description,
          storage_volumes.project_id,
-         storage_volumes.content_type
+         storage_volumes.content_type,
+         storage_volumes_snapshots.creation_date
     FROM storage_volumes
     JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
 CREATE TABLE "storage_volumes_backups" (
@@ -576,6 +580,7 @@ CREATE TABLE "storage_volumes_snapshots" (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     expiry_date DATETIME,
+    creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z",
     UNIQUE (id),
     UNIQUE (storage_volume_id, name),
     FOREIGN KEY (storage_volume_id) REFERENCES "storage_volumes" (id) ON DELETE CASCADE
@@ -616,5 +621,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (66, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (67, strftime("%s"))
 `
