@@ -334,7 +334,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 		"size": validate.Optional(validate.IsSize),
 		"snapshots.expiry": func(value string) error {
 			// Validate expression
-			_, err := shared.GetSnapshotExpiry(time.Time{}, value)
+			_, err := shared.GetExpiry(time.Time{}, value)
 			return err
 		},
 		"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly"})),

@@ -215,7 +215,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetSnapshotExpiry(time.Now(), parentDBVolume.Config["snapshots.expiry"])
+		expiry, err = shared.GetExpiry(time.Now(), parentDBVolume.Config["snapshots.expiry"])
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1328,7 +1328,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
+			expiry, err := shared.GetExpiry(time.Now(), v.Config["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", logger.Ctx{"err": err, "volume": v})
 				ch <- struct{}{}

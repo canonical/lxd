@@ -155,7 +155,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"snapshots.pattern":          validate.IsAny,
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
-		_, err := GetSnapshotExpiry(time.Time{}, value)
+		_, err := GetExpiry(time.Time{}, value)
 		return err
 	},
 
