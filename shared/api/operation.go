@@ -137,11 +137,22 @@ func (op *Operation) ToClusterJoinToken() (*ClusterMemberJoinToken, error) {
 		return nil, fmt.Errorf("Operation addresses is type %T not []any", op.Metadata["addresses"])
 	}
 
+	expiresAtStr, ok := op.Metadata["expiresAt"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation expiresAt is type %T not string", op.Metadata["expiresAt"])
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339Nano, expiresAtStr)
+	if err != nil {
+		return nil, err
+	}
+
 	joinToken := ClusterMemberJoinToken{
 		ServerName:  serverName,
 		Secret:      secret,
 		Fingerprint: fingerprint,
 		Addresses:   make([]string, 0, len(addresses)),
+		ExpiresAt:   expiresAt,
 	}
 
 	for i, address := range addresses {
