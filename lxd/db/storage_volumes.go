@@ -436,7 +436,7 @@ func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName stri
 }
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given storage pool.
-func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
+func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int, creationDate time.Time) (int64, error) {
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
@@ -455,16 +455,16 @@ func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string,
 
 		if shared.StringInSlice(driver, remoteDrivers) {
 			result, err = tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type)
- VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
+INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type, creation_date)
+ VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?, ?)
 `,
-				poolID, volumeType, volumeName, volumeDescription, projectName, contentType)
+				poolID, volumeType, volumeName, volumeDescription, projectName, contentType, creationDate)
 		} else {
 			result, err = tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type)
- VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type, creation_date)
+ VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?, ?)
 `,
-				poolID, c.nodeID, volumeType, volumeName, volumeDescription, projectName, contentType)
+				poolID, c.nodeID, volumeType, volumeName, volumeDescription, projectName, contentType, creationDate)
 		}
 
 		if err != nil {
