@@ -65,7 +65,14 @@ func (c *Cluster) GetStoragePoolVolumeWithID(volumeID int) (StorageVolumeArgs, e
 	var response StorageVolumeArgs
 
 	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, storage_pools.type, projects.name
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.description,
+	storage_volumes.creation_date,
+	storage_pools.name,
+	storage_pools.type,
+	projects.name
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -73,7 +80,7 @@ WHERE storage_volumes.id = ?
 `
 
 	inargs := []any{volumeID}
-	outargs := []any{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
+	outargs := []any{&response.ID, &response.Name, &response.Description, &response.CreationDate, &response.PoolName, &response.Type, &response.ProjectName}
 
 	err := dbQueryRowScan(c, stmt, inargs, outargs)
 	if err != nil {
