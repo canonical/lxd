@@ -176,7 +176,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			var joinToken *api.ClusterMemberJoinToken
 
 			validJoinToken := func(input string) error {
-				j, err := clusterMemberJoinTokenDecode(input)
+				j, err := shared.JoinTokenDecode(input)
 				if err != nil {
 					return fmt.Errorf("Invalid join token: %w", err)
 				}
