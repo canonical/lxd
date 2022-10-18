@@ -5361,6 +5361,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 					Name:        snapName,
 					Config:      dbVolSnaps[i].Config,
 					ContentType: dbVolSnaps[i].ContentType,
+					CreatedAt:   dbVolSnaps[i].CreationDate,
 				})
 			}
 		}
