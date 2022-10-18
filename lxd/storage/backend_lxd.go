@@ -3917,7 +3917,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false)
+	err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Now().UTC(), time.Time{}, vol.ContentType(), false)
 	if err != nil {
 		return err
 	}
