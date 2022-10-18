@@ -35,6 +35,7 @@ Key                                 | Type      | Scope     | Default           
 `candid.expiry`                     | integer   | global    | `3600`                                           | Candid macaroon expiry in seconds
 `cluster.https_address`             | string    | local     | -                                                | Address to use for clustering traffic
 `cluster.images_minimal_replica`    | integer   | global    | `3`                                              | Minimal numbers of cluster members with a copy of a particular image (set 1 for no replication, -1 for all members)
+`cluster.join_token_expiry`         | string    | global    | `3H`                                             | Time after which a cluster join token expires
 `cluster.max_standby`               | integer   | global    | `2`                                              | Maximum number of cluster members that will be assigned the database stand-by role (must be between 0 and 5)
 `cluster.max_voters`                | integer   | global    | `3`                                              | Maximum number of cluster members that will be assigned the database voter role (must be an odd number >= 3)
 `cluster.offline_threshold`         | integer   | global    | `20`                                             | Number of seconds after which an unresponsive member is considered offline
