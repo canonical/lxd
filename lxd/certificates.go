@@ -640,6 +640,18 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			"request":     req,
 		}
 
+		// If tokens should expire, add the expiry date to the op's metadata.
+		expiry := d.globalConfig.RemoteTokenExpiry()
+
+		if expiry != "" {
+			expiresAt, err := shared.GetExpiry(time.Now(), expiry)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			meta["expiresAt"] = expiresAt
+		}
+
 		op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil, r)
 		if err != nil {
 			return response.InternalError(err)
