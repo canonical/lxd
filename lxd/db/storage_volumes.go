@@ -899,7 +899,12 @@ func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 // GetCustomVolumesInProject returns all custom volumes in the given project.
 func (c *ClusterTx) GetCustomVolumesInProject(ctx context.Context, project string) ([]StorageVolumeArgs, error) {
 	sql := `
-SELECT storage_volumes.id, storage_volumes.name, storage_pools.name, IFNULL(storage_volumes.node_id, -1)
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.creation_date,
+	storage_pools.name,
+	IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -909,7 +914,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	volumes := []StorageVolumeArgs{}
 	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		volume := StorageVolumeArgs{}
-		err := scan(&volume.ID, &volume.Name, &volume.PoolName, &volume.NodeID)
+		err := scan(&volume.ID, &volume.Name, &volume.CreationDate, &volume.PoolName, &volume.NodeID)
 		if err != nil {
 			return err
 		}
