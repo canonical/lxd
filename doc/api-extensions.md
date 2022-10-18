@@ -1997,3 +1997,7 @@ This also introduces a change whereby network access is controlled by the projec
 * If `restricted.devices.nic` is set to `managed` (the default if not specified), only managed networks are accessible.
 * If `restricted.devices.nic` is set to `allow`, all networks are accessible (dependent on the `restricted.networks.access` setting).
 * If `restricted.devices.nic` is set to `block`, no networks are accessible.
+
+## `cluster_join_token_expiry`
+
+This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the `cluster.join_token_expiry` configuration key.

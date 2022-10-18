@@ -335,6 +335,7 @@ var APIExtensions = []string{
 	"vsock_api",
 	"storage_volumes_all_projects",
 	"projects_networks_restricted_access",
+	"cluster_join_token_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
