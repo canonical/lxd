@@ -1815,7 +1815,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if !args.Refresh {
 		// Validate config and create database entry for new storage volume if not refreshing.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, true)
 		if err != nil {
 			return err
 		}
@@ -1823,34 +1823,39 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 	}
 
-	for _, snapName := range args.Snapshots {
-		// Validate config and create database entry for new storage volume.
-		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+	for i, snapName := range args.Snapshots {
 		newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
-
 		snapConfig := volumeConfig           // Use parent volume config by default.
 		snapDescription := volumeDescription // Use parent volume description by default.
 		snapExpiryDate := time.Time{}
+		snapCreationDate := time.Time{}
 
 		// If the source snapshot config is available, use that.
 		if srcInfo != nil && srcInfo.Config != nil {
-			for _, srcSnap := range srcInfo.Config.VolumeSnapshots {
-				if srcSnap.Name != snapName {
-					continue
+			if len(srcInfo.Config.Snapshots) >= i-1 && srcInfo.Config.Snapshots[i] != nil && srcInfo.Config.Snapshots[i].Name == snapName {
+				// Use instance snapshot's creation date if snap info available.
+				snapCreationDate = srcInfo.Config.Snapshots[i].CreatedAt
+			}
+
+			if len(srcInfo.Config.VolumeSnapshots) >= i-1 && srcInfo.Config.VolumeSnapshots[i] != nil && srcInfo.Config.VolumeSnapshots[i].Name == snapName {
+				// Check if snapshot volume config is available then use it.
+				snapDescription = srcInfo.Config.VolumeSnapshots[i].Description
+				snapConfig = srcInfo.Config.VolumeSnapshots[i].Config
+
+				if srcInfo.Config.VolumeSnapshots[i].ExpiresAt != nil {
+					snapExpiryDate = *srcInfo.Config.VolumeSnapshots[i].ExpiresAt
 				}
 
-				snapConfig = srcSnap.Config
-				snapDescription = srcSnap.Description
-
-				if srcSnap.ExpiresAt != nil {
-					snapExpiryDate = *srcSnap.ExpiresAt
+				// Use volume's creation date if available.
+				if !srcInfo.Config.VolumeSnapshots[i].CreatedAt.IsZero() {
+					snapCreationDate = srcInfo.Config.VolumeSnapshots[i].CreatedAt
 				}
-
-				break
 			}
 		}
 
-		err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapExpiryDate, contentType, true)
+		// Validate config and create database entry for new storage volume.
+		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+		err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapCreationDate, snapExpiryDate, contentType, true)
 		if err != nil {
 			return err
 		}
