@@ -437,7 +437,7 @@ func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName stri
 
 // CreateStoragePoolVolume creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
+func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
@@ -459,13 +459,13 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type)
  VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
 `,
-				poolID, volumeType, volumeName, volumeDescription, project, contentType)
+				poolID, volumeType, volumeName, volumeDescription, projectName, contentType)
 		} else {
 			result, err = tx.tx.Exec(`
 INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type)
  VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
 `,
-				poolID, c.nodeID, volumeType, volumeName, volumeDescription, project, contentType)
+				poolID, c.nodeID, volumeType, volumeName, volumeDescription, projectName, contentType)
 		}
 
 		if err != nil {
