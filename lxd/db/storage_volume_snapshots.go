@@ -17,7 +17,7 @@ import (
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
+func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
 	var snapshotName string
@@ -43,9 +43,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 			return fmt.Errorf("Failed getting storage volumes sequence: %w", err)
 		}
 
-		_, err = tx.tx.Exec(
-			"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
-			volumeID, parentID, snapshotName, volumeDescription, expiryDate)
+		_, err = tx.tx.Exec("INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, creation_date, expiry_date) VALUES (?, ?, ?, ?, ?, ?)", volumeID, parentID, snapshotName, volumeDescription, creationDate, expiryDate)
 		if err != nil {
 			return fmt.Errorf("Failed creating volume snapshot record: %w", err)
 		}
