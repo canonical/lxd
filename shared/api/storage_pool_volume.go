@@ -1,5 +1,9 @@
 package api
 
+import (
+	"time"
+)
+
 // StorageVolumesPost represents the fields of a new LXD storage pool volume
 //
 // swagger:model
@@ -124,6 +128,11 @@ type StorageVolume struct {
 	//
 	// API extension: storage_volumes_all_projects
 	Project string `json:"project" yaml:"project"`
+
+	// Volume creation timestamp
+	// Example: 2021-03-23T20:00:00-04:00
+	// API extension: storage_volumes_created_at
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // URL returns the URL for the volume.

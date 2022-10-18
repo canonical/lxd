@@ -53,6 +53,11 @@ type StorageVolumeSnapshot struct {
 	//
 	// API extension: custom_block_volumes
 	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Volume snapshot creation timestamp
+	// Example: 2021-03-23T20:00:00-04:00
+	// API extension: storage_volumes_created_at
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
