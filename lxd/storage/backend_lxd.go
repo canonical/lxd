@@ -627,7 +627,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 
 	// Validate config and create database entry for new storage volume.
 	volumeConfig := make(map[string]string)
-	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType, false)
+	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, false)
 	if err != nil {
 		return err
 	}
