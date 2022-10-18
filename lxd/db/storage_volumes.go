@@ -435,8 +435,7 @@ func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName stri
 	return err
 }
 
-// CreateStoragePoolVolume creates a new storage volume attached to a given
-// storage pool.
+// CreateStoragePoolVolume creates a new storage volume attached to a given storage pool.
 func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
 	var volumeID int64
 
@@ -479,7 +478,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 
 		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
 		if err != nil {
-			return fmt.Errorf("Insert storage volume configuration: %w", err)
+			return fmt.Errorf("Failed inserting storage volume record configuration: %w", err)
 		}
 
 		return nil
