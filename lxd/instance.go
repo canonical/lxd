@@ -552,7 +552,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []ins
 				return
 			}
 
-			expiry, err := shared.GetSnapshotExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
+			expiry, err := shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date")
 				ch <- nil

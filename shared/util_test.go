@@ -170,28 +170,28 @@ func TestReaderToChannel(t *testing.T) {
 	}
 }
 
-func TestGetSnapshotExpiry(t *testing.T) {
+func TestGetExpiry(t *testing.T) {
 	refDate := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	expiryDate, err := GetSnapshotExpiry(refDate, "1M 2H 3d 4w 5m 6y")
+	expiryDate, err := GetExpiry(refDate, "1M 2H 3d 4w 5m 6y")
 	expectedDate := time.Date(2006, time.July, 2, 2, 1, 0, 0, time.UTC)
 	require.NoError(t, err)
 	require.Equal(t, expectedDate, expiryDate)
 
 	refDate = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	expiryDate, err = GetSnapshotExpiry(refDate, "1M 2H 3d 4y")
+	expiryDate, err = GetExpiry(refDate, "1M 2H 3d 4y")
 	expectedDate = time.Date(2004, time.January, 4, 2, 1, 0, 0, time.UTC)
 	require.NoError(t, err)
 	require.Equal(t, expectedDate, expiryDate)
 
-	expiryDate, err = GetSnapshotExpiry(refDate, "0M 0H 0d 0w 0m 0y")
+	expiryDate, err = GetExpiry(refDate, "0M 0H 0d 0w 0m 0y")
 	require.NoError(t, err)
 	require.Equal(t, expiryDate, expiryDate)
 
-	expiryDate, err = GetSnapshotExpiry(refDate, "")
+	expiryDate, err = GetExpiry(refDate, "")
 	require.NoError(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
 
-	expiryDate, err = GetSnapshotExpiry(refDate, "1z")
+	expiryDate, err = GetExpiry(refDate, "1z")
 	require.Error(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
 }

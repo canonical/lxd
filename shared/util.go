@@ -1231,7 +1231,10 @@ func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
 	return ret, err
 }
 
-func GetSnapshotExpiry(refDate time.Time, s string) (time.Time, error) {
+// GetExpiry returns the expiry date based on the reference date and a length of time.
+// The length of time format is "<integer>(M|H|d|w|m|y)", and can contain multiple such fields, e.g.
+// "1d 3H" (1 day and 3 hours).
+func GetExpiry(refDate time.Time, s string) (time.Time, error) {
 	expr := strings.TrimSpace(s)
 
 	if expr == "" {

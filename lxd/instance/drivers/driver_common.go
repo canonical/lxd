@@ -718,7 +718,7 @@ func (d *common) startupSnapshot(inst instance.Instance) error {
 		return nil
 	}
 
-	expiry, err := shared.GetSnapshotExpiry(time.Now(), d.expandedConfig["snapshots.expiry"])
+	expiry, err := shared.GetExpiry(time.Now(), d.expandedConfig["snapshots.expiry"])
 	if err != nil {
 		return err
 	}
