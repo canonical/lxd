@@ -411,6 +411,11 @@ func (d *nicBridged) checkAddressConflict() error {
 				continue
 			}
 
+			// Check there isn't another instance with the same DNS name connected to managed network.
+			if d.network != nil && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
+			}
+
 			// Skip NICs connected to other VLANs (not perfect though as one NIC could
 			// explicitly specify the default untagged VLAN and these would be connected to
 			// same L2 even though the values are different, and there is a different default
