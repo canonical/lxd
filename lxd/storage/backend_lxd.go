@@ -1490,7 +1490,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			}
 
 			// Validate config and create database entry for new storage volume.
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, contentType, false)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, srcConfig.VolumeSnapshots[i].CreatedAt, volumeSnapExpiryDate, contentType, false)
 			if err != nil {
 				return err
 			}
