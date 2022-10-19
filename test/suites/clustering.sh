@@ -312,12 +312,48 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 || false
 
+  # Set cluster token expiry to 5 seconds
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
+
+  # Generate a join token for an eigth and ninth node
+  token_valid=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node8 | tail -n 1)
+  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
+
+  # Spawn an eigth node, using join token.
+  setup_clustering_netns 8
+  LXD_EIGHT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_EIGHT_DIR}"
+  ns8="${prefix}8"
+
+  # shellcheck disable=SC2034
+  LXD_SECRET="${token_valid}"
+  spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}"
+  unset LXD_SECRET
+
+  # This will cause the token to expiry
+  sleep 6
+
+  # Spawn a ninth node, using join token.
+  setup_clustering_netns 9
+  LXD_NINE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_NINE_DIR}"
+  ns9="${prefix}9"
+
+  # shellcheck disable=SC2034
+  LXD_SECRET="${token_expired}"
+  ! spawn_lxd_and_join_cluster "${ns9}" "${bridge}" "${cert}" 9 2 "${LXD_NINE_DIR}" || false
+  unset LXD_SECRET
+
+  LXD_DIR="${LXD_NINE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_EIGHT_DIR}" lxd shutdown
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
+  rm -f "${LXD_NINE_DIR}/unix.socket"
+  rm -f "${LXD_EIGHT_DIR}/unix.socket"
   rm -f "${LXD_SIX_DIR}/unix.socket"
   rm -f "${LXD_FIVE_DIR}/unix.socket"
   rm -f "${LXD_FOUR_DIR}/unix.socket"
@@ -334,6 +370,8 @@ test_clustering_membership() {
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
   kill_lxd "${LXD_SIX_DIR}"
+  kill_lxd "${LXD_EIGHT_DIR}"
+  kill_lxd "${LXD_NINE_DIR}"
 }
 
 test_clustering_containers() {

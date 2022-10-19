@@ -1626,6 +1626,9 @@ func (d *Daemon) startClusterTasks() {
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
 
+	// Remove expired cluster join tokens
+	d.clusterTasks.Add(autoRemoveExpiredClusterJoinTokensTask(d))
+
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
 }

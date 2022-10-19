@@ -2089,3 +2089,7 @@ These include:
 * Daemon uptime in seconds
 * Go memory stats
 * Number of goroutines
+
+## `cluster_join_token_expiry`
+
+This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the `cluster.join_token_expiry` configuration key.
