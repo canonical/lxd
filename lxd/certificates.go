@@ -377,6 +377,23 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
 
+		expiresAt, ok := foundOp.Metadata["expiresAt"]
+		if ok {
+			var expiry time.Time
+
+			// Depending on whether it's a local operation or not, expiry will either be a time.Time or a string.
+			if d.serverName == foundOp.Location {
+				expiry, _ = expiresAt.(time.Time)
+			} else {
+				expiry, _ = time.Parse(time.RFC3339Nano, expiresAt.(string))
+			}
+
+			// Check if token has expired.
+			if time.Now().After(expiry) {
+				return nil, api.StatusErrorf(http.StatusForbidden, "Token has expired")
+			}
+		}
+
 		return foundOp, nil
 	}
 

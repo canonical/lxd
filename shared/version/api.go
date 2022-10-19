@@ -350,6 +350,7 @@ var APIExtensions = []string{
 	"loki",
 	"acme",
 	"internal_metrics",
+	"cluster_join_token_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

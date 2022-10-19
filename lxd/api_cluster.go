@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -1218,6 +1219,11 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
+	expiry, err := shared.GetExpiry(time.Now(), d.State().GlobalConfig.ClusterJoinTokenExpiry())
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	// Get target addresses for existing online members, so that it can be encoded into the join token so that
 	// the joining member will not have to specify a joining address during the join process.
 	// Use anonymous interface type to align with how the API response will be returned for consistency when
@@ -1303,6 +1309,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		"secret":      joinSecret,
 		"fingerprint": fingerprint,
 		"addresses":   onlineNodeAddresses,
+		"expiresAt":   expiry,
 	}
 
 	resources := map[string][]string{}
@@ -3999,4 +4006,70 @@ func clusterGroupValidateName(name string) error {
 	}
 
 	return nil
+}
+
+func autoRemoveExpiredClusterJoinTokens(ctx context.Context, d *Daemon) error {
+	logger.Debug("Removing expired cluster join tokens")
+
+	ops := operations.Clone()
+
+	for _, op := range ops {
+		// Only consider cluster join token operations
+		if op.Type() != operationtype.ClusterJoinToken {
+			continue
+		}
+
+		expiry, ok := op.Metadata()["expiresAt"].(time.Time)
+		if ok && time.Now().After(expiry) {
+			_, err := op.Cancel()
+			if err != nil {
+				logger.Debug("Failed removing expired cluster join token", logger.Ctx{"err": err})
+			}
+		}
+	}
+
+	logger.Debug("Done removing expired cluster join tokens")
+
+	return nil
+}
+
+func autoRemoveExpiredClusterJoinTokensTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		localClusterAddress := d.State().LocalConfig.ClusterAddress()
+
+		leader, err := d.gateway.LeaderAddress()
+		if err != nil {
+			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
+				return // No error if not clustered.
+			}
+
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if localClusterAddress != leader {
+			logger.Debug("Skipping remove expired cluster join tokens task since we're not leader")
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return autoRemoveExpiredClusterJoinTokens(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.RemoveExpiredClusterJoinTokens, nil, nil, opRun, nil, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start remove expired cluster join tokens operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Error("Failed to remove expired cluster join tokens", logger.Ctx{"err": err})
+			return
+		}
+
+		_, _ = op.Wait(ctx)
+	}
+
+	return f, task.Hourly()
 }

@@ -829,6 +829,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 	type displayToken struct {
 		ServerName string
 		Token      string
+		ExpiresAt  string
 	}
 
 	displayTokens := make([]displayToken, 0)
@@ -850,13 +851,14 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 		displayTokens = append(displayTokens, displayToken{
 			ServerName: joinToken.ServerName,
 			Token:      joinToken.String(),
+			ExpiresAt:  joinToken.ExpiresAt.Format("2006/01/02 15:04 MST"),
 		})
 	}
 
 	// Render the table.
 	data := [][]string{}
 	for _, token := range displayTokens {
-		line := []string{token.ServerName, token.Token}
+		line := []string{token.ServerName, token.Token, token.ExpiresAt}
 		data = append(data, line)
 	}
 
@@ -865,6 +867,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 	header := []string{
 		i18n.G("NAME"),
 		i18n.G("TOKEN"),
+		i18n.G("EXPIRES AT"),
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
