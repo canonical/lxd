@@ -9,9 +9,10 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
+func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*api.InitPreseed, error) {
 	// Read the YAML
 	bytes, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -19,7 +20,7 @@ func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceSe
 	}
 
 	// Parse the YAML
-	config := cmdInitData{}
+	config := api.InitPreseed{}
 	err = yaml.Unmarshal(bytes, &config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse the preseed: %w", err)
