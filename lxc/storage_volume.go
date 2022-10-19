@@ -1230,6 +1230,10 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if shared.TimeIsSet(vol.CreatedAt) {
+		fmt.Printf(i18n.G("Created: %s")+"\n", vol.CreatedAt.Local().Format(layout))
+	}
+
 	// List snapshots
 	firstSnapshot := true
 	if len(volSnapshots) > 0 {
