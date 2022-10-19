@@ -2001,3 +2001,8 @@ This also introduces a change whereby network access is controlled by the projec
 ## `cluster_join_token_expiry`
 
 This adds an expiry to cluster join tokens which defaults to 3 hours, but can be changed by setting the `cluster.join_token_expiry` configuration key.
+
+## `remote_token_expiry`
+
+This adds an expiry to remote add join tokens.
+It can be set in the `core.remote_token_expiry` configuration key, and default to no expiry.
