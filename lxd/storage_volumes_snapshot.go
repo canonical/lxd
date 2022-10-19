@@ -417,6 +417,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			tmp.Config = vol.Config
 			tmp.Description = vol.Description
 			tmp.Name = vol.Name
+			tmp.CreatedAt = vol.CreatedAt
 
 			expiryDate := volume.ExpiryDate
 			if expiryDate.Unix() > 0 {
@@ -683,6 +684,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.Name = snapshotName
 	snapshot.ExpiresAt = &expiry
 	snapshot.ContentType = dbVolume.ContentType
+	snapshot.CreatedAt = dbVolume.CreatedAt
 
 	etag := []any{snapshot.Description, expiry}
 	return response.SyncResponseETag(true, &snapshot, etag)
