@@ -178,8 +178,8 @@ func TestGetExpiry(t *testing.T) {
 	require.Equal(t, expectedDate, expiryDate)
 
 	refDate = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	expiryDate, err = GetExpiry(refDate, "1M 2H 3d 4y")
-	expectedDate = time.Date(2004, time.January, 4, 2, 1, 0, 0, time.UTC)
+	expiryDate, err = GetExpiry(refDate, "5S 1M 2H 3d 4y")
+	expectedDate = time.Date(2004, time.January, 4, 2, 1, 5, 0, time.UTC)
 	require.NoError(t, err)
 	require.Equal(t, expectedDate, expiryDate)
 
