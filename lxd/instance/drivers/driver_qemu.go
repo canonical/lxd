@@ -5400,6 +5400,11 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 
 // FileSFTPConn returns a connection to the agent SFTP endpoint.
 func (d *qemu) FileSFTPConn() (net.Conn, error) {
+	// VMs, unlike containers, cannot perform file operations if not running and using the lxd-agent.
+	if !d.IsRunning() {
+		return nil, fmt.Errorf("Instance is not running")
+	}
+
 	// Connect to the agent.
 	client, err := d.getAgentClient()
 	if err != nil {
