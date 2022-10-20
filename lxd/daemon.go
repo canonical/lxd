@@ -1591,6 +1591,9 @@ func (d *Daemon) init() error {
 
 		// Auto-renew server certificate (daily)
 		d.tasks.Add(autoRenewCertificateTask(d))
+
+		// Remove expired tokens (hourly)
+		d.tasks.Add(autoRemoveExpiredTokensTask(d))
 	}
 
 	// Start all background tasks
