@@ -1540,6 +1540,9 @@ func (d *Daemon) init() error {
 
 		// Remove resolved warnings (daily)
 		d.tasks.Add(pruneResolvedWarningsTask(d))
+
+		// Remove expired tokens (hourly)
+		d.tasks.Add(autoRemoveExpiredTokensTask(d))
 	}
 
 	// Start all background tasks
