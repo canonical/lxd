@@ -55,7 +55,7 @@ Key                                 | Type      | Scope     | Default           
 `core.proxy_https`                  | string    | global    | -                                                | HTTPS proxy to use, if any (falls back to `HTTPS_PROXY` environment variable)
 `core.proxy_http`                   | string    | global    | -                                                | HTTP proxy to use, if any (falls back to `HTTP_PROXY` environment variable)
 `core.proxy_ignore_hosts`           | string    | global    | -                                                | Hosts which don't need the proxy for use (similar format to `NO_PROXY`, e.g. 1.2.3.4,1.2.3.5, falls back to `NO_PROXY` environment variable)
-`core.remote_token_expiry`          | string    | global    | -                                                | Time after which a remote add token expires
+`core.remote_token_expiry`          | string    | global    | -                                                | Time after which a remote add token expires (defaults to no expiry)
 `core.shutdown_timeout`             | integer   | global    | `5`                                              | Number of minutes to wait for running operations to complete before LXD server shut down
 `core.storage_buckets_address`      | string    | local     | -                                                | Address to bind the storage object server to (HTTPS)
 `core.trust_ca_certificates`        | bool      | global    | -                                                | Whether to automatically trust clients signed by the CA
