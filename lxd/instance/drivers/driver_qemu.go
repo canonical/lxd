@@ -305,8 +305,7 @@ type qemu struct {
 	architectureName string
 }
 
-// getAgentClient returns the current agent client handle. To avoid TLS setup each time this
-// function is called, the handle is cached internally in the Qemu struct.
+// getAgentClient returns the current agent client handle.
 func (d *qemu) getAgentClient() (*http.Client, error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
