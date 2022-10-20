@@ -55,6 +55,12 @@ definitions:
                 example: user@host
                 type: string
                 x-go-name: ClientName
+            expires_at:
+                description: The token's expiry date.
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: ExpiresAt
             fingerprint:
                 description: The fingerprint of the network certificate
                 example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
@@ -378,6 +384,12 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Addresses
+            expires_at:
+                description: The token's expiry date.
+                example: "2021-03-23T17:38:37.753398689-04:00"
+                format: date-time
+                type: string
+                x-go-name: ExpiresAt
             fingerprint:
                 description: The fingerprint of the network certificate
                 example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
