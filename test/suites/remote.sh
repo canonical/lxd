@@ -103,6 +103,33 @@ test_remote_url_with_token() {
   [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
 
   lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+
+  # Set token expiry to 5 seconds
+  lxc config set core.remote_token_expiry 5S
+
+  # Generate new token
+  token="$(lxc config trust add --name foo | tail -n1)"
+
+  # Try adding remote. This should succeed.
+  lxc_remote remote add test "${token}"
+
+  # Remove all trusted clients
+  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+
+  # Remove remote
+  lxc_remote remote rm test
+
+  # Generate new token
+  token="$(lxc config trust add --name foo | tail -n1)"
+
+  # This will cause the token to expire
+  sleep 5
+
+  # Try adding remote. This should fail.
+  ! lxc_remote remote add test "${token}" || false
+
+  # Unset token expiry
+  lxc config unset core.remote_token_expiry
 }
 
 test_remote_admin() {
