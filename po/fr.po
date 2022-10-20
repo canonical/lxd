@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-09 15:52-0500\n"
+"POT-Creation-Date: 2023-01-09 15:54-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1090,7 +1090,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Créé : %s"
 
-#: lxc/config_trust.go:614
+#: lxc/config_trust.go:624
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Le réseau %s a été supprimé"
@@ -1678,7 +1678,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/config_template.go:153 lxc/config_template.go:241
 #: lxc/config_template.go:301 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:230 lxc/config_trust.go:344 lxc/config_trust.go:426
-#: lxc/config_trust.go:518 lxc/config_trust.go:564 lxc/config_trust.go:635
+#: lxc/config_trust.go:528 lxc/config_trust.go:574 lxc/config_trust.go:645
 #: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:79 lxc/file.go:119 lxc/file.go:168
 #: lxc/file.go:238 lxc/file.go:460 lxc/file.go:968 lxc/image.go:37
@@ -1892,7 +1892,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/cluster.go:870
+#: lxc/cluster.go:870 lxc/config_trust.go:510
 #, fuzzy
 msgid "EXPIRES AT"
 msgstr "DATE D'EXPIRATION"
@@ -3571,7 +3571,7 @@ msgid ""
 "Minimum level for log messages (only available when using pretty format)"
 msgstr ""
 
-#: lxc/config_trust.go:262 lxc/config_trust.go:660
+#: lxc/config_trust.go:262 lxc/config_trust.go:670
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Empreinte du certificat : %s"
@@ -3802,7 +3802,7 @@ msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/cluster.go:180 lxc/cluster.go:868 lxc/cluster_group.go:422
-#: lxc/config_trust.go:403 lxc/config_trust.go:499 lxc/list.go:566
+#: lxc/config_trust.go:403 lxc/config_trust.go:508 lxc/list.go:566
 #: lxc/network.go:955 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
 #: lxc/project.go:472 lxc/remote.go:726 lxc/storage.go:607
@@ -3980,7 +3980,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config_trust.go:621
+#: lxc/config_trust.go:631
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -4514,7 +4514,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Remove rules from an ACL"
 msgstr "Création du conteneur"
 
-#: lxc/config_trust.go:517 lxc/config_trust.go:518
+#: lxc/config_trust.go:527 lxc/config_trust.go:528
 #, fuzzy
 msgid "Remove trusted client"
 msgstr "Ajouter de nouveaux clients de confiance"
@@ -4660,7 +4660,7 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/config_trust.go:563 lxc/config_trust.go:564
+#: lxc/config_trust.go:573 lxc/config_trust.go:574
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -5113,7 +5113,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:634 lxc/config_trust.go:635
+#: lxc/config_trust.go:644 lxc/config_trust.go:645
 #, fuzzy
 msgid "Show trust configurations"
 msgstr "Afficher la configuration étendue"
@@ -5298,7 +5298,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:869 lxc/config_trust.go:500
+#: lxc/cluster.go:869 lxc/config_trust.go:509
 msgid "TOKEN"
 msgstr ""
 
@@ -5919,7 +5919,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster.go:511 lxc/config_trust.go:562
+#: lxc/cluster.go:511 lxc/config_trust.go:572
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr ""
@@ -6097,7 +6097,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:228 lxc/config_trust.go:515 lxc/config_trust.go:633
+#: lxc/config_trust.go:228 lxc/config_trust.go:525 lxc/config_trust.go:643
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr ""

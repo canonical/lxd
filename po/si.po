@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-09 15:52-0500\n"
+"POT-Creation-Date: 2023-01-09 15:54-0500\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Sinhala <https://hosted.weblate.org/projects/linux-containers/"
@@ -832,7 +832,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr ""
 
-#: lxc/config_trust.go:614
+#: lxc/config_trust.go:624
 #, c-format
 msgid "Certificate add token for %s deleted"
 msgstr ""
@@ -1358,7 +1358,7 @@ msgstr ""
 #: lxc/config_template.go:153 lxc/config_template.go:241
 #: lxc/config_template.go:301 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:230 lxc/config_trust.go:344 lxc/config_trust.go:426
-#: lxc/config_trust.go:518 lxc/config_trust.go:564 lxc/config_trust.go:635
+#: lxc/config_trust.go:528 lxc/config_trust.go:574 lxc/config_trust.go:645
 #: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:41
 #: lxc/export.go:32 lxc/file.go:79 lxc/file.go:119 lxc/file.go:168
 #: lxc/file.go:238 lxc/file.go:460 lxc/file.go:968 lxc/image.go:37
@@ -1563,7 +1563,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/cluster.go:870
+#: lxc/cluster.go:870 lxc/config_trust.go:510
 msgid "EXPIRES AT"
 msgstr ""
 
@@ -3068,7 +3068,7 @@ msgid ""
 "Minimum level for log messages (only available when using pretty format)"
 msgstr ""
 
-#: lxc/config_trust.go:262 lxc/config_trust.go:660
+#: lxc/config_trust.go:262 lxc/config_trust.go:670
 msgid "Missing certificate fingerprint"
 msgstr ""
 
@@ -3274,7 +3274,7 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:180 lxc/cluster.go:868 lxc/cluster_group.go:422
-#: lxc/config_trust.go:403 lxc/config_trust.go:499 lxc/list.go:566
+#: lxc/config_trust.go:403 lxc/config_trust.go:508 lxc/list.go:566
 #: lxc/network.go:955 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
 #: lxc/project.go:472 lxc/remote.go:726 lxc/storage.go:607
@@ -3447,7 +3447,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
-#: lxc/config_trust.go:621
+#: lxc/config_trust.go:631
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -3942,7 +3942,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr ""
 
-#: lxc/config_trust.go:517 lxc/config_trust.go:518
+#: lxc/config_trust.go:527 lxc/config_trust.go:528
 msgid "Remove trusted client"
 msgstr ""
 
@@ -4061,7 +4061,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:563 lxc/config_trust.go:564
+#: lxc/config_trust.go:573 lxc/config_trust.go:574
 msgid "Revoke certificate add token"
 msgstr ""
 
@@ -4473,7 +4473,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:634 lxc/config_trust.go:635
+#: lxc/config_trust.go:644 lxc/config_trust.go:645
 msgid "Show trust configurations"
 msgstr ""
 
@@ -4645,7 +4645,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:869 lxc/config_trust.go:500
+#: lxc/cluster.go:869 lxc/config_trust.go:509
 msgid "TOKEN"
 msgstr ""
 
@@ -5204,7 +5204,7 @@ msgstr ""
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
 
-#: lxc/cluster.go:511 lxc/config_trust.go:562
+#: lxc/cluster.go:511 lxc/config_trust.go:572
 msgid "[<remote>:] <name>"
 msgstr ""
 
@@ -5281,7 +5281,7 @@ msgstr ""
 msgid "[<remote>:]<cluster member>"
 msgstr ""
 
-#: lxc/config_trust.go:228 lxc/config_trust.go:515 lxc/config_trust.go:633
+#: lxc/config_trust.go:228 lxc/config_trust.go:525 lxc/config_trust.go:643
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
