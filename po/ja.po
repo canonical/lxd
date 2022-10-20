@@ -20,7 +20,6 @@ msgstr ""
 "X-Generator: Weblate 4.12-dev\n"
 
 #: lxc/storage_bucket.go:256 lxc/storage_bucket.go:964
-#, fuzzy
 msgid ""
 "### This is a YAML representation of a storage bucket.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -32,13 +31,12 @@ msgid ""
 "### config:\n"
 "###   size: \"61203283968\""
 msgstr ""
-"### This is a YAML representation of a storage volume.\n"
+"### This is a YAML representation of a storage bucket.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A storage volume consists of a set of configuration items.\n"
+"### A storage bucket consists of a set of configuration items.\n"
 "###\n"
-"### name: vol1\n"
-"### type: custom\n"
+"### name: bucket1\n"
 "### used_by: []\n"
 "### config:\n"
 "###   size: \"61203283968\""
@@ -312,7 +310,6 @@ msgstr ""
 "### Note that the listen_address and location cannot be changed."
 
 #: lxc/network_load_balancer.go:499
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network load balancer.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -335,15 +332,16 @@ msgid ""
 "###\n"
 "### Note that the listen_address and location cannot be changed."
 msgstr ""
-"### This is a YAML representation of the network forward.\n"
+"### This is a YAML representation of the network load balancer.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A network forward consists of a default target address and optional set "
-"of port forwards for a listen address.\n"
+"### A network load balancer consists of a set of target backends and port "
+"forwards for a listen address.\n"
 "###\n"
 "### An example would look like:\n"
 "### listen_address: 192.0.2.1\n"
-"### target_address: 198.51.100.2\n"
+"### config:\n"
+"###   target_address: 198.51.100.2\n"
 "### description: test desc\n"
 "### port:\n"
 "### - description: port forward\n"
@@ -696,7 +694,7 @@ msgstr "証明書を受け入れます"
 
 #: lxc/storage_bucket.go:816
 msgid "Access key (auto-generated if empty)"
-msgstr ""
+msgstr "アクセスキー（空白の場合自動生成）"
 
 #: lxc/storage_bucket.go:872
 #, fuzzy, c-format
@@ -721,11 +719,11 @@ msgstr "ネットワークゾーンレコードのエントリを追加します
 
 #: lxc/network_load_balancer.go:709
 msgid "Add backend to a load balancer"
-msgstr ""
+msgstr "ロードバランサーにバックエンドを追加します"
 
 #: lxc/network_load_balancer.go:708
 msgid "Add backends to a load balancer"
-msgstr ""
+msgstr "ロードバランサーにバックエンドを追加します"
 
 #: lxc/network_zone.go:1164
 msgid "Add entries to a network zone record"
@@ -860,7 +858,7 @@ msgstr "利用可能なプロジェクト:"
 
 #: lxc/remote.go:180
 msgid "All server addresses are unavailable"
-msgstr ""
+msgstr "すべてのサーバーアドレスが利用できません"
 
 #: lxc/config_trust.go:103
 msgid "Alternative certificate name"
@@ -3455,7 +3453,7 @@ msgstr "ロケーション: %s"
 
 #: lxc/monitor.go:80
 msgid "Log level filtering can only be used with pretty formatting"
-msgstr ""
+msgstr "ログレベルのフィルタリングは pretty フォーマットでのみ使えます"
 
 #: lxc/info.go:712
 msgid "Log:"
@@ -3700,8 +3698,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -3783,7 +3781,7 @@ msgstr "マイグレーションが失敗しました: %w"
 #: lxc/monitor.go:52
 msgid ""
 "Minimum level for log messages (only available when using pretty format)"
-msgstr ""
+msgstr "ログメッセージの最小レベル（pretty フォーマット使用時のみ利用可能）"
 
 #: lxc/storage_bucket.go:112 lxc/storage_bucket.go:212
 #: lxc/storage_bucket.go:288 lxc/storage_bucket.go:404
@@ -4894,7 +4892,7 @@ msgstr "クラスターメンバーに join するためのトークンを失効
 
 #: lxc/storage_bucket.go:815
 msgid "Role (admin or read-only)"
-msgstr ""
+msgstr "ロール（admin または read-only）"
 
 #: lxc/action.go:112
 msgid "Run against all instances"
@@ -4962,7 +4960,7 @@ msgstr "STP"
 
 #: lxc/storage_bucket.go:817
 msgid "Secret key (auto-generated if empty)"
-msgstr ""
+msgstr "秘密鍵（空白の場合自動生成）"
 
 #: lxc/storage_bucket.go:873
 #, fuzzy, c-format
@@ -7224,6 +7222,8 @@ msgid ""
 "    Will show the properties of a bucket called \"data\" in the \"default\" "
 "pool."
 msgstr ""
+"lxc storage bucket show default data\n"
+"    \"default\" プール内の \"data\" というバケットのプロパティを表示します。"
 
 #: lxc/storage.go:223
 msgid ""
@@ -7256,8 +7256,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -8967,8 +8967,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect "
-#~ "\"custom\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect \"custom"
+#~ "\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
