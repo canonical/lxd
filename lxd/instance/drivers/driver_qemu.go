@@ -306,6 +306,8 @@ type qemu struct {
 }
 
 // getAgentClient returns the current agent client handle.
+// Callers should check that the instance is running (and therefore mounted) before caling this function,
+// otherwise the qmp.Connect call will fail to use the monitor socket file.
 func (d *qemu) getAgentClient() (*http.Client, error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -454,21 +456,13 @@ func (d *qemu) unmount() error {
 
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (d *qemu) generateAgentCert() (string, string, string, string, error) {
-	// Mount the instance's config volume if needed.
-	_, err := d.mount()
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	defer func() { _ = d.unmount() }()
-
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(d.Path(), "agent.key")
 	clientCertFile := filepath.Join(d.Path(), "agent-client.crt")
 	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
