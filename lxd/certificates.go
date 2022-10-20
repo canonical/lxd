@@ -401,6 +401,16 @@ func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.Certificate
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
 
+		expiresAt, ok := foundOp.Metadata["expiresAt"]
+		if ok {
+			expiry, _ := expiresAt.(time.Time)
+
+			// Check if token has expired.
+			if time.Now().After(expiry) {
+				return nil, api.StatusErrorf(http.StatusForbidden, "Token has expired")
+			}
+		}
+
 		return foundOp, nil
 	}
 
@@ -638,6 +648,18 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			"fingerprint": fingerprint,
 			"addresses":   addresses,
 			"request":     req,
+		}
+
+		// If tokens should expire, add the expiry date to the op's metadata.
+		expiry := d.globalConfig.RemoteTokenExpiry()
+
+		if expiry != "" {
+			expiresAt, err := shared.GetExpiry(time.Now(), expiry)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			meta["expiresAt"] = expiresAt
 		}
 
 		op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, operationtype.CertificateAddToken, nil, meta, nil, nil, nil, r)

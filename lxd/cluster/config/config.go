@@ -232,6 +232,11 @@ func (c *Config) ClusterJoinTokenExpiry() string {
 	return c.m.GetString("cluster.join_token_expiry")
 }
 
+// RemoteTokenExpiry returns the time after which a remote add token expires.
+func (c *Config) RemoteTokenExpiry() string {
+	return c.m.GetString("core.remote_token_expiry")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -293,6 +298,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_http":                {},
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
+	"core.remote_token_expiry":       {Type: config.String, Validator: validate.Optional(expiryValidator)},
 	"core.shutdown_timeout":          {Type: config.Int64, Default: "5"},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
 	"core.trust_ca_certificates":     {Type: config.Bool},

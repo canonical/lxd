@@ -462,6 +462,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 	type displayToken struct {
 		ClientName string
 		Token      string
+		ExpiresAt  string
 	}
 
 	displayTokens := make([]displayToken, 0)
@@ -480,16 +481,24 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 			continue // Operation is not a valid certificate add token operation.
 		}
 
+		var expiresAt string
+
+		// Only show the expiry date if available, otherwise show an empty string.
+		if joinToken.ExpiresAt.Unix() > 0 {
+			expiresAt = joinToken.ExpiresAt.Format("2006/01/02 15:04 MST")
+		}
+
 		displayTokens = append(displayTokens, displayToken{
 			ClientName: joinToken.ClientName,
 			Token:      joinToken.String(),
+			ExpiresAt:  expiresAt,
 		})
 	}
 
 	// Render the table.
 	data := [][]string{}
 	for _, token := range displayTokens {
-		line := []string{token.ClientName, token.Token}
+		line := []string{token.ClientName, token.Token, token.ExpiresAt}
 		data = append(data, line)
 	}
 
@@ -498,6 +507,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 	header := []string{
 		i18n.G("NAME"),
 		i18n.G("TOKEN"),
+		i18n.G("EXPIRES AT"),
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
