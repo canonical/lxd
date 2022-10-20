@@ -305,8 +305,9 @@ type qemu struct {
 	architectureName string
 }
 
-// getAgentClient returns the current agent client handle. To avoid TLS setup each time this
-// function is called, the handle is cached internally in the Qemu struct.
+// getAgentClient returns the current agent client handle.
+// Callers should check that the instance is running (and therefore mounted) before caling this function,
+// otherwise the qmp.Connect call will fail to use the monitor socket file.
 func (d *qemu) getAgentClient() (*http.Client, error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
@@ -455,21 +456,13 @@ func (d *qemu) unmount() error {
 
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (d *qemu) generateAgentCert() (string, string, string, string, error) {
-	// Mount the instance's config volume if needed.
-	_, err := d.mount()
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	defer func() { _ = d.unmount() }()
-
 	agentCertFile := filepath.Join(d.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(d.Path(), "agent.key")
 	clientCertFile := filepath.Join(d.Path(), "agent-client.crt")
 	clientKeyFile := filepath.Join(d.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -5410,6 +5403,11 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 
 // FileSFTPConn returns a connection to the agent SFTP endpoint.
 func (d *qemu) FileSFTPConn() (net.Conn, error) {
+	// VMs, unlike containers, cannot perform file operations if not running and using the lxd-agent.
+	if !d.IsRunning() {
+		return nil, fmt.Errorf("Instance is not running")
+	}
+
 	// Connect to the agent.
 	client, err := d.getAgentClient()
 	if err != nil {
