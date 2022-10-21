@@ -1591,6 +1591,9 @@ func (d *Daemon) init() error {
 
 		// Auto-renew server certificate (daily)
 		d.tasks.Add(autoRenewCertificateTask(d))
+
+		// Remove expired tokens (hourly)
+		d.tasks.Add(autoRemoveExpiredTokensTask(d))
 	}
 
 	// Start all background tasks
@@ -1625,9 +1628,6 @@ func (d *Daemon) startClusterTasks() {
 
 	// Remove orphaned operations
 	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
-
-	// Remove expired cluster join tokens
-	d.clusterTasks.Add(autoRemoveExpiredClusterJoinTokensTask(d))
 
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)

@@ -68,7 +68,7 @@ const (
 	CertificateAddToken
 	RemoveOrphanedOperations
 	RenewServerCertificate
-	RemoveExpiredClusterJoinTokens
+	RemoveExpiredTokens
 )
 
 // Description return a human-readable description of the operation type.
@@ -186,8 +186,8 @@ func (t Type) Description() string {
 		return "Remove orphaned operations"
 	case RenewServerCertificate:
 		return "Renewing server certificate"
-	case RemoveExpiredClusterJoinTokens:
-		return "Remove expired cluster join tokens"
+	case RemoveExpiredTokens:
+		return "Remove expired tokens"
 	default:
 		return "Executing operation"
 	}
