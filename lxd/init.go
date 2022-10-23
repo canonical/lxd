@@ -10,33 +10,13 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-type initDataNode struct {
-	api.ServerPut `yaml:",inline"`
-	Networks      []internalClusterPostNetwork `json:"networks" yaml:"networks"`
-	StoragePools  []api.StoragePoolsPost       `json:"storage_pools" yaml:"storage_pools"`
-	Profiles      []api.ProfilesPost           `json:"profiles" yaml:"profiles"`
-	Projects      []api.ProjectsPost           `json:"projects" yaml:"projects"`
-}
-
-type initDataCluster struct {
-	api.ClusterPut `yaml:",inline"`
-
-	// The path to the cluster certificate
-	// Example: /tmp/cluster.crt
-	ClusterCertificatePath string `json:"cluster_certificate_path" yaml:"cluster_certificate_path"`
-
-	// A cluster join token
-	// Example: BASE64-TOKEN
-	ClusterToken string `json:"cluster_token" yaml:"cluster_token"`
-}
-
 // Helper to initialize node-specific entities on a LXD instance using the
-// definitions from the given initDataNode object.
+// definitions from the given api.InitLocalPreseed object.
 //
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
+func initDataNodeApply(d lxd.InstanceServer, config api.InitLocalPreseed) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -152,7 +132,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 	}
 
 	// Apply network configuration function.
-	applyNetwork := func(network internalClusterPostNetwork) error {
+	applyNetwork := func(network api.InitNetworksProjectPost) error {
 		currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
 		if err != nil {
 			// Create the network if doesn't exist.
@@ -404,7 +384,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 // Helper to initialize LXD clustering.
 //
 // Used by the 'lxd init' command.
-func initDataClusterApply(d lxd.InstanceServer, config *initDataCluster) error {
+func initDataClusterApply(d lxd.InstanceServer, config *api.InitClusterPreseed) error {
 	if config == nil || !config.Enabled {
 		return nil
 	}

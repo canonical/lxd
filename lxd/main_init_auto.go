@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*cmdInitData, error) {
+func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
@@ -62,7 +62,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	}
 
 	// Fill in the node configuration
-	config := initDataNode{}
+	config := api.InitLocalPreseed{}
 	config.Config = map[string]any{}
 
 	// Network listening
@@ -154,7 +154,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		}
 
 		// Define the new network
-		network := internalClusterPostNetwork{}
+		network := api.InitNetworksProjectPost{}
 		network.Name = fmt.Sprintf("lxdbr%d", idx)
 		network.Project = project.Default
 		config.Networks = append(config.Networks, network)
@@ -182,5 +182,5 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		}
 	}
 
-	return &cmdInitData{Node: config}, nil
+	return &api.InitPreseed{Node: config}, nil
 }

@@ -592,7 +592,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return fmt.Errorf("Failed to load projects for networks: %w", err)
 		}
 
-		networks := []internalClusterPostNetwork{}
+		networks := []api.InitNetworksProjectPost{}
 		for _, p := range projects {
 			networkNames, err := d.db.Cluster.GetNetworks(p.Name)
 			if err != nil && !response.IsNotFoundError(err) {
@@ -605,7 +605,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 					return err
 				}
 
-				internalNetwork := internalClusterPostNetwork{
+				internalNetwork := api.InitNetworksProjectPost{
 					NetworksPost: api.NetworksPost{
 						NetworkPut: network.NetworkPut,
 						Name:       network.Name,
@@ -884,7 +884,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 // connected to ourselves (the joining member) and one connected to the target cluster member to join.
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
 func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (revert.Hook, error) {
-	data := initDataNode{}
+	data := api.InitLocalPreseed{}
 
 	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
@@ -967,7 +967,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 				continue
 			}
 
-			post := internalClusterPostNetwork{
+			post := api.InitNetworksProjectPost{
 				NetworksPost: api.NetworksPost{
 					NetworkPut: network.NetworkPut,
 					Name:       network.Name,
@@ -1012,7 +1012,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
 // node can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
-func clusterAcceptMember(client lxd.InstanceServer, name string, address string, schema int, apiExt int, pools []api.StoragePool, networks []internalClusterPostNetwork) (*internalClusterPostAcceptResponse, error) {
+func clusterAcceptMember(client lxd.InstanceServer, name string, address string, schema int, apiExt int, pools []api.StoragePool, networks []api.InitNetworksProjectPost) (*internalClusterPostAcceptResponse, error) {
 	architecture, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		return nil, err
@@ -2242,19 +2242,13 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 // A request for the /internal/cluster/accept endpoint.
 type internalClusterPostAcceptRequest struct {
-	Name         string                       `json:"name" yaml:"name"`
-	Address      string                       `json:"address" yaml:"address"`
-	Schema       int                          `json:"schema" yaml:"schema"`
-	API          int                          `json:"api" yaml:"api"`
-	StoragePools []api.StoragePool            `json:"storage_pools" yaml:"storage_pools"`
-	Networks     []internalClusterPostNetwork `json:"networks" yaml:"networks"`
-	Architecture int                          `json:"architecture" yaml:"architecture"`
-}
-
-type internalClusterPostNetwork struct {
-	api.NetworksPost `yaml:",inline"`
-
-	Project string
+	Name         string                        `json:"name" yaml:"name"`
+	Address      string                        `json:"address" yaml:"address"`
+	Schema       int                           `json:"schema" yaml:"schema"`
+	API          int                           `json:"api" yaml:"api"`
+	StoragePools []api.StoragePool             `json:"storage_pools" yaml:"storage_pools"`
+	Networks     []api.InitNetworksProjectPost `json:"networks" yaml:"networks"`
+	Architecture int                           `json:"architecture" yaml:"architecture"`
 }
 
 // A Response for the /internal/cluster/accept endpoint.
@@ -2621,7 +2615,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 	return nil
 }
 
-func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalClusterPostNetwork) error {
+func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.InitNetworksProjectPost) error {
 	var err error
 
 	// Get a list of projects for networks.
