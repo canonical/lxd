@@ -212,6 +212,10 @@ func (d *unixHotplug) loadUnixDevice() *udev.Device {
 	for i := range devices {
 		device = devices[i]
 
+		if device == nil {
+			continue
+		}
+
 		devnum := device.Devnum()
 		if devnum.Major() == 0 || devnum.Minor() == 0 {
 			continue
