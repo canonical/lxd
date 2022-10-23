@@ -16,7 +16,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
-	var config initDataNode
+	var config api.InitLocalPreseed
 	config.Config = currentServer.Config
 
 	// Only retrieve networks in the default project as the preseed format doesn't support creating
@@ -32,7 +32,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 			continue
 		}
 
-		networksPost := internalClusterPostNetwork{}
+		networksPost := api.InitNetworksProjectPost{}
 		networksPost.Config = network.Config
 		networksPost.Description = network.Description
 		networksPost.Name = network.Name

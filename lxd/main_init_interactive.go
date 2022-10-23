@@ -27,11 +27,11 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*cmdInitData, error) {
+func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*api.InitPreseed, error) {
 	// Initialize config
-	config := cmdInitData{}
+	config := api.InitPreseed{}
 	config.Node.Config = map[string]any{}
-	config.Node.Networks = []internalClusterPostNetwork{}
+	config.Node.Networks = []api.InitNetworksProjectPost{}
 	config.Node.StoragePools = []api.StoragePoolsPost{}
 	config.Node.Profiles = []api.ProfilesPost{
 		{
@@ -83,13 +83,13 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	}
 
 	if preSeedPrint {
-		var object cmdInitData
+		var object api.InitPreseed
 
 		// If the user has chosen to join an existing cluster, print
 		// only YAML for the cluster section, which is the only
 		// relevant one. Otherwise print the regular config.
 		if config.Cluster != nil && config.Cluster.ClusterAddress != "" {
-			object = cmdInitData{}
+			object = api.InitPreseed{}
 			object.Cluster = config.Cluster
 		} else {
 			object = config
@@ -106,14 +106,14 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	clustering, err := cli.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
 	}
 
 	if clustering {
-		config.Cluster = &initDataCluster{}
+		config.Cluster = &api.InitClusterPreseed{}
 		config.Cluster.Enabled = true
 
 		askForServerName := func() error {
@@ -376,7 +376,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.InstanceServer) error {
+func (c *cmdInit) askMAAS(config *api.InitPreseed, d lxd.InstanceServer) error {
 	maas, err := cli.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no")
 	if err != nil {
 		return err
@@ -408,7 +408,7 @@ func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.InstanceServer) error {
 	return nil
 }
 
-func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error {
+func (c *cmdInit) askNetworking(config *api.InitPreseed, d lxd.InstanceServer) error {
 	var err error
 	localBridgeCreate := false
 
@@ -495,7 +495,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 
 			if fan {
 				// Define the network
-				networkPost := internalClusterPostNetwork{}
+				networkPost := api.InitNetworksProjectPost{}
 				networkPost.Name = "lxdfan0"
 				networkPost.Project = project.Default
 				networkPost.Config = map[string]string{
@@ -552,7 +552,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 
 	for {
 		// Define the network
-		net := internalClusterPostNetwork{}
+		net := api.InitNetworksProjectPost{}
 		net.Config = map[string]string{}
 		net.Project = project.Default
 
@@ -632,7 +632,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 	return nil
 }
 
-func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askStorage(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	if config.Cluster != nil {
 		localStoragePool, err := cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes")
 		if err != nil {
@@ -673,7 +673,7 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *
 	return c.askStoragePool(config, d, server, util.PoolTypeAny)
 }
 
-func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, server *api.Server, poolType util.PoolType) error {
+func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server, poolType util.PoolType) error {
 	// Figure out the preferred storage driver
 	availableBackends := util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, poolType)
 
@@ -942,7 +942,7 @@ your Linux distribution and run "lxd init" again afterwards.
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
+func (c *cmdInit) askDaemon(config *api.InitPreseed, d lxd.InstanceServer, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
