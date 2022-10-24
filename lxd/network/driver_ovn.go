@@ -3408,13 +3408,13 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 	var dnsIPv4, dnsIPv6 net.IP
 
 	// checkAndStoreIP checks if the supplied IP is valid and can be used for a missing DNS IP.
-	// If the found IP is needed, stores into the relevant dnsIPvP{X} variable.
+	// If the found IP is needed, stores into the relevant dnsIPv{X} variable.
 	checkAndStoreIP := func(ip net.IP) {
 		if ip != nil {
 			isV4 := ip.To4() != nil
-			if dhcpv4Subnet != nil && dnsIPv4 == nil && isV4 {
+			if dnsIPv4 == nil && isV4 {
 				dnsIPv4 = ip
-			} else if dhcpv6Subnet != nil && dnsIPv6 == nil && !isV4 {
+			} else if dnsIPv6 == nil && !isV4 {
 				dnsIPv6 = ip
 			}
 		}
@@ -3425,8 +3425,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		checkAndStoreIP(staticIP)
 	}
 
-	// Get dynamic IPs for switch port if DHCP in use and any IPs are assigned dynamically.
-	if (dnsIPv4 == nil && dhcpv4Subnet != nil) || (dnsIPv6 == nil && dhcpv6Subnet != nil) {
+	// Get dynamic IPs for switch port if any IPs not assigned statically.
+	if dnsIPv4 == nil || dnsIPv6 == nil {
 		var dynamicIPs []net.IP
 
 		// Retry a few times in case port has not yet allocated dynamic IPs.
