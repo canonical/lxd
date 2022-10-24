@@ -21,9 +21,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// ErrCertificateExists indicates that a certificate already exists.
-var ErrCertificateExists error = fmt.Errorf("Certificate already in trust store")
-
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
 //
@@ -214,7 +211,7 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 	}
 
 	err = target.CreateCertificate(post)
-	if err != nil && err.Error() != ErrCertificateExists.Error() {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
 		return fmt.Errorf("Failed to add server cert to cluster: %w", err)
 	}
 
