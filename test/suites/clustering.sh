@@ -344,6 +344,9 @@ test_clustering_membership() {
   ! spawn_lxd_and_join_cluster "${ns9}" "${bridge}" "${cert}" 9 2 "${LXD_NINE_DIR}" || false
   unset LXD_SECRET
 
+  # Unset join_token_expiry which will set it to the default value of 3h
+  LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.join_token_expiry
+
   LXD_DIR="${LXD_NINE_DIR}" lxd shutdown
   LXD_DIR="${LXD_EIGHT_DIR}" lxd shutdown
   LXD_DIR="${LXD_SIX_DIR}" lxd shutdown
