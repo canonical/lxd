@@ -712,7 +712,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			// Check if we already have the certificate.
 			existingCert, _ := dbCluster.GetCertificateByFingerprintPrefix(ctx, tx.Tx(), fingerprint)
 			if existingCert != nil {
-				return cluster.ErrCertificateExists
+				return api.StatusErrorf(http.StatusConflict, "Certificate already in trust store")
 			}
 
 			// Store the certificate in the cluster database.

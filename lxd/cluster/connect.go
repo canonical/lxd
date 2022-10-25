@@ -3,8 +3,6 @@ package cluster
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,9 +20,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
-
-// ErrCertificateExists indicates that a certificate already exists.
-var ErrCertificateExists error = fmt.Errorf("Certificate already in trust store")
 
 // Connect is a convenience around lxd.ConnectLXD that configures the client
 // with the correct parameters for node-to-node communication.
@@ -205,7 +200,7 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
 	}
 
-	cert, err := generateTrustCertificate(serverCert, serverName)
+	cert, err := shared.GenerateTrustCertificate(serverCert, serverName)
 	if err != nil {
 		return fmt.Errorf("Failed generating trust certificate: %w", err)
 	}
@@ -216,7 +211,7 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 	}
 
 	err = target.CreateCertificate(post)
-	if err != nil && err.Error() != ErrCertificateExists.Error() {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusConflict) {
 		return fmt.Errorf("Failed to add server cert to cluster: %w", err)
 	}
 
@@ -242,7 +237,7 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
 	}
 
-	cert, err := generateTrustCertificate(serverCert, serverName)
+	cert, err := shared.GenerateTrustCertificate(serverCert, serverName)
 	if err != nil {
 		return fmt.Errorf("Failed generating trust certificate: %w", err)
 	}
@@ -267,32 +262,6 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 	}
 
 	return nil
-}
-
-// generateTrustCertificate converts the specified serverCert and serverName into an api.Certificate suitable for
-// use as a trusted cluster server certificate.
-func generateTrustCertificate(serverCert *shared.CertInfo, serverName string) (*api.Certificate, error) {
-	block, _ := pem.Decode(serverCert.PublicKey())
-	if block == nil {
-		return nil, fmt.Errorf("Failed to decode certificate")
-	}
-
-	fingerprint, err := shared.CertFingerprintStr(string(serverCert.PublicKey()))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to calculate fingerprint: %w", err)
-	}
-
-	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
-	cert := api.Certificate{
-		CertificatePut: api.CertificatePut{
-			Certificate: certificate,
-			Name:        serverName,
-			Type:        api.CertificateTypeServer, // Server type for intra-member communication.
-		},
-		Fingerprint: fingerprint,
-	}
-
-	return &cert, nil
 }
 
 // HasConnectivity probes the member with the given address for connectivity.
