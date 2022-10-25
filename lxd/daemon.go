@@ -1702,7 +1702,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// waitForOperations will block until all operations are done, or it's forced to shut down.
 			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
 			// initiated using `lxd shutdown`.
-			logger.Info("Waiting for operations to finish")
 			waitForOperations(ctx, d.db.Cluster, s.GlobalConfig.ShutdownTimeout())
 		}
 
