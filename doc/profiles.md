@@ -27,4 +27,4 @@ This differs from the behavior when applying those configurations/devices
 directly to an instance where its type is then taken into consideration
 and keys that aren't allowed result in an error.
 
-See [instance configuration](instances.md) for valid configuration options.
+See [instance configuration](instance-config) for valid configuration options.
