@@ -41,7 +41,7 @@ This behavior is different for Ceph-based storage pools (`ceph` and `cephfs`), w
 (storage-attach-volume)=
 ### Attach the volume to an instance
 
-After creating a custom storage volume, you can add it to one or more instances as a {ref}`disk device <instance_device_type_disk>`.
+After creating a custom storage volume, you can add it to one or more instances as a {ref}`disk device <devices-disk>`.
 
 The following restrictions apply:
 
@@ -65,9 +65,9 @@ If you want to use a different device name, you can add it to the command:
 (storage-configure-IO)=
 #### Configure I/O limits
 
-When you attach a storage volume to an instance as a {ref}`disk device <instance_device_type_disk>`, you can configure I/O limits for it.
+When you attach a storage volume to an instance as a {ref}`disk device <devices-disk>`, you can configure I/O limits for it.
 To do so, set the `limits.read`, `limits.write` or `limits.max` properties to the corresponding limits.
-See the {ref}`instance_device_type_disk` reference for more information.
+See the {ref}`devices-disk` reference for more information.
 
 The limits are applied through the Linux `blkio` cgroup controller, which makes it possible to restrict I/O at the disk level (but nothing finer grained than that).
 
