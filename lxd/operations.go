@@ -58,9 +58,6 @@ var operationWebsocket = APIEndpoint{
 func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdownTimeout time.Duration) {
 	timeout := time.After(consoleShutdownTimeout)
 
-	tick := time.Tick(time.Second)
-	logTick := time.Tick(time.Minute)
-
 	defer func() {
 		_ = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			err := dbCluster.DeleteOperations(ctx, tx.Tx(), cluster.GetNodeID())
@@ -72,35 +69,23 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 		})
 	}()
 
-	for {
-		<-tick
+	// Check operation status every second.
+	tick := time.NewTicker(time.Second)
+	defer tick.Stop()
 
+	var i int
+	for {
 		// Get all the operations
 		ops := operations.Clone()
 
-		runningOps := 0
-
+		var runningOps, execConsoleOps int
 		for _, op := range ops {
-			if op.Status() != api.Running {
-				continue
-			}
-
-			if op.Class() == operations.OperationClassToken {
+			if op.Status() != api.Running || op.Class() == operations.OperationClassToken {
 				continue
 			}
 
 			runningOps++
-		}
 
-		// No more running operations left. Exit function.
-		if runningOps == 0 {
-			logger.Info("All running operations finished, shutting down")
-			return
-		}
-
-		execConsoleOps := 0
-
-		for _, op := range ops {
 			opType := op.Type()
 			if opType == operationtype.CommandExec || opType == operationtype.ConsoleShow {
 				execConsoleOps++
@@ -114,24 +99,34 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 			}
 		}
 
+		// No more running operations left. Exit function.
+		if runningOps == 0 {
+			logger.Info("All running operations finished, shutting down")
+			return
+		}
+
+		// Print log message every minute.
+		if i%60 == 0 {
+			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
+		}
+
+		i++
+
 		select {
 		case <-timeout:
-			// We wait up to 5 minutes for exec/console operations to finish.
-			// If there are still running operations, we shut down the instances
-			// which will terminate the operations.
+			// We wait up to core.shutdown_timeout minutes for exec/console operations to finish.
+			// If there are still running operations, we continue shutdown which will stop any running
+			// instances and terminate the operations.
 			if execConsoleOps > 0 {
-				logger.Info("Timeout reached, continuing with shutdown")
+				logger.Info("Shutdown timeout reached, continuing with shutdown")
 			}
 
 			return
-		case <-logTick:
-			// Print log message every minute.
-			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
 		case <-ctx.Done():
 			// Return here, and ignore any running operations.
 			logger.Info("Forcing shutdown, ignoring running operations")
 			return
-		default:
+		case <-tick.C:
 		}
 	}
 }
