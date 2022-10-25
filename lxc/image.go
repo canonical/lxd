@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -1172,6 +1173,8 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 		return true
 	}
 
+	m := structToMap(state)
+
 	for _, filter := range filters {
 		found := false
 		if strings.Contains(filter, "=") {
@@ -1207,6 +1210,11 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 						break
 					}
 				}
+			}
+
+			val, ok := m[key]
+			if ok && fmt.Sprintf("%v", val) == value {
+				found = true
 			}
 		} else {
 			for _, alias := range state.Aliases {
@@ -1592,4 +1600,20 @@ func (c *cmdImageUnsetProp) Run(cmd *cobra.Command, args []string) error {
 
 	args = append(args, "")
 	return c.imageSetProp.Run(cmd, args)
+}
+
+func structToMap(data any) map[string]any {
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil
+	}
+
+	mapData := make(map[string]any)
+
+	err = json.Unmarshal(dataBytes, &mapData)
+	if err != nil {
+		return nil
+	}
+
+	return mapData
 }
