@@ -1,6 +1,18 @@
 ---
-discourse: 7519,9281,9223
+discourse: 8767,7519,9281,9223
 ---
+
+(expl-instances)=
+# About instances
+
+## Containers
+
+Containers are the default type for LXD and currently the most
+complete implementation of LXD instances, providing the most features.
+
+They are implemented through the use of `liblxc` (LXC).
+
+There is limited support for {ref}`live-migration`.
 
 # Virtual Machines
 

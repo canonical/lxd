@@ -42,7 +42,7 @@ A number of new syscalls related container configuration keys were introduced.
 * `security.syscalls.blacklist` <!-- wokeignore:rule=blacklist -->
 * `security.syscalls.whitelist` <!-- wokeignore:rule=whitelist -->
 
-See [Instance configuration](instances.md) for how to use them.
+See [Instance configuration](instance-config) for how to use them.
 
 ## `auth_pki`
 
