@@ -499,6 +499,32 @@ func CertificateTokenDecode(input string) (*api.CertificateAddToken, error) {
 	return &j, nil
 }
 
+// GenerateTrustCertificate converts the specified serverCert and serverName into an api.Certificate suitable for
+// use as a trusted cluster server certificate.
+func GenerateTrustCertificate(cert *CertInfo, name string) (*api.Certificate, error) {
+	block, _ := pem.Decode(cert.PublicKey())
+	if block == nil {
+		return nil, fmt.Errorf("Failed to decode certificate")
+	}
+
+	fingerprint, err := CertFingerprintStr(string(cert.PublicKey()))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to calculate fingerprint: %w", err)
+	}
+
+	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
+	apiCert := api.Certificate{
+		CertificatePut: api.CertificatePut{
+			Certificate: certificate,
+			Name:        name,
+			Type:        api.CertificateTypeServer, // Server type for intra-member communication.
+		},
+		Fingerprint: fingerprint,
+	}
+
+	return &apiCert, nil
+}
+
 var testCertPEMBlock = []byte(`
 -----BEGIN CERTIFICATE-----
 MIIBzjCCAVSgAwIBAgIUJAEAVl1oOU+OQxj5aUrRdJDwuWEwCgYIKoZIzj0EAwMw
