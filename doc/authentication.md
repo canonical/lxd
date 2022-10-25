@@ -1,5 +1,5 @@
 ---
-discourse: 13114
+discourse: 13114,15142
 relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 ---
 
@@ -87,7 +87,7 @@ This prevents brute-force attacks trying to guess the password.
 (authentication-token)=
 #### Adding client certificates using tokens
 
-You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire once they've been used.
+You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire after a configurable time (`cluster.join_token_expiry`, see {doc}`server`) or once they've been used.
 
 To use this method, generate a token for each client by calling `lxc config trust add`, which will prompt for the client name.
 The clients can then add their certificates to the server's trust store by providing the generated token when prompted for the trust password.
