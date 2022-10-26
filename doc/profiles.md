@@ -1,6 +1,5 @@
+(profiles)=
 # Profiles
-
-## Introduction
 
 Profiles can store any configuration that an instance can (key/value or devices)
 and any number of profiles can be applied to an instance.
