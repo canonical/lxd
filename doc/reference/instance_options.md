@@ -1,7 +1,3 @@
----
-discourse: 8355
----
-
 (instance-options)=
 # Instance options
 

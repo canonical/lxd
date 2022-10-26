@@ -1,7 +1,8 @@
 (instance-properties)=
 # Instance properties
 
-The following are direct instance properties and can't be part of a profile:
+The following are direct instance properties.
+They can't be part of a {ref}`profile <profiles>`:
 
 - `name`
 - `architecture`

@@ -1,28 +1,26 @@
 ---
-discourse: 8767,7519,9281,9223
+discourse: 8767,9223,7519,9281
 ---
 
 (expl-instances)=
 # About instances
 
-## Containers
+LXD supports the following types of instances:
 
-Containers are the default type for LXD and currently the most
-complete implementation of LXD instances, providing the most features.
+Containers
+: Containers are the default type for instances.
+  They are currently the most complete implementation of LXD instances and support more features than virtual machines.
 
-They are implemented through the use of `liblxc` (LXC).
+  Containers are implemented through the use of `liblxc` (LXC).
 
-There is limited support for {ref}`live-migration`.
+Virtual machines
+: {abbr}`Virtual machines (VMs)` are natively supported since version 4.0 of LXD.
+  Thanks to a built-in agent, they can be used almost like containers.
 
-# Virtual Machines
+  LXD uses `qemu` to provide the VM functionality.
 
-Virtual machines are an instance type supported by LXD alongside containers.
+  ```{note}
+  Currently, virtual machines support fewer features than containers, but the plan is to support the same set of features for both instance types in the future.
 
-They are implemented through the use of `qemu`.
-
-Please note, currently not all features that are available with containers have been implemented for VMs,
-however we continue to strive for feature parity with containers.
-
-## Configuration
-
-See [instance configuration](instances.md) for valid configuration options.
+  To see which features are available for virtual machines, check the condition column in the {ref}`instance-options` documentation.
+  ```

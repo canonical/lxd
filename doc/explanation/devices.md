@@ -1,6 +1,12 @@
 (devices)=
 # Devices
 
+Devices are attached to an instance.
+They include, for example, network interfaces, mount points, USB and GPU devices.
+These devices can have instance device options, depending on the type of the instance device.
+
+## Standard devices
+
 LXD will always provide the instance with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in instance or
 profile configuration and may not be overridden.
@@ -21,6 +27,8 @@ Those include:
 Anything else has to be defined in the instance configuration or in one of its
 profiles. The default profile will typically contain a network interface to
 become `eth0` in the instance.
+
+## How to add devices
 
 To add extra devices to an instance, device entries can be added directly to an
 instance, or to a profile.
