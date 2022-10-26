@@ -1,3 +1,4 @@
+(images)=
 # Images
 
 ```{toctree}
