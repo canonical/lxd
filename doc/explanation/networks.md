@@ -21,7 +21,7 @@ You can configure the network device in one of the following ways:
 
         lxc config device add <instance_name> <device_name> nic nictype=<nic_type> ...
 
-  See [Type: `nic`](instance_device_type_nic) for a list of available NIC types and their configuration properties.
+  See [Type: `nic`](devices-nic) for a list of available NIC types and their configuration properties.
 
   For example, you could add a pre-existing Linux bridge (`br0`) with the following command:
 
@@ -39,7 +39,7 @@ Managed networks in LXD are created and configured with the `lxc network [create
 
 Depending on the network type, LXD either fully controls the network or just manages an external network interface.
 
-Note that not all {ref}`NIC types <instance_device_type_nic>` are supported as network types.
+Note that not all {ref}`NIC types <devices-nic>` are supported as network types.
 LXD can only set up some of the types as managed networks.
 
 ### Fully controlled networks

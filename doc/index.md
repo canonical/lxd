@@ -52,6 +52,7 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 self
 getting_started
 configuration
+instances
 images
 storage
 networks

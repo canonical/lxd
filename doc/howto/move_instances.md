@@ -45,7 +45,7 @@ To allow for live migration, you must enable support for stateful migration.
 To do so, ensure the following configuration:
 
 * Set [`migration.stateful`](instance-configuration) to `true` on the instance.
-* Set [`size.state`](instance_device_type_disk) of the virtual machine's root disk device to at least the size of the virtual machine's [`limits.memory`](instance-configuration) setting.
+* Set [`size.state`](devices-disk) of the virtual machine's root disk device to at least the size of the virtual machine's [`limits.memory`](instance-configuration) setting.
 
 (live-migration-containers)=
 ### Live migration for containers

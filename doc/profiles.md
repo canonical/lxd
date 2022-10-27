@@ -1,6 +1,5 @@
+(profiles)=
 # Profiles
-
-## Introduction
 
 Profiles can store any configuration that an instance can (key/value or devices)
 and any number of profiles can be applied to an instance.
@@ -27,4 +26,4 @@ This differs from the behavior when applying those configurations/devices
 directly to an instance where its type is then taken into consideration
 and keys that aren't allowed result in an error.
 
-See [instance configuration](instances.md) for valid configuration options.
+See [instance configuration](instance-config) for valid configuration options.
