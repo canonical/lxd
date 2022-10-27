@@ -411,17 +411,18 @@ func (d *nicBridged) checkAddressConflict() error {
 				continue
 			}
 
-			// Check there isn't another instance with the same DNS name connected to managed network.
-			if d.network != nil && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
-				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
-			}
-
 			// Skip NICs connected to other VLANs (not perfect though as one NIC could
 			// explicitly specify the default untagged VLAN and these would be connected to
 			// same L2 even though the values are different, and there is a different default
 			// value for native and openvswith parent bridges).
 			if d.config["vlan"] != devConfig["vlan"] {
 				continue
+			}
+
+			// Check there isn't another instance with the same DNS name connected to a managed network
+			// that has DNS enabled and is connected to the same untagged VLAN.
+			if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
 			}
 
 			// Check NIC's MAC address doesn't match this NIC's MAC address.
