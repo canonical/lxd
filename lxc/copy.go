@@ -140,21 +140,9 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		configMap[fields[0]] = fields[1]
 	}
 
-	// Parse the device overrides
-	deviceMap := map[string]map[string]string{}
-	for _, entry := range c.flagDevice {
-		if !strings.Contains(entry, "=") || !strings.Contains(entry, ",") {
-			return fmt.Errorf(i18n.G("Bad syntax, expecting <device>,<key>=<value>: %s"), entry)
-		}
-
-		deviceFields := strings.SplitN(entry, ",", 2)
-		keyFields := strings.SplitN(deviceFields[1], "=", 2)
-
-		if deviceMap[deviceFields[0]] == nil {
-			deviceMap[deviceFields[0]] = map[string]string{}
-		}
-
-		deviceMap[deviceFields[0]][keyFields[0]] = keyFields[1]
+	deviceMap, err := parseDeviceOverrides(c.flagDevice)
+	if err != nil {
+		return err
 	}
 
 	var op lxd.RemoteOperation
