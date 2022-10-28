@@ -6837,7 +6837,7 @@ func (d *lxc) Info() instance.Info {
 	}
 }
 
-func (d *lxc) Metrics() (*metrics.MetricSet, error) {
+func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
 
 	// Load cgroup abstraction
@@ -6955,7 +6955,6 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	}
 
 	// Get network stats
-	hostInterfaces, _ := net.Interfaces()
 	networkState := d.networkState(hostInterfaces)
 
 	for name, state := range networkState {

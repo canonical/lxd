@@ -6348,7 +6348,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 	return true, nil
 }
 
-func (d *qemu) Metrics() (*metrics.MetricSet, error) {
+func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if d.agentMetricsEnabled() {
 		return d.getAgentMetrics()
 	}
