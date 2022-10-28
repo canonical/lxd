@@ -87,6 +87,28 @@ func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, de
 	return nil
 }
 
+// parseDeviceOverrides parses device overrides of the form "<deviceName>,<key>=<value>" into a device map.
+// The resulting device map is unlikely to contain valid devices as these are simply values to be overridden.
+func parseDeviceOverrides(deviceOverrideArgs []string) (map[string]map[string]string, error) {
+	deviceMap := map[string]map[string]string{}
+	for _, entry := range deviceOverrideArgs {
+		if !strings.Contains(entry, "=") || !strings.Contains(entry, ",") {
+			return nil, fmt.Errorf(i18n.G("Bad syntax, expecting <device>,<key>=<value>: %s"), entry)
+		}
+
+		deviceFields := strings.SplitN(entry, ",", 2)
+		keyFields := strings.SplitN(deviceFields[1], "=", 2)
+
+		if deviceMap[deviceFields[0]] == nil {
+			deviceMap[deviceFields[0]] = map[string]string{}
+		}
+
+		deviceMap[deviceFields[0]][keyFields[0]] = keyFields[1]
+	}
+
+	return deviceMap, nil
+}
+
 // Create the specified image aliases, updating those that already exist.
 func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string) error {
 	if len(aliases) == 0 {
