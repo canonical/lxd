@@ -156,7 +156,7 @@ type Instance interface {
 
 	DeferTemplateApply(trigger TemplateTrigger) error
 
-	Metrics() (*metrics.MetricSet, error)
+	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
 }
 
 // Container interface is for container specific functions.
