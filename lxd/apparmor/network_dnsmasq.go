@@ -57,6 +57,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   {{ .rootPath }}/run/{resolvconf,NetworkManager,systemd/resolve,connman,netconfig}/resolv.conf r,
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
+  {{ .rootPath }}/mnt/wsl/resolv.conf r,
 
 {{- if .snap }}
 
