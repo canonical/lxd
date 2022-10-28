@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -173,10 +174,12 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	c2.IsRunning()
 	suite.Req.Nil(err)
 
-	apiC1, etagC1, err := c.RenderFull()
+	hostInterfaces, _ := net.Interfaces()
+
+	apiC1, etagC1, err := c.RenderFull(hostInterfaces)
 	suite.Req.Nil(err)
 
-	apiC2, etagC2, err := c2.RenderFull()
+	apiC2, etagC2, err := c2.RenderFull(hostInterfaces)
 	suite.Req.Nil(err)
 
 	suite.Equal(etagC1, etagC2)
