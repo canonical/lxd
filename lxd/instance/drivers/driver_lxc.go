@@ -3238,7 +3238,7 @@ func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 }
 
 // RenderFull renders the full state of the instance.
-func (d *lxc) RenderFull() (*api.InstanceFull, any, error) {
+func (d *lxc) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull only works with containers")
 	}
@@ -3253,7 +3253,7 @@ func (d *lxc) RenderFull() (*api.InstanceFull, any, error) {
 	ct := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the ContainerState
-	ct.State, err = d.renderState(ct.StatusCode)
+	ct.State, err = d.renderState(ct.StatusCode, hostInterfaces)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3297,7 +3297,7 @@ func (d *lxc) RenderFull() (*api.InstanceFull, any, error) {
 }
 
 // renderState renders just the running state of the instance.
-func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error) {
+func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interface) (*api.InstanceState, error) {
 	status := api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
@@ -3307,7 +3307,7 @@ func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error)
 		pid := d.InitPID()
 		status.CPU = d.cpuState()
 		status.Memory = d.memoryState()
-		status.Network = d.networkState()
+		status.Network = d.networkState(hostInterfaces)
 		status.Pid = int64(pid)
 		status.Processes = d.processesState()
 	}
@@ -3320,8 +3320,8 @@ func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error)
 }
 
 // RenderState renders just the running state of the instance.
-func (d *lxc) RenderState() (*api.InstanceState, error) {
-	return d.renderState(d.statusCode())
+func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error) {
+	return d.renderState(d.statusCode(), hostInterfaces)
 }
 
 // Snapshot takes a new snapshot.
@@ -5894,7 +5894,7 @@ func (d *lxc) memoryState() api.InstanceStateMemory {
 	return memory
 }
 
-func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
+func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.InstanceStateNetwork {
 	result := map[string]api.InstanceStateNetwork{}
 
 	pid := d.InitPID()
@@ -5904,7 +5904,7 @@ func (d *lxc) networkState() map[string]api.InstanceStateNetwork {
 
 	couldUseNetnsGetifaddrs := d.state.OS.NetnsGetifaddrs
 	if couldUseNetnsGetifaddrs {
-		nw, err := netutils.NetnsGetifaddrs(int32(pid))
+		nw, err := netutils.NetnsGetifaddrs(int32(pid), hostInterfaces)
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
 			d.logger.Error("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
@@ -6980,7 +6980,8 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	}
 
 	// Get network stats
-	networkState := d.networkState()
+	hostInterfaces, _ := net.Interfaces()
+	networkState := d.networkState(hostInterfaces)
 
 	for name, state := range networkState {
 		labels := map[string]string{"device": name}
