@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -93,7 +94,8 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	state, err := c.RenderState()
+	hostInterfaces, _ := net.Interfaces()
+	state, err := c.RenderState(hostInterfaces)
 	if err != nil {
 		return response.InternalError(err)
 	}
