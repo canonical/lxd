@@ -105,8 +105,8 @@ type Instance interface {
 
 	// Status
 	Render(options ...func(response any) error) (any, any, error)
-	RenderFull() (*api.InstanceFull, any, error)
-	RenderState() (*api.InstanceState, error)
+	RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error)
+	RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error)
 	IsRunning() bool
 	IsFrozen() bool
 	IsEphemeral() bool
