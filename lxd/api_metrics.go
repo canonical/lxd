@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"runtime"
 	"sync"
@@ -161,6 +162,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
+	hostInterfaces, _ := net.Interfaces()
+
 	// Prepare temporary metrics storage.
 	newMetrics := map[string]*metrics.MetricSet{}
 	newMetricsLock := sync.Mutex{}
@@ -186,7 +189,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			go func(inst instance.Instance) {
 				defer wgInstances.Done()
 
-				instanceMetrics, err := inst.Metrics()
+				instanceMetrics, err := inst.Metrics(hostInterfaces)
 				if err != nil {
 					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
 					return
