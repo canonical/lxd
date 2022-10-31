@@ -28,5 +28,6 @@ Instance options
 
 ../reference/instance_properties.md
 ../reference/instance_options.md
+Override QEMU configuration <../howto/instance_qemu_config.md>
 ../reference/instance_units.md
 ```
