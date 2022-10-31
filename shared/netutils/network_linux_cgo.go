@@ -62,7 +62,7 @@ const UnixFdsReceivedMore uint = C.UNIX_FDS_RECEIVED_MORE
 const UnixFdsReceivedNone uint = C.UNIX_FDS_RECEIVED_NONE
 
 // NetnsGetifaddrs returns a map of InstanceStateNetwork for a particular process.
-func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {
+func NetnsGetifaddrs(initPID int32, hostInterfaces []net.Interface) (map[string]api.InstanceStateNetwork, error) {
 	var netnsidAware C.bool
 	var ifaddrs *C.struct_netns_ifaddrs
 	var netnsID C.__s32
@@ -133,9 +133,11 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 		addNetwork.Mtu = int(addr.ifa_mtu)
 
 		if initPID != 0 && int(addr.ifa_ifindex_peer) > 0 {
-			hostInterface, err := net.InterfaceByIndex(int(addr.ifa_ifindex_peer))
-			if err == nil {
-				addNetwork.HostName = hostInterface.Name
+			for _, hostInterface := range hostInterfaces {
+				if hostInterface.Index == int(addr.ifa_ifindex_peer) {
+					addNetwork.HostName = hostInterface.Name
+					break
+				}
 			}
 		}
 

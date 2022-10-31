@@ -105,8 +105,8 @@ type Instance interface {
 
 	// Status
 	Render(options ...func(response any) error) (any, any, error)
-	RenderFull() (*api.InstanceFull, any, error)
-	RenderState() (*api.InstanceState, error)
+	RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error)
+	RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error)
 	IsRunning() bool
 	IsFrozen() bool
 	IsEphemeral() bool
@@ -156,7 +156,7 @@ type Instance interface {
 
 	DeferTemplateApply(trigger TemplateTrigger) error
 
-	Metrics() (*metrics.MetricSet, error)
+	Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error)
 }
 
 // Container interface is for container specific functions.

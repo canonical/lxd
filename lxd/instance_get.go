@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -140,7 +141,8 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	if recursion == 0 {
 		state, etag, err = c.Render()
 	} else {
-		state, etag, err = c.RenderFull()
+		hostInterfaces, _ := net.Interfaces()
+		state, etag, err = c.RenderFull(hostInterfaces)
 	}
 
 	if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -447,6 +448,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 				threads = len(projectsInstances)
 			}
 
+			hostInterfaces, _ := net.Interfaces()
 			queue := make(chan [2]string, threads)
 
 			for i := 0; i < threads; i++ {
@@ -475,7 +477,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 							continue
 						}
 
-						c, _, err := inst.RenderFull()
+						c, _, err := inst.RenderFull(hostInterfaces)
 						if err != nil {
 							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
 							resultFullListAppend(projectInstance, api.InstanceFull{}, err)

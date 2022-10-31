@@ -5668,7 +5668,7 @@ func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 }
 
 // RenderFull returns all info about the instance.
-func (d *qemu) RenderFull() (*api.InstanceFull, any, error) {
+func (d *qemu) RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
@@ -5798,7 +5798,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 }
 
 // RenderState returns just state info about the instance.
-func (d *qemu) RenderState() (*api.InstanceState, error) {
+func (d *qemu) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error) {
 	return d.renderState(d.statusCode())
 }
 
@@ -6359,7 +6359,7 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 	return true, nil
 }
 
-func (d *qemu) Metrics() (*metrics.MetricSet, error) {
+func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if d.agentMetricsEnabled() {
 		return d.getAgentMetrics()
 	}
