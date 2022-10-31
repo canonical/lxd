@@ -3,7 +3,6 @@ package shared
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -89,29 +88,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
-	"limits.cpu": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		// Validate the character set
-		match, _ := regexp.MatchString("^[-,0-9]*$", value)
-		if !match {
-			return fmt.Errorf("Invalid CPU limit syntax")
-		}
-
-		// Validate first character
-		if strings.HasPrefix(value, "-") || strings.HasPrefix(value, ",") {
-			return fmt.Errorf("CPU limit can't start with a separator")
-		}
-
-		// Validate last character
-		if strings.HasSuffix(value, "-") || strings.HasSuffix(value, ",") {
-			return fmt.Errorf("CPU limit can't end with a separator")
-		}
-
-		return nil
-	},
+	"limits.cpu":           validate.Optional(validate.IsValidCPUSet),
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
 	"limits.memory": func(value string) error {
 		if value == "" {
