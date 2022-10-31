@@ -103,3 +103,40 @@ func ExampleRequired() {
 	// <nil> Invalid value for a boolean "foo"
 	// <nil> <nil>
 }
+
+func ExampleIsValidCPUSet() {
+	tests := []string{
+		"1",       // valid
+		"1,2,3",   // valid
+		"1-3",     // valid
+		"1-3,4-6", // valid
+		"1-3,4",   // valid
+		"abc",     // invalid syntax
+		"1-",      // invalid syntax
+		"1,",      // invalid syntax
+		"-1",      // invalid syntax
+		",1",      // invalid syntax
+		"1,2,3,3", // invalid: Duplicate CPU
+		"1-2,2",   // invalid: Duplicate CPU
+		"1-2,2-3", // invalid: Duplicate CPU
+	}
+
+	for _, t := range tests {
+		err := validate.IsValidCPUSet(t)
+		fmt.Printf("%v\n", err)
+	}
+
+	// Output: <nil>
+	// <nil>
+	// <nil>
+	// <nil>
+	// <nil>
+	// Invalid CPU limit syntax
+	// Invalid CPU limit syntax
+	// Invalid CPU limit syntax
+	// Invalid CPU limit syntax
+	// Invalid CPU limit syntax
+	// Cannot define CPU multiple times
+	// Cannot define CPU multiple times
+	// Cannot define CPU multiple times
+}

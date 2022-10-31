@@ -817,3 +817,56 @@ func IsYAML(value string) error {
 
 	return nil
 }
+
+// IsValidCPUSet checks value is a valid CPU set.
+func IsValidCPUSet(value string) error {
+	// Validate the CPU set syntax.
+	match, _ := regexp.MatchString("^([0-9]+([,-][0-9]+)?)(,[0-9]+([,-][0-9]+)*)?$", value)
+	if !match {
+		return fmt.Errorf("Invalid CPU limit syntax")
+	}
+
+	cpus := make(map[int64]int)
+	chunks := strings.Split(value, ",")
+
+	for _, chunk := range chunks {
+		if strings.Contains(chunk, "-") {
+			// Range
+			fields := strings.SplitN(chunk, "-", 2)
+			if len(fields) != 2 {
+				return fmt.Errorf("Invalid cpuset value: %s", value)
+			}
+
+			low, err := strconv.ParseInt(fields[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid cpuset value: %s", value)
+			}
+
+			high, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid cpuset value: %s", value)
+			}
+
+			for i := low; i <= high; i++ {
+				cpus[i]++
+			}
+		} else {
+			// Simple entry
+			nr, err := strconv.ParseInt(chunk, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid cpuset value: %s", value)
+			}
+
+			cpus[nr]++
+		}
+	}
+
+	for i := range cpus {
+		// The CPU was specified more than once, e.g. 1-3,3.
+		if cpus[i] > 1 {
+			return fmt.Errorf("Cannot define CPU multiple times")
+		}
+	}
+
+	return nil
+}
