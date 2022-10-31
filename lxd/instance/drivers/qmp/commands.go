@@ -30,6 +30,44 @@ type AddFdInfo struct {
 	FD int `json:"fd"`
 }
 
+// CPUInstanceProperties contains CPU instance properties.
+type CPUInstanceProperties struct {
+	NodeID    int `json:"node-id,omitempty"`
+	SocketID  int `json:"socket-id,omitempty"`
+	DieID     int `json:"die-id,omitempty"`
+	ClusterID int `json:"cluster-id,omitempty"`
+	CoreID    int `json:"core-id,omitempty"`
+	ThreadID  int `json:"thread-id,omitempty"`
+}
+
+// HotpluggableCPU contains information about a hotpluggable CPU.
+type HotpluggableCPU struct {
+	Type       string                `json:"type"`
+	Props      CPUInstanceProperties `json:"props"`
+	VCPUsCount int                   `json:"vcpus-count"`
+	QOMPath    string                `json:"qom-path,omitempty"`
+}
+
+// QueryHotpluggableCPUs returns a list of hotpluggable CPUs.
+func (m *Monitor) QueryHotpluggableCPUs() ([]HotpluggableCPU, error) {
+	// Check if disconnected
+	if m.disconnected {
+		return nil, ErrMonitorDisconnect
+	}
+
+	// Prepare the response.
+	var resp struct {
+		Return []HotpluggableCPU `json:"return"`
+	}
+
+	err := m.run("query-hotpluggable-cpus", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+	}
+
+	return resp.Return, nil
+}
+
 // Status returns the current VM status.
 func (m *Monitor) Status() (string, error) {
 	// Prepare the response.
