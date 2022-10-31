@@ -548,6 +548,35 @@ test_basic_usage() {
   ! lxc profile delete default || false
 
   lxc init testimage c1
-  ! lxc config device override c1 root pool bla || false
+  result="$(! lxc config device override c1 root pool=bla 2>&1)"
+  if ! echo "${result}" | grep "Error: Cannot update root disk device pool name"; then
+    echo "Should fail device override because root disk device storage pool cannot be changed."
+    false
+  fi
+
   lxc rm -f c1
+
+  # Should fail to override root device storage pool when the new pool does not exist.
+  ! lxc init testimage c1 -d root,pool=bla || false
+
+  # Should succeed in overriding root device storage pool when the pool does exist and the override occurs at create time.
+  lxc storage create bla dir
+  lxc init testimage c1 -d root,pool=bla
+  lxc config show c1 --expanded | grep -Pz '  root:\n    path: /\n    pool: bla\n    type: disk\n'
+
+  lxc storage volume create bla vol1
+  lxc storage volume create bla vol2
+  lxc config device add c1 dev disk source=vol1 pool=bla path=/vol
+
+  # Should not be able to override a device that is not part of a profile (i.e. has been specifically added).
+  result="$(! lxc config device override c1 dev source=vol2 2>&1)"
+  if ! echo "${result}" | grep "Error: The device already exists"; then
+    echo "Should fail because device is defined against the instance not the profile."
+    false
+  fi
+
+  lxc rm -f c1
+  lxc storage volume delete bla vol1
+  lxc storage volume delete bla vol2
+  lxc storage delete bla
 }
