@@ -58,7 +58,7 @@ You can add or remove only those roles that are not assigned automatically by LX
 
 To edit all properties of a cluster member, including the member-specific configuration, the member roles, the failure domain and the cluster groups, use the `lxc cluster edit` command.
 
-## Evacuating and restoring cluster members
+## Evacuate and restore cluster members
 
 There are scenarios where you might need to empty a given cluster member of all its instances (for example, for routine maintenance like applying system updates that require a reboot, or to perform hardware changes).
 
@@ -73,25 +73,40 @@ When the evacuated server is available again, use the `lxc cluster restore` comm
 This command also moves the evacuated instances back from the servers that were temporarily holding them.
 
 (cluster-manage-delete-members)=
-## Deleting cluster members
+## Delete cluster members
 
-To cleanly delete a member from the cluster, use the `lxc cluster remove` command.
+To cleanly delete a member from the cluster, use the following command:
 
-You can only delete members that are online and that don't have any instances located on them.
-If required, you can force-remove a cluster member (for example, if the server is permanently offline or had to be reinstalled).
-To do so, enter the following command:
+    lxc cluster remove <member_name>
+
+You can only cleanly delete members that are online and that don't have any instances located on them.
+
+### Deal with offline cluster members
+
+If a cluster member goes permanently offline, you can force-remove it from the cluster.
+Make sure to do so as soon as you discover that you cannot recover the member.
+If you keep an offline member in your cluster, you might encounter issues when upgrading your cluster to a newer version.
+
+To force-remove a cluster member, enter the following command on one of the cluster members that is still online:
 
     lxc cluster remove --force <member_name>
 
-```{warning}
+```{caution}
 Force-removing a cluster member will leave the member's database in an inconsistent state (for example, the storage pool on the member will not be removed).
 As a result, it will not be possible to re-initialize LXD later, and the server must be fully reinstalled.
 ```
 
-## Upgrading cluster members
+## Upgrade cluster members
 
 To upgrade a cluster, you must upgrade all of its members.
 All members must be upgraded to the same version of LXD.
+
+```{caution}
+Do not attempt to upgrade your cluster if any of its members are offline.
+Offline members cannot be upgraded, and your cluster will end up in a blocked state.
+
+Also note that if you are using the snap, upgrades might happen automatically, so to prevent any issues you should always recover or remove offline members immediately.
+```
 
 To upgrade a single member, simply upgrade the LXD package on the host and restart the LXD daemon.
 For example, if you are using the snap:
@@ -108,7 +123,7 @@ Run `lxc cluster list` on a cluster member that is not blocked to see if any mem
 As you proceed upgrading the rest of the cluster members, they will all transition to the "blocked" state.
 When you upgrade the last member, the blocked members will notice that all servers are now up-to-date, and the blocked members become operational again.
 
-## Updating the cluster certificate
+## Update the cluster certificate
 
 In a LXD cluster, the API on all servers responds with the same shared certificate, which is usually a standard self-signed certificate with an expiry set to ten years.
 
