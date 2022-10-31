@@ -234,7 +234,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 
 	maxAttempts := 3
 
-	// Restart the instances
+	// Start the instances
 	for _, inst := range instances {
 		// Get the instance config.
 		config := inst.ExpandedConfig()
