@@ -103,6 +103,53 @@ var updates = map[int]schema.Update{
 	64: updateFromV63,
 	65: updateFromV64,
 	66: updateFromV65,
+	67: updateFromV66,
+}
+
+// updateFromV66 adds creation_date column to storage_volumes and storage_volumes_snapshots tables.
+func updateFromV66(ctx context.Context, tx *sql.Tx) error {
+	q := `
+ALTER TABLE storage_volumes ADD COLUMN creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
+ALTER TABLE storage_volumes_snapshots ADD COLUMN creation_date DATETIME NOT NULL DEFAULT "0001-01-01T00:00:00Z";
+DROP VIEW storage_volumes_all;
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type,
+         creation_date) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type,
+         creation_date
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s', storage_volumes.name, storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id,
+         storage_volumes.content_type,
+         storage_volumes_snapshots.creation_date
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+`
+	_, err := tx.Exec(q)
+	if err != nil {
+		return fmt.Errorf("Failed adding creation_date column to storage volumes: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV65 fixes typo in cephobject.radosgw.endpoint* settings.

@@ -214,7 +214,7 @@ func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType dr
 // VolumeDBCreate creates a volume in the database.
 // If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 // If removeUnknownKeys is true, any unknown config keys are removed from volumeConfig rather than failing.
-func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool) error {
+func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time, contentType drivers.ContentType, removeUnknownKeys bool) error {
 	p, ok := pool.(*lxdBackend)
 	if !ok {
 		return fmt.Errorf("Pool is not a lxdBackend")
@@ -272,9 +272,9 @@ func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDesc
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = p.state.DB.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), expiryDate)
+		_, err = p.state.DB.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), creationDate, expiryDate)
 	} else {
-		_, err = p.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
+		_, err = p.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType, creationDate)
 	}
 
 	if err != nil {

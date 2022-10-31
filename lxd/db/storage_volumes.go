@@ -20,7 +20,14 @@ import (
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
 func (c *ClusterTx) GetStoragePoolVolumesWithType(ctx context.Context, volumeType int) ([]StorageVolumeArgs, error) {
 	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name, IFNULL(storage_volumes.node_id, -1)
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.description,
+	storage_volumes.creation_date,
+	storage_pools.name,
+	projects.name,
+	IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -31,7 +38,7 @@ WHERE storage_volumes.type = ?
 	err := query.Scan(ctx, c.Tx(), stmt, func(scan func(dest ...any) error) error {
 		entry := StorageVolumeArgs{}
 
-		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
+		err := scan(&entry.ID, &entry.Name, &entry.Description, &entry.CreationDate, &entry.PoolName, &entry.ProjectName, &entry.NodeID)
 		if err != nil {
 			return err
 		}
@@ -58,7 +65,14 @@ func (c *Cluster) GetStoragePoolVolumeWithID(volumeID int) (StorageVolumeArgs, e
 	var response StorageVolumeArgs
 
 	stmt := `
-SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, storage_pools.type, projects.name
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.description,
+	storage_volumes.creation_date,
+	storage_pools.name,
+	storage_pools.type,
+	projects.name
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -66,7 +80,7 @@ WHERE storage_volumes.id = ?
 `
 
 	inargs := []any{volumeID}
-	outargs := []any{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
+	outargs := []any{&response.ID, &response.Name, &response.Description, &response.CreationDate, &response.PoolName, &response.Type, &response.ProjectName}
 
 	err := dbQueryRowScan(c, stmt, inargs, outargs)
 	if err != nil {
@@ -117,7 +131,8 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 			IFNULL(nodes.name, "") as location,
 			storage_volumes_all.type,
 			storage_volumes_all.content_type,
-			storage_volumes_all.description
+			storage_volumes_all.description,
+			storage_volumes_all.creation_date
 		FROM storage_volumes_all
 		JOIN projects ON projects.id = storage_volumes_all.project_id
 		LEFT JOIN nodes ON nodes.id = storage_volumes_all.node_id
@@ -181,7 +196,7 @@ func (c *ClusterTx) GetStoragePoolVolumes(ctx context.Context, poolID int64, mem
 		var contentType int = int(-1)
 		var vol StorageVolume
 
-		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description)
+		err := scan(&vol.Project, &vol.ID, &vol.Name, &vol.Location, &volumeType, &contentType, &vol.Description, &vol.CreatedAt)
 		if err != nil {
 			return err
 		}
@@ -248,7 +263,8 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// correct deltas.
 	queryStr := fmt.Sprintf(`
   SELECT
-    storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date,
+    storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description,
+    storage_volumes_snapshots.creation_date, storage_volumes_snapshots.expiry_date,
     storage_volumes.content_type
   FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
@@ -276,7 +292,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 			var expiryDate sql.NullTime
 			var contentType int
 
-			err := scan(&s.ID, &snapName, &s.Description, &expiryDate, &contentType)
+			err := scan(&s.ID, &snapName, &s.Description, &s.CreationDate, &expiryDate, &contentType)
 			if err != nil {
 				return err
 			}
@@ -435,9 +451,8 @@ func (c *Cluster) RenameStoragePoolVolume(projectName string, oldVolumeName stri
 	return err
 }
 
-// CreateStoragePoolVolume creates a new storage volume attached to a given
-// storage pool.
-func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int) (int64, error) {
+// CreateStoragePoolVolume creates a new storage volume attached to a given storage pool.
+func (c *Cluster) CreateStoragePoolVolume(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, contentType int, creationDate time.Time) (int64, error) {
 	var volumeID int64
 
 	if shared.IsSnapshot(volumeName) {
@@ -456,16 +471,16 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 
 		if shared.StringInSlice(driver, remoteDrivers) {
 			result, err = tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type)
- VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
+INSERT INTO storage_volumes (storage_pool_id, type, name, description, project_id, content_type, creation_date)
+ VALUES (?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?, ?)
 `,
-				poolID, volumeType, volumeName, volumeDescription, project, contentType)
+				poolID, volumeType, volumeName, volumeDescription, projectName, contentType, creationDate)
 		} else {
 			result, err = tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type)
- VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?)
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id, content_type, creation_date)
+ VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?), ?, ?)
 `,
-				poolID, c.nodeID, volumeType, volumeName, volumeDescription, project, contentType)
+				poolID, c.nodeID, volumeType, volumeName, volumeDescription, projectName, contentType, creationDate)
 		}
 
 		if err != nil {
@@ -479,7 +494,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 
 		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
 		if err != nil {
-			return fmt.Errorf("Insert storage volume configuration: %w", err)
+			return fmt.Errorf("Failed inserting storage volume record configuration: %w", err)
 		}
 
 		return nil
@@ -884,7 +899,12 @@ func storagePoolVolumeContentTypeToName(contentType int) (string, error) {
 // GetCustomVolumesInProject returns all custom volumes in the given project.
 func (c *ClusterTx) GetCustomVolumesInProject(ctx context.Context, project string) ([]StorageVolumeArgs, error) {
 	sql := `
-SELECT storage_volumes.id, storage_volumes.name, storage_pools.name, IFNULL(storage_volumes.node_id, -1)
+SELECT
+	storage_volumes.id,
+	storage_volumes.name,
+	storage_volumes.creation_date,
+	storage_pools.name,
+	IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -894,7 +914,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	volumes := []StorageVolumeArgs{}
 	err := query.Scan(ctx, c.tx, sql, func(scan func(dest ...any) error) error {
 		volume := StorageVolumeArgs{}
-		err := scan(&volume.ID, &volume.Name, &volume.PoolName, &volume.NodeID)
+		err := scan(&volume.ID, &volume.Name, &volume.CreationDate, &volume.PoolName, &volume.NodeID)
 		if err != nil {
 			return err
 		}

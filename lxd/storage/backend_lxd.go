@@ -627,7 +627,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 
 	// Validate config and create database entry for new storage volume.
 	volumeConfig := make(map[string]string)
-	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType, false)
+	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, false)
 	if err != nil {
 		return err
 	}
@@ -749,38 +749,58 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		defer postHookRevert.Fail()
 
 		// Create database entry for new storage volume.
-		// If the backup restore interface provides volume config use it, otherwise use default volume
-		// config for the storage pool.
 		var volumeDescription string
 		var volumeConfig map[string]string
+		volumeCreationDate := inst.CreationDate()
+
 		if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+			// If the backup restore interface provides volume config use it, otherwise use
+			// default volume config for the storage pool.
 			volumeDescription = srcBackup.Config.Volume.Description
 			volumeConfig = srcBackup.Config.Volume.Config
+
+			// Use volume's creation date if available.
+			if !srcBackup.Config.Volume.CreatedAt.IsZero() {
+				volumeCreationDate = srcBackup.Config.Volume.CreatedAt
+			}
 		}
 
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, volumeCreationDate, time.Time{}, contentType, true)
 		if err != nil {
 			return err
 		}
 
 		postHookRevert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
-		// If the backup restore interface provides volume snapshot config use it, otherwise use default
-		// volume config for the storage pool.
 		for i, backupFileSnap := range srcBackup.Snapshots {
 			var volumeSnapDescription string
 			var volumeSnapConfig map[string]string
 			var volumeSnapExpiryDate time.Time
+			var volumeSnapCreationDate time.Time
 
 			// Check if snapshot volume config is available for restore and matches snapshot name.
-			if srcBackup.Config != nil && len(srcBackup.Config.VolumeSnapshots) >= i-1 && srcBackup.Config.VolumeSnapshots[i] != nil && srcBackup.Config.VolumeSnapshots[i].Name == backupFileSnap {
-				volumeSnapDescription = srcBackup.Config.VolumeSnapshots[i].Description
-				volumeSnapConfig = srcBackup.Config.VolumeSnapshots[i].Config
+			if srcBackup.Config != nil {
+				if len(srcBackup.Config.Snapshots) >= i-1 && srcBackup.Config.Snapshots[i] != nil && srcBackup.Config.Snapshots[i].Name == backupFileSnap {
+					// Use instance snapshot's creation date if snap info available.
+					volumeSnapCreationDate = srcBackup.Config.Snapshots[i].CreatedAt
+				}
 
-				if srcBackup.Config.VolumeSnapshots[i].ExpiresAt != nil {
-					volumeSnapExpiryDate = *srcBackup.Config.VolumeSnapshots[i].ExpiresAt
+				if len(srcBackup.Config.VolumeSnapshots) >= i-1 && srcBackup.Config.VolumeSnapshots[i] != nil && srcBackup.Config.VolumeSnapshots[i].Name == backupFileSnap {
+					// If the backup restore interface provides volume snapshot config use it,
+					// otherwise use default volume config for the storage pool.
+					volumeSnapDescription = srcBackup.Config.VolumeSnapshots[i].Description
+					volumeSnapConfig = srcBackup.Config.VolumeSnapshots[i].Config
+
+					if srcBackup.Config.VolumeSnapshots[i].ExpiresAt != nil {
+						volumeSnapExpiryDate = *srcBackup.Config.VolumeSnapshots[i].ExpiresAt
+					}
+
+					// Use volume's creation date if available.
+					if !srcBackup.Config.VolumeSnapshots[i].CreatedAt.IsZero() {
+						volumeSnapCreationDate = srcBackup.Config.VolumeSnapshots[i].CreatedAt
+					}
 				}
 			}
 
@@ -788,7 +808,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapExpiryDate, contentType, true)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, volumeSnapDescription, volType, true, volumeSnapConfig, volumeSnapCreationDate, volumeSnapExpiryDate, contentType, true)
 			if err != nil {
 				return err
 			}
@@ -964,7 +984,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, srcConfig.Volume.Config)
 
 		// Validate config and create database entry for new storage volume.
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", vol.Type(), false, vol.Config(), time.Time{}, contentType, false)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", vol.Type(), false, vol.Config(), inst.CreationDate(), time.Time{}, contentType, false)
 		if err != nil {
 			return err
 		}
@@ -980,7 +1000,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			}
 
 			// Validate config and create database entry for new storage volume.
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, srcConfig.VolumeSnapshots[i].CreatedAt, volumeSnapExpiryDate, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
@@ -1250,7 +1270,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			}
 
 			// Validate config and create database entry for new storage volume from source volume config.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnap.Config, snapExpiryDate, contentType, false)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, srcSnap.Description, drivers.VolumeTypeCustom, true, srcSnap.Config, srcSnap.CreatedAt, snapExpiryDate, contentType, false)
 			if err != nil {
 				return err
 			}
@@ -1470,7 +1490,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			}
 
 			// Validate config and create database entry for new storage volume.
-			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, contentType, false)
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, volType, true, srcConfig.VolumeSnapshots[i].Config, srcConfig.VolumeSnapshots[i].CreatedAt, volumeSnapExpiryDate, contentType, false)
 			if err != nil {
 				return err
 			}
@@ -1616,7 +1636,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	// Validate config and create database entry for new storage volume.
 	volumeConfig := make(map[string]string) // Capture any default config generated by VolumeDBCreate.
-	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType, false)
+	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, false)
 	if err != nil {
 		return err
 	}
@@ -1795,7 +1815,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	if !args.Refresh {
 		// Validate config and create database entry for new storage volume if not refreshing.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, inst.CreationDate(), time.Time{}, contentType, true)
 		if err != nil {
 			return err
 		}
@@ -1803,34 +1823,39 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 	}
 
-	for _, snapName := range args.Snapshots {
-		// Validate config and create database entry for new storage volume.
-		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+	for i, snapName := range args.Snapshots {
 		newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
-
 		snapConfig := volumeConfig           // Use parent volume config by default.
 		snapDescription := volumeDescription // Use parent volume description by default.
 		snapExpiryDate := time.Time{}
+		snapCreationDate := time.Time{}
 
 		// If the source snapshot config is available, use that.
 		if srcInfo != nil && srcInfo.Config != nil {
-			for _, srcSnap := range srcInfo.Config.VolumeSnapshots {
-				if srcSnap.Name != snapName {
-					continue
+			if len(srcInfo.Config.Snapshots) >= i-1 && srcInfo.Config.Snapshots[i] != nil && srcInfo.Config.Snapshots[i].Name == snapName {
+				// Use instance snapshot's creation date if snap info available.
+				snapCreationDate = srcInfo.Config.Snapshots[i].CreatedAt
+			}
+
+			if len(srcInfo.Config.VolumeSnapshots) >= i-1 && srcInfo.Config.VolumeSnapshots[i] != nil && srcInfo.Config.VolumeSnapshots[i].Name == snapName {
+				// Check if snapshot volume config is available then use it.
+				snapDescription = srcInfo.Config.VolumeSnapshots[i].Description
+				snapConfig = srcInfo.Config.VolumeSnapshots[i].Config
+
+				if srcInfo.Config.VolumeSnapshots[i].ExpiresAt != nil {
+					snapExpiryDate = *srcInfo.Config.VolumeSnapshots[i].ExpiresAt
 				}
 
-				snapConfig = srcSnap.Config
-				snapDescription = srcSnap.Description
-
-				if srcSnap.ExpiresAt != nil {
-					snapExpiryDate = *srcSnap.ExpiresAt
+				// Use volume's creation date if available.
+				if !srcInfo.Config.VolumeSnapshots[i].CreatedAt.IsZero() {
+					snapCreationDate = srcInfo.Config.VolumeSnapshots[i].CreatedAt
 				}
-
-				break
 			}
 		}
 
-		err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapExpiryDate, contentType, true)
+		// Validate config and create database entry for new storage volume.
+		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+		err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapCreationDate, snapExpiryDate, contentType, true)
 		if err != nil {
 			return err
 		}
@@ -2595,7 +2620,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), srcDBVol.Description, volType, true, srcDBVol.Config, time.Time{}, contentType, false)
+	err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), srcDBVol.Description, volType, true, srcDBVol.Config, inst.CreationDate(), time.Time{}, contentType, false)
 	if err != nil {
 		return err
 	}
@@ -3120,7 +3145,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Time{}, contentType, false)
+	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Now().UTC(), time.Time{}, contentType, false)
 	if err != nil {
 		return err
 	}
@@ -3892,7 +3917,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	defer revert.Fail()
 
 	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false)
+	err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Now().UTC(), time.Time{}, vol.ContentType(), false)
 	if err != nil {
 		return err
 	}
@@ -4005,7 +4030,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
 
 		// Validate config and create database entry for new storage volume.
-		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), false)
+		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Now().UTC(), time.Time{}, vol.ContentType(), false)
 		if err != nil {
 			return err
 		}
@@ -4021,7 +4046,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			}
 
 			// Validate config and create database entry for new storage volume.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, volumeSnapExpiryDate, vol.ContentType(), false)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, srcConfig.VolumeSnapshots[i].Description, vol.Type(), true, srcConfig.VolumeSnapshots[i].Config, srcConfig.VolumeSnapshots[i].CreatedAt, volumeSnapExpiryDate, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
@@ -4370,7 +4395,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	if !args.Refresh {
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
+		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Now().UTC(), time.Time{}, vol.ContentType(), true)
 		if err != nil {
 			return err
 		}
@@ -4386,6 +4411,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			snapConfig := vol.Config() // Use parent volume config by default.
 			snapDescription := args.Description
 			snapExpiryDate := time.Time{}
+			snapCreationDate := time.Time{}
 
 			// If the source snapshot config is available, use that.
 			if srcInfo != nil && srcInfo.Config != nil {
@@ -4401,13 +4427,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 						snapExpiryDate = *srcSnap.ExpiresAt
 					}
 
+					snapCreationDate = srcSnap.CreatedAt
+
 					break
 				}
 			}
 
 			// Validate config and create database entry for new storage volume.
 			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-			err = VolumeDBCreate(b, projectName, newSnapshotName, snapDescription, vol.Type(), true, snapConfig, snapExpiryDate, vol.ContentType(), true)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, snapDescription, vol.Type(), true, snapConfig, snapCreationDate, snapExpiryDate, vol.ContentType(), true)
 			if err != nil {
 				return err
 			}
@@ -4859,7 +4887,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 	}
 
 	// Validate config and create database entry for restored storage volume.
-	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType), false)
+	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, poolVol.Volume.CreatedAt, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType), false)
 	if err != nil {
 		return err
 	}
@@ -4878,7 +4906,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backupConfi
 		}
 
 		// Validate config and create database entry for restored storage volume.
-		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVolumeConfig, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false)
+		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, snapVolumeConfig, poolVolSnap.CreatedAt, time.Time{}, drivers.ContentType(poolVolSnap.ContentType), false)
 		if err != nil {
 			return err
 		}
@@ -4954,7 +4982,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	// Validate config and create database entry for new storage volume.
 	// Copy volume config from parent.
-	err = VolumeDBCreate(b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType), false)
+	err = VolumeDBCreate(b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, time.Now().UTC(), newExpiryDate, drivers.ContentType(parentVol.ContentType), false)
 	if err != nil {
 		return err
 	}
@@ -5333,6 +5361,7 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 					Name:        snapName,
 					Config:      dbVolSnaps[i].Config,
 					ContentType: dbVolSnaps[i].ContentType,
+					CreatedAt:   dbVolSnaps[i].CreationDate,
 				})
 			}
 		}
@@ -5822,6 +5851,8 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 
 	// Create storage volume database records if in recover mode.
 	if poolVol != nil {
+		creationDate := inst.CreationDate()
+
 		// Copy volume config from backup file config if present,
 		// so VolumeDBCreate can safely modify the copy if needed.
 		if poolVol.Volume != nil {
@@ -5829,20 +5860,24 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 			for k, v := range poolVol.Volume.Config {
 				volumeConfig[k] = v
 			}
+
+			if !poolVol.Volume.CreatedAt.IsZero() {
+				creationDate = poolVol.Volume.CreatedAt
+			}
 		}
 
 		// Validate config and create database entry for recovered storage volume.
-		err = VolumeDBCreate(b, inst.Project().Name, poolVol.Volume.Name, "", volType, false, volumeConfig, time.Time{}, contentType, false)
+		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), "", volType, false, volumeConfig, creationDate, time.Time{}, contentType, false)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, poolVol.Volume.Name, volType) })
+		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
 
 		if len(snapshots) > 0 && len(poolVol.VolumeSnapshots) > 0 {
 			// Create storage volume snapshot DB records from the entries in the backup file config.
 			for _, poolVolSnap := range poolVol.VolumeSnapshots {
-				fullSnapName := drivers.GetSnapshotVolumeName(poolVol.Volume.Name, poolVolSnap.Name)
+				fullSnapName := drivers.GetSnapshotVolumeName(inst.Name(), poolVolSnap.Name)
 
 				// Copy volume config from backup file if present,
 				// so VolumeDBCreate can safely modify the copy if needed.
@@ -5852,7 +5887,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 				}
 
 				// Validate config and create database entry for recovered storage volume.
-				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, poolVolSnap.Description, volType, true, snapVolumeConfig, time.Time{}, contentType, false)
+				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, poolVolSnap.Description, volType, true, snapVolumeConfig, poolVolSnap.CreatedAt, time.Time{}, contentType, false)
 				if err != nil {
 					return err
 				}
@@ -5871,7 +5906,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backupConfi
 
 				// Validate config and create database entry for new storage volume.
 				// Use parent volume config.
-				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, "", volType, true, volumeConfig, time.Time{}, contentType, false)
+				err = VolumeDBCreate(b, inst.Project().Name, fullSnapName, "", volType, true, volumeConfig, time.Time{}, time.Time{}, contentType, false)
 				if err != nil {
 					return err
 				}
@@ -6034,7 +6069,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 	// Validate config and create database entry for new storage volume.
 	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
+	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), srcBackup.Config.Volume.CreatedAt, time.Time{}, vol.ContentType(), true)
 	if err != nil {
 		return err
 	}
@@ -6058,7 +6093,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 
 		// Validate config and create database entry for new storage volume.
 		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType(), true)
+		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), snapshot.CreatedAt, *snapshot.ExpiresAt, snapVol.ContentType(), true)
 		if err != nil {
 			return err
 		}
