@@ -177,7 +177,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config, db.StoragePoolVolumeContentTypeFS)
+	volumeID, err := cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config, db.StoragePoolVolumeContentTypeFS, time.Now())
 	require.NoError(t, err)
 
 	getStoragePoolVolume := func(volumeProjectName string, volumeName string, volumeType int, poolID int64) (*db.StorageVolume, error) {
@@ -236,14 +236,14 @@ func TestCreateStoragePoolVolume_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config, db.StoragePoolVolumeContentTypeFS)
+	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID, config, db.StoragePoolVolumeContentTypeFS, time.Now())
 	require.NoError(t, err)
 
-	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID1, config, db.StoragePoolVolumeContentTypeFS)
+	_, err = cluster.CreateStoragePoolVolume("default", "v1", "", 1, poolID1, config, db.StoragePoolVolumeContentTypeFS, time.Now())
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
-	_, err = cluster.CreateStorageVolumeSnapshot("default", "v1/snap0", "", 1, poolID, config, time.Time{})
+	_, err = cluster.CreateStorageVolumeSnapshot("default", "v1/snap0", "", 1, poolID, config, time.Now(), time.Time{})
 	require.NoError(t, err)
 
 	n := cluster.GetNextStorageVolumeSnapshotIndex("p1", "v1", 1, "snap%d")

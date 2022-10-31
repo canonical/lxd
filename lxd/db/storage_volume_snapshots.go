@@ -17,7 +17,7 @@ import (
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
 // storage pool.
-func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, expiryDate time.Time) (int64, error) {
+func (c *Cluster) CreateStorageVolumeSnapshot(projectName string, volumeName string, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string, creationDate time.Time, expiryDate time.Time) (int64, error) {
 	var volumeID int64
 
 	var snapshotName string
@@ -26,34 +26,31 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	snapshotName = parts[1]
 
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		// If we are creating a snapshot, figure out the volume
-		// ID of the parent.
-		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, project, volumeName, volumeType, poolID, c.nodeID)
+		// Figure out the volume ID of the parent.
+		parentID, err := tx.storagePoolVolumeGetTypeID(ctx, projectName, volumeName, volumeType, poolID, c.nodeID)
 		if err != nil {
-			return fmt.Errorf("Find parent volume: %w", err)
+			return fmt.Errorf("Failed finding parent volume record for snapshot: %w", err)
 		}
 
 		_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
 		if err != nil {
-			return fmt.Errorf("Increment storage volumes sequence: %w", err)
+			return fmt.Errorf("Failed incrementing storage volumes sequence: %w", err)
 		}
 
 		row := tx.tx.QueryRowContext(ctx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
 		err = row.Scan(&volumeID)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting storage volumes sequence: %w", err)
 		}
 
-		_, err = tx.tx.Exec(
-			"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
-			volumeID, parentID, snapshotName, volumeDescription, expiryDate)
+		_, err = tx.tx.Exec("INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, creation_date, expiry_date) VALUES (?, ?, ?, ?, ?, ?)", volumeID, parentID, snapshotName, volumeDescription, creationDate, expiryDate)
 		if err != nil {
-			return fmt.Errorf("Insert volume snapshot: %w", err)
+			return fmt.Errorf("Failed creating volume snapshot record: %w", err)
 		}
 
 		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
 		if err != nil {
-			return fmt.Errorf("Insert storage volume configuration: %w", err)
+			return fmt.Errorf("Failed inserting storage volume snapshot record configuration: %w", err)
 		}
 
 		return nil
@@ -112,6 +109,7 @@ func (c *Cluster) GetStorageVolumeSnapshotWithID(snapshotID int) (StorageVolumeA
 SELECT
 	volumes.id,
 	volumes.name,
+	volumes.creation_date,
 	storage_pools.name,
 	volumes.type,
 	projects.name
@@ -121,7 +119,7 @@ JOIN storage_pools ON storage_pools.id=volumes.storage_pool_id
 WHERE volumes.id=?
 `
 	arg1 := []any{snapshotID}
-	outfmt := []any{&args.ID, &args.Name, &args.PoolName, &args.Type, &args.ProjectName}
+	outfmt := []any{&args.ID, &args.Name, &args.CreationDate, &args.PoolName, &args.Type, &args.ProjectName}
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -163,7 +161,7 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 // GetExpiredStorageVolumeSnapshots returns a list of expired volume snapshots.
 func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error) {
 	q := `
-	SELECT storage_volumes_snapshots.id, storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
+	SELECT storage_volumes_snapshots.id, storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.creation_date, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
 	FROM storage_volumes_snapshots
 	JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
 	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
@@ -179,7 +177,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 			var volName string
 			var expiryTime sql.NullTime
 
-			err := scan(&snap.ID, &volName, &snapName, &expiryTime, &snap.PoolName, &snap.ProjectName)
+			err := scan(&snap.ID, &volName, &snapName, &snap.CreationDate, &expiryTime, &snap.PoolName, &snap.ProjectName)
 			if err != nil {
 				return err
 			}
