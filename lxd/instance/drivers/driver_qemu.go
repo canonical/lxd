@@ -6551,3 +6551,113 @@ func (d *qemu) blockNodeName(name string) string {
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
 }
+
+func (d *qemu) setCPUs(count int) error {
+	if count == 0 {
+		return nil
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	cpus, err := monitor.QueryHotpluggableCPUs()
+	if err != nil {
+		return fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+	}
+
+	var availableCPUs []qmp.HotpluggableCPU
+	var hotpluggedCPUs []qmp.HotpluggableCPU
+
+	// Count the available and hotplugged CPUs.
+	for _, cpu := range cpus {
+		// If qom-path is unset, the CPU is available.
+		if cpu.QOMPath == "" {
+			availableCPUs = append(availableCPUs, cpu)
+		} else if strings.HasPrefix(cpu.QOMPath, "/machine/peripheral") {
+			hotpluggedCPUs = append(hotpluggedCPUs, cpu)
+		}
+	}
+
+	// The reserved CPUs includes both the hotplugged CPUs as well as the fixed one.
+	totalReservedCPUs := len(hotpluggedCPUs) + 1
+
+	// Nothing to do as the count matches the already reserved CPUs.
+	if count == totalReservedCPUs {
+		return nil
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// More CPUs requested.
+	if count > totalReservedCPUs {
+		// Cannot allocate more CPUs than the system provides.
+		if count > len(cpus) {
+			return fmt.Errorf("Cannot allocate more CPUs than available")
+		}
+
+		// This shouldn't trigger, but if it does, don't panic.
+		if count-totalReservedCPUs >= len(availableCPUs) {
+			return fmt.Errorf("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Only allocate the difference in CPUs.
+		for i := 0; i < count-totalReservedCPUs; i++ {
+			cpu := availableCPUs[i]
+
+			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
+
+			err := monitor.AddDevice(map[string]string{
+				"id":        devID,
+				"driver":    cpu.Type,
+				"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+				"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+				"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+			})
+			if err != nil {
+				return fmt.Errorf("Failed to add device: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.RemoveDevice(devID)
+				d.logger.Warn("Failed to remove CPU device", logger.Ctx{"err": err})
+			})
+		}
+	} else {
+		if totalReservedCPUs-count >= len(availableCPUs) {
+			// This shouldn't trigger, but if it does, don't panic.
+			return fmt.Errorf("Unable to remove CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Less CPUs requested.
+		for i := 0; i < totalReservedCPUs-count; i++ {
+			cpu := hotpluggedCPUs[i]
+
+			fields := strings.Split(cpu.QOMPath, "/")
+			devID := fields[len(fields)-1]
+
+			err := monitor.RemoveDevice(devID)
+			if err != nil {
+				return fmt.Errorf("Failed to remove CPU: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.AddDevice(map[string]string{
+					"id":        devID,
+					"driver":    cpu.Type,
+					"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+					"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+					"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+				})
+				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
+			})
+		}
+	}
+
+	revert.Success()
+
+	return nil
+}
