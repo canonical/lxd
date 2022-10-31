@@ -1,0 +1,62 @@
+LXD
+
+LXC and LXD are two important acronyms to know if you’re into containers. Unfortunately, they’re also acronyms that are hard to keep straight from one another. They sound alike. They refer to similar platforms, which were created in large part by the same company. And they’re deeply intertwined with one another at a technical level.
+
+If this sounds confusing, it’s because it is, at least at first. Fortunately, with a little bit of explaining, it’s easy enough to understand LXC, LXD and what they mean for admins and developers who want to use containers.
+
+This post explains what LXC and LXD are, what’s different between them, and why developers or admins would want to use them—or, alternatively, why they might prefer to stick with Docker or CoreO.
+
+Complete Visibility for DevSecOps
+See how Sumo Logic breaks down data silos and provides visibility and insights to your Development, Security, and Operations teams.
+
+Watch video
+LXC
+To understand LXD you first have to understand LXC.
+
+LXC—short for “Linux containers”, is a solution for virtualizing software at the operating system level within the Linux kernel. Unlike traditional hypervisors (think VMware, KVM and Hyper-V), LXC lets you run single applications in virtual environments, although you can also virtualize an entire operating system inside an LXC container, if you’d like.
+
+LXC’s main advantages include making it easy to control a virtual environment using userspace tools from the host OS, requiring less overhead than a traditional hypervisor and increasing the portability of individual apps by making it possible to distribute them inside containers.
+
+If you’re thinking that LXC sounds a lot like Docker or CoreOS containers, it’s because LXC used to be the underlying technology that made Docker and CoreOS tick. More recently, however, Docker has gone in its own direction and no longer depends on LXC. CoreOS now also does its own thing with Rocket (also known as rkt, for people who really dislike typing). Still, LXC was at the origin of the container revolution several years ago, and LXC principles—if not LXC code — remain central to the way containers are developing.
+
+LXD
+The simplest way to define LXD is to say it’s an extension of LXC. LXD also happens to be LXC’s main claim to fame, now that LXC has ceased to be important for Docker and CoreOS.
+
+The more technical way to define LXD is to describe it as a REST API that connects to libxlc, the LXC software library. LXD, which is written in Go, creates a system daemon that apps can access locally using a Unix socket, or over the network via HTTPS.
+
+LXD’s main selling points include the following:
+
+A host can run many LXC containers using only a single system daemon, which simplifies management and reduces overhead. With pure-play LXC, you’d need separate processes for each container.
+The LXD daemon can take advantage of host-level security features to make containers more secure. On plain LXC, container security is more problematic.
+Because the LXD daemon handles networking and data storage, and users can control these things from the LXD CLI interface, it simplifies the process of sharing these resources with containers.
+LXD offers advanced features not available from LXC, including live container migration and the ability to snapshot a running container.
+Canonical, the company that funds the Ubuntu GNU/Linux operating system (and which, not coincidentally, is also a major supporter of LXC), launched LXD in late 2014. If I were writing this post just a few months ago, I would say that LXD is not yet ready for real-world use.
+
+Sumo Logic App for Linux
+Why the Sumo Logic App for Linux?
+Learn more.
+
+But a lot has changed recently, and LXD 2.0, the first production release, is out as of April 2016. Now, LXD is finally ready for production-level use.
+
+(What about LXD 1.0, you ask? There was no LXD 1.0. The developers skipped straight to LXD 2.0 because it was released in parallel with LXC 2.0.)
+
+LXC and LXD
+If you’re an app developer or data center admin, you’re probably wondering what all of the above means for you, and which container solution you should choose.
+
+The answer is complicated. First of all, understand that you can’t choose between LXC and LXD, because they’re not distinct things. They’re not forks or clones of one another. LXD depends on LXC. They’re both being developed in tandem, by the same general group of programmers. So if you use LXD, you’re using LXC, too, and you always will.
+
+Yes, you could use LXC without LXD. But you probably would not want to. On its own, LXC will give you only a basic subset of features. For a production environment, you’ll want to use LXD.
+
+LXC+LXD vs. Docker/CoreOS
+LXC Vs Docker﻿﻿
+You’re probably also wondering whether the LXC+LXD combo is better than Docker or CoreOS. The answer depends on your needs.
+
+First, note that Canonical does not intend LXC+LXD to be a replacement for Docker. Instead, as Stéphane Graber, one of the LXD developers writes, LXD is designed for hosting virtual environments that “will typically be long running and based on a clean distribution image,” whereas “Docker focuses on ephemeral, stateless, minimal containers that won’t typically get upgraded or re-configured but instead just be replaced entirely.”
+
+This means you should consider the type of deployment you will have to manage before making a choice regarding LXD or Docker (or CoreOS, which is similar to Docker in this regard). Are you going to be spinning up large numbers of containers quickly based on generic app images? If so, go with Docker or CoreOS. Alternatively, if you intend to virtualize an entire OS, or to run a persistent virtual app for a long period, LXD will likely prove a better solution.
+
+The second factor to consider is your host environment. LXD only supports Linux—and, at least for now, it’s really only documented for use with Ubuntu. So if your servers run another flavor of Linux or Windows, LXD won’t work well for you. In contrast, Docker and CoreOS are pretty portable across almost any Linux-based OS, and you can now even run Docker natively on Windows and OS X.
+
+Your mileage may vary, of course. But these are the basics. Now, happy containering!
+
+Editor’s Note: LXC and LXD: Explaining Linux Containers is published by the Sumo Logic DevOps Community. If you’d like to learn more or contribute, visit devops.sumologic.com. Also, be sure to check out the Sumo Logic Open Source page for free tools and code that will enable you to monitor and troubleshoot applications from code to production.
