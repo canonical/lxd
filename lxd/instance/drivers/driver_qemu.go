@@ -2986,7 +2986,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 	// Determine per-node memory limit.
 	memSizeMB := memSizeBytes / 1024 / 1024
 	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
-	memSizeMB = nodeMemory * int64(len(hostNodes))
 	cpuOpts.memory = nodeMemory
 
 	if cfg != nil {
