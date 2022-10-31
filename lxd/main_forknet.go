@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 
 	"github.com/spf13/cobra"
 
@@ -151,7 +152,8 @@ func (c *cmdForknet) Command() *cobra.Command {
 }
 
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
-	networks, err := netutils.NetnsGetifaddrs(-1)
+	hostInterfaces, _ := net.Interfaces()
+	networks, err := netutils.NetnsGetifaddrs(-1, hostInterfaces)
 	if err != nil {
 		return err
 	}
