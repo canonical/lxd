@@ -1485,8 +1485,15 @@ func (d *qemu) Start(stateful bool) error {
 	// Apply CPU pinning.
 	cpuLimit, ok := d.expandedConfig["limits.cpu"]
 	if ok && cpuLimit != "" {
-		_, err := strconv.Atoi(cpuLimit)
-		if err != nil {
+		limit, err := strconv.Atoi(cpuLimit)
+		if err == nil {
+			if limit > 1 {
+				err := d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed to add CPUs: %w", err)
+				}
+			}
+		} else {
 			// Expand to a set of CPU identifiers and get the pinning map.
 			_, _, _, pins, _, err := d.cpuTopology(cpuLimit)
 			if err != nil {
@@ -2902,13 +2909,14 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 
 	cpuPinning := false
 
-	cpuCount, err := strconv.Atoi(cpus)
+	_, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
-		cpuOpts.cpuCount = cpuCount
+		// Only one CPU will be added here, as the others will be hotplugged during start.
+		cpuOpts.cpuCount = 1
 		cpuOpts.cpuSockets = 1
-		cpuOpts.cpuCores = cpuCount
+		cpuOpts.cpuCores = 1
 		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
