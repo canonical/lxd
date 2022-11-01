@@ -2900,6 +2900,8 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		qemuMemObjectFormat: qemuMemObjectFormat,
 	}
 
+	cpuPinning := false
+
 	cpuCount, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
@@ -2915,6 +2917,8 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		if err != nil {
 			return -1, err
 		}
+
+		cpuPinning = true
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
 		vcpuSocket := map[uint64]uint64{}
@@ -2990,7 +2994,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 
 	if cfg != nil {
 		*cfg = append(*cfg, qemuMemory(&qemuMemoryOpts{memSizeMB})...)
-		*cfg = append(*cfg, qemuCPU(&cpuOpts)...)
+		*cfg = append(*cfg, qemuCPU(&cpuOpts, cpuPinning)...)
 	}
 
 	// Configure the CPU limit.
