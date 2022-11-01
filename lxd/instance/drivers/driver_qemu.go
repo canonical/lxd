@@ -4645,6 +4645,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
 			"cluster.evacuate",
+			"limits.cpu",
 			"limits.memory",
 			"security.agent.metrics",
 			"security.secureboot",
@@ -4698,7 +4699,26 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
 
-			if key == "limits.memory" {
+			if key == "limits.cpu" {
+				oldValue := oldExpandedConfig["limits.cpu"]
+
+				if oldValue != "" {
+					_, err := strconv.Atoi(oldValue)
+					if err != nil {
+						return fmt.Errorf("Cannot update key %q when using CPU pinning and the VM is running", key)
+					}
+				}
+
+				limit, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("Cannot change CPU pinning when VM is running")
+				}
+
+				err = d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed updating cpu limit: %w", err)
+				}
+			} else if key == "limits.memory" {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
