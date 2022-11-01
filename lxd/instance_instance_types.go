@@ -66,6 +66,21 @@ func instanceLoadCache() error {
 	return nil
 }
 
+func instanceLoadFromFile() map[string]map[string]*instanceType {
+	newInstanceType := map[string]map[string]*instanceType{}
+	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
+		return newInstanceType
+	}
+
+	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
+	if err != nil {
+		return newInstanceType
+	}
+
+	_ = yaml.Unmarshal(content, &newInstanceType)
+	return newInstanceType
+}
+
 func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	// This is basically a check of whether we're on Go >= 1.8 and
 	// http.Request has cancellation support. If that's the case, it will
@@ -110,7 +125,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
+func instanceLoadFromWebsite(ctx context.Context, d *Daemon) map[string]map[string]*instanceType {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
@@ -160,10 +175,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		return nil
 	}
 
-	// Set an initial value from the cache
-	if instanceTypes == nil {
-		_ = instanceLoadCache()
-	}
+	newInstanceTypes := map[string]map[string]*instanceType{}
 
 	// Get the list of instance type sources
 	sources := map[string]string{}
@@ -172,33 +184,44 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		if err != ctx.Err() {
 			logger.Warnf("Failed to update instance types: %v", err)
 		}
-
-		return err
+		return newInstanceTypes
 	}
 
 	// Parse the individual files
-	newInstanceTypes := map[string]map[string]*instanceType{}
 	for name, filename := range sources {
 		types := map[string]*instanceType{}
 		err = downloadParse(filename, &types)
 		if err != nil {
 			logger.Warnf("Failed to update instance types: %v", err)
-			return err
+			continue
 		}
-
 		newInstanceTypes[name] = types
 	}
+	return newInstanceTypes
+}
+
+func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
+	// Set an initial value from the cache
+	if instanceTypes == nil {
+		_ = instanceLoadCache()
+	}
+
+	newInstanceTypes := instanceLoadFromFile()
+
+	wsInstanceTypes := instanceLoadFromWebsite(ctx, d)
 
 	// Update the global map
+	for k, v := range wsInstanceTypes {
+		newInstanceTypes[k] = v
+	}
 	instanceTypes = newInstanceTypes
 
 	// And save in the cache
-	err = instanceSaveCache()
+	err := instanceSaveCache()
 	if err != nil {
 		logger.Warnf("Failed to update instance types cache: %v", err)
 		return err
 	}
-
 	return nil
 }
 
