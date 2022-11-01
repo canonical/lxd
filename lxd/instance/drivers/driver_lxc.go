@@ -7078,7 +7078,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 					return nil, fmt.Errorf("Failed to stat %s: %w", dev["source"], err)
 				}
 
-				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(stat.Dev), unix.Minor(stat.Dev))
+				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(uint64(stat.Dev)), unix.Minor(uint64(stat.Dev)))
 
 				if shared.PathExists(backingFilePath) {
 					// Read backing file
