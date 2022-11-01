@@ -175,14 +175,19 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 
 var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
 	if r.Method == "GET" {
-		location := "none"
 		clustered, err := cluster.Enabled(d.db.Node)
 		if err != nil {
 			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 		}
 
+		var location string
 		if clustered {
 			location = c.Location()
+		} else {
+			location, err = os.Hostname()
+			if err != nil {
+				return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
+			}
 		}
 
 		var state api.StatusCode
