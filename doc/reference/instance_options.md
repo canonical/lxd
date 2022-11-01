@@ -23,16 +23,16 @@ The currently supported keys are:
 (instance-configuration)=
 Key                                             | Type      | Default           | Live update   | Condition                 | Description
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
-`agent.nic_config`                              | bool      | `false`           | n/a           | virtual machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
-`boot.autostart`                                | bool      | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
-`boot.autostart.delay`                          | integer   | `0`               | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
-`boot.autostart.priority`                       | integer   | `0`               | n/a           | -                         | What order to start the instances in (starting with highest)
+`agent.nic_config`                              | bool      | `false`           | no            | virtual machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
+`boot.autostart`                                | bool      | -                 | no            | -                         | Always start the instance when LXD starts (if not set, restore last state)
+`boot.autostart.delay`                          | integer   | `0`               | no            | -                         | Number of seconds to wait after the instance started before starting the next one
+`boot.autostart.priority`                       | integer   | `0`               | no            | -                         | What order to start the instances in (starting with highest)
 `boot.host_shutdown_timeout`                    | integer   | `30`              | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
-`boot.stop.priority`                            | integer   | `0`               | n/a           | -                         | What order to shutdown the instances (starting with highest)
+`boot.stop.priority`                            | integer   | `0`               | no            | -                         | What order to shutdown the instances (starting with highest)
 `cloud-init.network-config`                     | string    | `DHCP on eth0`    | no            | -                         | Cloud-init `network-config`, content is used as seed value
 `cloud-init.user-data`                          | string    | `#cloud-config`   | no            | -                         | Cloud-init `user-data`, content is used as seed value
 `cloud-init.vendor-data`                        | string    | `#cloud-config`   | no            | -                         | Cloud-init `vendor-data`, content is used as seed value
-`cluster.evacuate`                              | string    | `auto`            | n/a           | -                         | What to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
+`cluster.evacuate`                              | string    | `auto`            | no            | -                         | What to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
 `environment.*`                                 | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
 `limits.cpu`                                    | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
 `limits.cpu.allowance`                          | string    | `100%`            | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
@@ -95,7 +95,7 @@ Key                                             | Type      | Default           
 `snapshots.schedule.stopped`                    | bool      | `false`           | no            | -                         | Controls whether to automatically snapshot stopped instances
 `snapshots.pattern`                             | string    | `snap%d`          | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 `snapshots.expiry`                              | string    | -                 | no            | -                         | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-`user.*`                                        | string    | -                 | n/a           | -                         | Free form user key/value storage (can be used in search)
+`user.*`                                        | string    | -                 | no            | -                         | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
 
