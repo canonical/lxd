@@ -3,6 +3,8 @@ package drivers
 import (
 	"fmt"
 	"strings"
+
+	"github.com/lxc/lxd/lxd/resources"
 )
 
 type cfgEntry struct {
@@ -408,16 +410,34 @@ func qemuCPUNumaHostNode(opts *qemuCPUOpts, index int) []cfgSection {
 	}}
 }
 
-func qemuCPU(opts *qemuCPUOpts) []cfgSection {
+func qemuCPU(opts *qemuCPUOpts, pinning bool) []cfgSection {
+	entries := []cfgEntry{
+		{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
+	}
+
+	if pinning {
+		entries = append(entries, cfgEntry{
+			key: "sockets", value: fmt.Sprintf("%d", opts.cpuSockets),
+		}, cfgEntry{
+			key: "cores", value: fmt.Sprintf("%d", opts.cpuCores),
+		}, cfgEntry{
+			key: "threads", value: fmt.Sprintf("%d", opts.cpuThreads),
+		})
+	} else {
+		cpu, err := resources.GetCPU()
+		if err != nil {
+			return nil
+		}
+
+		entries = append(entries, cfgEntry{
+			key: "maxcpus", value: fmt.Sprintf("%d", cpu.Total),
+		})
+	}
+
 	sections := []cfgSection{{
 		name:    "smp-opts",
 		comment: "CPU",
-		entries: []cfgEntry{
-			{key: "cpus", value: fmt.Sprintf("%d", opts.cpuCount)},
-			{key: "sockets", value: fmt.Sprintf("%d", opts.cpuSockets)},
-			{key: "cores", value: fmt.Sprintf("%d", opts.cpuCores)},
-			{key: "threads", value: fmt.Sprintf("%d", opts.cpuThreads)},
-		},
+		entries: entries,
 	}}
 
 	if opts.architecture != "x86_64" {

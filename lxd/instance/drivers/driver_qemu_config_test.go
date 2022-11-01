@@ -664,7 +664,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			threads = "1"`,
 		}}
 		for _, tc := range testCases {
-			runTest(tc.expected, qemuCPU(&tc.opts))
+			runTest(tc.expected, qemuCPU(&tc.opts, true))
 		}
 	})
 
