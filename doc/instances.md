@@ -5,9 +5,10 @@
 :titlesonly:
 
 explanation/instances.md
-howto/instance_create.md
-howto/instance_qemu_config.md
+Create instances <howto/instances_create.md>
+Manage instances <howto/instances_manage.md>
+Configure instances <howto/instances_configure.md>
+Use profiles <profiles.md>
 explanation/instance_config.md
 explanation/devices.md
-profiles.md
 ```

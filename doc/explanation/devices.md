@@ -53,6 +53,7 @@ or to a profile with:
 lxc profile device add <profile> <name> <type> [key=value]...
 ```
 
+(device-types)=
 ## Device types
 
 LXD supports the following device types:

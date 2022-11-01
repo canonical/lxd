@@ -6,7 +6,8 @@ The instance configuration consists of different categories:
 Instance properties
 : Instance properties are set when the instance is created.
   They include, for example, the instance name and architecture.
-  These properties are specified during instance creation and cannot be changed in the same way as other configuration options.
+  These properties are specified during instance creation.
+  Some of the properties are read-only and cannot be changed after creation, while others can be updated when {ref}`editing the full instance configuration <instances-configure-edit>`.
 
   In the YAML configuration, properties are on the top level.
 
@@ -28,5 +29,6 @@ Instance options
 
 ../reference/instance_properties.md
 ../reference/instance_options.md
+Override QEMU configuration <../howto/instance_qemu_config.md>
 ../reference/instance_units.md
 ```
