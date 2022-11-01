@@ -2006,3 +2006,8 @@ This adds an expiry to cluster join tokens which defaults to 3 hours, but can be
 
 This adds an expiry to remote add join tokens.
 It can be set in the `core.remote_token_expiry` configuration key, and default to no expiry.
+
+## `cpu_hotplug`
+
+This adds CPU hotplugging for VMs.
+Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.

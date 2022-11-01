@@ -338,6 +338,7 @@ var APIExtensions = []string{
 	"cluster_join_token_expiry",
 	"remote_token_expiry",
 	"init_preseed",
+	"cpu_hotplug",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
