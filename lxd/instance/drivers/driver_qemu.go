@@ -2377,6 +2377,18 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		return err
 	}
 
+	// Writing the connection info the the config drive allows the lxd-agent to start devlxd very
+	// early. This is important for systemd services which want or require /dev/lxd/sock.
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
+	}
+
+	err = d.saveConnectionInfo(connInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
