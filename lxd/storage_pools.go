@@ -261,6 +261,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No driver provided"))
 	}
 
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
 	ctx := logger.Ctx{}
 
 	targetNode := queryParam(r, "target")
