@@ -36,6 +36,13 @@ Enter the following command to start an instance:
 
 You will get an error if the instance does not exist or if it is running already.
 
+To immediately attach to the console when starting, pass the `--console` flag.
+For example:
+
+    lxc start <instance_name> --console
+
+See {ref}`instances-console` for more information.
+
 ## Stop an instance
 
 Enter the following command to stop an instance:
