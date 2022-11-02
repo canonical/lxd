@@ -1,57 +1,109 @@
-# Instance command execution
+(run-commands)=
+# How to run commands in an instance
 
-LXD makes it easy to run a command inside a given instance.
+LXD allows to run commands inside an instance using the LXD client, without needing to access the instance through the network.
+
 For containers, this always works and is handled directly by LXD.
-For virtual machines, this relies on the `lxd-agent` process running inside of the virtual machine.
+For virtual machines, the `lxd-agent` process must be running inside of the virtual machine for this to work.
 
-At the CLI level, this is achieved through the `lxc exec` command which
-supports specifying not only the command to executed but also the
-execution mode, user, group and working directory.
+To run commands inside your instance, use the `lxc exec` command.
+By running a shell command (for example, `/bin/bash`), you can get shell access to your instance.
 
-At the API level, this is done through `/1.0/instances/NAME/exec`.
+## Run commands inside your instance
 
-## Execution mode
+To run a single command from the terminal of the host machine, use the `lxc exec` command:
+
+    lxc exec <instance_name> -- <command>
+
+For example, enter the following command to update the package list on your container:
+
+    lxc exec ubuntu-container -- apt-get update
+
+### Execution mode
 
 LXD can execute commands either interactively or non-interactively.
 
-In interactive mode, a pseudo-terminal device (PTS) will be used to handle input (stdin) and output (stdout, stderr).
-This is automatically selected by the CLI if connected to a terminal emulator (not run from a script).
+In interactive mode, a pseudo-terminal device (PTS) is used to handle input (stdin) and output (stdout, stderr).
+This mode is automatically selected by the CLI if connected to a terminal emulator (and not run from a script).
+To force interactive mode, add either `--force-interactive` or `--mode interactive` to the command.
 
-In non-interactive mode, pipes are allocated instead, one for each of stdin, stdout and stderr.
-This allows running a command and properly getting separate stdin, stdout and stderr as required by many scripts.
+In non-interactive mode, pipes are allocated instead (one for each of stdin, stdout and stderr).
+This method allows running a command and properly getting separate stdin, stdout and stderr as required by many scripts.
+To force non-interactive mode, add either `--force-noninteractive` or `--mode non-interactive` to the command.
 
-## User, groups and working directory
+### User, groups and working directory
 
-LXD has a policy not to read data from within the instances or trusting anything that can be found in it.
-This means that LXD will not be parsing things like `/etc/passwd`, `/etc/group` or `/etc/nsswitch.conf`
-to handle user and group resolution.
+LXD has a policy not to read data from within the instances or trust anything that can be found in the instance.
+Therefore, LXD does not parse files like `/etc/passwd`, `/etc/group` or `/etc/nsswitch.conf` to handle user and group resolution.
 
-As a result, LXD also doesn't know where the home directory for the user
-may be or what supplementary groups the user may be in.
+As a result, LXD doesn't know the home directory for the user or the supplementary groups the user is in.
 
-By default, LXD will run the command as root (UID 0) with the default group (GID 0)
-and the working directory set to /root.
+By default, LXD runs commands as `root` (UID 0) with the default group (GID 0) and the working directory set to `/root`.
+You can override the user, group and working directory by specifying absolute values through the following flags:
 
-The user, group and working directory can all be overridden but absolute values (UID, GID, path)
-have to be provided as LXD will not do any resolution for you.
+- `--user` - the user ID for running the command
+- `--group` - the group ID for running the command
+- `--cwd` - the directory in which the command should run
 
-## Environment
+### Environment
 
-The environment variables set during an exec session come from a few sources:
+You can pass environment variables to an exec session in the following two ways:
 
-- `environment.KEY=VALUE` directly set on the instance
-- Environment variables directly passed during the exec session
-- Default variables set by LXD
+Set environment variables as instance options
+: To set the `ENVVAR` environment variable to `VALUE` in the instance, set the `environment.ENVVAR` {ref}`instance option <instance-options>`:
 
-For that last category, LXD will set the `PATH` to `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`
-and extend it with `/snap` and `/etc/NIXOS` if applicable.
-Additionally `LANG` will be set to `C.UTF-8`.
+      lxc config set <instance_name> environment.ENVVAR=VALUE
 
-When running as root (UID 0), the following variables will also be set:
+Pass environment variables to the exec command
+: To pass an environment variable to the exec command, use the `--env` flag.
+  For example:
 
-- `HOME` to `/root`
-- `USER` to `root`
+      lxc exec <instance_name> --env ENVVAR=VALUE -- <command>
 
-When running as another user, it is the responsibility of the user to specify the correct values.
+In addition, LXD sets the following default values (unless they are passed in one of the ways described above):
 
-Those defaults only get set if they're not in the instance configuration or directly overridden for the exec session.
+```{list-table}
+   :header-rows: 1
+
+* - Variable name
+  - Condition
+  - Value
+* - `PATH`
+  - \-
+  - Concatenation of:
+    - `/usr/local/sbin`
+    - `/usr/local/bin`
+    - `/usr/sbin`
+    - `/usr/bin`
+    - `/sbin`
+    - `/bin`
+    - `/snap` (if applicable)
+    - `/etc/NIXOS` (if applicable)
+* - `LANG`
+  - \-
+  - `C.UTF-8`
+* - `HOME`
+  - running as root (UID 0)
+  - `/root`
+* - `USER`
+  - running as root (UID 0)
+  - `root`
+```
+
+## Get shell access to your instance
+
+If you want to run commands directly in your instance, run a shell command inside it.
+For example, enter the following command (assuming that the `/bin/bash` command exists in your instance):
+
+    lxc exec <instance_name> -- /bin/bash
+
+By default, you are logged in as the `root` user.
+If you want to log in as a different user, enter the following command:
+
+    lxc exec <instance_name> -- su --login <user_name>
+
+```{note}
+Depending on the operating system that you run in your instance, you might need to create a user first.
+```
+
+To exit the instance shell, enter `exit` or press `Ctrl`+`d`.
