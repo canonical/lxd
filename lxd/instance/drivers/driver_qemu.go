@@ -1611,8 +1611,6 @@ func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
 
 // advertiseVsockAddress advertises the CID and port to the VM.
 func (d *qemu) advertiseVsockAddress() error {
-	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
-
 	client, err := d.getAgentClient()
 	if err != nil {
 		return fmt.Errorf("Failed getting agent client handle: %w", err)
@@ -1625,22 +1623,16 @@ func (d *qemu) advertiseVsockAddress() error {
 
 	defer agent.Disconnect()
 
-	req := agentAPI.API10Put{
-		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
-		Devlxd:      devlxdEnabled,
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
 	}
 
-	addr := d.state.Endpoints.VsockAddress()
-	if addr == "" {
+	if connInfo == nil {
 		return nil
 	}
 
-	_, err = fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
-	if err != nil {
-		return fmt.Errorf("Failed parsing vsock address: %w", err)
-	}
-
-	_, _, err = agent.RawQuery("PUT", "/1.0", req, "")
+	_, _, err = agent.RawQuery("PUT", "/1.0", connInfo, "")
 	if err != nil {
 		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
 	}
