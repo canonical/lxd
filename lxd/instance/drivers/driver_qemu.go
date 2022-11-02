@@ -1588,6 +1588,27 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
+// server.
+func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
+	req := agentAPI.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
+	}
+
+	addr := d.state.Endpoints.VsockAddress()
+	if addr == "" {
+		return nil, nil
+	}
+
+	_, err := fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing vsock address: %w", err)
+	}
+
+	return &req, nil
+}
+
 // advertiseVsockAddress advertises the CID and port to the VM.
 func (d *qemu) advertiseVsockAddress() error {
 	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
