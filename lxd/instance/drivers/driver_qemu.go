@@ -1741,6 +1741,26 @@ func (d *qemu) SaveConfigFile() error {
 	return nil
 }
 
+func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
+	configDrivePath := filepath.Join(d.Path(), "config")
+
+	f, err := os.Create(filepath.Join(configDrivePath, "agent.conf"))
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	err = json.NewEncoder(f).Encode(connInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // OnHook is the top-level hook handler.
 func (d *qemu) OnHook(hookName string, args map[string]string) error {
 	return instance.ErrNotImplemented
