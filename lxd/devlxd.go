@@ -60,6 +60,10 @@ type devLxdHandler struct {
 }
 
 var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
@@ -71,6 +75,10 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.In
 }}
 
 var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusBadRequest, "bad request"), c.Type() == instancetype.VM)
@@ -89,6 +97,10 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c in
 }}
 
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -107,12 +119,20 @@ var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d
 }}
 
 var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
+	}
+
 	value := inst.ExpandedConfig()["user.meta-data"]
 
 	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
 }}
 
 var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "config,device"
@@ -166,6 +186,10 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 }}
 
 var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	location := "none"
 	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
@@ -180,6 +204,10 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }}
 
