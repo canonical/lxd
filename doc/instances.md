@@ -9,6 +9,7 @@ Create instances <howto/instances_create.md>
 Manage instances <howto/instances_manage.md>
 Configure instances <howto/instances_configure.md>
 Use profiles <profiles.md>
+Access files <howto/instances_access_files.md>
 explanation/instance_config.md
 explanation/devices.md
 ```
