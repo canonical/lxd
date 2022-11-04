@@ -186,6 +186,7 @@ SATA
 scalable
 SDN
 Seccomp
+SFTP
 SHA
 shiftfs
 SIGHUP
