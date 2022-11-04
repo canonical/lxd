@@ -1588,10 +1588,29 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
+// server.
+func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
+	req := agentAPI.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
+	}
+
+	addr := d.state.Endpoints.VsockAddress()
+	if addr == "" {
+		return nil, nil
+	}
+
+	_, err := fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing vsock address: %w", err)
+	}
+
+	return &req, nil
+}
+
 // advertiseVsockAddress advertises the CID and port to the VM.
 func (d *qemu) advertiseVsockAddress() error {
-	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
-
 	client, err := d.getAgentClient()
 	if err != nil {
 		return fmt.Errorf("Failed getting agent client handle: %w", err)
@@ -1604,22 +1623,16 @@ func (d *qemu) advertiseVsockAddress() error {
 
 	defer agent.Disconnect()
 
-	req := agentAPI.API10Put{
-		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
-		Devlxd:      devlxdEnabled,
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
 	}
 
-	addr := d.state.Endpoints.VsockAddress()
-	if addr == "" {
+	if connInfo == nil {
 		return nil
 	}
 
-	_, err = fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
-	if err != nil {
-		return fmt.Errorf("Failed parsing vsock address: %w", err)
-	}
-
-	_, _, err = agent.RawQuery("PUT", "/1.0", req, "")
+	_, _, err = agent.RawQuery("PUT", "/1.0", connInfo, "")
 	if err != nil {
 		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
 	}
@@ -1728,6 +1741,26 @@ func (d *qemu) RegisterDevices() {
 // SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed
 // after that, so doesn't need to support being regenerated.
 func (d *qemu) SaveConfigFile() error {
+	return nil
+}
+
+func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
+	configDrivePath := filepath.Join(d.Path(), "config")
+
+	f, err := os.Create(filepath.Join(configDrivePath, "agent.conf"))
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	err = json.NewEncoder(f).Encode(connInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2340,6 +2373,18 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	nicConfigPath := filepath.Join(configDrivePath, deviceConfig.NICConfigDir)
 	_ = os.RemoveAll(nicConfigPath)
 	err = os.MkdirAll(nicConfigPath, 0500)
+	if err != nil {
+		return err
+	}
+
+	// Writing the connection info the the config drive allows the lxd-agent to start devlxd very
+	// early. This is important for systemd services which want or require /dev/lxd/sock.
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
+	}
+
+	err = d.saveConnectionInfo(connInfo)
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,7 @@ type Daemon struct {
 
 	devlxdRunning bool
 	devlxdMu      sync.Mutex
+	devlxdEnabled bool
 }
 
 // newDaemon returns a new Daemon object with the given configuration.
