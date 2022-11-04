@@ -12,11 +12,11 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/client"
-	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -161,7 +161,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 		return smartResponse(err)
 	}
 
-	var instanceData agentAPI.DevLXDGet
+	var instanceData api.DevLXDGet
 
 	err = resp.MetadataAsStruct(&instanceData)
 	if err != nil {
