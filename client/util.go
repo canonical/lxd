@@ -101,7 +101,7 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	return client, nil
 }
 
-func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
+func unixHTTPClient(args *ConnectionArgs, path string) (*http.Client, error) {
 	// Setup a Unix socket dialer
 	unixDial := func(_ context.Context, network, addr string) (net.Conn, error) {
 		raddr, err := net.ResolveUnixAddr("unix", path)
@@ -112,16 +112,22 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 		return net.DialUnix("unix", nil, raddr)
 	}
 
+	if args == nil {
+		args = &ConnectionArgs{}
+	}
+
 	// Define the http transport
 	transport := &http.Transport{
 		DialContext:           unixDial,
 		DisableKeepAlives:     true,
+		Proxy:                 args.Proxy,
 		ExpectContinueTimeout: time.Second * 30,
 		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	// Define the http client
+	client := args.HTTPClient
 	if client == nil {
 		client = &http.Client{}
 	}
