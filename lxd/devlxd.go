@@ -29,12 +29,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-type devlxdGet struct {
-	APIVersion   string `json:"api_version" yaml:"api_version"`
-	InstanceType string `json:"instance_type" yaml:"instance_type"`
-	Location     string `json:"location" yaml:"location"`
-}
-
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -200,7 +194,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 		location = c.Location()
 	}
 
-	return response.DevLxdResponse(http.StatusOK, devlxdGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
+	return response.DevLxdResponse(http.StatusOK, api.DevLXDPut{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
