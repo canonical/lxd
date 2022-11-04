@@ -29,7 +29,7 @@ When copying from one storage pool to another, you can either use the same name 
 (storage-move-volume)=
 ## Move or rename custom storage volumes
 
-Before you can move or rename a custom storage volume, all instances that use it must be [stopped](https://linuxcontainers.org/lxd/getting-started-cli/#start-and-stop-an-instance).
+Before you can move or rename a custom storage volume, all instances that use it must be {ref}`stopped <instances-manage-stop>`.
 
 Use the following command to move or rename a storage volume:
 
