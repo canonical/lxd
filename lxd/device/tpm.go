@@ -38,6 +38,8 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 
 	if instConf.Type() == instancetype.Container {
 		rules["path"] = validate.IsNotEmpty
+	} else {
+		rules["path"] = validate.Optional(validate.IsNotEmpty)
 	}
 
 	err := d.config.Validate(rules)
