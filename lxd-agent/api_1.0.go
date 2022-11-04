@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -70,19 +71,29 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, fullSrv, fullSrv)
 }
 
-func api10Put(d *Daemon, r *http.Request) response.Response {
+func setConnectionInfo(d *Daemon, rd io.Reader) error {
 	var data agentAPI.API10Put
 
-	err := json.NewDecoder(r.Body).Decode(&data)
+	err := json.NewDecoder(rd).Decode(&data)
 	if err != nil {
-		return response.ErrorResponse(http.StatusInternalServerError, err.Error())
+		return err
 	}
 
 	d.devlxdMu.Lock()
 	d.serverCID = data.CID
 	d.serverPort = data.Port
 	d.serverCertificate = data.Certificate
+	d.devlxdEnabled = data.Devlxd
 	d.devlxdMu.Unlock()
+
+	return nil
+}
+
+func api10Put(d *Daemon, r *http.Request) response.Response {
+	err := setConnectionInfo(d, r.Body)
+	if err != nil {
+		return response.ErrorResponse(http.StatusInternalServerError, err.Error())
+	}
 
 	// Try connecting to LXD server.
 	client, err := getClient(int(d.serverCID), int(d.serverPort), d.serverCertificate)
@@ -100,7 +111,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	// Let LXD know, we were able to connect successfully.
 	d.chConnected <- struct{}{}
 
-	if data.Devlxd {
+	if d.devlxdEnabled {
 		err = startDevlxdServer(d)
 	} else {
 		err = stopDevlxdServer(d)
