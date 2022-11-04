@@ -43,6 +43,7 @@ For example:
 
 See {ref}`instances-console` for more information.
 
+(instances-manage-stop)=
 ## Stop an instance
 
 Enter the following command to stop an instance:
