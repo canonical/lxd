@@ -178,8 +178,8 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 			result = apiProfiles
 		} else {
 			urls := make([]string, len(apiProfiles))
-			for i, p := range apiProfiles {
-				urls[i] = p.URL(version.APIVersion, p.Name).String()
+			for i, apiProfile := range apiProfiles {
+				urls[i] = apiProfile.URL(version.APIVersion, p.Name).String()
 			}
 
 			result = urls
