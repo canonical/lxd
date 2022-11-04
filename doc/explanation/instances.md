@@ -1,5 +1,6 @@
 ---
-discourse: 8767,9223,7519,9281
+discourse: 8767,7519,9281
+relatedlinks: https://ubuntu.com/blog/lxd-virtual-machines-an-overview
 ---
 
 (expl-instances)=
