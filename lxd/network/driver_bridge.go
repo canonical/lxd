@@ -1286,6 +1286,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, []string{
 			fmt.Sprintf("--listen-address=%s", addr[0]),
 			"--dhcp-no-override", "--dhcp-authoritative",
+			fmt.Sprintf("--dhcp-option-force=26,%d", fanMtuInt),
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
