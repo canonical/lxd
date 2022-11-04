@@ -72,6 +72,9 @@ var internalClusterInstanceMovedCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancePost(d *Daemon, r *http.Request) response.Response {
+	// Don't mess with instance while in setup mode.
+	<-d.waitReady.Done()
+
 	s := d.State()
 
 	instanceType, err := urlInstanceTypeDetect(r)
