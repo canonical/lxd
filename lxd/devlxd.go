@@ -31,18 +31,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-type devlxdPut struct {
-	State string `json:"state" yaml:"state"`
-}
-
-type devlxdGet struct {
-	devlxdPut
-
-	APIVersion   string `json:"api_version" yaml:"api_version"`
-	InstanceType string `json:"instance_type" yaml:"instance_type"`
-	Location     string `json:"location" yaml:"location"`
-}
-
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -218,13 +206,13 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 			state = api.Started
 		}
 
-		return response.DevLxdResponse(http.StatusOK, devlxdGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), devlxdPut: devlxdPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
+		return response.DevLxdResponse(http.StatusOK, api.DevLXDGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), DevLXDPut: api.DevLXDPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
 	} else if r.Method == "PATCH" {
 		if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
 			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 		}
 
-		req := devlxdPut{}
+		req := api.DevLXDPut{}
 
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {

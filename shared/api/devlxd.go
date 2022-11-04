@@ -1,7 +1,16 @@
 package api
 
+// DevLXDPut represents the modifiable data.
+type DevLXDPut struct {
+	// Instance state
+	// Example: Started
+	State string `json:"state" yaml:"state"`
+}
+
 // DevLXDGet represents the server data which is returned as the root of the devlxd API.
 type DevLXDGet struct {
+	DevLXDPut
+
 	// API version number
 	// Example: 1.0
 	APIVersion string `json:"api_version" yaml:"api_version"`
