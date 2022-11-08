@@ -5,6 +5,9 @@ relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 (projects)=
 # Project configuration
 
+```{youtube} https://www.youtube.com/watch?v=cUHkgg6TovM
+```
+
 LXD supports projects as a way to split your LXD server.
 Each project holds its own set of instances and may also have its own images and profiles.
 

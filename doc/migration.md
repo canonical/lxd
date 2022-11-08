@@ -1,6 +1,9 @@
 (migration)=
 # Migration
 
+```{youtube} https://www.youtube.com/watch?v=F9GALjHtnUU
+```
+
 LXD provides tools and functionality to migrate instances in different contexts.
 
 Migrate existing LXD instances between servers
