@@ -31,6 +31,11 @@ When updating strings in the CLI tool (`lxc/`), you may need a commit to update 
     make i18n
     git commit -a -s -m "i18n: Update translation templates" po/
 
+When updating API (`shared/api`), you may need a commit to update the swagger YAML:
+
+    make update-api
+    git commit -s -m "doc/rest-api: Refresh swagger YAML" doc/rest-api.yaml
+
 This structure makes it easier for contributions to be reviewed and also
 greatly simplifies the process of back-porting fixes to stable branches.
 
