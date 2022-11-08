@@ -23,7 +23,40 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-lxc/lxc-git-master -y --no-update
           sudo add-apt-repository ppa:dqlite/dev -y --no-update
           sudo apt-get update
-          sudo apt-get install -y lxc libdqlite-dev libselinux-dev libseccomp-dev acl attr autoconf automake dnsmasq-base git libdqlite-dev libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables curl gettext jq sqlite3 socat bind9-dnsutils
+          sudo apt-get install -y \
+            acl \
+            attr \
+            autoconf \
+            automake \
+            bind9-dnsutils \
+            curl \
+            dnsmasq-base \
+            ebtables \
+            gettext \
+            git \
+            jq \
+            libacl1-dev \
+            libcap-dev \
+            libdqlite-dev \
+            liblxc1 \
+            liblxc-dev \
+            liblz4-dev \
+            libseccomp-dev \
+            libselinux-dev \
+            libsqlite3-dev \
+            libtool \
+            libudev-dev \
+            libuv1-dev \
+            lxc \
+            make \
+            pkg-config \
+            rsync \
+            socat \
+            sqlite3 \
+            squashfs-tools \
+            tar \
+            tcl \
+            xz-utils
           python3 -m pip install flake8
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
           sudo apt-get remove -y shellcheck
