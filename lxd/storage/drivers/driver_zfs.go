@@ -119,7 +119,7 @@ func (d *zfs) Info() Info {
 		PreservesInodes:   true,
 		Remote:            d.isRemote(),
 		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:      false,
+		BlockBacking:      shared.IsTrue(d.config["volume.zfs.block_mode"]),
 		RunningCopyFreeze: false,
 		DirectIO:          zfsDirectIO,
 		MountedRoot:       false,

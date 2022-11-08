@@ -33,6 +33,11 @@ const (
 
 func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := api.GetParentAndSnapshotName(vol.name)
+
+	if vol.volType == VolumeTypeImage && d.isBlockBacked(vol) {
+		name = fmt.Sprintf("%s_%s", name, vol.ConfigBlockFilesystem())
+	}
+
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
 	}
@@ -362,7 +367,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	// Assemble zfs receive command.
 	cmd := exec.Command("zfs", "receive", "-x", "mountpoint", "-F", "-u", d.dataset(vol, false))
-	if vol.ContentType() == ContentTypeBlock {
+	if vol.ContentType() == ContentTypeBlock || d.isBlockBacked(vol) {
 		cmd = exec.Command("zfs", "receive", "-F", "-u", d.dataset(vol, false))
 	}
 
@@ -458,4 +463,8 @@ func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader,
 	}
 
 	return &migrationHeader, nil
+}
+
+func (d *zfs) randomVolumeName(vol Volume) string {
+	return fmt.Sprintf("%s_%s", vol.name, uuid.New())
 }
