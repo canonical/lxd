@@ -29,6 +29,7 @@ type Driver interface {
 	Info() Info
 	HasVolume(vol Volume) (bool, error)
 	roundVolumeBlockSizeBytes(sizeBytes int64) int64
+	isBlockBacked(vol Volume) bool
 
 	// Export struct details.
 	Name() string
