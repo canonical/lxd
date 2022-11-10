@@ -21,7 +21,8 @@ func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceSe
 
 	// Parse the YAML
 	config := api.InitPreseed{}
-	err = yaml.Unmarshal(bytes, &config)
+	// Use strict checking to notify about unknown keys.
+	err = yaml.UnmarshalStrict(bytes, &config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse the preseed: %w", err)
 	}
