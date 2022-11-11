@@ -27,8 +27,8 @@ Automatically added on first use.
 
 ### Global (per-system)
 
-By default the global configuration file is kept in either `/etc/lxc/config.yml`, or `/var/snap/lxd/common/global-conf/` for the snap version, or in `LXD_GLOBAL_CONF` if defined.
-The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. `/etc/lxc/servercerts/`) and match the remote name (e.g. `foo.crt`).
+By default the global configuration file is kept in either `/etc/lxd/config.yml`, or `/var/snap/lxd/common/global-conf/` for the snap version, or in `LXD_GLOBAL_CONF` if defined.
+The configuration file can be manually edited to add global remotes. Certificates for those remotes should be stored inside the `servercerts` directory (e.g. `/etc/lxd/servercerts/`) and match the remote name (e.g. `foo.crt`).
 
 An example configuration is below:
 
