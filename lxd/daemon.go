@@ -1672,7 +1672,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
-			logger.Info("Stopping instances")
 			instancesShutdown(s, instances)
 
 			logger.Info("Stopping networks")
