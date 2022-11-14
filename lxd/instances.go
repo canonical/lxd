@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -395,31 +396,20 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 }
 
 func instancesShutdown(s *state.State, instances []instance.Instance) {
-	var wg sync.WaitGroup
-
 	sort.Sort(instanceStopList(instances))
 
-	var lastPriority int
-
-	if len(instances) != 0 {
-		lastPriority, _ = strconv.Atoi(instances[0].ExpandedConfig()["boot.stop.priority"])
+	// Limit shutdown concurrency to number of instances or number of CPU cores (which ever is less).
+	var wg sync.WaitGroup
+	instShutdownCh := make(chan instance.Instance)
+	maxConcurrent := runtime.NumCPU()
+	instCount := len(instances)
+	if instCount < maxConcurrent {
+		maxConcurrent = instCount
 	}
 
-	for _, inst := range instances {
-		priority, _ := strconv.Atoi(inst.ExpandedConfig()["boot.stop.priority"])
-
-		// Enforce shutdown priority
-		if priority != lastPriority {
-			lastPriority = priority
-
-			// Wait for instances with higher priority to finish
-			wg.Wait()
-		}
-
-		// Stop the instance if running.
-		if inst.IsRunning() {
-			wg.Add(1)
-			go func(inst instance.Instance) {
+	for i := 0; i < maxConcurrent; i++ {
+		go func(instShutdownCh <-chan instance.Instance) {
+			for inst := range instShutdownCh {
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -444,8 +434,32 @@ func instancesShutdown(s *state.State, instances []instance.Instance) {
 				}
 
 				wg.Done()
-			}(inst)
-		}
+			}
+		}(instShutdownCh)
 	}
+
+	var currentBatchPriority int
+	for i, inst := range instances {
+		// Skip stopped instances.
+		if !inst.IsRunning() {
+			continue
+		}
+
+		priority, _ := strconv.Atoi(inst.ExpandedConfig()["boot.stop.priority"])
+
+		// Shutdown instances in priority batches, logging at the start of each batch.
+		if i == 0 || priority != currentBatchPriority {
+			currentBatchPriority = priority
+
+			// Wait for instances with higher priority to finish before starting next batch.
+			wg.Wait()
+			logger.Info("Stopping instances", logger.Ctx{"stopPriority": currentBatchPriority})
+		}
+
+		wg.Add(1)
+		instShutdownCh <- inst
+	}
+
 	wg.Wait()
+	close(instShutdownCh)
 }
