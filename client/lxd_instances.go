@@ -1389,7 +1389,7 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 
 	remoteTCP, _ := tcp.ExtractConn(conn)
 	if remoteTCP != nil {
-		err = tcp.SetTimeouts(remoteTCP)
+		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			return nil, err
 		}

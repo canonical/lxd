@@ -37,7 +37,12 @@ func ExtractConn(conn net.Conn) (*net.TCPConn, error) {
 }
 
 // SetTimeouts sets TCP_USER_TIMEOUT and TCP keep alive timeouts on a connection.
-func SetTimeouts(conn *net.TCPConn) error {
+// If userTimeout is zero, then defaults to 2 minutes.
+func SetTimeouts(conn *net.TCPConn, userTimeout time.Duration) error {
+	if userTimeout == 0 {
+		userTimeout = time.Minute * 2
+	}
+
 	// Set TCP_USER_TIMEOUT option to limit the maximum amount of time in ms that transmitted data may remain
 	// unacknowledged before TCP will forcefully close the corresponding connection and return ETIMEDOUT to the
 	// application. This combined with the TCP keepalive options on the socket will ensure that should the
@@ -46,7 +51,7 @@ func SetTimeouts(conn *net.TCPConn) error {
 	// up to 20 minutes with the current system defaults in a normal WAN environment if there are packets in
 	// the send queue that will prevent the keepalive timer from working as the retransmission timers kick in.
 	// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dca43c75e7e545694a9dd6288553f55c53e2a3a3
-	err := SetUserTimeout(conn, time.Second*30)
+	err := SetUserTimeout(conn, userTimeout)
 	if err != nil {
 		return err
 	}
