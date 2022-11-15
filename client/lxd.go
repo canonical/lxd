@@ -431,7 +431,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	// Set TCP timeout options.
 	remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
 	if remoteTCP != nil {
-		err = tcp.SetTimeouts(remoteTCP)
+		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}

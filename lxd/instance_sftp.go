@@ -125,7 +125,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	remoteTCP, _ := tcp.ExtractConn(remoteConn)
 	if remoteTCP != nil {
 		// Apply TCP timeouts if remote connection is TCP (rather than Unix).
-		err = tcp.SetTimeouts(remoteTCP)
+		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			return api.StatusErrorf(http.StatusInternalServerError, "Failed setting TCP timeouts on remote connection: %v", err)
 		}
