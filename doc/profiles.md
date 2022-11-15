@@ -35,6 +35,7 @@ Enter the following command to create an empty profile:
 
     lxc profile create <profile_name>
 
+(profiles-edit)=
 ## Edit a profile
 
 You can either set specific configuration options for a profile or edit the full profile in YAML format.
@@ -47,7 +48,7 @@ Specify the profile name and the key and value of the instance option:
     lxc profile set <profile_name> <option_key>=<option_value> <option_key>=<option_value> ...
 
 To add and configure an instance device for your profile, use the `lxc profile device add` command.
-Specify the profile name, a device name, the device type and maybe device options (depending on the {ref}`device type <device-types>`):
+Specify the profile name, a device name, the device type and maybe device options (depending on the {ref}`device type <devices>`):
 
     lxc profile device add <instance_name> <device_name> <device_type> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 

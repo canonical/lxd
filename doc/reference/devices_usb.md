@@ -1,7 +1,7 @@
 (devices-usb)=
 # Type: `usb`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 USB device entries simply make the requested USB device appear in the
 instance.
