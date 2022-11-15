@@ -564,7 +564,7 @@ func (d *qemu) onStop(target string) error {
 	defer d.logger.Debug("onStop hook finished", logger.Ctx{"target": target})
 
 	// Create/pick up operation.
-	op, instanceInitiated, err := d.onStopOperationSetup(target)
+	op, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -614,7 +614,7 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	// Log and emit lifecycle if not user triggered.
-	if instanceInitiated {
+	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
