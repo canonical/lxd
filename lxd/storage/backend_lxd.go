@@ -3133,21 +3133,19 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	unlock := locking.Lock(drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
 	defer unlock()
 
-	// Load image info from database.
-	_, image, err := b.state.DB.Cluster.GetImageFromAnyProject(fingerprint)
+	// Load the storage volume in order to get the volume config which is needed for some drivers.
+	imgDBVol, err := VolumeDBGet(b, project.Default, fingerprint, drivers.VolumeTypeImage)
 	if err != nil {
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-
-	// Image types are not the same as instance types, so don't use instance type constants.
-	if image.Type == "virtual-machine" {
-		contentType = drivers.ContentTypeBlock
+	// Get the content type.
+	dbContentType, err := VolumeContentTypeNameToContentType(imgDBVol.ContentType)
+	if err != nil {
+		return err
 	}
 
-	// Load the storage volume in order to get the volume config which is needed for some drivers.
-	imgDBVol, err := VolumeDBGet(b, project.Default, fingerprint, drivers.VolumeTypeImage)
+	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
 	if err != nil {
 		return err
 	}
