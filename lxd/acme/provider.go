@@ -3,7 +3,7 @@ package acme
 import (
 	"sync"
 
-	"github.com/go-acme/lego/challenge"
+	"github.com/go-acme/lego/v4/challenge"
 )
 
 // HTTP01Provider is an extension of the challenge.Provider interface.

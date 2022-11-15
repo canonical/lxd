@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-acme/lego/acme"
-	"github.com/go-acme/lego/certcrypto"
-	"github.com/go-acme/lego/certificate"
-	"github.com/go-acme/lego/lego"
-	"github.com/go-acme/lego/registration"
+	"github.com/go-acme/lego/v4/acme"
+	"github.com/go-acme/lego/v4/certcrypto"
+	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v4/lego"
+	"github.com/go-acme/lego/v4/registration"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
