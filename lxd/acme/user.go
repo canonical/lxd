@@ -3,7 +3,7 @@ package acme
 import (
 	"crypto"
 
-	"github.com/go-acme/lego/registration"
+	"github.com/go-acme/lego/v4/registration"
 )
 
 type user struct {
