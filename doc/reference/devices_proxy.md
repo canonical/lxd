@@ -5,7 +5,7 @@ discourse: 8355
 (devices-proxy)=
 # Type: `proxy`
 
-Supported instance types: container (`nat` and non-`nat` modes), VM (`nat` mode only)
+Supported instance types: container (`nat` and non-`nat` modes), VM (`nat` mode only, supports hotplugging)
 
 Proxy devices allow forwarding network connections between host and instance.
 This makes it possible to forward traffic hitting one of the host's
