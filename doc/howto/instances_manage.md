@@ -5,10 +5,11 @@ Enter the following command to list all instances:
 
     lxc list
 
-You can filter the instances that are displayed, for example, by type or status:
+You can filter the instances that are displayed, for example, by type, status or the cluster member where the instance is located:
 
     lxc list type=container
     lxc list status=running
+    lxc list location=server1
 
 You can also filter by name.
 To list several instances, use a regular expression for the name.
