@@ -25,10 +25,11 @@ test_devlxd() {
   lxc config set devlxd security.nesting true
   ! lxc exec devlxd devlxd-client security.nesting | grep true || false
 
-  lxc exec devlxd devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
+  cmd=$(unset -f lxc; command -v lxc)
+  ${cmd} exec devlxd devlxd-client monitor-websocket > "${TEST_DIR}/devlxd-websocket.log" &
   client_websocket=$!
 
-  lxc exec devlxd devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
+  ${cmd} exec devlxd devlxd-client monitor-stream > "${TEST_DIR}/devlxd-stream.log" &
   client_stream=$!
 
   (
@@ -132,6 +133,10 @@ EOF
   [ "$(lxc config get devlxd volatile.last_state.ready)" = "true" ]
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 2
+
+  # Check device configs are available and that NIC hwaddr is available even if volatile.
+  hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
+  lxc exec devlxd devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
 
   lxc delete devlxd --force
   kill -9 ${monitorDevlxdPID} || true
