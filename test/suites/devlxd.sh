@@ -134,6 +134,10 @@ EOF
 
   grep -Fc "instance-ready" "${TEST_DIR}/devlxd.log" | grep -Fx 2
 
+  # Check device configs are available and that NIC hwaddr is available even if volatile.
+  hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
+  lxc exec devlxd devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
+
   lxc delete devlxd --force
   kill -9 ${monitorDevlxdPID} || true
 
