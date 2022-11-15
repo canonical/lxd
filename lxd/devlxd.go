@@ -202,6 +202,17 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
 
+	// Populate NIC hwaddr from volatile if not explicitly specified.
+	// This is so cloud-init running inside the instance can identify the NIC when the interface name is
+	// different than the LXD device name (such as when run inside a VM).
+	localConfig := c.LocalConfig()
+	devices := c.ExpandedDevices()
+	for devName, devConfig := range devices {
+		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)] != "" {
+			devices[devName]["hwaddr"] = localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+		}
+	}
+
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }}
 
