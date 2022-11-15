@@ -48,13 +48,14 @@ var instanceOperations = make(map[string]*InstanceOperation)
 
 // InstanceOperation operation locking.
 type InstanceOperation struct {
-	action       Action
-	chanDone     chan error
-	chanReset    chan time.Duration
-	err          error
-	projectName  string
-	instanceName string
-	reusable     bool
+	action            Action
+	chanDone          chan error
+	chanReset         chan time.Duration
+	err               error
+	projectName       string
+	instanceName      string
+	reusable          bool
+	instanceInitiated bool
 }
 
 // Create creates a new operation lock for an Instance if one does not already exist and returns it.
@@ -262,4 +263,24 @@ func (op *InstanceOperation) Done(err error) {
 	delete(instanceOperations, opKey) // Delete before closing chanDone.
 	close(op.chanDone)
 	logger.Debug("Instance operation lock finished", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "err": err})
+}
+
+// SetInstanceInitiated sets the instance initiated marker.
+func (op *InstanceOperation) SetInstanceInitiated(instanceInitiated bool) {
+	// This function can be called on a nil struct.
+	if op == nil {
+		return
+	}
+
+	op.instanceInitiated = instanceInitiated
+}
+
+// GetInstanceInitiated gets the instance initiated marker.
+func (op *InstanceOperation) GetInstanceInitiated() bool {
+	// This function can be called on a nil struct.
+	if op == nil {
+		return false
+	}
+
+	return op.instanceInitiated
 }
