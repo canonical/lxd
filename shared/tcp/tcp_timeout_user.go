@@ -21,7 +21,7 @@ func SetUserTimeout(conn *net.TCPConn, timeout time.Duration) error {
 		err = unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, int(timeout/time.Millisecond))
 	})
 	if err != nil {
-		return fmt.Errorf("Error setting option on socket: %w", err)
+		return fmt.Errorf("Error setting TCP_USER_TIMEOUT option on socket: %w", err)
 	}
 
 	return nil
