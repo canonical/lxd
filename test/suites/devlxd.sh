@@ -90,6 +90,11 @@ EOF
 
   kill -9 "${client_websocket}"
   kill -9 "${client_stream}"
+
+  # Check device configs are available and that NIC hwaddr is available even if volatile.
+  hwaddr=$(lxc config get devlxd volatile.eth0.hwaddr)
+  lxc exec devlxd devlxd-client devices | jq -r .eth0.hwaddr | grep -Fx "${hwaddr}"
+
   lxc delete devlxd --force
 
   [ "${MATCH}" = "1" ] || false
