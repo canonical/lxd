@@ -151,7 +151,14 @@ func main() {
 			os.Exit(0)
 		}
 
-		raw, err := c.Get(fmt.Sprintf("http://meshuggah-rocks/1.0/config/%s", os.Args[1]))
+		var path string
+		if os.Args[1] == "devices" {
+			path = "devices"
+		} else {
+			path = fmt.Sprintf("config/%s", os.Args[1])
+		}
+
+		raw, err := c.Get(fmt.Sprintf("http://meshuggah-rocks/1.0/%s", path))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
