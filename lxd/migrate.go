@@ -192,7 +192,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	// Set TCP timeout options.
 	remoteTCP, _ := tcp.ExtractConn(c.UnderlyingConn())
 	if remoteTCP != nil {
-		err = tcp.SetTimeouts(remoteTCP)
+		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
 			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
