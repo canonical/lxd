@@ -98,7 +98,7 @@ func restServer(d *Daemon) *http.Server {
 	}
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL})
+		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w)
 	})
@@ -150,7 +150,7 @@ func metricsServer(d *Daemon) *http.Server {
 	d.createCmd(mux, "1.0", metricsCmd)
 
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL})
+		logger.Info("Sending top level 404", logger.Ctx{"url": r.URL, "method": r.Method, "remote": r.RemoteAddr})
 		w.Header().Set("Content-Type", "application/json")
 		_ = response.NotFound(nil).Render(w)
 	})
