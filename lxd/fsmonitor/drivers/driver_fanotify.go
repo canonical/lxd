@@ -64,14 +64,14 @@ func (d *fanotify) load(ctx context.Context) error {
 		fanotifyLoaded = false
 	}()
 
-	go d.getEvents(fd)
+	go d.getEvents(ctx, fd)
 
 	fanotifyLoaded = true
 
 	return nil
 }
 
-func (d *fanotify) getEvents(mountFd int) {
+func (d *fanotify) getEvents(ctx context.Context, mountFd int) {
 	for {
 		buf := make([]byte, 256)
 
@@ -82,7 +82,7 @@ func (d *fanotify) getEvents(mountFd int) {
 		_, err := unix.Read(d.fd, buf)
 		if err != nil {
 			// Stop listening for events as the fanotify fd has been closed due to cleanup.
-			if errors.Is(err, unix.EBADF) {
+			if ctx.Err() != nil || errors.Is(err, unix.EBADF) {
 				_ = unix.Close(mountFd)
 				return
 			}
