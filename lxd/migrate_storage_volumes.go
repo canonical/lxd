@@ -515,24 +515,3 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapsho
 		ExpiryDate:   proto.Int64(0),
 	}
 }
-
-func migrationStorageCompareSnapshots(sourceSnapshots []string, targetSnapshots []string) ([]string, []string) {
-	syncSnapshots := []string{}
-	deleteSnapshots := []string{}
-
-	// Find target snapshots to delete.
-	for _, snapshot := range targetSnapshots {
-		if !shared.StringInSlice(snapshot, sourceSnapshots) {
-			deleteSnapshots = append(deleteSnapshots, snapshot)
-		}
-	}
-
-	// Find source snapshots to sync.
-	for _, snapshot := range sourceSnapshots {
-		if !shared.StringInSlice(snapshot, targetSnapshots) {
-			syncSnapshots = append(syncSnapshots, snapshot)
-		}
-	}
-
-	return syncSnapshots, deleteSnapshots
-}
