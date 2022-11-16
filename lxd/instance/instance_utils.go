@@ -468,7 +468,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
 	}
 
-	return inst, err
+	return inst, nil
 }
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
