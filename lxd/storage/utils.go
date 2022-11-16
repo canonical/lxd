@@ -932,3 +932,57 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 
 	return blockDiskSize, nil
 }
+
+// ComparableSnapshot is used when comparing snapshots on different pools to see whether they differ.
+type ComparableSnapshot struct {
+	// Name of the snapshot (without the parent name).
+	Name string
+
+	// Identifier of the snapshot (that remains the same when copied between pools).
+	ID string
+
+	// Creation date time of the snapshot.
+	CreationDate time.Time
+}
+
+// CompareSnapshots returns a list of snapshot indexes (from the associated input slices) to sync from the source
+// and to delete from the target respectively.
+// A snapshot will be added to "to sync from source" slice if it either doesn't exist in the target or its ID or
+// creation date is different to the source.
+// A snapshot will be added to the "to delete from target" slice if it doesn't exist in the source or its ID or
+// creation date is different to the source.
+func CompareSnapshots(sourceSnapshots []ComparableSnapshot, targetSnapshots []ComparableSnapshot) ([]int, []int) {
+	// Compare source and target.
+	sourceSnapshotsByName := make(map[string]*ComparableSnapshot, len(sourceSnapshots))
+	targetSnapshotsByName := make(map[string]*ComparableSnapshot, len(targetSnapshots))
+
+	var syncFromSource, deleteFromTarget []int
+
+	// Generate a list of source snapshots by name.
+	for sourceSnapIndex := range sourceSnapshots {
+		sourceSnapshotsByName[sourceSnapshots[sourceSnapIndex].Name] = &sourceSnapshots[sourceSnapIndex]
+	}
+
+	// If target snapshot doesn't exist in source, or its creation date or ID differ,
+	// then mark it for deletion on target.
+	for targetSnapIndex := range targetSnapshots {
+		// Generate a list of target snapshots by name for later comparison.
+		targetSnapshotsByName[targetSnapshots[targetSnapIndex].Name] = &targetSnapshots[targetSnapIndex]
+
+		sourceSnap, sourceSnapExists := sourceSnapshotsByName[targetSnapshots[targetSnapIndex].Name]
+		if !sourceSnapExists || !sourceSnap.CreationDate.Equal(targetSnapshots[targetSnapIndex].CreationDate) || sourceSnap.ID != targetSnapshots[targetSnapIndex].ID {
+			deleteFromTarget = append(deleteFromTarget, targetSnapIndex)
+		}
+	}
+
+	// If source snapshot doesn't exist in target, or its creation date or ID differ,
+	// then mark it for syncing to target.
+	for sourceSnapIndex := range sourceSnapshots {
+		targetSnap, targetSnapExists := targetSnapshotsByName[sourceSnapshots[sourceSnapIndex].Name]
+		if !targetSnapExists || !targetSnap.CreationDate.Equal(sourceSnapshots[sourceSnapIndex].CreationDate) || targetSnap.ID != sourceSnapshots[sourceSnapIndex].ID {
+			syncFromSource = append(syncFromSource, sourceSnapIndex)
+		}
+	}
+
+	return syncFromSource, deleteFromTarget
+}
