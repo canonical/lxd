@@ -517,8 +517,7 @@ test_basic_usage() {
 
   REBOOTED="false"
 
-  # shellcheck disable=SC2034
-  for i in $(seq 60); do
+  for _ in $(seq 60); do
     NEW_INIT=$(lxc info foo | awk '/^PID:/ {print $2}' || true)
 
     # If init process is running, check if is old or new process.
