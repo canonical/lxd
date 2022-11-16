@@ -425,12 +425,16 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		srcVol.Description = srcVolSnapshot.Description
 	}
 
-	// If destination target was specified, copy the volume onto the given member.
-	// If no destination target is specified, this will be the same as the source.
-	if c.storageVolume.flagDestinationTarget != "" {
-		dstServer = dstServer.UseTarget(c.storageVolume.flagDestinationTarget)
-	} else {
-		dstServer = dstServer.UseTarget(srcVol.Location)
+	if srcResource.remote == dstResource.remote {
+		// If destination target was specified, copy the volume onto the given member.
+		// If no destination target is specified, this will be the same as the source.
+		if c.storageVolume.flagDestinationTarget != "" {
+			dstServer = dstServer.UseTarget(c.storageVolume.flagDestinationTarget)
+		} else {
+			dstServer = dstServer.UseTarget(srcVol.Location)
+		}
+	} else if c.storageVolume.flagDestinationTarget != "" {
+		return fmt.Errorf("Cannot use ---destination-target when copying to another remote")
 	}
 
 	// If no target is specified, use the member that contains the source volume.
