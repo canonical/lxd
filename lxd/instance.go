@@ -267,21 +267,51 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	if !opts.instanceOnly {
 		if opts.refresh {
 			// Compare snapshots.
-			syncSnapshots, deleteSnapshots, err := instance.CompareSnapshots(opts.sourceInstance, inst)
+			sourceSnaps, err := opts.sourceInstance.Snapshots()
 			if err != nil {
 				return nil, err
 			}
 
+			sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnaps))
+			for _, sourceSnap := range sourceSnaps {
+				_, sourceSnapName, _ := api.GetParentAndSnapshotName(sourceSnap.Name())
+
+				sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+					Name:         sourceSnapName,
+					CreationDate: sourceSnap.CreationDate(),
+				})
+			}
+
+			targetSnaps, err := inst.Snapshots()
+			if err != nil {
+				return nil, err
+			}
+
+			targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnaps))
+			for _, targetSnap := range targetSnaps {
+				_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name())
+
+				targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+					Name:         targetSnapName,
+					CreationDate: targetSnap.CreationDate(),
+				})
+			}
+
+			syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
+
 			// Delete extra snapshots first.
-			for _, snap := range deleteSnapshots {
-				err := snap.Delete(true)
+			for _, deleteTargetSnapIndex := range deleteTargetSnapshotIndexes {
+				err := targetSnaps[deleteTargetSnapIndex].Delete(true)
 				if err != nil {
 					return nil, err
 				}
 			}
 
-			// Only care about the snapshots that need updating.
-			snapshots = syncSnapshots
+			// Only send the snapshots that need updating.
+			snapshots = make([]instance.Instance, 0, len(syncSourceSnapshotIndexes))
+			for _, syncSourceSnapIndex := range syncSourceSnapshotIndexes {
+				snapshots = append(snapshots, sourceSnaps[syncSourceSnapIndex])
+			}
 		} else {
 			// Get snapshots of source instance.
 			snapshots, err = opts.sourceInstance.Snapshots()
