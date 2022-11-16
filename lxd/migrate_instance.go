@@ -1003,37 +1003,57 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	respHeader.Criu = criuType
 
 	if c.refresh {
-		// Get our existing snapshots.
+		// Get the remote snapshots on the source.
+		sourceSnapshots := offerHeader.GetSnapshots()
+		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
+		for _, sourceSnap := range sourceSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+				Name:         sourceSnap.GetName(),
+				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+			})
+		}
+
+		// Get existing snapshots on the local target.
 		targetSnapshots, err := c.src.instance.Snapshots()
 		if err != nil {
 			controller(err)
 			return err
 		}
 
-		// Get the remote snapshots.
-		sourceSnapshots := offerHeader.GetSnapshots()
+		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
+		for _, targetSnap := range targetSnapshots {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name())
+
+			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate(),
+			})
+		}
 
 		// Compare the two sets.
-		syncSnapshots, deleteSnapshots := migrationCompareSnapshots(sourceSnapshots, targetSnapshots)
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
 
-		// Delete the extra local ones.
-		for _, snap := range deleteSnapshots {
-			err := snap.Delete(true)
+		// Delete the extra local snapshots first.
+		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true)
 			if err != nil {
 				controller(err)
 				return err
 			}
 		}
 
-		snapshotNames := []string{}
-		for _, snap := range syncSnapshots {
-			snapshotNames = append(snapshotNames, snap.GetName())
+		// Only request to send the snapshots that need updating.
+		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
+		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
+			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
+			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
 		}
 
 		respHeader.Snapshots = syncSnapshots
-		respHeader.SnapshotNames = snapshotNames
+		respHeader.SnapshotNames = syncSnapshotNames
 		offerHeader.Snapshots = syncSnapshots
-		offerHeader.SnapshotNames = snapshotNames
+		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
 	if offerHeader.GetPredump() {
