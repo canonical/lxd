@@ -735,7 +735,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// If the pool is ceph backed, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Remote {
+				if d.pool.Driver().Info().Name == "ceph" {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
