@@ -302,7 +302,7 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
 			inst, err = instance.LoadFromBackup(s, projectName, instancePath, false)
 			if err != nil {
-				return inst, err
+				return nil, err
 			}
 		}
 	}
