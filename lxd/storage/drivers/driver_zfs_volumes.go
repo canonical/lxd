@@ -1274,19 +1274,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 
 // ValidateVolume validates the supplied volume config.
 func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := d.commonVolumeRules()
-
-	commonBlocksizeValidator := rules["zfs.blocksize"]
-	rules["zfs.blocksize"] = validate.Optional(func(value string) error {
-		if vol.contentType != ContentTypeFS {
-			return fmt.Errorf("Blocksize can be change only for filesystem type")
-		}
-
-		// Use the common validation after checking volume content type.
-		return commonBlocksizeValidator(value)
-	})
-
-	return d.validateVolume(vol, rules, removeUnknownKeys)
+	return d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.
