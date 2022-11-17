@@ -66,8 +66,7 @@ EOF
 
   MATCH=0
 
-  # shellcheck disable=SC2034
-  for i in $(seq 10); do
+  for _ in $(seq 10); do
     lxc config set devlxd user.foo bar
     lxc config set devlxd security.nesting true
 
