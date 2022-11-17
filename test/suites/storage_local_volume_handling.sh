@@ -3,7 +3,6 @@ test_storage_local_volume_handling() {
 
   # shellcheck disable=2039,3043
   local LXD_STORAGE_DIR lxd_backend
-  # shellcheck disable=SC2034
   lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"
