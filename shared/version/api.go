@@ -354,6 +354,7 @@ var APIExtensions = []string{
 	"remote_token_expiry",
 	"init_preseed",
 	"storage_volumes_created_at",
+	"cpu_hotplug",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

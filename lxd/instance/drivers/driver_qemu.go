@@ -1485,8 +1485,15 @@ func (d *qemu) Start(stateful bool) error {
 	// Apply CPU pinning.
 	cpuLimit, ok := d.expandedConfig["limits.cpu"]
 	if ok && cpuLimit != "" {
-		_, err := strconv.Atoi(cpuLimit)
-		if err != nil {
+		limit, err := strconv.Atoi(cpuLimit)
+		if err == nil {
+			if limit > 1 {
+				err := d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed to add CPUs: %w", err)
+				}
+			}
+		} else {
 			// Expand to a set of CPU identifiers and get the pinning map.
 			_, _, _, pins, _, err := d.cpuTopology(cpuLimit)
 			if err != nil {
@@ -2900,13 +2907,16 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		qemuMemObjectFormat: qemuMemObjectFormat,
 	}
 
-	cpuCount, err := strconv.Atoi(cpus)
+	cpuPinning := false
+
+	_, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
-		cpuOpts.cpuCount = cpuCount
+		// Only one CPU will be added here, as the others will be hotplugged during start.
+		cpuOpts.cpuCount = 1
 		cpuOpts.cpuSockets = 1
-		cpuOpts.cpuCores = cpuCount
+		cpuOpts.cpuCores = 1
 		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
@@ -2915,6 +2925,8 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		if err != nil {
 			return -1, err
 		}
+
+		cpuPinning = true
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
 		vcpuSocket := map[uint64]uint64{}
@@ -2986,12 +2998,11 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 	// Determine per-node memory limit.
 	memSizeMB := memSizeBytes / 1024 / 1024
 	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
-	memSizeMB = nodeMemory * int64(len(hostNodes))
 	cpuOpts.memory = nodeMemory
 
 	if cfg != nil {
 		*cfg = append(*cfg, qemuMemory(&qemuMemoryOpts{memSizeMB})...)
-		*cfg = append(*cfg, qemuCPU(&cpuOpts)...)
+		*cfg = append(*cfg, qemuCPU(&cpuOpts, cpuPinning)...)
 	}
 
 	// Configure the CPU limit.
@@ -4637,6 +4648,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
 			"cluster.evacuate",
+			"limits.cpu",
 			"limits.memory",
 			"security.agent.metrics",
 			"security.secureboot",
@@ -4690,7 +4702,26 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
 
-			if key == "limits.memory" {
+			if key == "limits.cpu" {
+				oldValue := oldExpandedConfig["limits.cpu"]
+
+				if oldValue != "" {
+					_, err := strconv.Atoi(oldValue)
+					if err != nil {
+						return fmt.Errorf("Cannot update key %q when using CPU pinning and the VM is running", key)
+					}
+				}
+
+				limit, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("Cannot change CPU pinning when VM is running")
+				}
+
+				err = d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed updating cpu limit: %w", err)
+				}
+			} else if key == "limits.memory" {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
@@ -6550,4 +6581,114 @@ func (d *qemu) blockNodeName(name string) string {
 
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
+}
+
+func (d *qemu) setCPUs(count int) error {
+	if count == 0 {
+		return nil
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	cpus, err := monitor.QueryHotpluggableCPUs()
+	if err != nil {
+		return fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+	}
+
+	var availableCPUs []qmp.HotpluggableCPU
+	var hotpluggedCPUs []qmp.HotpluggableCPU
+
+	// Count the available and hotplugged CPUs.
+	for _, cpu := range cpus {
+		// If qom-path is unset, the CPU is available.
+		if cpu.QOMPath == "" {
+			availableCPUs = append(availableCPUs, cpu)
+		} else if strings.HasPrefix(cpu.QOMPath, "/machine/peripheral") {
+			hotpluggedCPUs = append(hotpluggedCPUs, cpu)
+		}
+	}
+
+	// The reserved CPUs includes both the hotplugged CPUs as well as the fixed one.
+	totalReservedCPUs := len(hotpluggedCPUs) + 1
+
+	// Nothing to do as the count matches the already reserved CPUs.
+	if count == totalReservedCPUs {
+		return nil
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// More CPUs requested.
+	if count > totalReservedCPUs {
+		// Cannot allocate more CPUs than the system provides.
+		if count > len(cpus) {
+			return fmt.Errorf("Cannot allocate more CPUs than available")
+		}
+
+		// This shouldn't trigger, but if it does, don't panic.
+		if count-totalReservedCPUs >= len(availableCPUs) {
+			return fmt.Errorf("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Only allocate the difference in CPUs.
+		for i := 0; i < count-totalReservedCPUs; i++ {
+			cpu := availableCPUs[i]
+
+			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
+
+			err := monitor.AddDevice(map[string]string{
+				"id":        devID,
+				"driver":    cpu.Type,
+				"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+				"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+				"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+			})
+			if err != nil {
+				return fmt.Errorf("Failed to add device: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.RemoveDevice(devID)
+				d.logger.Warn("Failed to remove CPU device", logger.Ctx{"err": err})
+			})
+		}
+	} else {
+		if totalReservedCPUs-count >= len(availableCPUs) {
+			// This shouldn't trigger, but if it does, don't panic.
+			return fmt.Errorf("Unable to remove CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Less CPUs requested.
+		for i := 0; i < totalReservedCPUs-count; i++ {
+			cpu := hotpluggedCPUs[i]
+
+			fields := strings.Split(cpu.QOMPath, "/")
+			devID := fields[len(fields)-1]
+
+			err := monitor.RemoveDevice(devID)
+			if err != nil {
+				return fmt.Errorf("Failed to remove CPU: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.AddDevice(map[string]string{
+					"id":        devID,
+					"driver":    cpu.Type,
+					"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+					"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+					"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+				})
+				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
+			})
+		}
+	}
+
+	revert.Success()
+
+	return nil
 }
