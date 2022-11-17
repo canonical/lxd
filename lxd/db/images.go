@@ -1053,6 +1053,25 @@ func (c *Cluster) CreateImage(project string, fp string, fname string, sz int64,
 			return err
 		}
 
+		// All projects with features.images=false can use all images added to the "default" project.
+		// If these projects also have features.profiles=true, their default profiles should be associated
+		// with all created images.
+		if imageProject == "default" {
+			_, err = tx.tx.Exec(
+				`INSERT OR IGNORE INTO images_profiles(image_id, profile_id)
+					SELECT ?, profiles.id FROM profiles
+						JOIN projects_config AS t1 ON t1.project_id = profiles.project_id
+							AND t1.key = "features.images"
+							AND t1.value = "false"
+						JOIN projects_config AS t2 ON t2.project_id = profiles.project_id
+							AND t2.key = "features.profiles"
+							AND t2.value = "true"
+						WHERE profiles.name = "default"`, id)
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err = tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)
 		if err != nil {
 			return err
