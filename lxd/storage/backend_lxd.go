@@ -1198,55 +1198,46 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	// There is currently no recorded creation timestamp, so we can only detect changes based on name.
 	var snapshotNames []string
 	if snapshots {
-		destSnapshots, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
+		// Compare snapshots.
+		sourceSnapshotComparable := make([]ComparableSnapshot, 0, len(srcConfig.VolumeSnapshots))
+		for _, sourceSnap := range srcConfig.VolumeSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, ComparableSnapshot{
+				Name:         sourceSnap.Name,
+				CreationDate: sourceSnap.CreatedAt,
+			})
+		}
+
+		targetSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
-		// Find destination snapshots to delete.
-		for _, destSnapshot := range destSnapshots {
-			_, destSnapshotName, _ := api.GetParentAndSnapshotName(destSnapshot.Name)
-			found := false
-			for _, srcSnapshot := range srcConfig.VolumeSnapshots {
-				if destSnapshotName == srcSnapshot.Name {
-					found = true
-					break
-				}
-			}
+		targetSnapshotsComparable := make([]ComparableSnapshot, 0, len(targetSnaps))
+		for _, targetSnap := range targetSnaps {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
 
-			if !found {
-				// Snapshot doesn't exist on source anymore, delete it on destination.
-				err = b.DeleteCustomVolumeSnapshot(projectName, destSnapshot.Name, op)
-				if err != nil {
-					return err
-				}
-			}
+			targetSnapshotsComparable = append(targetSnapshotsComparable, ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate,
+			})
 		}
 
-		// Find source snapshots to sync.
-		for _, srcSnapshot := range srcConfig.VolumeSnapshots {
-			found := false
-			for _, destSnapshot := range destSnapshots {
-				_, destSnapshotName, _ := api.GetParentAndSnapshotName(destSnapshot.Name)
-				if destSnapshotName == srcSnapshot.Name {
-					found = true
-					break
-				}
-			}
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
 
-			if !found {
-				// Snapshot doesn't exist on the target, add to list to transfer.
-				snapshotNames = append(snapshotNames, srcSnapshot.Name)
+		// Delete extra snapshots first.
+		for _, deleteTargetSnapIndex := range deleteTargetSnapshotIndexes {
+			err = b.DeleteCustomVolumeSnapshot(projectName, targetSnaps[deleteTargetSnapIndex].Name, op)
+			if err != nil {
+				return err
 			}
 		}
 
 		// Ensure that only the requested snapshots are included in the source config.
 		allSnapshots := srcConfig.VolumeSnapshots
-		srcConfig.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(snapshotNames))
-		for i := range allSnapshots {
-			if shared.StringInSlice(allSnapshots[i].Name, snapshotNames) {
-				srcConfig.VolumeSnapshots = append(srcConfig.VolumeSnapshots, allSnapshots[i])
-			}
+		srcConfig.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapIndex := range syncSourceSnapshotIndexes {
+			snapshotNames = append(snapshotNames, allSnapshots[syncSourceSnapIndex].Name)
+			srcConfig.VolumeSnapshots = append(srcConfig.VolumeSnapshots, allSnapshots[syncSourceSnapIndex])
 		}
 	}
 
