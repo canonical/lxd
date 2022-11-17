@@ -2104,3 +2104,8 @@ It can be set in the `core.remote_token_expiry` configuration key, and default t
 This change adds support for storing the creation date and time of storage volumes and their snapshots.
 
 This adds the `CreatedAt` field to the `StorageVolume` and `StorageVolumeSnapshot` API types.
+
+## `cpu_hotplug`
+
+This adds CPU hotplugging for VMs.
+Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
