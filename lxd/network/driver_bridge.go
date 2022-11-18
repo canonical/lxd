@@ -2994,17 +2994,6 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		}
 	}
 
-	// Local server name.
-	var err error
-	var serverName string
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName(ctx)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	// Get dynamic leases.
 	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
 	if !shared.PathExists(leaseFile) {
@@ -3059,7 +3048,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				Address:  fields[2],
 				Hwaddr:   macStr,
 				Type:     "dynamic",
-				Location: serverName,
+				Location: n.state.ServerName,
 			})
 		}
 	}
