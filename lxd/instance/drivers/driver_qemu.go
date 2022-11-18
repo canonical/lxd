@@ -6569,14 +6569,13 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 func (d *qemu) blockNodeName(name string) string {
 	if len(name) > 27 {
 		// If the name is too long, hash it as SHA-1 (20 bytes).
-		// Then encode the SHA-1 binary hash as Base64 (maximum 28 bytes).
-		// Finally strip the trailing base64 padding character giving us 27 chars.
-
+		// Then encode the SHA-1 binary hash as Base64 Raw URL format (maximum 27 characters).
+		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow,
+		// and keeps the length to 27 characters.
 		hash := sha1.New()
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
-		base64Hash := base64.StdEncoding.EncodeToString(binaryHash)
-		name = base64Hash[0 : len(base64Hash)-1]
+		name = base64.RawURLEncoding.EncodeToString(binaryHash)
 	}
 
 	// Apply the lxd_ prefix.
