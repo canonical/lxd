@@ -167,8 +167,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	// Fetch what's missing.
 	wgInstances := sync.WaitGroup{}
 	for _, project := range toFetch {
-		newMetrics[project] = metrics.NewMetricSet(nil)
-
 		// Get the instances.
 		instances, err := instanceLoadNodeProjectAll(d.State(), project, instancetype.Any)
 		if err != nil {
@@ -185,9 +183,10 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			go func(inst instance.Instance) {
 				defer wgInstances.Done()
 
+				projectName := inst.Project().Name
 				instanceMetrics, err := inst.Metrics(hostInterfaces)
 				if err != nil {
-					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": inst.Project().Name, "err": err})
+					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
 					return
 				}
 
@@ -195,7 +194,12 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 				newMetricsLock.Lock()
 				defer newMetricsLock.Unlock()
 
-				newMetrics[inst.Project().Name].Merge(instanceMetrics)
+				// Initialise metrics set for project if needed.
+				if newMetrics[projectName] == nil {
+					newMetrics[projectName] = metrics.NewMetricSet(nil)
+				}
+
+				newMetrics[projectName].Merge(instanceMetrics)
 			}(inst)
 		}
 	}
