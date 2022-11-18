@@ -237,6 +237,17 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// If new instance name not supplied, assume it will be keeping its current name.
+	if req.Name == "" {
+		req.Name = inst.Name()
+	}
+
+	// Check the new instance name is valid.
+	err = instance.ValidName(req.Name, false)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	if req.Migration {
 		// Server-side pool migration.
 		if req.Pool != "" {
