@@ -323,7 +323,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name()})
 
 	l.Info("Waiting for migration channel connections on source")
 
@@ -805,7 +805,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project(), "instance": c.src.instance.Name()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name()})
 
 	var err error
 

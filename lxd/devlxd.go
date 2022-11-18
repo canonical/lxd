@@ -173,7 +173,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
-	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project(), "listener_id": listener.ID})
+	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project().Name, "listener_id": listener.ID})
 	listener.Wait(r.Context())
 
 	return resp

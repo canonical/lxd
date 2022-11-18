@@ -1281,7 +1281,7 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 // HandleMknodSyscall handles a mknod syscall.
 func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
@@ -1332,7 +1332,7 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 // HandleMknodatSyscall handles a mknodat syscall.
 func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
@@ -1412,7 +1412,7 @@ type SetxattrArgs struct {
 // HandleSetxattrSyscall handles setxattr syscalls.
 func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
@@ -1564,7 +1564,7 @@ type SchedSetschedulerArgs struct {
 // HandleSchedSetschedulerSyscall handles sched_setscheduler syscalls.
 func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
@@ -1850,7 +1850,7 @@ func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int
 // HandleMountSyscall handles mount syscalls.
 func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
@@ -2056,7 +2056,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 // HandleBpfSyscall handles mount syscalls.
 func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
-		"project":               c.Project(),
+		"project":               c.Project().Name,
 		"syscall_number":        siov.req.data.nr,
 		"audit_architecture":    siov.req.data.arch,
 		"seccomp_notify_id":     siov.req.id,
