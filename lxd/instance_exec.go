@@ -293,7 +293,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	l.Debug("Instance process started")
 
 	var cmdKillOnce sync.Once
@@ -712,7 +712,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
+		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
 		l.Debug("Instance process started")
 
 		exitStatus, cmdErr := cmd.Wait()

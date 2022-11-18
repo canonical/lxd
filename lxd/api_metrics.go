@@ -191,7 +191,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 				instanceMetrics, err := inst.Metrics(hostInterfaces)
 				if err != nil {
-					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
+					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": inst.Project().Name, "err": err})
 					return
 				}
 
