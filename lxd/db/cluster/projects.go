@@ -199,7 +199,7 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 	return nil
 }
 
-// InitProjectWithoutImages updates populates the images_profiles table with
+// InitProjectWithoutImages populates the images_profiles table with
 // all images from the default project when a project is created with
 // features.images=false.
 func InitProjectWithoutImages(ctx context.Context, tx *sql.Tx, project string) error {
