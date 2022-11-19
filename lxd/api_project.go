@@ -694,7 +694,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 			return err
 		}
 
-		err = cluster.UpdateProject(context.TODO(), tx.Tx(), project.Name, req)
+		err = cluster.UpdateProject(ctx, tx.Tx(), project.Name, req)
 		if err != nil {
 			return fmt.Errorf("Persist profile changes: %w", err)
 		}
@@ -707,10 +707,17 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 				}
 			} else {
 				// Delete the project-specific default profile.
-				err = cluster.DeleteProfile(context.TODO(), tx.Tx(), project.Name, projecthelpers.Default)
+				err = cluster.DeleteProfile(ctx, tx.Tx(), project.Name, projecthelpers.Default)
 				if err != nil {
 					return fmt.Errorf("Delete project default profile: %w", err)
 				}
+			}
+		}
+
+		if shared.StringInSlice("features.images", configChanged) && shared.IsFalse(req.Config["features.images"]) && shared.IsTrue(req.Config["features.profiles"]) {
+			err = cluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
+			if err != nil {
+				return err
 			}
 		}
 
