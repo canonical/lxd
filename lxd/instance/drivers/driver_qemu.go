@@ -4718,6 +4718,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 
+				// If the key is being unset, set it to default value.
+				if value == "" {
+					value = "1"
+				}
+
 				limit, err := strconv.Atoi(value)
 				if err != nil {
 					return fmt.Errorf("Cannot change CPU pinning when VM is running")
