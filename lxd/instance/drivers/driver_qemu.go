@@ -1487,7 +1487,7 @@ func (d *qemu) Start(stateful bool) error {
 	if ok && cpuLimit != "" {
 		limit, err := strconv.Atoi(cpuLimit)
 		if err == nil {
-			if limit > 1 {
+			if d.architectureSupportsCPUHotplug() && limit > 1 {
 				err := d.setCPUs(limit)
 				if err != nil {
 					return fmt.Errorf("Failed to add CPUs: %w", err)
@@ -2909,14 +2909,20 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 
 	cpuPinning := false
 
-	_, err := strconv.Atoi(cpus)
+	cpuCount, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
 		// Only one CPU will be added here, as the others will be hotplugged during start.
-		cpuOpts.cpuCount = 1
+		if d.architectureSupportsCPUHotplug() {
+			cpuOpts.cpuCount = 1
+			cpuOpts.cpuCores = 1
+		} else {
+			cpuOpts.cpuCount = cpuCount
+			cpuOpts.cpuCores = cpuCount
+		}
+
 		cpuOpts.cpuSockets = 1
-		cpuOpts.cpuCores = 1
 		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
@@ -4648,7 +4654,6 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
 			"cluster.evacuate",
-			"limits.cpu",
 			"limits.memory",
 			"security.agent.metrics",
 			"security.secureboot",
@@ -4656,6 +4661,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		isLiveUpdatable := func(key string) bool {
+			if key == "limits.cpu" {
+				return d.architectureSupportsCPUHotplug()
+			}
+
 			if strings.HasPrefix(key, "boot.") {
 				return true
 			}
@@ -4710,6 +4719,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 					if err != nil {
 						return fmt.Errorf("Cannot update key %q when using CPU pinning and the VM is running", key)
 					}
+				}
+
+				// If the key is being unset, set it to default value.
+				if value == "" {
+					value = "1"
 				}
 
 				limit, err := strconv.Atoi(value)
@@ -6631,7 +6645,7 @@ func (d *qemu) setCPUs(count int) error {
 		}
 
 		// This shouldn't trigger, but if it does, don't panic.
-		if count-totalReservedCPUs >= len(availableCPUs) {
+		if count-totalReservedCPUs > len(availableCPUs) {
 			return fmt.Errorf("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
 		}
 
@@ -6658,7 +6672,7 @@ func (d *qemu) setCPUs(count int) error {
 			})
 		}
 	} else {
-		if totalReservedCPUs-count >= len(availableCPUs) {
+		if totalReservedCPUs-count > len(hotpluggedCPUs) {
 			// This shouldn't trigger, but if it does, don't panic.
 			return fmt.Errorf("Unable to remove CPUs, not enough hotpluggable CPUs available")
 		}
@@ -6691,4 +6705,8 @@ func (d *qemu) setCPUs(count int) error {
 	revert.Success()
 
 	return nil
+}
+
+func (d *qemu) architectureSupportsCPUHotplug() bool {
+	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_S390_BIG_ENDIAN})
 }
