@@ -100,6 +100,7 @@ A common reason for these issues is that Docker sets the FORWARD policy to `drop
 See [Docker on a router](https://docs.docker.com/network/iptables/#docker-on-a-router) for detailed information.
 
 The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD.
-If that is not an option, use the following command to explicitly allow network traffic from your network bridge to your external network interface:
+If that is not an option, use the following commands to explicitly allow network traffic from your network bridge to your external network interface and the returning traffic:
 
     iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
+    iptables -I DOCKER-USER -o <network_bridge> -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
