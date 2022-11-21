@@ -6628,7 +6628,7 @@ func (d *qemu) setCPUs(count int) error {
 		}
 
 		// This shouldn't trigger, but if it does, don't panic.
-		if count-totalReservedCPUs >= len(availableCPUs) {
+		if count-totalReservedCPUs > len(availableCPUs) {
 			return fmt.Errorf("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
 		}
 
@@ -6655,7 +6655,7 @@ func (d *qemu) setCPUs(count int) error {
 			})
 		}
 	} else {
-		if totalReservedCPUs-count >= len(availableCPUs) {
+		if totalReservedCPUs-count > len(hotpluggedCPUs) {
 			// This shouldn't trigger, but if it does, don't panic.
 			return fmt.Errorf("Unable to remove CPUs, not enough hotpluggable CPUs available")
 		}
