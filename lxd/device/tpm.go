@@ -38,8 +38,10 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 
 	if instConf.Type() == instancetype.Container {
 		rules["path"] = validate.IsNotEmpty
+		rules["pathrm"] = validate.IsNotEmpty
 	} else {
 		rules["path"] = validate.Optional(validate.IsNotEmpty)
+		rules["pathrm"] = validate.Optional(validate.IsNotEmpty)
 	}
 
 	err := d.config.Validate(rules)
@@ -123,7 +125,9 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to save swtpm state for device %q: %w", d.name, err)
 	}
 
-	var major, minor int
+	const TPM_MINOR = 244
+	const TPM_NUM_DEVICES = 65536
+	var major, minor, minorRM int
 
 	// We need to capture the output of the TPM emulator since it contains the device path. To do
 	// that, we wait until something has been written to the log file (stdout redirect), and then
@@ -165,9 +169,20 @@ func (d *tpm) startContainer() (*deviceConfig.RunConfig, error) {
 		return nil, fmt.Errorf("Failed to get TPM device information")
 	}
 
+	if minor == TPM_MINOR {
+		minorRM = TPM_NUM_DEVICES
+	} else {
+		minorRM = TPM_NUM_DEVICES + minor
+	}
+
 	runConf := deviceConfig.RunConfig{}
 
 	err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, uint32(major), uint32(minor), d.config["path"], false, &runConf)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to setup unix device: %w", err)
+	}
+
+	err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, uint32(major), uint32(minorRM), d.config["pathrm"], false, &runConf)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to setup unix device: %w", err)
 	}
