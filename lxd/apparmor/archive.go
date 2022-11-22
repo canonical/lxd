@@ -95,7 +95,7 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 
 	// Attempt to deref all paths.
 	outputPathFull, err := filepath.EvalSymlinks(outputPath)
-	if err == nil {
+	if err != nil {
 		outputPathFull = outputPath // Use requested path if cannot resolve it.
 	}
 
