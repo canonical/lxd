@@ -100,6 +100,17 @@ test_server_config_storage() {
   ! lxc storage volume snapshot "${pool}" backups
   ! lxc storage volume snapshot "${pool}" images
 
+  # Modify container and publish to image on custom volume.
+  lxc start foo
+  lxc exec foo -- touch /root/foo
+  lxc stop -f foo
+  lxc publish foo --alias fooimage
+
+  # Launch container from published image on custom volume.
+  lxc init fooimage foo2
+  lxc delete -f foo2
+  lxc image delete fooimage
+
   # Reset and cleanup
   lxc config unset storage.backups_volume
   lxc config unset storage.images_volume
