@@ -573,7 +573,7 @@ func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []ins
 	for _, inst := range instances {
 		ch := make(chan error)
 		go func(inst instance.Instance) {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
 			snapshotName, err := instance.NextSnapshotName(d.State(), inst, "snap%d")
 			if err != nil {
@@ -737,7 +737,7 @@ func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []i
 			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project().Name, err)
 		}
 
-		logger.Debug("Deleted instance snapshot", logger.Ctx{"project": snapshot.Project(), "snapshot": snapshot.Name()})
+		logger.Debug("Deleted instance snapshot", logger.Ctx{"project": snapshot.Project().Name, "snapshot": snapshot.Name()})
 	}
 
 	return nil
