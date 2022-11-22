@@ -37,7 +37,7 @@ func AvailableStorageDrivers(supportedDrivers []api.ServerStorageDriverInfo, poo
 			continue
 		}
 
-		if poolType == PoolTypeAny && driver.Name == "cephfs" {
+		if poolType == PoolTypeAny && (driver.Name == "cephfs" || driver.Name == "cephobject") {
 			continue
 		}
 
