@@ -485,7 +485,7 @@ func DeleteSnapshots(inst Instance) error {
 		k = snapInstsCount - 1 - k
 		err = snapInsts[k].Delete(true)
 		if err != nil {
-			logger.Error("Failed deleting snapshot", logger.Ctx{"project": snapInsts[k].Project(), "instance": snapInsts[k].Name(), "err": err})
+			logger.Error("Failed deleting snapshot", logger.Ctx{"project": snapInsts[k].Project().Name, "instance": snapInsts[k].Name(), "err": err})
 		}
 	}
 
