@@ -438,7 +438,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "link", Value: peerName},
 	}
 
-	if d.inst.Type() == instancetype.VM {
+	instType := d.inst.Type()
+	if instType == instancetype.VM {
 		if d.config["acceleration"] == "sriov" {
 			runConf.NetworkInterface = append(runConf.NetworkInterface,
 				[]deviceConfig.RunConfigItem{
@@ -455,6 +456,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 				}...)
 		}
+	} else if instType == instancetype.Container {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
 	}
 
 	revert.Success()
