@@ -4171,6 +4171,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			// Release the liblxc instance.
+			_ = cc.Release()
 			return err
 		}
 
