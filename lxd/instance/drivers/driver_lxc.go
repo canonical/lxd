@@ -2621,6 +2621,7 @@ func (d *lxc) Stop(stateful bool) error {
 		// Load the config.
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
@@ -2749,6 +2750,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
