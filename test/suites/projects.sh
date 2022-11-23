@@ -398,7 +398,7 @@ test_projects_images() {
   # Switch back to the project.
   lxc project switch foo
 
-  # The image alias from the default project is not visiable here
+  # The image alias from the default project is not visible here
   ! lxc image list | grep -q testimage || false
 
   # Rename the image alias in the project using the same it has in the default
@@ -429,8 +429,16 @@ test_projects_images_default() {
   lxc project switch foo
   lxc project set foo "features.images" "false"
 
-  # The project can see images from the defaut project
+  # Create another project, without the features.images config.
+  lxc project create bar
+  lxc project set bar "features.images" "false"
+
+  # The project can see images from the default project
   lxc image list | grep -q testimage
+
+  # The image from the default project has correct profile assigned
+  fingerprint="$(lxc image list --format json | jq -r .[0].fingerprint)"
+  lxc query "/1.0/images/${fingerprint}?project=foo" | jq -r ".profiles[0]" | grep -xq default
 
   # The project can delete images in the default project
   lxc image delete testimage
@@ -441,8 +449,13 @@ test_projects_images_default() {
   lxc project switch default
   lxc image list | grep -q foo-image
 
+  # Correct profile assigned to images from another project
+  fingerprint="$(lxc image list --format json | jq -r '.[] | select(.aliases[0].name == "foo-image") | .fingerprint')"
+  lxc query "/1.0/images/${fingerprint}?project=bar" | jq -r ".profiles[0]" | grep -xq default
+
   lxc image delete foo-image
 
+  lxc project delete bar
   lxc project delete foo
 }
 
