@@ -114,7 +114,7 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 		// Run handler function.
 		runConf, err := sub.Handler(*event)
 		if err != nil {
-			logger.Error("Unix event hook failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName, "path": sub.Path})
+			logger.Error("Unix event hook failed", logger.Ctx{"project": projectName, "instance": instanceName, "device": deviceName, "path": sub.Path, "action": event.Action, "err": err})
 			continue
 		}
 
