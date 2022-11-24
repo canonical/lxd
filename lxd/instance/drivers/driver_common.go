@@ -1216,7 +1216,7 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 			// static NIC DHCP leases to be created). Instead just log an error.
 			// This will allow instances to be created with conflicting devices (such as when copying
 			// or restoring a backup) and allows the user to manually fix the conflicts in order to
-			// allow the the instance to start.
+			// allow the instance to start.
 			if api.StatusErrorCheck(err, http.StatusConflict) {
 				d.logger.Error("Failed add validation for device, skipping add action", logger.Ctx{"device": entry.Name, "err": err})
 

@@ -162,7 +162,7 @@ The basic prerequisite setup steps to achieve this are:
 PF and VF setup:
 
 Activate some VFs on PF (in this case called `enp9s0f0np0` with a PCI address of `0000:09:00.0`) and unbind them.
-Then enable `switchdev` mode and `hw-tc-offload` on the the PF.
+Then enable `switchdev` mode and `hw-tc-offload` on the PF.
 Finally rebind the VFs.
 
 ```

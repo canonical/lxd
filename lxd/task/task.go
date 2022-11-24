@@ -25,7 +25,7 @@ func (t *Task) Reset() {
 // Execute the our task function according to our schedule, until the given
 // context gets cancelled.
 func (t *Task) loop(ctx context.Context) {
-	// Kick off the task immediately (as long as the the schedule is
+	// Kick off the task immediately (as long as the schedule is
 	// greater than zero, see below).
 	delay := immediately
 

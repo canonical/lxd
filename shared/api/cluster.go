@@ -188,7 +188,7 @@ func (member *ClusterMember) Writable() ClusterMemberPut {
 	return member.ClusterMemberPut
 }
 
-// ClusterMemberPut represents the the modifiable fields of a LXD cluster member
+// ClusterMemberPut represents the modifiable fields of a LXD cluster member
 //
 // swagger:model
 //

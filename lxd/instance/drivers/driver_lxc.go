@@ -1582,7 +1582,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		}
 	} else {
 		// Currently liblxc does not move devices back to the host on stop that were added
-		// after the the container was started. For this reason we utilise the lxc.hook.stop
+		// after the container was started. For this reason we utilise the lxc.hook.stop
 		// hook so that we can capture the netns path, enter the namespace and move the nics
 		// back to the host and rename them if liblxc hasn't already done it.
 		// We can only move back devices that have an expected host_name record and where
