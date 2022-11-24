@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -34,6 +35,8 @@ func (d *common) Watch(path string, identifier string, f func(path string, event
 		return ErrInvalidFunction
 	}
 
+	path = filepath.Clean(path)
+
 	if !strings.HasPrefix(path, d.prefixPath) {
 		return &ErrInvalidPath{PrefixPath: d.prefixPath}
 	}
@@ -60,6 +63,8 @@ func (d *common) Watch(path string, identifier string, f func(path string, event
 func (d *common) Unwatch(path string, identifier string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	path = filepath.Clean(path)
 
 	_, ok := d.watches[path]
 	if !ok {
