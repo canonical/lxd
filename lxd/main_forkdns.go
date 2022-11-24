@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
+	"k8s.io/utils/inotify"
 
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/shared"
@@ -34,7 +34,7 @@ var dnsServersList []string
 
 // serversFileMonitor performs an initial load of the server list and then waits for the file to be
 // modified before triggering a reload.
-func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
+func serversFileMonitor(watcher *inotify.Watcher, networkName string) {
 	err := loadServersList(networkName)
 	if err != nil {
 		logger.Errorf("Server list load error: %v", err)
@@ -42,7 +42,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 
 	for {
 		select {
-		case ev := <-watcher.Events:
+		case ev := <-watcher.Event:
 			// Ignore files events that dont concern the servers list file.
 			if !strings.HasSuffix(ev.Name, network.ForkdnsServersListPath+"/"+network.ForkdnsServersListFile) {
 				continue
@@ -54,7 +54,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 				continue
 			}
 
-		case err := <-watcher.Errors:
+		case err := <-watcher.Error:
 			logger.Errorf("Inotify error: %v", err)
 		}
 	}
@@ -358,16 +358,16 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Setup watcher on servers file.
-	watcher, err := fsnotify.NewWatcher()
+	watcher, err := inotify.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("Unable to setup fsnotify: %s", err)
+		return fmt.Errorf("Unable to setup inotify: %s", err)
 	}
 
 	networkName := args[2]
 	path := shared.VarPath("networks", networkName, network.ForkdnsServersListPath)
-	err = watcher.Add(path)
+	err = watcher.AddWatch(path, inotify.InAllEvents)
 	if err != nil {
-		return fmt.Errorf("Unable to setup fsnotify watch on %s: %w", path, err)
+		return fmt.Errorf("Unable to setup inotify watch on %s: %w", path, err)
 	}
 
 	// Run the server list monitor concurrently waiting for file changes.
@@ -387,7 +387,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 
 	err = srv.ListenAndServe()
 	if err != nil {
-		return fmt.Errorf("Failed to set udp listener: %v\n", err)
+		return fmt.Errorf("Failed to set udp listener: %w", err)
 	}
 
 	return nil

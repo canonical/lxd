@@ -79,7 +79,7 @@ func (n *bridge) Info() Info {
 // cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty and
 // the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
 // config is applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network
-// segment it would cause MAC conflicts to use the the same MAC on all nodes. If an IP address is specified then
+// segment it would cause MAC conflicts to use the same MAC on all nodes. If an IP address is specified then
 // connecting multiple nodes to the same network segment would also cause IP conflicts, so if an IP is defined
 // then we assume this is not being done. However if IP addresses are explicitly set to "none" and
 // "bridge.external_interfaces" is set then it may not be safe to use a the same MAC address on all nodes.

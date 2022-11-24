@@ -16,7 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// Packages returns the the AST packages in which to search for structs.
+// Packages returns the AST packages in which to search for structs.
 //
 // By default it includes the lxd/db and shared/api packages.
 func Packages() (map[string]*ast.Package, error) {
@@ -37,7 +37,7 @@ func Packages() (map[string]*ast.Package, error) {
 	return packages, nil
 }
 
-// ParsePackage returns the the AST package in which to search for structs.
+// ParsePackage returns the AST package in which to search for structs.
 func ParsePackage(pkgPath string) (*ast.Package, error) {
 	pkg, err := lex.Parse(pkgPath)
 	if err != nil {

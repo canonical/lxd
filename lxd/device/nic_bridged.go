@@ -1656,7 +1656,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 			}
 
 			if shared.IsFalseOrEmpty(d.network.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
-				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the the NIC
+				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the NIC
 				// is likely to use its MAC and SLAAC to configure its address.
 				if hwAddr != nil {
 					ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)
