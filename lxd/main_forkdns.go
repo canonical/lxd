@@ -387,7 +387,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 
 	err = srv.ListenAndServe()
 	if err != nil {
-		return fmt.Errorf("Failed to set udp listener: %v\n", err)
+		return fmt.Errorf("Failed to set udp listener: %w", err)
 	}
 
 	return nil
