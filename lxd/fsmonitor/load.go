@@ -28,14 +28,14 @@ func New(ctx context.Context, path string) (FSMonitor, error) {
 
 	driver, monLogger, err := startMonitor("fanotify")
 	if err != nil {
-		logger.Warn("Failed to initialize fanotify, falling back on fsnotify", logger.Ctx{"err": err})
-		driver, monLogger, err = startMonitor("fsnotify")
+		logger.Warn("Failed to initialize fanotify, falling back on inotify", logger.Ctx{"err": err})
+		driver, monLogger, err = startMonitor("inotify")
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	logger.Debug("Initialized filesystem monitor", logger.Ctx{"path": path})
+	logger.Info("Initialized filesystem monitor", logger.Ctx{"path": path, "driver": driver.Name()})
 
 	monitor := fsMonitor{
 		driver: driver,
