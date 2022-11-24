@@ -371,7 +371,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 		return &info, fmt.Errorf("The image already exists: %s", info.Fingerprint)
 	}
 
-	/* rename the the file to the expected name so our caller can use it */
+	/* rename the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
 	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {

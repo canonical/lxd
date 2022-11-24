@@ -751,7 +751,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc start foo
     LXD_DIR="${LXD_TWO_DIR}" lxc stop foo --force
 
-    # Init a new container on node2 using the the snapshot on node1
+    # Init a new container on node2 using the snapshot on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/snap-test egg --target node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
     LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force

@@ -419,7 +419,7 @@ definitions:
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     ClusterMemberPut:
-        description: ClusterMemberPut represents the the modifiable fields of a LXD cluster member
+        description: ClusterMemberPut represents the modifiable fields of a LXD cluster member
         properties:
             config:
                 additionalProperties:

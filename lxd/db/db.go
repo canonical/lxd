@@ -392,7 +392,7 @@ func (c *Cluster) retry(f func() error) error {
 	return query.Retry(f)
 }
 
-// NodeID sets the the node NodeID associated with this cluster instance. It's used for
+// NodeID sets the node NodeID associated with this cluster instance. It's used for
 // backward-compatibility of all db-related APIs that were written before
 // clustering and don't accept a node NodeID, so in those cases we automatically
 // use this value as implicit node NodeID.

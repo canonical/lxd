@@ -801,7 +801,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// raw ID maps have been supplied, then we will be running the disk proxy processes
 				// inside a user namespace as the root userns user. Therefore we need to ensure
 				// that there is a root UID and GID mapping in the raw ID maps, and if not then add
-				// one mapping the root userns user to the the nouser/nogroup host ID.
+				// one mapping the root userns user to the nouser/nogroup host ID.
 				if d.restrictedParentSourcePath != "" || len(rawIDMaps) > 0 {
 					rawIDMaps = diskAddRootUserNSEntry(rawIDMaps, 65534)
 				}

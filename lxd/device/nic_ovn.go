@@ -750,7 +750,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 			})
 		} else if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
 			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
-			// the bridge, the the NIC is likely to use its MAC and SLAAC to configure its address.
+			// the bridge, the NIC is likely to use its MAC and SLAAC to configure its address.
 			hwAddr, err := net.ParseMAC(d.config["hwaddr"])
 			if err == nil {
 				ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)

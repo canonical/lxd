@@ -23,7 +23,7 @@ Key                                 | Type      | Scope     | Default           
 :--                                 | :---      | :----     | :------                           | :----------
 `backups.compression_algorithm`     | string    | global    | `gzip`                            | Compression algorithm to use for new images (`bzip2`, `gzip`, `lzma`, `xz` or `none`)
 `candid.api.key`                    | string    | global    | -                                 | Public key of the candid server (required for HTTP-only servers)
-`candid.api.url`                    | string    | global    | -                                 | URL of the the external authentication endpoint using Candid
+`candid.api.url`                    | string    | global    | -                                 | URL of the external authentication endpoint using Candid
 `candid.domains`                    | string    | global    | -                                 | Comma-separated list of allowed Candid domains (empty string means all domains are valid)
 `candid.expiry`                     | integer   | global    | `3600`                            | Candid macaroon expiry in seconds
 `cluster.https_address`             | string    | local     | -                                 | Address to use for clustering traffic
