@@ -61,7 +61,7 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 		return fmt.Errorf("Failed to add %q to watch targets: %w", path, err)
 	}
 
-	logger.Debugf("Added %q to watch targets", filepath.Clean(path))
+	logger.Debug("Added watch target", logger.Ctx{"path": path})
 	return nil
 }
 
