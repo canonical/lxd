@@ -281,7 +281,7 @@ var ConfigSchema = config.Schema{
 	"acme.ca_url":                    {},
 	"acme.domain":                    {},
 	"acme.email":                     {},
-	"acme.agree_tos":                 {Type: config.Bool},
+	"acme.agree_tos":                 {Type: config.Bool, Default: "false"},
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
