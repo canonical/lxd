@@ -6,79 +6,94 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	fsn "github.com/fsnotify/fsnotify"
+	in "k8s.io/utils/inotify"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var fsnotifyLoaded bool
+var inotifyLoaded bool
 
-type fsnotify struct {
+type inotify struct {
 	common
 
-	watcher *fsn.Watcher
+	watcher *in.Watcher
 }
 
-func (d *fsnotify) load(ctx context.Context) error {
-	if fsnotifyLoaded {
+func (d *inotify) Name() string {
+	return "inotify"
+}
+
+func (d *inotify) load(ctx context.Context) error {
+	if inotifyLoaded {
 		return nil
 	}
 
 	var err error
 
-	d.watcher, err = fsn.NewWatcher()
+	d.watcher, err = in.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("Failed to initialize fsnotify: %w", err)
+		return fmt.Errorf("Failed to initialize: %w", err)
 	}
 
 	err = d.watchFSTree(d.prefixPath)
 	if err != nil {
 		_ = d.watcher.Close()
-		fsnotifyLoaded = false
+		inotifyLoaded = false
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
 	}
 
 	go d.getEvents(ctx)
 
-	fsnotifyLoaded = true
+	inotifyLoaded = true
 
 	return nil
 }
 
-func (d *fsnotify) getEvents(ctx context.Context) {
+func (d *inotify) getEvents(ctx context.Context) {
 	for {
 		select {
-		// Clean up if context is done
+		// Clean up if context is done.
 		case <-ctx.Done():
 			_ = d.watcher.Close()
-			fsnotifyLoaded = false
+			inotifyLoaded = false
 			return
-		case event := <-d.watcher.Events:
-			// Only consider create and remove events
-			if event.Op&fsn.Create == 0 && event.Op&fsn.Remove == 0 {
+		case event := <-d.watcher.Event:
+			event.Name = filepath.Clean(event.Name)
+			isCreate := event.Mask&in.InCreate != 0
+			isDelete := event.Mask&in.InDelete != 0
+
+			// Only consider create and delete events.
+			if !isCreate && !isDelete {
 				continue
 			}
 
-			// If there's a new event for a directory, watch it if it's a create event.
-			// Always call the handlers in case a watched file is inside the newly created or
-			// now deleted directory, otherwise we'll miss the event.
-			stat, err := os.Lstat(event.Name)
-			if err == nil && stat.IsDir() {
-				if event.Op&fsn.Create != 0 {
+			// New event for a directory.
+			if event.Mask&in.InIsdir != 0 {
+				// If it's a create event, then setup watches on any sub-directories.
+				if isCreate {
 					_ = d.watchFSTree(event.Name)
 				}
 
-				// Check whether there's a watch on a specific file or directory.
+				// Check whether there's a watch on the directory.
 				d.mu.Lock()
-				for path := range d.watches {
-					var action Event
+				var action Event
 
-					if event.Op&fsn.Create != 0 {
-						action = Add
-					} else {
-						action = Remove
+				if isCreate {
+					action = Add
+				} else {
+					action = Remove
+				}
+
+				for path := range d.watches {
+					// Always call the handlers that have a prefix of the event path,
+					// in case a watched file is inside the newly created or now deleted
+					// directory, otherwise we'll miss the event. The handlers themselves are
+					// expected to check the state of the specific path they are interested in.
+					if !strings.HasPrefix(path, event.Name) {
+						continue
 					}
 
 					for identifier, f := range d.watches[path] {
@@ -98,17 +113,16 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 
 			// Check whether there's a watch on a specific file or directory.
 			d.mu.Lock()
+			var action Event
+			if isCreate {
+				action = Add
+			} else {
+				action = Remove
+			}
+
 			for path := range d.watches {
 				if event.Name != path {
 					continue
-				}
-
-				var action Event
-
-				if event.Op&fsn.Create != 0 {
-					action = Add
-				} else {
-					action = Remove
 				}
 
 				for identifier, f := range d.watches[path] {
@@ -126,13 +140,13 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 			}
 
 			d.mu.Unlock()
-		case err := <-d.watcher.Errors:
+		case err := <-d.watcher.Error:
 			d.logger.Error("Received event error", logger.Ctx{"err": err})
 		}
 	}
 }
 
-func (d *fsnotify) watchFSTree(path string) error {
+func (d *inotify) watchFSTree(path string) error {
 	if !shared.PathExists(path) {
 		return errors.New("Path doesn't exist")
 	}
@@ -153,8 +167,8 @@ func (d *fsnotify) watchFSTree(path string) error {
 			return nil
 		}
 
-		// Only watch on real paths.
-		err = d.watcher.Add(path)
+		// Only watch on real paths for CREATE and DELETE events.
+		err = d.watcher.AddWatch(path, in.InCreate|in.InDelete)
 		if err != nil {
 			d.logger.Warn("Failed to watch path", logger.Ctx{"path": path, "err": err})
 			return nil

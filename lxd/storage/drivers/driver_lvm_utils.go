@@ -48,7 +48,7 @@ func (d *lvm) thinpoolName() string {
 	return lvmThinpoolDefaultName
 }
 
-// openLoopFile opens a loop device and returns the the device path.
+// openLoopFile opens a loop device and returns the device path.
 func (d *lvm) openLoopFile(source string) (string, error) {
 	if source == "" {
 		return "", fmt.Errorf("No source property found for the storage pool")

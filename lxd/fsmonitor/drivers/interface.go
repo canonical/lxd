@@ -16,6 +16,7 @@ type driver interface {
 
 // Driver represents a low-level fs notification driver.
 type Driver interface {
+	Name() string
 	PrefixPath() string
 	Watch(path string, identifier string, f func(path string, event string) bool) error
 	Unwatch(path string, identifier string) error
