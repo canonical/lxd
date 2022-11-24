@@ -12,7 +12,6 @@ require (
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3
-	github.com/fsnotify/fsnotify v1.6.0
 	github.com/fvbommel/sortorder v1.0.2
 	github.com/go-acme/lego/v4 v4.9.0
 	github.com/google/gopacket v1.1.19
@@ -54,6 +53,7 @@ require (
 	gopkg.in/macaroon-bakery.v3 v3.0.0
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2
 )
 
 require (
@@ -66,6 +66,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/eapache/channels v1.1.0 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
