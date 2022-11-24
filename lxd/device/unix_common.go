@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -118,7 +119,13 @@ func (d *unixCommon) Register() error {
 			// Get the file type and ensure it matches what the user was expecting.
 			dType, _, _, err := unixDeviceAttributes(e.Path)
 			if err != nil {
-				return nil, err
+				if os.IsNotExist(err) {
+					// Skip if host side source device doesn't exist.
+					// This could be an event for the parent directory being added.
+					return nil, nil
+				}
+
+				return nil, fmt.Errorf("Failed getting device attributes: %w", err)
 			}
 
 			if !unixIsOurDeviceType(d.config, dType) {
