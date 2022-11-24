@@ -851,7 +851,7 @@ func (c *ClusterTx) DeleteInstanceConfigKey(id int64, key string) error {
 	return err
 }
 
-// UpdateInstancePowerState sets the the power state of the container with the given ID.
+// UpdateInstancePowerState sets the power state of the container with the given ID.
 func (c *ClusterTx) UpdateInstancePowerState(id int, state string) error {
 	// Set the new value
 	str := "INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES (?, 'volatile.last_state.power', ?)"
