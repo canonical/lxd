@@ -34,6 +34,10 @@ type fanotifyEventInfoFid struct {
 	FSID uint64
 }
 
+func (d *fanotify) Name() string {
+	return "fanotify"
+}
+
 func (d *fanotify) load(ctx context.Context) error {
 	if fanotifyLoaded {
 		return nil
