@@ -678,13 +678,13 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "name", Value: d.config["name"]},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: peerName},
+		{Key: "hwaddr", Value: d.config["hwaddr"]},
 	}
 
 	if d.inst.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
-				{Key: "hwaddr", Value: d.config["hwaddr"]},
 				{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 			}...)
 	}
