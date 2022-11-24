@@ -6737,5 +6737,9 @@ func (d *qemu) setCPUs(count int) error {
 }
 
 func (d *qemu) architectureSupportsCPUHotplug() bool {
-	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_S390_BIG_ENDIAN})
+	// Check supported features.
+	drivers := DriverStatuses()
+	info := drivers[d.Type()].Info
+
+	return shared.StringInSlice("cpu_hotplug", info.Features)
 }
