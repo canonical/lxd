@@ -52,7 +52,7 @@ func Test_Volume_ConfigSizeFromSource(t *testing.T) {
 			// Check that the volume's smaller size than source image's rootfs size causes error.
 			vol:    Volume{driver: &nonBlockBackedDriver, volType: VolumeTypeContainer, config: map[string]string{"size": "1GB"}},
 			srcVol: Volume{volType: VolumeTypeImage, config: map[string]string{"volatile.rootfs.size": "15GB"}},
-			err:    fmt.Errorf("Source image size (15000000000) exceeds specified volume size (1000000000)"),
+			err:    fmt.Errorf("Source image size (15000000000) exceeds specified volume size (1000005632)"),
 			size:   "",
 		},
 		{
