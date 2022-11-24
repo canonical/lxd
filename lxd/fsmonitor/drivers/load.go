@@ -7,7 +7,7 @@ import (
 )
 
 var drivers = map[string]func() driver{
-	"fsnotify": func() driver { return &fsnotify{} },
+	"inotify":  func() driver { return &inotify{} },
 	"fanotify": func() driver { return &fanotify{} },
 }
 
