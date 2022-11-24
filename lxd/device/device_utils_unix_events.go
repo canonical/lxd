@@ -49,14 +49,16 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 
 	identifier := fmt.Sprintf("%d_%s", inst.ID(), deviceName)
 
+	path = filepath.Clean(path)
+
 	// Add inotify watcher to its nearest existing ancestor.
-	err := s.DevMonitor.Watch(filepath.Clean(path), identifier, func(path, event string) bool {
+	err := s.DevMonitor.Watch(path, identifier, func(path, event string) bool {
 		e := unixNewEvent(event, path)
 		unixRunHandlers(s, &e)
 		return true
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to add %q to watch targets: %w", filepath.Clean(path), err)
+		return fmt.Errorf("Failed to add %q to watch targets: %w", path, err)
 	}
 
 	logger.Debugf("Added %q to watch targets", filepath.Clean(path))
