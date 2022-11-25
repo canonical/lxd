@@ -299,7 +299,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
 
   # Simulate 192.0.2.2 being used by another container, next free IP is 192.0.2.3
-  kill "$(grep ^pid "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid | cut -d' ' -f2)"
+  kill "$(awk '/^pid/ {print $2}' "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid)"
   echo "$(date --date="1hour" +%s) 00:16:3e:55:4c:fd 192.0.2.2 c1 ff:6f:c3:ab:c5:00:02:00:00:ab:11:f8:5c:3d:73:db:b2:6a:06" > "${LXD_DIR}/networks/${brName}/dnsmasq.leases"
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
@@ -567,7 +567,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
 
   # Simulate SLAAC 2001:db8:1::216:3eff:fe92:f3c1 being used by another container, next free IP is 2001:db8:1::2
-  kill "$(grep ^pid "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid | cut -d' ' -f2)"
+  kill "$(awk '/^pid/ {print $2}' "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid)"
   echo "$(date --date="1hour" +%s) 1875094469 2001:db8:1::216:3eff:fe92:f3c1 c1 00:02:00:00:ab:11:f8:5c:3d:73:db:b2:6a:06" > "${LXD_DIR}/networks/${brName}/dnsmasq.leases"
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
