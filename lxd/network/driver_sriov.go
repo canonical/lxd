@@ -16,11 +16,6 @@ type sriov struct {
 	common
 }
 
-// Type returns the network type.
-func (n *sriov) Type() string {
-	return "sriov"
-}
-
 // DBType returns the network type DB ID.
 func (n *sriov) DBType() db.NetworkType {
 	return db.NetworkTypeSriov
