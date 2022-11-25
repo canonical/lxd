@@ -333,7 +333,7 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
 
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
-// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
+// roundVolumeBlockSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
 // list that indicates which volume types it should not attempt to resize (when allowUnsafeResize=false) and
 // instead return ErrNotSupported.
 func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafeResize bool, unsupportedResizeTypes ...VolumeType) (bool, error) {
@@ -341,8 +341,8 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 		return false, fmt.Errorf("Size cannot be zero")
 	}
 
-	// Get rounded block size to avoid qemu boundary issues.
-	sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
+	// Get rounded block size to avoid QEMU boundary issues.
+	sizeBytes = vol.driver.roundVolumeBlockSizeBytes(sizeBytes)
 
 	if shared.PathExists(path) {
 		fi, err := os.Stat(path)
