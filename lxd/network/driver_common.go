@@ -154,11 +154,51 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	return nil
 }
 
-// validateZoneName checks that a user provided zone name is valid.
-func (n *common) validateZoneName(name string) error {
-	_, _, _, err := n.state.DB.Cluster.GetNetworkZone(name)
+// validateZoneNames checks the DNS zone names are valid in config.
+func (n *common) validateZoneNames(config map[string]string) error {
+	// Check if DNS zones in use.
+	if config["dns.zone.forward"] == "" && config["dns.zone.reverse.ipv4"] == "" && config["dns.zone.reverse.ipv6"] == "" {
+		return nil
+	}
+
+	var err error
+	var zoneProjects map[string]string
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		zoneProjects, err = tx.GetNetworkZones(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed to load all network zones: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("Network zone %q doesn't exist", name)
+		return err
+	}
+
+	for _, keyName := range []string{"dns.zone.forward", "dns.zone.reverse.ipv4", "dns.zone.reverse.ipv6"} {
+		keyZoneNames := shared.SplitNTrimSpace(config[keyName], ",", -1, true)
+		keyZoneNamesLen := len(keyZoneNames)
+		if keyZoneNamesLen < 1 {
+			continue
+		} else if keyZoneNamesLen > 1 && (keyName == "dns.zone.reverse.ipv4" || keyName == "dns.zone.reverse.ipv6") {
+			return fmt.Errorf("Invalid %q must contain only single DNS zone name", keyName)
+		}
+
+		zoneProjectsUsed := make(map[string]struct{}, 0)
+
+		for _, keyZoneName := range keyZoneNames {
+			zoneProjectName, found := zoneProjects[keyZoneName]
+			if !found {
+				return fmt.Errorf("Invalid %q, network zone %q not found", keyName, keyZoneName)
+			}
+
+			_, zoneProjectUsed := zoneProjectsUsed[zoneProjectName]
+			if zoneProjectUsed {
+				return fmt.Errorf("Invalid %q, contains multiple zones from the same project", keyName)
+			}
+
+			zoneProjectsUsed[zoneProjectName] = struct{}{}
+		}
 	}
 
 	return nil
