@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-11-17 13:12-0500\n"
+"POT-Creation-Date: 2022-11-25 09:28+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -909,7 +909,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:343
+#: lxc/init.go:366
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -1005,6 +1005,11 @@ msgstr "Image copiée avec succès !"
 msgid "Backups:"
 msgstr ""
 
+#: lxc/utils.go:96
+#, c-format
+msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
+msgstr ""
+
 #: lxc/network.go:325 lxc/network_acl.go:369 lxc/network_forward.go:285
 #: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
 #: lxc/network_zone.go:312 lxc/network_zone.go:871 lxc/storage_bucket.go:137
@@ -1022,11 +1027,6 @@ msgstr ""
 #, c-format
 msgid "Bad property: %s"
 msgstr "Mauvaise propriété : %s"
-
-#: lxc/utils.go:96
-#, c-format
-msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
-msgstr ""
 
 #: lxc/network.go:838
 msgid "Bond:"
@@ -1169,15 +1169,10 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:287
+#: lxc/init.go:309
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
-msgstr ""
-
-#: lxc/init.go:275
-#, c-format
-msgid "Cannot override devices: %w"
 msgstr ""
 
 #: lxc/network_acl.go:781
@@ -1984,7 +1979,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:403
+#: lxc/init.go:426
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -2383,6 +2378,11 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 #: lxc/network_peer.go:305
 #, c-format
 msgid "Failed getting peer's status: %w"
+msgstr ""
+
+#: lxc/init.go:288
+#, c-format
+msgid "Failed loading profile %q for device override: %w"
 msgstr ""
 
 #: lxc/file.go:1180
@@ -2912,7 +2912,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:416 lxc/init.go:410
+#: lxc/copy.go:416 lxc/init.go:433
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -4978,7 +4978,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:357
+#: lxc/init.go:380
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -5781,7 +5781,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:461
+#: lxc/init.go:484
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -5792,12 +5792,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/init.go:445
+#: lxc/init.go:468
 #, fuzzy, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/init.go:441
+#: lxc/init.go:464
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -5862,12 +5862,12 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:463
+#: lxc/init.go:486
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:462
+#: lxc/init.go:485
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
