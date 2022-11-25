@@ -240,11 +240,6 @@ func (d *nicOVN) checkAddressConflict() error {
 
 	// Check if any instance devices use this network.
 	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
-		// Skip NICs that specify a NIC type that is not the same as our own.
-		if !shared.StringInSlice(nicConfig["nictype"], []string{"", "ovn"}) {
-			return nil
-		}
-
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
 		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
