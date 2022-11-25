@@ -85,11 +85,6 @@ type ovn struct {
 	common
 }
 
-// Type returns the network type.
-func (n *ovn) Type() string {
-	return "ovn"
-}
-
 // DBType returns the network type DB ID.
 func (n *ovn) DBType() db.NetworkType {
 	return db.NetworkTypeOVN
