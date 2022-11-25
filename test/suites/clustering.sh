@@ -1709,7 +1709,7 @@ test_clustering_shutdown_nodes() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage foo
 
   # Get container PID
-  instance_pid=$(LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep PID | cut -d' ' -f2)
+  instance_pid=$(LXD_DIR="${LXD_ONE_DIR}" lxc info foo | awk '/^PID:/ {print $2}')
 
   # Get server PIDs
   daemon_pid1=$(LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}')
@@ -1926,7 +1926,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
 
   # The image tarball is available on both nodes
-  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
 
@@ -1968,7 +1968,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
 
   # The image tarball is available on all three nodes
-  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
@@ -1988,7 +1988,7 @@ test_clustering_image_replication() {
   lxc stop c1 --force
   lxc publish c1 --alias new-image
 
-  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | grep "Fingerprint:" | cut -f2 -d" ")
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
@@ -2003,7 +2003,7 @@ test_clustering_image_replication() {
   lxc delete c1
 
   # Delete the imported image
-  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
@@ -2024,7 +2024,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
 
   # The image tarball is only available on node2
-  fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | awk '/^Fingerprint/ {print $2}')
   [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
