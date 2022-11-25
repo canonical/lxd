@@ -16,9 +16,9 @@ test_kernel_limits() {
   # limit patch.
   lxc config set limits limits.kernel.nofile 3000
   lxc start limits
-  pid=$(lxc info limits | grep ^PID | awk '{print $2}')
-  soft=$(grep ^"Max open files" /proc/"${pid}"/limits | awk '{print $4}')
-  hard=$(grep ^"Max open files" /proc/"${pid}"/limits | awk '{print $5}')
+  pid="$(lxc info limits | awk '/^PID/ {print $2}')"
+  soft="$(awk '/^Max open files/ {print $4}' /proc/"${pid}"/limits)"
+  hard="$(awk '/^Max open files/ {print $5}' /proc/"${pid}"/limits)"
 
   lxc delete --force limits
 
