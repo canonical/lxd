@@ -72,7 +72,7 @@ func (d *zfs) createDataset(dataset string, options ...string) error {
 }
 
 func (d *zfs) createVolume(dataset string, size int64, options ...string) error {
-	size = roundVolumeBlockFileSizeBytes(size)
+	size = d.roundVolumeBlockSizeBytes(size)
 
 	args := []string{"create", "-s", "-V", fmt.Sprintf("%d", size)}
 	for _, option := range options {
