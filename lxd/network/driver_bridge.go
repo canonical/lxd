@@ -2869,9 +2869,9 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 	// Get all static leases.
 	if clientType == request.ClientTypeNormal {
-		// Get the downstream networks.
-		if n.project == project.Default {
-			// Load all the networks.
+		// If requested project matches network's project then include downstream uplink IPs.
+		if projectName == n.project {
+			// Include downstream OVN routers using the network as an uplink.
 			var projectNetworks map[string]map[int64]api.Network
 			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				projectNetworks, err = tx.GetCreatedNetworks(ctx)
