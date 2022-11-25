@@ -6374,16 +6374,11 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	// Check io_uring support.
-	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
+	data.Features, err = d.checkFeatures(qemuPath)
 	if err != nil {
-		logger.Errorf("Unable to run io_uring check during QEMU initialization: %v", err)
-		data.Error = fmt.Errorf("QEMU failed to run a feature check")
+		logger.Errorf("Unable to run feature checks during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("QEMU failed to run feature checks")
 		return data
-	}
-
-	if supported {
-		data.Features = append(data.Features, "io_uring")
 	}
 
 	data.Error = nil
@@ -6391,13 +6386,20 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
+func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 	pidFile, err := os.CreateTemp("", "")
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	defer func() { _ = os.Remove(pidFile.Name()) }()
+
+	monitorPath, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = os.Remove(monitorPath.Name()) }()
 
 	qemuArgs := []string{
 		"qemu",
@@ -6407,9 +6409,9 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		"-daemonize",
 		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 		"-pidfile", pidFile.Name(),
+		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
+		"-mon", "chardev=monitor,mode=control",
 	}
-
-	qemuArgs = append(qemuArgs, args...)
 
 	checkFeature := exec.Cmd{
 		Path: qemu,
@@ -6418,35 +6420,74 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 
 	err = checkFeature.Start()
 	if err != nil {
-		return false, err // QEMU not operational. VM support missing.
+		return nil, err // QEMU not operational. VM support missing.
 	}
 
 	err = checkFeature.Wait()
 	if err != nil {
-		return false, nil // VM support available, but io_ring feature not.
+		return nil, err
+	}
+
+	monitor, err := qmp.Connect(monitorPath.Name(), qemuSerialChardevName, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer monitor.Disconnect()
+
+	var features []string
+
+	blockDevPath, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = os.Remove(blockDevPath.Name()) }()
+
+	// Check io_uring feature.
+	blockDev := map[string]any{
+		"node-name": d.blockNodeName("feature-check"),
+		"driver":    "file",
+		"filename":  blockDevPath.Name(),
+		"aio":       "io_uring",
+	}
+
+	err = monitor.AddBlockDevice(blockDev, nil)
+	if err != nil {
+		logger.Debug("Failed adding block device during VM feature check", logger.Ctx{"err": err})
+	} else {
+		features = append(features, "io_uring")
+	}
+
+	// Check CPU hotplug feature.
+	_, err = monitor.QueryHotpluggableCPUs()
+	if err != nil {
+		logger.Debug("Failed querying hotpluggable CPUs during VM feature check", logger.Ctx{"err": err})
+	} else {
+		features = append(features, "cpu_hotplug")
 	}
 
 	_, err = pidFile.Seek(0, 0)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	content, err := io.ReadAll(pidFile)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	pid, err := strconv.Atoi(strings.Split(string(content), "\n")[0])
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	err = unix.Kill(pid, unix.SIGKILL)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	return features, nil
 }
 
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
@@ -6707,5 +6748,9 @@ func (d *qemu) setCPUs(count int) error {
 }
 
 func (d *qemu) architectureSupportsCPUHotplug() bool {
-	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_S390_BIG_ENDIAN})
+	// Check supported features.
+	drivers := DriverStatuses()
+	info := drivers[d.Type()].Info
+
+	return shared.StringInSlice("cpu_hotplug", info.Features)
 }
