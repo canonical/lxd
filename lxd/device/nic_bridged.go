@@ -369,84 +369,59 @@ func (d *nicBridged) checkAddressConflict() error {
 		ourNICMAC, _ = net.ParseMAC(d.volatileGet()["hwaddr"])
 	}
 
-	// Managed bridge networks have a per-server DHCP daemon.
+	// Check if any instance devices use this network.
+	// Managed bridge networks have a per-server DHCP daemon so perform a node level search.
 	filter := cluster.InstanceFilter{Node: &node}
-	return d.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
-		// Get the instance's effective network project name.
-		instNetworkProject := project.NetworkProjectFromRecord(&p)
-		if instNetworkProject != project.Default {
-			return nil // Managed bridge networks can only exist in default project.
+
+	// Set network name for comparison (needs to support connecting to unmanaged networks).
+	networkName := d.config["parent"]
+	if d.network != nil {
+		networkName = d.network.Name()
+	}
+
+	// Bridge networks are always in the default project.
+	return network.UsedByInstanceDevices(d.state, project.Default, networkName, "bridge", func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		// Skip our own device. This avoids triggering duplicate device errors during
+		// updates or when making temporary copies of our instance during migrations.
+		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
+			return nil
 		}
 
-		// Iterate through each of the instance's devices, looking for NICs that are linked to
-		// the same network, on the same cluster member as this NIC and have matching static IPs.
-		for devName, devConfig := range db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles) {
-			if devConfig["type"] != "nic" {
-				continue
+		// Skip NICs connected to other VLANs (not perfect though as one NIC could
+		// explicitly specify the default untagged VLAN and these would be connected to
+		// same L2 even though the values are different, and there is a different default
+		// value for native and openvswith parent bridges).
+		if d.config["vlan"] != nicConfig["vlan"] {
+			return nil
+		}
+
+		// Check there isn't another instance with the same DNS name connected to a managed network
+		// that has DNS enabled and is connected to the same untagged VLAN.
+		if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+			return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
+		}
+
+		// Check NIC's MAC address doesn't match this NIC's MAC address.
+		devNICMAC, _ := net.ParseMAC(nicConfig["hwaddr"])
+		if devNICMAC == nil {
+			devNICMAC, _ = net.ParseMAC(inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)])
+		}
+
+		if ourNICMAC != nil && devNICMAC != nil && bytes.Equal(ourNICMAC, devNICMAC) {
+			return api.StatusErrorf(http.StatusConflict, "MAC address %q already defined on another NIC", devNICMAC.String())
+		}
+
+		// Check NIC's static IPs don't match this NIC's static IPs.
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
+			if d.config[key] == "" {
+				continue // No static IP specified on this NIC.
 			}
 
-			// Skip NICs that specify a NIC type that is not the same as our own.
-			if !shared.StringInSlice(devConfig["nictype"], []string{"", "bridged"}) {
-				continue
-			}
+			// Parse IPs to avoid being tripped up by presentation differences.
+			devNICIP := net.ParseIP(nicConfig[key])
 
-			// Skip our own device. This avoids triggering duplicate device errors during
-			// updates or when making temporary copies of our instance during migrations.
-			if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == devName {
-				continue
-			}
-
-			// Skip NICs not connected to our NIC's managed network.
-			// If our NIC is connected to a managed network (either via network or parent keys)
-			// but the other NIC doesn't reference the same network name via either its network
-			// or parent keys then we can say it is connected to a different network, so the
-			// duplicate checks can be skipped.
-			if d.network != nil && !network.NICUsesNetwork(devConfig, &api.Network{Name: d.network.Name()}) {
-				continue
-			}
-
-			// Skip NICs that are connected to a managed network or different unmanaged parent
-			// when we are not connected to a managed network.
-			if d.network == nil && (devConfig["network"] != "" || d.config["parent"] != devConfig["parent"]) {
-				continue
-			}
-
-			// Skip NICs connected to other VLANs (not perfect though as one NIC could
-			// explicitly specify the default untagged VLAN and these would be connected to
-			// same L2 even though the values are different, and there is a different default
-			// value for native and openvswith parent bridges).
-			if d.config["vlan"] != devConfig["vlan"] {
-				continue
-			}
-
-			// Check there isn't another instance with the same DNS name connected to a managed network
-			// that has DNS enabled and is connected to the same untagged VLAN.
-			if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
-				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
-			}
-
-			// Check NIC's MAC address doesn't match this NIC's MAC address.
-			devNICMAC, _ := net.ParseMAC(devConfig["hwaddr"])
-			if devNICMAC == nil {
-				devNICMAC, _ = net.ParseMAC(inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)])
-			}
-
-			if ourNICMAC != nil && devNICMAC != nil && bytes.Equal(ourNICMAC, devNICMAC) {
-				return api.StatusErrorf(http.StatusConflict, "MAC address %q already defined on another NIC", devNICMAC.String())
-			}
-
-			// Check NIC's static IPs don't match this NIC's static IPs.
-			for _, key := range []string{"ipv4.address", "ipv6.address"} {
-				if d.config[key] == "" {
-					continue // No static IP specified on this NIC.
-				}
-
-				// Parse IPs to avoid being tripped up by presentation differences.
-				devNICIP := net.ParseIP(devConfig[key])
-
-				if ourNICIPs[key] != nil && devNICIP != nil && ourNICIPs[key].Equal(devNICIP) {
-					return api.StatusErrorf(http.StatusConflict, "IP address %q already defined on another NIC", devNICIP.String())
-				}
+			if ourNICIPs[key] != nil && devNICIP != nil && ourNICIPs[key].Equal(devNICIP) {
+				return api.StatusErrorf(http.StatusConflict, "IP address %q already defined on another NIC", devNICIP.String())
 			}
 		}
 
