@@ -113,40 +113,6 @@ func (c *Cluster) GetNetworkZoneKeys() (map[string]string, error) {
 	return secrets, nil
 }
 
-// GetNetworksForZone returns the names of all networks using the zone and project.
-func (c *Cluster) GetNetworksForZone(projectName string, zoneName string) ([]string, error) {
-	q := `SELECT networks.name FROM networks
-		JOIN projects ON networks.project_id=projects.id
-		JOIN networks_config ON networks_config.network_id=networks.id
-		WHERE
-			networks_config.key IN ('dns.zone.forward', 'dns.zone.reverse.ipv4', 'dns.zone.reverse.ipv6')
-			AND networks_config.value=?
-			AND projects.name=?;
-	`
-
-	var networkNames []string
-
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		return query.Scan(ctx, tx.Tx(), q, func(scan func(dest ...any) error) error {
-			var networkName string
-
-			err := scan(&networkName)
-			if err != nil {
-				return err
-			}
-
-			networkNames = append(networkNames, networkName)
-
-			return nil
-		}, zoneName, projectName)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return networkNames, nil
-}
-
 // GetNetworkZone returns the Network zone with the given name.
 func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, error) {
 	var id int64 = int64(-1)
