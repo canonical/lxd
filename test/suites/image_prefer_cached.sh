@@ -14,14 +14,14 @@ test_image_prefer_cached() {
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
   (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public)
-  fp1=$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }')
+  fp1="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   lxc remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
   lxc init l2:testimage c1
 
   # Now the first image image is in the local store, since it was
   # downloaded to create c1.
-  alias=$(lxc image info "${fp1}" | awk -F: '/^    Alias/ { print $2 }' | awk '{ print $1 }')
+  alias="$(lxc image info "${fp1}" | awk '{if ($1 == "Alias:") {print $2}}')"
   [ "${alias}" = "testimage" ]
 
   # Delete the first image from the remote store and replace it with a
@@ -29,7 +29,7 @@ test_image_prefer_cached() {
   # will do that).
   (LXD_DIR=${LXD2_DIR} lxc image delete testimage)
   (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public --template create)
-  fp2=$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }')
+  fp2="$(LXD_DIR=${LXD2_DIR} lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
   [ "${fp1}" != "${fp2}" ]
 
   # At this point starting a new container from "testimage" should not
