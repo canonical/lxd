@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var drivers = map[string]func() Network{
@@ -32,6 +33,7 @@ func LoadByType(driverType string) (Type, error) {
 	}
 
 	n := driverFunc()
+	n.init(nil, -1, "", &api.Network{Type: driverType}, nil)
 
 	return n, nil
 }
