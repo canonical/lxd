@@ -93,7 +93,7 @@ func parseDeviceOverrides(deviceOverrideArgs []string) (map[string]map[string]st
 	deviceMap := map[string]map[string]string{}
 	for _, entry := range deviceOverrideArgs {
 		if !strings.Contains(entry, "=") || !strings.Contains(entry, ",") {
-			return nil, fmt.Errorf(i18n.G("Bad syntax, expecting <device>,<key>=<value>: %s"), entry)
+			return nil, fmt.Errorf(i18n.G("Bad device override syntax, expecting <device>,<key>=<value>: %s"), entry)
 		}
 
 		deviceFields := strings.SplitN(entry, ",", 2)
