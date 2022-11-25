@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-11-17 13:12-0500\n"
+"POT-Creation-Date: 2022-11-25 09:28+0000\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -882,7 +882,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
-#: lxc/init.go:343
+#: lxc/init.go:366
 msgid "Asked for a VM but image is of type container"
 msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
@@ -975,6 +975,12 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Backups:"
 msgstr "バックアップ:"
 
+#: lxc/utils.go:96
+#, fuzzy, c-format
+msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
+msgstr ""
+"書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
+
 #: lxc/network.go:325 lxc/network_acl.go:369 lxc/network_forward.go:285
 #: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
 #: lxc/network_zone.go:312 lxc/network_zone.go:871 lxc/storage_bucket.go:137
@@ -992,12 +998,6 @@ msgstr "不適切な キー=値 のペア: %s"
 #, c-format
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
-
-#: lxc/utils.go:96
-#, c-format
-msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
-msgstr ""
-"書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
 #: lxc/network.go:838
 msgid "Bond:"
@@ -1135,15 +1135,10 @@ msgstr "キー '%s' が設定されていないので削除できません"
 msgid "Candid domain to use"
 msgstr "使用する Candid ドメイン"
 
-#: lxc/init.go:287
+#: lxc/init.go:309
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
-msgstr ""
-
-#: lxc/init.go:275
-#, c-format
-msgid "Cannot override devices: %w"
 msgstr ""
 
 #: lxc/network_acl.go:781
@@ -1907,7 +1902,7 @@ msgstr "プロファイルのデバイスは個々のインスタンスでは取
 msgid "Device: %s"
 msgstr "デバイス: %s"
 
-#: lxc/init.go:403
+#: lxc/init.go:426
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
@@ -2291,6 +2286,11 @@ msgstr "SSH ホスト鍵の生成に失敗しました: %w"
 #, c-format
 msgid "Failed getting peer's status: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
+
+#: lxc/init.go:288
+#, c-format
+msgid "Failed loading profile %q for device override: %w"
+msgstr ""
 
 #: lxc/file.go:1180
 #, c-format
@@ -2806,7 +2806,7 @@ msgstr "クライアント %q に対するインスタンスが切断されま�
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/copy.go:416 lxc/init.go:410
+#: lxc/copy.go:416 lxc/init.go:433
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -4853,7 +4853,7 @@ msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
-#: lxc/init.go:357
+#: lxc/init.go:380
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -5648,7 +5648,7 @@ msgstr ""
 "インスタンスは現在実行中です。停止して、再起動するために --force を使用してく"
 "ださい"
 
-#: lxc/init.go:461
+#: lxc/init.go:484
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたインスタンスに接続されているネットワークがありません。"
 
@@ -5657,14 +5657,14 @@ msgstr "起動しようとしたインスタンスに接続されているネッ
 msgid "The key %q does not exist on cluster member %q"
 msgstr "設定 %q はクラスタメンバー %q には存在しません"
 
-#: lxc/init.go:445
+#: lxc/init.go:468
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
 "い。"
 
-#: lxc/init.go:441
+#: lxc/init.go:464
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -5738,13 +5738,13 @@ msgstr "インスタンスを強制停止するまで待つ時間"
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:463
+#: lxc/init.go:486
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 "インスタンスにネットワークを接続するには、lxc network attach を使用してくださ"
 "い"
 
-#: lxc/init.go:462
+#: lxc/init.go:485
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
