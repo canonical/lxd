@@ -1,41 +1,42 @@
-(storage-zfs)=
+
 # ZFS - `zfs`
 
 ```{youtube} https://www.youtube.com/watch?v=ysLi_LYAs_M
 ```
 
-{abbr}`ZFS (Zettabyte file system)` combines both physical volume management and a file system.
-A ZFS installation can span across a series of storage devices and is very scalable, allowing you to add disks to expand the available space in the storage pool immediately.
+`ZFS (Zettabyte file system)` combines the roles of a file system and volume manager.
+A ZFS installation can span across multiple storage devices and is very scalable, allowing you to add disks to expand the available space in the storage pool immediately. It allows for multiple levels of redundancy of physical storage devices.
 
 ZFS is a block-based file system that protects against data corruption by using checksums to verify, confirm and correct every operation.
 To run at a sufficient speed, this mechanism requires a powerful environment with a lot of RAM.
 
 In addition, ZFS offers snapshots and replication, RAID management, copy-on-write clones, compression and other features.
 
-To use ZFS, make sure you have `zfsutils-linux` installed on your machine.
+To use ZFS on Ubuntu, make sure you have `zfsutils-linux` installed on your machine. Other distributions might use a different naming convention.
 
 ## Terminology
 
-ZFS creates logical units based on physical storage devices.
-These logical units are called *ZFS pools* or *zpools*.
-Each zpool is then divided into a number of *{spellexception}`datasets`*.
-These {spellexception}`datasets` can be of different types:
+ZFS creates logical units based on physical storage devices. These logical units are called *VDEVs* (virtual devices). VDEVs are made up of one or more physical disks, partitions, or even loop-mounted files; basically any block device. While a single disk can be used as a VDEV, most typically VDEVs are either 2 or more disks in a mirror configuration, 3 or more disks in the ZFS equivalent of a RAID5 (*raid-z1*), 4 or more disks configured as RAID6 (*raid-z2*), and so on. While the configuration of any particular VDEV is quite flexible, once created, VDEVs are immutable and cannot be changed (other than to replace a failed disk).
+Sets of one or more VDEVs are then combined into what are called *ZFS pools* or *zpools*. Zpools are the fundamental unit of storage in ZFS, and while VDEVs are iummutable, one can always add additional VDEVs to a zpool when necessary. Data written to a zpool is striped across all VDEVs in the pool, which is why VDEVs are rarely configured as a single disk (since losing one disk then results in a loss of the entire pool). Think of a zpool as a pool of storage where one creates one or more *datasets*. Unless quotas ae applied, these datasets can grow or shrink as necessary so long at the total space used by all datasets in a zpool is less than the size of the zpool itself. All data in a zpool is associated with one or more datasets.
 
-- A *{spellexception}`ZFS filesystem`* can be seen as a partition or a mounted file system.
+These `datasets` can be of different types:
+
+- A *`ZFS filesystem`* is equivalent to a partition or a mounted file system.
 - A *ZFS volume* represents a block device.
-- A *ZFS snapshot* captures a specific state of either a {spellexception}`ZFS filesystem` or a ZFS volume.
+- A *ZFS snapshot* captures a specific state of either a `ZFS filesystem` or a ZFS volume.
   ZFS snapshots are read-only.
 - A *ZFS clone* is a writable copy of a ZFS snapshot.
 
 ## `zfs` driver in LXD
 
-The `zfs` driver in LXD uses {spellexception}`ZFS filesystems` and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.
+The `zfs` driver in LXD uses `ZFS filesystems` and ZFS volumes for images and custom storage volumes, and ZFS snapshots and clones to create instances from images and for instance and custom volume snapshots.
 By default, LXD enables compression when creating a ZFS pool.
 
-LXD assumes that it has full control over the ZFS pool and {spellexception}`dataset`.
-Therefore, you should never maintain any {spellexception}`datasets` or file system entities that are not owned by LXD in a ZFS pool or {spellexception}`dataset`, because LXD might delete them.
+LXD assumes that it has full control over the ZFS pool and all `datasets` contained therein.
+You should never do manual operations on an LXD managed ZFS storage pool, nor should you ever maintain any `datasets` or file system entities that are not owned by LXD in such a pool because LXD might delete them. 
 
-Due to the way copy-on-write works in ZFS, parent {spellexception}`ZFS filesystems` can't be removed until all children are gone.
+Due to the way copy-on-write works in ZFS, parent `ZFS filesystems` can't be removed until all children are gone. For example, when you create multiple containers from the same OS image, by default LXD makes a snapshot of this image and then creates these containers as clones of the snapshot. In the parlance of ZFS, the containers are *children of both the snapshot and the OS image*. (See [`zfs.clone_copy`](storage-zfs-pool-config) below for how to alter this behavior.)
+
 As a result, LXD automatically renames any objects that are removed but still referenced.
 Such objects are kept at a random `deleted/` path until all references are gone and the object can safely be removed.
 Note that this method might have ramifications for restoring snapshots.
@@ -50,7 +51,7 @@ Then use the following commands to make sure that trimming is automatically enab
     zpool set autotrim=on ZPOOL-NAME
     zpool trim ZPOOL-NAME
 
-(storage-zfs-limitations)=
+
 ### Limitations
 
 The `zfs` driver has the following limitations:
@@ -63,7 +64,7 @@ Restoring from older snapshots
 : ZFS doesn't support restoring from snapshots other than the latest one.
   You can, however, create new instances from older snapshots.
   This method makes it possible to confirm whether a specific snapshot contains what you need.
-  After determining the correct snapshot, you can {ref}`remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
+  After determining the correct snapshot, you can `remove the newer snapshots <storage-edit-snapshots>` so that the snapshot you need is the latest one and you can restore it.
 
   Alternatively, you can configure LXD to automatically discard the newer snapshots during restore.
   To do so, set the [`zfs.remove_snapshots`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.remove_snapshots` configuration on the storage pool for all volumes in the pool).
@@ -74,14 +75,14 @@ Restoring from older snapshots
   You will, however, lose any other snapshots the instance might have had.
 
 Observing I/O quotas
-: I/O quotas are unlikely to affect {spellexception}`ZFS filesystems` very much.
+: I/O quotas are unlikely to affect `ZFS filesystems` very much.
   That's because ZFS is a port of a Solaris module (using SPL) and not a native Linux file system using the Linux VFS API, which is where I/O limits are applied.
 
 ### Quotas
 
 ZFS provides two different quota properties: `quota` and `refquota`.
-`quota` restricts the total size of a {spellexception}`dataset`, including its snapshots and clones.
-`refquota` restricts only the size of the data in the {spellexception}`dataset`, not its snapshots and clones.
+`quota` restricts the total size of a `dataset`, including its snapshots and clones.
+`refquota` restricts only the size of the data in the `dataset`, not its snapshots and clones.
 
 By default, LXD uses the `quota` property when you set up a quota for your storage volume.
 If you want to use the `refquota` property instead, set the [`zfs.use_refquota`](storage-zfs-vol-config) configuration for the volume (or the corresponding `volume.zfs.use_refquota` configuration on the storage pool for all volumes in the pool).
@@ -92,7 +93,7 @@ You can also set the [`zfs.use_reserve_space`](storage-zfs-vol-config) (or `volu
 
 The following configuration options are available for storage pools that use the `zfs` driver and for storage volumes in these pools.
 
-(storage-zfs-pool-config)=
+
 ### Storage pool configuration
 
 Key                           | Type                          | Default                                 | Description
@@ -105,7 +106,7 @@ Key                           | Type                          | Default         
 
 {{volume_configuration}}
 
-(storage-zfs-vol-config)=
+
 ### Storage volume configuration
 
 Key                     | Type      | Condition                 | Default                                        | Description
