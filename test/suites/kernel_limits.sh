@@ -1,5 +1,5 @@
 test_kernel_limits() {
-  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_version=$(lxc info | awk '/driver_version:/ {print $NF}')
   lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
   lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
 

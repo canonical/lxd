@@ -1,5 +1,5 @@
 test_console() {
-  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_version=$(lxc info | awk '/driver_version:/ {print $NF}')
   lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
 
   if [ "${lxc_major}" -lt 3 ]; then
