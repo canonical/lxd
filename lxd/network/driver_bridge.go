@@ -56,11 +56,6 @@ type bridge struct {
 	common
 }
 
-// Type returns the network type.
-func (n *bridge) Type() string {
-	return "bridge"
-}
-
 // DBType returns the network type DB ID.
 func (n *bridge) DBType() db.NetworkType {
 	return db.NetworkTypeBridge
