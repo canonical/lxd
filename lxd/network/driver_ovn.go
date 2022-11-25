@@ -1771,11 +1771,6 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 	}
 
 	err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
-		// Skip NICs that specify a NIC type that is not the same as our own.
-		if !shared.StringInSlice(nicConfig["nictype"], []string{"", "ovn"}) {
-			return nil
-		}
-
 		ip := net.ParseIP(nicConfig["ipv4.address"])
 		if ip != nil {
 			dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: ip})
