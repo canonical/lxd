@@ -7,7 +7,7 @@ test_basic_usage() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Test image export
-  sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
+  sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
   lxc image export testimage "${LXD_DIR}/"
   [ "${sum}" = "$(sha256sum "${LXD_DIR}/${sum}.tar.xz" | cut -d' ' -f1)" ]
 
@@ -68,7 +68,7 @@ test_basic_usage() {
   # Test image export with a split image.
   deps/import-busybox --split --alias splitimage
 
-  sum=$(lxc image info splitimage | grep ^Fingerprint | cut -d' ' -f2)
+  sum="$(lxc image info splitimage | awk '/^Fingerprint/ {print $2}')"
 
   lxc image export splitimage "${LXD_DIR}"
   [ "${sum}" = "$(cat "${LXD_DIR}/meta-${sum}.tar.xz" "${LXD_DIR}/${sum}.tar.xz" | sha256sum | cut -d' ' -f1)" ]

@@ -14,11 +14,11 @@ test_image_expiry() {
 
   # Create a container from a remote image
   lxc_remote init l1:testimage l2:c1
-  fp=$(lxc_remote image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }')
+  fp="$(lxc_remote image info testimage | awk '/^Fingerprint/ {print $2}')"
 
   # Confirm the image is cached
   [ -n "${fp}" ]
-  fpbrief=$(echo "${fp}" | cut -c 1-10)
+  fpbrief=$(echo "${fp}" | cut -c 1-12)
   lxc_remote image list l2: | grep -q "${fpbrief}"
 
   # Test modification of image expiry date
@@ -50,7 +50,7 @@ test_image_expiry() {
 test_image_list_all_aliases() {
     ensure_import_testimage
     # shellcheck disable=2039,2034,2155,3043
-    local sum="$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)"
+    local sum="$(lxc image info testimage | awk '/^Fingerprint/ {print $2}')"
     lxc image alias create zzz "$sum"
     lxc image list | grep -vq zzz
     # both aliases are listed if the "aliases" column is included in output
@@ -102,7 +102,7 @@ test_image_refresh() {
 
   lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
-  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | grep 'driver:' | awk '{print $2}')
+  poolDriver="$(lxc storage show "$(lxc profile device get default root pool)" | awk '/^driver:/ {print $2}')"
 
   # Publish image
   lxc image copy testimage l2: --alias testimage --public

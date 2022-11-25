@@ -13,7 +13,7 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
+    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
