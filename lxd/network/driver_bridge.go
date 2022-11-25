@@ -2905,7 +2905,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 		// Get all the instances in the requested project that are connected to this network.
 		filter := dbCluster.InstanceFilter{Project: &projectName}
-		err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			// Fill in the hwaddr from volatile.
 			if nicConfig["hwaddr"] == "" {
 				nicConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)]
