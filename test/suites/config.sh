@@ -255,7 +255,7 @@ test_config_profiles() {
   lxc start foo
 
   if [ -e /sys/module/apparmor ]; then
-    lxc exec foo -- cat /proc/self/attr/current | grep unconfined
+    lxc exec foo -- grep -xF unconfined /proc/self/attr/current
   fi
   lxc exec foo -- ls /sys/class/net | grep eth0
 
