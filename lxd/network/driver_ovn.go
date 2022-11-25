@@ -1765,7 +1765,7 @@ func (n *ovn) getDHCPv4Reservations() ([]shared.IPRange, error) {
 		dhcpReserveIPv4s = []shared.IPRange{{Start: routerIntPortIPv4}}
 	}
 
-	err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		ip := net.ParseIP(nicConfig["ipv4.address"])
 		if ip != nil {
 			dhcpReserveIPv4s = append(dhcpReserveIPv4s, shared.IPRange{Start: ip})
@@ -2887,7 +2887,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		var localNICRoutes []net.IPNet
 
 		// Apply ACL changes to running instance NICs that use this network.
-		err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			nicACLs := shared.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
 
 			// Get logical port UUID and name.
@@ -4544,7 +4544,7 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 
 	// Get all the instances in the requested project that are connected to this network.
 	filter := dbCluster.InstanceFilter{Project: &projectName}
-	err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Get the instance UUID needed for OVN port name generation.
 		instanceUUID := inst.Config["volatile.uuid"]
 		if instanceUUID == "" {
@@ -4670,7 +4670,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 		var localNICRoutes []net.IPNet
 
 		// Get routes on instance NICs connected to local network to be added as routes to target network.
-		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
 			_, found := activeLocalNICPorts[instancePortName]
 			if !found {
@@ -4814,7 +4814,7 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	}
 
 	// Get routes on instance NICs connected to target network to be added as routes to local network.
-	err = UsedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), targetOVNNet.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		instancePortName := targetOVNNet.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
 		_, found := activeTargetNICPorts[instancePortName]
 		if !found {
