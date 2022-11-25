@@ -375,9 +375,9 @@ func (n *ovn) Validate(config map[string]string) error {
 		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
 		"dns.domain":                           validate.IsAny,
 		"dns.search":                           validate.IsAny,
-		"dns.zone.forward":                     validate.Optional(n.validateZoneName),
-		"dns.zone.reverse.ipv4":                validate.Optional(n.validateZoneName),
-		"dns.zone.reverse.ipv6":                validate.Optional(n.validateZoneName),
+		"dns.zone.forward":                     validate.IsAny,
+		"dns.zone.reverse.ipv4":                validate.IsAny,
+		"dns.zone.reverse.ipv6":                validate.IsAny,
 		"security.acls":                        validate.IsAny,
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
@@ -390,6 +390,14 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	err := n.validate(config, rules)
+	if err != nil {
+		return err
+	}
+
+	// Peform composite key checks after per-key validation.
+
+	// Validate DNS zone names.
+	err = n.validateZoneNames(config)
 	if err != nil {
 		return err
 	}
