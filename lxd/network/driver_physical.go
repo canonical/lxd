@@ -21,11 +21,6 @@ type physical struct {
 	common
 }
 
-// Type returns the network type.
-func (n *physical) Type() string {
-	return "physical"
-}
-
 // DBType returns the network type DB ID.
 func (n *physical) DBType() db.NetworkType {
 	return db.NetworkTypePhysical

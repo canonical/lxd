@@ -72,7 +72,8 @@ func MACDevName(mac net.HardwareAddr) string {
 }
 
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
-func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error) error {
+// Accepts optional filter arguments to specify a subset of instances.
+func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
 	return s.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -85,7 +86,7 @@ func UsedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
 		for devName, devConfig := range devices {
-			if isInUseByDevice(networkName, devConfig) {
+			if isInUseByDevice(networkName, networkType, devConfig) {
 				err := usageFunc(inst, devName, devConfig)
 				if err != nil {
 					return err
@@ -94,12 +95,12 @@ func UsedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		}
 
 		return nil
-	})
+	}, filters...)
 }
 
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
-func UsedBy(s *state.State, networkProjectName string, networkID int64, networkName string, firstOnly bool) ([]string, error) {
+func UsedBy(s *state.State, networkProjectName string, networkID int64, networkName string, networkType string, firstOnly bool) ([]string, error) {
 	var err error
 	var usedBy []string
 
@@ -177,7 +178,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 				return err
 			}
 
-			inUse, err := usedByProfileDevices(s, profileDevices, apiProfileProject, networkProjectName, networkName)
+			inUse, err := usedByProfileDevices(s, profileDevices, apiProfileProject, networkProjectName, networkName, networkType)
 			if err != nil {
 				return err
 			}
@@ -198,7 +199,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Check if any instance devices use this network.
-	err = UsedByInstanceDevices(s, networkProjectName, networkName, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+	err = UsedByInstanceDevices(s, networkProjectName, networkName, networkType, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
 		if firstOnly {
@@ -221,7 +222,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 // usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string) (bool, error) {
+func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Device, profileProject *api.Project, networkProjectName string, networkName string, networkType string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
 
 	// Skip profiles who's translated network project doesn't match the requested network's project.
@@ -232,7 +233,7 @@ func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Devi
 	}
 
 	for _, d := range deviceConfig.NewDevices(cluster.DevicesToAPI(profileDevices)) {
-		if isInUseByDevice(networkName, d) {
+		if isInUseByDevice(networkName, networkType, d) {
 			return true, nil
 		}
 	}
@@ -241,13 +242,18 @@ func usedByProfileDevices(s *state.State, profileDevices map[string]cluster.Devi
 }
 
 // isInUseByDevices inspects a device's config to find references for a network being used.
-func isInUseByDevice(networkName string, d deviceConfig.Device) bool {
+func isInUseByDevice(networkName string, networkType string, d deviceConfig.Device) bool {
 	if d["type"] != "nic" {
 		return false
 	}
 
 	if d["network"] != "" && d["network"] == networkName {
 		return true
+	}
+
+	// OVN networks can only use managed networks.
+	if networkType == "ovn" {
+		return false
 	}
 
 	if d["parent"] != "" && GetHostDevice(d["parent"], d["vlan"]) == networkName {

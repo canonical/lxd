@@ -16,11 +16,6 @@ type macvlan struct {
 	common
 }
 
-// Type returns the network type.
-func (n *macvlan) Type() string {
-	return "macvlan"
-}
-
 // DBType returns the network type DB ID.
 func (n *macvlan) DBType() db.NetworkType {
 	return db.NetworkTypeMacvlan
