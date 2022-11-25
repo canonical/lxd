@@ -4549,49 +4549,45 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 
 // Leases returns a list of leases for the OVN network. Those are directly extracted from the OVN database.
 func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+	var err error
 	leases := []api.NetworkLease{}
 
+	// Get all the instances in the requested project that are connected to this network.
 	filter := dbCluster.InstanceFilter{Project: &projectName}
-	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
-		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
-
+	err = UsedByInstanceDevices(n.state, n.project, n.name, func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Get the instance UUID needed for OVN port name generation.
 		instanceUUID := inst.Config["volatile.uuid"]
 		if instanceUUID == "" {
 			return nil
 		}
 
-		// Get the instances IPs.
-		for devName, dev := range devices {
-			if !isInUseByDevice(n.name, dev) {
-				continue
+		devIPs, err := n.InstanceDevicePortDynamicIPs(instanceUUID, nicName)
+		if err != nil {
+			return nil // There is likely no active port and so no leases.
+		}
+
+		// Fill in the hwaddr from volatile.
+		if nicConfig["hwaddr"] == "" {
+			nicConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)]
+		}
+
+		// Parse the MAC.
+		hwAddr, _ := net.ParseMAC(nicConfig["hwaddr"])
+
+		// Add the leases.
+		for _, ip := range devIPs {
+			leaseType := "dynamic"
+			if nicConfig["ipv4.address"] == ip.String() || nicConfig["ipv6.address"] == ip.String() {
+				leaseType = "static"
 			}
 
-			devIPs, err := n.InstanceDevicePortDynamicIPs(instanceUUID, devName)
-			if err != nil {
-				continue // There is likely no active port and so no leases.
-			}
-
-			// Fill in the hwaddr from volatile.
-			if dev["hwaddr"] == "" {
-				dev["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)]
-			}
-
-			// Add the leases.
-			for _, ip := range devIPs {
-				leaseType := "dynamic"
-				if dev["ipv4.address"] == ip.String() || dev["ipv6.address"] == ip.String() {
-					leaseType = "static"
-				}
-
-				leases = append(leases, api.NetworkLease{
-					Hostname: inst.Name,
-					Address:  ip.String(),
-					Hwaddr:   dev["hwaddr"],
-					Type:     leaseType,
-					Location: inst.Node,
-				})
-			}
+			leases = append(leases, api.NetworkLease{
+				Hostname: inst.Name,
+				Address:  ip.String(),
+				Hwaddr:   hwAddr.String(),
+				Type:     leaseType,
+				Location: inst.Node,
+			})
 		}
 
 		return nil
