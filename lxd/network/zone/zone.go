@@ -70,6 +70,18 @@ func (d *zone) Info() *api.NetworkZone {
 	return &info
 }
 
+// networkUsesZone indicates if the network uses the zone based on its config.
+func (d *zone) networkUsesZone(netConfig map[string]string) bool {
+	for _, key := range []string{"dns.zone.forward", "dns.zone.reverse.ipv4", "dns.zone.reverse.ipv6"} {
+		zoneNames := shared.SplitNTrimSpace(netConfig[key], ",", -1, true)
+		if shared.StringInSlice(d.info.Name, zoneNames) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // usedBy returns a list of API endpoints referencing this zone.
 // If firstOnly is true then search stops at first result.
 func (d *zone) usedBy(firstOnly bool) ([]string, error) {
@@ -87,15 +99,10 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 			return nil, fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
 
-		uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName)
-		if shared.StringInSlice(uri, usedBy) {
-			// Skip if the network is already listed in UsedBy.
-			continue
-		}
-
 		// Check if the network is using this zone.
-		if shared.StringInSlice(d.info.Name, []string{network.Config["dns.zone.forward"], network.Config["dns.zone.reverse.ipv4"], network.Config["dns.zone.reverse.ipv6"]}) {
-			usedBy = append(usedBy, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
+		if d.networkUsesZone(network.Config) {
+			u := api.NewURL().Path(version.APIVersion, "networks", networkName)
+			usedBy = append(usedBy, u.String())
 			if firstOnly {
 				return usedBy, nil
 			}
