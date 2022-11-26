@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -30,55 +32,59 @@ type instanceType struct {
 
 var instanceTypes map[string]map[string]*instanceType
 
-func instanceSaveCache() error {
-	if instanceTypes == nil {
-		return nil
-	}
-
-	data, err := yaml.Marshal(&instanceTypes)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(shared.CachePath("instance_types.yaml"), data, 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func instanceLoadCache() error {
-	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
-		return nil
-	}
-
-	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(content, &instanceTypes)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func instanceLoadFromFile() map[string]map[string]*instanceType {
+func instanceLoadFromDir(dir string) (map[string]map[string]*instanceType, error) {
 	newInstanceType := map[string]map[string]*instanceType{}
-	if !shared.PathExists(shared.CachePath("instance_types.yaml")) {
-		return newInstanceType
+	if !shared.PathExists(dir) || !shared.IsDir(dir) {
+		return newInstanceType, nil
 	}
 
-	content, err := os.ReadFile(shared.CachePath("instance_types.yaml"))
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return newInstanceType
+		return nil, err
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		types, err := instanceLoadFromFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			logger.Error("read instance types from file error", logger.Ctx{"err": err, "file": entry.Name()})
+			continue
+		}
+		newInstanceType = addInstanceTypes(newInstanceType, types)
+	}
+	return newInstanceType, nil
+}
+
+func addInstanceTypes(r, l map[string]map[string]*instanceType) map[string]map[string]*instanceType {
+	if r == nil {
+		return l
+	}
+	for k, v := range l {
+		r[k] = v
+	}
+	return r
+}
+
+func instanceLoadFromFile(file string) (map[string]map[string]*instanceType, error) {
+	newInstanceType := map[string]map[string]*instanceType{}
+	if !shared.PathExists(file) {
+		return newInstanceType, nil
 	}
 
-	_ = yaml.Unmarshal(content, &newInstanceType)
-	return newInstanceType
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	if err := yaml.Unmarshal(content, &newInstanceType); err != nil {
+		return nil, err
+	}
+	return newInstanceType, nil
 }
 
 func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
@@ -90,13 +96,14 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	_, hasCancellationSupport := any(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
+			defaultAddr := "images.linuxcontainers.org"
 			if hasCancellationSupport {
-				return instanceRefreshTypes(ctx, d)
+				return instanceRefreshTypes(ctx, d, shared.CachePath(), defaultAddr)
 			}
 
 			ch := make(chan error)
 			go func() {
-				ch <- instanceRefreshTypes(ctx, d)
+				ch <- instanceRefreshTypes(ctx, d, shared.CachePath(), defaultAddr)
 			}()
 			select {
 			case <-ctx.Done():
@@ -125,10 +132,13 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func instanceLoadFromWebsite(ctx context.Context, d *Daemon) map[string]map[string]*instanceType {
+func instanceLoadFromWebsite(ctx context.Context, d *Daemon, addr string) (map[string]map[string]*instanceType, error) {
+	if len(addr) == 0 {
+		return nil, nil
+	}
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
-		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
+		url := fmt.Sprintf("https://%s/meta/instance-types/%s", addr, filename)
 
 		httpClient, err := util.HTTPClient("", d.proxy)
 		if err != nil {
@@ -184,7 +194,7 @@ func instanceLoadFromWebsite(ctx context.Context, d *Daemon) map[string]map[stri
 		if err != ctx.Err() {
 			logger.Warnf("Failed to update instance types: %v", err)
 		}
-		return newInstanceTypes
+		return nil, err
 	}
 
 	// Parse the individual files
@@ -197,31 +207,28 @@ func instanceLoadFromWebsite(ctx context.Context, d *Daemon) map[string]map[stri
 		}
 		newInstanceTypes[name] = types
 	}
-	return newInstanceTypes
+	return newInstanceTypes, nil
 }
 
-func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
-	// Set an initial value from the cache
-	if instanceTypes == nil {
-		_ = instanceLoadCache()
+func instanceRefreshTypes(ctx context.Context, d *Daemon, dir, addr string) error {
+	newInstanceTypes := map[string]map[string]*instanceType{}
+
+	types, err := instanceLoadFromWebsite(ctx, d, addr)
+	if err == nil {
+		newInstanceTypes = addInstanceTypes(newInstanceTypes, types)
 	}
 
-	newInstanceTypes := instanceLoadFromFile()
-
-	wsInstanceTypes := instanceLoadFromWebsite(ctx, d)
+	types, err = instanceLoadFromDir(dir)
+	if err == nil {
+		newInstanceTypes = addInstanceTypes(newInstanceTypes, types)
+	}
 
 	// Update the global map
-	for k, v := range wsInstanceTypes {
-		newInstanceTypes[k] = v
+	if len(newInstanceTypes) == 0 {
+		return fmt.Errorf("no found instance types")
 	}
-	instanceTypes = newInstanceTypes
 
-	// And save in the cache
-	err := instanceSaveCache()
-	if err != nil {
-		logger.Warnf("Failed to update instance types cache: %v", err)
-		return err
-	}
+	instanceTypes = newInstanceTypes
 	return nil
 }
 
@@ -251,7 +258,6 @@ func instanceParseType(value string) (map[string]string, error) {
 			}
 		}
 	}
-
 	// Check if we have a limit for the provided value
 	limits, ok := instanceTypes[sourceName][sourceType]
 	if !ok {

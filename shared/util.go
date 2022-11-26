@@ -233,12 +233,12 @@ func VarPath(path ...string) string {
 // set, this path is $LXD_DIR/cache, otherwise it is /var/cache/lxd.
 func CachePath(path ...string) string {
 	varDir := os.Getenv("LXD_DIR")
-	logDir := "/var/cache/lxd"
+	cacheDir := "/var/cache/lxd"
 	if varDir != "" {
-		logDir = filepath.Join(varDir, "cache")
+		cacheDir = filepath.Join(varDir, "cache")
 	}
 
-	items := []string{logDir}
+	items := []string{cacheDir}
 	items = append(items, path...)
 	return filepath.Join(items...)
 }
