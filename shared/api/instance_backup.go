@@ -47,7 +47,7 @@ type InstanceBackup struct {
 	// Example: backup0
 	Name string `json:"name" yaml:"name"`
 
-	// When the backup was cerated
+	// When the backup was created
 	// Example: 2021-03-23T16:38:37.753398689-04:00
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 

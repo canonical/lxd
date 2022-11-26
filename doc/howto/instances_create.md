@@ -1,5 +1,5 @@
-(instance-create)=
-# How to create an instance
+(instances-create)=
+# How to create instances
 
 To create an instance, you can use either the `lxc init` or the `lxc launch` command.
 The `lxc init` command only creates the instance, while the `lxc launch` command creates and starts it.

@@ -92,7 +92,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				// Set TCP timeout options.
 				remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
 				if remoteTCP != nil {
-					err = tcp.SetTimeouts(remoteTCP)
+					err = tcp.SetTimeouts(remoteTCP, 0)
 					if err != nil {
 						logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 					}
@@ -293,7 +293,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	l.Debug("Instance process started")
 
 	var cmdKillOnce sync.Once
@@ -712,7 +712,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
+		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
 		l.Debug("Instance process started")
 
 		exitStatus, cmdErr := cmd.Wait()

@@ -311,29 +311,9 @@ func ensureSparseFile(filePath string, sizeBytes int64) error {
 	return f.Close()
 }
 
-// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest multiple of
-// MinBlockBoundary bytes that is equal to or larger than sizeBytes.
-func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
-	// Qemu requires image files to be in traditional storage block boundaries.
-	// We use 8k here to ensure our images are compatible with all of our backend drivers.
-	if sizeBytes < MinBlockBoundary {
-		sizeBytes = MinBlockBoundary
-	}
-
-	roundedSizeBytes := int64(sizeBytes/MinBlockBoundary) * MinBlockBoundary
-
-	// Ensure the rounded size is at least the size specified in sizeBytes.
-	if roundedSizeBytes < sizeBytes {
-		roundedSizeBytes += MinBlockBoundary
-	}
-
-	// Round the size to closest MinBlockBoundary bytes to avoid qemu boundary issues.
-	return roundedSizeBytes
-}
-
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
-// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
+// roundVolumeBlockSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
 // list that indicates which volume types it should not attempt to resize (when allowUnsafeResize=false) and
 // instead return ErrNotSupported.
 func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafeResize bool, unsupportedResizeTypes ...VolumeType) (bool, error) {
@@ -341,8 +321,8 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 		return false, fmt.Errorf("Size cannot be zero")
 	}
 
-	// Get rounded block size to avoid qemu boundary issues.
-	sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
+	// Get rounded block size to avoid QEMU boundary issues.
+	sizeBytes = vol.driver.roundVolumeBlockSizeBytes(sizeBytes)
 
 	if shared.PathExists(path) {
 		fi, err := os.Stat(path)

@@ -32,8 +32,7 @@ test_image_expiry() {
   # Trigger the expiry
   lxc_remote config set l2: images.remote_cache_expiry 1
 
-  # shellcheck disable=SC2034
-  for i in $(seq 20); do
+  for _ in $(seq 20); do
     sleep 1
     ! lxc_remote image list l2: | grep -q "${fpbrief}" && break
   done

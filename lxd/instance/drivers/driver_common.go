@@ -896,8 +896,8 @@ func (d *common) maasDelete(inst instance.Instance) error {
 // onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
 // ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
 // request run at the same time from overlapping with the stop process.
-// Returns the operation along with a boolean indicating if the operation was created or not.
-func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, bool, error) {
+// Returns the operation (with the instance initiated marker set if the operation was created).
+func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
 	var err error
 
 	// Pick up the existing stop operation lock created in Stop() function.
@@ -910,11 +910,8 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 		op = nil
 	}
 
-	instanceInitiated := false
-
 	if op == nil {
 		d.logger.Debug("Instance initiated stop", logger.Ctx{"action": target})
-		instanceInitiated = true
 
 		action := operationlock.ActionStop
 		if target == "reboot" {
@@ -923,11 +920,13 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 		op, err = operationlock.Create(d.Project().Name, d.Name(), action, false, false)
 		if err != nil {
-			return nil, false, fmt.Errorf("Failed creating %q operation: %w", action, err)
+			return nil, fmt.Errorf("Failed creating %q operation: %w", action, err)
 		}
+
+		op.SetInstanceInitiated(true)
 	}
 
-	return op, instanceInitiated, nil
+	return op, nil
 }
 
 // warningsDelete deletes any persistent warnings for the instance.
@@ -1217,7 +1216,7 @@ func (d *common) devicesAdd(inst instance.Instance, instanceRunning bool) (rever
 			// static NIC DHCP leases to be created). Instead just log an error.
 			// This will allow instances to be created with conflicting devices (such as when copying
 			// or restoring a backup) and allows the user to manually fix the conflicts in order to
-			// allow the the instance to start.
+			// allow the instance to start.
 			if api.StatusErrorCheck(err, http.StatusConflict) {
 				d.logger.Error("Failed add validation for device, skipping add action", logger.Ctx{"device": entry.Name, "err": err})
 

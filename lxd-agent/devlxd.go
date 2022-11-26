@@ -12,11 +12,11 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/client"
-	agentAPI "github.com/lxc/lxd/lxd-agent/api"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -26,16 +26,6 @@ func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler: devLxdAPI(d),
 	}
-}
-
-type devLxdResponse struct {
-	content any
-	code    int
-	ctype   string
-}
-
-func okResponse(ct any, ctype string) *devLxdResponse {
-	return &devLxdResponse{ct, http.StatusOK, ctype}
 }
 
 type devLxdHandler struct {
@@ -75,7 +65,7 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 
 	resp, _, err := client.RawQuery("GET", "/1.0/config", nil, "")
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(err)
 	}
 
 	var config []string
@@ -113,7 +103,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 
 	resp, _, err := client.RawQuery("GET", fmt.Sprintf("/1.0/config/%s", key), nil, "")
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(err)
 	}
 
 	var value string
@@ -136,7 +126,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 
 	resp, _, err := client.RawQuery("GET", "/1.0/meta-data", nil, "")
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(err)
 	}
 
 	var metaData string
@@ -152,7 +142,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	err := eventsGet(d, r).Render(w)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(err)
 	}
 
 	return okResponse("", "raw")
@@ -169,10 +159,10 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	if r.Method == "GET" {
 		resp, _, err := client.RawQuery(r.Method, "/1.0", nil, "")
 		if err != nil {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return smartResponse(err)
 		}
 
-		var instanceData agentAPI.DevLXDGet
+		var instanceData api.DevLXDGet
 
 		err = resp.MetadataAsStruct(&instanceData)
 		if err != nil {
@@ -183,7 +173,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	} else if r.Method == "PATCH" {
 		_, _, err := client.RawQuery(r.Method, "/1.0", r.Body, "")
 		if err != nil {
-			return &devLxdResponse{err.Error(), http.StatusInternalServerError, "raw"}
+			return smartResponse(err)
 		}
 
 		return okResponse("", "raw")
@@ -202,7 +192,7 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 
 	resp, _, err := client.RawQuery("GET", "/1.0/devices", nil, "")
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(err)
 	}
 
 	var devices config.Devices

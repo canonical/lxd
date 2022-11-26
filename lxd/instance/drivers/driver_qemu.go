@@ -564,7 +564,7 @@ func (d *qemu) onStop(target string) error {
 	defer d.logger.Debug("onStop hook finished", logger.Ctx{"target": target})
 
 	// Create/pick up operation.
-	op, instanceInitiated, err := d.onStopOperationSetup(target)
+	op, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -617,7 +617,7 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	// Log and emit lifecycle if not user triggered.
-	if instanceInitiated {
+	if op.GetInstanceInitiated() {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
@@ -1485,8 +1485,15 @@ func (d *qemu) Start(stateful bool) error {
 	// Apply CPU pinning.
 	cpuLimit, ok := d.expandedConfig["limits.cpu"]
 	if ok && cpuLimit != "" {
-		_, err := strconv.Atoi(cpuLimit)
-		if err != nil {
+		limit, err := strconv.Atoi(cpuLimit)
+		if err == nil {
+			if d.architectureSupportsCPUHotplug() && limit > 1 {
+				err := d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed to add CPUs: %w", err)
+				}
+			}
+		} else {
 			// Expand to a set of CPU identifiers and get the pinning map.
 			_, _, _, pins, _, err := d.cpuTopology(cpuLimit)
 			if err != nil {
@@ -1588,10 +1595,29 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
+// server.
+func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
+	req := agentAPI.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
+	}
+
+	addr := d.state.Endpoints.VsockAddress()
+	if addr == "" {
+		return nil, nil
+	}
+
+	_, err := fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing vsock address: %w", err)
+	}
+
+	return &req, nil
+}
+
 // advertiseVsockAddress advertises the CID and port to the VM.
 func (d *qemu) advertiseVsockAddress() error {
-	devlxdEnabled := shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"])
-
 	client, err := d.getAgentClient()
 	if err != nil {
 		return fmt.Errorf("Failed getting agent client handle: %w", err)
@@ -1604,22 +1630,16 @@ func (d *qemu) advertiseVsockAddress() error {
 
 	defer agent.Disconnect()
 
-	req := agentAPI.API10Put{
-		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
-		Devlxd:      devlxdEnabled,
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
 	}
 
-	addr := d.state.Endpoints.VsockAddress()
-	if addr == "" {
+	if connInfo == nil {
 		return nil
 	}
 
-	_, err = fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
-	if err != nil {
-		return fmt.Errorf("Failed parsing vsock address: %w", err)
-	}
-
-	_, _, err = agent.RawQuery("PUT", "/1.0", req, "")
+	_, _, err = agent.RawQuery("PUT", "/1.0", connInfo, "")
 	if err != nil {
 		return fmt.Errorf("Failed sending VM sock address to lxd-agent: %w", err)
 	}
@@ -1728,6 +1748,26 @@ func (d *qemu) RegisterDevices() {
 // SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed
 // after that, so doesn't need to support being regenerated.
 func (d *qemu) SaveConfigFile() error {
+	return nil
+}
+
+func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
+	configDrivePath := filepath.Join(d.Path(), "config")
+
+	f, err := os.Create(filepath.Join(configDrivePath, "agent.conf"))
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	err = json.NewEncoder(f).Encode(connInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2344,6 +2384,18 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		return err
 	}
 
+	// Writing the connection info the config drive allows the lxd-agent to start devlxd very
+	// early. This is important for systemd services which want or require /dev/lxd/sock.
+	connInfo, err := d.getAgentConnectionInfo()
+	if err != nil {
+		return err
+	}
+
+	err = d.saveConnectionInfo(connInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2855,13 +2907,22 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		qemuMemObjectFormat: qemuMemObjectFormat,
 	}
 
+	cpuPinning := false
+
 	cpuCount, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
 	if err == nil {
 		// If not pinning, default to exposing cores.
-		cpuOpts.cpuCount = cpuCount
+		// Only one CPU will be added here, as the others will be hotplugged during start.
+		if d.architectureSupportsCPUHotplug() {
+			cpuOpts.cpuCount = 1
+			cpuOpts.cpuCores = 1
+		} else {
+			cpuOpts.cpuCount = cpuCount
+			cpuOpts.cpuCores = cpuCount
+		}
+
 		cpuOpts.cpuSockets = 1
-		cpuOpts.cpuCores = cpuCount
 		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
@@ -2870,6 +2931,8 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		if err != nil {
 			return -1, err
 		}
+
+		cpuPinning = true
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
 		vcpuSocket := map[uint64]uint64{}
@@ -2941,12 +3004,11 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 	// Determine per-node memory limit.
 	memSizeMB := memSizeBytes / 1024 / 1024
 	nodeMemory := int64(memSizeMB / int64(len(hostNodes)))
-	memSizeMB = nodeMemory * int64(len(hostNodes))
 	cpuOpts.memory = nodeMemory
 
 	if cfg != nil {
 		*cfg = append(*cfg, qemuMemory(&qemuMemoryOpts{memSizeMB})...)
-		*cfg = append(*cfg, qemuCPU(&cpuOpts)...)
+		*cfg = append(*cfg, qemuCPU(&cpuOpts, cpuPinning)...)
 	}
 
 	// Configure the CPU limit.
@@ -4599,6 +4661,10 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		isLiveUpdatable := func(key string) bool {
+			if key == "limits.cpu" {
+				return d.architectureSupportsCPUHotplug()
+			}
+
 			if strings.HasPrefix(key, "boot.") {
 				return true
 			}
@@ -4645,7 +4711,31 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
 
-			if key == "limits.memory" {
+			if key == "limits.cpu" {
+				oldValue := oldExpandedConfig["limits.cpu"]
+
+				if oldValue != "" {
+					_, err := strconv.Atoi(oldValue)
+					if err != nil {
+						return fmt.Errorf("Cannot update key %q when using CPU pinning and the VM is running", key)
+					}
+				}
+
+				// If the key is being unset, set it to default value.
+				if value == "" {
+					value = "1"
+				}
+
+				limit, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("Cannot change CPU pinning when VM is running")
+				}
+
+				err = d.setCPUs(limit)
+				if err != nil {
+					return fmt.Errorf("Failed updating cpu limit: %w", err)
+				}
+			} else if key == "limits.memory" {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
@@ -6284,16 +6374,11 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	// Check io_uring support.
-	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
+	data.Features, err = d.checkFeatures(qemuPath)
 	if err != nil {
-		logger.Errorf("Unable to run io_uring check during QEMU initialization: %v", err)
-		data.Error = fmt.Errorf("QEMU failed to run a feature check")
+		logger.Errorf("Unable to run feature checks during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("QEMU failed to run feature checks")
 		return data
-	}
-
-	if supported {
-		data.Features = append(data.Features, "io_uring")
 	}
 
 	data.Error = nil
@@ -6301,13 +6386,20 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
+func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 	pidFile, err := os.CreateTemp("", "")
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	defer func() { _ = os.Remove(pidFile.Name()) }()
+
+	monitorPath, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = os.Remove(monitorPath.Name()) }()
 
 	qemuArgs := []string{
 		"qemu",
@@ -6317,9 +6409,9 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 		"-daemonize",
 		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 		"-pidfile", pidFile.Name(),
+		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
+		"-mon", "chardev=monitor,mode=control",
 	}
-
-	qemuArgs = append(qemuArgs, args...)
 
 	checkFeature := exec.Cmd{
 		Path: qemu,
@@ -6328,35 +6420,74 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 
 	err = checkFeature.Start()
 	if err != nil {
-		return false, err // QEMU not operational. VM support missing.
+		return nil, err // QEMU not operational. VM support missing.
 	}
 
 	err = checkFeature.Wait()
 	if err != nil {
-		return false, nil // VM support available, but io_ring feature not.
+		return nil, err
+	}
+
+	monitor, err := qmp.Connect(monitorPath.Name(), qemuSerialChardevName, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer monitor.Disconnect()
+
+	var features []string
+
+	blockDevPath, err := os.CreateTemp("", "")
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = os.Remove(blockDevPath.Name()) }()
+
+	// Check io_uring feature.
+	blockDev := map[string]any{
+		"node-name": d.blockNodeName("feature-check"),
+		"driver":    "file",
+		"filename":  blockDevPath.Name(),
+		"aio":       "io_uring",
+	}
+
+	err = monitor.AddBlockDevice(blockDev, nil)
+	if err != nil {
+		logger.Debug("Failed adding block device during VM feature check", logger.Ctx{"err": err})
+	} else {
+		features = append(features, "io_uring")
+	}
+
+	// Check CPU hotplug feature.
+	_, err = monitor.QueryHotpluggableCPUs()
+	if err != nil {
+		logger.Debug("Failed querying hotpluggable CPUs during VM feature check", logger.Ctx{"err": err})
+	} else {
+		features = append(features, "cpu_hotplug")
 	}
 
 	_, err = pidFile.Seek(0, 0)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	content, err := io.ReadAll(pidFile)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	pid, err := strconv.Atoi(strings.Split(string(content), "\n")[0])
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	err = unix.Kill(pid, unix.SIGKILL)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	return features, nil
 }
 
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
@@ -6493,16 +6624,133 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 func (d *qemu) blockNodeName(name string) string {
 	if len(name) > 27 {
 		// If the name is too long, hash it as SHA-1 (20 bytes).
-		// Then encode the SHA-1 binary hash as Base64 (maximum 28 bytes).
-		// Finally strip the trailing base64 padding character giving us 27 chars.
-
+		// Then encode the SHA-1 binary hash as Base64 Raw URL format (maximum 27 characters).
+		// Raw URL avoids the use of "+" character and the padding "=" character which QEMU doesn't allow,
+		// and keeps the length to 27 characters.
 		hash := sha1.New()
 		hash.Write([]byte(name))
 		binaryHash := hash.Sum(nil)
-		base64Hash := base64.StdEncoding.EncodeToString(binaryHash)
-		name = base64Hash[0 : len(base64Hash)-1]
+		name = base64.RawURLEncoding.EncodeToString(binaryHash)
 	}
 
 	// Apply the lxd_ prefix.
 	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
+}
+
+func (d *qemu) setCPUs(count int) error {
+	if count == 0 {
+		return nil
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	cpus, err := monitor.QueryHotpluggableCPUs()
+	if err != nil {
+		return fmt.Errorf("Failed to query hotpluggable CPUs: %w", err)
+	}
+
+	var availableCPUs []qmp.HotpluggableCPU
+	var hotpluggedCPUs []qmp.HotpluggableCPU
+
+	// Count the available and hotplugged CPUs.
+	for _, cpu := range cpus {
+		// If qom-path is unset, the CPU is available.
+		if cpu.QOMPath == "" {
+			availableCPUs = append(availableCPUs, cpu)
+		} else if strings.HasPrefix(cpu.QOMPath, "/machine/peripheral") {
+			hotpluggedCPUs = append(hotpluggedCPUs, cpu)
+		}
+	}
+
+	// The reserved CPUs includes both the hotplugged CPUs as well as the fixed one.
+	totalReservedCPUs := len(hotpluggedCPUs) + 1
+
+	// Nothing to do as the count matches the already reserved CPUs.
+	if count == totalReservedCPUs {
+		return nil
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// More CPUs requested.
+	if count > totalReservedCPUs {
+		// Cannot allocate more CPUs than the system provides.
+		if count > len(cpus) {
+			return fmt.Errorf("Cannot allocate more CPUs than available")
+		}
+
+		// This shouldn't trigger, but if it does, don't panic.
+		if count-totalReservedCPUs > len(availableCPUs) {
+			return fmt.Errorf("Unable to allocate more CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Only allocate the difference in CPUs.
+		for i := 0; i < count-totalReservedCPUs; i++ {
+			cpu := availableCPUs[i]
+
+			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
+
+			err := monitor.AddDevice(map[string]string{
+				"id":        devID,
+				"driver":    cpu.Type,
+				"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+				"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+				"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+			})
+			if err != nil {
+				return fmt.Errorf("Failed to add device: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.RemoveDevice(devID)
+				d.logger.Warn("Failed to remove CPU device", logger.Ctx{"err": err})
+			})
+		}
+	} else {
+		if totalReservedCPUs-count > len(hotpluggedCPUs) {
+			// This shouldn't trigger, but if it does, don't panic.
+			return fmt.Errorf("Unable to remove CPUs, not enough hotpluggable CPUs available")
+		}
+
+		// Less CPUs requested.
+		for i := 0; i < totalReservedCPUs-count; i++ {
+			cpu := hotpluggedCPUs[i]
+
+			fields := strings.Split(cpu.QOMPath, "/")
+			devID := fields[len(fields)-1]
+
+			err := monitor.RemoveDevice(devID)
+			if err != nil {
+				return fmt.Errorf("Failed to remove CPU: %w", err)
+			}
+
+			revert.Add(func() {
+				err := monitor.AddDevice(map[string]string{
+					"id":        devID,
+					"driver":    cpu.Type,
+					"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
+					"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
+					"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
+				})
+				d.logger.Warn("Failed to add CPU device", logger.Ctx{"err": err})
+			})
+		}
+	}
+
+	revert.Success()
+
+	return nil
+}
+
+func (d *qemu) architectureSupportsCPUHotplug() bool {
+	// Check supported features.
+	drivers := DriverStatuses()
+	info := drivers[d.Type()].Info
+
+	return shared.StringInSlice("cpu_hotplug", info.Features)
 }

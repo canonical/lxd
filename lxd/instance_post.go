@@ -72,6 +72,9 @@ var internalClusterInstanceMovedCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancePost(d *Daemon, r *http.Request) response.Response {
+	// Don't mess with instance while in setup mode.
+	<-d.waitReady.Done()
+
 	s := d.State()
 
 	instanceType, err := urlInstanceTypeDetect(r)
@@ -232,6 +235,17 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	// If new instance name not supplied, assume it will be keeping its current name.
+	if req.Name == "" {
+		req.Name = inst.Name()
+	}
+
+	// Check the new instance name is valid.
+	err = instance.ValidName(req.Name, false)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	if req.Migration {

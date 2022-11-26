@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-acme/lego/acme"
-	"github.com/go-acme/lego/certcrypto"
-	"github.com/go-acme/lego/certificate"
-	"github.com/go-acme/lego/lego"
-	"github.com/go-acme/lego/registration"
+	"github.com/go-acme/lego/v4/acme"
+	"github.com/go-acme/lego/v4/certcrypto"
+	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v4/lego"
+	"github.com/go-acme/lego/v4/registration"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -32,7 +32,7 @@ const retries = 5
 // certificate at a later stage.
 const ClusterCertFilename = "cluster.crt.new"
 
-// certificateNeedsUpdate returns true if the the domain doesn't match the certificate's DNS names
+// certificateNeedsUpdate returns true if the domain doesn't match the certificate's DNS names
 // or it's valid for less than 30 days.
 func certificateNeedsUpdate(domain string, cert *x509.Certificate) bool {
 	return !shared.StringInSlice(domain, cert.DNSNames) || time.Now().After(cert.NotAfter.Add(-30*24*time.Hour))

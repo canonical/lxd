@@ -239,12 +239,7 @@ func (d *nicOVN) checkAddressConflict() error {
 	}
 
 	// Check if any instance devices use this network.
-	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
-		// Skip NICs that specify a NIC type that is not the same as our own.
-		if !shared.StringInSlice(nicConfig["nictype"], []string{"", "ovn"}) {
-			return nil
-		}
-
+	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), d.network.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
 		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
@@ -444,7 +439,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "link", Value: peerName},
 	}
 
-	if d.inst.Type() == instancetype.VM {
+	instType := d.inst.Type()
+	if instType == instancetype.VM {
 		if d.config["acceleration"] == "sriov" {
 			runConf.NetworkInterface = append(runConf.NetworkInterface,
 				[]deviceConfig.RunConfigItem{
@@ -461,6 +457,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 				}...)
 		}
+	} else if instType == instancetype.Container {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
 	}
 
 	revert.Success()
@@ -751,7 +751,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 			})
 		} else if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
 			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
-			// the bridge, the the NIC is likely to use its MAC and SLAAC to configure its address.
+			// the bridge, the NIC is likely to use its MAC and SLAAC to configure its address.
 			hwAddr, err := net.ParseMAC(d.config["hwaddr"])
 			if err == nil {
 				ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)

@@ -57,6 +57,9 @@ import (
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancePut(d *Daemon, r *http.Request) response.Response {
+	// Don't mess with instance while in setup mode.
+	<-d.waitReady.Done()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)

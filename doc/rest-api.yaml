@@ -419,7 +419,7 @@ definitions:
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     ClusterMemberPut:
-        description: ClusterMemberPut represents the the modifiable fields of a LXD cluster member
+        description: ClusterMemberPut represents the modifiable fields of a LXD cluster member
         properties:
             config:
                 additionalProperties:
@@ -481,58 +481,6 @@ definitions:
                 type: string
                 x-go-name: ServerName
         title: ClusterMembersPost represents the fields required to request a join token to add a member to the cluster.
-        type: object
-        x-go-package: github.com/lxc/lxd/shared/api
-    ClusterPreseed:
-        properties:
-            cluster_address:
-                description: The address of the cluster you wish to join
-                example: 10.0.0.1:8443
-                type: string
-                x-go-name: ClusterAddress
-            cluster_certificate:
-                description: The expected certificate (X509 PEM encoded) for the cluster
-                example: X509 PEM certificate
-                type: string
-                x-go-name: ClusterCertificate
-            cluster_certificate_path:
-                description: The path to the cluster certificate
-                example: /tmp/cluster.crt
-                type: string
-                x-go-name: ClusterCertificatePath
-            cluster_password:
-                description: The trust password of the cluster you're trying to join
-                example: blah
-                type: string
-                x-go-name: ClusterPassword
-            cluster_token:
-                description: A cluster join token
-                example: BASE64-TOKEN
-                type: string
-                x-go-name: ClusterToken
-            enabled:
-                description: Whether clustering is enabled
-                example: true
-                type: boolean
-                x-go-name: Enabled
-            member_config:
-                description: List of member configuration keys (used during join)
-                example: []
-                items:
-                    $ref: '#/definitions/ClusterMemberConfigKey'
-                type: array
-                x-go-name: MemberConfig
-            server_address:
-                description: The local address to use for cluster communication
-                example: 10.0.0.2:8443
-                type: string
-                x-go-name: ServerAddress
-            server_name:
-                description: Name of the cluster member answering the request
-                example: lxd01
-                type: string
-                x-go-name: ServerName
-        title: ClusterPreseed represents initialization configuration for the LXD cluster.
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     ClusterPut:
@@ -1100,6 +1048,142 @@ definitions:
                 x-go-name: URL
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
+    InitClusterPreseed:
+        properties:
+            cluster_address:
+                description: The address of the cluster you wish to join
+                example: 10.0.0.1:8443
+                type: string
+                x-go-name: ClusterAddress
+            cluster_certificate:
+                description: The expected certificate (X509 PEM encoded) for the cluster
+                example: X509 PEM certificate
+                type: string
+                x-go-name: ClusterCertificate
+            cluster_certificate_path:
+                description: The path to the cluster certificate
+                example: /tmp/cluster.crt
+                type: string
+                x-go-name: ClusterCertificatePath
+            cluster_password:
+                description: The trust password of the cluster you're trying to join
+                example: blah
+                type: string
+                x-go-name: ClusterPassword
+            cluster_token:
+                description: A cluster join token
+                example: BASE64-TOKEN
+                type: string
+                x-go-name: ClusterToken
+            enabled:
+                description: Whether clustering is enabled
+                example: true
+                type: boolean
+                x-go-name: Enabled
+            member_config:
+                description: List of member configuration keys (used during join)
+                example: []
+                items:
+                    $ref: '#/definitions/ClusterMemberConfigKey'
+                type: array
+                x-go-name: MemberConfig
+            server_address:
+                description: The local address to use for cluster communication
+                example: 10.0.0.2:8443
+                type: string
+                x-go-name: ServerAddress
+            server_name:
+                description: Name of the cluster member answering the request
+                example: lxd01
+                type: string
+                x-go-name: ServerName
+        title: InitClusterPreseed represents initialization configuration for the LXD cluster.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    InitLocalPreseed:
+        properties:
+            config:
+                additionalProperties: {}
+                description: Server configuration map (refer to doc/server.md)
+                example:
+                    core.https_address: :8443
+                    core.trust_password: true
+                type: object
+                x-go-name: Config
+            networks:
+                description: Networks by project to add to LXD
+                example: Network on the "default" project
+                items:
+                    $ref: '#/definitions/InitNetworksProjectPost'
+                type: array
+                x-go-name: Networks
+            profiles:
+                description: Profiles to add to LXD
+                example: '"default" profile with a root disk device'
+                items:
+                    $ref: '#/definitions/ProfilesPost'
+                type: array
+                x-go-name: Profiles
+            projects:
+                description: Projects to add to LXD
+                example: '"default" project'
+                items:
+                    $ref: '#/definitions/ProjectsPost'
+                type: array
+                x-go-name: Projects
+            storage_pools:
+                description: Storage Pools to add to LXD
+                example: local dir storage pool
+                items:
+                    $ref: '#/definitions/StoragePoolsPost'
+                type: array
+                x-go-name: StoragePools
+        title: InitLocalPreseed represents initialization configuration for the local LXD.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    InitNetworksProjectPost:
+        properties:
+            Project:
+                description: Project in which the network will reside
+                example: '"default"'
+                type: string
+            config:
+                additionalProperties:
+                    type: string
+                description: Network configuration map (refer to doc/networks.md)
+                example:
+                    ipv4.address: 10.0.0.1/24
+                    ipv4.nat: "true"
+                    ipv6.address: none
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the profile
+                example: My new LXD bridge
+                type: string
+                x-go-name: Description
+            name:
+                description: The name of the new network
+                example: lxdbr1
+                type: string
+                x-go-name: Name
+            type:
+                description: The network type (refer to doc/networks.md)
+                example: bridge
+                type: string
+                x-go-name: Type
+        title: InitNetworksProjectPost represents the fields of a new LXD network along with its associated project.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    InitPreseed:
+        properties:
+            Node:
+                $ref: '#/definitions/InitLocalPreseed'
+            cluster:
+                $ref: '#/definitions/InitClusterPreseed'
+        title: InitPreseed represents initialization configuration that can be supplied to `lxd init`.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
     Instance:
         properties:
             architecture:
@@ -1227,7 +1311,7 @@ definitions:
                 type: boolean
                 x-go-name: ContainerOnly
             created_at:
-                description: When the backup was cerated
+                description: When the backup was created
                 example: "2021-03-23T16:38:37.753398689-04:00"
                 format: date-time
                 type: string
@@ -2233,47 +2317,6 @@ definitions:
             state:
                 $ref: '#/definitions/InstanceStatePut'
         title: InstancesPut represents the fields available for a mass update.
-        type: object
-        x-go-package: github.com/lxc/lxd/shared/api
-    LocalPreseed:
-        properties:
-            config:
-                additionalProperties: {}
-                description: Server configuration map (refer to doc/server.md)
-                example:
-                    core.https_address: :8443
-                    core.trust_password: true
-                type: object
-                x-go-name: Config
-            networks:
-                description: Networks by project to add to LXD
-                example: Network on the "default" project
-                items:
-                    $ref: '#/definitions/NetworksProjectPost'
-                type: array
-                x-go-name: Networks
-            profiles:
-                description: Profiles to add to LXD
-                example: '"default" profile with a root disk device'
-                items:
-                    $ref: '#/definitions/ProfilesPost'
-                type: array
-                x-go-name: Profiles
-            projects:
-                description: Projects to add to LXD
-                example: '"default" project'
-                items:
-                    $ref: '#/definitions/ProjectsPost'
-                type: array
-                x-go-name: Projects
-            storage_pools:
-                description: Storage Pools to add to LXD
-                example: local dir storage pool
-                items:
-                    $ref: '#/definitions/StoragePoolsPost'
-                type: array
-                x-go-name: StoragePools
-        title: LocalPreseed represents initialization configuration for the local LXD.
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     Network:
@@ -3373,40 +3416,6 @@ definitions:
                 x-go-name: Type
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
-    NetworksProjectPost:
-        properties:
-            Project:
-                description: Project in which the network will reside
-                example: '"default"'
-                type: string
-            config:
-                additionalProperties:
-                    type: string
-                description: Network configuration map (refer to doc/networks.md)
-                example:
-                    ipv4.address: 10.0.0.1/24
-                    ipv4.nat: "true"
-                    ipv6.address: none
-                type: object
-                x-go-name: Config
-            description:
-                description: Description of the profile
-                example: My new LXD bridge
-                type: string
-                x-go-name: Description
-            name:
-                description: The name of the new network
-                example: lxdbr1
-                type: string
-                x-go-name: Name
-            type:
-                description: The network type (refer to doc/networks.md)
-                example: bridge
-                type: string
-                x-go-name: Type
-        title: NetworksProjectPost represents the fields of a new LXD network along with its associated project.
-        type: object
-        x-go-package: github.com/lxc/lxd/shared/api
     Operation:
         description: Operation represents a LXD background operation
         properties:
@@ -3490,15 +3499,6 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: UpdatedAt
-        type: object
-        x-go-package: github.com/lxc/lxd/shared/api
-    Preseed:
-        properties:
-            Node:
-                $ref: '#/definitions/LocalPreseed'
-            cluster:
-                $ref: '#/definitions/ClusterPreseed'
-        title: Preseed represents initialization configuration that can be supplied to `lxd init`.
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     Profile:
@@ -5505,7 +5505,7 @@ definitions:
         description: StoragePoolVolumeBackup represents a LXD volume backup
         properties:
             created_at:
-                description: When the backup was cerated
+                description: When the backup was created
                 example: "2021-03-23T16:38:37.753398689-04:00"
                 format: date-time
                 type: string
@@ -5619,6 +5619,12 @@ definitions:
                 example: filesystem
                 type: string
                 x-go-name: ContentType
+            created_at:
+                description: Volume creation timestamp
+                example: "2021-03-23T20:00:00-04:00"
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
             description:
                 description: Description of the storage volume
                 example: My custom volume
@@ -5756,6 +5762,12 @@ definitions:
                 example: filesystem
                 type: string
                 x-go-name: ContentType
+            created_at:
+                description: Volume snapshot creation timestamp
+                example: "2021-03-23T20:00:00-04:00"
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
             description:
                 description: Description of the storage volume
                 example: My custom volume

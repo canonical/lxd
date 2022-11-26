@@ -254,43 +254,66 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		req.Profiles = profiles
 	}
 
-	if c.flagDevice != nil {
-		deviceOverrides, err := parseDeviceOverrides(c.flagDevice)
-		if err != nil {
-			return nil, "", err
-		}
+	// Handle device overrides.
+	deviceOverrides, err := parseDeviceOverrides(c.flagDevice)
+	if err != nil {
+		return nil, "", err
+	}
 
-		// Get a list of profiles that will be applied server-side. If the list of profiles is empty we will apply the
-		// default profile on the server side.
+	// Check to see if any of the overridden devices are for devices that are not yet defined in the
+	// local devices (and thus maybe expected to be coming from profiles).
+	profileDevices := make(map[string]map[string]string)
+	needProfileExpansion := false
+	for deviceName := range deviceOverrides {
+		_, isLocalDevice := devicesMap[deviceName]
+		if !isLocalDevice {
+			needProfileExpansion = true
+			break
+		}
+	}
+
+	// If there are device overrides that are expected to be applied to profile devices then load the profiles
+	// that would be applied server-side.
+	if needProfileExpansion {
+		// If the list of profiles is empty then LXD would apply the default profile on the server side.
 		serverSideProfiles := req.Profiles
 		if len(serverSideProfiles) == 0 {
 			serverSideProfiles = []string{"default"}
 		}
 
-		// Get the effective expanded devices by querying for each profile.
-		profileDevices := make(map[string]map[string]string)
+		// Get the effective expanded devices by overlaying each profile's devices in order.
 		for _, profileName := range serverSideProfiles {
 			profile, _, err := d.GetProfile(profileName)
 			if err != nil {
-				return nil, "", fmt.Errorf(i18n.G("Cannot override devices: %w"), err)
+				return nil, "", fmt.Errorf(i18n.G("Failed loading profile %q for device override: %w"), profileName, err)
 			}
 
 			for k, v := range profile.Devices {
 				profileDevices[k] = v
 			}
 		}
+	}
 
-		// Override profile devices by adding instance devices containing the profile device with the overridden config.
-		for deviceName, deviceConfig := range deviceOverrides {
-			profileDeviceConfig, ok := profileDevices[deviceName]
-			if !ok {
+	// Apply device overrides.
+	for deviceName := range deviceOverrides {
+		_, isLocalDevice := devicesMap[deviceName]
+		if isLocalDevice {
+			// Apply overrides to local device.
+			for k, v := range deviceOverrides[deviceName] {
+				devicesMap[deviceName][k] = v
+			}
+		} else {
+			// Check device exists in expanded profile devices.
+			profileDeviceConfig, found := profileDevices[deviceName]
+			if !found {
 				return nil, "", fmt.Errorf(i18n.G("Cannot override config for device %q: Device not found in profile devices"), deviceName)
 			}
 
-			for k, v := range deviceConfig {
+			for k, v := range deviceOverrides[deviceName] {
 				profileDeviceConfig[k] = v
 			}
 
+			// Add device to local devices.
 			devicesMap[deviceName] = profileDeviceConfig
 		}
 	}

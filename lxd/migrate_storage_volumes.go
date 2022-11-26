@@ -344,36 +344,51 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	}
 
 	if c.refresh {
-		// Get our existing snapshots.
-		targetSnapshots := []string{}
-		snaps, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
-		if err == nil {
-			for _, snap := range snaps {
-				_, snapName, _ := api.GetParentAndSnapshotName(snap.Name)
-				targetSnapshots = append(targetSnapshots, snapName)
-			}
+		// Get the remote snapshots on the source.
+		sourceSnapshots := offerHeader.GetSnapshots()
+		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
+		for _, sourceSnap := range sourceSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+				Name:         sourceSnap.GetName(),
+				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+			})
 		}
 
-		// Get the remote snapshots.
-		sourceSnapshots := offerHeader.GetSnapshotNames()
+		// Get existing snapshots on the local target.
+		targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
+		if err != nil {
+			controller(err)
+			return err
+		}
+
+		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
+		for _, targetSnap := range targetSnapshots {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
+
+			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate,
+			})
+		}
 
 		// Compare the two sets.
-		syncSnapshotNames, deleteSnapshotNames := migrationStorageCompareSnapshots(sourceSnapshots, targetSnapshots)
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
 
-		// Delete the extra local ones.
-		for _, snapshot := range deleteSnapshotNames {
-			err := pool.DeleteCustomVolumeSnapshot(projectName, fmt.Sprintf("%s/%s", req.Name, snapshot), op)
+		// Delete the extra local snapshots first.
+		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
+			err := pool.DeleteCustomVolumeSnapshot(projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
 			if err != nil {
 				controller(err)
 				return err
 			}
 		}
 
-		syncSnapshots := []*migration.Snapshot{}
-		for _, snapshot := range offerHeader.Snapshots {
-			if shared.StringInSlice(snapshot.GetName(), syncSnapshotNames) {
-				syncSnapshots = append(syncSnapshots, snapshot)
-			}
+		// Only request to send the snapshots that need updating.
+		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
+		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
+			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
+			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
 		}
 
 		respHeader.Snapshots = syncSnapshots
@@ -499,25 +514,4 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapsho
 		LastUsedDate: proto.Int64(0),
 		ExpiryDate:   proto.Int64(0),
 	}
-}
-
-func migrationStorageCompareSnapshots(sourceSnapshots []string, targetSnapshots []string) ([]string, []string) {
-	syncSnapshots := []string{}
-	deleteSnapshots := []string{}
-
-	// Find target snapshots to delete.
-	for _, snapshot := range targetSnapshots {
-		if !shared.StringInSlice(snapshot, sourceSnapshots) {
-			deleteSnapshots = append(deleteSnapshots, snapshot)
-		}
-	}
-
-	// Find source snapshots to sync.
-	for _, snapshot := range sourceSnapshots {
-		if !shared.StringInSlice(snapshot, targetSnapshots) {
-			syncSnapshots = append(syncSnapshots, snapshot)
-		}
-	}
-
-	return syncSnapshots, deleteSnapshots
 }

@@ -482,49 +482,48 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Perform instance NIC configuration.
-	var nic []deviceConfig.RunConfigItem
+	runConf := deviceConfig.RunConfig{}
+	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
+		{Key: "type", Value: "phys"},
+		{Key: "name", Value: d.config["name"]},
+		{Key: "flags", Value: "up"},
+		{Key: "link", Value: peerName},
+		{Key: "hwaddr", Value: d.config["hwaddr"]},
+	}
 
 	if d.inst.Type() == instancetype.Container {
-		nic = append(nic, []deviceConfig.RunConfigItem{
-			{Key: "type", Value: "phys"},
-			{Key: "link", Value: peerName},
-			{Key: "name", Value: d.config["name"]},
-			{Key: "flags", Value: "up"},
-		}...)
-
 		for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 			ipAddresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
 
 			// Use a fixed address as the auto next-hop default gateway if using this IP family.
 			if len(ipAddresses) > 0 && nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
-				nic = append(nic, deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)})
+				runConf.NetworkInterface = append(runConf.NetworkInterface,
+					deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)},
+				)
 			}
 
 			for _, addrStr := range ipAddresses {
 				// Add addresses to instance NIC.
 				if keyPrefix == "ipv6" {
-					nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)})
+					runConf.NetworkInterface = append(runConf.NetworkInterface,
+						deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)},
+					)
 				} else {
 					// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on
 					// this link. This stops liblxc from trying to calculate a broadcast address
 					// (and getting it wrong) which can prevent instances communicating with each other
 					// using adjacent IP addresses.
-					nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)})
+					runConf.NetworkInterface = append(runConf.NetworkInterface,
+						deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)},
+					)
 				}
 			}
 		}
 	} else if d.inst.Type() == instancetype.VM {
-		nic = append(nic, []deviceConfig.RunConfigItem{
-			{Key: "name", Value: d.config["name"]},
+		runConf.NetworkInterface = append(runConf.NetworkInterface, []deviceConfig.RunConfigItem{
 			{Key: "devName", Value: d.name},
-			{Key: "link", Value: peerName},
-			{Key: "hwaddr", Value: d.config["hwaddr"]},
 			{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 		}...)
-	}
-
-	runConf := deviceConfig.RunConfig{
-		NetworkInterface: nic,
 	}
 
 	revert.Success()

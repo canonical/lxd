@@ -1582,7 +1582,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		}
 	} else {
 		// Currently liblxc does not move devices back to the host on stop that were added
-		// after the the container was started. For this reason we utilise the lxc.hook.stop
+		// after the container was started. For this reason we utilise the lxc.hook.stop
 		// hook so that we can capture the netns path, enter the namespace and move the nics
 		// back to the host and rename them if liblxc hasn't already done it.
 		// We can only move back devices that have an expected host_name record and where
@@ -2621,6 +2621,7 @@ func (d *lxc) Stop(stateful bool) error {
 		// Load the config.
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
@@ -2749,6 +2750,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	} else {
@@ -2851,7 +2853,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	_, _, err := d.onStopOperationSetup(target)
+	_, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2874,7 +2876,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	}
 
 	// Create/pick up operation.
-	op, instanceInitiated, err := d.onStopOperationSetup(target)
+	op, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2955,7 +2957,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Log and emit lifecycle if not user triggered
-		if instanceInitiated {
+		if op.GetInstanceInitiated() {
 			ctxMap := logger.Ctx{
 				"action":    target,
 				"created":   d.creationDate,
@@ -4169,6 +4171,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		err = d.loadRawLXCConfig()
 		if err != nil {
+			// Release the liblxc instance.
+			_ = cc.Release()
 			return err
 		}
 
@@ -7103,7 +7107,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 					return nil, fmt.Errorf("Failed to stat %s: %w", dev["source"], err)
 				}
 
-				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(stat.Dev), unix.Minor(stat.Dev))
+				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(uint64(stat.Dev)), unix.Minor(uint64(stat.Dev)))
 
 				if shared.PathExists(backingFilePath) {
 					// Read backing file

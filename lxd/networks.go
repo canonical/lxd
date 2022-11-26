@@ -868,7 +868,7 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 			networkID = n.ID()
 		}
 
-		usedBy, err := network.UsedBy(d.State(), projectName, networkID, apiNet.Name, false)
+		usedBy, err := network.UsedBy(d.State(), projectName, networkID, apiNet.Name, apiNet.Type, false)
 		if err != nil {
 			return api.Network{}, err
 		}

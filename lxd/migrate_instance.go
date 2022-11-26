@@ -323,7 +323,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name()})
 
 	l.Info("Waiting for migration channel connections on source")
 
@@ -802,7 +802,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project(), "instance": c.src.instance.Name()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name()})
 
 	var err error
 
@@ -1000,37 +1000,57 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	respHeader.Criu = criuType
 
 	if c.refresh {
-		// Get our existing snapshots.
+		// Get the remote snapshots on the source.
+		sourceSnapshots := offerHeader.GetSnapshots()
+		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
+		for _, sourceSnap := range sourceSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+				Name:         sourceSnap.GetName(),
+				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+			})
+		}
+
+		// Get existing snapshots on the local target.
 		targetSnapshots, err := c.src.instance.Snapshots()
 		if err != nil {
 			controller(err)
 			return err
 		}
 
-		// Get the remote snapshots.
-		sourceSnapshots := offerHeader.GetSnapshots()
+		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
+		for _, targetSnap := range targetSnapshots {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name())
+
+			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate(),
+			})
+		}
 
 		// Compare the two sets.
-		syncSnapshots, deleteSnapshots := migrationCompareSnapshots(sourceSnapshots, targetSnapshots)
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
 
-		// Delete the extra local ones.
-		for _, snap := range deleteSnapshots {
-			err := snap.Delete(true)
+		// Delete the extra local snapshots first.
+		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true)
 			if err != nil {
 				controller(err)
 				return err
 			}
 		}
 
-		snapshotNames := []string{}
-		for _, snap := range syncSnapshots {
-			snapshotNames = append(snapshotNames, snap.GetName())
+		// Only request to send the snapshots that need updating.
+		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
+		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
+			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
+			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
 		}
 
 		respHeader.Snapshots = syncSnapshots
-		respHeader.SnapshotNames = snapshotNames
+		respHeader.SnapshotNames = syncSnapshotNames
 		offerHeader.Snapshots = syncSnapshots
-		offerHeader.SnapshotNames = snapshotNames
+		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
 	if offerHeader.GetPredump() {
@@ -1303,42 +1323,4 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 func (s *migrationSourceWs) ConnectContainerTarget(target api.InstancePostTarget) error {
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
-}
-
-func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []instance.Instance) ([]*migration.Snapshot, []instance.Instance) {
-	// Compare source and target
-	sourceSnapshotsTime := map[string]int64{}
-	targetSnapshotsTime := map[string]int64{}
-
-	toDelete := []instance.Instance{}
-	toSync := []*migration.Snapshot{}
-
-	for _, snap := range sourceSnapshots {
-		snapName := snap.GetName()
-
-		sourceSnapshotsTime[snapName] = snap.GetCreationDate()
-	}
-
-	for _, snap := range targetSnapshots {
-		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-
-		targetSnapshotsTime[snapName] = snap.CreationDate().Unix()
-		existDate, exists := sourceSnapshotsTime[snapName]
-		if !exists {
-			toDelete = append(toDelete, snap)
-		} else if existDate != snap.CreationDate().Unix() {
-			toDelete = append(toDelete, snap)
-		}
-	}
-
-	for _, snap := range sourceSnapshots {
-		snapName := snap.GetName()
-
-		existDate, exists := targetSnapshotsTime[snapName]
-		if !exists || existDate != snap.GetCreationDate() {
-			toSync = append(toSync, snap)
-		}
-	}
-
-	return toSync, toDelete
 }

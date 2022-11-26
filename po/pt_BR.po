@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-10-27 08:34+0200\n"
+"POT-Creation-Date: 2022-11-25 09:28+0000\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -76,7 +76,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/storage_volume.go:847
+#: lxc/storage_volume.go:851
 #, fuzzy
 msgid ""
 "### This is a YAML representation of a storage volume.\n"
@@ -620,7 +620,7 @@ msgstr "--refresh só pode ser usado com containers"
 msgid "--console only works with a single instance"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 
-#: lxc/init.go:123
+#: lxc/init.go:125
 #, fuzzy
 msgid "--empty cannot be combined with an image name"
 msgstr "--refresh só pode ser usado com containers"
@@ -630,7 +630,7 @@ msgstr "--refresh só pode ser usado com containers"
 msgid "--expanded cannot be used with a server"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/copy.go:166
+#: lxc/copy.go:154
 #, fuzzy
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr "--container-only não pode ser passado quando a fonte é um snapshot"
@@ -645,7 +645,7 @@ msgstr "--refresh só pode ser usado com containers"
 msgid "--project cannot be used with the query command"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/copy.go:177
+#: lxc/copy.go:165
 #, fuzzy
 msgid "--refresh can only be used with instances"
 msgstr "--refresh só pode ser usado com containers"
@@ -861,7 +861,7 @@ msgstr "Nome do alias ausente"
 msgid "Aliases:"
 msgstr "Aliases:"
 
-#: lxc/storage_volume.go:1345
+#: lxc/storage_volume.go:1353
 #, fuzzy
 msgid "All projects"
 msgstr "Criar projetos"
@@ -894,7 +894,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:300
+#: lxc/init.go:366
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -977,18 +977,23 @@ msgstr "IMAGEM BASE"
 msgid "Backing up instance: %s"
 msgstr "Editar arquivos no container"
 
-#: lxc/storage_volume.go:2143
+#: lxc/storage_volume.go:2151
 #, fuzzy, c-format
 msgid "Backing up storage volume: %s"
 msgstr "Editar arquivos no container"
 
-#: lxc/export.go:166 lxc/storage_volume.go:2212
+#: lxc/export.go:166 lxc/storage_volume.go:2220
 msgid "Backup exported successfully!"
 msgstr "Backup exportado com sucesso!"
 
-#: lxc/info.go:646 lxc/storage_volume.go:1276
+#: lxc/info.go:646 lxc/storage_volume.go:1284
 msgid "Backups:"
 msgstr ""
+
+#: lxc/utils.go:96
+#, fuzzy, c-format
+msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
+msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"
 
 #: lxc/network.go:325 lxc/network_acl.go:369 lxc/network_forward.go:285
 #: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
@@ -997,8 +1002,8 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr "par de chave/valor inválido %s"
 
-#: lxc/copy.go:136 lxc/init.go:208 lxc/project.go:129 lxc/publish.go:178
-#: lxc/storage.go:131 lxc/storage_volume.go:561
+#: lxc/copy.go:136 lxc/init.go:210 lxc/project.go:129 lxc/publish.go:178
+#: lxc/storage.go:131 lxc/storage_volume.go:565
 #, c-format
 msgid "Bad key=value pair: %s"
 msgstr "par de chave=valor inválido %s"
@@ -1007,11 +1012,6 @@ msgstr "par de chave=valor inválido %s"
 #, c-format
 msgid "Bad property: %s"
 msgstr "Propriedade ruim: %s"
-
-#: lxc/copy.go:147
-#, c-format
-msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
-msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"
 
 #: lxc/network.go:838
 msgid "Bond:"
@@ -1046,7 +1046,7 @@ msgstr "CANCELÁVEL"
 msgid "COMMON NAME"
 msgstr "NOME COMUM"
 
-#: lxc/storage_volume.go:1452
+#: lxc/storage_volume.go:1460
 msgid "CONTENT-TYPE"
 msgstr ""
 
@@ -1111,7 +1111,7 @@ msgstr "Não pode fornecer um nome para a imagem de destino"
 msgid "Can't pull a directory without --recursive"
 msgstr "Não pode pegar um diretório sem --recursive"
 
-#: lxc/utils.go:148 lxc/utils.go:168
+#: lxc/utils.go:170 lxc/utils.go:190
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Não é possível ler stdin: %s"
@@ -1133,7 +1133,7 @@ msgstr "Não é possível especificar --fast com --columns"
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
-#: lxc/list.go:603 lxc/storage_volume.go:1462 lxc/warning.go:225
+#: lxc/list.go:603 lxc/storage_volume.go:1470 lxc/warning.go:225
 msgid "Can't specify column L when not clustered"
 msgstr "Não pode especificar a coluna L, quando não em cluster"
 
@@ -1148,6 +1148,12 @@ msgstr "Não é possível remover chave '%s', não está atualmente definido"
 
 #: lxc/remote.go:104
 msgid "Candid domain to use"
+msgstr ""
+
+#: lxc/init.go:309
+#, c-format
+msgid ""
+"Cannot override config for device %q: Device not found in profile devices"
 msgstr ""
 
 #: lxc/network_acl.go:781
@@ -1241,7 +1247,7 @@ msgstr "Dispositivo %s removido de %s"
 
 #: lxc/cluster.go:714 lxc/config.go:98 lxc/config.go:376 lxc/config.go:479
 #: lxc/config.go:626 lxc/config.go:745 lxc/copy.go:61 lxc/info.go:46
-#: lxc/init.go:54 lxc/move.go:66 lxc/network.go:292 lxc/network.go:713
+#: lxc/init.go:56 lxc/move.go:66 lxc/network.go:292 lxc/network.go:713
 #: lxc/network.go:771 lxc/network.go:1111 lxc/network.go:1178
 #: lxc/network.go:1240 lxc/network_forward.go:171 lxc/network_forward.go:235
 #: lxc/network_forward.go:390 lxc/network_forward.go:491
@@ -1258,14 +1264,14 @@ msgstr "Dispositivo %s removido de %s"
 #: lxc/storage_bucket.go:599 lxc/storage_bucket.go:663
 #: lxc/storage_bucket.go:814 lxc/storage_bucket.go:892
 #: lxc/storage_bucket.go:957 lxc/storage_bucket.go:1093
-#: lxc/storage_volume.go:334 lxc/storage_volume.go:520
-#: lxc/storage_volume.go:599 lxc/storage_volume.go:840
-#: lxc/storage_volume.go:1041 lxc/storage_volume.go:1129
-#: lxc/storage_volume.go:1556 lxc/storage_volume.go:1588
-#: lxc/storage_volume.go:1704 lxc/storage_volume.go:1795
-#: lxc/storage_volume.go:1888 lxc/storage_volume.go:1925
-#: lxc/storage_volume.go:2018 lxc/storage_volume.go:2090
-#: lxc/storage_volume.go:2232
+#: lxc/storage_volume.go:334 lxc/storage_volume.go:524
+#: lxc/storage_volume.go:603 lxc/storage_volume.go:844
+#: lxc/storage_volume.go:1045 lxc/storage_volume.go:1133
+#: lxc/storage_volume.go:1564 lxc/storage_volume.go:1596
+#: lxc/storage_volume.go:1712 lxc/storage_volume.go:1803
+#: lxc/storage_volume.go:1896 lxc/storage_volume.go:1933
+#: lxc/storage_volume.go:2026 lxc/storage_volume.go:2098
+#: lxc/storage_volume.go:2240
 msgid "Cluster member name"
 msgstr "Nome de membro do cluster"
 
@@ -1273,7 +1279,7 @@ msgstr "Nome de membro do cluster"
 msgid "Clustering enabled"
 msgstr "Clustering ativado"
 
-#: lxc/image.go:1045 lxc/list.go:133 lxc/storage_volume.go:1344
+#: lxc/image.go:1045 lxc/list.go:133 lxc/storage_volume.go:1352
 #: lxc/warning.go:93
 msgid "Columns"
 msgstr "Colunas"
@@ -1305,7 +1311,7 @@ msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 
-#: lxc/copy.go:53 lxc/init.go:48
+#: lxc/copy.go:53 lxc/init.go:49
 #, fuzzy
 msgid "Config key/value to apply to the new instance"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
@@ -1326,7 +1332,7 @@ msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 #: lxc/network_peer.go:573 lxc/network_zone.go:513 lxc/network_zone.go:1067
 #: lxc/profile.go:508 lxc/project.go:312 lxc/storage.go:311
 #: lxc/storage_bucket.go:344 lxc/storage_bucket.go:1056
-#: lxc/storage_volume.go:973 lxc/storage_volume.go:1005
+#: lxc/storage_volume.go:977 lxc/storage_volume.go:1009
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "Erro de análise de configuração: %s"
@@ -1335,11 +1341,11 @@ msgstr "Erro de análise de configuração: %s"
 msgid "Console log:"
 msgstr "Log de Console:"
 
-#: lxc/storage_volume.go:521
+#: lxc/storage_volume.go:525
 msgid "Content type, block or filesystem"
 msgstr ""
 
-#: lxc/storage_volume.go:1220
+#: lxc/storage_volume.go:1224
 #, c-format
 msgid "Content type: %s"
 msgstr ""
@@ -1486,7 +1492,7 @@ msgstr ""
 msgid "Create a cluster group"
 msgstr ""
 
-#: lxc/init.go:57
+#: lxc/init.go:59
 #, fuzzy
 msgid "Create a virtual machine"
 msgstr "Copiar a imagem: %s"
@@ -1495,7 +1501,7 @@ msgstr "Copiar a imagem: %s"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:56
+#: lxc/init.go:58
 msgid "Create an empty instance"
 msgstr ""
 
@@ -1524,7 +1530,7 @@ msgstr ""
 "Quando --stateful é usado, o LXD tenta criar um checkpoint do estado atual \n"
 "do container, incluindo estado de memória dos processos, conexões TCP, ..."
 
-#: lxc/init.go:39 lxc/init.go:40
+#: lxc/init.go:40 lxc/init.go:41
 msgid "Create instances from images"
 msgstr ""
 
@@ -1537,7 +1543,7 @@ msgstr ""
 msgid "Create new custom storage buckets"
 msgstr "Criar novas redes"
 
-#: lxc/storage_volume.go:516 lxc/storage_volume.go:517
+#: lxc/storage_volume.go:520 lxc/storage_volume.go:521
 msgid "Create new custom storage volumes"
 msgstr ""
 
@@ -1592,21 +1598,21 @@ msgstr "Criar projetos"
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:63 lxc/init.go:55
+#: lxc/copy.go:63 lxc/init.go:57
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
-#: lxc/image.go:953 lxc/info.go:488
+#: lxc/image.go:953 lxc/info.go:488 lxc/storage_volume.go:1238
 #, c-format
 msgid "Created: %s"
 msgstr "Criado: %s"
 
-#: lxc/init.go:155
+#: lxc/init.go:157
 #, c-format
 msgid "Creating %s"
 msgstr "Criando %s"
 
-#: lxc/init.go:153
+#: lxc/init.go:155
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Criando %s"
@@ -1627,7 +1633,7 @@ msgstr ""
 #: lxc/network_zone.go:140 lxc/network_zone.go:704 lxc/operation.go:164
 #: lxc/profile.go:634 lxc/project.go:483 lxc/storage.go:619
 #: lxc/storage_bucket.go:496 lxc/storage_bucket.go:791
-#: lxc/storage_volume.go:1451
+#: lxc/storage_volume.go:1459
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -1647,7 +1653,7 @@ msgstr ""
 msgid "Default VLAN ID"
 msgstr ""
 
-#: lxc/storage_volume.go:2089
+#: lxc/storage_volume.go:2097
 #, fuzzy
 msgid "Define a compression algorithm: for backup or none"
 msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
@@ -1743,7 +1749,7 @@ msgstr "Apagar projetos"
 msgid "Delete storage pools"
 msgstr ""
 
-#: lxc/storage_volume.go:595 lxc/storage_volume.go:596
+#: lxc/storage_volume.go:599 lxc/storage_volume.go:600
 msgid "Delete storage volumes"
 msgstr ""
 
@@ -1781,7 +1787,7 @@ msgstr ""
 #: lxc/image.go:1419 lxc/image.go:1478 lxc/image.go:1530 lxc/image.go:1586
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:256 lxc/import.go:29
-#: lxc/info.go:34 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79
+#: lxc/info.go:34 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79
 #: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:132 lxc/network.go:217 lxc/network.go:290 lxc/network.go:364
 #: lxc/network.go:414 lxc/network.go:499 lxc/network.go:584 lxc/network.go:710
@@ -1837,26 +1843,26 @@ msgstr ""
 #: lxc/storage_bucket.go:889 lxc/storage_bucket.go:953
 #: lxc/storage_bucket.go:1088 lxc/storage_volume.go:42
 #: lxc/storage_volume.go:164 lxc/storage_volume.go:239
-#: lxc/storage_volume.go:330 lxc/storage_volume.go:517
-#: lxc/storage_volume.go:596 lxc/storage_volume.go:671
-#: lxc/storage_volume.go:753 lxc/storage_volume.go:834
-#: lxc/storage_volume.go:1038 lxc/storage_volume.go:1126
-#: lxc/storage_volume.go:1262 lxc/storage_volume.go:1346
-#: lxc/storage_volume.go:1552 lxc/storage_volume.go:1585
-#: lxc/storage_volume.go:1698 lxc/storage_volume.go:1786
-#: lxc/storage_volume.go:1885 lxc/storage_volume.go:1919
-#: lxc/storage_volume.go:2016 lxc/storage_volume.go:2083
-#: lxc/storage_volume.go:2227 lxc/version.go:22 lxc/warning.go:30
+#: lxc/storage_volume.go:330 lxc/storage_volume.go:521
+#: lxc/storage_volume.go:600 lxc/storage_volume.go:675
+#: lxc/storage_volume.go:757 lxc/storage_volume.go:838
+#: lxc/storage_volume.go:1042 lxc/storage_volume.go:1130
+#: lxc/storage_volume.go:1270 lxc/storage_volume.go:1354
+#: lxc/storage_volume.go:1560 lxc/storage_volume.go:1593
+#: lxc/storage_volume.go:1706 lxc/storage_volume.go:1794
+#: lxc/storage_volume.go:1893 lxc/storage_volume.go:1927
+#: lxc/storage_volume.go:2024 lxc/storage_volume.go:2091
+#: lxc/storage_volume.go:2235 lxc/version.go:22 lxc/warning.go:30
 #: lxc/warning.go:72 lxc/warning.go:263 lxc/warning.go:304 lxc/warning.go:358
 msgid "Description"
 msgstr "Descrição"
 
-#: lxc/storage_volume.go:1207
+#: lxc/storage_volume.go:1211
 #, fuzzy, c-format
 msgid "Description: %s"
 msgstr "Descrição"
 
-#: lxc/storage_volume.go:335 lxc/storage_volume.go:1557
+#: lxc/storage_volume.go:335 lxc/storage_volume.go:1565
 #, fuzzy
 msgid "Destination cluster member name"
 msgstr "Nome de membro do cluster"
@@ -1870,12 +1876,12 @@ msgstr "Desconectar interfaces de rede dos containers"
 msgid "Detach network interfaces from profiles"
 msgstr "Desconectar interfaces de rede dos perfis"
 
-#: lxc/storage_volume.go:670 lxc/storage_volume.go:671
+#: lxc/storage_volume.go:674 lxc/storage_volume.go:675
 #, fuzzy
 msgid "Detach storage volumes from instances"
 msgstr "Desconectar volumes de armazenamento dos containers"
 
-#: lxc/storage_volume.go:752 lxc/storage_volume.go:753
+#: lxc/storage_volume.go:756 lxc/storage_volume.go:757
 msgid "Detach storage volumes from profiles"
 msgstr "Desconectar volumes de armazenamento dos perfis"
 
@@ -1926,7 +1932,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Em cache: %s"
 
-#: lxc/init.go:360
+#: lxc/init.go:426
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -2102,7 +2108,7 @@ msgstr ""
 msgid "Edit storage pool configurations as YAML"
 msgstr ""
 
-#: lxc/storage_volume.go:833 lxc/storage_volume.go:834
+#: lxc/storage_volume.go:837 lxc/storage_volume.go:838
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
@@ -2111,7 +2117,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/image.go:1071 lxc/list.go:615 lxc/storage_volume.go:1479
+#: lxc/image.go:1071 lxc/list.go:615 lxc/storage_volume.go:1487
 #: lxc/warning.go:236
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -2144,7 +2150,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:56 lxc/init.go:50
+#: lxc/copy.go:56 lxc/init.go:52
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -2186,8 +2192,8 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/info.go:632 lxc/info.go:683 lxc/storage_volume.go:1263
-#: lxc/storage_volume.go:1313
+#: lxc/info.go:632 lxc/info.go:683 lxc/storage_volume.go:1271
+#: lxc/storage_volume.go:1321
 msgid "Expires at"
 msgstr ""
 
@@ -2211,7 +2217,7 @@ msgid ""
 "The output target is optional and defaults to the working directory."
 msgstr ""
 
-#: lxc/storage_volume.go:2082 lxc/storage_volume.go:2083
+#: lxc/storage_volume.go:2090 lxc/storage_volume.go:2091
 msgid "Export custom storage volume"
 msgstr ""
 
@@ -2223,11 +2229,11 @@ msgstr ""
 msgid "Export instances as backup tarballs."
 msgstr ""
 
-#: lxc/storage_volume.go:2086
+#: lxc/storage_volume.go:2094
 msgid "Export the volume without its snapshots"
 msgstr ""
 
-#: lxc/export.go:144 lxc/storage_volume.go:2195
+#: lxc/export.go:144 lxc/storage_volume.go:2203
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr ""
@@ -2264,12 +2270,12 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:205
+#: lxc/utils.go:227
 #, fuzzy, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "Nome de membro do cluster"
 
-#: lxc/utils.go:197
+#: lxc/utils.go:219
 #, fuzzy, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Nome de membro do cluster"
@@ -2297,6 +2303,11 @@ msgstr "Aceitar certificado"
 #: lxc/network_peer.go:305
 #, c-format
 msgid "Failed getting peer's status: %w"
+msgstr ""
+
+#: lxc/init.go:288
+#, c-format
+msgid "Failed loading profile %q for device override: %w"
 msgstr ""
 
 #: lxc/file.go:1180
@@ -2338,7 +2349,7 @@ msgstr "Nome de membro do cluster"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:123
+#: lxc/utils.go:145
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Aceitar certificado"
@@ -2353,7 +2364,7 @@ msgstr "Aceitar certificado"
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/copy.go:422
+#: lxc/copy.go:410
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -2362,12 +2373,12 @@ msgstr ""
 msgid "Failed to listen for connection: %w"
 msgstr "Aceitar certificado"
 
-#: lxc/copy.go:375
+#: lxc/copy.go:363
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:112
+#: lxc/utils.go:134
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Aceitar certificado"
@@ -2457,7 +2468,7 @@ msgstr ""
 #: lxc/operation.go:107 lxc/profile.go:593 lxc/project.go:396
 #: lxc/project.go:759 lxc/remote.go:665 lxc/storage.go:561
 #: lxc/storage_bucket.go:443 lxc/storage_bucket.go:734
-#: lxc/storage_volume.go:1362 lxc/warning.go:94
+#: lxc/storage_volume.go:1370 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
 msgstr ""
 
@@ -2593,7 +2604,7 @@ msgstr "Editar configurações de perfil como YAML"
 msgid "Get values for storage pool configuration keys"
 msgstr ""
 
-#: lxc/storage_volume.go:1037 lxc/storage_volume.go:1038
+#: lxc/storage_volume.go:1041 lxc/storage_volume.go:1042
 msgid "Get values for storage volume configuration keys"
 msgstr ""
 
@@ -2675,7 +2686,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/snapshot.go:40 lxc/storage_volume.go:1924
+#: lxc/snapshot.go:40 lxc/storage_volume.go:1932
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -2689,7 +2700,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
-#: lxc/storage_volume.go:1923
+#: lxc/storage_volume.go:1931
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
@@ -2741,7 +2752,7 @@ msgstr ""
 msgid "Immediately attach to the console"
 msgstr "Anexar interfaces de rede aos perfis"
 
-#: lxc/storage_volume.go:2227
+#: lxc/storage_volume.go:2235
 msgid "Import backups of custom volumes including their snapshots."
 msgstr ""
 
@@ -2749,7 +2760,7 @@ msgstr ""
 msgid "Import backups of instances including their snapshots."
 msgstr ""
 
-#: lxc/storage_volume.go:2226
+#: lxc/storage_volume.go:2234
 msgid "Import custom storage volumes"
 msgstr ""
 
@@ -2768,7 +2779,7 @@ msgstr ""
 msgid "Import instance backups"
 msgstr ""
 
-#: lxc/storage_volume.go:2281
+#: lxc/storage_volume.go:2289
 #, fuzzy, c-format
 msgid "Importing custom volume: %s"
 msgstr "Editar arquivos no container"
@@ -2803,7 +2814,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:428 lxc/init.go:367
+#: lxc/copy.go:416 lxc/init.go:433
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2817,7 +2828,7 @@ msgstr ""
 msgid "Instance published with fingerprint: %s"
 msgstr "Certificado fingerprint: %s"
 
-#: lxc/init.go:53
+#: lxc/init.go:55
 msgid "Instance type"
 msgstr ""
 
@@ -2865,7 +2876,7 @@ msgstr "Editar arquivos no container"
 msgid "Invalid instance path: %q"
 msgstr "Editar arquivos no container"
 
-#: lxc/utils.go:162
+#: lxc/utils.go:184
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "par de chave=valor inválido %s"
@@ -2886,7 +2897,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/move.go:135 lxc/storage_volume.go:1636
+#: lxc/move.go:135 lxc/storage_volume.go:1644
 #, fuzzy
 msgid "Invalid new snapshot name"
 msgstr "Editar arquivos no container"
@@ -2895,7 +2906,7 @@ msgstr "Editar arquivos no container"
 msgid "Invalid new snapshot name, parent must be the same as source"
 msgstr ""
 
-#: lxc/storage_volume.go:1632
+#: lxc/storage_volume.go:1640
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
@@ -2913,9 +2924,9 @@ msgstr ""
 msgid "Invalid protocol: %s"
 msgstr ""
 
-#: lxc/storage_volume.go:887 lxc/storage_volume.go:1074
-#: lxc/storage_volume.go:1162 lxc/storage_volume.go:1621
-#: lxc/storage_volume.go:1742 lxc/storage_volume.go:1828
+#: lxc/storage_volume.go:891 lxc/storage_volume.go:1078
+#: lxc/storage_volume.go:1166 lxc/storage_volume.go:1629
+#: lxc/storage_volume.go:1750 lxc/storage_volume.go:1836
 #, fuzzy
 msgid "Invalid snapshot name"
 msgstr "Editar arquivos no container"
@@ -2957,7 +2968,7 @@ msgstr ""
 
 #: lxc/list.go:599 lxc/network.go:1038 lxc/network_forward.go:152
 #: lxc/network_load_balancer.go:154 lxc/operation.go:169
-#: lxc/storage_bucket.go:500 lxc/storage_volume.go:1458 lxc/warning.go:221
+#: lxc/storage_bucket.go:500 lxc/storage_volume.go:1466 lxc/warning.go:221
 msgid "LOCATION"
 msgstr ""
 
@@ -3233,11 +3244,11 @@ msgstr ""
 msgid "List storage buckets"
 msgstr ""
 
-#: lxc/storage_volume.go:1341
+#: lxc/storage_volume.go:1349
 msgid "List storage volumes"
 msgstr ""
 
-#: lxc/storage_volume.go:1346
+#: lxc/storage_volume.go:1354
 msgid ""
 "List storage volumes\n"
 "\n"
@@ -3295,7 +3306,7 @@ msgstr ""
 msgid "List, show and delete background operations"
 msgstr ""
 
-#: lxc/info.go:480 lxc/storage_volume.go:1223
+#: lxc/info.go:480 lxc/storage_volume.go:1227
 #, c-format
 msgid "Location: %s"
 msgstr ""
@@ -3746,13 +3757,13 @@ msgstr "Nome de membro do cluster"
 #: lxc/storage_bucket.go:757 lxc/storage_bucket.go:838
 #: lxc/storage_bucket.go:913 lxc/storage_bucket.go:992
 #: lxc/storage_bucket.go:1115 lxc/storage_volume.go:188
-#: lxc/storage_volume.go:263 lxc/storage_volume.go:543
-#: lxc/storage_volume.go:620 lxc/storage_volume.go:695
-#: lxc/storage_volume.go:777 lxc/storage_volume.go:876
-#: lxc/storage_volume.go:1063 lxc/storage_volume.go:1385
-#: lxc/storage_volume.go:1610 lxc/storage_volume.go:1725
-#: lxc/storage_volume.go:1817 lxc/storage_volume.go:1945
-#: lxc/storage_volume.go:2040
+#: lxc/storage_volume.go:263 lxc/storage_volume.go:547
+#: lxc/storage_volume.go:624 lxc/storage_volume.go:699
+#: lxc/storage_volume.go:781 lxc/storage_volume.go:880
+#: lxc/storage_volume.go:1067 lxc/storage_volume.go:1393
+#: lxc/storage_volume.go:1618 lxc/storage_volume.go:1733
+#: lxc/storage_volume.go:1825 lxc/storage_volume.go:1953
+#: lxc/storage_volume.go:2048
 msgid "Missing pool name"
 msgstr ""
 
@@ -3774,7 +3785,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/storage_volume.go:1151
+#: lxc/storage_volume.go:1155
 #, fuzzy
 msgid "Missing storage pool name"
 msgstr "Nome de membro do cluster"
@@ -3813,8 +3824,8 @@ msgid ""
 "By default the monitor will listen to all message types."
 msgstr ""
 
-#: lxc/network.go:458 lxc/network.go:543 lxc/storage_volume.go:715
-#: lxc/storage_volume.go:796
+#: lxc/network.go:458 lxc/network.go:543 lxc/storage_volume.go:719
+#: lxc/storage_volume.go:800
 msgid "More than one device matches, specify the device name"
 msgstr ""
 
@@ -3847,7 +3858,7 @@ msgid ""
 "versions.\n"
 msgstr ""
 
-#: lxc/storage_volume.go:1551 lxc/storage_volume.go:1552
+#: lxc/storage_volume.go:1559 lxc/storage_volume.go:1560
 msgid "Move storage volumes between pools"
 msgstr ""
 
@@ -3855,7 +3866,7 @@ msgstr ""
 msgid "Move the instance without its snapshots"
 msgstr ""
 
-#: lxc/storage_volume.go:1558
+#: lxc/storage_volume.go:1566
 msgid "Move to a project different from the source"
 msgstr ""
 
@@ -3886,7 +3897,7 @@ msgstr ""
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
 #: lxc/project.go:477 lxc/remote.go:726 lxc/storage.go:611
 #: lxc/storage_bucket.go:495 lxc/storage_bucket.go:790
-#: lxc/storage_volume.go:1450
+#: lxc/storage_volume.go:1458
 msgid "NAME"
 msgstr ""
 
@@ -3926,8 +3937,8 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1261
-#: lxc/storage_volume.go:1311
+#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1269
+#: lxc/storage_volume.go:1319
 msgid "Name"
 msgstr ""
 
@@ -3935,7 +3946,7 @@ msgstr ""
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
-#: lxc/info.go:463 lxc/network.go:812 lxc/storage_volume.go:1205
+#: lxc/info.go:463 lxc/network.go:812 lxc/storage_volume.go:1209
 #, c-format
 msgid "Name: %s"
 msgstr ""
@@ -4010,7 +4021,7 @@ msgstr ""
 msgid "Network load balancer %s deleted"
 msgstr ""
 
-#: lxc/init.go:51
+#: lxc/init.go:53
 msgid "Network name"
 msgstr ""
 
@@ -4061,7 +4072,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/move.go:59
+#: lxc/copy.go:54 lxc/init.go:51 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
@@ -4079,7 +4090,7 @@ msgstr ""
 msgid "No device found for this network"
 msgstr ""
 
-#: lxc/storage_volume.go:724 lxc/storage_volume.go:805
+#: lxc/storage_volume.go:728 lxc/storage_volume.go:809
 msgid "No device found for this storage volume"
 msgstr ""
 
@@ -4113,7 +4124,7 @@ msgstr ""
 msgid "Node %d:\n"
 msgstr ""
 
-#: lxc/storage_volume.go:1648
+#: lxc/storage_volume.go:1656
 msgid "Not a snapshot name"
 msgstr ""
 
@@ -4125,11 +4136,11 @@ msgstr ""
 msgid "Only \"custom\" volumes can be attached to instances"
 msgstr ""
 
-#: lxc/storage_volume.go:2125
+#: lxc/storage_volume.go:2133
 msgid "Only \"custom\" volumes can be exported"
 msgstr ""
 
-#: lxc/storage_volume.go:1958
+#: lxc/storage_volume.go:1966
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
@@ -4141,7 +4152,7 @@ msgstr ""
 msgid "Only https:// is supported for remote image import"
 msgstr ""
 
-#: lxc/storage_volume.go:1169
+#: lxc/storage_volume.go:1173
 msgid "Only instance or custom volumes are supported"
 msgstr ""
 
@@ -4154,7 +4165,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr ""
 
-#: lxc/info.go:685 lxc/storage_volume.go:1315
+#: lxc/info.go:685 lxc/storage_volume.go:1323
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4196,7 +4207,7 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/list.go:560 lxc/storage_volume.go:1469 lxc/warning.go:213
+#: lxc/list.go:560 lxc/storage_volume.go:1477 lxc/warning.go:213
 msgid "PROJECT"
 msgstr ""
 
@@ -4270,8 +4281,8 @@ msgstr ""
 #: lxc/network_load_balancer.go:601 lxc/network_peer.go:574
 #: lxc/network_zone.go:514 lxc/network_zone.go:1068 lxc/profile.go:509
 #: lxc/project.go:313 lxc/storage.go:312 lxc/storage_bucket.go:345
-#: lxc/storage_bucket.go:1057 lxc/storage_volume.go:974
-#: lxc/storage_volume.go:1006
+#: lxc/storage_bucket.go:1057 lxc/storage_volume.go:978
+#: lxc/storage_volume.go:1010
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 
@@ -4341,7 +4352,7 @@ msgstr ""
 msgid "Profile to apply to the new image"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 
-#: lxc/copy.go:55 lxc/init.go:49
+#: lxc/copy.go:55 lxc/init.go:50
 #, fuzzy
 msgid "Profile to apply to the new instance"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
@@ -4467,7 +4478,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:388
+#: lxc/copy.go:376
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Editar arquivos no container"
@@ -4646,15 +4657,15 @@ msgstr ""
 msgid "Rename remotes"
 msgstr ""
 
-#: lxc/storage_volume.go:1585
+#: lxc/storage_volume.go:1593
 msgid "Rename storage volumes"
 msgstr ""
 
-#: lxc/storage_volume.go:1584
+#: lxc/storage_volume.go:1592
 msgid "Rename storage volumes and storage volume snapshots"
 msgstr ""
 
-#: lxc/storage_volume.go:1661 lxc/storage_volume.go:1681
+#: lxc/storage_volume.go:1669 lxc/storage_volume.go:1689
 #, c-format
 msgid "Renamed storage volume from \"%s\" to \"%s\""
 msgstr ""
@@ -4709,7 +4720,7 @@ msgstr ""
 "Quando --stateful é usado, o LXD tenta criar um checkpoint do estado atual \n"
 "do container, incluindo estado de memória dos processos, conexões TCP, ..."
 
-#: lxc/storage_volume.go:2015 lxc/storage_volume.go:2016
+#: lxc/storage_volume.go:2023 lxc/storage_volume.go:2024
 msgid "Restore storage volume snapshots"
 msgstr ""
 
@@ -4726,7 +4737,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:314
+#: lxc/init.go:380
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -5035,11 +5046,11 @@ msgid ""
 "    lxc storage set [<remote>:]<pool> <key> <value>"
 msgstr ""
 
-#: lxc/storage_volume.go:1697
+#: lxc/storage_volume.go:1705
 msgid "Set storage volume configuration keys"
 msgstr ""
 
-#: lxc/storage_volume.go:1698
+#: lxc/storage_volume.go:1706
 msgid ""
 "Set storage volume configuration keys\n"
 "\n"
@@ -5196,11 +5207,11 @@ msgstr "Editar configurações do container ou do servidor como YAML"
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
-#: lxc/storage_volume.go:1785 lxc/storage_volume.go:1786
+#: lxc/storage_volume.go:1793 lxc/storage_volume.go:1794
 msgid "Show storage volume configurations"
 msgstr ""
 
-#: lxc/storage_volume.go:1125 lxc/storage_volume.go:1126
+#: lxc/storage_volume.go:1129 lxc/storage_volume.go:1130
 #, fuzzy
 msgid "Show storage volume state information"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -5256,15 +5267,15 @@ msgstr ""
 msgid "Size: %s"
 msgstr ""
 
-#: lxc/storage_volume.go:1918 lxc/storage_volume.go:1919
+#: lxc/storage_volume.go:1926 lxc/storage_volume.go:1927
 msgid "Snapshot storage volumes"
 msgstr ""
 
-#: lxc/storage_volume.go:1748
+#: lxc/storage_volume.go:1756
 msgid "Snapshots are read-only and can't have their configuration changed"
 msgstr ""
 
-#: lxc/info.go:598 lxc/storage_volume.go:1240
+#: lxc/info.go:598 lxc/storage_volume.go:1248
 msgid "Snapshots:"
 msgstr ""
 
@@ -5361,16 +5372,16 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:52 lxc/move.go:65
+#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:54 lxc/move.go:65
 msgid "Storage pool name"
 msgstr ""
 
-#: lxc/storage_volume.go:578
+#: lxc/storage_volume.go:582
 #, c-format
 msgid "Storage volume %s created"
 msgstr ""
 
-#: lxc/storage_volume.go:654
+#: lxc/storage_volume.go:658
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr ""
@@ -5429,11 +5440,11 @@ msgstr ""
 
 #: lxc/config_trust.go:402 lxc/image.go:1063 lxc/image_alias.go:237
 #: lxc/list.go:572 lxc/network.go:960 lxc/network.go:1034 lxc/operation.go:163
-#: lxc/storage_volume.go:1449 lxc/warning.go:216
+#: lxc/storage_volume.go:1457 lxc/warning.go:216
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1312
+#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1320
 msgid "Taken at"
 msgstr ""
 
@@ -5500,7 +5511,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:418
+#: lxc/init.go:484
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -5509,12 +5520,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Nome de membro do cluster"
 
-#: lxc/init.go:402
+#: lxc/init.go:468
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:398
+#: lxc/init.go:464
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -5531,8 +5542,8 @@ msgstr ""
 msgid "The source LXD server is not clustered"
 msgstr ""
 
-#: lxc/network.go:472 lxc/network.go:557 lxc/storage_volume.go:729
-#: lxc/storage_volume.go:810
+#: lxc/network.go:472 lxc/network.go:557 lxc/storage_volume.go:733
+#: lxc/storage_volume.go:814
 msgid "The specified device doesn't exist"
 msgstr ""
 
@@ -5577,11 +5588,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:420
+#: lxc/init.go:486
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:419
+#: lxc/init.go:485
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -5600,7 +5611,7 @@ msgstr ""
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
-#: lxc/storage_volume.go:1229
+#: lxc/storage_volume.go:1233
 #, c-format
 msgid "Total: %s"
 msgstr ""
@@ -5615,7 +5626,7 @@ msgstr ""
 msgid "Transceiver type: %s"
 msgstr ""
 
-#: lxc/storage_volume.go:1555
+#: lxc/storage_volume.go:1563
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
@@ -5640,7 +5651,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:353 lxc/move.go:308
+#: lxc/copy.go:341 lxc/move.go:308
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Editar arquivos no container"
@@ -5670,7 +5681,7 @@ msgid ""
 msgstr ""
 
 #: lxc/image.go:947 lxc/info.go:274 lxc/info.go:474 lxc/network.go:816
-#: lxc/storage_volume.go:1214
+#: lxc/storage_volume.go:1218
 #, c-format
 msgid "Type: %s"
 msgstr ""
@@ -5692,13 +5703,13 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/project.go:819 lxc/storage_volume.go:1454
+#: lxc/project.go:819 lxc/storage_volume.go:1462
 msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:965 lxc/network_acl.go:150 lxc/network_zone.go:141
 #: lxc/profile.go:635 lxc/project.go:484 lxc/storage.go:620
-#: lxc/storage_volume.go:1453
+#: lxc/storage_volume.go:1461
 msgid "USED BY"
 msgstr ""
 
@@ -5731,7 +5742,7 @@ msgstr ""
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
 
-#: lxc/image.go:1079 lxc/list.go:630 lxc/storage_volume.go:1487
+#: lxc/image.go:1079 lxc/list.go:630 lxc/storage_volume.go:1495
 #: lxc/warning.go:244
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -5849,7 +5860,7 @@ msgstr "Editar configurações de perfil como YAML"
 msgid "Unset storage pool configuration keys"
 msgstr ""
 
-#: lxc/storage_volume.go:1884 lxc/storage_volume.go:1885
+#: lxc/storage_volume.go:1892 lxc/storage_volume.go:1893
 msgid "Unset storage volume configuration keys"
 msgstr ""
 
@@ -5883,12 +5894,12 @@ msgstr ""
 msgid "Upper devices"
 msgstr "Editar arquivos no container"
 
-#: lxc/storage_volume.go:1227
+#: lxc/storage_volume.go:1231
 #, fuzzy, c-format
 msgid "Usage: %s"
 msgstr "Criado: %s"
 
-#: lxc/export.go:42 lxc/storage_volume.go:2088
+#: lxc/export.go:42 lxc/storage_volume.go:2096
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
@@ -5947,7 +5958,7 @@ msgstr ""
 msgid "Verb: %s (%s)"
 msgstr "Em cache: %s"
 
-#: lxc/storage_volume.go:1314
+#: lxc/storage_volume.go:1322
 msgid "Volume Only"
 msgstr ""
 
@@ -5996,7 +6007,7 @@ msgstr ""
 msgid "You must specify a source instance name"
 msgstr ""
 
-#: lxc/storage_volume.go:751
+#: lxc/storage_volume.go:755
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
@@ -6145,7 +6156,7 @@ msgstr "Editar templates de arquivo do container"
 msgid "[<remote>:]<image> <remote>:"
 msgstr ""
 
-#: lxc/init.go:38 lxc/launch.go:23
+#: lxc/init.go:39 lxc/launch.go:23
 msgid "[<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
@@ -6407,7 +6418,7 @@ msgstr ""
 msgid "[<remote>:]<pool>"
 msgstr ""
 
-#: lxc/storage_volume.go:2225
+#: lxc/storage_volume.go:2233
 #, fuzzy
 msgid "[<remote>:]<pool> <backup file> [<volume name>]"
 msgstr "Criar perfis"
@@ -6447,18 +6458,18 @@ msgstr ""
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr ""
 
-#: lxc/storage_volume.go:1583
+#: lxc/storage_volume.go:1591
 msgid ""
 "[<remote>:]<pool> <old name>[/<old snapshot name>] <new name>[/<new snapshot "
 "name>]"
 msgstr ""
 
-#: lxc/storage_volume.go:1124
+#: lxc/storage_volume.go:1128
 #, fuzzy
 msgid "[<remote>:]<pool> <volume>"
 msgstr "Criar perfis"
 
-#: lxc/storage_volume.go:669
+#: lxc/storage_volume.go:673
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
 msgstr ""
 
@@ -6467,46 +6478,46 @@ msgstr ""
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>] [<path>]"
 msgstr "Criar perfis"
 
-#: lxc/storage_volume.go:1883
+#: lxc/storage_volume.go:1891
 msgid "[<remote>:]<pool> <volume> <key>"
 msgstr ""
 
-#: lxc/storage_volume.go:1696
+#: lxc/storage_volume.go:1704
 msgid "[<remote>:]<pool> <volume> <key>=<value>..."
 msgstr ""
 
-#: lxc/storage_volume.go:2014
+#: lxc/storage_volume.go:2022
 msgid "[<remote>:]<pool> <volume> <snapshot>"
 msgstr ""
 
-#: lxc/storage_volume.go:2081
+#: lxc/storage_volume.go:2089
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [<path>]"
 msgstr "Criar perfis"
 
-#: lxc/storage_volume.go:1917
+#: lxc/storage_volume.go:1925
 msgid "[<remote>:]<pool> <volume> [<snapshot>]"
 msgstr ""
 
-#: lxc/storage_volume.go:515
+#: lxc/storage_volume.go:519
 msgid "[<remote>:]<pool> <volume> [key=value...]"
 msgstr ""
 
-#: lxc/storage_volume.go:593 lxc/storage_volume.go:832
-#: lxc/storage_volume.go:1784
+#: lxc/storage_volume.go:597 lxc/storage_volume.go:836
+#: lxc/storage_volume.go:1792
 msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgstr ""
 
-#: lxc/storage_volume.go:1036
+#: lxc/storage_volume.go:1040
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr ""
 
-#: lxc/storage_volume.go:1339
+#: lxc/storage_volume.go:1347
 #, fuzzy
 msgid "[<remote>:]<pool> [<filter>...]"
 msgstr "Criar perfis"
 
-#: lxc/storage_volume.go:1549
+#: lxc/storage_volume.go:1557
 #, fuzzy
 msgid "[<remote>:]<pool>/<volume> [<remote>:]<pool>/<volume>"
 msgstr "Criar perfis"
@@ -6777,7 +6788,7 @@ msgid ""
 "    For LXD server information."
 msgstr ""
 
-#: lxc/init.go:41
+#: lxc/init.go:42
 msgid ""
 "lxc init ubuntu:22.04 u1\n"
 "\n"
@@ -6930,19 +6941,19 @@ msgid ""
 "    Update a storage pool using the content of pool.yaml."
 msgstr ""
 
-#: lxc/storage_volume.go:836
+#: lxc/storage_volume.go:840
 msgid ""
 "lxc storage volume edit [<remote>:]<pool> <volume> < volume.yaml\n"
 "    Update a storage volume using the content of pool.yaml."
 msgstr ""
 
-#: lxc/storage_volume.go:2229
+#: lxc/storage_volume.go:2237
 msgid ""
 "lxc storage volume import default backup0.tar.gz\n"
 "\t\tCreate a new custom volume using backup0.tar.gz as the source."
 msgstr ""
 
-#: lxc/storage_volume.go:1788
+#: lxc/storage_volume.go:1796
 msgid ""
 "lxc storage volume show default data\n"
 "    Will show the properties of a custom volume called \"data\" in the "

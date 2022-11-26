@@ -37,10 +37,10 @@ func (c *cmdSql) Command() *cobra.Command {
   If <query> is the special value "-", then the query is read from
   standard input.
 
-  If <query> is the special value ".dump", the the command returns a SQL text
+  If <query> is the special value ".dump", the command returns a SQL text
   dump of the given database.
 
-  If <query> is the special value ".schema", the the command returns the SQL
+  If <query> is the special value ".schema", the command returns the SQL
   text schema of the given database.
 
   This internal command is mostly useful for debugging and disaster

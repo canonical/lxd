@@ -82,6 +82,7 @@ type common struct {
 	id          int64
 	project     string
 	name        string
+	netType     string
 	description string
 	config      map[string]string
 	status      string
@@ -95,6 +96,7 @@ func (n *common) init(state *state.State, id int64, projectName string, netInfo 
 	n.id = id
 	n.project = projectName
 	n.name = netInfo.Name
+	n.netType = netInfo.Type
 	n.config = netInfo.Config
 	n.state = state
 	n.description = netInfo.Description
@@ -186,6 +188,11 @@ func (n *common) Name() string {
 	return n.name
 }
 
+// Type returns the network type.
+func (n *common) Type() string {
+	return n.netType
+}
+
 // Project returns the network project.
 func (n *common) Project() string {
 	return n.project
@@ -247,7 +254,7 @@ func (n *common) Locations() []string {
 
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
-	usedBy, err := UsedBy(n.state, n.project, n.id, n.name, true)
+	usedBy, err := UsedBy(n.state, n.project, n.id, n.name, n.netType, true)
 	if err != nil {
 		return false, err
 	}

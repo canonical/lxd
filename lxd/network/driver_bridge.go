@@ -25,7 +25,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/warningtype"
-	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
@@ -57,11 +56,6 @@ type bridge struct {
 	common
 }
 
-// Type returns the network type.
-func (n *bridge) Type() string {
-	return "bridge"
-}
-
 // DBType returns the network type DB ID.
 func (n *bridge) DBType() db.NetworkType {
 	return db.NetworkTypeBridge
@@ -79,7 +73,7 @@ func (n *bridge) Info() Info {
 // cluster nodes. It is not suitable to use a static MAC address when "bridge.external_interfaces" is non-empty and
 // the bridge interface has no IPv4 or IPv6 address set. This is because in a clustered environment the same bridge
 // config is applied to all nodes, and if the bridge is being used to connect multiple nodes to the same network
-// segment it would cause MAC conflicts to use the the same MAC on all nodes. If an IP address is specified then
+// segment it would cause MAC conflicts to use the same MAC on all nodes. If an IP address is specified then
 // connecting multiple nodes to the same network segment would also cause IP conflicts, so if an IP is defined
 // then we assume this is not being done. However if IP addresses are explicitly set to "none" and
 // "bridge.external_interfaces" is set then it may not be safe to use a the same MAC address on all nodes.
@@ -1286,6 +1280,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, []string{
 			fmt.Sprintf("--listen-address=%s", addr[0]),
 			"--dhcp-no-override", "--dhcp-authoritative",
+			fmt.Sprintf("--dhcp-option-force=26,%d", fanMtuInt),
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
@@ -2868,15 +2863,14 @@ func (n *bridge) forwardSetupFirewall() error {
 // Leases returns a list of leases for the bridged network. It will reach out to other cluster members as needed.
 // The projectName passed here refers to the initial project from the API request which may differ from the network's project.
 func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+	var err error
+	var projectMacs []string
 	leases := []api.NetworkLease{}
-	projectMacs := []string{}
 
 	// Get all static leases.
 	if clientType == request.ClientTypeNormal {
 		// Get the downstream networks.
 		if n.project == project.Default {
-			var err error
-
 			// Load all the networks.
 			var projectNetworks map[string]map[int64]api.Network
 			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -2909,80 +2903,55 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 			}
 		}
 
-		// Get all the instances in project.
+		// Get all the instances in the requested project that are connected to this network.
 		filter := dbCluster.InstanceFilter{Project: &projectName}
-		err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
-			devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
+		err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
+			// Fill in the hwaddr from volatile.
+			if nicConfig["hwaddr"] == "" {
+				nicConfig["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", nicName)]
+			}
 
-			// Go through all its devices (including profiles).
-			for k, dev := range devices {
-				// Skip uninteresting entries.
-				if dev["type"] != "nic" {
-					continue
-				}
+			// Record the MAC.
+			hwAddr, _ := net.ParseMAC(nicConfig["hwaddr"])
+			if hwAddr != nil {
+				projectMacs = append(projectMacs, hwAddr.String())
+			}
 
-				nicType, err := nictype.NICType(n.state, inst.Project, dev)
-				if err != nil || nicType != "bridged" {
-					continue
-				}
+			// Add the lease.
+			nicIP4 := net.ParseIP(nicConfig["ipv4.address"])
+			if nicIP4 != nil {
+				leases = append(leases, api.NetworkLease{
+					Hostname: inst.Name,
+					Address:  nicIP4.String(),
+					Hwaddr:   hwAddr.String(),
+					Type:     "static",
+					Location: inst.Node,
+				})
+			}
 
-				// Temporarily populate parent from network setting if used.
-				if dev["network"] != "" {
-					dev["parent"] = dev["network"]
-				}
+			nicIP6 := net.ParseIP(nicConfig["ipv6.address"])
+			if nicIP6 != nil {
+				leases = append(leases, api.NetworkLease{
+					Hostname: inst.Name,
+					Address:  nicIP6.String(),
+					Hwaddr:   hwAddr.String(),
+					Type:     "static",
+					Location: inst.Node,
+				})
+			}
 
-				if dev["parent"] != n.name {
-					continue
-				}
-
-				// Fill in the hwaddr from volatile.
-				if dev["hwaddr"] == "" {
-					dev["hwaddr"] = inst.Config[fmt.Sprintf("volatile.%s.hwaddr", k)]
-				}
-
-				// Record the MAC.
-				if dev["hwaddr"] != "" {
-					projectMacs = append(projectMacs, dev["hwaddr"])
-				}
-
-				// Add the lease.
-				if dev["ipv4.address"] != "" {
+			// Add EUI64 records.
+			_, netIP6, _ := net.ParseCIDR(n.config["ipv6.address"])
+			if netIP6 != nil && hwAddr != nil && shared.IsFalseOrEmpty(n.config["ipv6.dhcp.stateful"]) {
+				eui64IP6, err := eui64.ParseMAC(netIP6.IP, hwAddr)
+				if err == nil {
 					leases = append(leases, api.NetworkLease{
 						Hostname: inst.Name,
-						Address:  dev["ipv4.address"],
-						Hwaddr:   dev["hwaddr"],
-						Type:     "static",
+						Address:  eui64IP6.String(),
+						Hwaddr:   hwAddr.String(),
+						Type:     "dynamic",
 						Location: inst.Node,
 					})
-				}
-
-				if dev["ipv6.address"] != "" {
-					leases = append(leases, api.NetworkLease{
-						Hostname: inst.Name,
-						Address:  dev["ipv6.address"],
-						Hwaddr:   dev["hwaddr"],
-						Type:     "static",
-						Location: inst.Node,
-					})
-				}
-
-				// Add EUI64 records.
-				ipv6Address := n.config["ipv6.address"]
-				if ipv6Address != "" && ipv6Address != "none" && shared.IsFalseOrEmpty(n.config["ipv6.dhcp.stateful"]) {
-					_, netAddress, _ := net.ParseCIDR(ipv6Address)
-					hwAddr, _ := net.ParseMAC(dev["hwaddr"])
-					if netAddress != nil && hwAddr != nil {
-						ipv6, err := eui64.ParseMAC(netAddress.IP, hwAddr)
-						if err == nil {
-							leases = append(leases, api.NetworkLease{
-								Hostname: inst.Name,
-								Address:  ipv6.String(),
-								Hwaddr:   dev["hwaddr"],
-								Type:     "dynamic",
-								Location: inst.Node,
-							})
-						}
-					}
 				}
 			}
 
@@ -2991,17 +2960,6 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	// Local server name.
-	var err error
-	var serverName string
-	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName(ctx)
-		return err
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	// Get dynamic leases.
@@ -3058,7 +3016,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				Address:  fields[2],
 				Hwaddr:   macStr,
 				Type:     "dynamic",
-				Location: serverName,
+				Location: n.state.ServerName,
 			})
 		}
 	}

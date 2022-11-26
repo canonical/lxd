@@ -79,7 +79,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			}
 
 			// Round to block boundary.
-			poolVolSizeBytes = roundVolumeBlockFileSizeBytes(poolVolSizeBytes)
+			poolVolSizeBytes = d.roundVolumeBlockSizeBytes(poolVolSizeBytes)
 
 			// If the cached volume size is different than the pool volume size, then we can't use the
 			// deleted cached image volume and instead we will rename it to a random UUID so it can't
@@ -1274,19 +1274,7 @@ func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 
 // ValidateVolume validates the supplied volume config.
 func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	rules := d.commonVolumeRules()
-
-	commonBlocksizeValidator := rules["zfs.blocksize"]
-	rules["zfs.blocksize"] = validate.Optional(func(value string) error {
-		if vol.contentType != ContentTypeFS {
-			return fmt.Errorf("Blocksize can be change only for filesystem type")
-		}
-
-		// Use the common validation after checking volume content type.
-		return commonBlocksizeValidator(value)
-	})
-
-	return d.validateVolume(vol, rules, removeUnknownKeys)
+	return d.validateVolume(vol, d.commonVolumeRules(), removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.
@@ -1386,7 +1374,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			return nil
 		}
 
-		sizeBytes = roundVolumeBlockFileSizeBytes(sizeBytes)
+		sizeBytes = d.roundVolumeBlockSizeBytes(sizeBytes)
 
 		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
 		if err != nil {

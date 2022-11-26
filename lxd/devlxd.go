@@ -31,18 +31,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-type devlxdPut struct {
-	State string `json:"state" yaml:"state"`
-}
-
-type devlxdGet struct {
-	devlxdPut
-
-	APIVersion   string `json:"api_version" yaml:"api_version"`
-	InstanceType string `json:"instance_type" yaml:"instance_type"`
-	Location     string `json:"location" yaml:"location"`
-}
-
 type hoistFunc func(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) response.Response, d *Daemon) func(http.ResponseWriter, *http.Request)
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -68,6 +56,10 @@ type devLxdHandler struct {
 }
 
 var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
@@ -79,6 +71,10 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.In
 }}
 
 var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	key, err := url.PathUnescape(mux.Vars(r)["key"])
 	if err != nil {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusBadRequest, "bad request"), c.Type() == instancetype.VM)
@@ -97,6 +93,10 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c in
 }}
 
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
 	}
@@ -115,12 +115,20 @@ var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d
 }}
 
 var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(inst.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), inst.Type() == instancetype.VM)
+	}
+
 	value := inst.ExpandedConfig()["user.meta-data"]
 
 	return response.DevLxdResponse(http.StatusOK, fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", inst.CloudInitID(), inst.Name(), value), "raw", inst.Type() == instancetype.VM)
 }}
 
 var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "config,device"
@@ -167,7 +175,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusInternalServerError, "internal server error"), c.Type() == instancetype.VM)
 	}
 
-	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project(), "listener_id": listener.ID})
+	logger.Debug("New container event listener", logger.Ctx{"instance": c.Name(), "project": c.Project().Name, "listener_id": listener.ID})
 	listener.Wait(r.Context())
 
 	return resp
@@ -198,9 +206,13 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 			state = api.Started
 		}
 
-		return response.DevLxdResponse(http.StatusOK, devlxdGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), devlxdPut: devlxdPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
+		return response.DevLxdResponse(http.StatusOK, api.DevLXDGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String(), DevLXDPut: api.DevLXDPut{State: state.String()}}, "json", c.Type() == instancetype.VM)
 	} else if r.Method == "PATCH" {
-		req := devlxdPut{}
+		if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+			return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+		}
+
+		req := api.DevLXDPut{}
 
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
@@ -230,6 +242,21 @@ var devlxdAPIHandler = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
+	if shared.IsFalse(c.ExpandedConfig()["security.devlxd"]) {
+		return response.DevLxdErrorResponse(api.StatusErrorf(http.StatusForbidden, "not authorized"), c.Type() == instancetype.VM)
+	}
+
+	// Populate NIC hwaddr from volatile if not explicitly specified.
+	// This is so cloud-init running inside the instance can identify the NIC when the interface name is
+	// different than the LXD device name (such as when run inside a VM).
+	localConfig := c.LocalConfig()
+	devices := c.ExpandedDevices()
+	for devName, devConfig := range devices {
+		if devConfig["type"] == "nic" && devConfig["hwaddr"] == "" && localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)] != "" {
+			devices[devName]["hwaddr"] = localConfig[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+		}
+	}
+
 	return response.DevLxdResponse(http.StatusOK, c.ExpandedDevices(), "json", c.Type() == instancetype.VM)
 }}
 

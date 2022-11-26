@@ -728,7 +728,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// If the pool is ceph backed, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Remote {
+				if d.pool.Driver().Info().Name == "ceph" {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
@@ -794,7 +794,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// raw ID maps have been supplied, then we will be running the disk proxy processes
 				// inside a user namespace as the root userns user. Therefore we need to ensure
 				// that there is a root UID and GID mapping in the raw ID maps, and if not then add
-				// one mapping the root userns user to the the nouser/nogroup host ID.
+				// one mapping the root userns user to the nouser/nogroup host ID.
 				if d.restrictedParentSourcePath != "" || len(rawIDMaps) > 0 {
 					rawIDMaps = diskAddRootUserNSEntry(rawIDMaps, 65534)
 				}

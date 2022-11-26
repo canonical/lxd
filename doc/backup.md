@@ -66,7 +66,7 @@ and can be imported back into LXD using the `lxc import` command.
 
 ## Disaster recovery
 
-LXD provides the `lxd recover` command (note the the `lxd` command rather than the normal `lxc` command).
+LXD provides the `lxd recover` command (note the `lxd` command rather than the normal `lxc` command).
 This is an interactive CLI tool that will attempt to scan all storage pools that exist in the database looking for
 missing volumes that can be recovered. It also provides the ability for the user to specify the details of any
 unknown storage pools (those that exist on disk but do not exist in the database) and it will attempt to scan those
