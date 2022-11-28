@@ -49,30 +49,30 @@ Device configuration properties:
 
 Key                      | Type    | Default           | Required | Managed | Description
 :--                      | :--     | :--               | :--      | :--     | :--
-`parent`                 | string  | -                 | yes      | yes     | The name of the host device
-`network`                | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
-`name`                   | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
-`mtu`                    | integer | parent MTU        | no       | yes     | The MTU of the new interface
-`hwaddr`                 | string  | randomly assigned | no       | no      | The MAC address of the new interface
+`boot.priority`          | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 `host_name`              | string  | randomly assigned | no       | no      | The name of the interface inside the host
-`limits.ingress`         | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.egress`          | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`             | string  | -                 | no       | no      | Same as modifying both `limits.ingress` and `limits.egress`
+`hwaddr`                 | string  | randomly assigned | no       | no      | The MAC address of the new interface
 `ipv4.address`           | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP (Can be `none` to restrict all IPv4 traffic when `security.ipv4_filtering` is set)
-`ipv6.address`           | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP (Can be `none` to restrict all IPv6 traffic when `security.ipv6_filtering` is set)
 `ipv4.routes`            | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to add on host to NIC
-`ipv6.routes`            | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to add on host to NIC
 `ipv4.routes.external`   | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network (BGP)
+`ipv6.address`           | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP (Can be `none` to restrict all IPv6 traffic when `security.ipv6_filtering` is set)
+`ipv6.routes`            | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to add on host to NIC
 `ipv6.routes.external`   | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network (BGP)
-`security.mac_filtering` | bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
-`security.ipv4_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `mac_filtering`)
-`security.ipv6_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `mac_filtering`)
+`limits.egress`          | string  | -                 | no       | no      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.ingress`         | string  | -                 | no       | no      | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.max`             | string  | -                 | no       | no      | Same as modifying both `limits.ingress` and `limits.egress`
 `maas.subnet.ipv4`       | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`       | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
-`boot.priority`          | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+`mtu`                    | integer | parent MTU        | no       | yes     | The MTU of the new interface
+`name`                   | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+`network`                | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+`parent`                 | string  | -                 | yes      | yes     | The name of the host device
+`security.ipv4_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `mac_filtering`)
+`security.ipv6_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `mac_filtering`)
+`security.mac_filtering` | bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
+`security.port_isolation`| bool    | `false`           | no       | no      | Prevent the NIC from communicating with other NICs in the network that have port isolation enabled
 `vlan`                   | integer | -                 | no       | no      | The VLAN ID to use for non-tagged traffic (Can be `none` to remove port from default VLAN)
 `vlan.tagged`            | integer | -                 | no       | no      | Comma-delimited list of VLAN IDs or VLAN ranges to join for tagged traffic
-`security.port_isolation`| bool    | `false`           | no       | no      | Prevent the NIC from communicating with other NICs in the network that have port isolation enabled
 
 ## `nic`: `macvlan`
 
@@ -86,16 +86,16 @@ Device configuration properties:
 
 Key                     | Type    | Default           | Required | Managed | Description
 :--                     | :--     | :--               | :--      | :--     | :--
-`parent`                | string  | -                 | yes      | yes     | The name of the host device
-`network`               | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
-`name`                  | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
-`mtu`                   | integer | parent MTU        | no       | yes     | The MTU of the new interface
-`hwaddr`                | string  | randomly assigned | no       | no      | The MAC address of the new interface
-`vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
+`boot.priority`         | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 `gvrp`                  | bool    | `false`           | no       | no      | Register VLAN using GARP VLAN Registration Protocol
+`hwaddr`                | string  | randomly assigned | no       | no      | The MAC address of the new interface
 `maas.subnet.ipv4`      | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
-`boot.priority`         | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+`mtu`                   | integer | parent MTU        | no       | yes     | The MTU of the new interface
+`network`               | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+`name`                  | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+`parent`                | string  | -                 | yes      | yes     | The name of the host device
+`vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
 
 ## `nic`: `sriov`
 
@@ -109,16 +109,16 @@ Device configuration properties:
 
 Key                     | Type    | Default           | Required | Managed | Description
 :--                     | :--     | :--               | :--      | :--     | :--
-`parent`                | string  | -                 | yes      | yes     | The name of the host device
-`network`               | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
-`name`                  | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
-`mtu`                   | integer | kernel assigned   | no       | yes     | The MTU of the new interface
+`boot.priority`         | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 `hwaddr`                | string  | randomly assigned | no       | no      | The MAC address of the new interface
-`security.mac_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
-`vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
 `maas.subnet.ipv4`      | string  | -                 | no       | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
-`boot.priority`         | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+`mtu`                   | integer | kernel assigned   | no       | yes     | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+`network`               | string  | -                 | yes      | no      | The LXD network to link device to (instead of parent)
+`parent`                | string  | -                 | yes      | yes     | The name of the host device
+`security.mac_filtering`| bool    | `false`           | no       | no      | Prevent the instance from spoofing another instance's MAC address
+`vlan`                  | integer | -                 | no       | no      | The VLAN ID to attach to
 
 (instance_device_type_nic_ovn)=
 ## `nic`: `ovn`
@@ -133,23 +133,23 @@ Device configuration properties:
 
 Key                                  | Type    | Default           | Required | Managed | Description
 :--                                  | :--     | :--               | :--      | :--     | :--
-`network`                            | string  | -                 | yes      | yes     | The LXD network to link device to
 `acceleration`                       | string  | `none`            | no       | no      | Enable hardware offloading. Either `none` or `sriov` (see SR-IOV hardware acceleration below)
-`name`                               | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+`boot.priority`                      | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 `host_name`                          | string  | randomly assigned | no       | no      | The name of the interface inside the host
 `hwaddr`                             | string  | randomly assigned | no       | no      | The MAC address of the new interface
 `ipv4.address`                       | string  | -                 | no       | no      | An IPv4 address to assign to the instance through DHCP
-`ipv6.address`                       | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
 `ipv4.routes`                        | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to route to the NIC
-`ipv6.routes`                        | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to route to the NIC
 `ipv4.routes.external`               | string  | -                 | no       | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network
+`ipv6.address`                       | string  | -                 | no       | no      | An IPv6 address to assign to the instance through DHCP
+`ipv6.routes`                        | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to route to the NIC
 `ipv6.routes.external`               | string  | -                 | no       | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network
-`boot.priority`                      | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
+`name`                               | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
+`network`                            | string  | -                 | yes      | yes     | The LXD network to link device to
 `security.acls`                      | string  | -                 | no       | no      | Comma-separated list of Network ACLs to apply
-`security.acls.default.ingress.action`| string | `reject`          | no       | no      | Action to use for ingress traffic that doesn't match any ACL rule
 `security.acls.default.egress.action` | string | `reject`          | no       | no      | Action to use for egress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.logged`| bool   | `false`           | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
 `security.acls.default.egress.logged` | bool   | `false`           | no       | no      | Whether to log egress traffic that doesn't match any ACL rule
+`security.acls.default.ingress.action`| string | `reject`          | no       | no      | Action to use for ingress traffic that doesn't match any ACL rule
+`security.acls.default.ingress.logged`| bool   | `false`           | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
 
 SR-IOV hardware acceleration:
 
@@ -196,15 +196,15 @@ Device configuration properties:
 
 Key                     | Type    | Default           | Required | Description
 :--                     | :--     | :--               | :--      | :--
-`parent`                | string  | -                 | yes      | The name of the host device
-`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
-`mtu`                   | integer | parent MTU        | no       | The MTU of the new interface
-`hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
-`vlan`                  | integer | -                 | no       | The VLAN ID to attach to
+`boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
 `gvrp`                  | bool    | `false`           | no       | Register VLAN using GARP VLAN Registration Protocol
+`hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
 `maas.subnet.ipv4`      | string  | -                 | no       | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | no       | MAAS IPv6 subnet to register the instance in
-`boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
+`mtu`                   | integer | parent MTU        | no       | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
+`parent`                | string  | -                 | yes      | The name of the host device
+`vlan`                  | integer | -                 | no       | The VLAN ID to attach to
 
 ## `nic`: `ipvlan`
 
@@ -239,10 +239,7 @@ Device configuration properties:
 
 Key                     | Type    | Default            | Required | Description
 :--                     | :--     | :--                | :--      | :--
-`parent`                | string  | -                  | yes      | The name of the host device
-`name`                  | string  | kernel assigned    | no       | The name of the interface inside the instance
-`mtu`                   | integer | parent MTU         | no       | The MTU of the new interface
-`mode`                  | string  | `l3s`              | no       | The IPVLAN mode (either `l2` or `l3s`)
+`gvrp`                  | bool    | `false`            | no       | Register VLAN using GARP VLAN Registration Protocol
 `hwaddr`                | string  | randomly assigned  | no       | The MAC address of the new interface
 `ipv4.address`          | string  | -                  | no       | Comma-delimited list of IPv4 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /24 is used).
 `ipv4.gateway`          | string  | `auto`             | no       | In `l3s` mode, whether to add an automatic default IPv4 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv4 address of the gateway.
@@ -250,8 +247,11 @@ Key                     | Type    | Default            | Required | Description
 `ipv6.address`          | string  | -                  | no       | Comma-delimited list of IPv6 static addresses to add to the instance. In `l2` mode these can be specified as CIDR values or singular addresses (if singular a subnet of /64 is used).
 `ipv6.gateway`          | string  | `auto` (`l3s`), - (`l2`) | no       | In `l3s` mode, whether to add an automatic default IPv6 gateway, can be `auto` or `none`. In `l2` mode specifies the IPv6 address of the gateway.
 `ipv6.host_table`       | integer | -                  | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
+`mode`                  | string  | `l3s`              | no       | The IPVLAN mode (either `l2` or `l3s`)
+`mtu`                   | integer | parent MTU         | no       | The MTU of the new interface
+`name`                  | string  | kernel assigned    | no       | The name of the interface inside the instance
+`parent`                | string  | -                  | yes      | The name of the host device
 `vlan`                  | integer | -                  | no       | The VLAN ID to attach to
-`gvrp`                  | bool    | `false`            | no       | Register VLAN using GARP VLAN Registration Protocol
 
 ## `nic`: `p2p`
 
@@ -265,16 +265,16 @@ Device configuration properties:
 
 Key                     | Type    | Default           | Required | Description
 :--                     | :--     | :--               | :--      | :--
-`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
-`mtu`                   | integer | kernel assigned   | no       | The MTU of the new interface
-`hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
+`boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
 `host_name`             | string  | randomly assigned | no       | The name of the interface inside the host
-`limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
+`hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
 `ipv4.routes`           | string  | -                 | no       | Comma-delimited list of IPv4 static routes to add on host to NIC
 `ipv6.routes`           | string  | -                 | no       | Comma-delimited list of IPv6 static routes to add on host to NIC
-`boot.priority`         | integer | -                 | no       | Boot priority for VMs (higher boots first)
+`limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
+`mtu`                   | integer | kernel assigned   | no       | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
 
 ## `nic`: `routed`
 
@@ -334,28 +334,28 @@ Device configuration properties:
 
 Key                     | Type    | Default           | Required | Description
 :--                     | :--     | :--               | :--      | :--
-`parent`                | string  | -                 | no       | The name of the host device to join the instance to
-`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
+`gvrp`                  | bool    | `false`           | no       | Register VLAN using GARP VLAN Registration Protocol
 `host_name`             | string  | randomly assigned | no       | The name of the interface inside the host
-`mtu`                   | integer | parent MTU        | no       | The MTU of the new interface
 `hwaddr`                | string  | randomly assigned | no       | The MAC address of the new interface
-`limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
-`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
 `ipv4.address`          | string  | -                 | no       | Comma-delimited list of IPv4 static addresses to add to the instance
-`ipv4.routes`           | string  | -                 | no       | Comma-delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 `ipv4.gateway`          | string  | `auto`            | no       | Whether to add an automatic default IPv4 gateway, can be `auto` or `none`
 `ipv4.host_address`     | string  | `169.254.0.1`     | no       | The IPv4 address to add to the host-side `veth` interface
 `ipv4.host_table`       | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table)
 `ipv4.neighbor_probe`   | bool    | `true`            | no       | Whether to probe the parent network for IP address availability.
+`ipv4.routes`           | string  | -                 | no       | Comma-delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 `ipv6.address`          | string  | -                 | no       | Comma-delimited list of IPv6 static addresses to add to the instance
-`ipv6.routes`           | string  | -                 | no       | Comma-delimited list of IPv6 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 `ipv6.gateway`          | string  | `auto`            | no       | Whether to add an automatic default IPv6 gateway, can be `auto` or `none`
 `ipv6.host_address`     | string  | `fe80::1`         | no       | The IPv6 address to add to the host-side `veth` interface
 `ipv6.host_table`       | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table)
 `ipv6.neighbor_probe`   | bool    | `true`            | no       | Whether to probe the parent network for IP address availability.
+`ipv6.routes`           | string  | -                 | no       | Comma-delimited list of IPv6 static routes to add on host to NIC (without L2 ARP/NDP proxy)
+`limits.egress`         | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.ingress`        | string  | -                 | no       | I/O limit in bit/s for incoming traffic (various suffixes supported, see {ref}`instances-limit-units`)
+`limits.max`            | string  | -                 | no       | Same as modifying both `limits.ingress` and `limits.egress`
+`mtu`                   | integer | parent MTU        | no       | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no       | The name of the interface inside the instance
+`parent`                | string  | -                 | no       | The name of the host device to join the instance to
 `vlan`                  | integer | -                 | no       | The VLAN ID to attach to
-`gvrp`                  | bool    | `false`           | no       | Register VLAN using GARP VLAN Registration Protocol
 
 ## `bridged`, `macvlan` or `ipvlan` for connection to physical network
 
