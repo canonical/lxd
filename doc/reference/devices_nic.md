@@ -39,7 +39,7 @@ The following NICs can be specified using only the `nictype` property:
 (instance_device_type_nic_bridged)=
 ## `nic`: `bridged`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`, `network`
 
@@ -76,7 +76,7 @@ Key                      | Type    | Default           | Required | Managed | De
 
 ## `nic`: `macvlan`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`, `network`
 
@@ -99,7 +99,7 @@ Key                     | Type    | Default           | Required | Managed | Des
 
 ## `nic`: `sriov`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`, `network`
 
@@ -186,7 +186,7 @@ ip link set enp9s0f0np0 up
 
 ## `nic`: `physical`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`
 
@@ -208,7 +208,7 @@ Key                     | Type    | Default           | Required | Description
 
 ## `nic`: `ipvlan`
 
-Supported instance types: container
+Supported instance types: container (does not support hotplugging)
 
 Selected using: `nictype`
 
@@ -255,7 +255,7 @@ Key                     | Type    | Default            | Required | Description
 
 ## `nic`: `p2p`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`
 
@@ -278,7 +278,7 @@ Key                     | Type    | Default           | Required | Description
 
 ## `nic`: `routed`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Selected using: `nictype`
 

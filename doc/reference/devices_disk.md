@@ -1,7 +1,7 @@
 (devices-disk)=
 # Type: `disk`
 
-Supported instance types: container, VM
+Supported instance types: container, VM (supports hotplugging)
 
 Disk entries are essentially mount points inside the instance. They can
 either be a bind-mount of an existing file or directory on the host, or

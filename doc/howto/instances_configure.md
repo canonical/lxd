@@ -9,6 +9,7 @@ See the following sections for instructions.
 To store and reuse different instance configurations, use {ref}`profiles <profiles>`.
 ```
 
+(instances-configure-options)=
 ## Configure instance options
 
 You can specify instance options when you {ref}`create an instance <instances-create>`.
@@ -31,14 +32,28 @@ Others are updated only when the instance is restarted.
 See the "Live update" column in the {ref}`instance-options` table for information about which options are applied immediately while the instance is running.
 ```
 
+(instances-configure-devices)=
 ## Configure devices
 
 To add and configure an instance device for your instance, use the `lxc config device add` command.
-Specify the instance name, a device name, the device type and maybe device options (depending on the {ref}`device type <device-types>`):
+Generally, devices can be added or removed for a container while it is running.
+VMs support hotplugging for some device types, but not all.
+
+Specify the instance name, a device name, the device type and maybe device options (depending on the {ref}`device type <devices>`):
 
     lxc config device add <instance_name> <device_name> <device_type> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 
 See {ref}`devices` for a list of available device types and their options.
+
+```{note}
+Every device entry is identified by a name unique to the instance.
+
+Devices from profiles are applied to the instance in the order in which the profiles are assigned to the instance.
+Devices defined directly in the instance configuration are applied last.
+At each stage, if a device with the same name already exists from an earlier stage, the whole device entry is overridden by the latest definition.
+
+Device names are limited to a maximum of 64 characters.
+```
 
 For example, to add the storage at `/share/c1` on the host system to your instance at path `/opt`, enter the following command:
 
@@ -47,6 +62,9 @@ For example, to add the storage at `/share/c1` on the host system to your instan
 To configure instance device options for a device that you have added earlier, use the `lxc config device set` command:
 
     lxc config device set <instance_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
+
+To remove a device, use the `lxc config device remove` command.
+See `lxc config device --help` for a full list of available commands.
 
 ## Display instance configuration
 
