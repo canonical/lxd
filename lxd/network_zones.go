@@ -138,7 +138,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Get list of Network zones.
-	zoneNames, err := d.db.Cluster.GetNetworkZones(projectName)
+	zoneNames, err := d.db.Cluster.GetNetworkZonesByProject(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
