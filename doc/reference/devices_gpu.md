@@ -56,7 +56,7 @@ Key         | Type      | Default           | Required  | Description
 
 ## `gpu`: `mig`
 
-Supported instance types: container
+Supported instance types: container (does not support hotplugging)
 
 Creates and passes through a MIG compute instance. This currently requires NVIDIA MIG instances to be pre-created.
 

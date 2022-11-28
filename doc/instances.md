@@ -13,5 +13,4 @@ Run commands <instance-exec.md>
 Access the console <howto/instances_console.md>
 Access files <howto/instances_access_files.md>
 explanation/instance_config.md
-explanation/devices.md
 ```
