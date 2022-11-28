@@ -1,8 +1,8 @@
 #!/bin/sh -eu
 
-if ! command -v mdl ; then
-    echo "Install mdl with 'snap install mdl' first.";
-    exit 1;
+if ! command -v mdl >/dev/null; then
+    echo "Install mdl with 'snap install mdl' first."
+    exit 1
 fi
 
 trap "rm -rf .tmp/" EXIT
