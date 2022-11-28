@@ -166,7 +166,7 @@ test_config_profiles() {
 
   # Look at the LXC version to decide whether to use the new
   # or the new config key for apparmor.
-  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_version=$(lxc info | awk '/driver_version:/ {print $NF}')
   lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
   lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
   if [ "${lxc_major}" -lt 2 ] || { [ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]; }; then
@@ -255,7 +255,7 @@ test_config_profiles() {
   lxc start foo
 
   if [ -e /sys/module/apparmor ]; then
-    lxc exec foo -- cat /proc/self/attr/current | grep unconfined
+    lxc exec foo -- grep -xF unconfined /proc/self/attr/current
   fi
   lxc exec foo -- ls /sys/class/net | grep eth0
 

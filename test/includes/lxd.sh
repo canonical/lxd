@@ -153,8 +153,8 @@ kill_lxd() {
         done
 
         # Delete all networks
-        echo "==> Deleting all networks"
-        for network in $(timeout -k 2 2 lxc network list --force-local --format csv | grep -F ',YES,' | cut -d, -f1); do
+        echo "==> Deleting all managed networks"
+        for network in $(timeout -k 2 2 lxc network list --force-local --format csv | awk -F, '{if ($3 == "YES") {print $1}}'); do
             timeout -k 10 10 lxc network delete "${network}" --force-local || true
         done
 

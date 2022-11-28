@@ -13,7 +13,7 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
-    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
+    poolDriver=$(lxc storage show "${poolName}" | awk '/^driver:/ {print $2}')
 
     lxc storage set "${poolName}" user.foo=bah
     lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
@@ -34,7 +34,7 @@ EOF
     lxc start c1
     lxc exec c1 --project test -- mount | grep /mnt
     echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
-    lxc exec c1 --project test -- cat /mnt/test.txt | grep "hello world"
+    lxc exec c1 --project test -- grep -xF "hello world" /mnt/test.txt
     lxc stop -f c1
     lxc snapshot c1
     lxc info c1
@@ -120,7 +120,7 @@ EOF
 
     # Check custom volume accessible.
     lxc exec c1 --project test -- mount | grep /mnt
-    lxc exec c1 --project test -- cat /mnt/test.txt | grep "hello world"
+    lxc exec c1 --project test -- grep -xF "hello world" /mnt/test.txt
 
     # Check snashot can be restored.
     lxc restore c1 snap0
