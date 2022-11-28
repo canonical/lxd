@@ -147,7 +147,7 @@ func networkZonesGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []api.NetworkZone{}
 	for _, zoneName := range zoneNames {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/network-zones/%s", version.APIVersion, zoneName))
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName).String())
 		} else {
 			netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
 			if err != nil {
