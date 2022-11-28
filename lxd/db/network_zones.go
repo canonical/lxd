@@ -14,8 +14,38 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// GetNetworkZones returns the names of existing Network zones.
-func (c *Cluster) GetNetworkZones(project string) ([]string, error) {
+// GetNetworkZones returns the names of existing Network zones mapped to project name.
+func (c *ClusterTx) GetNetworkZones(ctx context.Context) (map[string]string, error) {
+	q := `SELECT networks_zones.name, projects.name AS project_name FROM networks_zones
+		JOIN projects ON projects.id = networks_zones.project_id
+		ORDER BY networks_zones.id
+	`
+
+	var err error
+	zoneProjects := make(map[string]string)
+
+	err = query.Scan(ctx, c.tx, q, func(scan func(dest ...any) error) error {
+		var zoneName string
+		var projectName string
+
+		err := scan(&zoneName, &projectName)
+		if err != nil {
+			return err
+		}
+
+		zoneProjects[zoneName] = projectName
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return zoneProjects, nil
+}
+
+// GetNetworkZonesByProject returns the names of existing Network zones.
+func (c *Cluster) GetNetworkZonesByProject(project string) ([]string, error) {
 	q := `SELECT name FROM networks_zones
 		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		ORDER BY id
