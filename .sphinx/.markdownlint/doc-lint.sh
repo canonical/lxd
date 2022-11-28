@@ -18,16 +18,12 @@ mdl .tmp/doc -s.sphinx/.markdownlint/style.rb -u.sphinx/.markdownlint/rules.rb -
 
 ## Postprocessing
 
-while read e; do
-    e=$(echo "$e" | sed 's/\//\\\//g');
-    sed -i "/$e/d" .tmp/errors.txt
-done <.sphinx/.markdownlint/exceptions.txt
-
-if [ $(wc -l .tmp/errors.txt | awk '{print $1}') = "2" ]; then
-    echo "Passed!";
-    exit 0;
+filtered_errors="$(grep -vxFf .sphinx/.markdownlint/exceptions.txt .tmp/errors.txt)"
+if [ "$(echo "$filtered_errors" | wc -l)" = "2" ]; then
+    echo "Passed!"
+    exit 0
 else
-    echo "Failed!";
-    cat .tmp/errors.txt
-    exit 1;
-fi;
+    echo "Failed!"
+    echo "$filtered_errors"
+    exit 1
+fi
