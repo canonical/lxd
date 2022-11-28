@@ -5,14 +5,14 @@ if ! command -v mdl ; then
     exit 1;
 fi
 
+trap "rm -rf .tmp/" EXIT
+
 ## Preprocessing
 
 for fn in $(find doc/ -name '*.md'); do
     mkdir -p $(dirname ".tmp/$fn");
     sed -E "s/(\(.+\)=)/\1\n/" $fn > .tmp/$fn;
 done
-
-trap "rm -rf .tmp/" EXIT
 
 mdl .tmp/doc -s.sphinx/.markdownlint/style.rb -u.sphinx/.markdownlint/rules.rb --ignore-front-matter > .tmp/errors.txt || true
 
