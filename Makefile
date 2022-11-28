@@ -271,4 +271,4 @@ endif
 
 .PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
-	find . | grep \.go | grep -v git | grep -v .swp | grep -v vagrant | xargs gotags > tags
+	find . -type f -name '*.go' | xargs gotags > tags
