@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -158,7 +157,7 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []api.NetworkZoneRecord{}
 	for _, record := range records {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/network-zones/%s/records/%s", version.APIVersion, zoneName, record.Name))
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "network-zones", zoneName, "records", record.Name).String())
 		} else {
 			resultMap = append(resultMap, record)
 		}
