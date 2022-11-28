@@ -3,7 +3,7 @@ test_remote_url() {
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
     lxc_remote remote add test "${url}" --accept-certificate --password foo
     lxc_remote info test:
-    lxc_remote config trust list | grep @ | awk '{print $8}' | while read -r line ; do
+    lxc_remote config trust list | awk '/@/ {print $8}' | while read -r line ; do
       lxc_remote config trust remove "\"${line}\""
     done
     lxc_remote remote remove test
