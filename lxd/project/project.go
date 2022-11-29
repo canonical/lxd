@@ -160,8 +160,9 @@ func StorageBucketProjectFromRecord(p *api.Project) string {
 }
 
 // NetworkProject returns the effective project name to use for the network based on the requested project.
-// If the requested project has the "features.networks" flag enabled then the requested project's info is returned,
-// otherwise the default project name is returned. The second return value is always the requested project's info.
+// If the requested project has the "features.networks" flag enabled then the requested project's name is returned,
+// otherwise the default project name is returned.
+// The second return value is always the requested project's info.
 func NetworkProject(c *db.Cluster, projectName string) (string, *api.Project, error) {
 	var p *api.Project
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
