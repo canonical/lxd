@@ -276,10 +276,10 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		project.Config = map[string]string{}
 	}
 
-	for _, feature := range cluster.ProjectFeaturesDefaults {
-		_, ok := project.Config[feature]
-		if !ok {
-			project.Config[feature] = "true"
+	for featureName, featureInfo := range cluster.ProjectFeatures {
+		_, ok := project.Config[featureName]
+		if !ok && featureInfo.DefaultEnabled {
+			project.Config[featureName] = "true"
 		}
 	}
 
