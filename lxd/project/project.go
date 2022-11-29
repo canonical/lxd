@@ -160,8 +160,9 @@ func StorageBucketProjectFromRecord(p *api.Project) string {
 }
 
 // NetworkProject returns the effective project name to use for the network based on the requested project.
-// If the requested project has the "features.networks" flag enabled then the requested project's info is returned,
-// otherwise the default project name is returned. The second return value is always the requested project's info.
+// If the requested project has the "features.networks" flag enabled then the requested project's name is returned,
+// otherwise the default project name is returned.
+// The second return value is always the requested project's info.
 func NetworkProject(c *db.Cluster, projectName string) (string, *api.Project, error) {
 	var p *api.Project
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
@@ -269,6 +270,44 @@ func ProfileProjectFromRecord(p *api.Project) string {
 	// Profiles only use the project specified if the project has the features.profiles feature enabled,
 	// otherwise the default project for profiles is used.
 	if shared.IsTrue(p.Config["features.profiles"]) {
+		return p.Name
+	}
+
+	return Default
+}
+
+// NetworkZoneProject returns the effective project name to use for network zone based on the requested project.
+// If the requested project has the "features.networks.zones" flag enabled then the requested project's name is
+// returned, otherwise the default project name is returned.
+// The second return value is always the requested project's info.
+func NetworkZoneProject(c *db.Cluster, projectName string) (string, *api.Project, error) {
+	var p *api.Project
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err = dbProject.ToAPI(ctx, tx.Tx())
+
+		return err
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
+	}
+
+	effectiveProjectName := NetworkZoneProjectFromRecord(p)
+
+	return effectiveProjectName, p, nil
+}
+
+// NetworkZoneProjectFromRecord returns the project name to use for the network zone based on the supplied project.
+// If the project supplied has the "features.networks.zones" flag enabled then the project name is returned,
+// otherwise the default project name is returned.
+func NetworkZoneProjectFromRecord(p *api.Project) string {
+	// Network zones only use the project specified if the project has the features.networks.zones feature
+	// enabled, otherwise the legacy behaviour of using the default project for network zones is used.
+	if shared.IsTrue(p.Config["features.networks.zones"]) {
 		return p.Name
 	}
 

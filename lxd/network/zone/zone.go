@@ -1,6 +1,7 @@
 package zone
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
@@ -70,6 +72,18 @@ func (d *zone) Info() *api.NetworkZone {
 	return &info
 }
 
+// networkUsesZone indicates if the network uses the zone based on its config.
+func (d *zone) networkUsesZone(netConfig map[string]string) bool {
+	for _, key := range []string{"dns.zone.forward", "dns.zone.reverse.ipv4", "dns.zone.reverse.ipv6"} {
+		zoneNames := shared.SplitNTrimSpace(netConfig[key], ",", -1, true)
+		if shared.StringInSlice(d.info.Name, zoneNames) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // usedBy returns a list of API endpoints referencing this zone.
 // If firstOnly is true then search stops at first result.
 func (d *zone) usedBy(firstOnly bool) ([]string, error) {
@@ -87,15 +101,10 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 			return nil, fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
 
-		uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName)
-		if shared.StringInSlice(uri, usedBy) {
-			// Skip if the network is already listed in UsedBy.
-			continue
-		}
-
 		// Check if the network is using this zone.
-		if shared.StringInSlice(d.info.Name, []string{network.Config["dns.zone.forward"], network.Config["dns.zone.reverse.ipv4"], network.Config["dns.zone.reverse.ipv6"]}) {
-			usedBy = append(usedBy, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
+		if d.networkUsesZone(network.Config) {
+			u := api.NewURL().Path(version.APIVersion, "networks", networkName)
+			usedBy = append(usedBy, u.String())
 			if firstOnly {
 				return usedBy, nil
 			}
@@ -290,120 +299,149 @@ func (d *zone) Delete() error {
 
 // Content returns the DNS zone content.
 func (d *zone) Content() (*strings.Builder, error) {
+	var err error
 	records := []map[string]string{}
 
 	// Check if we should include NAT records.
 	includeNAT := shared.IsTrueOrEmpty(d.info.Config["network.nat"])
 
-	// Load all networks for the zone.
-	networks, err := d.state.DB.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
+	// Get all managed networks across all projects.
+	var projectNetworks map[string]map[int64]api.Network
+	var zoneProjects map[string]string
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectNetworks, err = tx.GetCreatedNetworks(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed to load all networks: %w", err)
+		}
+
+		zoneProjects, err = tx.GetNetworkZones(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed to load all network zones: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, netName := range networks {
-		// Load the network.
-		n, err := network.LoadByName(d.state, d.projectName, netName)
-		if err != nil {
-			return nil, err
-		}
-
-		// Load the leases.
-		leases, err := n.Leases(d.projectName, request.ClientTypeNormal)
-		if err != nil {
-			return nil, err
-		}
-
-		// Check whether what records to include.
-		netConfig := n.Config()
-		includeV4 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv4.nat"])
-		includeV6 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv6.nat"])
-
-		// Check if dealing with a reverse zone.
-		isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
-		isReverse6 := strings.HasSuffix(d.info.Name, ip6Arpa)
-		isReverse := isReverse4 || isReverse6
-		forwardZone := n.Config()["dns.zone.forward"]
-
-		genRecord := func(name string, addr string) map[string]string {
-			isV4 := net.ParseIP(addr).To4() != nil
-
-			// Skip disabled families.
-			if isV4 && !includeV4 {
-				return nil
+	for netProjectName, networks := range projectNetworks {
+		for _, netInfo := range networks {
+			if !d.networkUsesZone(netInfo.Config) {
+				continue
 			}
 
-			if !isV4 && !includeV6 {
-				return nil
+			// Load the network.
+			n, err := network.LoadByName(d.state, netProjectName, netInfo.Name)
+			if err != nil {
+				return nil, err
 			}
 
-			record := map[string]string{}
-			record["ttl"] = "300"
-			if !isReverse {
-				if isV4 {
-					record["type"] = "A"
+			// Check whether what records to include.
+			netConfig := n.Config()
+			includeV4 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv4.nat"])
+			includeV6 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv6.nat"])
+
+			// Check if dealing with a reverse zone.
+			isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
+			isReverse6 := strings.HasSuffix(d.info.Name, ip6Arpa)
+			isReverse := isReverse4 || isReverse6
+
+			genRecord := func(name string, ip net.IP) map[string]string {
+				isV4 := ip.To4() != nil
+
+				// Skip disabled families.
+				if isV4 && !includeV4 {
+					return nil
+				}
+
+				if !isV4 && !includeV6 {
+					return nil
+				}
+
+				record := map[string]string{}
+				record["ttl"] = "300"
+				if !isReverse {
+					if isV4 {
+						record["type"] = "A"
+					} else {
+						record["type"] = "AAAA"
+					}
+
+					record["name"] = name
+					record["value"] = ip.String()
 				} else {
-					record["type"] = "AAAA"
+					// Skip PTR records for wrong family.
+					if isV4 && !isReverse4 {
+						return nil
+					}
+
+					if !isV4 && !isReverse6 {
+						return nil
+					}
+
+					// Get the ARPA record.
+					reverseAddr := reverse(ip)
+					if reverseAddr == "" {
+						return nil
+					}
+
+					record["type"] = "PTR"
+					record["name"] = strings.TrimSuffix(reverseAddr, "."+d.info.Name+".")
+					record["value"] = name + "."
 				}
 
-				record["name"] = name
-				record["value"] = addr
+				return record
+			}
+
+			if isReverse {
+				// Load network leases in correct project context for each forward zone referenced.
+				for _, forwardZoneName := range shared.SplitNTrimSpace(n.Config()["dns.zone.forward"], ",", -1, true) {
+					// Get forward zone's project.
+					forwardZoneProjectName := zoneProjects[forwardZoneName]
+					if forwardZoneProjectName == "" {
+						return nil, fmt.Errorf("Associated project not found for zone %q", forwardZoneName)
+					}
+
+					// Load the leases for the forward zone project.
+					leases, err := n.Leases(forwardZoneProjectName, request.ClientTypeNormal)
+					if err != nil {
+						return nil, err
+					}
+
+					// Convert leases to usable PTR records.
+					for _, lease := range leases {
+						ip := net.ParseIP(lease.Address)
+
+						// Get the record.
+						record := genRecord(fmt.Sprintf("%s.%s", lease.Hostname, forwardZoneName), ip)
+						if record == nil {
+							continue
+						}
+
+						records = append(records, record)
+					}
+				}
 			} else {
-				// Skip PTR records if no forward zone.
-				if forwardZone == "" {
-					return nil
+				// Load the leases in the forward zone's project.
+				leases, err := n.Leases(d.projectName, request.ClientTypeNormal)
+				if err != nil {
+					return nil, err
 				}
 
-				// Skip PTR records for wrong family.
-				if isV4 && !isReverse4 {
-					return nil
+				// Convert leases to usable records.
+				for _, lease := range leases {
+					ip := net.ParseIP(lease.Address)
+
+					// Get the record.
+					record := genRecord(lease.Hostname, ip)
+					if record == nil {
+						continue
+					}
+
+					records = append(records, record)
 				}
-
-				if !isV4 && !isReverse6 {
-					return nil
-				}
-
-				// Get the ARPA record.
-				reverseAddr := reverse(addr)
-				if reverseAddr == "" {
-					return nil
-				}
-
-				record["type"] = "PTR"
-				record["name"] = strings.TrimSuffix(reverseAddr, "."+d.info.Name+".")
-				record["value"] = name + "." + forwardZone + "."
 			}
-
-			return record
-		}
-
-		// Convert leases to usable records.
-		for _, lease := range leases {
-			// Get the record.
-			record := genRecord(lease.Hostname, lease.Address)
-			if record == nil {
-				continue
-			}
-
-			records = append(records, record)
-		}
-
-		// Add gateways.
-		for _, addr := range []string{n.Config()["ipv4.address"], n.Config()["ipv6.address"]} {
-			if addr == "" || addr == "none" {
-				continue
-			}
-
-			// Strip the mask.
-			addr = strings.Split(addr, "/")[0]
-
-			// Get the record.
-			record := genRecord(n.Name()+".gw", addr)
-			if record == nil {
-				continue
-			}
-
-			records = append(records, record)
 		}
 	}
 

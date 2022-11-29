@@ -355,6 +355,7 @@ var APIExtensions = []string{
 	"init_preseed",
 	"storage_volumes_created_at",
 	"cpu_hotplug",
+	"projects_networks_zones",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

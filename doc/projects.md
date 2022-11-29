@@ -29,6 +29,7 @@ Key                                  | Type      | Condition             | Defau
 `backups.compression_algorithm`      | string    | -                     | -                         | Compression algorithm to use for backups (`bzip2`, `gzip`, `lzma`, `xz` or `none`) in the project
 `features.images`                    | bool      | -                     | `true`                    | Separate set of images and image aliases for the project
 `features.networks`                  | bool      | -                     | `false`                   | Separate set of networks for the project
+`features.networks.zones`            | bool      | -                     | `false`                   | Separate set of network zones for the project
 `features.profiles`                  | bool      | -                     | `true`                    | Separate set of profiles for the project
 `features.storage.buckets`           | bool      | -                     | `true`                    | Separate set of storage buckets for the project
 `features.storage.volumes`           | bool      | -                     | `true`                    | Separate set of storage volumes for the project
