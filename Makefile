@@ -267,8 +267,9 @@ endif
 	golangci-lint run --timeout 5m
 	flake8 test/deps/import-busybox
 	shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh test/lint/*.sh
+	shellcheck test/extras/*.sh
 	run-parts --regex '.sh' test/lint
 
 .PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
-	find . | grep \.go | grep -v git | grep -v .swp | grep -v vagrant | xargs gotags > tags
+	find . -type f -name '*.go' | xargs gotags > tags
