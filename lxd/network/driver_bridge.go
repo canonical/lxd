@@ -261,9 +261,9 @@ func (n *bridge) Validate(config map[string]string) error {
 		"dns.domain":                           validate.IsAny,
 		"dns.mode":                             validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
 		"dns.search":                           validate.IsAny,
-		"dns.zone.forward":                     validate.Optional(n.validateZoneName),
-		"dns.zone.reverse.ipv4":                validate.Optional(n.validateZoneName),
-		"dns.zone.reverse.ipv6":                validate.Optional(n.validateZoneName),
+		"dns.zone.forward":                     validate.IsAny,
+		"dns.zone.reverse.ipv4":                validate.IsAny,
+		"dns.zone.reverse.ipv6":                validate.IsAny,
 		"raw.dnsmasq":                          validate.IsAny,
 		"maas.subnet.ipv4":                     validate.IsAny,
 		"maas.subnet.ipv6":                     validate.IsAny,
@@ -329,6 +329,12 @@ func (n *bridge) Validate(config map[string]string) error {
 	}
 
 	// Peform composite key checks after per-key validation.
+
+	// Validate DNS zone names.
+	err = n.validateZoneNames(config)
+	if err != nil {
+		return err
+	}
 
 	// Validate network name when used in fan mode.
 	bridgeMode := config["bridge.mode"]

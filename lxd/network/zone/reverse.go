@@ -9,8 +9,7 @@ var ip4Arpa = ".in-addr.arpa"
 var ip6Arpa = ".ip6.arpa"
 
 // reverse takes an IPv4 or IPv6 address and returns the matching ARPA record.
-func reverse(addr string) (arpa string) {
-	ip := net.ParseIP(addr)
+func reverse(ip net.IP) (arpa string) {
 	if ip == nil {
 		return ""
 	}

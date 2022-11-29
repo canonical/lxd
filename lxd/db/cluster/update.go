@@ -104,6 +104,52 @@ var updates = map[int]schema.Update{
 	65: updateFromV64,
 	66: updateFromV65,
 	67: updateFromV66,
+	68: updateFromV67,
+}
+
+// updateFromV67 adds features.networks.zones=true to any project that has features.networks=true.
+func updateFromV67(ctx context.Context, tx *sql.Tx) error {
+	// Find projects that have features.networks=true.
+	rows, err := tx.QueryContext(ctx, `
+		SELECT
+			projects.id
+		FROM projects
+		JOIN
+			projects_config ON projects_config.project_id = projects.id
+			AND projects_config.key = "features.networks"
+			AND projects_config.value = "true"
+	`)
+	if err != nil {
+		return fmt.Errorf("Failed finding projects with features.networks=true: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var projectIDs []int64
+	for rows.Next() {
+		var projectID int64
+
+		err := rows.Scan(&projectID)
+		if err != nil {
+			return fmt.Errorf("Failed scanning project ID row: %w", err)
+		}
+
+		projectIDs = append(projectIDs, projectID)
+	}
+
+	_ = rows.Close()
+
+	// Add features.networks.zones=true to any project that has features.networks=true.
+	for _, projectID := range projectIDs {
+		_, err = tx.Exec(`INSERT OR REPLACE INTO projects_config (project_id,key,value) VALUES(?,?,?);`, projectID, "features.networks.zones", "true")
+		if err != nil {
+			return fmt.Errorf("Failed adding features.networks.zones=true to project ID %q: %w", projectID, err)
+		}
+
+		logger.Info("Added features.networks.zones=true on project with features.networks=true", logger.Ctx{"projectID": projectID})
+	}
+
+	return nil
 }
 
 // updateFromV66 adds creation_date column to storage_volumes and storage_volumes_snapshots tables.

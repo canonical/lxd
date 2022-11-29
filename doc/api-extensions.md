@@ -2109,3 +2109,23 @@ This adds the `CreatedAt` field to the `StorageVolume` and `StorageVolumeSnapsho
 
 This adds CPU hotplugging for VMs.
 Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
+
+## `projects_networks_zones`
+
+This adds support for the `features.networks.zones` project feature, which changes which project network zones are
+associated with when they are created. Previously network zones were tied to the value of `features.networks`,
+meaning they were created in the same project as networks were.
+
+Now this has been decoupled from `features.networks` to allow projects that share a network in the default project
+(i.e those with `features.networks=false`) to have their own project level DNS zones that give a project oriented
+"view" of the addresses on that shared network (which only includes addresses from instances in their project).
+
+This also introduces a change to the network `dns.zone.forward` setting, which now accepts a comma-separated of
+DNS zone names (a maximum of one per project) in order to associate a shared network with multiple zones.
+
+No change to the `dns.zone.reverse.*` settings have been made, they still only allow a single DNS zone to be set.
+However the resulting zone content that is generated now includes `PTR` records covering addresses from all
+projects that are referencing that network via one of their forward zones.
+
+Existing projects that have `features.networks=true` will have `features.networks.zones=true` set automatically,
+but new projects will need to specify this explicitly.
