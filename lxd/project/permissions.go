@@ -80,7 +80,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
 
 	return nil
@@ -249,7 +249,7 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
 
 	return nil
@@ -390,7 +390,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 
 	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed getting usage of project entities: %w", err)
 	}
 
 	for _, key := range aggregateKeys {
@@ -894,7 +894,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
 
 	return nil
@@ -928,7 +928,7 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
 
 	return nil
@@ -958,7 +958,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
 
 	return nil
