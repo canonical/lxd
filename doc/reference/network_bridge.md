@@ -74,7 +74,7 @@ Key                                  | Type      | Condition             | Defau
 `dns.domain`                         | string    | -                     | `lxd`                     | Domain to advertise to DHCP clients and use for DNS resolution
 `dns.mode`                           | string    | -                     | `managed`                 | DNS registration mode: `none` for no DNS record, `managed` for LXD-generated static records or `dynamic` for client-generated records
 `dns.search`                         | string    | -                     | -                         | Full comma-separated domain search list, defaulting to `dns.domain` value
-`dns.zone.forward`                   | string    | -                     | `managed`                 | DNS zone name for forward DNS records
+`dns.zone.forward`                   | string    | -                     | `managed`                 | Comma-separated list of DNS zone names for forward DNS records
 `dns.zone.reverse.ipv4`              | string    | -                     | `managed`                 | DNS zone name for IPv4 reverse DNS records
 `dns.zone.reverse.ipv6`              | string    | -                     | `managed`                 | DNS zone name for IPv6 reverse DNS records
 `fan.overlay_subnet`                 | string    | fan mode              | `240.0.0.0/8`             | Subnet to use as the overlay for the FAN (CIDR)
