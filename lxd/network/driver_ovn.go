@@ -4542,6 +4542,21 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 	var err error
 	leases := []api.NetworkLease{}
 
+	// If requested project matches network's project then include gateway IPs.
+	if projectName == n.project {
+		// Add our own gateway IPs.
+		for _, addr := range []string{n.config["ipv4.address"], n.config["ipv6.address"]} {
+			ip, _, _ := net.ParseCIDR(addr)
+			if ip != nil {
+				leases = append(leases, api.NetworkLease{
+					Hostname: fmt.Sprintf("%s.gw", n.Name()),
+					Address:  ip.String(),
+					Type:     "gateway",
+				})
+			}
+		}
+	}
+
 	// Get all the instances in the requested project that are connected to this network.
 	filter := dbCluster.InstanceFilter{Project: &projectName}
 	err = UsedByInstanceDevices(n.state, n.Project(), n.Name(), n.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
