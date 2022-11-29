@@ -1503,14 +1503,6 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	op.SetRequestor(r)
 
 	if volumeType == db.StoragePoolVolumeTypeCustom {
-		// Possibly check if project limits are honored.
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
 		// Restore custom volume from snapshot if requested. This should occur first
 		// before applying config changes so that changes are applied to the
 		// restored volume.
@@ -1525,6 +1517,14 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
 		// the volume's config if only restoring snapshot.
 		if req.Config != nil || req.Restore == "" {
+			// Possibly check if project limits are honored.
+			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
 			err = pool.UpdateCustomVolume(projectName, dbVolume.Name, req.Description, req.Config, op)
 			if err != nil {
 				return response.SmartError(err)
