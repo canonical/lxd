@@ -80,7 +80,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if instance creation allowed: %w", err)
 	}
 
 	return nil
@@ -213,15 +213,11 @@ func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instanc
 
 		currentValue, ok := currentConfig[key]
 		if !ok {
-			return fmt.Errorf(
-				"Setting %q on %s %q in project %q is forbidden",
-				key, instanceType, instanceName, project.Name)
+			return fmt.Errorf("Setting %q on %s %q in project %q is forbidden", key, instanceType, instanceName, project.Name)
 		}
 
 		if currentValue != value {
-			return fmt.Errorf(
-				"Changing %q on %s %q in project %q is forbidden",
-				key, instanceType, instanceName, project.Name)
+			return fmt.Errorf("Changing %q on %s %q in project %q is forbidden", key, instanceType, instanceName, project.Name)
 		}
 	}
 
@@ -253,7 +249,7 @@ func AllowVolumeCreation(tx *db.ClusterTx, projectName string, req api.StorageVo
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if volume creation allowed: %w", err)
 	}
 
 	return nil
@@ -394,7 +390,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 
 	totals, err := getTotalsAcrossProjectEntities(info, aggregateKeys, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed getting usage of project entities: %w", err)
 	}
 
 	for _, key := range aggregateKeys {
@@ -405,9 +401,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 		}
 
 		if totals[key] > max {
-			return fmt.Errorf(
-				"Reached maximum aggregate value %s for %q in project %s",
-				info.Project.Config[key], key, info.Project.Name)
+			return fmt.Errorf("Reached maximum aggregate value %q for %q in project %q", info.Project.Config[key], key, info.Project.Name)
 		}
 	}
 	return nil
@@ -900,7 +894,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if instance update allowed: %w", err)
 	}
 
 	return nil
@@ -934,7 +928,7 @@ func AllowVolumeUpdate(tx *db.ClusterTx, projectName, volumeName string, req api
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if volume update allowed: %w", err)
 	}
 
 	return nil
@@ -964,7 +958,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed checking if profile update allowed: %w", err)
 	}
 
 	return nil
@@ -1061,7 +1055,7 @@ func validateTotalInstanceCountLimit(instances []api.Instance, value, project st
 	count := len(instances)
 
 	if limit < count {
-		return fmt.Errorf("'limits.instances' is too low: there currently are %d total instances in project %s", count, project)
+		return fmt.Errorf(`"limits.instances" is too low: there currently are %d total instances in project %q`, count, project)
 	}
 
 	return nil
@@ -1093,9 +1087,7 @@ func validateInstanceCountLimit(instances []api.Instance, key, value, project st
 	}
 
 	if limit < count {
-		return fmt.Errorf(
-			"'%s' is too low: there currently are %d instances of type %s in project %s",
-			key, count, instanceType, project)
+		return fmt.Errorf(`%q is too low: there currently are %d instances of type %s in project %q`, key, count, instanceType, project)
 	}
 
 	return nil
@@ -1116,13 +1108,13 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 	parser := aggregateLimitConfigValueParsers[key]
 	limit, err := parser(value)
 	if err != nil {
-		return fmt.Errorf("Invalid value '%s' for limit %s: %w", value, key, err)
+		return fmt.Errorf("Invalid value %q for limit %q: %w", value, key, err)
 	}
 
 	total := totals[key]
 	if limit < total {
 		printer := aggregateLimitConfigValuePrinters[key]
-		return fmt.Errorf("'%s' is too low: current total is %s", key, printer(total))
+		return fmt.Errorf("%q is too low: current total is %q", key, printer(total))
 	}
 
 	return nil
@@ -1273,16 +1265,12 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 						continue
 					}
 
-					return nil, fmt.Errorf(
-						"Custom volume %s in project %s has no 'size' config set",
-						volume.Name, info.Project.Name)
+					return nil, fmt.Errorf(`Custom volume %q in project %q has no "size" config set`, volume.Name, info.Project.Name)
 				}
 
 				limit, err := units.ParseByteSizeString(value)
 				if err != nil {
-					return nil, fmt.Errorf(
-						"Parse 'size' for custom volume %s in project %s: %w",
-						volume.Name, info.Project.Name, err)
+					return nil, fmt.Errorf(`Parse "size" for custom volume %q in project %q: %w`, volume.Name, info.Project.Name, err)
 				}
 
 				totals[key] += limit
@@ -1362,7 +1350,7 @@ func getInstanceLimits(instance api.Instance, keys []string, skipUnset bool) (ma
 					continue
 				}
 
-				return nil, fmt.Errorf("Instance %q in project %s has no %q config, either directly or via a profile", instance.Name, instance.Project, key)
+				return nil, fmt.Errorf("Instance %q in project %q has no %q config, either directly or via a profile", instance.Name, instance.Project, key)
 			}
 
 			limit, err = parser(value)
@@ -1511,7 +1499,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 	}
 
 	if projectHasRestriction(project, "restricted.backups", "block") {
-		return fmt.Errorf("Project %s doesn't allow for backup creation", projectName)
+		return fmt.Errorf("Project %q doesn't allow for backup creation", projectName)
 	}
 
 	return nil
@@ -1521,7 +1509,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 // when creating a new snapshot in a project.
 func AllowSnapshotCreation(p *api.Project) error {
 	if projectHasRestriction(p, "restricted.snapshots", "block") {
-		return fmt.Errorf("Project %s doesn't allow for snapshot creation", p.Name)
+		return fmt.Errorf("Project %q doesn't allow for snapshot creation", p.Name)
 	}
 
 	return nil
