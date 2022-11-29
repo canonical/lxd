@@ -660,24 +660,39 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		}
 	}
 
-	// Flag indicating if any feature has changed.
-	featuresChanged := false
-	for _, featureKey := range cluster.ProjectFeatures {
-		if shared.StringInSlice(featureKey, configChanged) {
-			featuresChanged = true
-			break
+	// Record which features have been changed.
+	var featuresChanged []string
+	for _, configKeyChanged := range configChanged {
+		_, isFeature := cluster.ProjectFeatures[configKeyChanged]
+		if isFeature {
+			featuresChanged = append(featuresChanged, configKeyChanged)
 		}
 	}
 
 	// Quick checks.
-	if project.Name == projecthelpers.Default && featuresChanged {
-		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
-	}
+	if len(featuresChanged) > 0 {
+		if project.Name == projecthelpers.Default {
+			return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
+		}
 
-	if featuresChanged && len(project.UsedBy) > 0 {
 		// Consider the project empty if it is only used by the default profile.
-		if len(project.UsedBy) > 1 || !strings.Contains(project.UsedBy[0], "/profiles/default") {
-			return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+		usedByLen := len(project.UsedBy)
+		projectInUse := usedByLen > 1 || (usedByLen == 1 && !strings.Contains(project.UsedBy[0], "/profiles/default"))
+		if projectInUse {
+			// Check if feature is allowed to be changed.
+			for _, featureChanged := range featuresChanged {
+				// If feature is currently enabled, and it is being changed in the request, it
+				// must be being disabled. So prevent it on non-empty projects.
+				if shared.IsTrue(project.Config[featureChanged]) {
+					return response.BadRequest(fmt.Errorf("Project feature %q cannot be disabled on non-empty projects", featureChanged))
+				}
+
+				// If feature is currently disabled, and it is being changed in the request, it
+				// must be being enabled. So check if feature can be enabled on non-empty projects.
+				if shared.IsFalse(project.Config[featureChanged]) && !cluster.ProjectFeatures[featureChanged].CanEnableNonEmpty {
+					return response.BadRequest(fmt.Errorf("Project feature %q cannot be enabled on non-empty projects", featureChanged))
+				}
+			}
 		}
 	}
 
