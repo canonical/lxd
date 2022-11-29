@@ -34,13 +34,36 @@ import (
 //go:generate mapper method -i -e project Rename
 //go:generate mapper method -i -e project DeleteOne-by-Name
 
-// ProjectFeaturesDefaults are the features enabled by default on new projects.
-// The features.networks won't be enabled by default until it becomes clear whether it is practical to run OVN on
-// every system.
-var ProjectFeaturesDefaults = []string{"features.images", "features.profiles", "features.storage.volumes", "features.storage.buckets"}
+// ProjectFeature indicates the behaviour of a project feature.
+type ProjectFeature struct {
+	// DefaultEnabled
+	// Whether the feature should be enabled by default on new projects.
+	DefaultEnabled bool
 
-// ProjectFeatures are the features available to projects.
-var ProjectFeatures = append(ProjectFeaturesDefaults, "features.networks")
+	// CanEnableNonEmpty
+	// Whether or not the feature can be changed to enabled on a non-empty project.
+	CanEnableNonEmpty bool
+}
+
+// ProjectFeatures lists available project features and their behaviours.
+var ProjectFeatures = map[string]ProjectFeature{
+	"features.images": {
+		DefaultEnabled: true,
+	},
+	"features.profiles": {
+		DefaultEnabled: true,
+	},
+	"features.storage.volumes": {
+		DefaultEnabled: true,
+	},
+	"features.storage.buckets": {
+		DefaultEnabled: true,
+	},
+	"features.networks": {},
+	"features.networks.zones": {
+		CanEnableNonEmpty: true,
+	},
+}
 
 // Project represents a LXD project.
 type Project struct {
