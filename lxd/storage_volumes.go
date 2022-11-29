@@ -1504,7 +1504,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Possibly check if project limits are honored.
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return project.AllowVolumeUpdate(tx, projectName, volumeName, req, dbVolume.Config)
 		})
 		if err != nil {
