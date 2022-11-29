@@ -50,7 +50,7 @@ Key                                  | Type      | Condition             | Defau
 `bridge.mtu`                         | integer   | -                     | `1442`                    | Bridge MTU (default allows host to host Geneve tunnels)
 `dns.domain`                         | string    | -                     | `lxd`                     | Domain to advertise to DHCP clients and use for DNS resolution
 `dns.search`                         | string    | -                     | -                         | Full comma-separated domain search list, defaulting to `dns.domain` value
-`dns.zone.forward`                   | string    | -                     | -                         | DNS zone name for forward DNS records
+`dns.zone.forward`                   | string    | -                     | -                         | Comma-separated list of DNS zone names for forward DNS records
 `dns.zone.reverse.ipv4`              | string    | -                     | -                         | DNS zone name for IPv4 reverse DNS records
 `dns.zone.reverse.ipv6`              | string    | -                     | -                         | DNS zone name for IPv6 reverse DNS records
 `ipv4.address`                       | string    | standard mode         | `auto` (on create only)   | IPv4 address for the bridge (use `none` to turn off IPv4 or `auto` to generate a new random unused subnet) (CIDR)
