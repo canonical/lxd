@@ -128,13 +128,11 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 			// Default project always has networks feature so don't bother loading the project config
 			// in that case.
 			instProject := d.inst.Project()
-			if instProject.Name != project.Default {
+			if instProject.Name != project.Default && shared.IsTrue(instProject.Config["features.networks"]) {
 				// Prevent use of NAT mode on non-default projects with networks feature.
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
-				if shared.IsTrue(instProject.Config["features.networks"]) {
-					return fmt.Errorf("NAT mode cannot be used in projects that have the networks feature")
-				}
+				return fmt.Errorf("NAT mode cannot be used in projects that have the networks feature")
 			}
 		}
 
