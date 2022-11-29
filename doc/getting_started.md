@@ -1,5 +1,5 @@
 ---
-relatedlinks: https://linuxcontainers.org/lxd/getting-started-cli/
+relatedlinks: https://linuxcontainers.org/lxd/getting-started-cli/,https://www.youtube.com/watch?v=QyXOOE_4cm0
 ---
 
 # Getting started
