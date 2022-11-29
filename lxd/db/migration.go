@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -118,23 +119,18 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 	}
 
 	// Insert an entry for node 1.
-	stmt := `
-INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', 14, 1)
-`
-	_, err = tx.Exec(stmt)
-	if err != nil {
-		return err
-	}
+	var stmt strings.Builder
+	stmt.WriteString(`INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', 14, 1);`)
 
 	// Default project
-	stmt = `
-INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.networks', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
-INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storage.volumes', 'true');
-`
-	_, err = tx.Exec(stmt)
+	stmt.WriteString(`INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');`)
+
+	// Enable all features for default project.
+	for featureName := range cluster.ProjectFeatures {
+		stmt.WriteString(fmt.Sprintf(`INSERT INTO projects_config (project_id, key, value) VALUES (1, '%s', 'true');`, featureName))
+	}
+
+	_, err = tx.Exec(stmt.String())
 	if err != nil {
 		return err
 	}
