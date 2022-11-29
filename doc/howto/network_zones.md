@@ -21,35 +21,64 @@ Having DNS records for each instance makes it easier to access network services 
 It is also important when hosting, for example, an outbound SMTP service.
 Without correct forward and reverse DNS entries for the instance, sent mail might be flagged as potential spam.
 
-Each network can be related to up to three zones for:
+Each network can be associated to different zones:
 
-- Forward DNS records
-- IPv4 reverse DNS records
-- IPv6 reverse DNS records
+- Forward DNS records - multiple comma-separated zones (no more than one per project)
+- IPv4 reverse DNS records - single zone
+- IPv6 reverse DNS records - single zone
 
 LXD will then automatically manage forward and reverse records for all instances, network gateways and downstream network ports and serve those zones for zone transfer to the operator’s production DNS servers.
 
+## Project views
+
+Projects have a `features.networks.zones` feature, which is disabled by default.
+This controls which project new networks zones are created in.
+When this feature is enabled new zones are created in the project, otherwise they are created in the default project.
+
+This allows projects that share a network in the default project (i.e those with `features.networks=false`) to have their own project level DNS zones that give a project oriented
+"view" of the addresses on that shared network (which only includes addresses from instances in their project).
+
 ## Generated records
 
-For example, if you configure a zone for forward DNS records for `lxd.example.net` for your network, it generates records that resolve the following DNS names:
+### Forward records
+
+If you configure a zone with forward DNS records for `lxd.example.net` for your network, it generates records that resolve the following DNS names:
 
 - For all instances in the network: `<instance_name>.lxd.example.net`
 - For the network gateway: `<network_name>.gw.lxd.example.net`
 - For downstream network ports (for network zones set on an uplink network with a downstream OVN network): `<project_name>-<downstream_network_name>.uplink.lxd.example.net`
+- Manual records added to the zone.
 
 You can check the records that are generated with your zone setup with the `dig` command.
 For example, running `dig @<DNS_server_IP> -p 1053 axfr lxd.example.net` might give the following output:
 
 ```bash
-lxd.example.net.              3600  IN  SOA lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
-default-my-ovn.uplink.lxd.example.net. 300 IN A 192.0.2.100
-my-instance.lxd.example.net.  300   IN  A   192.0.2.76
-my-uplink.gw.lxd.example.net. 300   IN  A   192.0.2.1
-foo.lxd.example.net.          300   IN  A   8.8.8.8
-lxd.example.net.              3600  IN  SOA lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
+lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.example.net. 1669736788 120 60 86400 30
+lxd.example.net.                        300  IN NS   ns1.lxd.example.net.
+lxdtest.gw.lxd.example.net.             300  IN A    192.0.2.1
+lxdtest.gw.lxd.example.net.             300  IN AAAA fd42:4131:a53c:7211::1
+default-ovntest.uplink.lxd.example.net. 300  IN A    192.0.2.20
+default-ovntest.uplink.lxd.example.net. 300  IN AAAA fd42:4131:a53c:7211:216:3eff:fe4e:b794
+c1.lxd.example.net.                     300  IN AAAA fd42:4131:a53c:7211:216:3eff:fe19:6ede
+c1.lxd.example.net.                     300  IN A    192.0.2.125
+manualtest.lxd.example.net.             300  IN A    8.8.8.8
+lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.example.net. 1669736788 120 60 86400 30
 ```
 
-If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` for a network using `192.0.2.0/24`, it generates reverse DNS records for, for example, `192.0.2.100`.
+### Reverse records
+
+If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` for a network using `192.0.2.0/24`, it generates reverse `PTR` DNS records for addresses from all projects that are referencing that network via one of their forward zones.
+
+For example, running `dig @<DNS_server_IP> -p 1053 axfr 2.0.192.in-addr.arpa` might give the following output:
+
+```bash
+2.0.192.in-addr.arpa.                  3600 IN SOA  2.0.192.in-addr.arpa. ns1.2.0.192.in-addr.arpa. 1669736828 120 60 86400 30
+2.0.192.in-addr.arpa.                  300  IN NS   ns1.2.0.192.in-addr.arpa.
+1.2.0.192.in-addr.arpa.                300  IN PTR  lxdtest.gw.lxd.example.net.
+20.2.0.192.in-addr.arpa.               300  IN PTR  default-ovntest.uplink.lxd.example.net.
+125.2.0.192.in-addr.arpa.              300  IN PTR  c1.lxd.example.net.
+2.0.192.in-addr.arpa.                  3600 IN SOA  2.0.192.in-addr.arpa. ns1.2.0.192.in-addr.arpa. 1669736828 120 60 86400 30
+```
 
 ## Enable the built-in DNS server
 
