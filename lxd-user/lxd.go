@@ -193,6 +193,7 @@ func lxdSetupUser(uid uint32) error {
 				Config: map[string]string{
 					"features.images":               "true",
 					"features.networks":             "false",
+					"features.networks.zones":       "true",
 					"features.profiles":             "true",
 					"features.storage.volumes":      "true",
 					"features.storage.buckets":      "true",
