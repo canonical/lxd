@@ -53,6 +53,6 @@ remotes:
 Local level remotes are managed from the CLI (`lxc`) with:
 `lxc remote [command]`
 
-By default the configuration file is kept in `~/.config/lxc/config.yml` or in `LXD_CONF` if defined.
+By default the configuration file is kept in `~/.config/lxc/config.yml`, or `~/snap/lxd/common/config/config.yml` for the snap version, or in `LXD_CONF` if defined.
 Users have the possibility to override system remotes (e.g. by running `lxc remote rename` or `lxc remote set-url`)
 which results in the remote being copied to their own configuration, including any associated certificates.
