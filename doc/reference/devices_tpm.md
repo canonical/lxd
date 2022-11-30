@@ -1,13 +1,18 @@
 (devices-tpm)=
 # Type: `tpm`
 
-Supported instance types: container, VM
+```{note}
+The `tpm` device type is supported for both containers and VMs.
+It supports hotplugging only for containers, not for VMs.
+```
 
-TPM device entries enable access to a TPM emulator.
+TPM devices enable access to a TPM emulator.
 
-The following properties exist:
+## Device options
 
-Key                 | Type      | Default   | Required  | Description
-:--                 | :--       | :--       | :--       | :--
-`path`              | string    | -         | yes       | Path inside the instance (only for containers). E.g. `/dev/tpm0`
-`pathrm`            | string    | -         | yes       | Resource manager path inside the instance (only for containers). E.g. `/dev/tpmrm0`
+`tpm` devices have the following device options:
+
+Key                 | Type      | Default   | Required       | Description
+:--                 | :--       | :--       | :--            | :--
+`path`              | string    | -         | for containers | Only for containers: path inside the instance (for example, `/dev/tpm0`)
+`pathrm`            | string    | -         | for containers | Only for containers: resource manager path inside the instance (for example, `/dev/tpmrm0`)
