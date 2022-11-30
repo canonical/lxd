@@ -30,13 +30,13 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
-`productid` | string    | -                 | no        | The product ID of the GPU device
-`id`        | string    | -                 | no        | The card ID of the GPU device
-`pci`       | string    | -                 | no        | The PCI address of the GPU device
-`uid`       | int       | `0`               | no        | UID of the device owner in the instance (container only)
 `gid`       | int       | `0`               | no        | GID of the device owner in the instance (container only)
+`id`        | string    | -                 | no        | The card ID of the GPU device
 `mode`      | int       | `0660`            | no        | Mode of the device in the instance (container only)
+`pci`       | string    | -                 | no        | The PCI address of the GPU device
+`productid` | string    | -                 | no        | The product ID of the GPU device
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance (container only)
+`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
 
 ## `gpu`: `mdev`
 
@@ -48,11 +48,11 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
-`productid` | string    | -                 | no        | The product ID of the GPU device
 `id`        | string    | -                 | no        | The card ID of the GPU device
-`pci`       | string    | -                 | no        | The PCI address of the GPU device
 `mdev`      | string    | -                 | yes       | The `mdev` profile to use (e.g. `i915-GVTg_V5_4`)
+`pci`       | string    | -                 | no        | The PCI address of the GPU device
+`productid` | string    | -                 | no        | The product ID of the GPU device
+`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
 
 ## `gpu`: `mig`
 
@@ -64,13 +64,13 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
-`productid` | string    | -                 | no        | The product ID of the GPU device
 `id`        | string    | -                 | no        | The card ID of the GPU device
-`pci`       | string    | -                 | no        | The PCI address of the GPU device
 `mig.ci`    | int       | -                 | no        | Existing MIG compute instance ID
 `mig.gi`    | int       | -                 | no        | Existing MIG GPU instance ID
 `mig.uuid`  | string    | -                 | no        | Existing MIG device UUID (`MIG-` prefix can be omitted)
+`pci`       | string    | -                 | no        | The PCI address of the GPU device
+`productid` | string    | -                 | no        | The product ID of the GPU device
+`vendorid`  | string    | -                 | no        | The vendor ID of the GPU device
 
 Note: Either `mig.uuid` (NVIDIA drivers 470+) or both `mig.ci` and `mig.gi` (old NVIDIA drivers) must be set.
 
@@ -84,7 +84,7 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-`vendorid`   | string   | -                 | no        | The vendor ID of the parent GPU device
-`productid`  | string   | -                 | no        | The product ID of the parent GPU device
 `id`         | string   | -                 | no        | The card ID of the parent GPU device
 `pci`        | string   | -                 | no        | The PCI address of the parent GPU device
+`productid`  | string   | -                 | no        | The product ID of the parent GPU device
+`vendorid`   | string   | -                 | no        | The vendor ID of the parent GPU device
