@@ -12,10 +12,10 @@ Different network interface types have different additional properties, the curr
 
 Key                     | Type      | Default           | Required  | Used by             | Description
 :--                     | :--       | :--               | :--       | :--                 | :--
-`nictype`               | string    | -                 | yes       | all                 | The device type, one of `physical` or `sriov`
-`name`                  | string    | kernel assigned   | no        | all                 | The name of the interface inside the instance
 `hwaddr`                | string    | randomly assigned | no        | all                 | The MAC address of the new interface. Can be either full 20 byte variant or short 8 byte variant (which will only modify the last 8 bytes of the parent device)
 `mtu`                   | integer   | parent MTU        | no        | all                 | The MTU of the new interface
+`name`                  | string    | kernel assigned   | no        | all                 | The name of the interface inside the instance
+`nictype`               | string    | -                 | yes       | all                 | The device type, one of `physical` or `sriov`
 `parent`                | string    | -                 | yes       | `physical`, `sriov` | The name of the host device or bridge
 
 To create a `physical` `infiniband` device use:

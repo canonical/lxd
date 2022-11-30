@@ -10,11 +10,11 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-`source`    | string    | -                 | no        | Path on the host
-`path`      | string    | -                 | no        | Path inside the instance (one of `source` and `path` must be set)
+`gid`       | int       | `0`               | no        | GID of the device owner in the instance
 `major`     | int       | device on host    | no        | Device major number
 `minor`     | int       | device on host    | no        | Device minor number
-`uid`       | int       | `0`               | no        | UID of the device owner in the instance
-`gid`       | int       | `0`               | no        | GID of the device owner in the instance
 `mode`      | int       | `0660`            | no        | Mode of the device in the instance
+`path`      | string    | -                 | no        | Path inside the instance (one of `source` and `path` must be set)
 `required`  | bool      | `true`            | no        | Whether or not this device is required to start the instance
+`source`    | string    | -                 | no        | Path on the host
+`uid`       | int       | `0`               | no        | UID of the device owner in the instance
