@@ -57,16 +57,16 @@ specify an IP address on the LXD host.
 
 Key             | Type      | Default       | Required  | Description
 :--             | :--       | :--           | :--       | :--
-`listen`        | string    | -             | yes       | The address and port to bind and listen (`<type>:<addr>:<port>[-<port>][,<port>]`)
-`connect`       | string    | -             | yes       | The address and port to connect to (`<type>:<addr>:<port>[-<port>][,<port>]`)
 `bind`          | string    | `host`        | no        | Which side to bind on (`host`/`instance`)
-`uid`           | int       | `0`           | no        | UID of the owner of the listening Unix socket
+`connect`       | string    | -             | yes       | The address and port to connect to (`<type>:<addr>:<port>[-<port>][,<port>]`)
 `gid`           | int       | `0`           | no        | GID of the owner of the listening Unix socket
+`listen`        | string    | -             | yes       | The address and port to bind and listen (`<type>:<addr>:<port>[-<port>][,<port>]`)
 `mode`          | int       | `0644`        | no        | Mode for the listening Unix socket
 `nat`           | bool      | `false`       | no        | Whether to optimize proxying via NAT (requires instance NIC has static IP address)
 `proxy_protocol`| bool      | `false`       | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
-`security.uid`  | int       | `0`           | no        | What UID to drop privilege to
 `security.gid`  | int       | `0`           | no        | What GID to drop privilege to
+`security.uid`  | int       | `0`           | no        | What UID to drop privilege to
+`uid`           | int       | `0`           | no        | UID of the owner of the listening Unix socket
 
 ```
 lxc config device add <instance> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance>

@@ -39,20 +39,20 @@ The following properties exist:
 
 Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
+`boot.priority`     | integer   | -         | no        | Boot priority for VMs (higher boots first)
+`ceph.cluster_name` | string    | `ceph`    | no        | If source is Ceph or CephFS then Ceph `cluster_name` must be specified by user for proper mount
+`ceph.user_name`    | string    | `admin`   | no        | If source is Ceph or CephFS then Ceph `user_name` must be specified by user for proper mount
 `limits.read`       | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
 `limits.write`      | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
 `limits.max`        | string    | -         | no        | Same as modifying both `limits.read` and `limits.write`
 `path`              | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
-`source`            | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
-`required`          | bool      | `true`    | no        | Controls whether to fail if the source doesn't exist
-`readonly`          | bool      | `false`   | no        | Controls whether to make the mount read-only
-`size`              | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the `rootfs` (`/`).
-`size.state`        | string    | -         | no        | Same as size above but applies to the file-system volume used for saving runtime state in virtual machines.
-`recursive`         | bool      | `false`   | no        | Whether or not to recursively mount the source path
 `pool`              | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
 `propagation`       | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation) <!-- wokeignore:rule=slave -->
-`shift`             | bool      | `false`   | no        | Set up a shifting overlay to translate the source UID/GID to match the instance (only for containers)
 `raw.mount.options` | string    | -         | no        | File system specific mount options
-`ceph.user_name`    | string    | `admin`   | no        | If source is Ceph or CephFS then Ceph `user_name` must be specified by user for proper mount
-`ceph.cluster_name` | string    | `ceph`    | no        | If source is Ceph or CephFS then Ceph `cluster_name` must be specified by user for proper mount
-`boot.priority`     | integer   | -         | no        | Boot priority for VMs (higher boots first)
+`readonly`          | bool      | `false`   | no        | Controls whether to make the mount read-only
+`recursive`         | bool      | `false`   | no        | Whether or not to recursively mount the source path
+`required`          | bool      | `true`    | no        | Controls whether to fail if the source doesn't exist
+`shift`             | bool      | `false`   | no        | Set up a shifting overlay to translate the source UID/GID to match the instance (only for containers)
+`size`              | string    | -         | no        | Disk size in bytes (various suffixes supported, see {ref}`instances-limit-units`). This is only supported for the `rootfs` (`/`).
+`size.state`        | string    | -         | no        | Same as size above but applies to the file-system volume used for saving runtime state in virtual machines.
+`source`            | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
