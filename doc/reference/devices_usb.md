@@ -1,18 +1,22 @@
 (devices-usb)=
 # Type: `usb`
 
-Supported instance types: container, VM (supports hotplugging)
+```{note}
+The `usb` device type is supported for both containers and VMs.
+It supports hotplugging for both containers and VMs.
+```
 
-USB device entries simply make the requested USB device appear in the
-instance.
+USB devices make the specified USB device appear in the instance.
 
-The following properties exist:
+## Device options
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-`gid`       | int       | `0`               | no        | GID of the device owner in the instance
-`mode`      | int       | `0660`            | no        | Mode of the device in the instance
-`productid` | string    | -                 | no        | The product ID of the USB device
-`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is `false`, and all devices can be hotplugged)
-`uid`       | int       | `0`               | no        | UID of the device owner in the instance
-`vendorid`  | string    | -                 | no        | The vendor ID of the USB device
+`usb` devices have the following device options:
+
+Key         | Type      | Default           | Description
+:--         | :--       | :--               | :--
+`gid`       | int       | `0`               | GID of the device owner in the instance
+`mode`      | int       | `0660`            | Mode of the device in the instance
+`productid` | string    | -                 | The product ID of the USB device
+`required`  | bool      | `false`           | Whether this device is required to start the instance (the default is `false`, and all devices can be hotplugged)
+`uid`       | int       | `0`               | UID of the device owner in the instance
+`vendorid`  | string    | -                 | The vendor ID of the USB device
