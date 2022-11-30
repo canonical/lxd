@@ -195,6 +195,60 @@ UPDATE instances
  WHERE id = ?
 `)
 
+// instanceColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the Instance entity.
+func instanceColumns() string {
+	return "instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date"
+}
+
+// getInstances can be used to run handwritten sql.Stmts to return a slice of objects.
+func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance, error) {
+	objects := make([]Instance, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := Instance{}
+		err := scan(&i.ID, &i.Project, &i.Name, &i.Node, &i.Type, &i.Architecture, &i.Ephemeral, &i.CreationDate, &i.Stateful, &i.LastUseDate, &i.Description, &i.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getInstances can be used to run handwritten query strings to return a slice of objects.
+func getInstancesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Instance, error) {
+	objects := make([]Instance, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := Instance{}
+		err := scan(&i.ID, &i.Project, &i.Name, &i.Node, &i.Type, &i.Architecture, &i.Ephemeral, &i.CreationDate, &i.Stateful, &i.LastUseDate, &i.Description, &i.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetInstances returns all available instances.
 // generator: instance GetMany
 func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([]Instance, error) {
@@ -607,25 +661,12 @@ func GetInstances(ctx context.Context, tx *sql.Tx, filters ...InstanceFilter) ([
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		i := Instance{}
-		err := scan(&i.ID, &i.Project, &i.Name, &i.Node, &i.Type, &i.Architecture, &i.Ephemeral, &i.CreationDate, &i.Stateful, &i.LastUseDate, &i.Description, &i.ExpiryDate)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, i)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getInstances(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getInstancesRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {

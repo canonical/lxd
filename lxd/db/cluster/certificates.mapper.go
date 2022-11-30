@@ -62,6 +62,60 @@ UPDATE certificates
  WHERE id = ?
 `)
 
+// certificateColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the Certificate entity.
+func certificateColumns() string {
+	return "certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted"
+}
+
+// getCertificates can be used to run handwritten sql.Stmts to return a slice of objects.
+func getCertificates(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Certificate, error) {
+	objects := make([]Certificate, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := Certificate{}
+		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getCertificates can be used to run handwritten query strings to return a slice of objects.
+func getCertificatesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Certificate, error) {
+	objects := make([]Certificate, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := Certificate{}
+		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
 func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilter) ([]Certificate, error) {
@@ -138,25 +192,12 @@ func GetCertificates(ctx context.Context, tx *sql.Tx, filters ...CertificateFilt
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		c := Certificate{}
-		err := scan(&c.ID, &c.Fingerprint, &c.Type, &c.Name, &c.Certificate, &c.Restricted)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, c)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getCertificates(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getCertificatesRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {

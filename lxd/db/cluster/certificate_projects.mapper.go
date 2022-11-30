@@ -37,6 +37,60 @@ var certificateProjectDeleteByCertificateID = RegisterStmt(`
 DELETE FROM certificates_projects WHERE certificate_id = ?
 `)
 
+// certificateProjectColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the CertificateProject entity.
+func certificateProjectColumns() string {
+	return "certificates_projects.certificate_id, certificates_projects.project_id"
+}
+
+// getCertificateProjects can be used to run handwritten sql.Stmts to return a slice of objects.
+func getCertificateProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([]CertificateProject, error) {
+	objects := make([]CertificateProject, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := CertificateProject{}
+		err := scan(&c.CertificateID, &c.ProjectID)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getCertificateProjects can be used to run handwritten query strings to return a slice of objects.
+func getCertificateProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]CertificateProject, error) {
+	objects := make([]CertificateProject, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := CertificateProject{}
+		err := scan(&c.CertificateID, &c.ProjectID)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetCertificateProjects returns all available Projects for the Certificate.
 // generator: certificate_project GetMany
 func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) ([]Project, error) {
@@ -52,21 +106,8 @@ func GetCertificateProjects(ctx context.Context, tx *sql.Tx, certificateID int) 
 
 	args := []any{certificateID}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		c := CertificateProject{}
-		err := scan(&c.CertificateID, &c.ProjectID)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, c)
-
-		return nil
-	}
-
 	// Select.
-	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+	objects, err = getCertificateProjects(ctx, sqlStmt, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
 	}
