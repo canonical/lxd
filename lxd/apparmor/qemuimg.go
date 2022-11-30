@@ -22,6 +22,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   capability dac_override,
   capability dac_read_search,
+  capability ipc_lock,
+
+  /sys/devices/**/block/*/queue/max_segments  r,
 
 {{range $index, $element := .allowedCmdPaths}}
   {{$element}} mixr,
