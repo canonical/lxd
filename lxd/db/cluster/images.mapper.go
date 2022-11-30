@@ -80,6 +80,60 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   ORDER BY projects.id, images.fingerprint
 `)
 
+// imageColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the Image entity.
+func imageColumns() string {
+	return "images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update"
+}
+
+// getImages can be used to run handwritten sql.Stmts to return a slice of objects.
+func getImages(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Image, error) {
+	objects := make([]Image, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := Image{}
+		err := scan(&i.ID, &i.Project, &i.Fingerprint, &i.Type, &i.Filename, &i.Size, &i.Public, &i.Architecture, &i.CreationDate, &i.ExpiryDate, &i.UploadDate, &i.Cached, &i.LastUseDate, &i.AutoUpdate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getImages can be used to run handwritten query strings to return a slice of objects.
+func getImagesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Image, error) {
+	objects := make([]Image, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := Image{}
+		err := scan(&i.ID, &i.Project, &i.Fingerprint, &i.Type, &i.Filename, &i.Size, &i.Public, &i.Architecture, &i.CreationDate, &i.ExpiryDate, &i.UploadDate, &i.Cached, &i.LastUseDate, &i.AutoUpdate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetImages returns all available images.
 // generator: image GetMany
 func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image, error) {
@@ -276,25 +330,12 @@ func GetImages(ctx context.Context, tx *sql.Tx, filters ...ImageFilter) ([]Image
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		i := Image{}
-		err := scan(&i.ID, &i.Project, &i.Fingerprint, &i.Type, &i.Filename, &i.Size, &i.Public, &i.Architecture, &i.CreationDate, &i.ExpiryDate, &i.UploadDate, &i.Cached, &i.LastUseDate, &i.AutoUpdate)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, i)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getImages(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getImagesRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {

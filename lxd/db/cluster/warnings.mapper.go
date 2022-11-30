@@ -93,6 +93,60 @@ SELECT warnings.id FROM warnings
   WHERE warnings.uuid = ?
 `)
 
+// warningColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the Warning entity.
+func warningColumns() string {
+	return "warnings.id, coalesce(nodes.name, '') AS node, coalesce(projects.name, '') AS project, coalesce(warnings.entity_type_code, -1), coalesce(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count"
+}
+
+// getWarnings can be used to run handwritten sql.Stmts to return a slice of objects.
+func getWarnings(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Warning, error) {
+	objects := make([]Warning, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		w := Warning{}
+		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityTypeCode, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, w)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"warnings\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getWarnings can be used to run handwritten query strings to return a slice of objects.
+func getWarningsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Warning, error) {
+	objects := make([]Warning, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		w := Warning{}
+		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityTypeCode, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, w)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"warnings\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetWarnings returns all available warnings.
 // generator: warning GetMany
 func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]Warning, error) {
@@ -265,25 +319,12 @@ func GetWarnings(ctx context.Context, tx *sql.Tx, filters ...WarningFilter) ([]W
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		w := Warning{}
-		err := scan(&w.ID, &w.Node, &w.Project, &w.EntityTypeCode, &w.EntityID, &w.UUID, &w.TypeCode, &w.Status, &w.FirstSeenDate, &w.LastSeenDate, &w.UpdatedDate, &w.LastMessage, &w.Count)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, w)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getWarnings(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getWarningsRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {
