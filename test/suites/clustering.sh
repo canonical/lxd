@@ -2072,8 +2072,8 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest1/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns 127.0.1.1"${ipRand}":1053 lxd lxdtest1 > "${lxdDir}"/forkdns1.log 2>&1 &
-  echo $! > "${lxdDir}"/forkdns1.pid
+  lxd forkdns 127.0.1.1"${ipRand}":1053 lxd lxdtest1 &
+  forkdns_pid1=$!
 
   # Create first dummy interface for forkdns
   ip link add "${prefix}2" type dummy
@@ -2084,16 +2084,15 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest2/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns 127.0.1.2"${ipRand}":1053 lxd lxdtest2 > "${lxdDir}"/forkdns2.log 2>&1 &
-  echo $! > "${lxdDir}"/forkdns2.pid
+  lxd forkdns 127.0.1.2"${ipRand}":1053 lxd lxdtest2 &
+  forkdns_pid2=$!
 
   # Let the processes come up
   sleep 1
-  forkdns_pid1=$(cat "${lxdDir}/forkdns1.pid")
-  forkdns_pid2=$(cat "${lxdDir}/forkdns2.pid")
 
   # Create servers list file for forkdns1 pointing at forkdns2 (should be live reloaded)
-  echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
+  echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp
+  mv "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
 
   # Create fake DHCP lease file on forkdns2 network
   echo "$(date +%s) 00:16:3e:98:05:40 10.140.78.145 test1 ff:2b:a8:0a:df:00:02:00:00:ab:11:36:ea:11:e5:37:e0:85:45" > "${lxdDir}"/networks/lxdtest2/dnsmasq.leases
@@ -2131,8 +2130,8 @@ test_clustering_dns() {
   fi
 
   # Cleanup
-  kill "${forkdns_pid1}"
-  kill "${forkdns_pid2}"
+  kill -9 "${forkdns_pid1}"
+  kill -9 "${forkdns_pid2}"
   ip link delete "${prefix}1"
   ip link delete "${prefix}2"
 }
