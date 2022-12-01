@@ -5825,7 +5825,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			// Try and get state info from agent.
 			status, err = d.agentGetState()
 			if err != nil {
-				if err != errQemuAgentOffline {
+				if !errors.Is(err, errQemuAgentOffline) {
 					d.logger.Warn("Could not get VM state from agent", logger.Ctx{"err": err})
 				}
 
