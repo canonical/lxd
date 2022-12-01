@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -34,7 +35,7 @@ var dnsServersList []string
 
 // serversFileMonitor performs an initial load of the server list and then waits for the file to be
 // modified before triggering a reload.
-func serversFileMonitor(watcher *inotify.Watcher, networkName string) {
+func serversFileMonitor(watcher *inotify.Watcher, watcherPath string, networkName string) {
 	err := loadServersList(networkName)
 	if err != nil {
 		logger.Errorf("Server list load error: %v", err)
@@ -44,7 +45,7 @@ func serversFileMonitor(watcher *inotify.Watcher, networkName string) {
 		select {
 		case ev := <-watcher.Event:
 			// Ignore files events that dont concern the servers list file.
-			if !strings.HasSuffix(ev.Name, network.ForkdnsServersListPath+"/"+network.ForkdnsServersListFile) {
+			if ev.Name != filepath.Join(watcherPath, network.ForkdnsServersListFile) {
 				continue
 			}
 
@@ -365,13 +366,16 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 
 	networkName := args[2]
 	path := shared.VarPath("networks", networkName, network.ForkdnsServersListPath)
-	err = watcher.AddWatch(path, inotify.InAllEvents)
+
+	// Only watch for files being renamed inside the watched directory as new server lists are created in a
+	// temporary file first and then renamed to the file actually used by forkdns.
+	err = watcher.AddWatch(path, inotify.InMovedTo)
 	if err != nil {
 		return fmt.Errorf("Unable to setup inotify watch on %s: %w", path, err)
 	}
 
 	// Run the server list monitor concurrently waiting for file changes.
-	go serversFileMonitor(watcher, networkName)
+	go serversFileMonitor(watcher, path, networkName)
 
 	logger.Info("Started")
 
