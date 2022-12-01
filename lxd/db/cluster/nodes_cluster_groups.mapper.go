@@ -47,6 +47,60 @@ var nodeClusterGroupDeleteByGroupID = RegisterStmt(`
 DELETE FROM nodes_cluster_groups WHERE group_id = ?
 `)
 
+// nodeClusterGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the NodeClusterGroup entity.
+func nodeClusterGroupColumns() string {
+	return "nodes_clusters_groups.group_id, nodes.name AS node"
+}
+
+// getNodeClusterGroups can be used to run handwritten sql.Stmts to return a slice of objects.
+func getNodeClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]NodeClusterGroup, error) {
+	objects := make([]NodeClusterGroup, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		n := NodeClusterGroup{}
+		err := scan(&n.GroupID, &n.Node)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, n)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getNodeClusterGroups can be used to run handwritten query strings to return a slice of objects.
+func getNodeClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]NodeClusterGroup, error) {
+	objects := make([]NodeClusterGroup, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		n := NodeClusterGroup{}
+		err := scan(&n.GroupID, &n.Node)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, n)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"nodes_clusters_groups\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetNodeClusterGroups returns all available node_cluster_groups.
 // generator: node_cluster_group GetMany
 func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeClusterGroupFilter) ([]NodeClusterGroup, error) {
@@ -99,25 +153,12 @@ func GetNodeClusterGroups(ctx context.Context, tx *sql.Tx, filters ...NodeCluste
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		n := NodeClusterGroup{}
-		err := scan(&n.GroupID, &n.Node)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, n)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getNodeClusterGroups(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getNodeClusterGroupsRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {

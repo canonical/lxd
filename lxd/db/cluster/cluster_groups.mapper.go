@@ -55,6 +55,60 @@ UPDATE cluster_groups
  WHERE id = ?
 `)
 
+// clusterGroupColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the ClusterGroup entity.
+func clusterGroupColumns() string {
+	return "clusters_groups.id, clusters_groups.name, coalesce(clusters_groups.description, '')"
+}
+
+// getClusterGroups can be used to run handwritten sql.Stmts to return a slice of objects.
+func getClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]ClusterGroup, error) {
+	objects := make([]ClusterGroup, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := ClusterGroup{}
+		err := scan(&c.ID, &c.Name, &c.Description)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getClusterGroups can be used to run handwritten query strings to return a slice of objects.
+func getClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]ClusterGroup, error) {
+	objects := make([]ClusterGroup, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		c := ClusterGroup{}
+		err := scan(&c.ID, &c.Name, &c.Description)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, c)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"clusters_groups\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetClusterGroups returns all available cluster_groups.
 // generator: cluster_group GetMany
 func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFilter) ([]ClusterGroup, error) {
@@ -107,25 +161,12 @@ func GetClusterGroups(ctx context.Context, tx *sql.Tx, filters ...ClusterGroupFi
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		c := ClusterGroup{}
-		err := scan(&c.ID, &c.Name, &c.Description)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, c)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getClusterGroups(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getClusterGroupsRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {

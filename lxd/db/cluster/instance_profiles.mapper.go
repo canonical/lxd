@@ -59,21 +59,8 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 
 	args := []any{profileID}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		i := InstanceProfile{}
-		err := scan(&i.InstanceID, &i.ProfileID, &i.ApplyOrder)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, i)
-
-		return nil
-	}
-
 	// Select.
-	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+	objects, err = getInstanceProfiles(ctx, sqlStmt, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
@@ -91,6 +78,60 @@ func GetProfileInstances(ctx context.Context, tx *sql.Tx, profileID int) ([]Inst
 	return result, nil
 }
 
+// instanceProfileColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the InstanceProfile entity.
+func instanceProfileColumns() string {
+	return "instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order"
+}
+
+// getInstanceProfiles can be used to run handwritten sql.Stmts to return a slice of objects.
+func getInstanceProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]InstanceProfile, error) {
+	objects := make([]InstanceProfile, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := InstanceProfile{}
+		err := scan(&i.InstanceID, &i.ProfileID, &i.ApplyOrder)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getInstanceProfiles can be used to run handwritten query strings to return a slice of objects.
+func getInstanceProfilesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]InstanceProfile, error) {
+	objects := make([]InstanceProfile, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := InstanceProfile{}
+		err := scan(&i.InstanceID, &i.ProfileID, &i.ApplyOrder)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetInstanceProfiles returns all available Profiles for the Instance.
 // generator: instance_profile GetMany
 func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Profile, error) {
@@ -106,21 +147,8 @@ func GetInstanceProfiles(ctx context.Context, tx *sql.Tx, instanceID int) ([]Pro
 
 	args := []any{instanceID}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		i := InstanceProfile{}
-		err := scan(&i.InstanceID, &i.ProfileID, &i.ApplyOrder)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, i)
-
-		return nil
-	}
-
 	// Select.
-	err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+	objects, err = getInstanceProfiles(ctx, sqlStmt, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}

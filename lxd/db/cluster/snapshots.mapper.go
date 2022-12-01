@@ -73,6 +73,60 @@ var instanceSnapshotDeleteByProjectAndInstanceAndName = RegisterStmt(`
 DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
+// instanceSnapshotColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the InstanceSnapshot entity.
+func instanceSnapshotColumns() string {
+	return "instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date"
+}
+
+// getInstanceSnapshots can be used to run handwritten sql.Stmts to return a slice of objects.
+func getInstanceSnapshots(ctx context.Context, stmt *sql.Stmt, args ...any) ([]InstanceSnapshot, error) {
+	objects := make([]InstanceSnapshot, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := InstanceSnapshot{}
+		err := scan(&i.ID, &i.Project, &i.Instance, &i.Name, &i.CreationDate, &i.Stateful, &i.Description, &i.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
+// getInstanceSnapshots can be used to run handwritten query strings to return a slice of objects.
+func getInstanceSnapshotsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]InstanceSnapshot, error) {
+	objects := make([]InstanceSnapshot, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		i := InstanceSnapshot{}
+		err := scan(&i.ID, &i.Project, &i.Instance, &i.Name, &i.CreationDate, &i.Stateful, &i.Description, &i.ExpiryDate)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, i)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
+	}
+
+	return objects, nil
+}
+
 // GetInstanceSnapshots returns all available instance_snapshots.
 // generator: instance_snapshot GetMany
 func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
@@ -173,25 +227,12 @@ func GetInstanceSnapshots(ctx context.Context, tx *sql.Tx, filters ...InstanceSn
 		}
 	}
 
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		i := InstanceSnapshot{}
-		err := scan(&i.ID, &i.Project, &i.Instance, &i.Name, &i.CreationDate, &i.Stateful, &i.Description, &i.ExpiryDate)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, i)
-
-		return nil
-	}
-
 	// Select.
 	if sqlStmt != nil {
-		err = query.SelectObjects(ctx, sqlStmt, dest, args...)
+		objects, err = getInstanceSnapshots(ctx, sqlStmt, args...)
 	} else {
 		queryStr := strings.Join(queryParts[:], "ORDER BY")
-		err = query.Scan(ctx, tx, queryStr, dest, args...)
+		objects, err = getInstanceSnapshotsRaw(ctx, tx, queryStr, args...)
 	}
 
 	if err != nil {
