@@ -2091,7 +2091,8 @@ test_clustering_dns() {
   sleep 1
 
   # Create servers list file for forkdns1 pointing at forkdns2 (should be live reloaded)
-  echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
+  echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp
+  mv "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf.tmp "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
 
   # Create fake DHCP lease file on forkdns2 network
   echo "$(date +%s) 00:16:3e:98:05:40 10.140.78.145 test1 ff:2b:a8:0a:df:00:02:00:00:ab:11:36:ea:11:e5:37:e0:85:45" > "${lxdDir}"/networks/lxdtest2/dnsmasq.leases
