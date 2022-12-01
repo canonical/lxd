@@ -97,6 +97,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			projectNames = make([]string, 0, len(projects))
 			for _, project := range projects {
 				projectNames = append(projectNames, project.Name)
 			}
