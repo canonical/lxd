@@ -6568,13 +6568,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 }
 
 func (d *qemu) agentMetricsEnabled() bool {
-	val := d.expandedConfig["security.agent.metrics"]
-
-	if val == "" || shared.IsTrue(val) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(d.expandedConfig["security.agent.metrics"])
 }
 
 func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
