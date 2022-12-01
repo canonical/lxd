@@ -81,7 +81,7 @@ func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXDWithContext(ctx context.Context, url string, args *ConnectionArgs) (InstanceServer, error) {
-	logger.Debugf("Connecting to a remote LXD over HTTPS")
+	logger.Debug("Connecting to a remote LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
@@ -96,7 +96,7 @@ func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, 
 
 // ConnectLXDHTTPWithContext lets you connect to a VM agent over a VM socket with context.Context.
 func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
-	logger.Debugf("Connecting to a VM agent over a VM socket")
+	logger.Debug("Connecting to a VM agent over a VM socket")
 
 	// Use empty args if not specified
 	if args == nil {
@@ -154,7 +154,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 // unset $LXD_DIR/unix.socket will be used and if that one isn't set
 // either, then the path will default to /var/lib/lxd/unix.socket.
 func ConnectLXDUnixWithContext(ctx context.Context, path string, args *ConnectionArgs) (InstanceServer, error) {
-	logger.Debugf("Connecting to a local LXD over a Unix socket")
+	logger.Debug("Connecting to a local LXD over a Unix socket")
 
 	// Use empty args if not specified
 	if args == nil {
@@ -229,7 +229,7 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectPublicLXDWithContext(ctx context.Context, url string, args *ConnectionArgs) (ImageServer, error) {
-	logger.Debugf("Connecting to a remote public LXD over HTTPS")
+	logger.Debug("Connecting to a remote public LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
