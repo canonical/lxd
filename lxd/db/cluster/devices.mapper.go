@@ -25,6 +25,60 @@ const deviceCreate = `INSERT INTO %s_devices (%s_id, name, type)
 
 const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
+// deviceColumns returns a string of column names to be used with a SELECT statement for the entity.
+// Use this function when building statements to retrieve database entries matching the Device entity.
+func deviceColumns() string {
+	return "%s_devices.id, %s_devices.%s_id, %s_devices.name, %s_devices.type, %s_devices.config"
+}
+
+// getDevices can be used to run handwritten sql.Stmts to return a slice of objects.
+func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any) ([]Device, error) {
+	objects := make([]Device, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		d := Device{}
+		err := scan(&d.ID, &d.ReferenceID, &d.Name, &d.Type)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, d)
+
+		return nil
+	}
+
+	err := query.SelectObjects(ctx, stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
+	}
+
+	return objects, nil
+}
+
+// getDevices can be used to run handwritten query strings to return a slice of objects.
+func getDevicesRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]Device, error) {
+	objects := make([]Device, 0)
+
+	dest := func(scan func(dest ...any) error) error {
+		d := Device{}
+		err := scan(&d.ID, &d.ReferenceID, &d.Name, &d.Type)
+		if err != nil {
+			return err
+		}
+
+		objects = append(objects, d)
+
+		return nil
+	}
+
+	err := query.Scan(ctx, tx, sql, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
+	}
+
+	return objects, nil
+}
+
 // GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
 func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...DeviceFilter) (map[int][]Device, error) {
@@ -70,22 +124,8 @@ func GetDevices(ctx context.Context, tx *sql.Tx, parent string, filters ...Devic
 	}
 
 	queryStr = strings.Join(queryParts, " ORDER BY")
-
-	// Dest function for scanning a row.
-	dest := func(scan func(dest ...any) error) error {
-		d := Device{}
-		err := scan(&d.ID, &d.ReferenceID, &d.Name, &d.Type)
-		if err != nil {
-			return err
-		}
-
-		objects = append(objects, d)
-
-		return nil
-	}
-
 	// Select.
-	err = query.Scan(ctx, tx, queryStr, dest, args...)
+	objects, err = getDevicesRaw(ctx, tx, queryStr, parent, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"%s_devices\" table: %w", parent, err)
 	}
