@@ -2130,8 +2130,8 @@ test_clustering_dns() {
   fi
 
   # Cleanup
-  kill "${forkdns_pid1}"
-  kill "${forkdns_pid2}"
+  kill -9 "${forkdns_pid1}"
+  kill -9 "${forkdns_pid2}"
   ip link delete "${prefix}1"
   ip link delete "${prefix}2"
 }
