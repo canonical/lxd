@@ -62,8 +62,6 @@ test_network_zone() {
   ! lxc network set "${netName}" dns.zone.reverse.ipv4 "2.0.192.in-addr.arpa, lxd.example.net" || false
   ! lxc network set "${netName}" dns.zone.reverse.ipv6 "0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa, lxd.example.net" || false
 
-
-
   lxc start c1
   lxc start c2 --project foo
 
@@ -90,7 +88,7 @@ test_network_zone() {
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c1.lxd.example.net.\s\+300\s\+IN\s\+AAAA\s\+"
 
   # Check the c2 instance from project foo isn't in the forward view of lxd.example.net
-  ! dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c2" || false
+  ! dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep "c2.lxd.example.net" || false
 
   # Check the c2 instance is the lxdfoo.example.net zone view, but not the network's gateways.
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net
@@ -100,7 +98,7 @@ test_network_zone() {
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep "c2.lxdfoo.example.net.\s\+300\s\+IN\s\+AAAA\s\+"
 
   # Check the c1 instance from project default isn't in the forward view of lxdfoo.example.net
-  ! dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep "c1" || false
+  ! dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep "c1.lxd.example.net" || false
 
   # Check reverse zones include records from both projects associated to the relevant forward zone name.
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep -Fc "PTR" | grep -Fx 3
