@@ -109,10 +109,9 @@ Also note that if you are using the snap, upgrades might happen automatically, s
 ```
 
 To upgrade a single member, simply upgrade the LXD package on the host and restart the LXD daemon.
-For example, if you are using the snap:
+For example, if you are using the snap then refresh to the latest version and cohort in the current channel (also reloads LXD):
 
-    sudo snap refresh lxd
-    sudo snap restart --reload lxd.daemon
+    sudo snap refresh lxd --cohort="+"
 
 If the new version of the daemon has database schema or API changes, the upgraded member might transition into a "blocked" state.
 In this case, the member does not serve any LXD API requests (which means that `lxc` commands don't work on that member anymore), but any running instances will continue to run.
