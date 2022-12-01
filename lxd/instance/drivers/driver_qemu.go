@@ -6481,7 +6481,17 @@ func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if d.agentMetricsEnabled() {
-		return d.getAgentMetrics()
+		metrics, err := d.getAgentMetrics()
+		if err != nil {
+			if !errors.Is(err, errQemuAgentOffline) {
+				d.logger.Warn("Could not get VM metrics from agent", logger.Ctx{"err": err})
+			}
+
+			// Fallback data if agent is not reachable.
+			return d.getQemuMetrics()
+		}
+
+		return metrics, nil
 	}
 
 	return d.getQemuMetrics()
