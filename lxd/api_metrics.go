@@ -90,7 +90,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		projectNames = []string{projectName}
 	} else {
 		// Get all projects.
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			projects, err := dbCluster.GetProjects(ctx, tx.Tx())
 			if err != nil {
 				return err
