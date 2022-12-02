@@ -193,40 +193,55 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	newMetrics := map[string]*metrics.MetricSet{}
 	newMetricsLock := sync.Mutex{}
 
-	// Fetch what's missing.
-	wgInstances := sync.WaitGroup{}
+	// Limit metrics build concurrency to number of instances or number of CPU cores (which ever is less).
+	var wg sync.WaitGroup
+	instMetricsCh := make(chan instance.Instance)
+	maxConcurrent := runtime.NumCPU()
+	instCount := len(instances)
+	if instCount < maxConcurrent {
+		maxConcurrent = instCount
+	}
 
+	// Start metrics builder routines.
+	for i := 0; i < maxConcurrent; i++ {
+		go func(instMetricsCh <-chan instance.Instance) {
+			for inst := range instMetricsCh {
+				projectName := inst.Project().Name
+				instanceMetrics, err := inst.Metrics(hostInterfaces)
+				if err != nil {
+					logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
+				} else {
+					// Add the metrics.
+					newMetricsLock.Lock()
+
+					// Initialise metrics set for project if needed.
+					if newMetrics[projectName] == nil {
+						newMetrics[projectName] = metrics.NewMetricSet(nil)
+					}
+
+					newMetrics[projectName].Merge(instanceMetrics)
+
+					newMetricsLock.Unlock()
+				}
+
+				wg.Done()
+			}
+		}(instMetricsCh)
+	}
+
+	// Fetch what's missing.
 	for _, inst := range instances {
 		// Ignore stopped instances.
 		if !inst.IsRunning() {
 			continue
 		}
 
-		wgInstances.Add(1)
-		go func(inst instance.Instance) {
-			defer wgInstances.Done()
-
-			projectName := inst.Project().Name
-			instanceMetrics, err := inst.Metrics(hostInterfaces)
-			if err != nil {
-				logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
-				return
-			}
-
-			// Add the metrics.
-			newMetricsLock.Lock()
-			defer newMetricsLock.Unlock()
-
-			// Initialise metrics set for project if needed.
-			if newMetrics[projectName] == nil {
-				newMetrics[projectName] = metrics.NewMetricSet(nil)
-			}
-
-			newMetrics[projectName].Merge(instanceMetrics)
-		}(inst)
+		wg.Add(1)
+		instMetricsCh <- inst
 	}
 
-	wgInstances.Wait()
+	wg.Wait()
+	close(instMetricsCh)
 
 	// Put the new data in the global cache and in response.
 	metricsCacheLock.Lock()
