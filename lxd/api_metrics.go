@@ -179,7 +179,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	hostInterfaces, _ := net.Interfaces()
 
 	var instances []instance.Instance
-	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(r.Context(), func(dbInst db.InstanceArgs, p api.Project) error {
 		inst, err := instance.Load(s, dbInst, p)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
