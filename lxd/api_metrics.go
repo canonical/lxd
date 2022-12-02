@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -83,33 +84,33 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	// Wait until daemon is fully started.
 	<-d.waitReady.Done()
 
-	// Figure out the projects to retrieve.
+	// Prepare response.
+	metricSet := metrics.NewMetricSet(nil)
+
 	var projectNames []string
 
-	if projectName != "" {
-		projectNames = []string{projectName}
-	} else {
-		// Get all projects.
-		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Figure out the projects to retrieve.
+		if projectName != "" {
+			projectNames = []string{projectName}
+		} else {
+			// Get all project names if no specific project requested.
 			projects, err := dbCluster.GetProjects(ctx, tx.Tx())
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
 			projectNames = make([]string, 0, len(projects))
 			for _, project := range projects {
 				projectNames = append(projectNames, project.Name)
 			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
 		}
-	}
 
-	// Prepare response.
-	metricSet := metrics.NewMetricSet(nil)
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Review the cache.
 	metricsCacheLock.Lock()
