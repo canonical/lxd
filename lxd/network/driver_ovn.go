@@ -1187,7 +1187,7 @@ func (n *ovn) startUplinkPort() error {
 
 	// Lock uplink network so that if multiple OVN networks are trying to connect to the same uplink we don't
 	// race each other setting up the connection.
-	unlock := locking.Lock(n.uplinkOperationLockName(uplinkNet))
+	unlock := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
 	defer unlock()
 
 	switch uplinkNet.Type() {
@@ -1501,7 +1501,7 @@ func (n *ovn) deleteUplinkPort() error {
 		}
 
 		// Lock uplink network so we don't race each other networks using the OVS uplink bridge.
-		unlock := locking.Lock(n.uplinkOperationLockName(uplinkNet))
+		unlock := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
 		defer unlock()
 
 		switch uplinkNet.Type() {

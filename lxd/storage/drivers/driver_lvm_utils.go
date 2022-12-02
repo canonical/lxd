@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -55,7 +56,7 @@ func (d *lvm) openLoopFile(source string) (string, error) {
 	}
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
-		unlock := locking.Lock(OperationLockName("openLoopFile", d.name, "", "", ""))
+		unlock := locking.Lock(context.TODO(), OperationLockName("openLoopFile", d.name, "", "", ""))
 		defer unlock()
 
 		loopDeviceName, err := loopDeviceSetup(source)
