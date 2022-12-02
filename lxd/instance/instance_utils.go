@@ -403,7 +403,7 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 		filter.Node = &s.ServerName
 	}
 
-	err = s.DB.Cluster.InstanceList(func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(context.TODO(), func(dbInst db.InstanceArgs, p api.Project) error {
 		inst, err := Load(s, dbInst, p)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
