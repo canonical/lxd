@@ -1,6 +1,7 @@
 package locking
 
 import (
+	"context"
 	"sync"
 )
 
@@ -17,9 +18,10 @@ var locksMutex sync.Mutex
 type UnlockFunc func()
 
 // Lock creates a lock for a specific storage volume to allow activities that require exclusive access to occur.
-// Will block until the lock is established. On success, it returns an unlock function which needs to be called to
-// unlock the lock.
-func Lock(lockName string) UnlockFunc {
+// Will block until the lock is established or the context is cancelled.
+// On successfully acquiring the lock, it returns an unlock function which needs to be called to unlock the lock.
+// If the context is canceled then nil will be returned.
+func Lock(ctx context.Context, lockName string) UnlockFunc {
 	for {
 		// Get exclusive access to the map and see if there is already an operation ongoing.
 		locksMutex.Lock()
@@ -57,6 +59,12 @@ func Lock(lockName string) UnlockFunc {
 		// An existing operation is ongoing, lets wait for that to finish and then try
 		// to get exlusive access to create a new operation again.
 		locksMutex.Unlock()
-		<-waitCh
+
+		select {
+		case <-waitCh:
+			continue
+		case <-ctx.Done():
+			return nil
+		}
 	}
 }
