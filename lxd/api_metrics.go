@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"runtime"
@@ -84,36 +85,36 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	// Wait until daemon is fully started.
 	<-d.waitReady.Done()
 
-	// Figure out the projects to retrieve.
+	// Prepare response.
+	metricSet := metrics.NewMetricSet(nil)
+
 	var projectNames []string
 
-	if projectName != "" {
-		projectNames = []string{projectName}
-	} else {
-		// Get all projects.
-		err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Figure out the projects to retrieve.
+		if projectName != "" {
+			projectNames = []string{projectName}
+		} else {
+			// Get all project names if no specific project requested.
 			projects, err := dbCluster.GetProjects(ctx, tx.Tx())
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
 			projectNames = make([]string, 0, len(projects))
 			for _, project := range projects {
 				projectNames = append(projectNames, project.Name)
 			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
 		}
+
+		// Add internal metrics.
+		metricSet.Merge(internalMetrics(ctx, d.startTime, tx))
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
-
-	// Prepare response.
-	metricSet := metrics.NewMetricSet(nil)
-
-	// Add internal metrics.
-	metricSet.Merge(internalMetrics(d))
 
 	// Review the cache.
 	metricsCacheLock.Lock()
@@ -232,31 +233,27 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponsePlain(true, metricSet.String())
 }
 
-func internalMetrics(d *Daemon) *metrics.MetricSet {
+func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
-	_ = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
-		if err != nil {
-			logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
-		} else {
-			// Total number of warnings
-			out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
-		}
+	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+	if err != nil {
+		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
+	} else {
+		// Total number of warnings
+		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
+	}
 
-		operations, err := dbCluster.GetOperations(ctx, tx.Tx())
-		if err != nil {
-			logger.Warn("Failed to get operations", logger.Ctx{"err": err})
-		} else {
-			// Total number of operations
-			out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
-		}
-
-		return nil
-	})
+	operations, err := dbCluster.GetOperations(ctx, tx.Tx())
+	if err != nil {
+		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
+	} else {
+		// Total number of operations
+		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+	}
 
 	// Daemon uptime
-	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(d.startTime).Seconds()})
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
 
 	// Number of goroutines
 	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})
