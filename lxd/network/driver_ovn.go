@@ -4038,7 +4038,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+	err := n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
@@ -4156,7 +4156,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+			err = n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 				// Get the instance's effective network project name.
 				instNetworkProject := project.NetworkProjectFromRecord(&p)
 

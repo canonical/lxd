@@ -68,7 +68,7 @@ func RandomDevName(prefix string) string {
 // UsedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
 // Accepts optional filter arguments to specify a subset of instances.
 func UsedByInstanceDevices(s *state.State, networkProjectName string, networkName string, networkType string, usageFunc func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error, filters ...cluster.InstanceFilter) error {
-	return s.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+	return s.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
