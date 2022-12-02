@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/api"
@@ -24,7 +25,6 @@ type metricsCacheEntry struct {
 
 var metricsCache map[string]metricsCacheEntry
 var metricsCacheLock sync.Mutex
-var metricsLock sync.Mutex
 
 var metricsCmd = APIEndpoint{
 	Path: "metrics",
@@ -149,9 +149,18 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
+	cacheDuration := time.Duration(8) * time.Second
+
 	// Acquire update lock.
-	metricsLock.Lock()
-	defer metricsLock.Unlock()
+	lockCtx, lockCtxCancel := context.WithTimeout(r.Context(), cacheDuration)
+	defer lockCtxCancel()
+
+	unlock := locking.Lock(lockCtx, "metricsGet")
+	if unlock == nil {
+		return response.SmartError(api.StatusErrorf(http.StatusLocked, "Metrics are currently being built by another request"))
+	}
+
+	defer unlock()
 
 	// Check if any of the missing data has been filled in since acquiring the lock.
 	// As its possible another request was already populating the cache when we tried to take the lock.
@@ -228,7 +237,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	for project, entries := range newMetrics {
 		metricsCache[project] = metricsCacheEntry{
-			expiry:  time.Now().Add(8 * time.Second),
+			expiry:  time.Now().Add(cacheDuration),
 			metrics: entries,
 		}
 
