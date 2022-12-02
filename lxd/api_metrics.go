@@ -112,25 +112,32 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Review the cache.
-	metricsCacheLock.Lock()
-	projectMissing := []string{}
-	for _, project := range projectNames {
-		cache, ok := metricsCache[project]
-		if !ok || cache.expiry.Before(time.Now()) {
-			// If missing or expired, record it.
-			projectMissing = append(projectMissing, project)
-			continue
+	// invalidProjects returns project names who are either not in cache or have expired.
+	invalidProjects := func(projectNames []string) []string {
+		metricsCacheLock.Lock()
+		defer metricsCacheLock.Unlock()
+
+		invalidProjects := []string{}
+		for _, projectName := range projectNames {
+			cache, ok := metricsCache[projectName]
+			if !ok || cache.expiry.Before(time.Now()) {
+				// If missing or expired, record it.
+				invalidProjects = append(invalidProjects, projectName)
+				continue
+			}
+
+			// If present and valid, merge the existing data.
+			metricSet.Merge(cache.metrics)
 		}
 
-		// If present and valid, merge the existing data.
-		metricSet.Merge(cache.metrics)
+		return invalidProjects
 	}
 
-	metricsCacheLock.Unlock()
+	// Review the cache for invalid projects.
+	projectsToFetch := invalidProjects(projectNames)
 
 	// If all valid, return immediately.
-	if len(projectMissing) == 0 {
+	if len(projectsToFetch) == 0 {
 		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
@@ -138,25 +145,12 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	metricsLock.Lock()
 	defer metricsLock.Unlock()
 
-	// Check if any of the missing data has been filled in.
-	metricsCacheLock.Lock()
-	toFetch := []string{}
-	for _, project := range projectMissing {
-		cache, ok := metricsCache[project]
-		if !ok || cache.expiry.Before(time.Now()) {
-			// Still missing, queue a re-fetch.
-			toFetch = append(toFetch, project)
-			continue
-		}
-
-		// If present and valid, merge the existing data.
-		metricSet.Merge(cache.metrics)
-	}
-
-	metricsCacheLock.Unlock()
+	// Check if any of the missing data has been filled in since acquiring the lock.
+	// As its possible another request was already populating the cache when we tried to take the lock.
+	projectsToFetch = invalidProjects(projectNames)
 
 	// If all valid, return immediately.
-	if len(toFetch) == 0 {
+	if len(projectsToFetch) == 0 {
 		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
@@ -168,7 +162,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Fetch what's missing.
 	wgInstances := sync.WaitGroup{}
-	for _, project := range toFetch {
+	for _, project := range projectsToFetch {
 		// Get the instances.
 		instances, err := instanceLoadNodeProjectAll(d.State(), project, instancetype.Any)
 		if err != nil {
