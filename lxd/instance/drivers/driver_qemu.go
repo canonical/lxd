@@ -28,6 +28,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
 	"github.com/kballard/go-shellquote"
+	"github.com/mdlayher/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
@@ -60,7 +61,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	pongoTemplate "github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/lxd/vsock"
+	lxdvsock "github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -337,7 +338,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		}
 	}
 
-	agent, err := vsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
+	agent, err := lxdvsock.HTTPClient(vsockID, shared.HTTPSDefaultPort, clientCert, clientKey, agentCert)
 	if err != nil {
 		return nil, err
 	}
@@ -1595,19 +1596,21 @@ func (d *qemu) Start(stateful bool) error {
 // getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
 // server.
 func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
-	req := agentAPI.API10Put{
-		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
-		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
-	}
-
 	addr := d.state.Endpoints.VsockAddress()
-	if addr == "" {
+	if addr == nil {
 		return nil, nil
 	}
 
-	_, err := fmt.Sscanf(addr, "host(%d):%d", &req.CID, &req.Port)
-	if err != nil {
-		return nil, fmt.Errorf("Failed parsing vsock address: %w", err)
+	vsockaddr, ok := addr.(*vsock.Addr)
+	if !ok {
+		return nil, fmt.Errorf("Listen address is not vsock.Addr")
+	}
+
+	req := agentAPI.API10Put{
+		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
+		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
+		CID:         vsockaddr.ContextID,
+		Port:        vsockaddr.Port,
 	}
 
 	return &req, nil
