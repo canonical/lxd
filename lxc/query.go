@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -98,6 +99,14 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	// Perform the query
 	resp, _, err := d.RawQuery(c.flagAction, path, data, "")
 	if err != nil {
+		var jsonSyntaxError *json.SyntaxError
+
+		// If not JSON decoding error then fail immediately.
+		if !errors.As(err, &jsonSyntaxError) {
+			return err
+		}
+
+		// If JSON decoding error then try a plain request.
 		cleanErr := err
 
 		// Get the URL prefix
