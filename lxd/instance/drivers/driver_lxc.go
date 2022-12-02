@@ -5340,7 +5340,7 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
-	spawnUnlock := locking.Lock(fmt.Sprintf("forkfile_%d", d.id))
+	spawnUnlock := locking.Lock(context.TODO(), fmt.Sprintf("forkfile_%d", d.id))
 	defer spawnUnlock()
 
 	// Create any missing directories in case the instance has never been started before.
@@ -5401,7 +5401,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	chReady := make(chan error)
 	go func() {
 		// Lock to avoid concurrent running forkfile.
-		runUnlock := locking.Lock(d.forkfileRunningLockName())
+		runUnlock := locking.Lock(context.TODO(), d.forkfileRunningLockName())
 		defer runUnlock()
 
 		// Mount the filesystem if needed.
@@ -5572,7 +5572,7 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 func (d *lxc) stopForkfile() {
 	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
 	// that forkfile isn't running and holding the lock) and then releasing it.
-	defer func() { locking.Lock(d.forkfileRunningLockName())() }()
+	defer func() { locking.Lock(context.TODO(), d.forkfileRunningLockName())() }()
 
 	// Try to send SIGINT to forkfile to speed up shutdown.
 	content, err := os.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
