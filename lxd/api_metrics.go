@@ -194,7 +194,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Prepare temporary metrics storage.
-	newMetrics := map[string]*metrics.MetricSet{}
+	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
 	newMetricsLock := sync.Mutex{}
 
 	// Limit metrics build concurrency to number of instances or number of CPU cores (which ever is less).
