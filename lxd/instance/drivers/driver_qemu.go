@@ -2394,9 +2394,11 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		return err
 	}
 
-	err = d.saveConnectionInfo(connInfo)
-	if err != nil {
-		return err
+	if connInfo != nil {
+		err = d.saveConnectionInfo(connInfo)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
