@@ -248,16 +248,16 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 				info.Infiniband = infiniband
 			}
 
-			// Attempt to add ethtool details (ignore failures)
 			if sysfsExists(filepath.Join(devicePath, "physfn")) {
 				// Getting physical port info for VFs makes no sense
 				card.Ports = append(card.Ports, *info)
 				continue
 			}
 
+			// Attempt to add ethtool details (ignore failures)
 			err = ethtoolAddPortInfo(info)
 			if err != nil {
-				return fmt.Errorf("Failed to add port info: %w", err)
+				continue
 			}
 
 			card.Ports = append(card.Ports, *info)
