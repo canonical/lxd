@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -166,7 +167,7 @@ func (v Volume) mountLockName() string {
 
 // MountLock attempts to lock the mount lock for the volume and returns the UnlockFunc.
 func (v Volume) MountLock() locking.UnlockFunc {
-	return locking.Lock(v.mountLockName())
+	return locking.Lock(context.TODO(), v.mountLockName())
 }
 
 // MountRefCountIncrement increments the mount ref counter for the volume and returns the new value.

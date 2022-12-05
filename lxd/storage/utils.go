@@ -791,7 +791,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		return err
 	}
 
-	return s.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+	return s.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
 		if vol.Location != "" && inst.Node != vol.Location {

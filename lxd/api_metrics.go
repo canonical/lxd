@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"runtime"
@@ -11,9 +12,10 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -24,7 +26,6 @@ type metricsCacheEntry struct {
 
 var metricsCache map[string]metricsCacheEntry
 var metricsCacheLock sync.Mutex
-var metricsLock sync.Mutex
 
 var metricsCmd = APIEndpoint{
 	Path: "metrics",
@@ -84,131 +85,167 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	// Wait until daemon is fully started.
 	<-d.waitReady.Done()
 
-	// Figure out the projects to retrieve.
-	var projectNames []string
-
-	if projectName != "" {
-		projectNames = []string{projectName}
-	} else {
-		// Get all projects.
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			projects, err := dbCluster.GetProjects(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			for _, project := range projects {
-				projectNames = append(projectNames, project.Name)
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-	}
+	s := d.State()
 
 	// Prepare response.
 	metricSet := metrics.NewMetricSet(nil)
 
-	// Add internal metrics.
-	metricSet.Merge(internalMetrics(d))
+	var projectNames []string
 
-	// Review the cache.
-	metricsCacheLock.Lock()
-	projectMissing := []string{}
-	for _, project := range projectNames {
-		cache, ok := metricsCache[project]
-		if !ok || cache.expiry.Before(time.Now()) {
-			// If missing or expired, record it.
-			projectMissing = append(projectMissing, project)
-			continue
+	err := s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// Figure out the projects to retrieve.
+		if projectName != "" {
+			projectNames = []string{projectName}
+		} else {
+			// Get all project names if no specific project requested.
+			projects, err := dbCluster.GetProjects(ctx, tx.Tx())
+			if err != nil {
+				return fmt.Errorf("Failed loading projects: %w", err)
+			}
+
+			projectNames = make([]string, 0, len(projects))
+			for _, project := range projects {
+				projectNames = append(projectNames, project.Name)
+			}
 		}
 
-		// If present and valid, merge the existing data.
-		metricSet.Merge(cache.metrics)
+		// Add internal metrics.
+		metricSet.Merge(internalMetrics(ctx, d.startTime, tx))
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	metricsCacheLock.Unlock()
+	// invalidProjectFilters returns project filters which are either not in cache or have expired.
+	invalidProjectFilters := func(projectNames []string) []dbCluster.InstanceFilter {
+		metricsCacheLock.Lock()
+		defer metricsCacheLock.Unlock()
 
-	// If all valid, return immediately.
-	if len(projectMissing) == 0 {
-		return response.SyncResponsePlain(true, metricSet.String())
-	}
+		var filters []dbCluster.InstanceFilter
+		for _, p := range projectNames {
+			projectName := p // Local var for filter pointer.
 
-	// Acquire update lock.
-	metricsLock.Lock()
-	defer metricsLock.Unlock()
+			cache, ok := metricsCache[projectName]
+			if !ok || cache.expiry.Before(time.Now()) {
+				// If missing or expired, record it.
+				filters = append(filters, dbCluster.InstanceFilter{
+					Project: &projectName,
+					Node:    &s.ServerName,
+				})
 
-	// Check if any of the missing data has been filled in.
-	metricsCacheLock.Lock()
-	toFetch := []string{}
-	for _, project := range projectMissing {
-		cache, ok := metricsCache[project]
-		if !ok || cache.expiry.Before(time.Now()) {
-			// Still missing, queue a re-fetch.
-			toFetch = append(toFetch, project)
-			continue
-		}
-
-		// If present and valid, merge the existing data.
-		metricSet.Merge(cache.metrics)
-	}
-
-	metricsCacheLock.Unlock()
-
-	// If all valid, return immediately.
-	if len(toFetch) == 0 {
-		return response.SyncResponsePlain(true, metricSet.String())
-	}
-
-	hostInterfaces, _ := net.Interfaces()
-
-	// Prepare temporary metrics storage.
-	newMetrics := map[string]*metrics.MetricSet{}
-	newMetricsLock := sync.Mutex{}
-
-	// Fetch what's missing.
-	wgInstances := sync.WaitGroup{}
-	for _, project := range toFetch {
-		// Get the instances.
-		instances, err := instanceLoadNodeProjectAll(d.State(), project, instancetype.Any)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		for _, inst := range instances {
-			// Ignore stopped instances.
-			if !inst.IsRunning() {
 				continue
 			}
 
-			wgInstances.Add(1)
-			go func(inst instance.Instance) {
-				defer wgInstances.Done()
+			// If present and valid, merge the existing data.
+			metricSet.Merge(cache.metrics)
+		}
 
+		return filters
+	}
+
+	// Review the cache for invalid projects.
+	projectsToFetch := invalidProjectFilters(projectNames)
+
+	// If all valid, return immediately.
+	if len(projectsToFetch) == 0 {
+		return response.SyncResponsePlain(true, metricSet.String())
+	}
+
+	cacheDuration := time.Duration(8) * time.Second
+
+	// Acquire update lock.
+	lockCtx, lockCtxCancel := context.WithTimeout(r.Context(), cacheDuration)
+	defer lockCtxCancel()
+
+	unlock := locking.Lock(lockCtx, "metricsGet")
+	if unlock == nil {
+		return response.SmartError(api.StatusErrorf(http.StatusLocked, "Metrics are currently being built by another request"))
+	}
+
+	defer unlock()
+
+	// Check if any of the missing data has been filled in since acquiring the lock.
+	// As its possible another request was already populating the cache when we tried to take the lock.
+	projectsToFetch = invalidProjectFilters(projectNames)
+
+	// If all valid, return immediately.
+	if len(projectsToFetch) == 0 {
+		return response.SyncResponsePlain(true, metricSet.String())
+	}
+
+	// Gather information about host interfaces once.
+	hostInterfaces, _ := net.Interfaces()
+
+	var instances []instance.Instance
+	err = s.DB.Cluster.InstanceList(r.Context(), func(dbInst db.InstanceArgs, p api.Project) error {
+		inst, err := instance.Load(s, dbInst, p)
+		if err != nil {
+			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
+		}
+
+		instances = append(instances, inst)
+
+		return nil
+	}, projectsToFetch...)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Prepare temporary metrics storage.
+	newMetrics := make(map[string]*metrics.MetricSet, len(projectsToFetch))
+	newMetricsLock := sync.Mutex{}
+
+	// Limit metrics build concurrency to number of instances or number of CPU cores (which ever is less).
+	var wg sync.WaitGroup
+	instMetricsCh := make(chan instance.Instance)
+	maxConcurrent := runtime.NumCPU()
+	instCount := len(instances)
+	if instCount < maxConcurrent {
+		maxConcurrent = instCount
+	}
+
+	// Start metrics builder routines.
+	for i := 0; i < maxConcurrent; i++ {
+		go func(instMetricsCh <-chan instance.Instance) {
+			for inst := range instMetricsCh {
 				projectName := inst.Project().Name
 				instanceMetrics, err := inst.Metrics(hostInterfaces)
 				if err != nil {
-					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
-					return
+					logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
+				} else {
+					// Add the metrics.
+					newMetricsLock.Lock()
+
+					// Initialise metrics set for project if needed.
+					if newMetrics[projectName] == nil {
+						newMetrics[projectName] = metrics.NewMetricSet(nil)
+					}
+
+					newMetrics[projectName].Merge(instanceMetrics)
+
+					newMetricsLock.Unlock()
 				}
 
-				// Add the metrics.
-				newMetricsLock.Lock()
-				defer newMetricsLock.Unlock()
-
-				// Initialise metrics set for project if needed.
-				if newMetrics[projectName] == nil {
-					newMetrics[projectName] = metrics.NewMetricSet(nil)
-				}
-
-				newMetrics[projectName].Merge(instanceMetrics)
-			}(inst)
-		}
+				wg.Done()
+			}
+		}(instMetricsCh)
 	}
 
-	wgInstances.Wait()
+	// Fetch what's missing.
+	for _, inst := range instances {
+		// Ignore stopped instances.
+		if !inst.IsRunning() {
+			continue
+		}
+
+		wg.Add(1)
+		instMetricsCh <- inst
+	}
+
+	wg.Wait()
+	close(instMetricsCh)
 
 	// Put the new data in the global cache and in response.
 	metricsCacheLock.Lock()
@@ -219,7 +256,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	for project, entries := range newMetrics {
 		metricsCache[project] = metricsCacheEntry{
-			expiry:  time.Now().Add(8 * time.Second),
+			expiry:  time.Now().Add(cacheDuration),
 			metrics: entries,
 		}
 
@@ -231,31 +268,27 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponsePlain(true, metricSet.String())
 }
 
-func internalMetrics(d *Daemon) *metrics.MetricSet {
+func internalMetrics(ctx context.Context, daemonStartTime time.Time, tx *db.ClusterTx) *metrics.MetricSet {
 	out := metrics.NewMetricSet(nil)
 
-	_ = d.db.Cluster.Transaction(d.shutdownCtx, func(ctx context.Context, tx *db.ClusterTx) error {
-		warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
-		if err != nil {
-			logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
-		} else {
-			// Total number of warnings
-			out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
-		}
+	warnings, err := dbCluster.GetWarnings(ctx, tx.Tx())
+	if err != nil {
+		logger.Warn("Failed to get warnings", logger.Ctx{"err": err})
+	} else {
+		// Total number of warnings
+		out.AddSamples(metrics.WarningsTotal, metrics.Sample{Value: float64(len(warnings))})
+	}
 
-		operations, err := dbCluster.GetOperations(ctx, tx.Tx())
-		if err != nil {
-			logger.Warn("Failed to get operations", logger.Ctx{"err": err})
-		} else {
-			// Total number of operations
-			out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
-		}
-
-		return nil
-	})
+	operations, err := dbCluster.GetOperations(ctx, tx.Tx())
+	if err != nil {
+		logger.Warn("Failed to get operations", logger.Ctx{"err": err})
+	} else {
+		// Total number of operations
+		out.AddSamples(metrics.OperationsTotal, metrics.Sample{Value: float64(len(operations))})
+	}
 
 	// Daemon uptime
-	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(d.startTime).Seconds()})
+	out.AddSamples(metrics.UptimeSeconds, metrics.Sample{Value: time.Since(daemonStartTime).Seconds()})
 
 	// Number of goroutines
 	out.AddSamples(metrics.GoGoroutines, metrics.Sample{Value: float64(runtime.NumGoroutine())})

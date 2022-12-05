@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -50,7 +51,7 @@ func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
 	l.Debug("Acquiring lock for image")
 	defer l.Debug("Lock acquired for image")
 
-	return locking.Lock(fmt.Sprintf("ImageOperation_%s", fingerprint))
+	return locking.Lock(context.TODO(), fmt.Sprintf("ImageOperation_%s", fingerprint))
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
