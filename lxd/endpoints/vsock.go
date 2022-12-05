@@ -36,16 +36,15 @@ func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {
 	return nil, fmt.Errorf("Failed finding free listen port for vsock listener")
 }
 
-// VsockAddress returns the network address of the vsock endpoint, or an
-// empty string if there's no vsock endpoint.
-func (e *Endpoints) VsockAddress() string {
+// VsockAddress returns the network address of the vsock endpoint, or nil if there's no vsock endpoint.
+func (e *Endpoints) VsockAddress() net.Addr {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
 	listener := e.listeners[vsock]
 	if listener == nil {
-		return ""
+		return nil
 	}
 
-	return listener.Addr().String()
+	return listener.Addr()
 }
