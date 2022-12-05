@@ -1960,48 +1960,47 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 
 	// Handle zfs send/receive migration.
 	var finalParent string
-	if !volSrcArgs.FinalSync {
-		// Transfer the snapshots first.
-		for i, snapName := range volSrcArgs.Snapshots {
-			snapshot, _ := vol.NewSnapshot(snapName)
 
-			// Figure out parent and current subvolumes.
-			parent := ""
-			if i == 0 && volSrcArgs.Refresh {
-				snapshots, err := vol.Snapshots(op)
-				if err != nil {
-					return err
-				}
+	// Transfer the snapshots first.
+	for i, snapName := range volSrcArgs.Snapshots {
+		snapshot, _ := vol.NewSnapshot(snapName)
 
-				for k, snap := range snapshots {
-					if k == 0 {
-						continue
-					}
-
-					if snap.name == fmt.Sprintf("%s/%s", vol.name, snapName) {
-						parent = d.dataset(snapshots[k-1], false)
-						break
-					}
-				}
-			} else if i > 0 {
-				oldSnapshot, _ := vol.NewSnapshot(volSrcArgs.Snapshots[i-1])
-				parent = d.dataset(oldSnapshot, false)
-			}
-
-			// Setup progress tracking.
-			var wrapper *ioprogress.ProgressTracker
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-			err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, wrapper)
+		// Figure out parent and current subvolumes.
+		parent := ""
+		if i == 0 && volSrcArgs.Refresh {
+			snapshots, err := vol.Snapshots(op)
 			if err != nil {
 				return err
 			}
 
-			finalParent = d.dataset(snapshot, false)
+			for k, snap := range snapshots {
+				if k == 0 {
+					continue
+				}
+
+				if snap.name == fmt.Sprintf("%s/%s", vol.name, snapName) {
+					parent = d.dataset(snapshots[k-1], false)
+					break
+				}
+			}
+		} else if i > 0 {
+			oldSnapshot, _ := vol.NewSnapshot(volSrcArgs.Snapshots[i-1])
+			parent = d.dataset(oldSnapshot, false)
 		}
+
+		// Setup progress tracking.
+		var wrapper *ioprogress.ProgressTracker
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+		}
+
+		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
+		err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, wrapper)
+		if err != nil {
+			return err
+		}
+
+		finalParent = d.dataset(snapshot, false)
 	}
 
 	// Setup progress tracking.
@@ -2019,24 +2018,7 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 			return err
 		}
 
-		if volSrcArgs.MultiSync {
-			if volSrcArgs.FinalSync {
-				if volSrcArgs.Data != nil {
-					finalParent = volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()]
-				}
-
-				defer func() { _, _ = shared.RunCommand("zfs", "destroy", finalParent) }()
-				defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
-			} else {
-				if volSrcArgs.Data == nil {
-					volSrcArgs.Data = map[ContentType]string{}
-				}
-
-				volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()] = srcSnapshot // Persist parent state for final sync.
-			}
-		} else {
-			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
-		}
+		defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
 	}
 
 	// Get parent snapshot of the main volume which can then be used to send an incremental stream.
