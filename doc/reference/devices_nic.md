@@ -148,7 +148,9 @@ VF allocation
   If it detects that either none are enabled or all currently enabled VFs are in use, it bumps the number of supported VFs to the maximum value and uses the first free VF.
   If all possible VFs are in use or the kernel or card doesn't support incrementing the number of VFs, LXD returns an error.
 
-  To tell LXD to use a specific unused VF, add the `host_name` option and pass it the name of the enabled VF.
+  ```{note}
+  If you need LXD to use a specific VF, use a `physical` NIC instead of a `sriov` NIC and set its `parent` option to the VF name.
+  ```
 
 #### Device options
 
