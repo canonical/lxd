@@ -4139,7 +4139,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		_, oldRootDev, oldErr := shared.GetRootDiskDevice(oldExpandedDevices.CloneNative())
 		_, newRootDev, newErr := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
 		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
-			return fmt.Errorf("Cannot update root disk device pool name")
+			return fmt.Errorf("Cannot update root disk device pool name to %q", newRootDev["pool"])
 		}
 	}
 
