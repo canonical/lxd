@@ -63,6 +63,11 @@ To configure instance device options for a device that you have added earlier, u
 
     lxc config device set <instance_name> <device_name> <device_option_key>=<device_option_value> <device_option_key>=<device_option_value> ...
 
+```{note}
+You can also specify device options by using the `--device` flag when {ref}`creating an instance <instances-create>`.
+This is useful if you want to override device options for a device that is provided through a {ref}`profile <profiles>`.
+```
+
 To remove a device, use the `lxc config device remove` command.
 See `lxc config device --help` for a full list of available commands.
 

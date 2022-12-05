@@ -26,6 +26,7 @@ Flags
   The most common flags are:
 
   - `--config` to specify a configuration option for the new instance
+  - `--device` to override {ref}`device options <devices>` for a device provided through a profile
   - `--profile` to specify a {ref}`profile <profiles>` to use for the new instance
   - `--network` or `--storage` to make the new instance use a specific network or storage pool
   - `--target` to create the instance on a specific cluster member
