@@ -5833,7 +5833,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			// Try and get state info from agent.
 			status, err = d.agentGetState()
 			if err != nil {
-				if err != errQemuAgentOffline {
+				if !errors.Is(err, errQemuAgentOffline) {
 					d.logger.Warn("Could not get VM state from agent", logger.Ctx{"err": err})
 				}
 
@@ -6497,7 +6497,17 @@ func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if d.agentMetricsEnabled() {
-		return d.getAgentMetrics()
+		metrics, err := d.getAgentMetrics()
+		if err != nil {
+			if !errors.Is(err, errQemuAgentOffline) {
+				d.logger.Warn("Could not get VM metrics from agent", logger.Ctx{"err": err})
+			}
+
+			// Fallback data if agent is not reachable.
+			return d.getQemuMetrics()
+		}
+
+		return metrics, nil
 	}
 
 	return d.getQemuMetrics()
@@ -6574,13 +6584,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 }
 
 func (d *qemu) agentMetricsEnabled() bool {
-	val := d.expandedConfig["security.agent.metrics"]
-
-	if val == "" || shared.IsTrue(val) {
-		return true
-	}
-
-	return false
+	return shared.IsTrueOrEmpty(d.expandedConfig["security.agent.metrics"])
 }
 
 func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {

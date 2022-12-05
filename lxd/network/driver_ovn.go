@@ -1187,7 +1187,7 @@ func (n *ovn) startUplinkPort() error {
 
 	// Lock uplink network so that if multiple OVN networks are trying to connect to the same uplink we don't
 	// race each other setting up the connection.
-	unlock := locking.Lock(n.uplinkOperationLockName(uplinkNet))
+	unlock := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
 	defer unlock()
 
 	switch uplinkNet.Type() {
@@ -1501,7 +1501,7 @@ func (n *ovn) deleteUplinkPort() error {
 		}
 
 		// Lock uplink network so we don't race each other networks using the OVS uplink bridge.
-		unlock := locking.Lock(n.uplinkOperationLockName(uplinkNet))
+		unlock := locking.Lock(context.TODO(), n.uplinkOperationLockName(uplinkNet))
 		defer unlock()
 
 		switch uplinkNet.Type() {
@@ -4106,7 +4106,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+	err := n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		devices := db.ExpandInstanceDevices(inst.Devices.Clone(), inst.Profiles)
@@ -4224,7 +4224,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.DB.Cluster.InstanceList(func(inst db.InstanceArgs, p api.Project) error {
+			err = n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
 				// Get the instance's effective network project name.
 				instNetworkProject := project.NetworkProjectFromRecord(&p)
 
