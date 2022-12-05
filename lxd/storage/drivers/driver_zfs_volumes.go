@@ -1868,9 +1868,9 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	}
 
 	// Handle zfs send/receive migration.
-	if volSrcArgs.FinalSync {
+	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using zfs send/receive.
-		return nil
+		return fmt.Errorf("MultiSync should not be used with optimized migration")
 	}
 
 	var srcMigrationHeader *ZFSMetaDataHeader
