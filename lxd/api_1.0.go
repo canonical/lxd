@@ -411,6 +411,9 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Don't apply changes to settings until daemon is fully started.
+	<-d.waitReady.Done()
+
 	req := api.ServerPut{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -504,6 +507,9 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	if resp != nil {
 		return resp
 	}
+
+	// Don't apply changes to settings until daemon is fully started.
+	<-d.waitReady.Done()
 
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
@@ -697,9 +703,6 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 }
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
-	// Don't apply changes to settings until daemon is fully started.
-	<-d.waitReady.Done()
-
 	s := d.State()
 
 	maasChanged := false
