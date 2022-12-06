@@ -207,6 +207,11 @@ func (c *Config) InstancesNICHostname() string {
 	return c.m.GetString("instances.nic.host_name")
 }
 
+// InstancesPlacementScriptlet returns the instances placement scriptlet source code.
+func (c *Config) InstancesPlacementScriptlet() string {
+	return c.m.GetString("instances.placement.scriptlet")
+}
+
 // LokiServer returns all the Loki settings needed to connect to a server.
 func (c *Config) LokiServer() (string, string, string, string, []string, string, []string) {
 	var types []string
