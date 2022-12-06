@@ -471,13 +471,13 @@ migration() {
   lxc_remote start l2:c1
   lxc_remote file pull l2:c1/tmp/foo .
   lxc_remote file pull l2:c1/tmp/bar .
-  lxc_remote stop l2:c1
+  lxc_remote stop l2:c1 -f
 
   lxc_remote restore l2:c1 snap0
   lxc_remote start l2:c1
   lxc_remote file pull l2:c1/tmp/foo .
   ! lxc_remote file pull l2:c1/tmp/bar . ||  false
-  lxc_remote stop l2:c1
+  lxc_remote stop l2:c1 -f
 
   rm foo bar
 
