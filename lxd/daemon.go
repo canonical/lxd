@@ -51,6 +51,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	scriptletLoad "github.com/lxc/lxd/lxd/scriptlet/load"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -1352,6 +1353,8 @@ func (d *Daemon) init() error {
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
 
+	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
+
 	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
 	d.globalConfigMu.Unlock()
 
@@ -1440,6 +1443,14 @@ func (d *Daemon) init() error {
 	err = networkStartup(d.State())
 	if err != nil {
 		return err
+	}
+
+	// Load instance placement scriptlet.
+	if instancePlacementScriptlet != "" {
+		err = scriptletLoad.InstancePlacementSet(instancePlacementScriptlet)
+		if err != nil {
+			logger.Warn("Failed loading instance placement scriptlet", logger.Ctx{"err": err})
+		}
 	}
 
 	// Apply all patches that need to be run after networks are initialised.
