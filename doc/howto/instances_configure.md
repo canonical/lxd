@@ -29,7 +29,7 @@ For example, to change the memory limit for your container, enter the following 
 Some of the instance options are updated immediately while the instance is running.
 Others are updated only when the instance is restarted.
 
-See the "Live update" column in the {ref}`instance-options` table for information about which options are applied immediately while the instance is running.
+See the "Live update" column in the {ref}`instance-options` tables for information about which options are applied immediately while the instance is running.
 ```
 
 (instances-configure-devices)=
