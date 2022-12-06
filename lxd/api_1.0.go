@@ -425,7 +425,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Get the current (updated) config.
 		var config *clusterConfig.Config
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			config, err = clusterConfig.Load(ctx, tx)
 			return err
@@ -629,7 +629,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
