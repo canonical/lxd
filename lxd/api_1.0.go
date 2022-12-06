@@ -549,7 +549,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
