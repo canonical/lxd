@@ -545,11 +545,21 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// If zfs.clone_copy is disabled delete the snapshot at the end.
 		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 			// Delete the snapshot at the end.
-			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
+			defer func() {
+				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+				_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+				if err != nil {
+					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+				}
+			}()
 		} else {
 			// Delete the snapshot on revert.
 			revert.Add(func() {
-				_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
+				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+				_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+				if err != nil {
+					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+				}
 			})
 		}
 	}
@@ -2018,7 +2028,13 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 			return err
 		}
 
-		defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
+		defer func() {
+			// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+			_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+			if err != nil {
+				d.logger.Warn("Failed deleting temporary snapshot for migration", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+			}
+		}()
 	}
 
 	// Get parent snapshot of the main volume which can then be used to send an incremental stream.
@@ -2069,8 +2085,13 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	}
 
 	revert.Add(func() {
-		_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
+		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		if err != nil {
+			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+		}
 	})
+
 	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
 
 	// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
@@ -2225,7 +2246,13 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		return err
 	}
 
-	defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
+	defer func() {
+		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		if err != nil {
+			d.logger.Warn("Failed deleting temporary snapshot for backup", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+		}
+	}()
 
 	// Dump the container to a file.
 	fileName := "container.bin"
