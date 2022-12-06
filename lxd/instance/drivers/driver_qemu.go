@@ -3535,8 +3535,8 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			defer reverter.Fail()
 
 			// Open the device once for each queue and pass to QEMU.
-			var fds []string
-			var vhostfds []string
+			fds := make([]string, 0, queueCount)
+			vhostfds := make([]string, 0, queueCount)
 			for i := 0; i < queueCount; i++ {
 				devFile, err := os.OpenFile(fmt.Sprintf("/dev/tap%d", ifindex), os.O_RDWR, 0)
 				if err != nil {
@@ -3545,37 +3545,33 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 
 				defer func() { _ = devFile.Close() }() // Close file after device has been added.
 
-				devFDName := fmt.Sprintf("%s:%d", devFile.Name(), 0)
-				info, err := m.SendFileWithFDSet(devFDName, devFile, false)
+				devFDName := fmt.Sprintf("%s.%d", devFile.Name(), i)
+				err = m.SendFile(devFDName, devFile)
 				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor: %w", devFile.Name(), err)
+					return fmt.Errorf("Failed to send %q file descriptor: %w", devFDName, err)
 				}
 
-				reverter.Add(func() {
-					_ = m.RemoveFDFromFDSet(devFDName)
-				})
+				reverter.Add(func() { _ = m.CloseFile(devFDName) })
 
-				fds = append(fds, fmt.Sprintf("%d", info.FD))
+				fds = append(fds, devFDName)
 
 				// Open a vhost-net file handle for each device file handle. For CPU offloading.
 				vhostFile, err := os.OpenFile("/dev/vhost-net", os.O_RDWR, 0)
 				if err != nil {
-					return fmt.Errorf("Error opening netdev file %q: %w", devFile.Name(), err)
+					return fmt.Errorf("Error opening netdev file %q: %w", vhostFile.Name(), err)
 				}
 
 				defer func() { _ = vhostFile.Close() }() // Close file after device has been added.
 
-				vhostFDName := fmt.Sprintf("%s:%d", vhostFile.Name(), 0)
-				info, err = m.SendFileWithFDSet(vhostFDName, vhostFile, false)
+				vhostFDName := fmt.Sprintf("%s.%d", vhostFile.Name(), i)
+				err = m.SendFile(vhostFDName, vhostFile)
 				if err != nil {
-					return fmt.Errorf("Failed to send %q file descriptor: %w", vhostFile.Name(), err)
+					return fmt.Errorf("Failed to send %q file descriptor: %w", vhostFDName, err)
 				}
 
-				reverter.Add(func() {
-					_ = m.RemoveFDFromFDSet(vhostFDName)
-				})
+				reverter.Add(func() { _ = m.CloseFile(vhostFDName) })
 
-				vhostfds = append(vhostfds, fmt.Sprintf("%d", info.FD))
+				vhostfds = append(vhostfds, vhostFDName)
 			}
 
 			qemuNetDev["fds"] = strings.Join(fds, ":")
