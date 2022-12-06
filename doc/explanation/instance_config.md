@@ -4,9 +4,8 @@
 The instance configuration consists of different categories:
 
 Instance properties
-: Instance properties are set when the instance is created.
+: Instance properties are specified when the instance is created.
   They include, for example, the instance name and architecture.
-  These properties are specified during instance creation.
   Some of the properties are read-only and cannot be changed after creation, while others can be updated when {ref}`editing the full instance configuration <instances-configure-edit>`.
 
   In the YAML configuration, properties are on the top level.
