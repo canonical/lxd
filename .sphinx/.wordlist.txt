@@ -219,7 +219,6 @@ subvolume
 subvolumes
 superset
 SVG
-switchdev
 symlink
 symlinks
 syscall

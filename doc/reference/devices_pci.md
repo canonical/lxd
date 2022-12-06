@@ -1,12 +1,17 @@
 (devices-pci)=
 # Type: `pci`
 
-Supported instance types: VM
+```{note}
+The `pci` device type is supported for VMs.
+It does not support hotplugging.
+```
 
-PCI device entries are used to pass raw PCI devices from the host into a virtual machine.
+PCI devices are used to pass raw PCI devices from the host into a virtual machine.
 
-The following properties exist:
+## Device options
+
+`pci` devices have the following device options:
 
 Key                 | Type      | Default   | Required  | Description
 :--                 | :--       | :--       | :--       | :--
-`address`           | string    | -         | yes       | PCI address of the device.
+`address`           | string    | -         | yes       | PCI address of the device
