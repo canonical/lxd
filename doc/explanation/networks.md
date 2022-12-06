@@ -1,3 +1,4 @@
+(networks)=
 # About networking
 
 There are different ways to connect your instances to the Internet. The easiest method is to have LXD create a network bridge during initialization and use this bridge for all instances, but LXD supports many different and advanced setups for networking.
@@ -33,6 +34,7 @@ You can configure the network device in one of the following ways:
 
   If needed, you can add further properties to the command to override the default settings for the network.
 
+(managed-networks)=
 ## Managed networks
 
 Managed networks in LXD are created and configured with the `lxc network [create|edit|set]` command.

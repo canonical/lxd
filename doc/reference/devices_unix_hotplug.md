@@ -1,19 +1,25 @@
 (devices-unix-hotplug)=
 # Type: `unix-hotplug`
 
-Supported instance types: container
+```{note}
+The `unix-hotplug` device type is supported for containers.
+It supports hotplugging.
+```
 
-Unix hotplug device entries make the requested Unix device appear in the
-instance's `/dev` and allow read/write operations to it if the device exists on
-the host system. Implementation depends on `systemd-udev` to be run on the host.
+Unix hotplug devices make the requested Unix device appear as a device in the instance (under `/dev`).
+If the device exists on the host system, you can read from the it and write to it.
 
-The following properties exist:
+The implementation depends on `systemd-udev` to be run on the host.
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-`vendorid`  | string    | -                 | no        | The vendor ID of the Unix device
-`productid` | string    | -                 | no        | The product ID of the Unix device
-`uid`       | int       | `0`               | no        | UID of the device owner in the instance
-`gid`       | int       | `0`               | no        | GID of the device owner in the instance
-`mode`      | int       | `0660`            | no        | Mode of the device in the instance
-`required`  | bool      | `false`           | no        | Whether or not this device is required to start the instance. (The default is `false`, and all devices can be hotplugged)
+## Device options
+
+`unix-hotplug` devices have the following device options:
+
+Key         | Type      | Default           | Description
+:--         | :--       | :--               | :--
+`gid`       | int       | `0`               | GID of the device owner in the instance
+`mode`      | int       | `0660`            | Mode of the device in the instance
+`productid` | string    | -                 | The product ID of the Unix device
+`required`  | bool      | `false`           | Whether this device is required to start the instance (the default is `false`, and all devices can be hotplugged)
+`uid`       | int       | `0`               | UID of the device owner in the instance
+`vendorid`  | string    | -                 | The vendor ID of the Unix device

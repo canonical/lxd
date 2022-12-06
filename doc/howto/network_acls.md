@@ -6,7 +6,7 @@ discourse: 13223
 # How to configure network ACLs
 
 ```{note}
-Network ACLs are available for the {ref}`OVN NIC type <instance_device_type_nic_ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions, see {ref}`network-acls-bridge-limitations`).
+Network ACLs are available for the {ref}`OVN NIC type <nic-ovn>`, the {ref}`network-ovn` and the {ref}`network-bridge` (with some exceptions, see {ref}`network-acls-bridge-limitations`).
 ```
 
 ```{youtube} https://www.youtube.com/watch?v=mu34G0cX6Io
@@ -111,7 +111,7 @@ Property          | Type       | Required | Description
 ### Use selectors in rules
 
 ```{note}
-This feature is supported only for the {ref}`OVN NIC type <instance_device_type_nic_ovn>` and the {ref}`network-ovn`.
+This feature is supported only for the {ref}`OVN NIC type <nic-ovn>` and the {ref}`network-ovn`.
 ```
 
 The `source` field (for ingress rules) and the `destination` field (for egress rules) support using selectors instead of CIDR or IP ranges.
