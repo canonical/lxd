@@ -411,6 +411,9 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Don't apply changes to settings until daemon is fully started.
+	<-d.waitReady.Done()
+
 	req := api.ServerPut{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -420,7 +423,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
 	if isClusterNotification(r) {
-		logger.Debugf("Handling config changed notification")
+		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
 			changed[key] = value.(string)
@@ -428,7 +431,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 		// Get the current (updated) config.
 		var config *clusterConfig.Config
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			config, err = clusterConfig.Load(ctx, tx)
 			return err
@@ -505,6 +508,9 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Don't apply changes to settings until daemon is fully started.
+	<-d.waitReady.Done()
+
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
 		return response.InternalError(err)
@@ -549,7 +555,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	err = d.db.Node.Transaction(context.TODO(), func(ctx context.Context, tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(ctx, tx)
 		if err != nil {
@@ -629,7 +635,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *clusterConfig.Config
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = clusterConfig.Load(ctx, tx)
 		if err != nil {
@@ -675,7 +681,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return client.UpdateServer(serverPut, etag)
 	})
 	if err != nil {
-		logger.Debugf("Failed to notify other nodes about config change: %v", err)
+		logger.Error("Failed to notify other members about config change", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -697,9 +703,6 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 }
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *clusterConfig.Config) error {
-	// Don't apply changes to settings until daemon is fully started.
-	<-d.waitReady.Done()
-
 	s := d.State()
 
 	maasChanged := false
