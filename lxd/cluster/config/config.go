@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	scriptletLoad "github.com/lxc/lxd/lxd/scriptlet/load"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -312,6 +313,7 @@ var ConfigSchema = config.Schema{
 	"images.default_architecture":    {Validator: validate.Optional(validate.IsArchitecture)},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"instances.nic.host_name":        {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
+	"instances.placement.scriptlet":  {Validator: validate.Optional(scriptletLoad.InstancePlacementValidate)},
 	"loki.auth.username":             {},
 	"loki.auth.password":             {Hidden: true},
 	"loki.api.ca_cert":               {},
