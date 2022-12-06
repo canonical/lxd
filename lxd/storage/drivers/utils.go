@@ -186,7 +186,7 @@ func TryUnmount(path string, flags int) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Failed to unmount '%s': %w", path, err)
+		return fmt.Errorf("Failed to unmount %q: %w", path, err)
 	}
 
 	return nil

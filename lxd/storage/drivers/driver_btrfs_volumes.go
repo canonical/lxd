@@ -1222,9 +1222,9 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	}
 
 	// Handle btrfs send/receive migration.
-	if volSrcArgs.FinalSync {
+	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using btrfs send/receive.
-		return nil
+		return fmt.Errorf("MultiSync should not be used with optimized migration")
 	}
 
 	var snapshots []string
