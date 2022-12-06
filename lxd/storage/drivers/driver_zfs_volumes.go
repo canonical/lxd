@@ -1736,7 +1736,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		// For block devices, we make them disappear if active.
 		if !keepBlockDev {
-			current, err := d.getDatasetProperty(d.dataset(vol, false), "volmode")
+			current, err := d.getDatasetProperty(dataset, "volmode")
 			if err != nil {
 				return false, err
 			}
