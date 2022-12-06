@@ -1710,6 +1710,12 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			return false, ErrInUse
 		}
 
+		d.logger.Debug("Waiting for dataset activity to stop", logger.Ctx{"dev": dataset})
+		_, err = shared.RunCommand("zfs", "wait", dataset)
+		if err != nil {
+			d.logger.Warn("Failed waiting for dataset activity to stop", logger.Ctx{"dev": dataset, "err": err})
+		}
+
 		// Unmount the dataset.
 		err = TryUnmount(mountPath, 0)
 		if err != nil {
