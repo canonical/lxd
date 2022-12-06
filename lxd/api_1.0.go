@@ -417,7 +417,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
 	if isClusterNotification(r) {
-		logger.Debugf("Handling config changed notification")
+		logger.Debug("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
 			changed[key] = value.(string)
@@ -675,7 +675,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return client.UpdateServer(serverPut, etag)
 	})
 	if err != nil {
-		logger.Debugf("Failed to notify other nodes about config change: %v", err)
+		logger.Error("Failed to notify other members about config change", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
