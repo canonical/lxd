@@ -545,11 +545,21 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// If zfs.clone_copy is disabled delete the snapshot at the end.
 		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 			// Delete the snapshot at the end.
-			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
+			defer func() {
+				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+				_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+				if err != nil {
+					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+				}
+			}()
 		} else {
 			// Delete the snapshot on revert.
 			revert.Add(func() {
-				_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
+				// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+				_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+				if err != nil {
+					d.logger.Warn("Failed deleting temporary snapshot for copy", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+				}
 			})
 		}
 	}
@@ -1730,7 +1740,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		// For block devices, we make them disappear if active.
 		if !keepBlockDev {
-			current, err := d.getDatasetProperty(d.dataset(vol, false), "volmode")
+			current, err := d.getDatasetProperty(dataset, "volmode")
 			if err != nil {
 				return false, err
 			}
@@ -1868,9 +1878,9 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	}
 
 	// Handle zfs send/receive migration.
-	if volSrcArgs.FinalSync {
+	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
 		// This is not needed if the migration is performed using zfs send/receive.
-		return nil
+		return fmt.Errorf("MultiSync should not be used with optimized migration")
 	}
 
 	var srcMigrationHeader *ZFSMetaDataHeader
@@ -1960,48 +1970,47 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 
 	// Handle zfs send/receive migration.
 	var finalParent string
-	if !volSrcArgs.FinalSync {
-		// Transfer the snapshots first.
-		for i, snapName := range volSrcArgs.Snapshots {
-			snapshot, _ := vol.NewSnapshot(snapName)
 
-			// Figure out parent and current subvolumes.
-			parent := ""
-			if i == 0 && volSrcArgs.Refresh {
-				snapshots, err := vol.Snapshots(op)
-				if err != nil {
-					return err
-				}
+	// Transfer the snapshots first.
+	for i, snapName := range volSrcArgs.Snapshots {
+		snapshot, _ := vol.NewSnapshot(snapName)
 
-				for k, snap := range snapshots {
-					if k == 0 {
-						continue
-					}
-
-					if snap.name == fmt.Sprintf("%s/%s", vol.name, snapName) {
-						parent = d.dataset(snapshots[k-1], false)
-						break
-					}
-				}
-			} else if i > 0 {
-				oldSnapshot, _ := vol.NewSnapshot(volSrcArgs.Snapshots[i-1])
-				parent = d.dataset(oldSnapshot, false)
-			}
-
-			// Setup progress tracking.
-			var wrapper *ioprogress.ProgressTracker
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-			err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, wrapper)
+		// Figure out parent and current subvolumes.
+		parent := ""
+		if i == 0 && volSrcArgs.Refresh {
+			snapshots, err := vol.Snapshots(op)
 			if err != nil {
 				return err
 			}
 
-			finalParent = d.dataset(snapshot, false)
+			for k, snap := range snapshots {
+				if k == 0 {
+					continue
+				}
+
+				if snap.name == fmt.Sprintf("%s/%s", vol.name, snapName) {
+					parent = d.dataset(snapshots[k-1], false)
+					break
+				}
+			}
+		} else if i > 0 {
+			oldSnapshot, _ := vol.NewSnapshot(volSrcArgs.Snapshots[i-1])
+			parent = d.dataset(oldSnapshot, false)
 		}
+
+		// Setup progress tracking.
+		var wrapper *ioprogress.ProgressTracker
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+		}
+
+		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
+		err := d.sendDataset(d.dataset(snapshot, false), parent, volSrcArgs, conn, wrapper)
+		if err != nil {
+			return err
+		}
+
+		finalParent = d.dataset(snapshot, false)
 	}
 
 	// Setup progress tracking.
@@ -2019,24 +2028,13 @@ func (d *zfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volSrc
 			return err
 		}
 
-		if volSrcArgs.MultiSync {
-			if volSrcArgs.FinalSync {
-				if volSrcArgs.Data != nil {
-					finalParent = volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()]
-				}
-
-				defer func() { _, _ = shared.RunCommand("zfs", "destroy", finalParent) }()
-				defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
-			} else {
-				if volSrcArgs.Data == nil {
-					volSrcArgs.Data = map[ContentType]string{}
-				}
-
-				volSrcArgs.Data.(map[ContentType]string)[vol.ContentType()] = srcSnapshot // Persist parent state for final sync.
+		defer func() {
+			// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+			_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+			if err != nil {
+				d.logger.Warn("Failed deleting temporary snapshot for migration", logger.Ctx{"snapshot": srcSnapshot, "err": err})
 			}
-		} else {
-			defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
-		}
+		}()
 	}
 
 	// Get parent snapshot of the main volume which can then be used to send an incremental stream.
@@ -2087,8 +2085,13 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	}
 
 	revert.Add(func() {
-		_, _ = shared.RunCommand("zfs", "destroy", srcSnapshot)
+		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		if err != nil {
+			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+		}
 	})
+
 	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
 
 	// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
@@ -2243,7 +2246,13 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		return err
 	}
 
-	defer func() { _, _ = shared.RunCommand("zfs", "destroy", srcSnapshot) }()
+	defer func() {
+		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
+		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		if err != nil {
+			d.logger.Warn("Failed deleting temporary snapshot for backup", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+		}
+	}()
 
 	// Dump the container to a file.
 	fileName := "container.bin"
