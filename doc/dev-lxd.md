@@ -14,7 +14,7 @@ connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
 
 ```{note}
-[`security.devlxd`](instance-configuration) must be set to `true` (which is the default) for an instance to allow access to the socket.
+[`security.devlxd`](instance-options-security) must be set to `true` (which is the default) for an instance to allow access to the socket.
 ```
 
 ## Implementation details
