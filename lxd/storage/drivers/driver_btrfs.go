@@ -95,6 +95,7 @@ func (d *btrfs) Info() Info {
 		BlockBacking:          false,
 		RunningCopyFreeze:     false,
 		DirectIO:              true,
+		IOUring:               true,
 		MountedRoot:           true,
 		Buckets:               true,
 	}
