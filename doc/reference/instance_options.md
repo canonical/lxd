@@ -304,32 +304,13 @@ Key                                             | Type      | Default           
 :--                                             | :---      | :------           | :----------   | :----------               | :----------
 `snapshots.schedule`                            | string    | -                 | no            | -                         | {{snapshot_schedule_format}}
 `snapshots.schedule.stopped`                    | bool      | `false`           | no            | -                         | Controls whether to automatically snapshot stopped instances
-`snapshots.pattern`                             | string    | `snap%d`          | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
-`snapshots.expiry`                              | string    | -                 | no            | -                         | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+`snapshots.pattern`                             | string    | `snap%d`          | no            | -                         | {{snapshot_pattern_format}}; see {ref}`instance-options-snapshots-names`
+`snapshots.expiry`                              | string    | -                 | no            | -                         | {{snapshot_expiry_format}}
 
-LXD supports scheduled snapshots which can be created at most once every minute.
-There are three configuration options:
+(instance-options-snapshots-names)=
+### Automatic snapshot names
 
-- `snapshots.schedule` takes a shortened cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`.
-  If this is empty (default), no snapshots will be created.
-- `snapshots.schedule.stopped` controls whether to automatically snapshot stopped instances.
-  It defaults to `false`.
-- `snapshots.pattern` takes a Pongo2 template string to format the snapshot name.
-  To name snapshots with time stamps, the Pongo2 context variable `creation_date` can be used.
-  Be aware that you should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template string to avoid forbidden characters in the snapshot name.
-  Another way to avoid name collisions is to use the placeholder `%d`.
-  If a snapshot with the same name (excluding the placeholder) already exists, all existing snapshot names will be taken into account to find the highest number at the placeholders position.
-  This number will be incremented by one for the new name.
-  The starting number if no snapshot exists will be `0`.
-  The default behavior of `snapshots.pattern` is equivalent to a format string of `snap%d`.
-
-Example of using Pongo2 syntax to format snapshot names with timestamps:
-
-```bash
-lxc config set INSTANCE snapshots.pattern "{{ creation_date|date:'2006-01-02_15-04-05' }}"
-```
-
-This results in snapshots named `{date/time of creation}` down to the precision of a second.
+{{snapshot_pattern_detail}}
 
 (instance-options-volatile)=
 ## Volatile internal data
