@@ -123,6 +123,43 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 	return nil
 }
 
+// CloseFile closes an existing file descriptor in the QMP fd table associated to name.
+func (m *Monitor) CloseFile(name string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			FDName string `json:"fdname"`
+		} `json:"arguments"`
+	}
+
+	req.Execute = "closefd"
+	req.Arguments.FDName = name
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	// Query the status.
+	_, err = m.qmp.Run(reqJSON)
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return errPing
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 // SendFileWithFDSet adds a new file descriptor to an FD set.
 func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (AddFdInfo, error) {
 	// Prepare the response.
