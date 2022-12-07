@@ -15,6 +15,7 @@ type Info struct {
 	BlockBacking          bool         // Whether driver uses block devices as backing store.
 	RunningCopyFreeze     bool         // Whether instance should be frozen during snapshot if running.
 	DirectIO              bool         // Whether the driver supports direct I/O.
+	IOUring               bool         // Whether the driver supports io_uring.
 	MountedRoot           bool         // Whether the pool directory itself is a mount.
 }
 
