@@ -52,6 +52,9 @@ const DiskFileDescriptorMountPrefix = "fd"
 // DiskDirectIO is used to indicate disk should use direct I/O.
 const DiskDirectIO = "directio"
 
+// DiskIOUring is used to indicate disk should use io_uring if the system supports it.
+const DiskIOUring = "io_uring"
+
 // DiskLoopBacked is used to indicate disk is backed onto a loop device.
 const DiskLoopBacked = "loop"
 
@@ -635,6 +638,10 @@ func (d *disk) detectVMPoolMountOpts() []string {
 
 	if d.pool.Driver().Info().DirectIO {
 		opts = append(opts, DiskDirectIO)
+	}
+
+	if d.pool.Driver().Info().IOUring {
+		opts = append(opts, DiskIOUring)
 	}
 
 	return opts
