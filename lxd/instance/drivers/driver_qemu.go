@@ -1957,12 +1957,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 		qemuDev["addr"] = "00.0"
 	}
 
-	cpuCount, err := d.addCPUMemoryConfig(nil)
-	if err != nil {
-		return err
-	}
-
-	monHook, err := d.addNetDevConfig(cpuCount, qemuBus, qemuDev, nil, netIF)
+	monHook, err := d.addNetDevConfig(qemuBus, qemuDev, nil, netIF)
 	if err != nil {
 		return err
 	}
@@ -2573,7 +2568,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	cfg := qemuBase(&qemuBaseOpts{d.architectureName})
 
-	cpuCount, err := d.addCPUMemoryConfig(&cfg)
+	err := d.addCPUMemoryConfig(&cfg)
 	if err != nil {
 		return "", nil, err
 	}
@@ -2815,7 +2810,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				}
 			}
 
-			monHook, err := d.addNetDevConfig(cpuCount, bus.name, qemuDev, bootIndexes, runConf.NetworkInterface)
+			monHook, err := d.addNetDevConfig(bus.name, qemuDev, bootIndexes, runConf.NetworkInterface)
 			if err != nil {
 				return "", nil, err
 			}
@@ -2884,12 +2879,12 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 }
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
-// If sb is nil then no config is written and instead just the CPU count is returned.
-func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
+// If sb is nil then no config is written.
+func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 	drivers := DriverStatuses()
 	info := drivers[instancetype.VM].Info
 	if info.Name == "" {
-		return -1, fmt.Errorf("Unable to ascertain QEMU version")
+		return fmt.Errorf("Unable to ascertain QEMU version")
 	}
 
 	// Figure out what memory object layout we're going to use.
@@ -2934,7 +2929,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		// Expand to a set of CPU identifiers and get the pinning map.
 		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := d.cpuTopology(cpus)
 		if err != nil {
-			return -1, err
+			return err
 		}
 
 		cpuPinning = true
@@ -2993,14 +2988,14 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
 	if err != nil {
-		return -1, fmt.Errorf("limits.memory invalid: %w", err)
+		return fmt.Errorf("limits.memory invalid: %w", err)
 	}
 
 	cpuOpts.hugepages = ""
 	if shared.IsTrue(d.expandedConfig["limits.memory.hugepages"]) {
 		hugetlb, err := util.HugepagesPath()
 		if err != nil {
-			return -1, err
+			return err
 		}
 
 		cpuOpts.hugepages = hugetlb
@@ -3016,8 +3011,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) (int, error) {
 		*cfg = append(*cfg, qemuCPU(&cpuOpts, cpuPinning)...)
 	}
 
-	// Configure the CPU limit.
-	return cpuOpts.cpuCount, nil
+	return nil
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
@@ -3437,7 +3431,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 
 // addNetDevConfig adds the qemu config required for adding a network device.
 // The qemuDev map is expected to be preconfigured with the settings for an existing port to use for the device.
-func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]string, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
+func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) (monitorHook, error) {
 	reverter := revert.New()
 	defer reverter.Fail()
 
@@ -3481,7 +3475,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 
 	// configureQueues modifies qemuDev with the queue configuration based on vCPUs.
 	// Returns the number of queues to use with NIC.
-	configureQueues := func() int {
+	configureQueues := func(cpuCount int) int {
 		// Number of queues is the same as number of vCPUs. Run with a minimum of two queues.
 		queueCount := cpuCount
 		if queueCount < 2 {
@@ -3513,26 +3507,16 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
 		}
 
-		qemuNetDev := map[string]any{
-			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
-			"type":  "tap",
-			"vhost": true,
-		}
-
-		queueCount := configureQueues()
-
-		if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
-			qemuDev["driver"] = "virtio-net-pci"
-		} else if busName == "ccw" {
-			qemuDev["driver"] = "virtio-net-ccw"
-		}
-
-		qemuDev["netdev"] = qemuNetDev["id"].(string)
-		qemuDev["mac"] = devHwaddr
-
 		monHook = func(m *qmp.Monitor) error {
 			reverter := revert.New()
 			defer reverter.Fail()
+
+			cpus, err := m.QueryCPUs()
+			if err != nil {
+				return fmt.Errorf("Failed getting CPU list for NIC queues")
+			}
+
+			queueCount := configureQueues(len(cpus))
 
 			// Open the device once for each queue and pass to QEMU.
 			fds := make([]string, 0, queueCount)
@@ -3574,8 +3558,23 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 				vhostfds = append(vhostfds, vhostFDName)
 			}
 
+			qemuNetDev := map[string]any{
+				"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
+				"type":  "tap",
+				"vhost": true,
+			}
+
+			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+				qemuDev["driver"] = "virtio-net-pci"
+			} else if busName == "ccw" {
+				qemuDev["driver"] = "virtio-net-ccw"
+			}
+
 			qemuNetDev["fds"] = strings.Join(fds, ":")
 			qemuNetDev["vhostfds"] = strings.Join(vhostfds, ":")
+
+			qemuDev["netdev"] = qemuNetDev["id"].(string)
+			qemuDev["mac"] = devHwaddr
 
 			err = m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
@@ -3586,32 +3585,37 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			return nil
 		}
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
-		// Detect TAP (via TUN driver) device.
-		qemuNetDev := map[string]any{
-			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
-			"type":       "tap",
-			"vhost":      true,
-			"script":     "no",
-			"downscript": "no",
-			"ifname":     nicName,
-		}
-
-		queueCount := configureQueues()
-		if queueCount > 0 {
-			qemuNetDev["queues"] = queueCount
-		}
-
-		if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
-			qemuDev["driver"] = "virtio-net-pci"
-		} else if busName == "ccw" {
-			qemuDev["driver"] = "virtio-net-ccw"
-		}
-
-		qemuDev["netdev"] = qemuNetDev["id"].(string)
-		qemuDev["mac"] = devHwaddr
-
 		monHook = func(m *qmp.Monitor) error {
-			err := m.AddNIC(qemuNetDev, qemuDev)
+			cpus, err := m.QueryCPUs()
+			if err != nil {
+				return fmt.Errorf("Failed getting CPU list for NIC queues")
+			}
+
+			// Detect TAP (via TUN driver) device.
+			qemuNetDev := map[string]any{
+				"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
+				"type":       "tap",
+				"vhost":      true,
+				"script":     "no",
+				"downscript": "no",
+				"ifname":     nicName,
+			}
+
+			queueCount := configureQueues(len(cpus))
+			if queueCount > 0 {
+				qemuNetDev["queues"] = queueCount
+			}
+
+			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+				qemuDev["driver"] = "virtio-net-pci"
+			} else if busName == "ccw" {
+				qemuDev["driver"] = "virtio-net-ccw"
+			}
+
+			qemuDev["netdev"] = qemuNetDev["id"].(string)
+			qemuDev["mac"] = devHwaddr
+
+			err = m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
