@@ -85,6 +85,7 @@ func (d *ceph) Info() Info {
 		BlockBacking:      true,
 		RunningCopyFreeze: true,
 		DirectIO:          true,
+		IOUring:           true,
 		MountedRoot:       false,
 	}
 }

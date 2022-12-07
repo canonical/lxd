@@ -92,6 +92,7 @@ func (d *lvm) Info() Info {
 		BlockBacking:      true,
 		RunningCopyFreeze: true,
 		DirectIO:          true,
+		IOUring:           true,
 		MountedRoot:       false,
 		Buckets:           true,
 	}

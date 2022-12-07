@@ -39,6 +39,7 @@ func (d *dir) Info() Info {
 		BlockBacking:      false,
 		RunningCopyFreeze: true,
 		DirectIO:          true,
+		IOUring:           true,
 		MountedRoot:       true,
 		Buckets:           true,
 	}
