@@ -93,8 +93,23 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 		return ErrMonitorDisconnect
 	}
 
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			FDName string `json:"fdname"`
+		} `json:"arguments"`
+	}
+
+	req.Execute = "getfd"
+	req.Arguments.FDName = name
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
 	// Query the status.
-	_, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'getfd', 'arguments': {'fdname': '%s'}}", name)), file)
+	_, err = m.qmp.RunWithFile(reqJSON, file)
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
