@@ -3667,7 +3667,7 @@ func (d *qemu) writeNICDevConfig(mtuStr string, devName string, nicName string, 
 	// Parse MAC address to ensure it is in a canonical form (avoiding casing/presentation differences).
 	hw, err := net.ParseMAC(devHwaddr)
 	if err != nil {
-		return fmt.Errorf("Failed parsing MAC: %w", err)
+		return fmt.Errorf("Failed parsing MAC %q: %w", devHwaddr, err)
 	}
 
 	nicConfig := deviceConfig.NICConfig{
