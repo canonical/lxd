@@ -336,8 +336,8 @@ func (d *common) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *common) HasVolume(vol Volume) bool {
-	return false
+func (d *common) HasVolume(vol Volume) (bool, error) {
+	return false, ErrNotSupported
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
