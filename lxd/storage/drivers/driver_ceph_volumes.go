@@ -2,12 +2,14 @@ package drivers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
@@ -873,7 +875,10 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		Images []cephDuLine `json:"images"`
 	}
 
-	jsonInfo, err := shared.TryRunCommand(
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+	defer cancel()
+
+	jsonInfo, err := shared.RunCommandContext(ctx,
 		"rbd",
 		"du",
 		"--format", "json",
