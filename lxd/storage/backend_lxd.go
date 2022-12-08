@@ -2364,6 +2364,11 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	l.Debug("GetInstanceUsage started")
 	defer l.Debug("GetInstanceUsage finished")
 
+	err := b.isStatusReady()
+	if err != nil {
+		return -1, err
+	}
+
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return -1, err
@@ -4183,6 +4188,11 @@ func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, e
 
 // GetCustomVolumeUsage returns the disk space used by the custom volume.
 func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, error) {
+	err := b.isStatusReady()
+	if err != nil {
+		return -1, err
+	}
+
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return -1, err
