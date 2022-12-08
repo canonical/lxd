@@ -312,6 +312,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_storage_driver_btrfs "btrfs storage driver"
     run_test test_storage_driver_ceph "ceph storage driver"
     run_test test_storage_driver_cephfs "cephfs storage driver"
+    run_test test_storage_driver_zfs "zfs storage driver"
     run_test test_resources "resources"
     run_test test_kernel_limits "kernel limits"
     run_test test_macaroon_auth "macaroon authentication"
