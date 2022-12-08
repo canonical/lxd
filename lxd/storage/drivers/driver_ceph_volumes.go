@@ -734,8 +734,11 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // hasVolume indicates whether a specific RBD volume exists on the storage pool.
-func (d *ceph) hasVolume(rbdVolumeName string) bool {
-	_, err := shared.RunCommand(
+func (d *ceph) hasVolume(rbdVolumeName string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+	defer cancel()
+
+	_, err := shared.RunCommandContext(ctx,
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
@@ -744,7 +747,21 @@ func (d *ceph) hasVolume(rbdVolumeName string) bool {
 		rbdVolumeName,
 	)
 
-	return err == nil
+	if err != nil {
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Unwrap().(*exec.ExitError)
+			if ok {
+				if exitError.ExitCode() == 2 {
+					return false, nil
+				}
+			}
+		}
+
+		return false, err
+	}
+
+	return true, nil
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
