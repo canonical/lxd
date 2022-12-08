@@ -34,7 +34,6 @@ checksums
 Chocolatey
 CIDR
 CLI
-coredump
 CPUs
 CRIU
 CRL
@@ -145,6 +144,7 @@ OpenMetrics
 OpenSSL
 OSD
 overcommit
+overcommitting
 overlayfs
 OVMF
 OVN

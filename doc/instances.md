@@ -8,6 +8,7 @@ explanation/instances.md
 Create instances <howto/instances_create.md>
 Manage instances <howto/instances_manage.md>
 Configure instances <howto/instances_configure.md>
+Create snapshots <howto/instances_snapshots.md>
 Use profiles <profiles.md>
 Run commands <instance-exec.md>
 Access the console <howto/instances_console.md>

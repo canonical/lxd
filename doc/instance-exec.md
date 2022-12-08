@@ -50,7 +50,7 @@ You can override the user, group and working directory by specifying absolute va
 You can pass environment variables to an exec session in the following two ways:
 
 Set environment variables as instance options
-: To set the `ENVVAR` environment variable to `VALUE` in the instance, set the `environment.ENVVAR` {ref}`instance option <instance-options>`:
+: To set the `ENVVAR` environment variable to `VALUE` in the instance, set the `environment.ENVVAR` {ref}`instance option <instance-options-misc>`:
 
       lxc config set <instance_name> environment.ENVVAR=VALUE
 

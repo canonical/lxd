@@ -1,11 +1,9 @@
 (instances-limit-units)=
 # Units for storage and network limits
 
-Any value representing bytes or bits can make use of a number of useful
-suffixes to make it easier to understand what a particular limit is.
+Any value that represents bytes or bits can make use of a number of suffixes to make it easier to understand what a particular limit is.
 
-Both decimal and binary (kibi) units are supported with the latter
-mostly making sense for storage limits.
+Both decimal and binary (kibi) units are supported, with the latter mostly making sense for storage limits.
 
 The full list of bit suffixes currently supported is:
 
