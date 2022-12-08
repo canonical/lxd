@@ -90,13 +90,13 @@ func (d *zfs) createVolume(dataset string, size int64, options ...string) error 
 	return nil
 }
 
-func (d *zfs) checkDataset(dataset string) bool {
+func (d *zfs) datasetExists(dataset string) (bool, error) {
 	out, err := shared.RunCommand("zfs", "get", "-H", "-o", "name", "name", dataset)
 	if err != nil {
-		return false
+		return false, nil
 	}
 
-	return strings.TrimSpace(out) == dataset
+	return strings.TrimSpace(out) == dataset, nil
 }
 
 func (d *zfs) deleteDatasetRecursive(dataset string) error {
