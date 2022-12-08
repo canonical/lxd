@@ -185,12 +185,18 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	// Get MAC from VF if not specified.
+	if d.config["hwaddr"] == "" {
+		d.config["hwaddr"] = saveData["last_state.hwaddr"]
+	}
+
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "type", Value: "phys"},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: saveData["host_name"]},
+		{Key: "hwaddr", Value: d.config["hwaddr"]},
 	}
 
 	if d.inst.Type() == instancetype.VM {
