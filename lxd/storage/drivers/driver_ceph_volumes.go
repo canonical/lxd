@@ -61,70 +61,77 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	deletedVol := NewVolume(d, d.name, cephVolumeTypeZombieImage, vol.contentType, vol.name, vol.config, vol.poolConfig)
 
 	// Check if we have a deleted zombie image. If so, restore it otherwise create a new image volume.
-	if vol.volType == VolumeTypeImage && d.HasVolume(deletedVol) {
-		canRestore := true
-
-		// Check if the cached image volume is larger than the current pool volume.size setting
-		// (if so we won't be able to resize the snapshot to that the smaller size later).
-		volSizeBytes, err := d.getVolumeSize(d.getRBDVolumeName(deletedVol, "", false, true))
+	if vol.volType == VolumeTypeImage {
+		volExists, err := d.HasVolume(deletedVol)
 		if err != nil {
 			return err
 		}
 
-		poolVolSize := defaultBlockSize
-		if vol.poolConfig["volume.size"] != "" {
-			poolVolSize = vol.poolConfig["volume.size"]
-		}
+		if volExists {
+			canRestore := true
 
-		poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
-		if err != nil {
-			return err
-		}
-
-		// If the cached volume size is different than the pool volume size, then we can't use the
-		// deleted cached image volume and instead we will rename it to a random UUID so it can't
-		// be restored in the future and a new cached image volume will be created instead.
-		if volSizeBytes != poolVolSizeBytes {
-			d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
-			randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.New(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
-			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(randomVol, "", false, true))
+			// Check if the cached image volume is larger than the current pool volume.size setting
+			// (if so we won't be able to resize the snapshot to that the smaller size later).
+			volSizeBytes, err := d.getVolumeSize(d.getRBDVolumeName(deletedVol, "", false, true))
 			if err != nil {
 				return err
 			}
 
-			if vol.IsVMBlock() {
-				fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
-				fsRandomVol := randomVol.NewVMBlockFilesystemVolume()
-
-				err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsRandomVol, "", false, true))
-				if err != nil {
-					return err
-				}
+			poolVolSize := defaultBlockSize
+			if vol.poolConfig["volume.size"] != "" {
+				poolVolSize = vol.poolConfig["volume.size"]
 			}
 
-			canRestore = false
-		}
-
-		// Restore the image.
-		if canRestore {
-			d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
-			err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(vol, "", false, true))
+			poolVolSizeBytes, err := units.ParseByteSizeString(poolVolSize)
 			if err != nil {
 				return err
 			}
 
-			if vol.IsVMBlock() {
-				fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
-				fsVol := vol.NewVMBlockFilesystemVolume()
-
-				err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsVol, "", false, true))
+			// If the cached volume size is different than the pool volume size, then we can't use the
+			// deleted cached image volume and instead we will rename it to a random UUID so it can't
+			// be restored in the future and a new cached image volume will be created instead.
+			if volSizeBytes != poolVolSizeBytes {
+				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
+				randomVol := NewVolume(d, d.name, deletedVol.volType, deletedVol.contentType, strings.Replace(uuid.New(), "-", "", -1), deletedVol.config, deletedVol.poolConfig)
+				err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(randomVol, "", false, true))
 				if err != nil {
 					return err
 				}
+
+				if vol.IsVMBlock() {
+					fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
+					fsRandomVol := randomVol.NewVMBlockFilesystemVolume()
+
+					err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsRandomVol, "", false, true))
+					if err != nil {
+						return err
+					}
+				}
+
+				canRestore = false
 			}
 
-			revert.Success()
-			return nil
+			// Restore the image.
+			if canRestore {
+				d.logger.Debug("Restoring previously deleted cached image volume", logger.Ctx{"fingerprint": vol.Name()})
+				err = renameVolume(d.getRBDVolumeName(deletedVol, "", false, true), d.getRBDVolumeName(vol, "", false, true))
+				if err != nil {
+					return err
+				}
+
+				if vol.IsVMBlock() {
+					fsDeletedVol := deletedVol.NewVMBlockFilesystemVolume()
+					fsVol := vol.NewVMBlockFilesystemVolume()
+
+					err = renameVolume(d.getRBDVolumeName(fsDeletedVol, "", false, true), d.getRBDVolumeName(fsVol, "", false, true))
+					if err != nil {
+						return err
+					}
+				}
+
+				revert.Success()
+				return nil
+			}
 		}
 	}
 
@@ -525,14 +532,19 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 
 	recvName := d.getRBDVolumeName(vol, "", false, true)
 
-	if !d.HasVolume(vol) {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !volExists {
 		err := d.rbdCreateVolume(vol, "0")
 		if err != nil {
 			return err
 		}
 	}
 
-	err := vol.EnsureMountPath()
+	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -622,7 +634,12 @@ func (d *ceph) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, a
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
 func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
-	if !d.HasVolume(vol) {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if !volExists {
 		return nil
 	}
 
@@ -633,7 +650,11 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 			return err
 		}
 
-		hasReadonlySnapshot := d.hasVolume(d.getRBDVolumeName(vol, "readonly", false, false))
+		hasReadonlySnapshot, err := d.hasVolume(d.getRBDVolumeName(vol, "readonly", false, false))
+		if err != nil {
+			return err
+		}
+
 		hasDependendantSnapshots := false
 
 		if hasReadonlySnapshot {
@@ -734,7 +755,7 @@ func (d *ceph) hasVolume(rbdVolumeName string) bool {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *ceph) HasVolume(vol Volume) bool {
+func (d *ceph) HasVolume(vol Volume) (bool, error) {
 	return d.hasVolume(d.getRBDVolumeName(vol, "", false, false))
 }
 
@@ -1647,7 +1668,12 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 			return false, err
 		}
 
-		if !d.HasVolume(cloneVol) {
+		volExists, err := d.HasVolume(cloneVol)
+		if err != nil {
+			return false, err
+		}
+
+		if !volExists {
 			return true, nil
 		}
 
