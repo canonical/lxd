@@ -927,7 +927,12 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, srcConfig.Volume.Config)
 
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		return fmt.Errorf("Cannot create volume, already exists on target storage")
 	}
 
@@ -1763,7 +1768,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// Check if the volume exists on storage.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
-	volExists := b.driver.HasVolume(vol)
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
@@ -2078,7 +2086,12 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	l.Debug("Deleting instance volume", logger.Ctx{"volName": volStorageName})
 
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		err = b.driver.DeleteVolume(vol, op)
 		if err != nil {
 			return fmt.Errorf("Error deleting storage volume: %w", err)
@@ -2738,7 +2751,12 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	// There's no need to pass config as it's not needed when deleting a volume snapshot.
 	vol := b.GetVolume(volType, contentType, snapVolName, nil)
 
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		err = b.driver.DeleteVolumeSnapshot(vol, op)
 		if err != nil {
 			return err
@@ -3041,7 +3059,12 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	// Check if we already have a suitable volume on storage device.
-	if b.driver.HasVolume(imgVol) {
+	volExists, err := b.driver.HasVolume(imgVol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		if imgDBVol != nil {
 			// Work out what size the image volume should be as if we were creating from scratch.
 			// This takes into account the existing volume's "volatile.rootfs.size" setting if set so
@@ -3152,7 +3175,12 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 
 	vol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		err = b.driver.DeleteVolume(vol, op)
 		if err != nil {
 			return err
@@ -3705,7 +3733,10 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	// Check if the volume exists on storage.
 	volStorageName := project.StorageVolume(projectName, args.Name)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(args.ContentType), volStorageName, volumeConfig)
-	volExists := b.driver.HasVolume(vol)
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
 
 	// Check for inconsistencies between database and storage before continuing.
 	if dbVol == nil && volExists {
@@ -4113,7 +4144,12 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, nil)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		err = b.driver.DeleteVolume(vol, op)
 		if err != nil {
 			return err
@@ -4453,7 +4489,12 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
-	if b.driver.HasVolume(vol) {
+	volExists, err := b.driver.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		err := b.driver.DeleteVolumeSnapshot(vol, op)
 		if err != nil {
 			return err
