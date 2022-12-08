@@ -158,7 +158,12 @@ func (d zfs) ensureInitialDatasets(warnOnExistingPolicyApplyError bool) error {
 		}
 
 		datasetPath := filepath.Join(d.config["zfs.pool_name"], dataset)
-		if d.checkDataset(datasetPath) {
+		exists, err := d.datasetExists(datasetPath)
+		if err != nil {
+			return err
+		}
+
+		if exists {
 			err = d.setDatasetProperties(datasetPath, properties...)
 			if err != nil {
 				if warnOnExistingPolicyApplyError {
@@ -284,7 +289,12 @@ func (d *zfs) Create() error {
 
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
 			// Handle a dataset.
-			if !d.checkDataset(d.config["zfs.pool_name"]) {
+			exists, err := d.datasetExists(d.config["zfs.pool_name"])
+			if err != nil {
+				return err
+			}
+
+			if !exists {
 				err := d.createDataset(d.config["zfs.pool_name"], "mountpoint=legacy")
 				if err != nil {
 					return err
@@ -328,7 +338,12 @@ func (d *zfs) Create() error {
 // Delete removes the storage pool from the storage device.
 func (d *zfs) Delete(op *operations.Operation) error {
 	// Check if the dataset/pool is already gone.
-	if !d.checkDataset(d.config["zfs.pool_name"]) {
+	exists, err := d.datasetExists(d.config["zfs.pool_name"])
+	if err != nil {
+		return err
+	}
+
+	if !exists {
 		return nil
 	}
 
@@ -415,13 +430,23 @@ func (d *zfs) importPool() (bool, error) {
 	}
 
 	// Check if already setup.
-	if d.checkDataset(d.config["zfs.pool_name"]) {
+	exists, err := d.datasetExists(d.config["zfs.pool_name"])
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
 		return false, nil
 	}
 
 	// Check if the pool exists.
 	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
-	if d.checkDataset(poolName) {
+	exists, err = d.datasetExists(poolName)
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
 		return false, fmt.Errorf("ZFS zpool exists but dataset is missing")
 	}
 
@@ -440,7 +465,12 @@ func (d *zfs) importPool() (bool, error) {
 	}
 
 	// Check that the dataset now exists.
-	if d.checkDataset(d.config["zfs.pool_name"]) {
+	exists, err = d.datasetExists(d.config["zfs.pool_name"])
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
 		return true, nil
 	}
 
@@ -477,13 +507,18 @@ func (d *zfs) Unmount() (bool, error) {
 	}
 
 	// Check if already unmounted.
-	if !d.checkDataset(d.config["zfs.pool_name"]) {
+	exists, err := d.datasetExists(d.config["zfs.pool_name"])
+	if err != nil {
+		return false, err
+	}
+
+	if !exists {
 		return false, nil
 	}
 
 	// Export the pool.
 	poolName := strings.Split(d.config["zfs.pool_name"], "/")[0]
-	_, err := shared.RunCommand("zpool", "export", poolName)
+	_, err = shared.RunCommand("zpool", "export", poolName)
 	if err != nil {
 		return false, err
 	}
