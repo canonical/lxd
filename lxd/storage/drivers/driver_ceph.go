@@ -169,8 +169,12 @@ func (d *ceph) Create() error {
 
 		d.config["volatile.pool.pristine"] = "true"
 	} else {
-		ok := d.HasVolume(placeholderVol)
-		if ok {
+		volExists, err := d.HasVolume(placeholderVol)
+		if err != nil {
+			return err
+		}
+
+		if volExists {
 			// ceph.osd.force_reuse is deprecated and should not be used. OSD pools are a logical
 			// construct there is no good reason not to create one for dedicated use by LXD.
 			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
