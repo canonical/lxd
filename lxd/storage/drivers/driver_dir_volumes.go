@@ -212,7 +212,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *dir) HasVolume(vol Volume) bool {
+func (d *dir) HasVolume(vol Volume) (bool, error) {
 	return genericVFSHasVolume(vol)
 }
 
