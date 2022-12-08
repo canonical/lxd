@@ -27,7 +27,7 @@ type driver interface {
 type Driver interface {
 	// Internal.
 	Info() Info
-	HasVolume(vol Volume) bool
+	HasVolume(vol Volume) (bool, error)
 	roundVolumeBlockSizeBytes(sizeBytes int64) int64
 
 	// Export struct details.
