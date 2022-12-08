@@ -89,6 +89,11 @@ func (d *ceph) Info() Info {
 	}
 }
 
+// getPlaceholderVolume returns the volume used to indicate if the pool is used by LXD.
+func (d *ceph) getPlaceholderVolume() Volume {
+	return NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
+}
+
 // Create is called during pool creation and is effectively using an empty driver struct.
 // WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *ceph) Create() error {
@@ -131,7 +136,7 @@ func (d *ceph) Create() error {
 		d.config["source"] = d.name
 	}
 
-	placeholderVol := NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
+	placeholderVol := d.getPlaceholderVolume()
 
 	if !d.osdPoolExists() {
 		// Create new osd pool.
@@ -286,7 +291,16 @@ func (d *ceph) Update(changedConfig map[string]string) error {
 
 // Mount mounts the storage pool.
 func (d *ceph) Mount() (bool, error) {
-	// Nothing to do here.
+	placeholderVol := d.getPlaceholderVolume()
+	volExists, err := d.HasVolume(placeholderVol)
+	if err != nil {
+		return false, err
+	}
+
+	if !volExists {
+		return false, fmt.Errorf("Placeholder volume does not exist")
+	}
+
 	return true, nil
 }
 
