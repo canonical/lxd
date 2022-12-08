@@ -234,14 +234,9 @@ func (d *lvm) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *lvm) HasVolume(vol Volume) bool {
+func (d *lvm) HasVolume(vol Volume) (bool, error) {
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	volExists, err := d.logicalVolumeExists(volDevPath)
-	if err != nil {
-		return false
-	}
-
-	return volExists
+	return d.logicalVolumeExists(volDevPath)
 }
 
 // FillVolumeConfig populate volume with default config.
