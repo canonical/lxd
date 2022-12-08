@@ -507,7 +507,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
 	// should do a two stage transfer to minimize downtime.
 	instanceRunning := s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
-	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSourceArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC || volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RBD
+	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSourceArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC
 	if s.instance.Type() == instancetype.Container && instanceRunning && nonOptimizedMigration {
 		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
 		volSourceArgs.MultiSync = true
