@@ -40,6 +40,5 @@ Instance devices
 ../reference/instance_properties.md
 ../reference/instance_options.md
 ../reference/devices.md
-Override QEMU configuration <../howto/instance_qemu_config.md>
 ../reference/instance_units.md
 ```
