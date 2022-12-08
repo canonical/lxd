@@ -516,12 +516,17 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 			newFullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 			newSnapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, newFullSnapName, vol.config, vol.poolConfig)
 
-			if d.HasVolume(newSnapVol) {
+			volExists, err := d.HasVolume(newSnapVol)
+			if err != nil {
+				return err
+			}
+
+			if volExists {
 				return fmt.Errorf("LVM snapshot volume already exists %q", newSnapVol.name)
 			}
 
 			newSnapVolPath := newSnapVol.MountPath()
-			err := newSnapVol.EnsureMountPath()
+			err = newSnapVol.EnsureMountPath()
 			if err != nil {
 				return err
 			}
@@ -543,7 +548,12 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 	}
 
 	// Handle copying the main volume.
-	if d.HasVolume(vol) {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return err
+	}
+
+	if volExists {
 		if refresh {
 			newVolDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 			tmpVolName := fmt.Sprintf("%s%s", vol.name, tmpVolSuffix)
@@ -576,7 +586,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 	}
 
 	// Create snapshot of source volume as new volume.
-	_, err := d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], srcVol, vol, false, d.usesThinpool())
+	_, err = d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], srcVol, vol, false, d.usesThinpool())
 	if err != nil {
 		return fmt.Errorf("Error creating LVM logical volume snapshot: %w", err)
 	}
