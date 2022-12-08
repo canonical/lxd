@@ -590,13 +590,6 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 		return err
 	}
 
-	if volTargetArgs.Live {
-		err = d.receiveVolume(recvName, conn, wrapper)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Map the RBD volume.
 	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
