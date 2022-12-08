@@ -40,12 +40,43 @@ type CPUInstanceProperties struct {
 	ThreadID  int `json:"thread-id,omitempty"`
 }
 
+// CPU contains information about a CPU.
+type CPU struct {
+	Index    int    `json:"cpu-index,omitempty"`
+	QOMPath  string `json:"qom-path,omitempty"`
+	ThreadID int    `json:"thread-id,omitempty"`
+	Target   string `json:"target,omitempty"`
+
+	Props CPUInstanceProperties `json:"props"`
+}
+
 // HotpluggableCPU contains information about a hotpluggable CPU.
 type HotpluggableCPU struct {
-	Type       string                `json:"type"`
-	Props      CPUInstanceProperties `json:"props"`
-	VCPUsCount int                   `json:"vcpus-count"`
-	QOMPath    string                `json:"qom-path,omitempty"`
+	Type       string `json:"type"`
+	VCPUsCount int    `json:"vcpus-count"`
+	QOMPath    string `json:"qom-path,omitempty"`
+
+	Props CPUInstanceProperties `json:"props"`
+}
+
+// QueryCPUs returns a list of CPUs.
+func (m *Monitor) QueryCPUs() ([]CPU, error) {
+	// Check if disconnected
+	if m.disconnected {
+		return nil, ErrMonitorDisconnect
+	}
+
+	// Prepare the response.
+	var resp struct {
+		Return []CPU `json:"return"`
+	}
+
+	err := m.run("query-cpus-fast", nil, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query CPUs: %w", err)
+	}
+
+	return resp.Return, nil
 }
 
 // QueryHotpluggableCPUs returns a list of hotpluggable CPUs.
@@ -93,8 +124,60 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 		return ErrMonitorDisconnect
 	}
 
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			FDName string `json:"fdname"`
+		} `json:"arguments"`
+	}
+
+	req.Execute = "getfd"
+	req.Arguments.FDName = name
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
 	// Query the status.
-	_, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'getfd', 'arguments': {'fdname': '%s'}}", name)), file)
+	_, err = m.qmp.RunWithFile(reqJSON, file)
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return errPing
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// CloseFile closes an existing file descriptor in the QMP fd table associated to name.
+func (m *Monitor) CloseFile(name string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			FDName string `json:"fdname"`
+		} `json:"arguments"`
+	}
+
+	req.Execute = "closefd"
+	req.Arguments.FDName = name
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	// Query the status.
+	_, err = m.qmp.Run(reqJSON)
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
