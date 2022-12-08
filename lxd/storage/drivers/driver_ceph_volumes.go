@@ -1307,6 +1307,12 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		return ErrNotSupported
 	}
 
+	// Handle rbd export-diff/import-diff migration.
+	if volSrcArgs.MultiSync || volSrcArgs.FinalSync {
+		// This is not needed if the migration is performed using rbd export-diff/import-diff.
+		return fmt.Errorf("MultiSync should not be used with optimized migration")
+	}
+
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.MigrateVolume(fsVol, conn, volSrcArgs, op)
@@ -1345,30 +1351,28 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 
 	lastSnap := ""
 
-	if !volSrcArgs.FinalSync {
-		for i, snapName := range volSrcArgs.Snapshots {
-			snapshot, _ := vol.NewSnapshot(snapName)
+	for i, snapName := range volSrcArgs.Snapshots {
+		snapshot, _ := vol.NewSnapshot(snapName)
 
-			prev := ""
+		prev := ""
 
-			if i > 0 {
-				prev = fmt.Sprintf("snapshot_%s", volSrcArgs.Snapshots[i-1])
-			}
+		if i > 0 {
+			prev = fmt.Sprintf("snapshot_%s", volSrcArgs.Snapshots[i-1])
+		}
 
-			lastSnap = fmt.Sprintf("snapshot_%s", snapName)
-			sendSnapName := d.getRBDVolumeName(vol, lastSnap, false, true)
+		lastSnap = fmt.Sprintf("snapshot_%s", snapName)
+		sendSnapName := d.getRBDVolumeName(vol, lastSnap, false, true)
 
-			// Setup progress tracking.
-			var wrapper *ioprogress.ProgressTracker
+		// Setup progress tracking.
+		var wrapper *ioprogress.ProgressTracker
 
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+		}
 
-			err := d.sendVolume(conn, sendSnapName, prev, wrapper)
-			if err != nil {
-				return err
-			}
+		err := d.sendVolume(conn, sendSnapName, prev, wrapper)
+		if err != nil {
+			return err
 		}
 	}
 
