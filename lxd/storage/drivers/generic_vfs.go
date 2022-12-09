@@ -441,8 +441,17 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 }
 
 // genericVFSHasVolume is a generic HasVolume implementation for VFS-only drivers.
-func genericVFSHasVolume(vol Volume) bool {
-	return shared.PathExists(vol.MountPath())
+func genericVFSHasVolume(vol Volume) (bool, error) {
+	_, err := os.Lstat(vol.MountPath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
 }
 
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
@@ -798,7 +807,12 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 		return nil, nil, err
 	}
 
-	if d.HasVolume(vol) {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if volExists {
 		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
 	}
 

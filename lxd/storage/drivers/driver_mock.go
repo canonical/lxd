@@ -101,8 +101,8 @@ func (d *mock) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *mock) HasVolume(vol Volume) bool {
-	return true
+func (d *mock) HasVolume(vol Volume) (bool, error) {
+	return true, nil
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.

@@ -143,7 +143,12 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
 	}
 
-	if d.HasVolume(vol) {
+	volExists, err := d.HasVolume(vol)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if volExists {
 		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
 	}
 
@@ -166,7 +171,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	revert.Add(revertHook)
 
 	// Find the compression algorithm used for backup source data.
-	_, err := srcData.Seek(0, 0)
+	_, err = srcData.Seek(0, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -921,7 +926,7 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
-func (d *btrfs) HasVolume(vol Volume) bool {
+func (d *btrfs) HasVolume(vol Volume) (bool, error) {
 	return genericVFSHasVolume(vol)
 }
 
