@@ -383,28 +383,14 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 				d.logger.Error("Failed to advertise vsock address", logger.Ctx{"err": err})
 				return
 			}
-		} else if event == "RESET" {
-			// As we cannot start QEMU with the -no-reboot flag, because we have to issue a
-			// system_reset QMP command to have the devices bootindex applied, then we need to handle
-			// the RESET events triggered from a guest-reset operation and prevent QEMU internally
-			// restarting the guest, and instead forcefully shutdown and restart the guest from LXD.
-			entry, ok := data["reason"]
-			if ok && entry == "guest-reset" {
-				d.logger.Debug("Instance guest restart")
-				err = d.Restart(0) // Using 0 timeout will call d.Stop() then d.Start().
-				if err != nil {
-					d.logger.Error("Failed to restart instance", logger.Ctx{"err": err})
-					return
-				}
-			}
 		} else if event == "SHUTDOWN" {
-			d.logger.Debug("Instance stopped")
-
 			target := "stop"
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
 				target = "reboot"
 			}
+
+			d.logger.Debug("Instance stopped", logger.Ctx{"target": target, "reason": data["reason"]})
 
 			err = d.onStop(target)
 			if err != nil {
@@ -1535,9 +1521,23 @@ func (d *qemu) Start(stateful bool) error {
 	// Due to a bug in QEMU, devices added using QMP's device_add command do not have their bootindex option
 	// respected (even if added before emuation is started). To workaround this we must reset the VM in order
 	// for it to rebuild its boot config and to take into account the devices bootindex settings.
-	// This also means we cannot start the QEMU process with the -no-reboot flag and have to handle restarting
-	// the process from a guest initiated reset using the event handler returned from getMonitorEventHandler().
-	_ = monitor.Reset()
+	// This also means we cannot start the QEMU process with the -no-reboot flag, so we set the same reboot
+	// action below after this call.
+	err = monitor.Reset()
+	if err != nil {
+		op.Done(err)
+		return fmt.Errorf("Failed resetting VM: %w", err)
+	}
+
+	// Set the equivalent of the -no-reboot flag (which we can't set because of the reset bug above) via QMP.
+	// This ensures that if the guest initiates a reboot that the SHUTDOWN event is generated instead with the
+	// reason set to "guest-reset" so that the event handler returned from getMonitorEventHandler() can restart
+	// the guest instead.
+	err = monitor.SetAction(map[string]string{"reboot": "shutdown"})
+	if err != nil {
+		op.Done(err)
+		return fmt.Errorf("Failed setting reboot action: %w", err)
+	}
 
 	_ = op.Reset() // Reset timeout to default.
 
