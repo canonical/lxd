@@ -578,6 +578,16 @@ func (m *Monitor) RemoveNIC(netDevID string) error {
 	return nil
 }
 
+// SetAction sets the actions the VM will take for certain scenarios.
+func (m *Monitor) SetAction(actions map[string]string) error {
+	err := m.run("set-action", actions, nil)
+	if err != nil {
+		return fmt.Errorf("Failed setting actions: %w", err)
+	}
+
+	return nil
+}
+
 // Reset VM.
 func (m *Monitor) Reset() error {
 	err := m.run("system_reset", nil, nil)
