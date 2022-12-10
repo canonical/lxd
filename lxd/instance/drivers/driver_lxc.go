@@ -2926,7 +2926,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		waitTimeout := operationlock.TimeoutShutdown
 		_ = op.ResetTimeout(waitTimeout)
 		err = d.unmount()
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			err = fmt.Errorf("Failed unmounting instance: %w", err)
 			op.Done(err)
 			return
