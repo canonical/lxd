@@ -1,10 +1,9 @@
 (instances-snapshots)=
 # How to create instance snapshots
 
-You can back up your instance by creating a snapshot of the instance.
+You can save your instance at a point in time by creating an instance snapshot, which makes it easy to restore the instance to a previous state.
 
-A snapshot saves the state of the instance volume at a specific time, which makes it easy to restore the instance to a previous state.
-It is stored in the same storage pool as the instance volume itself.
+Instance snapshots are stored in the same storage pool as the instance volume itself.
 
 ## Create a snapshot
 
@@ -18,7 +17,8 @@ Use the following command to create a snapshot of an instance:
     :end-before: <!-- Include end create snapshot options -->
 ```
 
-To capture not only the data included in the instance volume but also the running state of the instance, add the `--stateful` flag.
+For virtual machines, you can add the `--stateful` flag to capture not only the data included in the instance volume but also the running state of the instance.
+Note that this feature is not fully supported for containers because of CRIU limitations.
 
 ## View, edit or delete snapshots
 
@@ -32,9 +32,15 @@ To show configuration information about a snapshot, use the following command:
 
     lxc config show <instance_name>/<snapshot_name>
 
-To edit a snapshot (for example, to change the expiry date), use the following command:
+To change the expiry date of a snapshot, use the following command:
 
     lxc config edit <instance_name>/<snapshot_name>
+
+```{note}
+In general, snapshots cannot be edited, because they preserve the state of the instance.
+The only exception is the expiry date.
+Other changes to the configuration are silently ignored.
+```
 
 To delete a snapshot, use the following command:
 
