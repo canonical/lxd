@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -147,10 +146,7 @@ func (d *ceph) rbdDeleteVolume(vol Volume) error {
 // in the /dev directory and is therefore necessary in order to mount it.
 func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 	rbdName := d.getRBDVolumeName(vol, "", false, false)
-	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
-	defer cancel()
-
-	devPath, err := shared.RunCommandContext(ctx,
+	devPath, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
