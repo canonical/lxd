@@ -119,8 +119,8 @@ Key                     | Type    | Default           | Managed | Description
 `maas.subnet.ipv4`      | string  | -                 | yes     | MAAS IPv4 subnet to register the instance in
 `maas.subnet.ipv6`      | string  | -                 | yes     | MAAS IPv6 subnet to register the instance in
 `mtu`                   | integer | parent MTU        | yes     | The MTU of the new interface
-`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
 `name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
+`network`               | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
 `parent`                | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
 `vlan`                  | integer | -                 | no      | The VLAN ID to attach to
 
