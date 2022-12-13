@@ -37,12 +37,12 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
-	hash, err := instance.ResolveImage(d.State(), projectName, req.Source)
+	hash, err := instance.ResolveImage(d.State(), p.Name, req.Source)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -54,7 +54,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 
 	run := func(op *operations.Operation) error {
 		args := db.InstanceArgs{
-			Project:     projectName,
+			Project:     p.Name,
 			Config:      req.Config,
 			Type:        dbType,
 			Description: req.Description,
@@ -67,21 +67,6 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 		var info *api.Image
 		if req.Source.Server != "" {
 			var autoUpdate bool
-			var p *api.Project
-			err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
-				if err != nil {
-					return err
-				}
-
-				p, err = project.ToAPI(ctx, tx.Tx())
-
-				return err
-			})
-			if err != nil {
-				return err
-			}
-
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
@@ -90,7 +75,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 
 			var budget int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				budget, err = project.GetImageSpaceBudget(tx, projectName)
+				budget, err = project.GetImageSpaceBudget(tx, p.Name)
 				return err
 			})
 			if err != nil {
@@ -108,14 +93,14 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 				AutoUpdate:   autoUpdate,
 				Public:       false,
 				PreferCached: true,
-				ProjectName:  projectName,
+				ProjectName:  p.Name,
 				Budget:       budget,
 			})
 			if err != nil {
 				return err
 			}
 		} else {
-			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: &projectName})
+			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: &p.Name})
 			if err != nil {
 				return err
 			}
@@ -137,7 +122,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1149,7 +1134,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, targetProjectName, profiles, &req)
+		return createFromImage(d, r, *targetProject, profiles, &req)
 	case "none":
 		return createFromNone(d, r, targetProjectName, profiles, &req)
 	case "migration":
