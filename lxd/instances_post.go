@@ -846,6 +846,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
+
+	var targetGroup string
+	if strings.HasPrefix(targetNode, "@") {
+		targetGroup = strings.TrimPrefix(targetNode, "@")
+	}
+
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
@@ -859,6 +865,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		targetProject, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
+		}
+
+		if targetGroup != "" {
+			// Check if the target group exists.
+			targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
+			if err != nil {
+				return err
+			}
+
+			if !targetGroupExists {
+				return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+			}
 		}
 
 		profileProject := project.ProfileProjectFromRecord(targetProject)
@@ -951,61 +969,21 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if clustered && (targetNode == "" || strings.HasPrefix(targetNode, "@")) {
-		// If no target node was specified, pick the node with the
-		// least number of containers. If there's just one node, or if
-		// the selected node is the local one, this is effectively a
-		// no-op, since GetNodeWithLeastInstances() will return an empty
-		// string.
-		// If the target is a cluster group, find a suitable node.
-		group := ""
-
-		if strings.HasPrefix(targetNode, "@") {
-			group = strings.TrimPrefix(targetNode, "@")
-		}
+	if clustered && (targetNode == "" || targetGroup != "") {
+		// If no target node was specified, pick the node with the least number of instances.
+		// If there's just one node, or if the selected node is the local one, this is effectively a no-op,
+		// since GetNodeWithLeastInstances() will return an empty string.
+		// If the target is a cluster group, find a suitable node within the group.
 
 		// Load restricted groups from project.
 		var allowedGroups []string
+
 		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
 			allowedGroups = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
-		} else {
-			allowedGroups = nil
-		}
-
-		if group != "" {
-			var groupExists bool
-
-			// Check if the group exists.
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				groupExists, err = dbCluster.ClusterGroupExists(ctx, tx.Tx(), group)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			if !groupExists {
-				return response.BadRequest(fmt.Errorf("Cluster group %q doesn't exist", group))
-			}
 
 			// Validate restrictions.
-			if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
-				found := false
-
-				for _, entry := range allowedGroups {
-					if group == entry {
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
-				}
+			if targetGroup != "" && !shared.StringInSlice(targetGroup, allowedGroups) {
+				return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
 			}
 		}
 
