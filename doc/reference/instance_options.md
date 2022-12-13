@@ -35,7 +35,7 @@ Key                                             | Type      | Default           
 `cluster.evacuate`                              | string    | `auto`            | no            | -                         | Controls what to do when evacuating the instance (`auto`, `migrate`, `live-migrate`, or `stop`)
 `environment.*`                                 | string    | -                 | yes (exec)    | -                         | Key/value environment variables to export to the instance and set for `lxc exec`
 `linux.kernel_modules`                          | string    | -                 | yes           | container                 | Comma-separated list of kernel modules to load before starting the instance
-`linux.sysctl.*`                                | string    | -                 | no            | container                 | Controls whether to allow modifying `sysctl` settings
+`linux.sysctl.*`                                | string    | -                 | no            | container                 | Value to override the corresponding `sysctl` setting in the container
 `user.*`                                        | string    | -                 | no            | -                         | Free-form user key/value storage (can be used in search)
 
 (instance-options-boot)=
