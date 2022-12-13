@@ -213,7 +213,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 
 	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
+		return response.NotImplemented(fmt.Errorf("Mode %q not implemented", req.Source.Mode))
 	}
 
 	// Parse the architecture name
