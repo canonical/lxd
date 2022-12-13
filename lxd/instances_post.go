@@ -156,7 +156,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 	return operations.OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromNone(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -164,14 +164,6 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	var profiles []api.Profile
-	if req.Profiles != nil {
-		profiles, err = d.State().DB.Cluster.GetProfiles(projectName, req.Profiles)
-		if err != nil {
-			return response.BadRequest(err)
-		}
 	}
 
 	args := db.InstanceArgs{
