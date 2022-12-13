@@ -417,7 +417,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromCopy(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -460,7 +460,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, r, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, profiles, req)
 			}
 
 			_, pool, _, err := d.db.Cluster.GetStoragePoolInAnyState(sourcePoolName)
@@ -471,7 +471,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if pool.Driver != "ceph" {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, r, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, profiles, req)
 			}
 		}
 	}
@@ -512,16 +512,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		req.Devices[key] = value
 	}
 
-	// Profiles override
-	if req.Profiles == nil {
-		profileNames := make([]string, 0, len(source.Profiles()))
-		for _, profile := range source.Profiles() {
-			profileNames = append(profileNames, profile.Name)
-		}
-
-		req.Profiles = profileNames
-	}
-
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
@@ -543,11 +533,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
-	apiProfiles, err := d.db.Cluster.GetProfiles(targetProject, req.Profiles)
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to get profiles from database: %w", err))
-	}
-
 	args := db.InstanceArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
@@ -558,7 +543,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     apiProfiles,
+		Profiles:     profiles,
 		Stateful:     req.Stateful,
 	}
 
@@ -1152,7 +1137,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.Instance, projectName string, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
@@ -1234,5 +1219,5 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(d, nil, projectName, req)
+	return createFromMigration(d, nil, projectName, profiles, req)
 }
