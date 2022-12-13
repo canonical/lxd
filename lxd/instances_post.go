@@ -206,7 +206,7 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, profiles []a
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromMigration(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -220,11 +220,6 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	// Pre-fill default profile.
-	if req.Profiles == nil {
-		req.Profiles = []string{"default"}
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -247,50 +242,8 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     make([]api.Profile, 0, len(req.Profiles)),
+		Profiles:     profiles,
 		Stateful:     req.Stateful,
-	}
-
-	// Early profile validation.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profileProject := projectName
-		enabled, err := dbCluster.ProjectHasProfiles(context.Background(), tx.Tx(), profileProject)
-		if err != nil {
-			return fmt.Errorf("Check if project has profiles: %w", err)
-		}
-
-		if !enabled {
-			profileProject = "default"
-		}
-
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &profileProject})
-		if err != nil {
-			return err
-		}
-
-		profilesByName := map[string]dbCluster.Profile{}
-		for _, profile := range profiles {
-			profilesByName[profile.Name] = profile
-		}
-
-		for _, name := range req.Profiles {
-			profile, ok := profilesByName[name]
-			if !ok {
-				return fmt.Errorf("Requested profile '%q' doesn't exist", name)
-			}
-
-			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			args.Profiles = append(args.Profiles, *apiProfile)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return response.InternalError(err)
 	}
 
 	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(d, projectName, req)
