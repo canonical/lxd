@@ -1014,7 +1014,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			defaultArch := ""
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
