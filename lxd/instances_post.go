@@ -1032,8 +1032,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name: %q is reserved for snapshots", shared.SnapshotDelimiter))
+	err = instance.ValidName(req.Name, false)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	if clustered && (targetNode == "" || targetGroup != "") {
