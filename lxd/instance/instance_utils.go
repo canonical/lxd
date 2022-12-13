@@ -596,7 +596,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 //
 // An empty list indicates that the request may be handled by any architecture.
 // A nil list indicates that we can't tell at this stage, typically for private images.
-func SuitableArchitectures(s *state.State, project string, req api.InstancesPost) ([]int, error) {
+func SuitableArchitectures(ctx context.Context, s *state.State, project string, sourceInst *cluster.Instance, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
 	if shared.StringInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
@@ -619,17 +619,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 	// For copy, always use the source architecture.
 	if req.Source.Type == "copy" {
-		srcProject := req.Source.Project
-		if srcProject == "" {
-			srcProject = project
-		}
-
-		inst, err := fetchInstanceDatabaseObject(s, srcProject, req.Source.Source)
-		if err != nil {
-			return nil, err
-		}
-
-		return []int{inst.Architecture}, nil
+		return []int{sourceInst.Architecture}, nil
 	}
 
 	// For image, things get a bit more complicated.
