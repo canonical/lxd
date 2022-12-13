@@ -1008,9 +1008,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, group, allowedGroups)
-			return err
+			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, allowedGroups)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		})
 		if err != nil {
 			return response.SmartError(err)
