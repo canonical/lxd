@@ -839,6 +839,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceTypeContainer // Default to container if not specified.
 	}
 
+	// Check if clustered.
+	clustered, err := cluster.Enabled(d.db.Node)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
+	}
+
 	targetNode := queryParam(r, "target")
 	var targetProject *api.Project
 	var profiles []api.Profile
@@ -943,12 +949,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db.Node)
-	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
 	if clustered && (targetNode == "" || strings.HasPrefix(targetNode, "@")) {
