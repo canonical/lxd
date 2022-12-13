@@ -1035,14 +1035,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			if targetNode == "" {
+				return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
+			}
+
 			return nil
 		})
 		if err != nil {
 			return response.SmartError(err)
-		}
-
-		if targetNode == "" {
-			return response.BadRequest(fmt.Errorf("No suitable cluster member could be found"))
 		}
 	}
 
