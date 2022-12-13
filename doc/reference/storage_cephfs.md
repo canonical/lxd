@@ -1,3 +1,7 @@
+---
+discourse: 15457
+---
+
 (storage-cephfs)=
 # CephFS - `cephfs`
 
