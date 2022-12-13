@@ -806,6 +806,27 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceTypeContainer // Default to container if not specified.
 	}
 
+	if req.Devices == nil {
+		req.Devices = map[string]map[string]string{}
+	}
+
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
+	if req.InstanceType != "" {
+		conf, err := instanceParseType(req.InstanceType)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		for k, v := range conf {
+			if req.Config[k] == "" {
+				req.Config[k] = v
+			}
+		}
+	}
+
 	// Check if clustered.
 	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
@@ -865,18 +886,19 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
 			}
 
+			if req.Source.Project == "" {
+				req.Source.Project = targetProjectName
+			}
+
+			sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
+			if err != nil {
+				return err
+			}
+
+			req.Type = api.InstanceType(sourceInst.Type.String())
+
 			// Use source instance's profiles if no profile override.
 			if req.Profiles == nil {
-				sourceProject := req.Source.Project
-				if sourceProject == "" {
-					sourceProject = targetProjectName
-				}
-
-				sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, sourceProject, req.Source.Source)
-				if err != nil {
-					return err
-				}
-
 				sourceInstArgs, err := tx.InstancesToInstanceArgs(ctx, true, *sourceInst)
 				if err != nil {
 					return err
@@ -974,10 +996,44 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Check that the project's limits are not violated. Note this check is performed after
+		// automatically generated config values (such as the ones from an InstanceType) have been set.
+		err = project.AllowInstanceCreation(tx, targetProjectName, req)
+		if err != nil {
+			return err
+		}
+
+		// Generate automatic instance name if not specified.
+		if req.Name == "" {
+			names, err := tx.GetInstanceNames(ctx, targetProjectName)
+			if err != nil {
+				return err
+			}
+
+			i := 0
+			for {
+				i++
+				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				if !shared.StringInSlice(req.Name, names) {
+					break
+				}
+
+				if i > 100 {
+					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
+				}
+			}
+
+			logger.Debugf("No name provided for new instance, creating using %q", req.Name)
+		}
+
 		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name: %q is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	if clustered && (targetNode == "" || targetGroup != "") {
@@ -1059,92 +1115,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			opAPI := op.Get()
 			return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
 		}
-	}
-
-	if req.Devices == nil {
-		req.Devices = map[string]map[string]string{}
-	}
-
-	if req.Config == nil {
-		req.Config = map[string]string{}
-	}
-
-	if req.InstanceType != "" {
-		conf, err := instanceParseType(req.InstanceType)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-
-		for k, v := range conf {
-			if req.Config[k] == "" {
-				req.Config[k] = v
-			}
-		}
-	}
-
-	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name: %q is reserved for snapshots", shared.SnapshotDelimiter))
-	}
-
-	// Check that the project's limits are not violated. Also, possibly
-	// automatically assign a name.
-	//
-	// Note this check is performed after automatically generated config
-	// values (such as the ones from an InstanceType) have been set.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		if req.Type == "" {
-			switch req.Source.Type {
-			case "copy":
-				if req.Source.Source == "" {
-					return fmt.Errorf("Must specify a source instance")
-				}
-
-				if req.Source.Project == "" {
-					req.Source.Project = targetProjectName
-				}
-
-				source, err := instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
-				if err != nil {
-					return fmt.Errorf("Load source instance from database: %w", err)
-				}
-
-				req.Type = api.InstanceType(source.Type.String())
-			case "migration":
-				req.Type = api.InstanceTypeContainer // Default to container if not specified.
-			}
-		}
-
-		err := project.AllowInstanceCreation(tx, targetProjectName, req)
-		if err != nil {
-			return err
-		}
-
-		if req.Name == "" {
-			names, err := tx.GetInstanceNames(ctx, targetProjectName)
-			if err != nil {
-				return err
-			}
-
-			i := 0
-			for {
-				i++
-				req.Name = strings.ToLower(petname.Generate(2, "-"))
-				if !shared.StringInSlice(req.Name, names) {
-					break
-				}
-
-				if i > 100 {
-					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
-				}
-			}
-
-			logger.Debugf("No name provided, creating %s", req.Name)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
 	}
 
 	switch req.Source.Type {
