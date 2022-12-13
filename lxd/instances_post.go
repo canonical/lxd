@@ -842,6 +842,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	targetNode := queryParam(r, "target")
 	var targetProject *api.Project
 	var profiles []api.Profile
+	var sourceInst *dbCluster.Instance
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -869,7 +870,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					sourceProject = targetProjectName
 				}
 
-				sourceInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, sourceProject, req.Source.Source)
+				sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, sourceProject, req.Source.Source)
 				if err != nil {
 					return err
 				}
@@ -1008,7 +1009,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(s, targetProjectName, req)
+		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
