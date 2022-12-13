@@ -304,21 +304,6 @@ func LoadByID(s *state.State, id int) (Instance, error) {
 	return LoadByProjectAndName(s, project, name)
 }
 
-// Convenience to load a db.Instance object, accounting for snapshots.
-func fetchInstanceDatabaseObject(s *state.State, project, name string) (*cluster.Instance, error) {
-	var container *cluster.Instance
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		container, err = LoadInstanceDatabaseObject(ctx, tx, project, name)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return container, nil
-}
-
 // LoadInstanceDatabaseObject loads a db.Instance object, accounting for snapshots.
 func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, name string) (*cluster.Instance, error) {
 	var container *cluster.Instance
