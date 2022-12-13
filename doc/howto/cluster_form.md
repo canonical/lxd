@@ -1,3 +1,7 @@
+---
+discourse: 15871
+---
+
 (cluster-form)=
 # How to form a cluster
 
@@ -8,6 +12,9 @@ After initializing the bootstrap server, you can join additional servers to the 
 See {ref}`clustering-members` for more information.
 
 You can form the LXD cluster interactively by providing configuration information during the initialization process or by using preseed files that contain the full configuration.
+
+To quickly and automatically set up a basic LXD cluster, you can use MicroCloud.
+Note, however, that this project is still in an early phase.
 
 ## Configure the cluster interactively
 
@@ -361,3 +368,22 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 ````
 `````
+
+## Use MicroCloud
+
+```{youtube} https://www.youtube.com/watch?v=ZSZoLnp-Ip0
+```
+
+Instead of setting up your LXD cluster manually, you can use [MicroCloud](https://snapcraft.io/microcloud) to get a fully highly available LXD cluster with Ceph storage up and running.
+
+To install the required snaps, run the following command:
+
+    snap install lxd microceph microcloud
+
+Then start the bootstrapping process with the following command:
+
+    microcloud init
+
+During the initialization process, MicroCloud detects the other servers, sets up a cluster and prompts you to add disks to Ceph.
+
+When the initialization is complete, you’ll have both a Ceph and a LXD cluster, and LXD itself will have been configured with both networking and storage suitable for use in a cluster.
