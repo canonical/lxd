@@ -1,3 +1,7 @@
+---
+discourse: 15871
+---
+
 (exp-clustering)=
 # About clustering
 
@@ -9,6 +13,10 @@ In this scenario, any number of LXD servers share the same distributed database 
 The LXD cluster can be managed uniformly using the `lxc` client or the REST API.
 
 This feature was introduced as part of the [`clustering`](api-extensions.md#clustering) API extension and is available since LXD 3.0.
+
+```{tip}
+If you want to quickly set up a basic LXD cluster, check out [MicroCloud](https://discuss.linuxcontainers.org/t/introducing-microcloud/15871).
+```
 
 (clustering-members)=
 ## Cluster members
