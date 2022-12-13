@@ -80,11 +80,11 @@ If you want to use an optimized setup, go through the interactive configuration 
 ```
 
 (initialize-preseed)=
-## Non-interactive configuration via preseed YAML
+## Non-interactive configuration
 
-The `lxd init` command supports a `--preseed` command line flag that makes it possible to fully configure LXD daemon settings, storage pools, network devices and profiles, in a non-interactive way.
+The `lxd init` command supports a `--preseed` command line flag that makes it possible to fully configure the LXD daemon settings, storage pools, network devices and profiles, in a non-interactive way through a preseed YAML file.
 
-For example, starting from a brand new LXD installation, the command line:
+For example, starting from a brand new LXD installation, you could configure LXD with the following command:
 
 ```bash
     cat <<EOF | lxd init --preseed
@@ -100,41 +100,49 @@ networks:
 EOF
 ```
 
-will configure the LXD daemon to listen for HTTPS connections on port 9999 of the 192.168.1.1 address, to automatically update images every 15 hours, and to create a network bridge device named `lxdbr0`, which will get assigned an IPv4 address automatically.
+This preseed configuration initializes the LXD daemon to listen for HTTPS connections on port 9999 of the 192.168.1.1 address, to automatically update images every 15 hours and to create a network bridge device named `lxdbr0`, which gets assigned an IPv4 address automatically.
 
-### Configure a brand new LXD
+### Re-configuring an existing LXD installation
 
-If you are configuring a brand new LXD instance, then the preseed command will always succeed and apply the desired configuration (as long as the given YAML contains valid keys and values), since there is no existing state that might conflict with the desired one.
+If you are configuring a new LXD installation, the preseed command applies the configuration as specified (as long as the given YAML contains valid keys and values).
+There is no existing state that might conflict with the specified configuration.
 
-### Re-configuring an existing LXD
+However, if you are re-configuring an existing LXD installation using the preseed command, the provided YAML configuration might conflict with the existing configuration.
+To avoid such conflicts, the following rules are in place:
 
-If you are re-configuring an existing LXD instance using the preseed command, then the provided YAML configuration is meant to completely overwrite existing entities (if the provided entities do not exist, they will just be created, as in the brand new LXD case).
+- The provided YAML configuration overwrites existing entities.
+  This means that if you are re-configuring an existing entity, you must provide the full configuration for the entity and not just the different keys.
+- If the provided YAML configuration contains entities that do not exist, they are created.
 
-In case you are overwriting an existing entity you must provide the full configuration of the new desired state for the entity (i.e. the semantics is the same as a `PUT` request in the [RESTful API](../rest-api.md)).
+This is the same behavior as for a `PUT` request in the {doc}`../rest-api`.
 
 #### Rollback
 
-If some parts of the new desired configuration conflict with the existing state (for example they try to change the driver of a storage pool from `dir` to `zfs`), then the preseed command will fail and will automatically try its best to rollback any change that was applied so far.
+If some parts of the new configuration conflict with the existing state (for example, they try to change the driver of a storage pool from `dir` to `zfs`), the preseed command fails and automatically attempts to roll back any changes that were applied so far.
 
-For example it will delete entities that were created by the new configuration and revert overwritten entities back to their original state.
+For example, it deletes entities that were created by the new configuration and reverts overwritten entities back to their original state.
 
-Failure modes when overwriting entities are the same as `PUT` requests in the [RESTful API](../rest-api.md).
+Failure modes when overwriting entities are the same as for the `PUT` requests in the {doc}`../rest-api`.
 
-Note however, that the rollback itself might potentially fail as well, although rarely (typically due to backend bugs or limitations).
-Thus care must be taken when trying to reconfigure a LXD daemon via preseed.
+```{note}
+The rollback process might potentially fail, although rarely (typically due to backend bugs or limitations).
+You should therefore be careful when trying to reconfigure a LXD daemon via preseed.
+```
 
 ### Default profile
 
-Differently from the interactive init mode, the `lxd init --preseed` command line will not modify the default profile in any particular way, unless you explicitly express that in the provided YAML payload.
+Unlike the interactive initialization mode, the `lxd init --preseed` command does not modify the default profile, unless you explicitly express that in the provided YAML payload.
 
 For instance, you will typically want to attach a root disk device and a network interface to your default profile.
-See below for an example.
+See the following section for an example.
 
 ### Configuration format
 
-The supported keys and values of the various entities are the same as the ones documented in the [RESTful API](../rest-api.md), but converted to YAML for easier reading (however you can use JSON too, since YAML is a superset of JSON).
+The supported keys and values of the various entities are the same as the ones documented in the {doc}`../rest-api`, but converted to YAML for convenience.
+However, you can also use JSON, since YAML is a superset of JSON.
 
-Here follows an example of a preseed payload containing most of the possible configuration knobs. You can use it as a template for your own one, and add, change or remove what you need:
+The following snippet gives an example of a preseed payload that contains most of the possible configurations.
+You can use it as a template for your own preseed file and add, change or remove what you need:
 
 ```yaml
 
