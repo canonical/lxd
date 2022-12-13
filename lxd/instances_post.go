@@ -64,11 +64,6 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 			Profiles:    profiles,
 		}
 
-		err := instance.ValidName(args.Name, args.Snapshot)
-		if err != nil {
-			return err
-		}
-
 		var info *api.Image
 		if req.Source.Server != "" {
 			var autoUpdate bool
