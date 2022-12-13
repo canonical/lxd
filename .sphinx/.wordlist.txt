@@ -123,6 +123,8 @@ manpages
 Mbit
 MiB
 Mibit
+MicroCeph
+MicroCloud
 MII
 MITM
 MTU
