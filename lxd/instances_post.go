@@ -835,10 +835,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
-	var targetProject *api.Project
+	if req.Type == "" {
+		req.Type = api.InstanceTypeContainer // Default to container if not specified.
+	}
 
 	targetNode := queryParam(r, "target")
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	var targetProject *api.Project
+	var profiles []api.Profile
+
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project: %w", err)
@@ -849,7 +854,91 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		profileProject := project.ProfileProjectFromRecord(targetProject)
+
+		switch req.Source.Type {
+		case "copy":
+			if req.Source.Source == "" {
+				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
+			}
+
+			// Use source instance's profiles if no profile override.
+			if req.Profiles == nil {
+				sourceProject := req.Source.Project
+				if sourceProject == "" {
+					sourceProject = targetProjectName
+				}
+
+				sourceInst, err := instance.LoadInstanceDatabaseObject(ctx, tx, sourceProject, req.Source.Source)
+				if err != nil {
+					return err
+				}
+
+				sourceInstArgs, err := tx.InstancesToInstanceArgs(ctx, true, *sourceInst)
+				if err != nil {
+					return err
+				}
+
+				req.Profiles = make([]string, 0, len(sourceInstArgs[0].Profiles))
+				for _, profile := range sourceInstArgs[0].Profiles {
+					req.Profiles = append(req.Profiles, profile.Name)
+				}
+			}
+		}
+
+		// Use default profile if no profile list specified (not even an empty list).
+		// This mirrors the logic in instance.CreateInternal() that would occur anyway.
+		if req.Profiles == nil {
+			req.Profiles = []string{"default"}
+		}
+
+		// Initialise the profile info list (even if an empty list is provided so this isn't left as nil).
+		// This way instances can still be created without any profiles by providing a non-nil empty list.
+		profiles = make([]api.Profile, 0, len(req.Profiles))
+
+		// Load profiles.
+		if len(req.Profiles) > 0 {
+			profileFilters := make([]dbCluster.ProfileFilter, 0, len(req.Profiles))
+			for _, profileName := range req.Profiles {
+				profileName := profileName
+				profileFilters = append(profileFilters, dbCluster.ProfileFilter{
+					Project: &profileProject,
+					Name:    &profileName,
+				})
+			}
+
+			dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
+			if err != nil {
+				return err
+			}
+
+			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
+			for _, dbProfile := range dbProfiles {
+				profilesByName[dbProfile.Name] = dbProfile
+			}
+
+			for _, profileName := range req.Profiles {
+				profile, found := profilesByName[profileName]
+				if !found {
+					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
+				}
+
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				profiles = append(profiles, *apiProfile)
+			}
+		}
+
+		// Check manual targeting restrictions.
+		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -1067,13 +1156,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, targetProjectName, &req)
+		return createFromImage(d, r, targetProjectName, profiles, &req)
 	case "none":
-		return createFromNone(d, r, targetProjectName, &req)
+		return createFromNone(d, r, targetProjectName, profiles, &req)
 	case "migration":
-		return createFromMigration(d, r, targetProjectName, &req)
+		return createFromMigration(d, r, targetProjectName, profiles, &req)
 	case "copy":
-		return createFromCopy(d, r, targetProjectName, &req)
+		return createFromCopy(d, r, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
