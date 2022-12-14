@@ -3375,55 +3375,64 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	id, alias, err := d.db.Cluster.GetImageAlias(projectName, name, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Validate ETag
-	err = util.EtagCheck(r, alias)
-	if err != nil {
-		return response.PreconditionFailed(err)
-	}
-
 	req := shared.Jmap{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	_, ok := req["target"]
-	if ok {
-		target, err := req.GetString("target")
+	var imgAlias api.ImageAliasesEntry
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var imgAliasID int
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
 		if err != nil {
-			return response.BadRequest(err)
+			return err
 		}
 
-		alias.Target = target
-	}
-
-	_, ok = req["description"]
-	if ok {
-		description, err := req.GetString("description")
+		// Validate ETag
+		err = util.EtagCheck(r, imgAlias)
 		if err != nil {
-			return response.BadRequest(err)
+			return err
 		}
 
-		alias.Description = description
-	}
+		_, ok := req["target"]
+		if ok {
+			target, err := req.GetString("target")
+			if err != nil {
+				return api.StatusErrorf(http.StatusBadRequest, "%v", err)
+			}
 
-	imageID, _, err := d.db.Cluster.GetImage(alias.Target, dbCluster.ImageFilter{Project: &projectName})
-	if err != nil {
-		return response.SmartError(err)
-	}
+			imgAlias.Target = target
+		}
 
-	err = d.db.Cluster.UpdateImageAlias(id, imageID, alias.Description)
+		_, ok = req["description"]
+		if ok {
+			description, err := req.GetString("description")
+			if err != nil {
+				return api.StatusErrorf(http.StatusBadRequest, "%v", err)
+			}
+
+			imgAlias.Description = description
+		}
+
+		imageID, _, err := d.db.Cluster.GetImage(imgAlias.Target, dbCluster.ImageFilter{Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, imgAlias.Description)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, logger.Ctx{"target": alias.Target}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": imgAlias.Target}))
 
 	return response.EmptySyncResponse
 }
