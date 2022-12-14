@@ -3541,18 +3541,29 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check that the name isn't already in use
-	id, _, _ := d.db.Cluster.GetImageAlias(projectName, req.Name, true)
-	if id > 0 {
-		return response.Conflict(fmt.Errorf("Alias '%s' already in use", req.Name))
-	}
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// This is just to see if the alias name already exists.
+		_, _, err := tx.GetImageAlias(ctx, projectName, req.Name, true)
+		if !response.IsNotFoundError(err) {
+			if err != nil {
+				return err
+			}
 
-	id, _, err = d.db.Cluster.GetImageAlias(projectName, name, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
+			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
+		}
 
-	err = d.db.Cluster.RenameImageAlias(id, req.Name)
+		imgAliasID, _, err := tx.GetImageAlias(ctx, projectName, name, true)
+		if err != nil {
+			return err
+		}
+
+		err = d.db.Cluster.RenameImageAlias(imgAliasID, req.Name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
