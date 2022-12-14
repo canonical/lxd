@@ -183,7 +183,7 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 				return errPing
 			}
 
-			return ErrMonitorBadReturn
+			return fmt.Errorf("Unexpected monitor response: %w (%q)", err, string(out))
 		}
 	}
 
