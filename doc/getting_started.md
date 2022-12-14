@@ -12,7 +12,6 @@ In addition to the documentation in this section, see the [Getting Started guide
 requirements
 installing
 Frequently asked <faq>
-security
 contributing
 support
 ```
