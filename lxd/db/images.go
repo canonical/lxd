@@ -711,7 +711,7 @@ SELECT images_aliases.name
 }
 
 // GetImageAlias returns the alias with the given name in the given project.
-func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
 	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
@@ -725,40 +725,33 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		q = q + ` AND images.public=1`
 	}
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
-
-		if !enabled {
-			project = "default"
-		}
-
-		var fingerprint, description string
-		var imageType int
-
-		arg1 := []any{project, name}
-		arg2 := []any{&id, &fingerprint, &imageType, &description}
-		err = tx.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return api.StatusErrorf(http.StatusNotFound, "Image alias not found")
-			}
-
-			return err
-		}
-
-		entry.Name = name
-		entry.Target = fingerprint
-		entry.Description = description
-		entry.Type = instancetype.Type(imageType).String()
-
-		return nil
-	})
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
-		return -1, entry, err
+		return -1, api.ImageAliasesEntry{}, fmt.Errorf("Check if project has images: %w", err)
 	}
+
+	if !enabled {
+		projectName = "default"
+	}
+
+	var fingerprint, description string
+	var imageType int
+
+	arg1 := []any{projectName, imageName}
+	arg2 := []any{&id, &fingerprint, &imageType, &description}
+	err = c.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+		}
+
+		return 0, entry, err
+	}
+
+	entry.Name = imageName
+	entry.Target = fingerprint
+	entry.Description = description
+	entry.Type = instancetype.Type(imageType).String()
 
 	return id, entry, nil
 }
