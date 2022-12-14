@@ -1,10 +1,12 @@
-# Operation
+# Manage LXD
 
 ```{toctree}
 :maxdepth: 1
 
-Backups <backup>
-explanation/performance_tuning
+server
+projects
 remotes
+explanation/performance_tuning
+Backups <backup>
 migration
 ```
