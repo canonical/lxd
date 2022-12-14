@@ -2549,15 +2549,15 @@ func imageDeleteFromDisk(fingerprint string) {
 	}
 }
 
-func doImageGet(cluster *db.Cluster, project, fingerprint string, public bool) (*api.Image, response.Response) {
+func doImageGet(ctx context.Context, tx *db.ClusterTx, project, fingerprint string, public bool) (*api.Image, error) {
 	filter := dbCluster.ImageFilter{Project: &project}
 	if public {
 		filter.Public = &public
 	}
 
-	_, imgInfo, err := cluster.GetImage(fingerprint, filter)
+	_, imgInfo, err := tx.GetImageByFingerprintPrefix(ctx, fingerprint, filter)
 	if err != nil {
-		return nil, response.SmartError(err)
+		return nil, err
 	}
 
 	return imgInfo, nil
