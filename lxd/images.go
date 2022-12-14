@@ -3177,7 +3177,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
-	_, alias, err := d.db.Cluster.GetImageAlias(projectName, name, !public)
+	var alias api.ImageAliasesEntry
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, alias, err = tx.GetImageAlias(ctx, projectName, name, !public)
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
