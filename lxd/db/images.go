@@ -823,12 +823,9 @@ VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 }
 
 // UpdateImageAlias updates the alias with the given ID.
-func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
+func (c *ClusterTx) UpdateImageAlias(ctx context.Context, aliasID int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		_, err := tx.tx.Exec(stmt, imageID, desc, id)
-		return err
-	})
+	_, err := c.tx.ExecContext(ctx, stmt, imageID, desc, aliasID)
 	return err
 }
 
