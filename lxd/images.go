@@ -1466,16 +1466,24 @@ func imagesGet(d *Daemon, r *http.Request) response.Response {
 	filterStr := r.FormValue("filter")
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
+	var err error
 	var clauses []filter.Clause
 	if filterStr != "" {
-		var err error
 		clauses, err = filter.Parse(filterStr)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
 		}
 	}
 
-	result, err := doImagesGet(d, util.IsRecursionRequest(r), projectName, public, clauses)
+	var result any
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		result, err = doImagesGet(ctx, tx, util.IsRecursionRequest(r), projectName, public, clauses)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
