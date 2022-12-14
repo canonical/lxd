@@ -801,24 +801,20 @@ func (c *Cluster) MoveImageAlias(source int, destination int) error {
 }
 
 // CreateImageAlias inserts an alias ento the database.
-func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc string) error {
-	stmt := `
-INSERT INTO images_aliases (name, image_id, description, project_id)
-     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+func (c *ClusterTx) CreateImageAlias(ctx context.Context, projectName, aliasName string, imageID int, desc string) error {
+	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id)
+VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		_, err = tx.tx.Exec(stmt, name, imageID, desc, project)
-		return err
-	})
+	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName)
 	if err != nil {
 		return err
 	}
