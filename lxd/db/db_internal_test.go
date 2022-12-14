@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"testing"
@@ -223,29 +224,35 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 }
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_exists() {
-	var err error
+	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
+		_, alias, err := tx.GetImageAlias(ctx, "default", "somealias", true)
+		s.Nil(err)
+		s.Equal(alias.Target, "fingerprint")
 
-	_, alias, err := s.db.GetImageAlias("default", "somealias", true)
-	s.Nil(err)
-	s.Equal(alias.Target, "fingerprint")
+		return nil
+	})
 }
 
 func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
-	var err error
+	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
+		_, _, err := tx.GetImageAlias(ctx, "default", "whatever", true)
+		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
 
-	_, _, err = s.db.GetImageAlias("default", "whatever", true)
-	s.True(api.StatusErrorCheck(err, http.StatusNotFound))
+		return nil
+	})
 }
 
 func (s *dbTestSuite) Test_CreateImageAlias() {
-	var err error
+	_ = s.db.Transaction(context.Background(), func(ctx context.Context, tx *ClusterTx) error {
+		err := tx.CreateImageAlias(ctx, "default", "Chaosphere", 1, "Someone will like the name")
+		s.Nil(err)
 
-	err = s.db.CreateImageAlias("default", "Chaosphere", 1, "Someone will like the name")
-	s.Nil(err)
+		_, alias, err := tx.GetImageAlias(ctx, "default", "Chaosphere", true)
+		s.Nil(err)
+		s.Equal(alias.Target, "fingerprint")
 
-	_, alias, err := s.db.GetImageAlias("default", "Chaosphere", true)
-	s.Nil(err)
-	s.Equal(alias.Target, "fingerprint")
+		return nil
+	})
 }
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
