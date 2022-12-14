@@ -3221,12 +3221,19 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, _, err = d.db.Cluster.GetImageAlias(projectName, name, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		_, _, err = tx.GetImageAlias(ctx, projectName, name, true)
+		if err != nil {
+			return err
+		}
 
-	err = d.db.Cluster.DeleteImageAlias(projectName, name)
+		err = tx.DeleteImageAlias(ctx, projectName, name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
