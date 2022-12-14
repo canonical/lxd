@@ -684,7 +684,7 @@ func (c *Cluster) DeleteImage(id int) error {
 }
 
 // GetImageAliases returns the names of the aliases of all images.
-func (c *Cluster) GetImageAliases(project string) ([]string, error) {
+func (c *ClusterTx) GetImageAliases(ctx context.Context, projectName string) ([]string, error) {
 	var names []string
 	q := `
 SELECT images_aliases.name
@@ -693,19 +693,16 @@ SELECT images_aliases.name
  WHERE projects.name=?
 `
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		names, err = query.SelectStrings(ctx, tx.tx, q, project)
-		return err
-	})
+	names, err = query.SelectStrings(ctx, c.tx, q, projectName)
 	if err != nil {
 		return nil, err
 	}
