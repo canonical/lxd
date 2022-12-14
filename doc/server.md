@@ -19,6 +19,7 @@ currently supported:
 ```{rst-class} break-col-4 min-width-4-8
 ```
 
+(server-options)=
 Key                                 | Type      | Scope     | Default                           | Description
 :--                                 | :---      | :----     | :------                           | :----------
 `backups.compression_algorithm`     | string    | global    | `gzip`                            | Compression algorithm to use for new images (`bzip2`, `gzip`, `lzma`, `xz` or `none`)

@@ -1,23 +1,37 @@
 (server-expose)=
 # How to expose LXD to the network
 
-By default, LXD can only be used by local users through a Unix socket.
+By default, LXD can be used only by local users through a Unix socket.
 
-To expose LXD to the network, you'll need to set `core.https_address`.
-All remote clients can then connect to LXD and access any image which was marked for public use.
+To expose LXD to the network, set the [`core.https_address`](server) server configuration option.
+For example, to allow access to the LXD server on port `8443`, enter the following command:
 
-Trusted clients can be manually added to the trust store on the server with `lxc config trust add` or the `core.trust_password` key can be set allowing for clients to self-enroll into the trust store at connection time by providing the configured password.
+    lxc config set core.https_address :8443
 
-More details about authentication can be found [here](../explanation/security.md).
+All remote clients can then connect to LXD and access any image that is marked for public use.
 
-## External authentication
+## Authenticate with the LXD server
 
-LXD when accessed over the network can be configured to use external authentication through [Candid](https://github.com/canonical/candid).
+To be able to access the remote API, clients must authenticate with the LXD server.
+There are several authentication methods; see {ref}`authentication` for detailed information.
 
-Setting the `candid.*` configuration keys above to the values matching your Candid deployment will allow users to authenticate through their web browsers and then get trusted by LXD.
+The recommended method is to add the client's TLS certificate to the server's trust store through a trust token.
+To authenticate a client using a trust token, complete the following steps:
 
-For those that have a Canonical RBAC server in front of their Candid server, they can instead set the `rbac.*` configuration keys which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
+1. On the server, enter the following command:
 
-When integrated with RBAC, individual users and groups can be granted various level of access on a per-project basis. All of this is driven externally through the RBAC service.
+       lxc config trust add
 
-More details about authentication can be found [here](../explanation/security.md).
+   Enter the name of the client that you want to add.
+   The command generates and prints a token that can be used to add the client certificate.
+1. On the client, add the server with the following command:
+
+       lxc remote add <remote_name> <token>
+
+   % Include content from [../authentication.md](../authentication.md)
+```{include} ../authentication.md
+    :start-after: <!-- Include start NAT authentication -->
+    :end-before: <!-- Include end NAT authentication -->
+```
+
+See {ref}`authentication` for detailed information and other authentication methods.
