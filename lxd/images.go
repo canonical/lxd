@@ -3045,25 +3045,38 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
-	names, err := d.db.Cluster.GetImageAliases(projectName)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	responseStr := []string{}
-	responseMap := []api.ImageAliasesEntry{}
-	for _, name := range names {
-		if !recursion {
-			url := fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, name)
-			responseStr = append(responseStr, url)
-		} else {
-			_, alias, err := d.db.Cluster.GetImageAlias(projectName, name, true)
-			if err != nil {
-				continue
-			}
-
-			responseMap = append(responseMap, alias)
+	var err error
+	var responseStr []string
+	var responseMap []api.ImageAliasesEntry
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		names, err := tx.GetImageAliases(ctx, projectName)
+		if err != nil {
+			return err
 		}
+
+		if recursion {
+			responseMap = make([]api.ImageAliasesEntry, 0, len(names))
+		} else {
+			responseStr = make([]string, 0, len(names))
+		}
+
+		for _, name := range names {
+			if !recursion {
+				responseStr = append(responseStr, api.NewURL().Path(version.APIVersion, "images", "aliases", name).String())
+			} else {
+				_, alias, err := tx.GetImageAlias(ctx, projectName, name, true)
+				if err != nil {
+					continue
+				}
+
+				responseMap = append(responseMap, alias)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	if !recursion {
