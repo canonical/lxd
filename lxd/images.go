@@ -2642,9 +2642,17 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 	secret := r.FormValue("secret")
 
-	info, resp := doImageGet(d.db.Cluster, projectName, fingerprint, false)
-	if resp != nil {
-		return resp
+	var info *api.Image
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		info, err = doImageGet(ctx, tx, projectName, fingerprint, false)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	op, err := imageValidSecret(d, r, projectName, info.Fingerprint, secret)
