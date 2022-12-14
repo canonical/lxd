@@ -972,7 +972,7 @@ func (c *Cluster) CreateImage(project string, fp string, fname string, sz int64,
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		imageProject := project
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, imageProject)
+		enabled, err := cluster.ProjectHasImages(ctx, tx.tx, imageProject)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
