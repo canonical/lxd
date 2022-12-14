@@ -767,25 +767,22 @@ func (c *Cluster) RenameImageAlias(id int, name string) error {
 }
 
 // DeleteImageAlias deletes the alias with the given name.
-func (c *Cluster) DeleteImageAlias(project, name string) error {
+func (c *ClusterTx) DeleteImageAlias(ctx context.Context, projectName string, name string) error {
 	q := `
 DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		_, err = tx.tx.Exec(q, project, name)
-		return err
-	})
+	_, err = c.tx.ExecContext(ctx, q, projectName, name)
 	if err != nil {
 		return err
 	}
