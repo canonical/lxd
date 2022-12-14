@@ -1270,24 +1270,29 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses []filter.Clause) (any, error) {
-	results, err := d.db.Cluster.GetImagesFingerprints(project, public)
-	if err != nil {
-		return []string{}, err
-	}
-
-	resultString := []string{}
-	resultMap := []*api.Image{}
-
+func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectName string, public bool, clauses []filter.Clause) (any, error) {
 	mustLoadObjects := recursion || clauses != nil
 
-	for _, name := range results {
+	fingerprints, err := tx.GetImagesFingerprints(ctx, projectName, public)
+	if err != nil {
+		return err, err
+	}
+
+	var resultString []string
+	var resultMap []*api.Image
+
+	if recursion {
+		resultMap = make([]*api.Image, 0, len(fingerprints))
+	} else {
+		resultString = make([]string, 0, len(fingerprints))
+	}
+
+	for _, fingerprint := range fingerprints {
 		if !mustLoadObjects {
-			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
-			resultString = append(resultString, url)
+			resultString = append(resultString, api.NewURL().Path(version.APIVersion, "images", fingerprint).String())
 		} else {
-			image, response := doImageGet(d.db.Cluster, project, name, public)
-			if response != nil {
+			image, err := doImageGet(ctx, tx, projectName, fingerprint, public)
+			if err != nil {
 				continue
 			}
 
@@ -1295,21 +1300,19 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 				continue
 			}
 
-			resultMap = append(resultMap, image)
-		}
-	}
-
-	if !recursion {
-		if clauses != nil {
-			for _, image := range resultMap {
-				url := fmt.Sprintf("/%s/images/%s", version.APIVersion, image.Fingerprint)
-				resultString = append(resultString, url)
+			if recursion {
+				resultMap = append(resultMap, image)
+			} else {
+				resultString = append(resultString, api.NewURL().Path(version.APIVersion, "images", image.Fingerprint).String())
 			}
 		}
-		return resultString, nil
 	}
 
-	return resultMap, nil
+	if recursion {
+		return resultMap, nil
+	}
+
+	return resultString, nil
 }
 
 // swagger:operation GET /1.0/images?public images images_get_untrusted
