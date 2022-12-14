@@ -49,7 +49,8 @@ The root user and all members of the `lxd` group can interact with the local dae
 ### Access to the remote API
 
 By default, access to the daemon is only possible locally.
-By setting the `core.https_address` configuration option (see {ref}`server`), you can expose the same API over the network on a {abbr}`TLS (Transport Layer Security)` socket.
+By setting the `core.https_address` configuration option, you can expose the same API over the network on a {abbr}`TLS (Transport Layer Security)` socket.
+See {ref}`server-expose` for instructions.
 Remote clients can then connect to LXD and access any image that is marked for public use.
 
 There are several ways to authenticate remote clients as trusted clients to allow them to access the API.

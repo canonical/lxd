@@ -22,6 +22,7 @@ currently supported:
 ```{rst-class} break-col-4 min-width-4-8
 ```
 
+(server-options)=
 Key                                 | Type      | Scope     | Default                                          | Description
 :--                                 | :---      | :----     | :------                                          | :----------
 `acme.ca_url`                       | string    | global    | `https://acme-v02.api.letsencrypt.org/directory` | URL to the directory resource of the ACME service
