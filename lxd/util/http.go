@@ -20,6 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -89,7 +90,7 @@ func EtagCheck(r *http.Request, data any) error {
 	}
 
 	if hash != match {
-		return fmt.Errorf("ETag doesn't match: %s vs %s", hash, match)
+		return api.StatusErrorf(http.StatusPreconditionFailed, "ETag doesn't match: %s vs %s", hash, match)
 	}
 
 	return nil
