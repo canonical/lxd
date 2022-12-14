@@ -1007,6 +1007,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				imagePublishLock.Unlock()
 			}
 		}
+
 		// Set the metadata if possible, even if there is an error
 		if info != nil {
 			metadata := make(map[string]string)
@@ -1037,25 +1038,32 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			req.Aliases = aliases.([]api.ImageAlias)
 		}
 
-		for _, alias := range req.Aliases {
-			_, _, err := d.db.Cluster.GetImageAlias(projectName, alias.Name, true)
-			if !response.IsNotFoundError(err) {
-				if err != nil {
-					return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
-				}
-
-				return fmt.Errorf("Alias already exists: %s", alias.Name)
-			}
-
-			id, _, err := d.db.Cluster.GetImage(info.Fingerprint, dbCluster.ImageFilter{Project: &projectName})
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, info.Fingerprint, dbCluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return fmt.Errorf("Fetch image %q: %w", info.Fingerprint, err)
 			}
 
-			err = d.db.Cluster.CreateImageAlias(projectName, alias.Name, id, alias.Description)
-			if err != nil {
-				return fmt.Errorf("Add new image alias to the database: %w", err)
+			for _, alias := range req.Aliases {
+				_, _, err := tx.GetImageAlias(ctx, projectName, alias.Name, true)
+				if !response.IsNotFoundError(err) {
+					if err != nil {
+						return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
+					}
+
+					return fmt.Errorf("Alias already exists: %s", alias.Name)
+				}
+
+				err = tx.CreateImageAlias(ctx, projectName, alias.Name, imgID, alias.Description)
+				if err != nil {
+					return fmt.Errorf("Add new image alias to the database: %w", err)
+				}
 			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 
 		// Sync the images between each node in the cluster on demand
