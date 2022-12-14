@@ -179,7 +179,7 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 }
 
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
-func (c *Cluster) GetImagesFingerprints(project string, publicOnly bool) ([]string, error) {
+func (c *ClusterTx) GetImagesFingerprints(ctx context.Context, projectName string, publicOnly bool) ([]string, error) {
 	q := `
 SELECT fingerprint
   FROM images
@@ -192,19 +192,16 @@ SELECT fingerprint
 
 	var fingerprints []string
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		fingerprints, err = query.SelectStrings(ctx, tx.tx, q, project)
-		return err
-	})
+	fingerprints, err = query.SelectStrings(ctx, c.tx, q, projectName)
 	if err != nil {
 		return nil, err
 	}
