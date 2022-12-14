@@ -3286,17 +3286,6 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	id, alias, err := d.db.Cluster.GetImageAlias(projectName, name, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Validate ETag
-	err = util.EtagCheck(r, alias)
-	if err != nil {
-		return response.PreconditionFailed(err)
-	}
-
 	req := api.ImageAliasesEntryPut{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -3307,18 +3296,39 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The target field is required"))
 	}
 
-	imageID, _, err := d.db.Cluster.GetImage(req.Target, dbCluster.ImageFilter{Project: &projectName})
-	if err != nil {
-		return response.SmartError(err)
-	}
+	var imgAlias api.ImageAliasesEntry
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		var imgAliasID int
 
-	err = d.db.Cluster.UpdateImageAlias(id, imageID, req.Description)
+		imgAliasID, imgAlias, err = tx.GetImageAlias(ctx, projectName, name, true)
+		if err != nil {
+			return err
+		}
+
+		// Validate ETag
+		err = util.EtagCheck(r, imgAlias)
+		if err != nil {
+			return err
+		}
+
+		imageID, _, err := tx.GetImageByFingerprintPrefix(ctx, req.Target, dbCluster.ImageFilter{Project: &projectName})
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateImageAlias(ctx, imgAliasID, imageID, req.Description)
+		if err != nil {
+			return err
+		}
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, logger.Ctx{"target": alias.Target}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(imgAlias.Name, projectName, requestor, logger.Ctx{"target": req.Target}))
 
 	return response.EmptySyncResponse
 }
