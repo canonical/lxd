@@ -2915,22 +2915,29 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("name and target are required"))
 	}
 
-	// This is just to see if the alias name already exists.
-	_, _, err = d.db.Cluster.GetImageAlias(projectName, req.Name, true)
-	if !response.IsNotFoundError(err) {
-		if err != nil {
-			return response.InternalError(err)
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		// This is just to see if the alias name already exists.
+		_, _, err = tx.GetImageAlias(ctx, projectName, req.Name, true)
+		if !response.IsNotFoundError(err) {
+			if err != nil {
+				return err
+			}
+
+			return api.StatusErrorf(http.StatusConflict, "Alias %q already exists", req.Name)
 		}
 
-		return response.Conflict(fmt.Errorf("Alias '%s' already exists", req.Name))
-	}
+		imgID, _, err := tx.GetImageByFingerprintPrefix(ctx, req.Target, dbCluster.ImageFilter{Project: &projectName})
+		if err != nil {
+			return err
+		}
 
-	id, _, err := d.db.Cluster.GetImage(req.Target, dbCluster.ImageFilter{Project: &projectName})
-	if err != nil {
-		return response.SmartError(err)
-	}
+		err = tx.CreateImageAlias(ctx, projectName, req.Name, imgID, req.Description)
+		if err != nil {
+			return err
+		}
 
-	err = d.db.Cluster.CreateImageAlias(projectName, req.Name, id, req.Description)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
