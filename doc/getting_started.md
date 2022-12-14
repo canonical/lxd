@@ -13,7 +13,6 @@ requirements
 Install LXD <installing>
 Initialize LXD <howto/initialize>
 Frequently asked <faq>
-security
 contributing
 support
 ```
