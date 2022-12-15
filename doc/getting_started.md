@@ -10,9 +10,9 @@ In addition to the documentation in this section, see the [Getting Started guide
 :maxdepth: 1
 
 requirements
-installing
+Install LXD <installing>
+Initialize LXD <howto/initialize>
 Frequently asked <faq>
-security
 contributing
 support
 ```

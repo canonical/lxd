@@ -163,4 +163,6 @@ redirects = {
     "production-setup/index": "../explanation/performance_tuning/index.html",
     "containers/index": "../explanation/instances",
     "virtual-machines/index": "../explanation/instances",
+    "preseed/index": "../howto/initialize/index.html#initialize-preseed",
+    "configuration/index": "../server"
 }
