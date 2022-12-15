@@ -88,12 +88,6 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 				autoUpdate = d.State().GlobalConfig.ImagesAutoUpdateCached()
 			}
 
-			// Detect image type based on instance type requested.
-			imgType := "container"
-			if req.Type == "virtual-machine" {
-				imgType = "virtual-machine"
-			}
-
 			var budget int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				budget, err = project.GetImageSpaceBudget(tx, projectName)
@@ -110,7 +104,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, profiles []
 				Secret:       req.Source.Secret,
 				Alias:        hash,
 				SetCached:    true,
-				Type:         imgType,
+				Type:         string(req.Type),
 				AutoUpdate:   autoUpdate,
 				Public:       false,
 				PreferCached: true,
