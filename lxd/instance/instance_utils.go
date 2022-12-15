@@ -583,7 +583,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 //
 // An empty list indicates that the request may be handled by any architecture.
 // A nil list indicates that we can't tell at this stage, typically for private images.
-func SuitableArchitectures(ctx context.Context, s *state.State, project string, sourceInst *cluster.Instance, req api.InstancesPost) ([]int, error) {
+func SuitableArchitectures(ctx context.Context, s *state.State, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
 	if shared.StringInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
@@ -611,15 +611,9 @@ func SuitableArchitectures(ctx context.Context, s *state.State, project string, 
 
 	// For image, things get a bit more complicated.
 	if req.Source.Type == "image" {
-		// Resolve the image.
-		hash, err := ResolveImage(s, project, req.Source)
-		if err != nil {
-			return nil, err
-		}
-
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.DB.Cluster.GetImage(hash, cluster.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(sourceImageRef, cluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return nil, err
 			}
@@ -634,17 +628,12 @@ func SuitableArchitectures(ctx context.Context, s *state.State, project string, 
 
 		// Handle remote images.
 		if req.Source.Server != "" {
-			// Detect image type based on instance type requested.
-			imgType := "container"
-			if req.Type == "virtual-machine" {
-				imgType = "virtual-machine"
-			}
-
 			if req.Source.Secret != "" {
 				// We can't retrieve a private image, defer to later processing.
 				return nil, nil
 			}
 
+			var err error
 			var remote lxd.ImageServer
 			if shared.StringInSlice(req.Source.Protocol, []string{"", "lxd"}) {
 				// Remote LXD image server.
@@ -675,10 +664,10 @@ func SuitableArchitectures(ctx context.Context, s *state.State, project string, 
 			}
 
 			// Look for a matching alias.
-			entries, err := remote.GetImageAliasArchitectures(imgType, hash)
+			entries, err := remote.GetImageAliasArchitectures(string(req.Type), sourceImageRef)
 			if err != nil {
 				// Look for a matching image by fingerprint.
-				img, _, err := remote.GetImage(hash)
+				img, _, err := remote.GetImage(sourceImageRef)
 				if err != nil {
 					return nil, err
 				}
