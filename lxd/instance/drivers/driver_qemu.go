@@ -6391,14 +6391,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(qemu string) ([]string, error) {
-	pidFile, err := os.CreateTemp("", "")
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = os.Remove(pidFile.Name()) }()
-
+func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -6407,35 +6400,74 @@ func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 	defer func() { _ = os.Remove(monitorPath.Name()) }()
 
 	qemuArgs := []string{
-		"qemu",
-		"-S",
+		qemuPath,
+		"-S", // Do not start virtualisation.
 		"-nographic",
 		"-nodefaults",
-		"-daemonize",
-		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
-		"-pidfile", pidFile.Name(),
+		"-no-user-config",
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
 	}
 
+	var stderr bytes.Buffer
+
 	checkFeature := exec.Cmd{
-		Path: qemu,
-		Args: qemuArgs,
+		Path:   qemuPath,
+		Args:   qemuArgs,
+		Stderr: &stderr,
 	}
 
 	err = checkFeature.Start()
 	if err != nil {
-		return nil, err // QEMU not operational. VM support missing.
+		// QEMU not operational. VM support missing.
+		return nil, fmt.Errorf("Failed starting QEMU: %w", err)
 	}
 
-	err = checkFeature.Wait()
-	if err != nil {
-		return nil, err
-	}
+	defer func() { _ = checkFeature.Process.Kill() }()
 
-	monitor, err := qmp.Connect(monitorPath.Name(), qemuSerialChardevName, nil)
-	if err != nil {
-		return nil, err
+	// Start go routine that waits for QEMU to exit and captures the exit error (if any).
+	errWaitCh := make(chan error, 1)
+	go func() {
+		errWaitCh <- checkFeature.Wait()
+	}()
+
+	// Start go routine that tries to connect to QEMU's QMP socket in a loop (giving QEMU a chance to open it).
+	ctx, cancelMonitorConnect := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelMonitorConnect()
+
+	errMonitorCh := make(chan error, 1)
+	var monitor *qmp.Monitor
+	go func() {
+		var err error
+
+		// Try and connect to QMP socket until cancelled.
+		for {
+			monitor, err = qmp.Connect(monitorPath.Name(), qemuSerialChardevName, nil)
+			// QMP successfully connected or we have been cancelled.
+			if err == nil || ctx.Err() != nil {
+				break
+			}
+
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		// Return last QMP connection error.
+		errMonitorCh <- err
+	}()
+
+	// Wait for premature QEMU exit or QMP to connect or timeout.
+	select {
+	case errMonitor := <-errMonitorCh:
+		// A non-nil error here means that QMP failed to connect before timing out.
+		// The last connection error is returned.
+		// A nil error means QMP successfully connected and we can continue.
+		if errMonitor != nil {
+			return nil, fmt.Errorf("QEMU monitor connect error: %w", errMonitor)
+		}
+
+	case errWait := <-errWaitCh:
+		// Any sort of premature exit, even a non-error one is problematic here, and should not occur.
+		return nil, fmt.Errorf("QEMU premature exit: %w (%v)", errWait, strings.TrimSpace(stderr.String()))
 	}
 
 	defer monitor.Disconnect()
@@ -6470,26 +6502,6 @@ func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 		logger.Debug("Failed querying hotpluggable CPUs during VM feature check", logger.Ctx{"err": err})
 	} else {
 		features = append(features, "cpu_hotplug")
-	}
-
-	_, err = pidFile.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	content, err := io.ReadAll(pidFile)
-	if err != nil {
-		return nil, err
-	}
-
-	pid, err := strconv.Atoi(strings.Split(string(content), "\n")[0])
-	if err != nil {
-		return nil, err
-	}
-
-	err = unix.Kill(pid, unix.SIGKILL)
-	if err != nil {
-		return nil, err
 	}
 
 	return features, nil
