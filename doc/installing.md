@@ -3,7 +3,7 @@ discourse: 8178
 relatedlinks: "[LXD&#32;-&#32;Installation](https://linuxcontainers.org/lxd/getting-started-cli/)"
 ---
 
-# Installing LXD
+# How to install LXD
 
 The easiest way to install LXD is to install one of the available packages, but you can also install LXD from the sources.
 
@@ -14,7 +14,7 @@ The easiest way to install LXD is to install one of the available packages, but 
 ```
 
 (installing_from_source)=
-## Installing LXD from source
+## Install LXD from source
 
 We recommend having the latest versions of `liblxc` (>= 4.0.0 required)
 available for LXD development. Additionally, LXD requires Golang 1.18 or
@@ -40,7 +40,7 @@ To run the test suite, you'll also need:
 sudo apt install curl gettext jq sqlite3 socat bind9-dnsutils
 ```
 
-### From Source: Building the latest version
+### From source: Build the latest version
 
 These instructions for building from source are suitable for individual developers who want to build the latest version
 of LXD, or build a specific release of LXD which may not be offered by their Linux distribution. Source builds for
@@ -55,7 +55,7 @@ cd lxd
 This will download the current development tree of LXD and place you in the source tree.
 Then proceed to the instructions below to actually build and install LXD.
 
-### From Source: Building a Release
+### From source: Build a release
 
 The LXD release tarballs bundle a complete dependency tree as well as a
 local copy of `libraft` and `libdqlite` for LXD's database setup.
@@ -68,7 +68,7 @@ cd lxd-4.18
 This will unpack the release tarball and place you inside of the source tree.
 Then proceed to the instructions below to actually build and install LXD.
 
-### Starting the Build
+### Start the build
 
 The actual building is done by two separate invocations of the Makefile: `make deps` -- which builds libraries required
 by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a message will be displayed which will specify environment variables that should be set prior to invoking `make`. As new versions of LXD are released, these environment
@@ -88,7 +88,7 @@ make deps
 make
 ```
 
-### From Source: Installing
+### From source: Install
 
 Once the build completes, you simply keep the source tree, add the directory referenced by `$(go env GOPATH)/bin` to
 your shell path, and set the `LD_LIBRARY_PATH` variable printed by `make deps` to your environment. This might look
@@ -101,7 +101,7 @@ export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/dep
 
 Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `$(go env GOPATH)/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
 
-### Machine Setup
+### Machine setup
 
 You'll need sub{u,g}ids for root, so that LXD can create the unprivileged containers:
 
@@ -120,7 +120,7 @@ sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd
 If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M UID/GID.
 ```
 
-## Upgrading LXD
+## Upgrade LXD
 
 After upgrading LXD to a newer version, LXD might need to update its database to a new schema.
 This update happens automatically when the daemon starts up after a LXD upgrade.

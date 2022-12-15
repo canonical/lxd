@@ -3,7 +3,7 @@ relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
 ---
 
 (projects)=
-# Project configuration
+# Projects
 
 ```{youtube} https://www.youtube.com/watch?v=cUHkgg6TovM
 ```
