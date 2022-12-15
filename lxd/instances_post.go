@@ -834,11 +834,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
-	targetNode := queryParam(r, "target")
-
-	var targetGroup string
-	if strings.HasPrefix(targetNode, "@") {
-		targetGroup = strings.TrimPrefix(targetNode, "@")
+	target := queryParam(r, "target")
+	var targetMember, targetGroup string
+	if strings.HasPrefix(target, "@") {
+		targetGroup = strings.TrimPrefix(target, "@")
+	} else {
+		targetMember = target
 	}
 
 	var targetProject *api.Project
@@ -860,7 +861,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check manual cluster member targeting restrictions.
-		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		err = project.CheckClusterTargetRestriction(tx, r, targetProject, target)
 		if err != nil {
 			return err
 		}
@@ -1040,51 +1041,52 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if clustered && (targetNode == "" || targetGroup != "") {
-		// If no target node was specified, pick the node with the least number of instances.
-		// If there's just one node, or if the selected node is the local one, this is effectively a no-op,
-		// since GetNodeWithLeastInstances() will return an empty string.
-		// If the target is a cluster group, find a suitable node within the group.
-
+	if clustered && !isClusterNotification(r) && targetMember == "" {
 		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			defaultArch := ""
-			if targetProject.Config["images.default_architecture"] != "" {
-				defaultArch = targetProject.Config["images.default_architecture"]
-			} else {
-				defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
-			}
+		// If no target member was selected yet, pick the member with the least number of instances.
+		// If there's just one member, or if the selected member is the local one, this is effectively a
+		// no-op, since GetNodeWithLeastInstances() will return an empty string.
+		// If the target is a cluster group, find a suitable member within the group.
+		if targetMember == "" {
+			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				defaultArch := ""
+				if targetProject.Config["images.default_architecture"] != "" {
+					defaultArch = targetProject.Config["images.default_architecture"]
+				} else {
+					defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
+				}
 
-			defaultArchID := -1
-			if defaultArch != "" {
-				defaultArchID, err = osarch.ArchitectureId(defaultArch)
+				defaultArchID := -1
+				if defaultArch != "" {
+					defaultArchID, err = osarch.ArchitectureId(defaultArch)
+					if err != nil {
+						return err
+					}
+				}
+
+				targetMember, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, clusterGroupsAllowed)
 				if err != nil {
 					return err
 				}
-			}
 
-			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, clusterGroupsAllowed)
+				if targetMember == "" {
+					return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
+				}
+
+				return nil
+			})
 			if err != nil {
-				return err
+				return response.SmartError(err)
 			}
-
-			if targetNode == "" {
-				return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
 		}
 	}
 
-	if targetNode != "" {
-		address, err := cluster.ResolveTarget(d.db.Cluster, targetNode)
+	if targetMember != "" {
+		address, err := cluster.ResolveTarget(d.db.Cluster, targetMember)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1096,7 +1098,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			client = client.UseProject(targetProjectName)
-			client = client.UseTarget(targetNode)
+			client = client.UseTarget(targetMember)
 
 			logger.Debug("Forward instance post request", logger.Ctx{"member": address})
 			op, err := client.CreateInstance(req)
