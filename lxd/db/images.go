@@ -280,7 +280,7 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 // GetCachedImageSourceFingerprint tries to find a source entry of a locally
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
-func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
+func (c *ClusterTx) GetCachedImageSourceFingerprint(ctx context.Context, server string, protocol string, alias string, typeName string, architecture int) (string, error) {
 	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
@@ -316,12 +316,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 
 	q += "ORDER BY creation_date DESC"
 
-	var fingerprints []string
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var err error
-		fingerprints, err = query.SelectStrings(ctx, tx.tx, q, args...)
-		return err
-	})
+	fingerprints, err := query.SelectStrings(ctx, c.tx, q, args...)
 	if err != nil {
 		return "", err
 	}
