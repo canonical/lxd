@@ -6393,6 +6393,7 @@ func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 		"-S", // Do not start virtualisation.
 		"-nographic",
 		"-nodefaults",
+		"-no-user-config",
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
 	}
