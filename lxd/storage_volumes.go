@@ -337,6 +337,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var dbVolumes []*db.StorageVolume
+	var projectImages []string
 
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var customVolProjectName string
@@ -355,6 +356,11 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 			// The project name used for custom volumes varies based on whether the
 			// project has the featues.storage.volumes feature enabled.
 			customVolProjectName = project.StorageVolumeProjectFromRecord(p, db.StoragePoolVolumeTypeCustom)
+
+			projectImages, err = tx.GetImagesFingerprints(ctx, requestProjectName, false)
+			if err != nil {
+				return err
+			}
 		}
 
 		filters := make([]db.StorageVolumeFilter, 0)
@@ -408,14 +414,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	})
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	var projectImages []string
-	if !allProjects {
-		projectImages, err = d.db.Cluster.GetImagesFingerprints(requestProjectName, false)
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	dbVolumes = filterVolumes(dbVolumes, clauses, allProjects, projectImages)

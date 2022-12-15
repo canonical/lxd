@@ -179,7 +179,7 @@ WHERE images_profiles.image_id = ? AND projects.name = ?
 }
 
 // GetImagesFingerprints returns the names of all images (optionally only the public ones).
-func (c *Cluster) GetImagesFingerprints(project string, publicOnly bool) ([]string, error) {
+func (c *ClusterTx) GetImagesFingerprints(ctx context.Context, projectName string, publicOnly bool) ([]string, error) {
 	q := `
 SELECT fingerprint
   FROM images
@@ -192,19 +192,16 @@ SELECT fingerprint
 
 	var fingerprints []string
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		fingerprints, err = query.SelectStrings(ctx, tx.tx, q, project)
-		return err
-	})
+	fingerprints, err = query.SelectStrings(ctx, c.tx, q, projectName)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +684,7 @@ func (c *Cluster) DeleteImage(id int) error {
 }
 
 // GetImageAliases returns the names of the aliases of all images.
-func (c *Cluster) GetImageAliases(project string) ([]string, error) {
+func (c *ClusterTx) GetImageAliases(ctx context.Context, projectName string) ([]string, error) {
 	var names []string
 	q := `
 SELECT images_aliases.name
@@ -696,19 +693,16 @@ SELECT images_aliases.name
  WHERE projects.name=?
 `
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		names, err = query.SelectStrings(ctx, tx.tx, q, project)
-		return err
-	})
+	names, err = query.SelectStrings(ctx, c.tx, q, projectName)
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +711,7 @@ SELECT images_aliases.name
 }
 
 // GetImageAlias returns the alias with the given name in the given project.
-func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+func (c *ClusterTx) GetImageAlias(ctx context.Context, projectName string, imageName string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	id := -1
 	entry := api.ImageAliasesEntry{}
 	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
@@ -731,40 +725,33 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		q = q + ` AND images.public=1`
 	}
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
-
-		if !enabled {
-			project = "default"
-		}
-
-		var fingerprint, description string
-		var imageType int
-
-		arg1 := []any{project, name}
-		arg2 := []any{&id, &fingerprint, &imageType, &description}
-		err = tx.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return api.StatusErrorf(http.StatusNotFound, "Image alias not found")
-			}
-
-			return err
-		}
-
-		entry.Name = name
-		entry.Target = fingerprint
-		entry.Description = description
-		entry.Type = instancetype.Type(imageType).String()
-
-		return nil
-	})
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
 	if err != nil {
-		return -1, entry, err
+		return -1, api.ImageAliasesEntry{}, fmt.Errorf("Check if project has images: %w", err)
 	}
+
+	if !enabled {
+		projectName = "default"
+	}
+
+	var fingerprint, description string
+	var imageType int
+
+	arg1 := []any{projectName, imageName}
+	arg2 := []any{&id, &fingerprint, &imageType, &description}
+	err = c.tx.QueryRowContext(ctx, q, arg1...).Scan(arg2...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, api.ImageAliasesEntry{}, api.StatusErrorf(http.StatusNotFound, "Image alias not found")
+		}
+
+		return 0, entry, err
+	}
+
+	entry.Name = imageName
+	entry.Target = fingerprint
+	entry.Description = description
+	entry.Type = instancetype.Type(imageType).String()
 
 	return id, entry, nil
 }
@@ -780,25 +767,22 @@ func (c *Cluster) RenameImageAlias(id int, name string) error {
 }
 
 // DeleteImageAlias deletes the alias with the given name.
-func (c *Cluster) DeleteImageAlias(project, name string) error {
+func (c *ClusterTx) DeleteImageAlias(ctx context.Context, projectName string, name string) error {
 	q := `
 DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		_, err = tx.tx.Exec(q, project, name)
-		return err
-	})
+	_, err = c.tx.ExecContext(ctx, q, projectName, name)
 	if err != nil {
 		return err
 	}
@@ -817,24 +801,20 @@ func (c *Cluster) MoveImageAlias(source int, destination int) error {
 }
 
 // CreateImageAlias inserts an alias ento the database.
-func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc string) error {
-	stmt := `
-INSERT INTO images_aliases (name, image_id, description, project_id)
-     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+func (c *ClusterTx) CreateImageAlias(ctx context.Context, projectName, aliasName string, imageID int, desc string) error {
+	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id)
+VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
-		if err != nil {
-			return fmt.Errorf("Check if project has images: %w", err)
-		}
+	enabled, err := cluster.ProjectHasImages(ctx, c.tx, projectName)
+	if err != nil {
+		return fmt.Errorf("Check if project has images: %w", err)
+	}
 
-		if !enabled {
-			project = "default"
-		}
+	if !enabled {
+		projectName = "default"
+	}
 
-		_, err = tx.tx.Exec(stmt, name, imageID, desc, project)
-		return err
-	})
+	_, err = c.tx.Exec(stmt, aliasName, imageID, desc, projectName)
 	if err != nil {
 		return err
 	}
@@ -843,12 +823,9 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 }
 
 // UpdateImageAlias updates the alias with the given ID.
-func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
+func (c *ClusterTx) UpdateImageAlias(ctx context.Context, aliasID int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		_, err := tx.tx.Exec(stmt, imageID, desc, id)
-		return err
-	})
+	_, err := c.tx.ExecContext(ctx, stmt, imageID, desc, aliasID)
 	return err
 }
 
@@ -995,7 +972,7 @@ func (c *Cluster) CreateImage(project string, fp string, fname string, sz int64,
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		imageProject := project
-		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, imageProject)
+		enabled, err := cluster.ProjectHasImages(ctx, tx.tx, imageProject)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
