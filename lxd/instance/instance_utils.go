@@ -515,9 +515,7 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 }
 
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
-func ResolveImage(s *state.State, project string, source api.InstanceSource) (string, error) {
-	var err error
-
+func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource) (string, error) {
 	if source.Fingerprint != "" {
 		return source.Fingerprint, nil
 	}
@@ -527,11 +525,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return source.Alias, nil
 		}
 
-		var alias api.ImageAliasesEntry
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			_, alias, err = tx.GetImageAlias(ctx, project, source.Alias, true)
-			return err
-		})
+		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
 		if err != nil {
 			return "", err
 		}
@@ -544,42 +538,35 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return "", fmt.Errorf("Property match is only supported for local images")
 		}
 
-		var image *api.Image
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			hashes, err := tx.GetImagesFingerprints(ctx, project, false)
-			if err != nil {
-				return err
-			}
-
-			for _, imageHash := range hashes {
-				_, img, err := tx.GetImageByFingerprintPrefix(ctx, imageHash, cluster.ImageFilter{Project: &project})
-				if err != nil {
-					continue
-				}
-
-				if image != nil && img.CreatedAt.Before(image.CreatedAt) {
-					continue
-				}
-
-				match := true
-				for key, value := range source.Properties {
-					if img.Properties[key] != value {
-						match = false
-						break
-					}
-				}
-
-				if !match {
-					continue
-				}
-
-				image = img
-			}
-
-			return nil
-		})
+		hashes, err := tx.GetImagesFingerprints(ctx, projectName, false)
 		if err != nil {
 			return "", err
+		}
+
+		var image *api.Image
+		for _, imageHash := range hashes {
+			_, img, err := tx.GetImageByFingerprintPrefix(ctx, imageHash, cluster.ImageFilter{Project: &projectName})
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
+				continue
+			}
+
+			match := true
+			for key, value := range source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
 		}
 
 		if image != nil {
