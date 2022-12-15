@@ -6380,7 +6380,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(qemu string) ([]string, error) {
+func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 	pidFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -6396,8 +6396,8 @@ func (d *qemu) checkFeatures(qemu string) ([]string, error) {
 	defer func() { _ = os.Remove(monitorPath.Name()) }()
 
 	qemuArgs := []string{
-		"qemu",
-		"-S",
+		qemuPath,
+		"-S", // Do not start virtualisation.
 		"-nographic",
 		"-nodefaults",
 		"-daemonize",
