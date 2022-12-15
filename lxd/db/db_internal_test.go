@@ -263,9 +263,12 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	fingerprint, err := s.db.GetCachedImageSourceFingerprint("server.remote", "simplestreams", "test", "container", 0)
-	s.Nil(err)
-	s.Equal(fingerprint, "fingerprint")
+	_ = s.db.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		fingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, "server.remote", "simplestreams", "test", "container", 0)
+		s.Nil(err)
+		s.Equal(fingerprint, "fingerprint")
+		return nil
+	})
 }
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
@@ -276,6 +279,9 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	_, err = s.db.GetCachedImageSourceFingerprint("server.remote", "lxd", "test", "container", 0)
-	s.True(api.StatusErrorCheck(err, http.StatusNotFound))
+	_ = s.db.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		_, err = tx.GetCachedImageSourceFingerprint(ctx, "server.remote", "lxd", "test", "container", 0)
+		s.True(api.StatusErrorCheck(err, http.StatusNotFound))
+		return nil
+	})
 }

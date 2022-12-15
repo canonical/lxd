@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
@@ -133,12 +134,19 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	interval := d.State().GlobalConfig.ImagesAutoUpdateIntervalHours()
 
 	if args.PreferCached && interval > 0 && alias != fp {
-		for _, architecture := range d.os.Architectures {
-			cachedFingerprint, err := d.db.Cluster.GetCachedImageSourceFingerprint(args.Server, args.Protocol, alias, args.Type, architecture)
-			if err == nil && cachedFingerprint != fp {
-				fp = cachedFingerprint
-				break
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			for _, architecture := range d.os.Architectures {
+				cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, args.Server, args.Protocol, alias, args.Type, architecture)
+				if err == nil && cachedFingerprint != fp {
+					fp = cachedFingerprint
+					break
+				}
 			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 
