@@ -6401,7 +6401,6 @@ func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 		"-nographic",
 		"-nodefaults",
 		"-daemonize",
-		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 		"-pidfile", pidFile.Name(),
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
