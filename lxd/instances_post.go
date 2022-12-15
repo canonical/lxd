@@ -843,6 +843,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
+	var sourceImage *api.Image
+	var sourceImageRef string
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -897,6 +899,39 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				for _, profile := range sourceInstArgs[0].Profiles {
 					req.Profiles = append(req.Profiles, profile.Name)
 				}
+			}
+
+		case "image":
+			// Resolve the image.
+			sourceImageRef, err = instance.ResolveImage(ctx, tx, targetProject.Name, req.Source)
+			if err != nil {
+				return err
+			}
+
+			sourceImageHash := sourceImageRef
+
+			// If a remote server is being used, check whether we have a cached image for the alias.
+			// If so then use the cached image fingerprint for loading the cache image profiles.
+			// As its possible for a remote cached image to have its profiles modified after download.
+			if req.Source.Server != "" {
+				for _, architecture := range d.os.Architectures {
+					cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, req.Source.Server, req.Source.Protocol, sourceImageRef, string(req.Type), architecture)
+					if err == nil && cachedFingerprint != sourceImageHash {
+						sourceImageHash = cachedFingerprint
+						break
+					}
+				}
+			}
+
+			// Check if image has an entry in the database (but don't fail if not found).
+			_, sourceImage, err = tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &targetProject.Name})
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return err
+			}
+
+			// If image has an entry in the database then use its profiles if no override provided.
+			if sourceImage != nil && req.Profiles == nil {
+				req.Profiles = sourceImage.Profiles
 			}
 		}
 
@@ -1011,7 +1046,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, req)
+		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -1076,7 +1111,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, *targetProject, profiles, &req)
+		return createFromImage(d, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case "none":
 		return createFromNone(d, r, targetProjectName, profiles, &req)
 	case "migration":
