@@ -37,14 +37,9 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.Profile, req *api.InstancesPost) response.Response {
+func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
-	}
-
-	hash, err := instance.ResolveImage(d.State(), p.Name, req.Source)
-	if err != nil {
-		return response.BadRequest(err)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -64,7 +59,6 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 			Profiles:    profiles,
 		}
 
-		var info *api.Image
 		if req.Source.Server != "" {
 			var autoUpdate bool
 			if p.Config["images.auto_update_cached"] != "" {
@@ -82,12 +76,12 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 				return err
 			}
 
-			info, err = d.ImageDownload(r, op, &ImageDownloadArgs{
+			img, err = d.ImageDownload(r, op, &ImageDownloadArgs{
 				Server:       req.Source.Server,
 				Protocol:     req.Source.Protocol,
 				Certificate:  req.Source.Certificate,
 				Secret:       req.Source.Secret,
-				Alias:        hash,
+				Alias:        imgAlias,
 				SetCached:    true,
 				Type:         string(req.Type),
 				AutoUpdate:   autoUpdate,
@@ -99,19 +93,18 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 			if err != nil {
 				return err
 			}
-		} else {
-			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: &p.Name})
-			if err != nil {
-				return err
-			}
 		}
 
-		args.Architecture, err = osarch.ArchitectureId(info.Architecture)
+		if img == nil {
+			return fmt.Errorf("Image not provided for instance creation")
+		}
+
+		args.Architecture, err = osarch.ArchitectureId(img.Architecture)
 		if err != nil {
 			return err
 		}
 
-		_, err = instanceCreateFromImage(d, r, args, info.Fingerprint, op)
+		_, err = instanceCreateFromImage(d, r, img, args, op)
 		return err
 	}
 
