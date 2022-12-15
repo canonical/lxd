@@ -37,14 +37,9 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.Profile, img *api.Image, imgAlias string, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
-	}
-
-	hash, err := instance.ResolveImage(d.State(), projectName, req.Source)
-	if err != nil {
-		return response.BadRequest(err)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -52,17 +47,9 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 		return response.BadRequest(err)
 	}
 
-	var profiles []api.Profile
-	if req.Profiles != nil {
-		profiles, err = d.State().DB.Cluster.GetProfiles(projectName, req.Profiles)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-	}
-
 	run := func(op *operations.Operation) error {
 		args := db.InstanceArgs{
-			Project:     projectName,
+			Project:     p.Name,
 			Config:      req.Config,
 			Type:        dbType,
 			Description: req.Description,
@@ -72,80 +59,52 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 			Profiles:    profiles,
 		}
 
-		err := instance.ValidName(args.Name, args.Snapshot)
-		if err != nil {
-			return err
-		}
-
-		var info *api.Image
 		if req.Source.Server != "" {
 			var autoUpdate bool
-			var p *api.Project
-			err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				project, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
-				if err != nil {
-					return err
-				}
-
-				p, err = project.ToAPI(ctx, tx.Tx())
-
-				return err
-			})
-			if err != nil {
-				return err
-			}
-
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
 				autoUpdate = d.State().GlobalConfig.ImagesAutoUpdateCached()
 			}
 
-			// Detect image type based on instance type requested.
-			imgType := "container"
-			if req.Type == "virtual-machine" {
-				imgType = "virtual-machine"
-			}
-
 			var budget int64
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				budget, err = project.GetImageSpaceBudget(tx, projectName)
+				budget, err = project.GetImageSpaceBudget(tx, p.Name)
 				return err
 			})
 			if err != nil {
 				return err
 			}
 
-			info, err = d.ImageDownload(r, op, &ImageDownloadArgs{
+			img, err = d.ImageDownload(r, op, &ImageDownloadArgs{
 				Server:       req.Source.Server,
 				Protocol:     req.Source.Protocol,
 				Certificate:  req.Source.Certificate,
 				Secret:       req.Source.Secret,
-				Alias:        hash,
+				Alias:        imgAlias,
 				SetCached:    true,
-				Type:         imgType,
+				Type:         string(req.Type),
 				AutoUpdate:   autoUpdate,
 				Public:       false,
 				PreferCached: true,
-				ProjectName:  projectName,
+				ProjectName:  p.Name,
 				Budget:       budget,
 			})
 			if err != nil {
 				return err
 			}
-		} else {
-			_, info, err = d.db.Cluster.GetImage(hash, dbCluster.ImageFilter{Project: &projectName})
-			if err != nil {
-				return err
-			}
 		}
 
-		args.Architecture, err = osarch.ArchitectureId(info.Architecture)
+		if img == nil {
+			return fmt.Errorf("Image not provided for instance creation")
+		}
+
+		args.Architecture, err = osarch.ArchitectureId(img.Architecture)
 		if err != nil {
 			return err
 		}
 
-		_, err = instanceCreateFromImage(d, r, args, info.Fingerprint, op)
+		_, err = instanceCreateFromImage(d, r, img, args, op)
 		return err
 	}
 
@@ -156,7 +115,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(d.State(), p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -164,7 +123,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 	return operations.OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromNone(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -172,14 +131,6 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	var profiles []api.Profile
-	if req.Profiles != nil {
-		profiles, err = d.State().DB.Cluster.GetProfiles(projectName, req.Profiles)
-		if err != nil {
-			return response.BadRequest(err)
-		}
 	}
 
 	args := db.InstanceArgs{
@@ -222,25 +173,20 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 	return operations.OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromMigration(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
 	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
+		return response.NotImplemented(fmt.Errorf("Mode %q not implemented", req.Source.Mode))
 	}
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
 		return response.BadRequest(err)
-	}
-
-	// Pre-fill default profile.
-	if req.Profiles == nil {
-		req.Profiles = []string{"default"}
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -263,50 +209,8 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     make([]api.Profile, 0, len(req.Profiles)),
+		Profiles:     profiles,
 		Stateful:     req.Stateful,
-	}
-
-	// Early profile validation.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		profileProject := projectName
-		enabled, err := dbCluster.ProjectHasProfiles(context.Background(), tx.Tx(), profileProject)
-		if err != nil {
-			return fmt.Errorf("Check if project has profiles: %w", err)
-		}
-
-		if !enabled {
-			profileProject = "default"
-		}
-
-		profiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), dbCluster.ProfileFilter{Project: &profileProject})
-		if err != nil {
-			return err
-		}
-
-		profilesByName := map[string]dbCluster.Profile{}
-		for _, profile := range profiles {
-			profilesByName[profile.Name] = profile
-		}
-
-		for _, name := range req.Profiles {
-			profile, ok := profilesByName[name]
-			if !ok {
-				return fmt.Errorf("Requested profile '%q' doesn't exist", name)
-			}
-
-			apiProfile, err := profile.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-
-			args.Profiles = append(args.Profiles, *apiProfile)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return response.InternalError(err)
 	}
 
 	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := instanceFindStoragePool(d, projectName, req)
@@ -480,7 +384,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	return operations.OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+func createFromCopy(d *Daemon, r *http.Request, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	if d.db.Cluster.LocalNodeIsEvacuated() {
 		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
@@ -523,7 +427,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if sourcePoolName != destPoolName {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, r, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, profiles, req)
 			}
 
 			_, pool, _, err := d.db.Cluster.GetStoragePoolInAnyState(sourcePoolName)
@@ -534,7 +438,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			if pool.Driver != "ceph" {
 				// Redirect to migration
-				return clusterCopyContainerInternal(d, r, source, projectName, req)
+				return clusterCopyContainerInternal(d, r, source, projectName, profiles, req)
 			}
 		}
 	}
@@ -575,16 +479,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		req.Devices[key] = value
 	}
 
-	// Profiles override
-	if req.Profiles == nil {
-		profileNames := make([]string, 0, len(source.Profiles()))
-		for _, profile := range source.Profiles() {
-			profileNames = append(profileNames, profile.Name)
-		}
-
-		req.Profiles = profileNames
-	}
-
 	if req.Stateful {
 		sourceName, _, _ := api.GetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
@@ -606,11 +500,6 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
-	apiProfiles, err := d.db.Cluster.GetProfiles(targetProject, req.Profiles)
-	if err != nil {
-		return response.BadRequest(fmt.Errorf("Failed to get profiles from database: %w", err))
-	}
-
 	args := db.InstanceArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
@@ -621,7 +510,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
-		Profiles:     apiProfiles,
+		Profiles:     profiles,
 		Stateful:     req.Stateful,
 	}
 
@@ -913,10 +802,51 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
-	var targetProject *api.Project
+	if req.Type == "" {
+		req.Type = api.InstanceTypeContainer // Default to container if not specified.
+	}
+
+	if req.Devices == nil {
+		req.Devices = map[string]map[string]string{}
+	}
+
+	if req.Config == nil {
+		req.Config = map[string]string{}
+	}
+
+	if req.InstanceType != "" {
+		conf, err := instanceParseType(req.InstanceType)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		for k, v := range conf {
+			if req.Config[k] == "" {
+				req.Config[k] = v
+			}
+		}
+	}
+
+	// Check if clustered.
+	clustered, err := cluster.Enabled(d.db.Node)
+	if err != nil {
+		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
+	}
 
 	targetNode := queryParam(r, "target")
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+
+	var targetGroup string
+	if strings.HasPrefix(targetNode, "@") {
+		targetGroup = strings.TrimPrefix(targetNode, "@")
+	}
+
+	var targetProject *api.Project
+	var profiles []api.Profile
+	var sourceInst *dbCluster.Instance
+	var sourceImage *api.Image
+	var sourceImageRef string
+
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project: %w", err)
@@ -927,82 +857,201 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		if targetGroup != "" {
+			// Check if the target group exists.
+			targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
+			if err != nil {
+				return err
+			}
+
+			if !targetGroupExists {
+				return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+			}
+		}
+
+		profileProject := project.ProfileProjectFromRecord(targetProject)
+
+		switch req.Source.Type {
+		case "copy":
+			if req.Source.Source == "" {
+				return api.StatusErrorf(http.StatusBadRequest, "Must specify a source instance")
+			}
+
+			if req.Source.Project == "" {
+				req.Source.Project = targetProjectName
+			}
+
+			sourceInst, err = instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
+			if err != nil {
+				return err
+			}
+
+			req.Type = api.InstanceType(sourceInst.Type.String())
+
+			// Use source instance's profiles if no profile override.
+			if req.Profiles == nil {
+				sourceInstArgs, err := tx.InstancesToInstanceArgs(ctx, true, *sourceInst)
+				if err != nil {
+					return err
+				}
+
+				req.Profiles = make([]string, 0, len(sourceInstArgs[0].Profiles))
+				for _, profile := range sourceInstArgs[0].Profiles {
+					req.Profiles = append(req.Profiles, profile.Name)
+				}
+			}
+
+		case "image":
+			// Resolve the image.
+			sourceImageRef, err = instance.ResolveImage(ctx, tx, targetProject.Name, req.Source)
+			if err != nil {
+				return err
+			}
+
+			sourceImageHash := sourceImageRef
+
+			// If a remote server is being used, check whether we have a cached image for the alias.
+			// If so then use the cached image fingerprint for loading the cache image profiles.
+			// As its possible for a remote cached image to have its profiles modified after download.
+			if req.Source.Server != "" {
+				for _, architecture := range d.os.Architectures {
+					cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, req.Source.Server, req.Source.Protocol, sourceImageRef, string(req.Type), architecture)
+					if err == nil && cachedFingerprint != sourceImageHash {
+						sourceImageHash = cachedFingerprint
+						break
+					}
+				}
+			}
+
+			// Check if image has an entry in the database (but don't fail if not found).
+			_, sourceImage, err = tx.GetImageByFingerprintPrefix(ctx, sourceImageHash, dbCluster.ImageFilter{Project: &targetProject.Name})
+			if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+				return err
+			}
+
+			// If image has an entry in the database then use its profiles if no override provided.
+			if sourceImage != nil && req.Profiles == nil {
+				req.Profiles = sourceImage.Profiles
+			}
+		}
+
+		// Use default profile if no profile list specified (not even an empty list).
+		// This mirrors the logic in instance.CreateInternal() that would occur anyway.
+		if req.Profiles == nil {
+			req.Profiles = []string{"default"}
+		}
+
+		// Initialise the profile info list (even if an empty list is provided so this isn't left as nil).
+		// This way instances can still be created without any profiles by providing a non-nil empty list.
+		profiles = make([]api.Profile, 0, len(req.Profiles))
+
+		// Load profiles.
+		if len(req.Profiles) > 0 {
+			profileFilters := make([]dbCluster.ProfileFilter, 0, len(req.Profiles))
+			for _, profileName := range req.Profiles {
+				profileName := profileName
+				profileFilters = append(profileFilters, dbCluster.ProfileFilter{
+					Project: &profileProject,
+					Name:    &profileName,
+				})
+			}
+
+			dbProfiles, err := dbCluster.GetProfiles(ctx, tx.Tx(), profileFilters...)
+			if err != nil {
+				return err
+			}
+
+			profilesByName := make(map[string]dbCluster.Profile, len(dbProfiles))
+			for _, dbProfile := range dbProfiles {
+				profilesByName[dbProfile.Name] = dbProfile
+			}
+
+			for _, profileName := range req.Profiles {
+				profile, found := profilesByName[profileName]
+				if !found {
+					return fmt.Errorf("Requested profile %q doesn't exist", profileName)
+				}
+
+				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
+				if err != nil {
+					return err
+				}
+
+				profiles = append(profiles, *apiProfile)
+			}
+		}
+
+		// Check manual targeting restrictions.
+		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		if err != nil {
+			return err
+		}
+
+		// Check that the project's limits are not violated. Note this check is performed after
+		// automatically generated config values (such as the ones from an InstanceType) have been set.
+		err = project.AllowInstanceCreation(tx, targetProjectName, req)
+		if err != nil {
+			return err
+		}
+
+		// Generate automatic instance name if not specified.
+		if req.Name == "" {
+			names, err := tx.GetInstanceNames(ctx, targetProjectName)
+			if err != nil {
+				return err
+			}
+
+			i := 0
+			for {
+				i++
+				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				if !shared.StringInSlice(req.Name, names) {
+					break
+				}
+
+				if i > 100 {
+					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
+				}
+			}
+
+			logger.Debugf("No name provided for new instance, creating using %q", req.Name)
+		}
+
+		return nil
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db.Node)
+	err = instance.ValidName(req.Name, false)
 	if err != nil {
-		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
+		return response.BadRequest(err)
 	}
 
-	if clustered && (targetNode == "" || strings.HasPrefix(targetNode, "@")) {
-		// If no target node was specified, pick the node with the
-		// least number of containers. If there's just one node, or if
-		// the selected node is the local one, this is effectively a
-		// no-op, since GetNodeWithLeastInstances() will return an empty
-		// string.
-		// If the target is a cluster group, find a suitable node.
-		group := ""
-
-		if strings.HasPrefix(targetNode, "@") {
-			group = strings.TrimPrefix(targetNode, "@")
-		}
+	if clustered && (targetNode == "" || targetGroup != "") {
+		// If no target node was specified, pick the node with the least number of instances.
+		// If there's just one node, or if the selected node is the local one, this is effectively a no-op,
+		// since GetNodeWithLeastInstances() will return an empty string.
+		// If the target is a cluster group, find a suitable node within the group.
 
 		// Load restricted groups from project.
 		var allowedGroups []string
+
 		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
 			allowedGroups = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
-		} else {
-			allowedGroups = nil
-		}
-
-		if group != "" {
-			var groupExists bool
-
-			// Check if the group exists.
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				groupExists, err = dbCluster.ClusterGroupExists(ctx, tx.Tx(), group)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			if !groupExists {
-				return response.BadRequest(fmt.Errorf("Cluster group %q doesn't exist", group))
-			}
 
 			// Validate restrictions.
-			if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
-				found := false
-
-				for _, entry := range allowedGroups {
-					if group == entry {
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
-				}
+			if targetGroup != "" && !shared.StringInSlice(targetGroup, allowedGroups) {
+				return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(s, targetProjectName, req)
+		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			defaultArch := ""
 			if targetProject.Config["images.default_architecture"] != "" {
 				defaultArch = targetProject.Config["images.default_architecture"]
@@ -1018,16 +1067,19 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, group, allowedGroups)
-			return err
+			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, allowedGroups)
+			if err != nil {
+				return err
+			}
+
+			if targetNode == "" {
+				return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
+			}
+
+			return nil
 		})
 		if err != nil {
 			return response.SmartError(err)
-		}
-
-		if targetNode == "" {
-			return response.BadRequest(fmt.Errorf("No suitable cluster member could be found"))
 		}
 	}
 
@@ -1057,101 +1109,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if req.Devices == nil {
-		req.Devices = map[string]map[string]string{}
-	}
-
-	if req.Config == nil {
-		req.Config = map[string]string{}
-	}
-
-	if req.InstanceType != "" {
-		conf, err := instanceParseType(req.InstanceType)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-
-		for k, v := range conf {
-			if req.Config[k] == "" {
-				req.Config[k] = v
-			}
-		}
-	}
-
-	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return response.BadRequest(fmt.Errorf("Invalid instance name: %q is reserved for snapshots", shared.SnapshotDelimiter))
-	}
-
-	// Check that the project's limits are not violated. Also, possibly
-	// automatically assign a name.
-	//
-	// Note this check is performed after automatically generated config
-	// values (such as the ones from an InstanceType) have been set.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		if req.Type == "" {
-			switch req.Source.Type {
-			case "copy":
-				if req.Source.Source == "" {
-					return fmt.Errorf("Must specify a source instance")
-				}
-
-				if req.Source.Project == "" {
-					req.Source.Project = targetProjectName
-				}
-
-				source, err := instance.LoadInstanceDatabaseObject(ctx, tx, req.Source.Project, req.Source.Source)
-				if err != nil {
-					return fmt.Errorf("Load source instance from database: %w", err)
-				}
-
-				req.Type = api.InstanceType(source.Type.String())
-			case "migration":
-				req.Type = api.InstanceTypeContainer // Default to container if not specified.
-			}
-		}
-
-		err := project.AllowInstanceCreation(tx, targetProjectName, req)
-		if err != nil {
-			return err
-		}
-
-		if req.Name == "" {
-			names, err := tx.GetInstanceNames(ctx, targetProjectName)
-			if err != nil {
-				return err
-			}
-
-			i := 0
-			for {
-				i++
-				req.Name = strings.ToLower(petname.Generate(2, "-"))
-				if !shared.StringInSlice(req.Name, names) {
-					break
-				}
-
-				if i > 100 {
-					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
-				}
-			}
-
-			logger.Debugf("No name provided, creating %s", req.Name)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, targetProjectName, &req)
+		return createFromImage(d, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case "none":
-		return createFromNone(d, r, targetProjectName, &req)
+		return createFromNone(d, r, targetProjectName, profiles, &req)
 	case "migration":
-		return createFromMigration(d, r, targetProjectName, &req)
+		return createFromMigration(d, r, targetProjectName, profiles, &req)
 	case "copy":
-		return createFromCopy(d, r, targetProjectName, &req)
+		return createFromCopy(d, r, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
@@ -1215,7 +1181,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.Instance, projectName string, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.Instance, projectName string, profiles []api.Profile, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
@@ -1297,5 +1263,5 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 	req.Source.Project = ""
 
 	// Run the migration
-	return createFromMigration(d, nil, projectName, req)
+	return createFromMigration(d, nil, projectName, profiles, req)
 }

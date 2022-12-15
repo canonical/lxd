@@ -304,21 +304,6 @@ func LoadByID(s *state.State, id int) (Instance, error) {
 	return LoadByProjectAndName(s, project, name)
 }
 
-// Convenience to load a db.Instance object, accounting for snapshots.
-func fetchInstanceDatabaseObject(s *state.State, project, name string) (*cluster.Instance, error) {
-	var container *cluster.Instance
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		container, err = LoadInstanceDatabaseObject(ctx, tx, project, name)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return container, nil
-}
-
 // LoadInstanceDatabaseObject loads a db.Instance object, accounting for snapshots.
 func LoadInstanceDatabaseObject(ctx context.Context, tx *db.ClusterTx, project, name string) (*cluster.Instance, error) {
 	var container *cluster.Instance
@@ -530,9 +515,7 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 }
 
 // ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
-func ResolveImage(s *state.State, project string, source api.InstanceSource) (string, error) {
-	var err error
-
+func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, source api.InstanceSource) (string, error) {
 	if source.Fingerprint != "" {
 		return source.Fingerprint, nil
 	}
@@ -542,11 +525,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return source.Alias, nil
 		}
 
-		var alias api.ImageAliasesEntry
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			_, alias, err = tx.GetImageAlias(ctx, project, source.Alias, true)
-			return err
-		})
+		_, alias, err := tx.GetImageAlias(ctx, projectName, source.Alias, true)
 		if err != nil {
 			return "", err
 		}
@@ -559,42 +538,35 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return "", fmt.Errorf("Property match is only supported for local images")
 		}
 
-		var image *api.Image
-		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			hashes, err := tx.GetImagesFingerprints(ctx, project, false)
-			if err != nil {
-				return err
-			}
-
-			for _, imageHash := range hashes {
-				_, img, err := tx.GetImageByFingerprintPrefix(ctx, imageHash, cluster.ImageFilter{Project: &project})
-				if err != nil {
-					continue
-				}
-
-				if image != nil && img.CreatedAt.Before(image.CreatedAt) {
-					continue
-				}
-
-				match := true
-				for key, value := range source.Properties {
-					if img.Properties[key] != value {
-						match = false
-						break
-					}
-				}
-
-				if !match {
-					continue
-				}
-
-				image = img
-			}
-
-			return nil
-		})
+		hashes, err := tx.GetImagesFingerprints(ctx, projectName, false)
 		if err != nil {
 			return "", err
+		}
+
+		var image *api.Image
+		for _, imageHash := range hashes {
+			_, img, err := tx.GetImageByFingerprintPrefix(ctx, imageHash, cluster.ImageFilter{Project: &projectName})
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
+				continue
+			}
+
+			match := true
+			for key, value := range source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
 		}
 
 		if image != nil {
@@ -611,7 +583,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 //
 // An empty list indicates that the request may be handled by any architecture.
 // A nil list indicates that we can't tell at this stage, typically for private images.
-func SuitableArchitectures(s *state.State, project string, req api.InstancesPost) ([]int, error) {
+func SuitableArchitectures(ctx context.Context, s *state.State, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
 	if shared.StringInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
@@ -634,30 +606,14 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 	// For copy, always use the source architecture.
 	if req.Source.Type == "copy" {
-		srcProject := req.Source.Project
-		if srcProject == "" {
-			srcProject = project
-		}
-
-		inst, err := fetchInstanceDatabaseObject(s, srcProject, req.Source.Source)
-		if err != nil {
-			return nil, err
-		}
-
-		return []int{inst.Architecture}, nil
+		return []int{sourceInst.Architecture}, nil
 	}
 
 	// For image, things get a bit more complicated.
 	if req.Source.Type == "image" {
-		// Resolve the image.
-		hash, err := ResolveImage(s, project, req.Source)
-		if err != nil {
-			return nil, err
-		}
-
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.DB.Cluster.GetImage(hash, cluster.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(sourceImageRef, cluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return nil, err
 			}
@@ -672,17 +628,12 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle remote images.
 		if req.Source.Server != "" {
-			// Detect image type based on instance type requested.
-			imgType := "container"
-			if req.Type == "virtual-machine" {
-				imgType = "virtual-machine"
-			}
-
 			if req.Source.Secret != "" {
 				// We can't retrieve a private image, defer to later processing.
 				return nil, nil
 			}
 
+			var err error
 			var remote lxd.ImageServer
 			if shared.StringInSlice(req.Source.Protocol, []string{"", "lxd"}) {
 				// Remote LXD image server.
@@ -713,10 +664,10 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 			}
 
 			// Look for a matching alias.
-			entries, err := remote.GetImageAliasArchitectures(imgType, hash)
+			entries, err := remote.GetImageAliasArchitectures(string(req.Type), sourceImageRef)
 			if err != nil {
 				// Look for a matching image by fingerprint.
-				img, _, err := remote.GetImage(hash)
+				img, _, err := remote.GetImage(sourceImageRef)
 				if err != nil {
 					return nil, err
 				}

@@ -84,44 +84,11 @@ func instanceImageTransfer(d *Daemon, r *http.Request, projectName string, hash 
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
+func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db.InstanceArgs, op *operations.Operation) (instance.Instance, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
 	s := d.State()
-
-	// Get the image properties.
-	var img *api.Image
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
-		_, img, err = tx.GetImageByFingerprintPrefix(ctx, hash, dbCluster.ImageFilter{Project: &args.Project})
-		if err != nil {
-			return fmt.Errorf("Fetch image %s from database: %w", hash, err)
-		}
-
-		// Set the default profiles if necessary.
-		if args.Profiles == nil {
-			args.Profiles = make([]api.Profile, 0, len(img.Profiles))
-			profiles, err := dbCluster.GetProfilesIfEnabled(ctx, tx.Tx(), args.Project, img.Profiles)
-			if err != nil {
-				return err
-			}
-
-			for _, profile := range profiles {
-				apiProfile, err := profile.ToAPI(ctx, tx.Tx())
-				if err != nil {
-					return err
-				}
-
-				args.Profiles = append(args.Profiles, *apiProfile)
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
 
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
@@ -130,7 +97,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	}
 
 	if imgType != args.Type {
-		return nil, fmt.Errorf("Requested image's type '%s' doesn't match instance type '%s'", imgType, args.Type)
+		return nil, fmt.Errorf("Requested image's type %q doesn't match instance type %q", imgType, args.Type)
 	}
 
 	// Check if the image is available locally or it's on another member.
@@ -140,10 +107,10 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	// duplicate record errors.
 	unlock := d.imageOperationLock(img.Fingerprint)
 
-	nodeAddress, err := s.DB.Cluster.LocateImage(hash)
+	nodeAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
 	if err != nil {
 		unlock()
-		return nil, fmt.Errorf("Locate image %q in the cluster: %w", hash, err)
+		return nil, fmt.Errorf("Locate image %q in the cluster: %w", img.Fingerprint, err)
 	}
 
 	if nodeAddress != "" {
@@ -172,7 +139,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	}
 
 	// Set the BaseImage field (regardless of previous value).
-	args.BaseImage = hash
+	args.BaseImage = img.Fingerprint
 
 	// Create the instance.
 	inst, instOp, cleanup, err := instance.CreateInternal(s, args, true)
@@ -183,7 +150,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	revert.Add(cleanup)
 	defer instOp.Done(nil)
 
-	err = s.DB.Cluster.UpdateImageLastUseDate(args.Project, hash, time.Now().UTC())
+	err = s.DB.Cluster.UpdateImageLastUseDate(args.Project, img.Fingerprint, time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
@@ -193,7 +160,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
-	err = pool.CreateInstanceFromImage(inst, hash, op)
+	err = pool.CreateInstanceFromImage(inst, img.Fingerprint, op)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance from image: %w", err)
 	}
