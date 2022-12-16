@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
 	cookiejar "github.com/juju/persistent-cookiejar"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 	schemaform "gopkg.in/juju/environschema.v1/form"
-	"gopkg.in/macaroon-bakery.v3/httpbakery"
-	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
