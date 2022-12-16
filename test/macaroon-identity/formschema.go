@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
 	"gopkg.in/juju/environschema.v1"
-	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 )
 
 var schemaResponse = form.SchemaResponse{
