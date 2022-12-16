@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
 	"github.com/juju/persistent-cookiejar"
 	schemaform "gopkg.in/juju/environschema.v1/form"
-	"gopkg.in/macaroon-bakery.v3/httpbakery"
-	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
