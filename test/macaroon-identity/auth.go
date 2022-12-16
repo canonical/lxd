@@ -9,11 +9,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery/checkers"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
 	"github.com/pborman/uuid"
-	"gopkg.in/macaroon-bakery.v3/bakery"
-	"gopkg.in/macaroon-bakery.v3/bakery/checkers"
-	"gopkg.in/macaroon-bakery.v3/httpbakery"
-	"gopkg.in/macaroon-bakery.v3/httpbakery/form"
 )
 
 const formURL string = "/form"

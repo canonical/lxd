@@ -1,3 +1,6 @@
+github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery
+github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery
+github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form
 github.com/gorilla/websocket
 github.com/juju/persistent-cookiejar
 github.com/lxc/lxd/client
@@ -11,7 +14,4 @@ github.com/lxc/lxd/shared/tcp
 github.com/lxc/lxd/shared/units
 github.com/pkg/sftp
 gopkg.in/juju/environschema.v1/form
-gopkg.in/macaroon-bakery.v3/bakery
-gopkg.in/macaroon-bakery.v3/httpbakery
-gopkg.in/macaroon-bakery.v3/httpbakery/form
 gopkg.in/yaml.v2
