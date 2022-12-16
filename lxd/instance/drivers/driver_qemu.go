@@ -6368,7 +6368,7 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	data.Features, err = d.checkFeatures(qemuPath)
+	data.Features, err = d.checkFeatures(hostArch, qemuPath)
 	if err != nil {
 		logger.Errorf("Unable to run feature checks during QEMU initialization: %v", err)
 		data.Error = fmt.Errorf("QEMU failed to run feature checks")
@@ -6380,7 +6380,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
+func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -6396,6 +6396,10 @@ func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 		"-no-user-config",
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
+	}
+
+	if d.architectureSupportsUEFI(hostArch) {
+		qemuArgs = append(qemuArgs, "-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"))
 	}
 
 	var stderr bytes.Buffer
