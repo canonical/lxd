@@ -1077,7 +1077,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Copy OVMF settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI() && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
+	if d.architectureSupportsUEFI(d.architecture) && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
 		err = d.setupNvram()
 		if err != nil {
 			op.Done(err)
@@ -1305,7 +1305,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
-	if d.architectureSupportsUEFI() {
+	if d.architectureSupportsUEFI(d.architecture) {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
@@ -1314,7 +1314,7 @@ func (d *qemu) Start(stateful bool) error {
 		qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 
 		nvRAMPath := d.nvramPath()
-		if d.architectureSupportsUEFI() && shared.PathExists(nvRAMPath) {
+		if d.architectureSupportsUEFI(d.architecture) && shared.PathExists(nvRAMPath) {
 			// Ensure UEFI nvram file is writable by the QEMU process.
 			// This is needed when doing stateful snapshots because the QEMU process will reopen the
 			// file for writing.
@@ -1665,8 +1665,8 @@ func (d *qemu) AgentCertificate() *x509.Certificate {
 	return cert
 }
 
-func (d *qemu) architectureSupportsUEFI() bool {
-	return shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
+func (d *qemu) architectureSupportsUEFI(arch int) bool {
+	return shared.IntInSlice(arch, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN})
 }
 
 func (d *qemu) setupNvram() error {
@@ -2585,7 +2585,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Allow disabling the UEFI firmware.
 	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
 		d.logger.Warn("Starting VM without default firmware (-bios or -kernel in raw.qemu)")
-	} else if d.architectureSupportsUEFI() {
+	} else if d.architectureSupportsUEFI(d.architecture) {
 		// Open the UEFI NVRAM file and pass it via file descriptor to QEMU.
 		// This is so the QEMU process can still read/write the file after it has dropped its user privs.
 		nvRAMFile, err := os.Open(d.nvramPath())
@@ -4775,7 +4775,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if d.architectureSupportsUEFI() && shared.StringInSlice("security.secureboot", changedConfig) {
+	if d.architectureSupportsUEFI(d.architecture) && shared.StringInSlice("security.secureboot", changedConfig) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
@@ -6379,7 +6379,7 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	data.Features, err = d.checkFeatures(qemuPath)
+	data.Features, err = d.checkFeatures(hostArch, qemuPath)
 	if err != nil {
 		logger.Errorf("Unable to run feature checks during QEMU initialization: %v", err)
 		data.Error = fmt.Errorf("QEMU failed to run feature checks")
@@ -6391,7 +6391,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
+func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -6407,6 +6407,10 @@ func (d *qemu) checkFeatures(qemuPath string) ([]string, error) {
 		"-no-user-config",
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
+	}
+
+	if d.architectureSupportsUEFI(hostArch) {
+		qemuArgs = append(qemuArgs, "-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"))
 	}
 
 	var stderr bytes.Buffer
