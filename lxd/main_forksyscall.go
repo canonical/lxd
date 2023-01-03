@@ -354,22 +354,23 @@ static bool is_dir(const char *path)
 	return false;
 }
 
-static int make_tmpfile(char *template, bool dir)
+static int make_private_tmpmount(char *template, bool dir)
 {
-	__do_close int fd = -EBADF;
-
 	if (dir) {
 		if (!mkdtemp(template))
 			return -1;
+	} else {
+		__do_close int fd = -EBADF;
 
-		return 0;
+		fd = mkstemp(template);
+		if (fd < 0)
+			return -1;
 	}
 
-	fd = mkstemp(template);
-	if (fd < 0)
+	if (mount(template, template, NULL, MS_BIND, NULL))
 		return -1;
 
-	return 0;
+	return mount(NULL, template, NULL, MS_PRIVATE, NULL);
 }
 
 static void mount_emulate(void)
@@ -488,7 +489,17 @@ static void mount_emulate(void)
 		char template[] = P_tmpdir "/.lxd_tmp_mount_XXXXXX";
 
 		// Create basic mount in container's mount namespace.
+		// If @target is on a shared mount then @source will become a
+		// shared mount.
 		ret = mount(source, target, fstype, flags, data);
+		if (ret)
+			_exit(EXIT_FAILURE);
+
+		// If the parent mount of @target is a shared mount we won't be
+		// able to MS_MOVE the shiftfs mount. So make @target a
+		// dependent mount. This is safe since we created a new
+		// bind-mount above anyway.
+		ret = mount(NULL, target, NULL, MS_SLAVE | MS_REC, NULL);
 		if (ret)
 			_exit(EXIT_FAILURE);
 
@@ -535,7 +546,17 @@ static void mount_emulate(void)
 			_exit(EXIT_FAILURE);
 		}
 
-		ret = make_tmpfile(template, is_dir(target));
+		// This is weird to explain without having mount structures
+		// clearly represented in your head: @template's mount is
+		// likely /. That's likely a shared mount. If we MS_MOVE
+		// @target to @template then not just would @target become a
+		// shared mount. It also means @target would have a shared
+		// mount - again likely / - as it's parent. So the next MS_MOVE
+		// would fail.
+		//
+		// IOW, we need a non-shared mount we can temporarily move
+		// @target to and that serve's as @target's non-shared parent mount.
+		ret = make_private_tmpmount(template, is_dir(target));
 		if (ret) {
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
@@ -549,6 +570,7 @@ static void mount_emulate(void)
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
 			umount2(target, MNT_DETACH);
+			umount2(template, MNT_DETACH);
 			_exit(EXIT_FAILURE);
 		}
 
@@ -557,11 +579,16 @@ static void mount_emulate(void)
 
 		ret = mount(template, target, "none", MS_MOVE | MS_REC, NULL);
 		if (ret) {
+			// @target@template
+			umount2(template, MNT_DETACH);
+			// @template@template
 			umount2(template, MNT_DETACH);
 			remove(template);
 			_exit(EXIT_FAILURE);
 		}
 
+		// @template@template
+		umount2(template, MNT_DETACH);
 		remove(template);
 	} else {
 		if (mount(source, target, fstype, flags, data) < 0)
