@@ -160,3 +160,5 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    ```
 
    </details>
+1. When the migration is complete, check the new instance and update its configuration to the new environment.
+   Typically, you must update at least the storage configuration (`/etc/fstab`) and the network configuration.
