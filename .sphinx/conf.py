@@ -20,7 +20,8 @@ extensions = [
     "sphinxext.opengraph",
     "youtube-links",
     "related-links",
-    "custom-rst-roles"
+    "custom-rst-roles",
+    "sphinxcontrib.jquery"
 ]
 
 myst_enable_extensions = [
