@@ -1858,7 +1858,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	if shared.PathExists(logfile) {
 		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return "", nil, err
 		}
 	}
