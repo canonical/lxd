@@ -1009,7 +1009,7 @@ func (d *qemu) Start(stateful bool) error {
 	if shared.PathExists(logfile) {
 		_ = os.Remove(logfile + ".old")
 		err := os.Rename(logfile, logfile+".old")
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			op.Done(err)
 			return err
 		}
