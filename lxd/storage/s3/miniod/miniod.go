@@ -306,9 +306,9 @@ func EnsureRunning(s *state.State, bucketVol storageDrivers.Volume) (*Process, e
 		miniosMu.Unlock()
 	}()
 
-	// Wait up to 5s for service to become ready. Pass the minioProc.cancel as parent context so that if the
+	// Wait up to 10s for service to become ready. Pass the minioProc.cancel as parent context so that if the
 	// minio process fails to start then this context will immediately be cancelled.
-	waitReadyCtx, waitReadyCtxCancel := context.WithTimeout(minioProc.cancel, time.Second*5)
+	waitReadyCtx, waitReadyCtxCancel := context.WithTimeout(minioProc.cancel, time.Second*10)
 	defer waitReadyCtxCancel()
 
 	err = minioProc.WaitReady(waitReadyCtx)
