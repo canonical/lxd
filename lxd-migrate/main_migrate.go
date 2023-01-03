@@ -36,7 +36,7 @@ type cmdMigrate struct {
 
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "lxd-migrate <target URL> <instance name> <filesystem root|raw image> [<filesystem mounts>...]"
+	cmd.Use = "lxd-migrate"
 	cmd.Short = "Physical to instance migration tool"
 	cmd.Long = `Description:
   Physical to instance migration tool
