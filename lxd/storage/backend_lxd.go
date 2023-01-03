@@ -3343,7 +3343,7 @@ func (b *lxdBackend) CreateBucket(projectName string, bucket api.StorageBucketsP
 
 		bucketExists, err := s3Client.BucketExists(ctx, bucket.Name)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed checking if bucket exists: %w", err)
 		}
 
 		if bucketExists {
