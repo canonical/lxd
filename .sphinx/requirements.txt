@@ -3,7 +3,7 @@ Babel
 certifi
 charset-normalizer
 colorama
-docutils<0.18
+docutils
 idna
 imagesize
 Jinja2
@@ -24,6 +24,7 @@ sphinxcontrib-htmlhelp
 sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
+sphinxcontrib-jquery
 tornado
 urllib3
 myst-parser
