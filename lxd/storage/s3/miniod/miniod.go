@@ -132,7 +132,7 @@ func (p *Process) WaitReady(ctx context.Context) error {
 	}
 
 	for {
-		_, err = adminClient.ServerInfo(ctx)
+		_, err = adminClient.GetConfig(ctx)
 		if err == nil {
 			return nil
 		}
