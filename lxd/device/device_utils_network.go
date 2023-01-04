@@ -266,6 +266,35 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		}
 	}
 
+	var txqlen uint32
+	if m["queue.tx.length"] != "" {
+		nicTXqlen, err := strconv.ParseUint(m["queue.tx.length"], 10, 32)
+		if err != nil {
+			return "", 0, fmt.Errorf("Invalid txqueuelen specified: %w", err)
+		}
+
+		txqlen = uint32(nicTXqlen)
+	} else if m["parent"] != "" {
+		txqlen, err = network.GetTXQueueLength(m["parent"])
+		if err != nil {
+			return "", 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+		}
+	}
+
+	if txqlen != 0 {
+		link := &ip.Link{Name: peerName}
+		err = link.SetTXQueueLength(txqlen)
+		if err != nil {
+			return "", 0, fmt.Errorf("Failed to set the SetTXQueueLength %d: %w", txqlen, err)
+		}
+
+		link = &ip.Link{Name: hostName}
+		err = link.SetTXQueueLength(txqlen)
+		if err != nil {
+			return "", 0, fmt.Errorf("Failed to set the SetTXQueueLength %d: %w", txqlen, err)
+		}
+	}
+
 	return peerName, mtu, nil
 }
 
