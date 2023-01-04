@@ -29,6 +29,7 @@ func (d *nicP2P) validateConfig(instConf instance.ConfigReader) error {
 	optionalFields := []string{
 		"name",
 		"mtu",
+		"queue.tx.length",
 		"hwaddr",
 		"host_name",
 		"limits.ingress",
