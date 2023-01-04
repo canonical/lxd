@@ -148,7 +148,12 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		d = d.UseTarget(c.flagTarget)
 	}
 
-	profiles = append(profiles, c.flagProfile...)
+	// Overwrite profiles.
+	if c.flagProfile != nil {
+		profiles = c.flagProfile
+	} else if c.flagNoProfiles {
+		profiles = []string{}
+	}
 
 	if !c.global.flagQuiet {
 		if name == "" {
