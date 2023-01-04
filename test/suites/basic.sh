@@ -91,6 +91,11 @@ test_basic_usage() {
   rm "${LXD_DIR}/meta-${sum}.tar.xz"
   lxc image delete splitimage
 
+  # Test --no-profiles flag
+  poolName=$(lxc profile device get default root pool)
+  ! lxc init testimage foo --no-profiles || false
+  lxc init testimage foo --no-profiles -s "${poolName}"
+  lxc delete -f foo
 
   # Test container creation
   lxc init testimage foo
