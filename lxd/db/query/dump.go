@@ -80,6 +80,11 @@ func getEntitiesSchemas(ctx context.Context, tx *sql.Tx) (map[string][2]string, 
 			return nil, nil, fmt.Errorf("Could not scan table name and schema: %w", err)
 		}
 
+		// This is based on logic from dump_callback in sqlite source for sqlite3_db_dump function.
+		if strings.HasPrefix(schema, `CREATE TABLE "`) {
+			schema = strings.Replace(schema, "CREATE TABLE", "CREATE TABLE IF NOT EXISTS", 1)
+		}
+
 		names = append(names, name)
 		tablesSchemas[name] = [2]string{kind, schema + ";"}
 	}
@@ -125,11 +130,32 @@ func getTableData(ctx context.Context, tx *sql.Tx, table string) ([]string, erro
 			case int64:
 				values[j] = strconv.FormatInt(v, 10)
 			case string:
-				values[j] = fmt.Sprintf("'%s'", v)
+				// This is based on logic from dump_callback in sqlite source for sqlite3_db_dump function.
+				v = fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "''"))
+
+				if strings.Contains(v, "\r") {
+					v = "replace(" + strings.ReplaceAll(v, "\r", "\\r") + ",'\\r',char(13))"
+				}
+
+				if strings.Contains(v, "\n") {
+					v = "replace(" + strings.ReplaceAll(v, "\n", "\\n") + ",'\\n',char(10))"
+				}
+
+				values[j] = v
+
 			case []byte:
 				values[j] = fmt.Sprintf("'%s'", string(v))
 			case time.Time:
-				values[j] = strconv.FormatInt(v.Unix(), 10)
+				// Try and match the sqlite3 .dump output format.
+				format := "2006-01-02 15:04:05"
+
+				if v.Nanosecond() > 0 {
+					format = format + ".000000000"
+				}
+
+				format = format + "-07:00"
+
+				values[j] = "'" + v.Format(format) + "'"
 			default:
 				if v != nil {
 					return nil, fmt.Errorf("Bad type in column %q of row %d in table %q", columns[j], i, table)
