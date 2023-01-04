@@ -273,6 +273,22 @@ func GetDevMTU(devName string) (uint32, error) {
 	return uint32(mtu), nil
 }
 
+// GetTXQueueLength retrieves the current txqlen setting for a named network device.
+func GetTXQueueLength(devName string) (uint32, error) {
+	content, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/tx_queue_len", devName))
+	if err != nil {
+		return 0, err
+	}
+
+	// Parse value
+	txqlen, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(txqlen), nil
+}
+
 // DefaultGatewaySubnetV4 returns subnet of default gateway interface.
 func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 	file, err := os.Open("/proc/net/route")
