@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 type cfgEntry struct {
@@ -41,26 +42,37 @@ func qemuStringifyCfg(cfg ...cfgSection) *strings.Builder {
 	return sb
 }
 
+func qemuMachineType(architecture int) string {
+	var machineType string
+
+	switch architecture {
+	case osarch.ARCH_64BIT_INTEL_X86:
+		machineType = "q35"
+	case osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
+		machineType = "virt"
+	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
+		machineType = "pseries"
+	case osarch.ARCH_64BIT_S390_BIG_ENDIAN:
+		machineType = "s390-ccw-virtio"
+	}
+
+	return machineType
+}
+
 type qemuBaseOpts struct {
-	architecture string
+	architecture int
 }
 
 func qemuBase(opts *qemuBaseOpts) []cfgSection {
-	machineType := ""
+	machineType := qemuMachineType(opts.architecture)
 	gicVersion := ""
 	capLargeDecr := ""
 
 	switch opts.architecture {
-	case "x86_64":
-		machineType = "q35"
-	case "aarch64":
-		machineType = "virt"
+	case osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN:
 		gicVersion = "max"
-	case "ppc64le":
-		machineType = "pseries"
+	case osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN:
 		capLargeDecr = "off"
-	case "s390x":
-		machineType = "s390-ccw-virtio"
 	}
 
 	sections := []cfgSection{{
@@ -76,7 +88,7 @@ func qemuBase(opts *qemuBaseOpts) []cfgSection {
 		},
 	}}
 
-	if opts.architecture == "x86_64" {
+	if opts.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		sections = append(sections, []cfgSection{{
 			name: "global",
 			entries: []cfgEntry{
@@ -307,13 +319,13 @@ func qemuVsock(opts *qemuVsockOpts) []cfgSection {
 
 type qemuGpuOpts struct {
 	dev          qemuDevOpts
-	architecture string
+	architecture int
 }
 
 func qemuGPU(opts *qemuGpuOpts) []cfgSection {
 	var pciName string
 
-	if opts.architecture == "x86_64" {
+	if opts.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		pciName = "virtio-vga"
 	} else {
 		pciName = "virtio-gpu-pci"

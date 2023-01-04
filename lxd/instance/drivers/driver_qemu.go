@@ -2566,7 +2566,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
-	cfg := qemuBase(&qemuBaseOpts{d.architectureName})
+	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
 
 	err := d.addCPUMemoryConfig(&cfg)
 	if err != nil {
@@ -2751,7 +2751,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			devAddr:       devAddr,
 			multifunction: multi,
 		},
-		architecture: d.architectureName,
+		architecture: d.Architecture(),
 	}
 
 	cfg = append(cfg, qemuGPU(&gpuOpts)...)
@@ -6407,6 +6407,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 		"-no-user-config",
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
+		"-machine", qemuMachineType(hostArch),
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
