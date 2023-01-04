@@ -247,7 +247,8 @@ func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	var qgroup string
 	usage := int64(-1)
 	for _, line := range strings.Split(output, "\n") {
-		if line == "" || strings.HasPrefix(line, "qgroupid") || strings.HasPrefix(line, "---") {
+		// Use case-insensitive field title match because BTRFS tooling changed casing between versions.
+		if line == "" || strings.HasPrefix(strings.ToLower(line), "qgroupid") || strings.HasPrefix(line, "-") {
 			continue
 		}
 
