@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 func TestQemuConfigTemplates(t *testing.T) {
@@ -29,7 +31,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			opts     qemuBaseOpts
 			expected string
 		}{{
-			qemuBaseOpts{"x86_64"},
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_INTEL_X86},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -50,7 +52,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			qemuBaseOpts{"aarch64"},
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -62,7 +64,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			qemuBaseOpts{"ppc64le"},
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -74,7 +76,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			[boot-opts]
 			strict = "on"`,
 		}, {
-			qemuBaseOpts{"s390x"},
+			qemuBaseOpts{architecture: osarch.ARCH_64BIT_S390_BIG_ENDIAN},
 			`# Machine
 			[machine]
 			graphics = "off"
@@ -306,7 +308,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 			opts     qemuGpuOpts
 			expected string
 		}{{
-			qemuGpuOpts{qemuDevOpts{"pci", "qemu_pcie3", "00.0", true}, "x86_64"},
+			qemuGpuOpts{dev: qemuDevOpts{"pci", "qemu_pcie3", "00.0", true}, architecture: osarch.ARCH_64BIT_INTEL_X86},
 			`# GPU
 			[device "qemu_gpu"]
 			driver = "virtio-vga"
@@ -314,20 +316,20 @@ func TestQemuConfigTemplates(t *testing.T) {
 			addr = "00.0"
 			multifunction = "on"`,
 		}, {
-			qemuGpuOpts{qemuDevOpts{"pci", "qemu_pci3", "00.1", false}, "otherArch"},
+			qemuGpuOpts{dev: qemuDevOpts{"pci", "qemu_pci3", "00.1", false}, architecture: osarch.ARCH_UNKNOWN},
 			`# GPU
 			[device "qemu_gpu"]
 			driver = "virtio-gpu-pci"
 			bus = "qemu_pci3"
 			addr = "00.1"`,
 		}, {
-			qemuGpuOpts{qemuDevOpts{"ccw", "devBus", "busAddr", true}, "arch"},
+			qemuGpuOpts{dev: qemuDevOpts{"ccw", "devBus", "busAddr", true}, architecture: osarch.ARCH_UNKNOWN},
 			`# GPU
 			[device "qemu_gpu"]
 			driver = "virtio-gpu-ccw"
 			multifunction = "on"`,
 		}, {
-			qemuGpuOpts{qemuDevOpts{"ccw", "devBus", "busAddr", false}, "x86_64"},
+			qemuGpuOpts{dev: qemuDevOpts{"ccw", "devBus", "busAddr", false}, architecture: osarch.ARCH_64BIT_INTEL_X86},
 			`# GPU
 			[device "qemu_gpu"]
 			driver = "virtio-gpu-ccw"`,
