@@ -2129,3 +2129,7 @@ projects that are referencing that network via one of their forward zones.
 
 Existing projects that have `features.networks=true` will have `features.networks.zones=true` set automatically,
 but new projects will need to specify this explicitly.
+
+## `instance_nic_txqueuelength`
+
+Adds a `txqueuelen` key to control the `txqueuelen` parameter of the NIC device.
