@@ -38,6 +38,7 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 limits.egress 2Mbit
   lxc profile device set "${ctName}" eth0 host_name "${vethHostName}"
   lxc profile device set "${ctName}" eth0 mtu "1400"
+  lxc profile device set "${ctName}" eth0 queue.tx.length "1200"
   lxc profile device set "${ctName}" eth0 hwaddr "${ctMAC}"
 
   lxc init testimage "${ctName}" -p "${ctName}"
@@ -91,6 +92,18 @@ test_container_devices_nic_bridged() {
   # Check profile custom MTU is applied on host side of veth.
   if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
     echo "host veth mtu invalid"
+    false
+  fi
+
+  # Check profile custom txqueuelen is applied in container on boot.
+  if ! lxc exec "${ctName}" -- grep "1200" /sys/class/net/eth0/tx_queue_len ; then
+    echo "container veth txqueuelen invalid"
+    false
+  fi
+
+  # Check profile custom txqueuelen is applied on host side of veth.
+  if ! grep "1200" /sys/class/net/"${vethHostName}"/tx_queue_len ; then
+    echo "host veth txqueuelen invalid"
     false
   fi
 
