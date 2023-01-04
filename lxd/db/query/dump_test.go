@@ -23,7 +23,7 @@ CREATE TABLE schema (
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
 );
-INSERT INTO schema VALUES(1,37,1523946366);
+INSERT INTO schema VALUES(1,37,'2018-04-17 06:26:06+00:00');
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
@@ -36,8 +36,8 @@ CREATE TABLE patches (
     applied_at DATETIME NOT NULL,
     UNIQUE (name)
 );
-INSERT INTO patches VALUES(1,'invalid_profile_names',1523946366);
-INSERT INTO patches VALUES(2,'leftover_profile_config',1523946366);
+INSERT INTO patches VALUES(1,'invalid_profile_names','2018-04-17 06:26:06+00:00');
+INSERT INTO patches VALUES(2,'leftover_profile_config','2018-04-17 06:26:06+00:00');
 CREATE TABLE raft_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     address TEXT NOT NULL,
@@ -65,8 +65,8 @@ func TestDumpTablePatches(t *testing.T) {
 	data, err := query.GetTableData(context.Background(), tx, "patches")
 	require.NoError(t, err)
 	assert.ElementsMatch(t, data, []string{
-		"INSERT INTO patches VALUES(1,'invalid_profile_names',1523946366);",
-		"INSERT INTO patches VALUES(2,'leftover_profile_config',1523946366);",
+		"INSERT INTO patches VALUES(1,'invalid_profile_names','2018-04-17 06:26:06+00:00');",
+		"INSERT INTO patches VALUES(2,'leftover_profile_config','2018-04-17 06:26:06+00:00');",
 	})
 }
 
