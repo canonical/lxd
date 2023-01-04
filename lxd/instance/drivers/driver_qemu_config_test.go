@@ -1503,7 +1503,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 						[object "3"]
 						key4 = " value4 "
 						[object "2"]
-						key3 =   value3  
+						key3 =   value3
 						[object "3"]
 						key5 = "value5"`,
 			},
@@ -1552,7 +1552,7 @@ func TestQemuConfigTemplates(t *testing.T) {
 		[global][4]
 		key2 = "val4"
 
-		[global] 
+		[global]
 
 		[global][4]
 		[global][5]
