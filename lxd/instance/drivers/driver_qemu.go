@@ -2566,7 +2566,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
-	cfg := qemuBase(&qemuBaseOpts{d.architectureName})
+	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
 
 	err := d.addCPUMemoryConfig(&cfg)
 	if err != nil {
@@ -2751,7 +2751,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			devAddr:       devAddr,
 			multifunction: multi,
 		},
-		architecture: d.architectureName,
+		architecture: d.Architecture(),
 	}
 
 	cfg = append(cfg, qemuGPU(&gpuOpts)...)
