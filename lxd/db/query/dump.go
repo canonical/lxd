@@ -80,6 +80,11 @@ func getEntitiesSchemas(ctx context.Context, tx *sql.Tx) (map[string][2]string, 
 			return nil, nil, fmt.Errorf("Could not scan table name and schema: %w", err)
 		}
 
+		// This is based on logic from dump_callback in sqlite source for sqlite3_db_dump function.
+		if strings.HasPrefix(schema, `CREATE TABLE "`) {
+			schema = strings.Replace(schema, "CREATE TABLE", "CREATE TABLE IF NOT EXISTS", 1)
+		}
+
 		names = append(names, name)
 		tablesSchemas[name] = [2]string{kind, schema + ";"}
 	}
