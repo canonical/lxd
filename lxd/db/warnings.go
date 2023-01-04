@@ -56,7 +56,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 		return fmt.Errorf("Unknown warning type code %d", typeCode)
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		filter := cluster.WarningFilter{
@@ -96,7 +96,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 				Status:         warningtype.StatusNew,
 				FirstSeenDate:  now,
 				LastSeenDate:   now,
-				UpdatedDate:    time.Time{},
+				UpdatedDate:    time.Time{}.UTC(),
 				LastMessage:    message,
 				Count:          1,
 			}
