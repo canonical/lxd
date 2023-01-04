@@ -500,13 +500,15 @@ static void mount_emulate(void)
 		// dependent mount. This is safe since we created a new
 		// bind-mount above anyway.
 		ret = mount(NULL, target, NULL, MS_SLAVE | MS_REC, NULL);
-		if (ret)
+		if (ret) {
+			umount2(target, MNT_DETACH); // @source@target
 			_exit(EXIT_FAILURE);
+		}
 
 		// Mark the mount as shiftable.
 		ret = mount(target, target, "shiftfs", 0, "mark,passthrough=3");
 		if (ret) {
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
 			_exit(EXIT_FAILURE);
 		}
 
@@ -516,33 +518,26 @@ static void mount_emulate(void)
 		// creating our final shiftfs mount.
 		ret = setns(fd_mntns, CLONE_NEWNS);
 		if (ret) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
+			umount2(target, MNT_DETACH); // @shiftfs@target
 			_exit(EXIT_FAILURE);
 		}
 
 		if (!change_namespaces(pidfd, ns_fd, CLONE_NEWUSER)) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
+			umount2(target, MNT_DETACH); // @shiftfs@target
 			_exit(EXIT_FAILURE);
 		}
 
 		if (!reacquire_basic_creds(pidfd, ns_fd, root_fd, cwd_fd)) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
+			umount2(target, MNT_DETACH); // @shiftfs@target
 			_exit(EXIT_FAILURE);
 		}
 
 		if (!acquire_final_creds(pid, nsuid, nsgid, nsfsuid, nsfsgid)) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
-			_exit(EXIT_FAILURE);
-		}
-
-		ret = mount(target, target, "shiftfs", 0, "passthrough=3");
-		if (ret) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
+			umount2(target, MNT_DETACH); // @shiftfs@target
 			_exit(EXIT_FAILURE);
 		}
 
@@ -558,37 +553,31 @@ static void mount_emulate(void)
 		// @target to and that serve's as @target's non-shared parent mount.
 		ret = make_private_tmpmount(template, is_dir(target));
 		if (ret) {
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH); // @source@target
+			umount2(target, MNT_DETACH); // @shiftfs@target
 			_exit(EXIT_FAILURE);
 		}
 
-		ret = mount(target, template, "none", MS_MOVE | MS_REC, NULL);
+		ret = mount(target, template, "shiftfs", 0, "passthrough=3");
 		if (ret) {
-			remove(template);
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
-			umount2(target, MNT_DETACH);
-			umount2(template, MNT_DETACH);
+			umount2(target, MNT_DETACH);	// @source@target
+			umount2(target, MNT_DETACH);	// @shiftfs@target
+			umount2(template, MNT_DETACH);	// @template@template
 			_exit(EXIT_FAILURE);
 		}
 
-		umount2(target, MNT_DETACH);
-		umount2(target, MNT_DETACH);
+		umount2(target, MNT_DETACH); // @source@target
+		umount2(target, MNT_DETACH); // @shiftfs@target
 
 		ret = mount(template, target, "none", MS_MOVE | MS_REC, NULL);
 		if (ret) {
-			// @target@template
-			umount2(template, MNT_DETACH);
-			// @template@template
-			umount2(template, MNT_DETACH);
+			umount2(template, MNT_DETACH); // @shiftfs@template
+			umount2(template, MNT_DETACH); // @template@template
 			remove(template);
 			_exit(EXIT_FAILURE);
 		}
 
-		// @template@template
-		umount2(template, MNT_DETACH);
+		umount2(template, MNT_DETACH); // @template@template
 		remove(template);
 	} else {
 		if (mount(source, target, fstype, flags, data) < 0)
