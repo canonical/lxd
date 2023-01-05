@@ -778,7 +778,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	targetProjectName := projectParam(r)
-	logger.Debugf("Responding to instance create")
+
+	logger.Debug("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
@@ -1033,7 +1034,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			logger.Debugf("No name provided for new instance, creating using %q", req.Name)
+			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
 		return nil
@@ -1105,7 +1106,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			client = client.UseProject(targetProjectName)
 			client = client.UseTarget(targetNode)
 
-			logger.Debugf("Forward instance post request to %s", address)
+			logger.Debug("Forward instance post request", logger.Ctx{"member": address})
 			op, err := client.CreateInstance(req)
 			if err != nil {
 				return response.SmartError(err)
@@ -1170,7 +1171,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
-		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
+		logger.Debug("No valid storage pool in the container's local root disk device and profiles found")
 		pools, err := d.db.Cluster.GetStoragePoolNames()
 		if err != nil {
 			if response.IsNotFoundError(err) {
