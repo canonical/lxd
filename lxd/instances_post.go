@@ -947,6 +947,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			// If image has an entry in the database then use its profiles if no override provided.
 			if sourceImage != nil && req.Profiles == nil {
+				req.Architecture = sourceImage.Architecture
 				req.Profiles = sourceImage.Profiles
 			}
 		}
