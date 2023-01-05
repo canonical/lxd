@@ -778,6 +778,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	targetProjectName := projectParam(r)
+	clusterNotification := isClusterNotification(r)
 
 	logger.Debug("Responding to instance create")
 
@@ -1000,13 +1001,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Check that the project's limits are not violated. Note this check is performed after
-		// automatically generated config values (such as the ones from an InstanceType) have been set.
-		err = project.AllowInstanceCreation(tx, targetProjectName, req)
-		if err != nil {
-			return err
-		}
-
 		// Generate automatic instance name if not specified.
 		if req.Name == "" {
 			names, err := tx.GetInstanceNames(ctx, targetProjectName)
@@ -1030,6 +1024,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
+		if !clusterNotification {
+			// Check that the project's limits are not violated. Note this check is performed after
+			// automatically generated config values (such as ones from an InstanceType) have been set.
+			err = project.AllowInstanceCreation(tx, targetProjectName, req)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -1041,7 +1044,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if clustered && !isClusterNotification(r) && targetMember == "" {
+	if clustered && !clusterNotification && targetMember == "" {
 		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
