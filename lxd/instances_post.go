@@ -30,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/scriptlet"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1121,6 +1122,24 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if clustered && !clusterNotification && targetMemberInfo == nil {
+		// Run instance placement scriptlet if enabled and no cluster member selected yet.
+		if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+			leaderAddress, err := d.gateway.LeaderAddress()
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Copy request so we don't modify it when expanding the config.
+			reqExpanded := req
+			reqExpanded.Config = db.ExpandInstanceConfig(reqExpanded.Config, profiles)
+			reqExpanded.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
+
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, scriptlet.InstancePlacementReasonNew, &reqExpanded, candidateMembers, leaderAddress)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed instance placement scriptlet: %w", err))
+			}
+		}
+
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
 			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
