@@ -1164,111 +1164,33 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures
 	return candidateMembers, nil
 }
 
-// GetNodeWithLeastInstances returns the name of the non-offline node with with
-// the least number of containers (either already created or being created with
-// an operation). If archs is not empty, then return only nodes with an
-// architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
-	threshold, err := c.GetNodeOfflineThreshold(ctx)
-	if err != nil {
-		return "", fmt.Errorf("Failed to get offline threshold: %w", err)
-	}
+// GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
+// already created or being created with an operation.
+func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (string, error) {
+	var memberName string
+	var lowestInstanceCount = -1
 
-	nodes, err := c.GetNodes(ctx)
-	if err != nil {
-		return "", fmt.Errorf("Failed to get current cluster members: %w", err)
-	}
-
-	name := ""
-	containers := -1
-	isDefaultArchChosen := false
-	for _, node := range nodes {
-		// Skip evacuated members.
-		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
-			continue
-		}
-
-		// Skip manually targeted members.
-		if node.Config["scheduler.instance"] == "manual" {
-			continue
-		}
-
-		// Skip group-only members if targeted group doesn't match.
-		if node.Config["scheduler.instance"] == "group" && !shared.StringInSlice(group, node.Groups) {
-			continue
-		}
-
-		// Skip if a group is requested and member isn't part of it.
-		if group != "" && !shared.StringInSlice(group, node.Groups) {
-			continue
-		}
-
-		// Skip if working with a restricted set of groups and member isn't part of any.
-		if allowedGroups != nil {
-			found := false
-			for _, allowedGroup := range allowedGroups {
-				if shared.StringInSlice(allowedGroup, node.Groups) {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				continue
-			}
-		}
-
-		// Get member personalities too.
-		personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
-		if err != nil {
-			return "", err
-		}
-
-		supported := []int{node.Architecture}
-		supported = append(supported, personalities...)
-
-		match := false
-		isDefaultArch := false
-		for _, entry := range supported {
-			if shared.IntInSlice(entry, archs) {
-				match = true
-			}
-
-			if entry == defaultArch {
-				isDefaultArch = true
-			}
-		}
-		if len(archs) > 0 && !match {
-			continue
-		}
-
-		if !isDefaultArch && isDefaultArchChosen {
-			continue
-		}
-
-		// Fetch the number of instances already created on this node.
-		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", node.ID)
+	for _, member := range members {
+		// Fetch the number of instances already created on this member.
+		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", member.ID)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get instances count: %w", err)
 		}
 
-		// Fetch the number of instances currently being created on this node.
-		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", node.ID, operationtype.InstanceCreate)
+		// Fetch the number of instances currently being created on this member.
+		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", member.ID, operationtype.InstanceCreate)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
 
-		count := created + pending
-		if containers == -1 || count < containers || (isDefaultArch && !isDefaultArchChosen) {
-			containers = count
-			name = node.Name
-			if isDefaultArch {
-				isDefaultArchChosen = true
-			}
+		memberInstanceCount := created + pending
+		if lowestInstanceCount == -1 || memberInstanceCount < lowestInstanceCount {
+			lowestInstanceCount = memberInstanceCount
+			memberName = member.Name
 		}
 	}
 
-	return name, nil
+	return memberName, nil
 }
 
 // SetNodeVersion updates the schema and API version of the node with the
