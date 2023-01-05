@@ -845,6 +845,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceInst *dbCluster.Instance
 	var sourceImage *api.Image
 	var sourceImageRef string
+	var clusterGroupsAllowed []string
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -857,10 +858,24 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Check manual cluster member targeting restrictions.
+		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		if err != nil {
+			return err
+		}
+
 		if targetGroup != "" {
-			var targetGroupExists bool
+			// Check restricted cluster groups from project.
+			if shared.IsTrue(targetProject.Config["restricted"]) {
+				clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
+
+				if targetGroup != "" && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
+					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
+				}
+			}
 
 			// Check if the target group exists.
+			var targetGroupExists bool
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				targetGroupExists, err = tx.ClusterGroupExists(targetGroup)
 				if err != nil {
@@ -990,12 +1005,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Check manual targeting restrictions.
-		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
-		if err != nil {
-			return err
-		}
-
 		// Check that the project's limits are not violated. Note this check is performed after
 		// automatically generated config values (such as the ones from an InstanceType) have been set.
 		err = project.AllowInstanceCreation(tx, targetProjectName, req)
@@ -1043,18 +1052,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		// since GetNodeWithLeastInstances() will return an empty string.
 		// If the target is a cluster group, find a suitable node within the group.
 
-		// Load restricted groups from project.
-		var allowedGroups []string
-
-		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
-			allowedGroups = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
-
-			// Validate restrictions.
-			if targetGroup != "" && !shared.StringInSlice(targetGroup, allowedGroups) {
-				return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
-			}
-		}
-
 		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
@@ -1076,7 +1073,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, allowedGroups)
+			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, clusterGroupsAllowed)
 			if err != nil {
 				return err
 			}
