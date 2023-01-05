@@ -1087,6 +1087,83 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	return threshold, nil
 }
 
+// GetCandidateMembers returns cluster members that are online, not in evacuated state and don't require manual
+// targeting. It will also exclude members that do not support any of the targetArchitectures (if non-nil) or not
+// in targetClusterGroup (if non-empty).
+// It also takes into account any restrictions on allowedClusterGroups (if non-nil).
+func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
+	threshold, err := c.GetNodeOfflineThreshold(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get offline threshold: %w", err)
+	}
+
+	allMembers, err := c.GetNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get current cluster members: %w", err)
+	}
+
+	var candidateMembers []NodeInfo
+
+	for _, member := range allMembers {
+		// Skip evacuated or offline members.
+		if member.State == ClusterMemberStateEvacuated || member.IsOffline(threshold) {
+			continue
+		}
+
+		// Skip manually targeted members.
+		if member.Config["scheduler.instance"] == "manual" {
+			continue
+		}
+
+		// Skip group-only members if targeted cluster group doesn't match.
+		if member.Config["scheduler.instance"] == "group" && !shared.StringInSlice(targetClusterGroup, member.Groups) {
+			continue
+		}
+
+		// Skip if a group is requested and member isn't part of it.
+		if targetClusterGroup != "" && !shared.StringInSlice(targetClusterGroup, member.Groups) {
+			continue
+		}
+
+		// Skip if working with a restricted set of cluster groups and member isn't part of any.
+		if allowedClusterGroups != nil {
+			found := false
+			for _, allowedClusterGroup := range allowedClusterGroups {
+				if shared.StringInSlice(allowedClusterGroup, member.Groups) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
+		}
+
+		// Consider target architectures if specified.
+		if targetArchitectures != nil {
+			// Get member personalities too.
+			personalities, err := osarch.ArchitecturePersonalities(member.Architecture)
+			if err != nil {
+				return nil, err
+			}
+
+			supportedArchitectures := append([]int{member.Architecture}, personalities...)
+			for _, supportedArchitecture := range supportedArchitectures {
+				if shared.IntInSlice(supportedArchitecture, targetArchitectures) {
+					candidateMembers = append(candidateMembers, member)
+					break
+				}
+			}
+		} else {
+			// Otherwise consider member a candidate irrespective of architecture.
+			candidateMembers = append(candidateMembers, member)
+		}
+	}
+
+	return candidateMembers, nil
+}
+
 // GetNodeWithLeastInstances returns the name of the non-offline node with with
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
