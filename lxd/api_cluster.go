@@ -2896,7 +2896,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 			// Find the least loaded cluster member which supports the architecture.
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetNodeName, err = tx.GetNodeWithLeastInstances(ctx, []int{inst.Architecture()}, -1, "", nil)
+				candidateMembers, err := tx.GetCandidateMembers(ctx, []int{inst.Architecture()}, "", nil)
+				if err != nil {
+					return err
+				}
+
+				targetNodeName, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
 				}
