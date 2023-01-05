@@ -1103,7 +1103,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if address != "" {
-			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}
