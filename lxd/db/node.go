@@ -1087,50 +1087,49 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	return threshold, nil
 }
 
-// GetNodeWithLeastInstances returns the name of the non-offline node with with
-// the least number of containers (either already created or being created with
-// an operation). If archs is not empty, then return only nodes with an
-// architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
+// GetCandidateMembers returns cluster members that are online, not in evacuated state and don't require manual
+// targeting. It will also exclude members that do not support any of the targetArchitectures (if non-nil) or not
+// in targetClusterGroup (if non-empty).
+// It also takes into account any restrictions on allowedClusterGroups (if non-nil).
+func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
 	threshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get offline threshold: %w", err)
+		return nil, fmt.Errorf("Failed to get offline threshold: %w", err)
 	}
 
-	nodes, err := c.GetNodes(ctx)
+	allMembers, err := c.GetNodes(ctx)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get current cluster members: %w", err)
+		return nil, fmt.Errorf("Failed to get current cluster members: %w", err)
 	}
 
-	name := ""
-	containers := -1
-	isDefaultArchChosen := false
-	for _, node := range nodes {
-		// Skip evacuated members.
-		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
+	var candidateMembers []NodeInfo
+
+	for _, member := range allMembers {
+		// Skip evacuated or offline members.
+		if member.State == ClusterMemberStateEvacuated || member.IsOffline(threshold) {
 			continue
 		}
 
 		// Skip manually targeted members.
-		if node.Config["scheduler.instance"] == "manual" {
+		if member.Config["scheduler.instance"] == "manual" {
 			continue
 		}
 
-		// Skip group-only members if targeted group doesn't match.
-		if node.Config["scheduler.instance"] == "group" && !shared.StringInSlice(group, node.Groups) {
+		// Skip group-only members if targeted cluster group doesn't match.
+		if member.Config["scheduler.instance"] == "group" && !shared.StringInSlice(targetClusterGroup, member.Groups) {
 			continue
 		}
 
 		// Skip if a group is requested and member isn't part of it.
-		if group != "" && !shared.StringInSlice(group, node.Groups) {
+		if targetClusterGroup != "" && !shared.StringInSlice(targetClusterGroup, member.Groups) {
 			continue
 		}
 
-		// Skip if working with a restricted set of groups and member isn't part of any.
-		if allowedGroups != nil {
+		// Skip if working with a restricted set of cluster groups and member isn't part of any.
+		if allowedClusterGroups != nil {
 			found := false
-			for _, allowedGroup := range allowedGroups {
-				if shared.StringInSlice(allowedGroup, node.Groups) {
+			for _, allowedClusterGroup := range allowedClusterGroups {
+				if shared.StringInSlice(allowedClusterGroup, member.Groups) {
 					found = true
 					break
 				}
@@ -1141,57 +1140,57 @@ func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, archs []int, 
 			}
 		}
 
-		// Get member personalities too.
-		personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
-		if err != nil {
-			return "", err
-		}
-
-		supported := []int{node.Architecture}
-		supported = append(supported, personalities...)
-
-		match := false
-		isDefaultArch := false
-		for _, entry := range supported {
-			if shared.IntInSlice(entry, archs) {
-				match = true
+		// Consider target architectures if specified.
+		if targetArchitectures != nil {
+			// Get member personalities too.
+			personalities, err := osarch.ArchitecturePersonalities(member.Architecture)
+			if err != nil {
+				return nil, err
 			}
 
-			if entry == defaultArch {
-				isDefaultArch = true
+			supportedArchitectures := append([]int{member.Architecture}, personalities...)
+			for _, supportedArchitecture := range supportedArchitectures {
+				if shared.IntInSlice(supportedArchitecture, targetArchitectures) {
+					candidateMembers = append(candidateMembers, member)
+					break
+				}
 			}
+		} else {
+			// Otherwise consider member a candidate irrespective of architecture.
+			candidateMembers = append(candidateMembers, member)
 		}
-		if len(archs) > 0 && !match {
-			continue
-		}
+	}
 
-		if !isDefaultArch && isDefaultArchChosen {
-			continue
-		}
+	return candidateMembers, nil
+}
 
-		// Fetch the number of instances already created on this node.
-		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", node.ID)
+// GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
+// already created or being created with an operation.
+func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (string, error) {
+	var memberName string
+	var lowestInstanceCount = -1
+
+	for _, member := range members {
+		// Fetch the number of instances already created on this member.
+		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", member.ID)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get instances count: %w", err)
 		}
 
-		// Fetch the number of instances currently being created on this node.
-		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", node.ID, operationtype.InstanceCreate)
+		// Fetch the number of instances currently being created on this member.
+		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", member.ID, operationtype.InstanceCreate)
 		if err != nil {
 			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
 
-		count := created + pending
-		if containers == -1 || count < containers || (isDefaultArch && !isDefaultArchChosen) {
-			containers = count
-			name = node.Name
-			if isDefaultArch {
-				isDefaultArchChosen = true
-			}
+		memberInstanceCount := created + pending
+		if lowestInstanceCount == -1 || memberInstanceCount < lowestInstanceCount {
+			lowestInstanceCount = memberInstanceCount
+			memberName = member.Name
 		}
 	}
 
-	return name, nil
+	return memberName, nil
 }
 
 // SetNodeVersion updates the schema and API version of the node with the
