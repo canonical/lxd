@@ -778,7 +778,9 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	targetProjectName := projectParam(r)
-	logger.Debugf("Responding to instance create")
+	clusterNotification := isClusterNotification(r)
+
+	logger.Debug("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
@@ -833,11 +835,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
-	targetNode := queryParam(r, "target")
-
-	var targetGroup string
-	if strings.HasPrefix(targetNode, "@") {
-		targetGroup = strings.TrimPrefix(targetNode, "@")
+	target := queryParam(r, "target")
+	var targetMember, targetGroup string
+	if strings.HasPrefix(target, "@") {
+		targetGroup = strings.TrimPrefix(target, "@")
+	} else {
+		targetMember = target
 	}
 
 	var targetProject *api.Project
@@ -845,6 +848,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceInst *dbCluster.Instance
 	var sourceImage *api.Image
 	var sourceImageRef string
+	var clusterGroupsAllowed []string
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -857,7 +861,22 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		// Check manual cluster member targeting restrictions.
+		err = project.CheckClusterTargetRestriction(tx, r, targetProject, target)
+		if err != nil {
+			return err
+		}
+
 		if targetGroup != "" {
+			// Check restricted cluster groups from project.
+			if shared.IsTrue(targetProject.Config["restricted"]) {
+				clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
+
+				if targetGroup != "" && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
+					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
+				}
+			}
+
 			// Check if the target group exists.
 			targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
 			if err != nil {
@@ -931,6 +950,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 			// If image has an entry in the database then use its profiles if no override provided.
 			if sourceImage != nil && req.Profiles == nil {
+				req.Architecture = sourceImage.Architecture
 				req.Profiles = sourceImage.Profiles
 			}
 		}
@@ -981,19 +1001,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Check manual targeting restrictions.
-		err = project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
-		if err != nil {
-			return err
-		}
-
-		// Check that the project's limits are not violated. Note this check is performed after
-		// automatically generated config values (such as the ones from an InstanceType) have been set.
-		err = project.AllowInstanceCreation(tx, targetProjectName, req)
-		if err != nil {
-			return err
-		}
-
 		// Generate automatic instance name if not specified.
 		if req.Name == "" {
 			names, err := tx.GetInstanceNames(ctx, targetProjectName)
@@ -1014,7 +1021,16 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			logger.Debugf("No name provided for new instance, creating using %q", req.Name)
+			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
+		}
+
+		if !clusterNotification {
+			// Check that the project's limits are not violated. Note this check is performed after
+			// automatically generated config values (such as ones from an InstanceType) have been set.
+			err = project.AllowInstanceCreation(tx, targetProjectName, req)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -1028,52 +1044,37 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if clustered && (targetNode == "" || targetGroup != "") {
-		// If no target node was specified, pick the node with the least number of instances.
-		// If there's just one node, or if the selected node is the local one, this is effectively a no-op,
-		// since GetNodeWithLeastInstances() will return an empty string.
-		// If the target is a cluster group, find a suitable node within the group.
-
-		// Load restricted groups from project.
-		var allowedGroups []string
-
-		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
-			allowedGroups = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
-
-			// Validate restrictions.
-			if targetGroup != "" && !shared.StringInSlice(targetGroup, allowedGroups) {
-				return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
-			}
-		}
-
+	if clustered && !clusterNotification && targetMember == "" {
 		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			defaultArch := ""
-			if targetProject.Config["images.default_architecture"] != "" {
-				defaultArch = targetProject.Config["images.default_architecture"]
-			} else {
+		// If no architectures have been ascertained from the source then use the default architecture
+		// from project or global config if available.
+		if len(architectures) < 1 {
+			defaultArch := targetProject.Config["images.default_architecture"]
+			if defaultArch == "" {
 				defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
 			}
 
-			defaultArchID := -1
 			if defaultArch != "" {
-				defaultArchID, err = osarch.ArchitectureId(defaultArch)
+				defaultArchID, err := osarch.ArchitectureId(defaultArch)
 				if err != nil {
-					return err
+					return response.SmartError(err)
 				}
-			}
 
-			targetNode, err = tx.GetNodeWithLeastInstances(ctx, architectures, defaultArchID, targetGroup, allowedGroups)
+				architectures = append(architectures, defaultArchID)
+			} else {
+				architectures = nil // Don't exclude candidate members based on architecture.
+			}
+		}
+
+		var candidateMembers []db.NodeInfo
+		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			candidateMembers, err = tx.GetCandidateMembers(ctx, architectures, targetGroup, clusterGroupsAllowed)
 			if err != nil {
 				return err
-			}
-
-			if targetNode == "" {
-				return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
 			}
 
 			return nil
@@ -1081,24 +1082,46 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
+		// If no target member was selected yet, pick the member with the least number of instances.
+		// If there's just one member, or if the selected member is the local one, this is effectively a
+		// no-op, since GetNodeWithLeastInstances() will return an empty string.
+		// If the target is a cluster group, find a suitable member within the group.
+		if targetMember == "" {
+			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+				targetMember, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				if err != nil {
+					return err
+				}
+
+				if targetMember == "" {
+					return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
 	}
 
-	if targetNode != "" {
-		address, err := cluster.ResolveTarget(d.db.Cluster, targetNode)
+	if targetMember != "" {
+		address, err := cluster.ResolveTarget(d.db.Cluster, targetMember)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		if address != "" {
-			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}
 
 			client = client.UseProject(targetProjectName)
-			client = client.UseTarget(targetNode)
+			client = client.UseTarget(targetMember)
 
-			logger.Debugf("Forward instance post request to %s", address)
+			logger.Debug("Forward instance post request", logger.Ctx{"member": address})
 			op, err := client.CreateInstance(req)
 			if err != nil {
 				return response.SmartError(err)
@@ -1163,7 +1186,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
-		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
+		logger.Debug("No valid storage pool in the container's local root disk device and profiles found")
 		pools, err := d.db.Cluster.GetStoragePoolNames()
 		if err != nil {
 			if response.IsNotFoundError(err) {
