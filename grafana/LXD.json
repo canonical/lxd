@@ -9,13 +9,13 @@
       "pluginName": "Prometheus"
     }
   ],
-  "__elements": [],
+  "__elements": {},
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.4.3"
+      "version": "9.3.2"
     },
     {
       "type": "panel",
@@ -67,7 +67,6 @@
   "gnetId": 15726,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1646671114502,
   "links": [
     {
       "icon": "external link",
@@ -138,7 +137,7 @@
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 6,
         "x": 0,
         "y": 1
@@ -149,8 +148,9 @@
         "displayLabels": [],
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
+          "displayMode": "list",
           "placement": "bottom",
+          "showLegend": false,
           "values": [
             "value"
           ]
@@ -172,6 +172,10 @@
       "pluginVersion": "7.4.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "topk(${top}, sum by (name) (increase(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__range])))",
           "instant": true,
@@ -180,8 +184,13 @@
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(sum by (name) (increase(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__range]))) - sum(topk(${top}, sum by (name) (increase(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__range]))))",
+          "expr": "sum(increase(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__range])) - sum(topk(${top}, sum by (name) (increase(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__range]))))",
           "hide": false,
           "instant": true,
           "interval": "",
@@ -234,7 +243,7 @@
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 6,
         "x": 6,
         "y": 1
@@ -245,8 +254,9 @@
         "displayLabels": [],
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
+          "displayMode": "list",
           "placement": "bottom",
+          "showLegend": false,
           "values": [
             "value"
           ]
@@ -268,6 +278,10 @@
       "pluginVersion": "7.4.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "topk(${top}, lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes)",
           "instant": true,
@@ -276,6 +290,10 @@
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes) -\nsum(topk(${top}, lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes))",
           "hide": false,
@@ -330,7 +348,7 @@
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 6,
         "x": 12,
         "y": 1
@@ -341,8 +359,9 @@
         "displayLabels": [],
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
+          "displayMode": "list",
           "placement": "bottom",
+          "showLegend": false,
           "values": [
             "value"
           ]
@@ -364,6 +383,10 @@
       "pluginVersion": "7.4.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes)",
           "hide": false,
@@ -373,10 +396,13 @@
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes) - \nsum(topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes))",
           "hide": false,
-          "instant": true,
           "interval": "",
           "legendFormat": "Others",
           "refId": "B"
@@ -391,6 +417,7 @@
         "type": "prometheus",
         "uid": "${DS_LXD}"
       },
+      "description": "Total disk reads during the time interval",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -412,7 +439,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 4,
         "w": 3,
         "x": 18,
         "y": 1
@@ -433,9 +460,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.3",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(increase(lxd_disk_read_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))",
           "hide": false,
@@ -453,6 +484,7 @@
         "type": "prometheus",
         "uid": "${DS_LXD}"
       },
+      "description": "Total disk writes during the time interval",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -474,7 +506,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 4,
         "w": 3,
         "x": 21,
         "y": 1
@@ -495,9 +527,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.3",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(increase(lxd_disk_written_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))",
           "hide": false,
@@ -515,6 +551,7 @@
         "type": "prometheus",
         "uid": "${DS_LXD}"
       },
+      "description": "Total network RX traffic during the time interval",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -536,10 +573,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 4,
         "w": 3,
         "x": 18,
-        "y": 4
+        "y": 5
       },
       "id": 363,
       "options": {
@@ -557,9 +594,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.3",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(increase(lxd_network_receive_bytes_total{job=\"$job\",project=\"$project\"}[$__range]))*8",
           "hide": false,
@@ -577,6 +618,7 @@
         "type": "prometheus",
         "uid": "${DS_LXD}"
       },
+      "description": "Total network TX traffic during the time interval",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -598,10 +640,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 4,
         "w": 3,
         "x": 21,
-        "y": 4
+        "y": 5
       },
       "id": 362,
       "options": {
@@ -619,9 +661,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.3",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(increase(lxd_network_transmit_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__range]))*8",
           "hide": false,
@@ -639,6 +685,434 @@
         "type": "prometheus",
         "uid": "${DS_LXD}"
       },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "unit": "bps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Others"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#81787be0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "id": 417,
+      "links": [],
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "limit": 3,
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "topk(${top}, sum by (name) (rate(lxd_network_transmit_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(lxd_network_transmit_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval])*8) -\nsum(topk(${top}, sum by (name) (rate(lxd_network_transmit_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8))",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Others",
+          "refId": "B"
+        }
+      ],
+      "title": "Top ${top} network TX traffic usage",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "unit": "bps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Others"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#81787be0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "id": 468,
+      "links": [],
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "limit": 3,
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "topk(${top}, sum by (name) (rate(lxd_network_receive_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(lxd_network_receive_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval])*8) -\nsum(topk(${top}, sum by (name) (rate(lxd_network_receive_bytes_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8))",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Others",
+          "refId": "B"
+        }
+      ],
+      "title": "Top ${top} network RX traffic usage",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "unit": "pps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Others"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#81787be0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "id": 469,
+      "links": [],
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "limit": 3,
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "topk(${top}, sum by (name) (rate(lxd_network_transmit_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(lxd_network_transmit_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval])*8) -\nsum(topk(${top}, sum by (name) (rate(lxd_network_transmit_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8))",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Others",
+          "refId": "B"
+        }
+      ],
+      "title": "Top ${top} network TX packets/s usage",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "unit": "pps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Others"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#81787be0",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "id": 470,
+      "links": [],
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false,
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "limit": 3,
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "7.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "topk(${top}, sum by (name) (rate(lxd_network_receive_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8)",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum(rate(lxd_network_receive_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval])*8) -\nsum(topk(${top}, sum by (name) (rate(lxd_network_receive_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))*8))",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Others",
+          "refId": "B"
+        }
+      ],
+      "title": "Top ${top} network RX packets/s usage",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "CPU usage overview for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -646,6 +1120,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -721,10 +1197,10 @@
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 15
       },
       "id": 328,
       "links": [],
@@ -732,7 +1208,8 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -742,6 +1219,10 @@
       "pluginVersion": "8.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "expr": "sum(rate(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\"}[$__rate_interval])) by (mode) * 100",
           "hide": false,
           "interval": "",
@@ -765,6 +1246,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -885,10 +1368,10 @@
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 15
       },
       "id": 354,
       "links": [],
@@ -896,7 +1379,8 @@
         "legend": {
           "calcs": [],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -906,6 +1390,10 @@
       "pluginVersion": "8.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"})",
           "format": "time_series",
           "hide": false,
@@ -916,6 +1404,10 @@
           "step": 240
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes)",
           "format": "time_series",
@@ -927,6 +1419,10 @@
           "step": 240
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "expr": "sum(lxd_memory_Cached_bytes{job=\"$job\",project=\"$project\"})",
           "format": "time_series",
           "hide": false,
@@ -937,6 +1433,10 @@
           "step": 240
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "expr": "sum(lxd_memory_MemFree_bytes{job=\"$job\",project=\"$project\"})",
           "format": "time_series",
           "interval": "",
@@ -946,6 +1446,10 @@
           "step": 240
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "expr": "sum(lxd_memory_Swap_bytes{job=\"$job\",project=\"$project\"})",
           "format": "time_series",
           "interval": "",
@@ -971,6 +1475,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1003,8 +1509,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1016,14 +1521,15 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 25
       },
       "id": 344,
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "right"
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1033,6 +1539,10 @@
       "pluginVersion": "8.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_procs_total{job=\"$job\",project=\"$project\"})",
           "interval": "",
@@ -1056,6 +1566,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
@@ -1090,8 +1602,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1123,15 +1634,16 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 25
       },
       "id": 326,
       "links": [],
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1141,6 +1653,10 @@
       "pluginVersion": "8.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"} - lxd_filesystem_avail_bytes)",
           "format": "time_series",
@@ -1151,6 +1667,10 @@
           "step": 240
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "exemplar": true,
           "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"})",
           "format": "time_series",
@@ -1178,6 +1698,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1214,8 +1736,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1247,15 +1768,16 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 338,
       "links": [],
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1309,6 +1831,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1342,8 +1866,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1375,15 +1898,16 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 336,
       "links": [],
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1435,6 +1959,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1467,8 +1993,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1500,14 +2025,15 @@
         "h": 11,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 322,
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1560,6 +2086,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1592,8 +2120,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1625,14 +2152,15 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 43
       },
       "id": 365,
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
@@ -1646,6 +2174,7 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
+          "editorMode": "code",
           "exemplar": true,
           "expr": "sum(rate(lxd_network_transmit_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "hide": false,
@@ -1660,6 +2189,7 @@
             "type": "prometheus",
             "uid": "${DS_LXD}"
           },
+          "editorMode": "code",
           "exemplar": true,
           "expr": "sum(rate(lxd_network_receive_packets_total{device!=\"lo\",job=\"$job\",project=\"$project\"}[$__rate_interval]))",
           "hide": false,
@@ -1683,9 +2213,12 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "dark-blue",
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1697,14 +2230,14 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1719,24 +2252,44 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
+                "color": "green"
               }
             ]
           },
           "unit": "pps"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "custom.transform",
+                "value": "negative-Y"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "custom.transform",
+                "value": "negative-Y"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 41
+        "y": 49
       },
       "id": 366,
       "links": [],
@@ -1745,12 +2298,13 @@
           "calcs": [
             "max"
           ],
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "pluginVersion": "8.1.1",
@@ -1828,7 +2382,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "id": 6,
       "panels": [
@@ -1921,7 +2475,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 55
           },
           "id": 353,
           "links": [],
@@ -1929,7 +2483,8 @@
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -1939,6 +2494,10 @@
           "pluginVersion": "8.1.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(rate(lxd_cpu_seconds_total{mode!=\"idle\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])) by (mode) * 100",
               "hide": false,
@@ -2085,7 +2644,7 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 55
           },
           "id": 324,
           "links": [],
@@ -2093,7 +2652,8 @@
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -2103,6 +2663,10 @@
           "pluginVersion": "8.1.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
@@ -2114,6 +2678,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(lxd_memory_MemTotal_bytes{job=\"$job\",project=\"$project\",name=\"$name\"} - lxd_memory_MemFree_bytes - lxd_memory_Cached_bytes)",
               "format": "time_series",
@@ -2125,6 +2693,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(lxd_memory_Cached_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
@@ -2136,6 +2708,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(lxd_memory_MemFree_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
@@ -2146,6 +2722,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "sum(lxd_memory_Swap_bytes{job=\"$job\",project=\"$project\",name=\"$name\"})",
               "format": "time_series",
@@ -2216,14 +2796,15 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 65
           },
           "id": 342,
           "options": {
             "legend": {
               "calcs": [],
-              "displayMode": "hidden",
-              "placement": "right"
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false
             },
             "tooltip": {
               "mode": "multi",
@@ -2233,6 +2814,10 @@
           "pluginVersion": "8.1.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "lxd_procs_total{job=\"$job\",project=\"$project\",name=\"$name\"}",
               "interval": "",
@@ -2307,7 +2892,7 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 65
           },
           "id": 14,
           "links": [],
@@ -2315,7 +2900,8 @@
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -2325,6 +2911,10 @@
           "pluginVersion": "8.1.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "exemplar": true,
               "expr": "100 - ((lxd_filesystem_avail_bytes{job=\"$job\",project=\"$project\",name=\"$name\"} * 100) / lxd_filesystem_size_bytes)",
               "format": "time_series",
@@ -2409,7 +2999,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 75
           },
           "id": 334,
           "links": [],
@@ -2422,7 +3012,8 @@
                 "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -2534,7 +3125,7 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 75
           },
           "id": 358,
           "links": [],
@@ -2547,7 +3138,8 @@
                 "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -2662,14 +3254,15 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 77
+            "y": 85
           },
           "id": 356,
           "options": {
             "legend": {
               "calcs": [],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
@@ -2739,6 +3332,10 @@
           "type": "timeseries"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2810,15 +3407,16 @@
             "h": 5,
             "w": 12,
             "x": 12,
-            "y": 77
+            "y": 85
           },
           "id": 357,
           "links": [],
           "options": {
             "legend": {
               "calcs": [],
-              "displayMode": "hidden",
-              "placement": "bottom"
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
             },
             "tooltip": {
               "mode": "multi",
@@ -2950,7 +3548,7 @@
             "h": 5,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 90
           },
           "id": 346,
           "links": [],
@@ -2959,8 +3557,9 @@
               "calcs": [
                 "max"
               ],
-              "displayMode": "hidden",
-              "placement": "bottom"
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
             },
             "tooltip": {
               "mode": "multi",
@@ -2970,6 +3569,10 @@
           "pluginVersion": "8.1.1",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "expr": "rate(lxd_network_receive_errs_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
@@ -2979,6 +3582,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "expr": "rate(lxd_network_transmit_errs_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
@@ -2988,6 +3595,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "expr": "rate(lxd_network_receive_drop_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "hide": false,
@@ -2998,6 +3609,10 @@
               "step": 240
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_LXD}"
+              },
               "expr": "rate(lxd_network_transmit_drop_total{device!=\"lo\",job=\"$job\",project=\"$project\",name=\"$name\"}[$__rate_interval])",
               "format": "time_series",
               "hide": false,
@@ -3019,7 +3634,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 35,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -3174,6 +3789,6 @@
   "timezone": "",
   "title": "LXD",
   "uid": "bGY-LSB7k",
-  "version": 13,
+  "version": 14,
   "weekStart": ""
 }
