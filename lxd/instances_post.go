@@ -1051,7 +1051,12 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, architectures, targetGroup, clusterGroupsAllowed)
+			allMembers, err := tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed)
 			if err != nil {
 				return err
 			}
