@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -100,7 +101,7 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 	}
 
 	// Select.
-	err = query.SelectObjects(stmt, func(scan func(dest ...any) error) error {
+	err = query.SelectObjects(context.TODO(), stmt, func(scan func(dest ...any) error) error {
 		group := ClusterGroup{}
 		err := scan(&group.ID, &group.Name, &group.Description)
 		if err != nil {
