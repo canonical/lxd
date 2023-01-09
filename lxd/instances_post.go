@@ -854,6 +854,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceImageRef string
 	var clusterGroupsAllowed []string
 	var candidateMembers []db.NodeInfo
+	var targetMemberInfo *db.NodeInfo
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -866,6 +867,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		var allMembers []db.NodeInfo
+
 		if clustered && !clusterNotification {
 			clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
 
@@ -875,7 +878,39 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			if targetGroup != "" {
+			allMembers, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			if targetMember != "" {
+				// Find target member.
+				for i := range allMembers {
+					if allMembers[i].Name == targetMember {
+						targetMemberInfo = &allMembers[i]
+						break
+					}
+				}
+
+				if targetMemberInfo == nil {
+					return api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
+				}
+
+				// If restricted groups are specified then check member is in at least one of them.
+				if shared.IsTrue(targetProject.Config["restricted"]) && len(clusterGroupsAllowed) > 0 {
+					found := false
+					for _, memberGroupName := range targetMemberInfo.Groups {
+						if shared.StringInSlice(memberGroupName, clusterGroupsAllowed) {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster member")
+					}
+				}
+			} else if targetGroup != "" {
 				// If restricted groups are specified then check the requested group is in the list.
 				if shared.IsTrue(targetProject.Config["restricted"]) && len(clusterGroupsAllowed) > 0 && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
 					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
@@ -1053,11 +1088,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				} else {
 					architectures = nil // Don't exclude candidate members based on architecture.
 				}
-			}
-
-			allMembers, err := tx.GetNodes(ctx)
-			if err != nil {
-				return fmt.Errorf("Failed getting cluster members: %w", err)
 			}
 
 			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed)
