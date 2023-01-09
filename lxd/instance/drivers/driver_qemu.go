@@ -5087,15 +5087,15 @@ func (d *qemu) Delete(force bool) error {
 
 	defer op.Done(nil)
 
+	if d.IsRunning() {
+		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
+	}
+
 	return d.delete(force)
 }
 
 // Delete the instance without creating an operation lock.
 func (d *qemu) delete(force bool) error {
-	if d.IsRunning() {
-		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
-	}
-
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
