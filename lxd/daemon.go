@@ -1103,19 +1103,19 @@ func (d *Daemon) init() error {
 
 	/* Setup the web server */
 	config := &endpoints.Config{
-		Dir:                   d.os.VarDir,
-		UnixSocket:            d.UnixSocket(),
-		Cert:                  networkCert,
-		RestServer:            restServer(d),
-		DevLxdServer:          devLxdServer(d),
-		LocalUnixSocketGroup:  d.config.Group,
-		NetworkAddress:        localHTTPAddress,
-		ClusterAddress:        localClusterAddress,
-		DebugAddress:          debugAddress,
-		MetricsAddress:        metricsAddress,
-		MetricsServer:         metricsServer(d),
-		VsockServer:           vSockServer(d),
-		VsockSupport:          false,
+		Dir:                  d.os.VarDir,
+		UnixSocket:           d.UnixSocket(),
+		Cert:                 networkCert,
+		RestServer:           restServer(d),
+		DevLxdServer:         devLxdServer(d),
+		LocalUnixSocketGroup: d.config.Group,
+		NetworkAddress:       localHTTPAddress,
+		ClusterAddress:       localClusterAddress,
+		DebugAddress:         debugAddress,
+		MetricsAddress:       metricsAddress,
+		MetricsServer:        metricsServer(d),
+		VsockServer:          vSockServer(d),
+		VsockSupport:         false,
 	}
 
 	// Enable vsock server support if VM instances supported.
