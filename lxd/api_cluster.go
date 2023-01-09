@@ -2820,8 +2820,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		instances[i] = inst
 	}
 
-	var targetNodeName string
-	var targetNode db.NodeInfo
+	var targetNode *db.NodeInfo
 
 	run := func(op *operations.Operation) error {
 		// Setup a reverter.
@@ -2906,17 +2905,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 					return err
 				}
 
-				targetNodeName, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
-				if err != nil {
-					return err
-				}
-
-				if targetNodeName == "" {
-					// No migration target found.
-					return nil
-				}
-
-				targetNode, err = tx.GetNodeByName(ctx, targetNodeName)
+				targetNode, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
 				}
@@ -2928,13 +2917,13 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			}
 
 			// Skip migration if no target available.
-			if targetNodeName == "" {
+			if targetNode == nil {
 				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project().Name})
 				continue
 			}
 
 			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNodeName)
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNode.Name)
 			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
@@ -2948,7 +2937,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				Live: live,
 			}
 
-			err = migrateInstance(d, r, inst, targetNodeName, false, req, op)
+			err = migrateInstance(d, r, inst, targetNode.Name, false, req, op)
 			if err != nil {
 				return fmt.Errorf("Failed to migrate instance: %w", err)
 			}
