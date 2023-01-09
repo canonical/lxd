@@ -866,30 +866,30 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Check manual cluster member targeting restrictions.
-		err = project.CheckClusterTargetRestriction(r, targetProject, target)
-		if err != nil {
-			return err
-		}
+		if clustered && !clusterNotification {
+			clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
 
-		if targetGroup != "" {
-			// Check restricted cluster groups from project.
-			if shared.IsTrue(targetProject.Config["restricted"]) {
-				clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
-
-				if targetGroup != "" && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
-					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
-				}
-			}
-
-			// Check if the target group exists.
-			targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
+			// Check manual cluster member targeting restrictions.
+			err = project.CheckClusterTargetRestriction(r, targetProject, target)
 			if err != nil {
 				return err
 			}
 
-			if !targetGroupExists {
-				return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+			if targetGroup != "" {
+				// If restricted groups are specified then check the requested group is in the list.
+				if shared.IsTrue(targetProject.Config["restricted"]) && len(clusterGroupsAllowed) > 0 && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
+					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
+				}
+
+				// Check if the target group exists.
+				targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
+				if err != nil {
+					return err
+				}
+
+				if !targetGroupExists {
+					return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+				}
 			}
 		}
 
