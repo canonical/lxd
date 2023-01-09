@@ -836,6 +836,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	target := queryParam(r, "target")
+	if !clustered && target != "" {
+		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
+	}
+
 	var targetMember, targetGroup string
 	if strings.HasPrefix(target, "@") {
 		targetGroup = strings.TrimPrefix(target, "@")
