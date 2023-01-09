@@ -1090,15 +1090,10 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 // GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
 // It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
 // (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
-func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
+func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeInfo, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
 	threshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get offline threshold: %w", err)
-	}
-
-	allMembers, err := c.GetNodes(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get current cluster members: %w", err)
 	}
 
 	var candidateMembers []NodeInfo
