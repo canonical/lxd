@@ -1064,7 +1064,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
-		if clustered && !clusterNotification && targetMember == "" {
+		if clustered && !clusterNotification && targetMemberInfo == nil {
 			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
 			if err != nil {
 				return err
@@ -1118,19 +1118,19 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if clustered && !clusterNotification && targetMember == "" {
+	if clustered && !clusterNotification && targetMemberInfo == nil {
 		// If no target member was selected yet, pick the member with the least number of instances.
 		// If there's just one member, or if the selected member is the local one, this is effectively a
 		// no-op, since GetNodeWithLeastInstances() will return an empty string.
 		// If the target is a cluster group, find a suitable member within the group.
-		if targetMember == "" {
+		if targetMemberInfo == nil {
 			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetMember, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
 				}
 
-				if targetMember == "" {
+				if targetMemberInfo == nil {
 					return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
 				}
 
@@ -1142,30 +1142,23 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if targetMember != "" {
-		address, err := cluster.ResolveTarget(d.db.Cluster, targetMember)
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Address != s.ServerName {
+		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		if address != "" {
-			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
-			if err != nil {
-				return response.SmartError(err)
-			}
+		client = client.UseProject(targetProjectName)
+		client = client.UseTarget(targetMemberInfo.Name)
 
-			client = client.UseProject(targetProjectName)
-			client = client.UseTarget(targetMember)
-
-			logger.Debug("Forward instance post request", logger.Ctx{"member": address})
-			op, err := client.CreateInstance(req)
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			opAPI := op.Get()
-			return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+		logger.Debug("Forward instance post request", logger.Ctx{"member": targetMemberInfo.Address})
+		op, err := client.CreateInstance(req)
+		if err != nil {
+			return response.SmartError(err)
 		}
+
+		opAPI := op.Get()
+		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
 	}
 
 	switch req.Source.Type {
