@@ -6,7 +6,7 @@ require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
 	github.com/canonical/candid v1.12.2
-	github.com/canonical/go-dqlite v1.11.5
+	github.com/canonical/go-dqlite v1.11.6
 	github.com/checkpoint-restore/go-criu/v6 v6.3.0
 	github.com/digitalocean/go-qemu v0.0.0-20221209210016-f035778c97f7
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
-	github.com/grafana/dskit v0.0.0-20221215111409-53bd6afef7d0
+	github.com/grafana/dskit v0.0.0-20230109182448-24059224950c
 	github.com/j-keck/arping v1.0.3
 	github.com/jaypipes/pcidb v1.0.0
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
@@ -34,9 +34,9 @@ require (
 	github.com/mdlayher/vsock v1.2.0
 	github.com/miekg/dns v1.1.50
 	github.com/minio/madmin-go v1.7.5
-	github.com/minio/minio-go/v7 v7.0.45
+	github.com/minio/minio-go/v7 v7.0.46
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp/v3 v3.9.0
+	github.com/osrg/gobgp/v3 v3.10.0
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/sftp v1.13.5
 	github.com/pkg/xattr v0.4.9
@@ -45,10 +45,10 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	golang.org/x/crypto v0.4.0
-	golang.org/x/sys v0.3.0
-	golang.org/x/term v0.3.0
-	golang.org/x/text v0.5.0
+	golang.org/x/crypto v0.5.0
+	golang.org/x/sys v0.4.0
+	golang.org/x/term v0.4.0
+	golang.org/x/text v0.6.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/juju/environschema.v1 v1.0.1
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
@@ -88,12 +88,12 @@ require (
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
-	github.com/klauspost/compress v1.15.13 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.2 // indirect
+	github.com/klauspost/compress v1.15.14 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20220913051719-115f729f3c8c // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mattn/go-isatty v0.0.16 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mdlayher/socket v0.4.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
@@ -106,9 +106,9 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20221212215047-62379fc7944b // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect
 	github.com/rs/xid v1.4.0 // indirect
@@ -121,17 +121,17 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.14.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
-	github.com/tinylib/msgp v1.1.7 // indirect
+	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/tools v0.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37 // indirect
+	golang.org/x/tools v0.5.0 // indirect
+	google.golang.org/genproto v0.0.0-20230109162033-3c3c17ce83e6 // indirect
 	google.golang.org/grpc v1.51.0 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
