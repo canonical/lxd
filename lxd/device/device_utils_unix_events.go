@@ -38,7 +38,6 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 	}
 
 	unixMutex.Lock()
-	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
 	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
@@ -47,6 +46,7 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 		Handler: handler,
 	}
 
+	unixMutex.Unlock()
 	identifier := fmt.Sprintf("%d_%s", inst.ID(), deviceName)
 
 	path = filepath.Clean(path)
@@ -68,18 +68,19 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 // unixUnregisterHandler removes a registered Unix handler function for a device.
 func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName string) error {
 	unixMutex.Lock()
-	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
 	key := fmt.Sprintf("%s\000%s\000%s", inst.Project().Name, inst.Name(), deviceName)
 
 	sub, exists := unixHandlers[key]
 	if !exists {
+		unixMutex.Unlock()
 		return nil
 	}
 
 	// Remove active subscription for this device.
 	delete(unixHandlers, key)
+	unixMutex.Unlock()
 
 	identifier := fmt.Sprintf("%d_%s", inst.ID(), deviceName)
 
