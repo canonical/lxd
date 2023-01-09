@@ -863,7 +863,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check manual cluster member targeting restrictions.
-		err = project.CheckClusterTargetRestriction(tx, r, targetProject, target)
+		err = project.CheckClusterTargetRestriction(r, targetProject, target)
 		if err != nil {
 			return err
 		}
