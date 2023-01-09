@@ -1087,10 +1087,9 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	return threshold, nil
 }
 
-// GetCandidateMembers returns cluster members that are online, not in evacuated state and don't require manual
-// targeting. It will also exclude members that do not support any of the targetArchitectures (if non-nil) or not
-// in targetClusterGroup (if non-empty).
-// It also takes into account any restrictions on allowedClusterGroups (if non-nil).
+// GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
+// It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
+// (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
 func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
 	threshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
@@ -1105,8 +1104,8 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures
 	var candidateMembers []NodeInfo
 
 	for _, member := range allMembers {
-		// Skip evacuated or offline members.
-		if member.State == ClusterMemberStateEvacuated || member.IsOffline(threshold) {
+		// Skip pending, evacuated or offline members.
+		if member.State != ClusterMemberStateCreated || member.IsOffline(threshold) {
 			continue
 		}
 
