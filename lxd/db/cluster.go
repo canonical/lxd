@@ -118,7 +118,7 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 
 	// Get nodes in cluster group.
 	for i := 0; i < len(objects); i++ {
-		objects[i].Nodes, err = c.GetClusterGroupNodes(objects[i].Name)
+		objects[i].Nodes, err = c.GetClusterGroupNodes(context.TODO(), objects[i].Name)
 		if err != nil {
 			return nil, err
 		}
