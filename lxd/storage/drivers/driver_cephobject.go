@@ -93,12 +93,12 @@ func (d *cephobject) Info() Info {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *cephobject) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
-		"cephobject.cluster_name":                validate.IsAny,
-		"cephobject.user.name":                   validate.IsAny,
-		"cephobject.radosgsw.endpoint":           validate.Optional(validate.IsRequestURL),
-		"cephobject.radosgsw.endpoint_cert_file": validate.Optional(validate.IsAbsFilePath),
-		"cephobject.bucket.name_prefix":          validate.Optional(validate.IsAny),
-		"volatile.pool.pristine":                 validate.Optional(validate.IsBool),
+		"cephobject.cluster_name":               validate.IsAny,
+		"cephobject.user.name":                  validate.IsAny,
+		"cephobject.radosgw.endpoint":           validate.Optional(validate.IsRequestURL),
+		"cephobject.radosgw.endpoint_cert_file": validate.Optional(validate.IsAbsFilePath),
+		"cephobject.bucket.name_prefix":         validate.Optional(validate.IsAny),
+		"volatile.pool.pristine":                validate.Optional(validate.IsBool),
 	}
 
 	return d.validatePool(config, rules, nil)
@@ -116,8 +116,8 @@ func (d *cephobject) Create() error {
 		d.config["cephobject.user.name"] = CephDefaultUser
 	}
 
-	if d.config["cephobject.radosgsw.endpoint"] == "" {
-		return fmt.Errorf(`"cephobject.radosgsw.endpoint" option is required`)
+	if d.config["cephobject.radosgw.endpoint"] == "" {
+		return fmt.Errorf(`"cephobject.radosgw.endpoint" option is required`)
 	}
 
 	// Check if there is an existing cephobjectRadosgwAdminUser user.

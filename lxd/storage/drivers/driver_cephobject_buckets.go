@@ -28,14 +28,14 @@ func (d *cephobject) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // s3Client returns a configured minio S3 client.
 func (d *cephobject) s3Client(creds S3Credentials) (*minio.Client, error) {
-	u, err := url.ParseRequestURI(d.config["cephobject.radosgsw.endpoint"])
+	u, err := url.ParseRequestURI(d.config["cephobject.radosgw.endpoint"])
 	if err != nil {
-		return nil, fmt.Errorf("Failed parsing cephobject.radosgsw.endpoint: %w", err)
+		return nil, fmt.Errorf("Failed parsing cephobject.radosgw.endpoint: %w", err)
 	}
 
 	var transport http.RoundTripper
 
-	certFilePath := d.config["cephobject.radosgsw.endpoint_cert_file"]
+	certFilePath := d.config["cephobject.radosgw.endpoint_cert_file"]
 
 	if u.Scheme == "https" && certFilePath != "" {
 		certFilePath = shared.HostPath(certFilePath)
