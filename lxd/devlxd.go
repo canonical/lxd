@@ -194,7 +194,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 		location = c.Location()
 	}
 
-	return response.DevLxdResponse(http.StatusOK, api.DevLXDPut{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
+	return response.DevLxdResponse(http.StatusOK, api.DevLXDGet{APIVersion: version.APIVersion, Location: location, InstanceType: c.Type().String()}, "json", c.Type() == instancetype.VM)
 }}
 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) response.Response {
