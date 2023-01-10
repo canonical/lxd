@@ -312,12 +312,11 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 || false
 
-  # Set cluster token expiry to 10 seconds
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=10S
+  # Set cluster token expiry to 30 seconds
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=30S
 
   # Generate a join token for an eigth and ninth node
   token_valid=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node8 | tail -n 1)
-  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
 
   # Spawn an eigth node, using join token.
   setup_clustering_netns 8
@@ -330,8 +329,10 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}"
   unset LXD_SECRET
 
-  # This will cause the token to expiry
-  sleep 11
+  # This will cause the token to expire
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
+  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
+  sleep 6
 
   # Spawn a ninth node, using join token.
   setup_clustering_netns 9
@@ -2835,11 +2836,22 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c cluster.evacuate=auto -s pool1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c2 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c cluster.evacuate=stop
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c3 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c cluster.evacuate=migrate -s pool1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c4 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c5 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=5
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list

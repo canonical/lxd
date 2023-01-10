@@ -48,69 +48,6 @@ var Load func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, er
 // Returns a revert fail function that can be used to undo this function if a subsequent step fails.
 var Create func(s *state.State, args db.InstanceArgs, p api.Project) (Instance, revert.Hook, error)
 
-// CompareSnapshots returns a list of snapshots to sync to the target and a list of
-// snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
-// exist in the target or its creation date is different to the source. A snapshot will be marked
-// as "to delete" if it doesn't exist in the source or creation date is different to the source.
-func CompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
-	// Get the source snapshots.
-	sourceSnapshots, err := source.Snapshots()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Get the target snapshots.
-	targetSnapshots, err := target.Snapshots()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Compare source and target.
-	sourceSnapshotsTime := map[string]time.Time{}
-	targetSnapshotsTime := map[string]time.Time{}
-
-	toDelete := []Instance{}
-	toSync := []Instance{}
-
-	// Generate a list of source snapshot creation dates.
-	for _, snap := range sourceSnapshots {
-		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-
-		sourceSnapshotsTime[snapName] = snap.CreationDate()
-	}
-
-	// Generate a list of target snapshot creation times, if the source doesn't contain the
-	// the snapshot or the creation time is different on the source then add the target snapshot
-	// to the "to delete" list.
-	for _, snap := range targetSnapshots {
-		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-
-		targetSnapshotsTime[snapName] = snap.CreationDate()
-		existDate, exists := sourceSnapshotsTime[snapName]
-		if !exists {
-			// Snapshot doesn't exist in source, mark it for deletion on target.
-			toDelete = append(toDelete, snap)
-		} else if existDate != snap.CreationDate() {
-			// Snapshot creation date is different in source, mark it for deletion on
-			// target.
-			toDelete = append(toDelete, snap)
-		}
-	}
-
-	// For each of the source snapshots, decide whether it needs to be synced or not based on
-	// whether it already exists in the target and whether the creation dates match.
-	for _, snap := range sourceSnapshots {
-		_, snapName, _ := api.GetParentAndSnapshotName(snap.Name())
-
-		existDate, exists := targetSnapshotsTime[snapName]
-		if !exists || existDate != snap.CreationDate() {
-			toSync = append(toSync, snap)
-		}
-	}
-
-	return toSync, toDelete, nil
-}
-
 func exclusiveConfigKeys(key1 string, key2 string, config map[string]string) (val string, ok bool, err error) {
 	if config[key1] != "" && config[key2] != "" {
 		return "", false, fmt.Errorf("Mutually exclusive keys %s and %s are set", key1, key2)
@@ -531,7 +468,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
 	}
 
-	return inst, err
+	return inst, nil
 }
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
