@@ -2841,6 +2841,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		metadata := make(map[string]any)
 
 		for _, inst := range instances {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 			// Check if migratable.
 			migrate, live := inst.CanMigrate()
 
@@ -2874,6 +2876,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				// Start with a clean shutdown.
 				err = inst.Shutdown(time.Duration(val) * time.Second)
 				if err != nil {
+					l.Warn("Failed shutting down instance, forcing stop", logger.Ctx{"err": err})
+
 					// Fallback to forced stop.
 					err = inst.Stop(false)
 					if err != nil && !errors.Is(err, drivers.ErrInstanceIsStopped) {
@@ -2884,7 +2888,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				// Mark the instance as RUNNING in volatile so its state can be properly restored.
 				err = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 				if err != nil {
-					logger.Warn("Failed to set instance state to RUNNING", logger.Ctx{"instance": inst.Name(), "err": err})
+					l.Warn("Failed to set instance state to RUNNING", logger.Ctx{"err": err})
 				}
 			}
 
@@ -2918,7 +2922,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 			// Skip migration if no target available.
 			if targetNode == nil {
-				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project().Name})
+				l.Warn("No migration target available for instance")
 				continue
 			}
 
