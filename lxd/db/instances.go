@@ -1070,7 +1070,7 @@ SELECT instances_snapshots.name
   JOIN instances ON instances.id = instances_snapshots.instance_id
   JOIN projects ON projects.id = instances.project_id
 WHERE projects.name=? AND instances.name=?
-ORDER BY date(instances_snapshots.creation_date)
+ORDER BY datetime(instances_snapshots.creation_date)
 `
 	inargs := []any{project, name}
 	outfmt := []any{name}
