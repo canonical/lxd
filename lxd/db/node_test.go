@@ -318,13 +318,16 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `)
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), nil, "", nil)
+	allMembers, err := tx.GetNodes(context.Background())
+	require.NoError(t, err)
+
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
 	require.NoError(t, err)
 	require.Len(t, members, 2)
 
-	name, err := tx.GetNodeWithLeastInstances(context.Background(), members)
+	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
-	assert.Equal(t, "buzz", name)
+	assert.Equal(t, "buzz", member.Name)
 }
 
 // If there are nodes, and one of them is offline, return the name of the
@@ -346,13 +349,16 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), nil, "", nil)
+	allMembers, err := tx.GetNodes(context.Background())
+	require.NoError(t, err)
+
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
-	name, err := tx.GetNodeWithLeastInstances(context.Background(), members)
+	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
-	assert.Equal(t, "buzz", name)
+	assert.Equal(t, "buzz", member.Name)
 }
 
 // If there are 2 online nodes, and a container is pending on one of them,
@@ -370,13 +376,16 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, operationtype.InstanceCreate)
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), nil, "", nil)
+	allMembers, err := tx.GetNodes(context.Background())
+	require.NoError(t, err)
+
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
 	require.NoError(t, err)
 	require.Len(t, members, 2)
 
-	name, err := tx.GetNodeWithLeastInstances(context.Background(), members)
+	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
-	assert.Equal(t, "buzz", name)
+	assert.Equal(t, "buzz", member.Name)
 }
 
 // If specific architectures were selected, return only nodes with those
@@ -402,14 +411,17 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `)
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), []int{localArch}, "", nil)
+	allMembers, err := tx.GetNodes(context.Background())
+	require.NoError(t, err)
+
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{localArch}, "", nil)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
 	// The local member is returned despite it has more containers.
-	name, err := tx.GetNodeWithLeastInstances(context.Background(), members)
+	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
-	assert.Equal(t, "none", name)
+	assert.Equal(t, "none", member.Name)
 }
 
 func TestUpdateNodeFailureDomain(t *testing.T) {
@@ -461,11 +473,14 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `, id)
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), []int{testArch}, "", nil)
+	allMembers, err := tx.GetNodes(context.Background())
+	require.NoError(t, err)
+
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{testArch}, "", nil)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
-	name, err := tx.GetNodeWithLeastInstances(context.Background(), members)
+	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
-	assert.Equal(t, "buzz", name)
+	assert.Equal(t, "buzz", member.Name)
 }
