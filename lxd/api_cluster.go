@@ -2825,7 +2825,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Skip migration if no target available.
 			if targetNode == nil {
-				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project().Name})
+				l.Warn("No migration target available for instance")
 				continue
 			}
 
