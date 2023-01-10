@@ -312,12 +312,11 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 || false
 
-  # Set cluster token expiry to 10 seconds
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=10S
+  # Set cluster token expiry to 30 seconds
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=30S
 
   # Generate a join token for an eigth and ninth node
   token_valid=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node8 | tail -n 1)
-  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
 
   # Spawn an eigth node, using join token.
   setup_clustering_netns 8
@@ -330,8 +329,10 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}"
   unset LXD_SECRET
 
-  # This will cause the token to expiry
-  sleep 11
+  # This will cause the token to expire
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
+  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
+  sleep 6
 
   # Spawn a ninth node, using join token.
   setup_clustering_netns 9
