@@ -837,8 +837,17 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if targetGroup != "" {
+			var targetGroupExists bool
+
 			// Check if the target group exists.
-			targetGroupExists, err := dbCluster.ClusterGroupExists(ctx, tx.Tx(), targetGroup)
+			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				targetGroupExists, err = tx.ClusterGroupExists(targetGroup)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
 			if err != nil {
 				return err
 			}
