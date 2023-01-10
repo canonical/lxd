@@ -1181,8 +1181,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		sourceSnapshotComparable := make([]ComparableSnapshot, 0, len(srcConfig.VolumeSnapshots))
 		for _, sourceSnap := range srcConfig.VolumeSnapshots {
 			sourceSnapshotComparable = append(sourceSnapshotComparable, ComparableSnapshot{
-				Name:         sourceSnap.Name,
-				CreationDate: sourceSnap.CreatedAt,
+				Name: sourceSnap.Name,
 			})
 		}
 
@@ -1196,8 +1195,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
 
 			targetSnapshotsComparable = append(targetSnapshotsComparable, ComparableSnapshot{
-				Name:         targetSnapName,
-				CreationDate: targetSnap.CreationDate,
+				Name: targetSnapName,
 			})
 		}
 

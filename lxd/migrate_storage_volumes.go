@@ -349,8 +349,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
 		for _, sourceSnap := range sourceSnapshots {
 			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
-				Name:         sourceSnap.GetName(),
-				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+				Name: sourceSnap.GetName(),
 			})
 		}
 
@@ -366,8 +365,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name)
 
 			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
-				Name:         targetSnapName,
-				CreationDate: targetSnap.CreationDate,
+				Name: targetSnapName,
 			})
 		}
 
