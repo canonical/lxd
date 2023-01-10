@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -583,7 +584,7 @@ func ResolveImage(ctx context.Context, tx *db.ClusterTx, projectName string, sou
 //
 // An empty list indicates that the request may be handled by any architecture.
 // A nil list indicates that we can't tell at this stage, typically for private images.
-func SuitableArchitectures(ctx context.Context, s *state.State, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
+func SuitableArchitectures(ctx context.Context, s *state.State, tx *db.ClusterTx, projectName string, sourceInst *cluster.Instance, sourceImageRef string, req api.InstancesPost) ([]int, error) {
 	// Handle cases where the architecture is already provided.
 	if shared.StringInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
 		id, err := osarch.ArchitectureId(req.Architecture)
@@ -596,7 +597,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, projectName stri
 
 	// For migration, an architecture must be specified in the req.
 	if req.Source.Type == "migration" && req.Architecture == "" {
-		return nil, fmt.Errorf("An architecture must be specified in migration requests")
+		return nil, api.StatusErrorf(http.StatusBadRequest, "An architecture must be specified in migration requests")
 	}
 
 	// For none, allow any architecture.
@@ -613,7 +614,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, projectName stri
 	if req.Source.Type == "image" {
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.DB.Cluster.GetImage(sourceImageRef, cluster.ImageFilter{Project: &projectName})
+			_, img, err := tx.GetImageByFingerprintPrefix(ctx, sourceImageRef, cluster.ImageFilter{Project: &projectName})
 			if err != nil {
 				return nil, err
 			}
@@ -660,7 +661,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, projectName stri
 					return nil, err
 				}
 			} else {
-				return nil, fmt.Errorf("Unsupported remote image server protocol: %s", req.Source.Protocol)
+				return nil, api.StatusErrorf(http.StatusBadRequest, "Unsupported remote image server protocol %q", req.Source.Protocol)
 			}
 
 			// Look for a matching alias.
@@ -695,7 +696,7 @@ func SuitableArchitectures(ctx context.Context, s *state.State, projectName stri
 	}
 
 	// No other known types
-	return nil, fmt.Errorf("Unknown instance source type: %s", req.Source.Type)
+	return nil, api.StatusErrorf(http.StatusBadRequest, "Unknown instance source type %q", req.Source.Type)
 }
 
 // ValidName validates an instance name. There are different validation rules for instance snapshot names

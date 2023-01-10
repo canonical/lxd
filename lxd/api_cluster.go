@@ -2820,8 +2820,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		instances[i] = inst
 	}
 
-	var targetNodeName string
-	var targetNode db.NodeInfo
+	var targetNode *db.NodeInfo
 
 	run := func(op *operations.Operation) error {
 		// Setup a reverter.
@@ -2842,6 +2841,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		metadata := make(map[string]any)
 
 		for _, inst := range instances {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 			// Check if migratable.
 			migrate, live := inst.CanMigrate()
 
@@ -2875,6 +2876,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				// Start with a clean shutdown.
 				err = inst.Shutdown(time.Duration(val) * time.Second)
 				if err != nil {
+					l.Warn("Failed shutting down instance, forcing stop", logger.Ctx{"err": err})
+
 					// Fallback to forced stop.
 					err = inst.Stop(false)
 					if err != nil && !errors.Is(err, drivers.ErrInstanceIsStopped) {
@@ -2885,7 +2888,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				// Mark the instance as RUNNING in volatile so its state can be properly restored.
 				err = inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 				if err != nil {
-					logger.Warn("Failed to set instance state to RUNNING", logger.Ctx{"instance": inst.Name(), "err": err})
+					l.Warn("Failed to set instance state to RUNNING", logger.Ctx{"err": err})
 				}
 			}
 
@@ -2896,22 +2899,17 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 			// Find the least loaded cluster member which supports the architecture.
 			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				candidateMembers, err := tx.GetCandidateMembers(ctx, []int{inst.Architecture()}, "", nil)
+				allMembers, err := tx.GetNodes(ctx)
+				if err != nil {
+					return fmt.Errorf("Failed getting cluster members: %w", err)
+				}
+
+				candidateMembers, err := tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil)
 				if err != nil {
 					return err
 				}
 
-				targetNodeName, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
-				if err != nil {
-					return err
-				}
-
-				if targetNodeName == "" {
-					// No migration target found.
-					return nil
-				}
-
-				targetNode, err = tx.GetNodeByName(ctx, targetNodeName)
+				targetNode, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
 				}
@@ -2923,13 +2921,13 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			}
 
 			// Skip migration if no target available.
-			if targetNodeName == "" {
-				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project().Name})
+			if targetNode == nil {
+				l.Warn("No migration target available for instance")
 				continue
 			}
 
 			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNodeName)
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNode.Name)
 			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
@@ -2943,7 +2941,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				Live: live,
 			}
 
-			err = migrateInstance(d, r, inst, targetNodeName, false, req, op)
+			err = migrateInstance(d, r, inst, targetNode.Name, false, req, op)
 			if err != nil {
 				return fmt.Errorf("Failed to migrate instance: %w", err)
 			}

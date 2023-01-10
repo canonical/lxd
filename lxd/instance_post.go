@@ -130,7 +130,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if user is allowed to use cluster member targeting
-			err = project.CheckClusterTargetRestriction(tx, r, apiProject, targetNode)
+			err = project.CheckClusterTargetRestriction(r, apiProject, targetNode)
 			if err != nil {
 				return err
 			}

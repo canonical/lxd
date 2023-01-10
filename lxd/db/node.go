@@ -1087,26 +1087,20 @@ func (c *ClusterTx) GetNodeOfflineThreshold(ctx context.Context) (time.Duration,
 	return threshold, nil
 }
 
-// GetCandidateMembers returns cluster members that are online, not in evacuated state and don't require manual
-// targeting. It will also exclude members that do not support any of the targetArchitectures (if non-nil) or not
-// in targetClusterGroup (if non-empty).
-// It also takes into account any restrictions on allowedClusterGroups (if non-nil).
-func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
+// GetCandidateMembers returns cluster members that are online, in created state and don't need manual targeting.
+// It excludes members that do not support any of the targetArchitectures (if non-nil) or not in targetClusterGroup
+// (if non-empty). It also takes into account any restrictions on allowedClusterGroups (if non-nil).
+func (c *ClusterTx) GetCandidateMembers(ctx context.Context, allMembers []NodeInfo, targetArchitectures []int, targetClusterGroup string, allowedClusterGroups []string) ([]NodeInfo, error) {
 	threshold, err := c.GetNodeOfflineThreshold(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get offline threshold: %w", err)
 	}
 
-	allMembers, err := c.GetNodes(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get current cluster members: %w", err)
-	}
-
 	var candidateMembers []NodeInfo
 
 	for _, member := range allMembers {
-		// Skip evacuated or offline members.
-		if member.State == ClusterMemberStateEvacuated || member.IsOffline(threshold) {
+		// Skip pending, evacuated or offline members.
+		if member.State != ClusterMemberStateCreated || member.IsOffline(threshold) {
 			continue
 		}
 
@@ -1166,31 +1160,31 @@ func (c *ClusterTx) GetCandidateMembers(ctx context.Context, targetArchitectures
 
 // GetNodeWithLeastInstances returns the name of the member with the least number of instances that are either
 // already created or being created with an operation.
-func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (string, error) {
-	var memberName string
+func (c *ClusterTx) GetNodeWithLeastInstances(ctx context.Context, members []NodeInfo) (*NodeInfo, error) {
+	var member *NodeInfo
 	var lowestInstanceCount = -1
 
-	for _, member := range members {
+	for i := range members {
 		// Fetch the number of instances already created on this member.
-		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", member.ID)
+		created, err := query.Count(ctx, c.tx, "instances", "node_id=?", members[i].ID)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get instances count: %w", err)
+			return nil, fmt.Errorf("Failed to get instances count: %w", err)
 		}
 
 		// Fetch the number of instances currently being created on this member.
-		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", member.ID, operationtype.InstanceCreate)
+		pending, err := query.Count(ctx, c.tx, "operations", "node_id=? AND type=?", members[i].ID, operationtype.InstanceCreate)
 		if err != nil {
-			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
+			return nil, fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
 
 		memberInstanceCount := created + pending
 		if lowestInstanceCount == -1 || memberInstanceCount < lowestInstanceCount {
 			lowestInstanceCount = memberInstanceCount
-			memberName = member.Name
+			member = &members[i]
 		}
 	}
 
-	return memberName, nil
+	return member, nil
 }
 
 // SetNodeVersion updates the schema and API version of the node with the

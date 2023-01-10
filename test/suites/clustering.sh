@@ -312,12 +312,11 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens
   ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list-tokens | grep node7 || false
 
-  # Set cluster token expiry to 10 seconds
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=10S
+  # Set cluster token expiry to 30 seconds
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=30S
 
   # Generate a join token for an eigth and ninth node
   token_valid=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node8 | tail -n 1)
-  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
 
   # Spawn an eigth node, using join token.
   setup_clustering_netns 8
@@ -330,8 +329,10 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns8}" "${bridge}" "${cert}" 8 2 "${LXD_EIGHT_DIR}"
   unset LXD_SECRET
 
-  # This will cause the token to expiry
-  sleep 11
+  # This will cause the token to expire
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.join_token_expiry=5S
+  token_expired=$(LXD_DIR="${LXD_ONE_DIR}" lxc cluster add node9 | tail -n 1)
+  sleep 6
 
   # Spawn a ninth node, using join token.
   setup_clustering_netns 9
@@ -2928,11 +2929,22 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c1 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 -c cluster.evacuate=auto -s pool1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c2 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 -c cluster.evacuate=stop
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c3 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 -c cluster.evacuate=migrate -s pool1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c4 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 --target=node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c5 boot.host_shutdown_timeout=5
+
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set c6 boot.host_shutdown_timeout=5
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
@@ -3373,6 +3385,9 @@ test_clustering_groups() {
   lxc cluster group rename cluster:foobar blah
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "blah"; .)')" = "true" ]
 
+  lxc cluster group create cluster:foobar2
+  lxc cluster group assign cluster:node3 default,foobar2
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
@@ -3411,7 +3426,41 @@ test_clustering_groups() {
   lxc info cluster:c5 | grep -q "Location: node3"
 
   # Clean up
-  lxc rm c1 c2 c3 c4 c5
+  lxc rm -f c1 c2 c3 c4 c5
+
+  # Restricted project tests
+  lxc project create foo -c features.images=false -c restricted=true -c restricted.cluster.groups=blah
+  lxc profile show default | lxc profile edit default --project foo
+
+  # Check cannot create instance in restricted project that only allows blah group, when the only member that
+  # exists in the blah group also has scheduler.instance=group set (so it must be targeted via group or directly).
+  ! lxc init testimage cluster:c1 --project foo || false
+
+  # Check cannot create instance in restricted project when targeting a member that isn't in the restricted
+  # project's allowed cluster groups list.
+  ! lxc init testimage cluster:c1 --project foo --target=node1 || false
+  ! lxc init testimage cluster:c1 --project foo --target=@foobar2 || false
+
+  # Check can create instance in restricted project when not targeting any specific member, but that it will only
+  # be created on members within the project's allowed cluster groups list.
+  lxc cluster unset cluster:node2 scheduler.instance
+  lxc init testimage cluster:c1 --project foo
+  lxc init testimage cluster:c2 --project foo
+  lxc info cluster:c1 --project foo | grep -q "Location: node2"
+  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+  lxc delete -f c1 c2 --project foo
+
+  # Check can specify any member or group when restricted.cluster.groups is empty.
+  lxc project unset foo restricted.cluster.groups
+  lxc init testimage cluster:c1 --project foo --target=node1
+  lxc info cluster:c1 --project foo | grep -q "Location: node1"
+
+  lxc init testimage cluster:c2 --project foo --target=@blah
+  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+
+  lxc delete -f c1 c2 --project foo
+
+  lxc project delete foo
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
