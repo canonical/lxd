@@ -88,7 +88,7 @@ Access to cached data is not affected by the limit.
 
 Instead of attaching a custom volume to an instance as a disk device, you can also use it as a special kind of volume to store {ref}`backups <backups>` or {ref}`images <image-handling>`.
 
-To do so, you must set the corresponding {ref}`server`:
+To do so, you must set the corresponding {ref}`server configuration <server-options-misc>`:
 
 - To use a custom volume to store the backup tarballs:
 

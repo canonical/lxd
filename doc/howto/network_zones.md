@@ -84,7 +84,7 @@ For example, running `dig @<DNS_server_IP> -p 1053 axfr 2.0.192.in-addr.arpa` mi
 
 To make use of network zones, you must enable the built-in DNS server.
 
-To do so, set the `core.dns_address` configuration option (see {ref}`server`) to a local address on the LXD server.
+To do so, set the `core.dns_address` configuration option (see {ref}`server-options-core`) to a local address on the LXD server.
 This is the address on which the DNS server will listen.
 Note that in a LXD cluster, the address may be different on each cluster member.
 
