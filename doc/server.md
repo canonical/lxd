@@ -1,23 +1,64 @@
 (server)=
 # Server configuration
 
-The server configuration is a simple set of key and values.
+The LXD server can be configured through a set of key/value configuration options.
 
-The key/value configuration is namespaced with the following namespaces
-currently supported:
+You can configure a server option with the following command:
 
-- `acme` (ACME configuration)
-- `backups` (backups configuration)
-- `candid` (External user authentication through Candid)
-- `cluster` (cluster configuration)
-- `core` (core daemon configuration)
-- `images` (image configuration)
-- `instances` (instance configuration)
-- `loki` (External log aggregation system)
-- `maas` (MAAS integration)
-- `network` (OVN integration)
-- `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
-- `storage` (storage configuration)
+    lxc config set <key> <value>
+
+If the LXD server is part of a cluster, some of the options apply to the cluster, while others apply only to the local server, thus the cluster member.
+Options marked with a `global` scope in the following tables are immediately applied to all cluster members.
+Options with a `local` scope must be set on a per-member basis.
+To do so, add the `--target` flag to the `lxc config set` command.
+
+The key/value configuration is namespaced.
+The following options are available:
+
+- {ref}`server-options-core`
+- {ref}`server-options-acme`
+- {ref}`server-options-candid-rbac`
+- {ref}`server-options-cluster`
+- {ref}`server-options-images`
+- {ref}`server-options-loki`
+- {ref}`server-options-misc`
+
+(server-options-core)=
+## Core configuration
+
+The following server options control the core daemon configuration:
+
+(server-options-acme)=
+## ACME configuration
+
+The following server options control the {ref}`ACME <authentication-server-certificate>` configuration:
+
+(server-options-candid-rbac)=
+## Candid and RBAC configuration
+
+The following server options configure external user authentication, through {ref}`authentication-candid` or through {ref}`authentication-rbac`:
+
+(server-options-cluster)=
+## Cluster configuration
+
+The following server options control {ref}`clustering`:
+
+(server-options-images)=
+## Images configuration
+
+The following server options configure how to handle {ref}`images`:
+
+(server-options-loki)=
+## Loki configuration
+
+The following server options configure the external log aggregation system:
+
+(server-options-misc)=
+## Miscellaneous options
+
+The following server options configure server-specific settings for {ref}`instances`, MAAS integration, {ref}`OVN <network-ovn>` integration, {ref}`Backups <backups>` and {ref}`storage`:
+
+
 
 ```{rst-class} break-col-4 min-width-4-8
 ```
@@ -88,14 +129,3 @@ Key                                 | Type      | Scope     | Default           
 `rbac.api.url`                      | string    | global    | -                                                | URL of the external RBAC server
 `storage.backups_volume`            | string    | local     | -                                                | Volume to use to store the backup tarballs (syntax is POOL/VOLUME)
 `storage.images_volume`             | string    | local     | -                                                | Volume to use to store the image tarballs (syntax is POOL/VOLUME)
-
-Those keys can be set using the `lxc` tool with:
-
-```bash
-lxc config set <key> <value>
-```
-
-When operating as part of a cluster, the keys marked with a `global`
-scope will immediately be applied to all the cluster members. Those keys
-with a `local` scope must be set on a per member basis using the
-`--target` option of the command line tool.
