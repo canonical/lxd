@@ -2545,6 +2545,8 @@ func (d *lxc) Stop(stateful bool) error {
 		return err
 	}
 
+	_ = op.ResetTimeout(time.Minute)
+
 	ctxMap := logger.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
