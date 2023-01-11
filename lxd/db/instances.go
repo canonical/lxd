@@ -1061,6 +1061,7 @@ func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.T
 
 // GetInstanceSnapshotsNames returns the names of all snapshots of the instance
 // in the given project with the given name.
+// Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) GetInstanceSnapshotsNames(project, name string) ([]string, error) {
 	result := []string{}
 
@@ -1070,7 +1071,7 @@ SELECT instances_snapshots.name
   JOIN instances ON instances.id = instances_snapshots.instance_id
   JOIN projects ON projects.id = instances.project_id
 WHERE projects.name=? AND instances.name=?
-ORDER BY datetime(instances_snapshots.creation_date)
+ORDER BY instances_snapshots.creation_date, instances_snapshots.id
 `
 	inargs := []any{project, name}
 	outfmt := []any{name}
@@ -1094,7 +1095,9 @@ SELECT instances_snapshots.name
   FROM instances_snapshots
   JOIN instances ON instances.id = instances_snapshots.instance_id
   JOIN projects ON projects.id = instances.project_id
-WHERE projects.name=? AND instances.name=?`
+WHERE projects.name=? AND instances.name=?
+ORDER BY instances_snapshots.creation_date, instances_snapshots.id
+`
 	var numstr string
 	inargs := []any{project, name}
 	outfmt := []any{numstr}
