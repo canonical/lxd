@@ -625,7 +625,6 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			snapData = append(snapData, row)
 		}
 
-		sort.Sort(utils.ByName(snapData))
 		snapHeader := []string{
 			i18n.G("Name"),
 			i18n.G("Taken at"),
