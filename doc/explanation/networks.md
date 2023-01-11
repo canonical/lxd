@@ -28,11 +28,11 @@ You can configure the network device in one of the following ways:
 
         lxc config device add <instance_name> eth0 nic nictype=bridged parent=br0
 - {doc}`Create a managed network </howto/network_create>` and add it as a network device to your instance.
-  With this method, LXD has all required information about the configured network, and you only need to specify the network name when adding the device:
+  With this method, LXD has all required information about the configured network, and you can directly attach it to your instance as a device:
 
-        lxc config device add <instance_name> <device_name> nic network=<network_name>
+        lxc network attach <network_name> <instance_name> <device_name>
 
-  If needed, you can add further properties to the command to override the default settings for the network.
+  See {ref}`network-attach` for more information.
 
 (managed-networks)=
 ## Managed networks
