@@ -79,7 +79,7 @@ To do so, copy the client certificate to the server and register it using `lxc c
 (authentication-trust-pw)=
 #### Adding client certificates using a trust password
 
-To allow establishing a new trust relationship from the client side, you must set a trust password ([`core.trust_password`](server-options)) for the server. Clients can then add their own certificate to the server's trust store by providing the trust password when prompted.
+To allow establishing a new trust relationship from the client side, you must set a trust password ([`core.trust_password`](server-options-core)) for the server. Clients can then add their own certificate to the server's trust store by providing the trust password when prompted.
 
 In a production setup, unset `core.trust_password` after all clients have been added.
 This prevents brute-force attacks trying to guess the password.
@@ -87,7 +87,7 @@ This prevents brute-force attacks trying to guess the password.
 (authentication-token)=
 #### Adding client certificates using tokens
 
-You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire after a configurable time ([`core.remote_token_expiry`](server-options)) or once they've been used.
+You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire after a configurable time ([`core.remote_token_expiry`](server-options-core)) or once they've been used.
 
 To use this method, generate a token for each client by calling `lxc config trust add`, which will prompt for the client name.
 The clients can then add their certificates to the server's trust store by providing the generated token when prompted for the trust password.
@@ -137,8 +137,8 @@ Note that the generated certificates are not automatically trusted. You must sti
 ```{youtube} https://www.youtube.com/watch?v=FebTipM1jJk
 ```
 
-You can configure LXD to use [Candid](https://github.com/canonical/candid) authentication by setting the [`candid.*`](server-options) server configuration options.
-In this case, clients that try to authenticate with the server must get a Discharge token from the authentication server specified by the [`candid.api.url`](server-options) option.
+You can configure LXD to use [Candid](https://github.com/canonical/candid) authentication by setting the [`candid.*`](server-options-candid-rbac) server configuration options.
+In this case, clients that try to authenticate with the server must get a Discharge token from the authentication server specified by the [`candid.api.url`](server-options-candid-rbac) option.
 
 The authentication server certificate must be trusted by the LXD server.
 
@@ -177,7 +177,7 @@ In an unrestricted project, only the `auditor` and the `user` roles are suitable
 In a {ref}`restricted project <projects-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
 ```
 
-To enable RBAC for your LXD server, set the [`rbac.*`](server-options) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
+To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
 
 ## Failure scenarios
 
