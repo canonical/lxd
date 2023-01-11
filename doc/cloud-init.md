@@ -16,7 +16,7 @@ configuration keys:
 * `cloud-init.user-data`
 * `cloud-init.network-config`
 
-For more information, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the [LXD data source](https://cloudinit.readthedocs.io/en/latest/topics/datasources/lxd.html) in the `cloud-init` documentation.
+For more information, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the [LXD data source](https://cloudinit.readthedocs.io/en/latest/reference/datasources/lxd.html) in the `cloud-init` documentation.
 
 Before trying to use `cloud-init`, however, first determine which image source you are
 about to use as not all images have the `cloud-init` package installed.
@@ -38,7 +38,7 @@ If both `cloud-init.user-data` and `cloud-init.vendor-data` are supplied, `cloud
 
 However, if you use the same keys in both configurations, merging might not be possible.
 In this case, configure how `cloud-init` should merge the provided data.
-See [Merging User-Data Sections](https://cloudinit.readthedocs.io/en/latest/topics/merging.html) in the `cloud-init` documentation for instructions.
+See [Merging User-Data Sections](https://cloudinit.readthedocs.io/en/latest/reference/merging.html) in the `cloud-init` documentation for instructions.
 ```
 
 `cloud-config` examples can be found in the [`cloud-init` documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html).
