@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -18,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/storage/s3"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -65,6 +67,11 @@ func restServer(d *Daemon) *http.Server {
 	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
 	mux.SkipClean(true)
 	mux.UseEncodedPath() // Allow encoded values in path segments.
+
+	uiPath := os.Getenv("LXD_UI")
+	if uiPath != "" && shared.PathExists(uiPath) {
+		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(uiPath))))
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
