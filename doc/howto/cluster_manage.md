@@ -128,6 +128,5 @@ In a LXD cluster, the API on all servers responds with the same shared certifica
 
 The certificate is stored at `/var/snap/lxd/common/lxd/cluster.crt` (if you use the snap) or `/var/lib/lxd/cluster.crt` (otherwise) and is the same on all cluster members.
 
-You can replace the standard certificate with another one, for example, a valid certificate obtained through ACME services (see {ref}`authentication-server-certificate` for more information).
-To do so, use the `lxc cluster update-certificate` command.
+You can replace the standard certificate with another one. To do so, use the `lxc cluster update-certificate` command.
 This command replaces the certificate on all servers in your cluster.
