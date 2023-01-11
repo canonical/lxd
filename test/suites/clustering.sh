@@ -3291,6 +3291,9 @@ test_clustering_groups() {
   lxc cluster group rename cluster:foobar blah
   [ "$(lxc query cluster:/1.0/cluster/members/node2 | jq 'any(.groups[] == "blah"; .)')" = "true" ]
 
+  lxc cluster group create cluster:foobar2
+  lxc cluster group assign cluster:node3 default,foobar2
+
   # With these settings:
   # - node1 will receive instances unless a different node is directly targeted (not via group)
   # - node2 will receive instances if either targeted by group or directly
@@ -3329,7 +3332,41 @@ test_clustering_groups() {
   lxc info cluster:c5 | grep -q "Location: node3"
 
   # Clean up
-  lxc rm c1 c2 c3 c4 c5
+  lxc rm -f c1 c2 c3 c4 c5
+
+  # Restricted project tests
+  lxc project create foo -c features.images=false -c restricted=true -c restricted.cluster.groups=blah
+  lxc profile show default | lxc profile edit default --project foo
+
+  # Check cannot create instance in restricted project that only allows blah group, when the only member that
+  # exists in the blah group also has scheduler.instance=group set (so it must be targeted via group or directly).
+  ! lxc init testimage cluster:c1 --project foo || false
+
+  # Check cannot create instance in restricted project when targeting a member that isn't in the restricted
+  # project's allowed cluster groups list.
+  ! lxc init testimage cluster:c1 --project foo --target=node1 || false
+  ! lxc init testimage cluster:c1 --project foo --target=@foobar2 || false
+
+  # Check can create instance in restricted project when not targeting any specific member, but that it will only
+  # be created on members within the project's allowed cluster groups list.
+  lxc cluster unset cluster:node2 scheduler.instance
+  lxc init testimage cluster:c1 --project foo
+  lxc init testimage cluster:c2 --project foo
+  lxc info cluster:c1 --project foo | grep -q "Location: node2"
+  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+  lxc delete -f c1 c2 --project foo
+
+  # Check can specify any member or group when restricted.cluster.groups is empty.
+  lxc project unset foo restricted.cluster.groups
+  lxc init testimage cluster:c1 --project foo --target=node1
+  lxc info cluster:c1 --project foo | grep -q "Location: node1"
+
+  lxc init testimage cluster:c2 --project foo --target=@blah
+  lxc info cluster:c2 --project foo | grep -q "Location: node2"
+
+  lxc delete -f c1 c2 --project foo
+
+  lxc project delete foo
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown

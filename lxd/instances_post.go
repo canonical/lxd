@@ -836,6 +836,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	target := queryParam(r, "target")
+	if !clustered && target != "" {
+		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
+	}
+
 	var targetMember, targetGroup string
 	if strings.HasPrefix(target, "@") {
 		targetGroup = strings.TrimPrefix(target, "@")
@@ -849,6 +853,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var sourceImage *api.Image
 	var sourceImageRef string
 	var clusterGroupsAllowed []string
+	var candidateMembers []db.NodeInfo
+	var targetMemberInfo *db.NodeInfo
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
@@ -861,38 +867,64 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Check manual cluster member targeting restrictions.
-		err = project.CheckClusterTargetRestriction(tx, r, targetProject, target)
-		if err != nil {
-			return err
-		}
+		var allMembers []db.NodeInfo
 
-		if targetGroup != "" {
-			// Check restricted cluster groups from project.
-			if shared.IsTrue(targetProject.Config["restricted"]) {
-				clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
+		if clustered && !clusterNotification {
+			clusterGroupsAllowed = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
 
-				if targetGroup != "" && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
-					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
-				}
-			}
-
-			// Check if the target group exists.
-			var targetGroupExists bool
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetGroupExists, err = tx.ClusterGroupExists(targetGroup)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			})
+			// Check manual cluster member targeting restrictions.
+			err = project.CheckClusterTargetRestriction(r, targetProject, target)
 			if err != nil {
 				return err
 			}
 
-			if !targetGroupExists {
-				return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+			allMembers, err = tx.GetNodes(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed getting cluster members: %w", err)
+			}
+
+			if targetMember != "" {
+				// Find target member.
+				for i := range allMembers {
+					if allMembers[i].Name == targetMember {
+						targetMemberInfo = &allMembers[i]
+						break
+					}
+				}
+
+				if targetMemberInfo == nil {
+					return api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
+				}
+
+				// If restricted groups are specified then check member is in at least one of them.
+				if shared.IsTrue(targetProject.Config["restricted"]) && len(clusterGroupsAllowed) > 0 {
+					found := false
+					for _, memberGroupName := range targetMemberInfo.Groups {
+						if shared.StringInSlice(memberGroupName, clusterGroupsAllowed) {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster member")
+					}
+				}
+			} else if targetGroup != "" {
+				// If restricted groups are specified then check the requested group is in the list.
+				if shared.IsTrue(targetProject.Config["restricted"]) && len(clusterGroupsAllowed) > 0 && !shared.StringInSlice(targetGroup, clusterGroupsAllowed) {
+					return api.StatusErrorf(http.StatusForbidden, "Project isn't allowed to use this cluster group")
+				}
+
+				// Check if the target group exists.
+				targetGroupExists, err := tx.ClusterGroupExists(targetGroup)
+				if err != nil {
+					return err
+				}
+
+				if !targetGroupExists {
+					return api.StatusErrorf(http.StatusBadRequest, "Cluster group %q doesn't exist", targetGroup)
+				}
 			}
 		}
 
@@ -1032,6 +1064,40 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Debug("No name provided for new instance, using auto-generated name", logger.Ctx{"project": targetProjectName, "instance": req.Name})
 		}
 
+		if clustered && !clusterNotification && targetMemberInfo == nil {
+			architectures, err := instance.SuitableArchitectures(ctx, s, tx, targetProjectName, sourceInst, sourceImageRef, req)
+			if err != nil {
+				return err
+			}
+
+			// If no architectures have been ascertained from the source then use the default architecture
+			// from project or global config if available.
+			if len(architectures) < 1 {
+				defaultArch := targetProject.Config["images.default_architecture"]
+				if defaultArch == "" {
+					defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
+				}
+
+				if defaultArch != "" {
+					defaultArchID, err := osarch.ArchitectureId(defaultArch)
+					if err != nil {
+						return err
+					}
+
+					architectures = append(architectures, defaultArchID)
+				} else {
+					architectures = nil // Don't exclude candidate members based on architecture.
+				}
+			}
+
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
 		if !clusterNotification {
 			// Check that the project's limits are not violated. Note this check is performed after
 			// automatically generated config values (such as ones from an InstanceType) have been set.
@@ -1052,57 +1118,19 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	if clustered && !clusterNotification && targetMember == "" {
-		architectures, err := instance.SuitableArchitectures(r.Context(), s, targetProjectName, sourceInst, sourceImageRef, req)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-
-		// If no architectures have been ascertained from the source then use the default architecture
-		// from project or global config if available.
-		if len(architectures) < 1 {
-			defaultArch := targetProject.Config["images.default_architecture"]
-			if defaultArch == "" {
-				defaultArch = s.GlobalConfig.ImagesDefaultArchitecture()
-			}
-
-			if defaultArch != "" {
-				defaultArchID, err := osarch.ArchitectureId(defaultArch)
-				if err != nil {
-					return response.SmartError(err)
-				}
-
-				architectures = append(architectures, defaultArchID)
-			} else {
-				architectures = nil // Don't exclude candidate members based on architecture.
-			}
-		}
-
-		var candidateMembers []db.NodeInfo
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-			candidateMembers, err = tx.GetCandidateMembers(ctx, architectures, targetGroup, clusterGroupsAllowed)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
+	if clustered && !clusterNotification && targetMemberInfo == nil {
 		// If no target member was selected yet, pick the member with the least number of instances.
 		// If there's just one member, or if the selected member is the local one, this is effectively a
 		// no-op, since GetNodeWithLeastInstances() will return an empty string.
 		// If the target is a cluster group, find a suitable member within the group.
-		if targetMember == "" {
+		if targetMemberInfo == nil {
 			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-				targetMember, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
 				}
 
-				if targetMember == "" {
+				if targetMemberInfo == nil {
 					return api.StatusErrorf(http.StatusBadRequest, "No suitable cluster member could be found")
 				}
 
@@ -1114,30 +1142,23 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if targetMember != "" {
-		address, err := cluster.ResolveTarget(d.db.Cluster, targetMember)
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Address != s.ServerName {
+		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		if address != "" {
-			client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
-			if err != nil {
-				return response.SmartError(err)
-			}
+		client = client.UseProject(targetProjectName)
+		client = client.UseTarget(targetMemberInfo.Name)
 
-			client = client.UseProject(targetProjectName)
-			client = client.UseTarget(targetMember)
-
-			logger.Debug("Forward instance post request", logger.Ctx{"member": address})
-			op, err := client.CreateInstance(req)
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			opAPI := op.Get()
-			return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
+		logger.Debug("Forward instance post request", logger.Ctx{"member": targetMemberInfo.Address})
+		op, err := client.CreateInstance(req)
+		if err != nil {
+			return response.SmartError(err)
 		}
+
+		opAPI := op.Get()
+		return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
 	}
 
 	switch req.Source.Type {
