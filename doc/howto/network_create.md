@@ -63,6 +63,31 @@ lxc network create UPLINK --type=physical parent=br0 --target=vm03
 lxc network create UPLINK --type=physical
 ```
 
+(network-attach)=
+## Attach a network to an instance
+
+After creating a managed network, you can attach it to an instance as a {ref}`NIC device <devices-nic>`.
+
+To do so, use the following command:
+
+    lxc network attach <network_name> <instance_name> [<device_name>] [<interface_name>]
+
+The device name and the interface name are optional, but we recommend specifying at least the device name.
+If not specified, LXD uses the network name as the device name, which might be confusing and cause problems.
+For example, LXD images perform IP auto-configuration on the `eth0` interface, which does not work if the interface is called differently.
+
+For example, to attach the network `my-network` to the instance `my-instance` as `eth0` device, enter the following command:
+
+    lxc network attach my-network my-instance eth0
+
+The `lxc network attach` command is a shortcut for adding a NIC device to an instance.
+Alternatively, you can add a NIC device based on the network configuration in the usual way:
+
+    lxc config device add <instance_name> <device_name> nic network=<network_name>
+
+When using this way, you can add further configuration to the command to override the default settings for the network if needed.
+See {ref}`NIC device <devices-nic>` for all available device options.
+
 ## Configure a network
 
 To configure an existing network, use either the `lxc network set` and `lxc network unset` commands (to configure single settings) or the `lxc network edit` command (to edit the full configuration).
