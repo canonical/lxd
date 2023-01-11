@@ -641,7 +641,7 @@ connections to Unix sockets too.
 
 This adds a new `core.debug_address` configuration option to start a debugging HTTP server.
 
-That server currently includes a pprof API and replaces the old
+That server currently includes a `pprof` API and replaces the old
 `cpu-profile`, `memory-profile` and `print-goroutines` debug options.
 
 ## `proxy_haproxy_protocol`
