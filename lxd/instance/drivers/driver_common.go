@@ -905,13 +905,13 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	// to run the hook (this should be quick as it will fail showing instance is already running).
 	op := operationlock.Get(d.Project().Name, d.Name())
 	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
-		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
+		d.logger.Warn("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		_ = op.Wait()
 		op = nil
 	}
 
 	if op == nil {
-		d.logger.Debug("Instance initiated stop", logger.Ctx{"action": target})
+		d.logger.Warn("Instance initiated stop", logger.Ctx{"action": target})
 
 		action := operationlock.ActionStop
 		if target == "reboot" {

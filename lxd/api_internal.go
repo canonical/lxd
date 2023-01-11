@@ -331,6 +331,8 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
+	logger.Error("tomp onstopNS handler", logger.Ctx{"uri": r.RequestURI})
+
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
 		logger.Error("The stopns hook failed to load", logger.Ctx{"err": err})
@@ -359,6 +361,8 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
+	logger.Error("tomp onstop handler", logger.Ctx{"uri": r.RequestURI})
+
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
 		logger.Error("The stop hook failed to load", logger.Ctx{"err": err})

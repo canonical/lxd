@@ -2605,6 +2605,8 @@ func (d *lxc) Stop(stateful bool) error {
 		_ = os.RemoveAll(d.StatePath())
 	}
 
+	d.logger.Warn("tomp Stop 1")
+
 	// Release liblxc container once done.
 	defer func() {
 		d.release()
@@ -2632,6 +2634,8 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
+	d.logger.Warn("tomp Stop 2")
+
 	// Load cgroup abstraction
 	cg, err := d.cgroup(nil)
 	if err != nil {
@@ -2658,11 +2662,15 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
+	d.logger.Warn("tomp Stop 3")
+
 	err = d.c.Stop()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
+
+	d.logger.Warn("tomp Stop 4")
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
 	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
@@ -2846,6 +2854,9 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	target := args["target"]
 	netns := args["netns"]
 
+	d.logger.Warn("tomp onStopNS started")
+	defer d.logger.Warn("tomp onStopNS finished")
+
 	// Validate target.
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		d.logger.Error("Container sent invalid target to OnStopNS", logger.Ctx{"target": target})
@@ -2869,6 +2880,9 @@ func (d *lxc) onStopNS(args map[string]string) error {
 func (d *lxc) onStop(args map[string]string) error {
 	target := args["target"]
 
+	d.logger.Warn("tomp onStop started")
+	defer d.logger.Warn("tomp onStop finished")
+
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		d.logger.Error("Container sent invalid target to OnStop", logger.Ctx{"target": target})
@@ -2880,6 +2894,8 @@ func (d *lxc) onStop(args map[string]string) error {
 	if err != nil {
 		return err
 	}
+
+	d.logger.Warn("tomp onStop got operation lock")
 
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
@@ -2903,11 +2919,15 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Wait for other post-stop actions to be done and the container actually stopping.
 		d.IsRunning()
-		d.logger.Debug("Container stopped, cleaning up")
+		d.logger.Warn("Container stopped, cleaning up")
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
+		d.logger.Warn("tomp onStop 1")
+
 		d.stopForkfile()
+
+		d.logger.Warn("tomp onStop 2")
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -2925,6 +2945,8 @@ func (d *lxc) onStop(args map[string]string) error {
 			return
 		}
 
+		d.logger.Warn("tomp onStop 3")
+
 		// Stop the storage for this container
 		waitTimeout := operationlock.TimeoutShutdown
 		_ = op.ResetTimeout(waitTimeout)
@@ -2935,12 +2957,16 @@ func (d *lxc) onStop(args map[string]string) error {
 			return
 		}
 
+		d.logger.Warn("tomp onStop 4")
+
 		// Unload the apparmor profile
 		err = apparmor.InstanceUnload(d.state.OS, d)
 		if err != nil {
 			op.Done(fmt.Errorf("Failed to destroy apparmor namespace: %w", err))
 			return
 		}
+
+		d.logger.Warn("tomp onStop 5")
 
 		// Clean all the unix devices
 		err = d.removeUnixDevices()
@@ -2949,12 +2975,16 @@ func (d *lxc) onStop(args map[string]string) error {
 			return
 		}
 
+		d.logger.Warn("tomp onStop 6")
+
 		// Clean all the disk devices
 		err = d.removeDiskDevices()
 		if err != nil {
 			op.Done(fmt.Errorf("Failed to remove disk devices: %w", err))
 			return
 		}
+
+		d.logger.Warn("tomp onStop 7")
 
 		// Log and emit lifecycle if not user triggered
 		if op.GetInstanceInitiated() {
@@ -2984,6 +3014,8 @@ func (d *lxc) onStop(args map[string]string) error {
 			return
 		}
 
+		d.logger.Warn("tomp onStop 8")
+
 		// Trigger a rebalance
 		cgroup.TaskSchedulerTrigger("container", d.name, "stopped")
 
@@ -2995,6 +3027,9 @@ func (d *lxc) onStop(args map[string]string) error {
 				return
 			}
 		}
+
+		d.logger.Warn("tomp onStop 9")
+
 	}(d, target, op)
 
 	return nil
