@@ -1070,8 +1070,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			// If no architectures have been ascertained from the source then use the default architecture
-			// from project or global config if available.
+			// If no architectures have been ascertained from the source then use the default
+			// architecture from project or global config if available.
 			if len(architectures) < 1 {
 				defaultArch := targetProject.Config["images.default_architecture"]
 				if defaultArch == "" {
@@ -1120,9 +1120,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	if clustered && !clusterNotification && targetMemberInfo == nil {
 		// If no target member was selected yet, pick the member with the least number of instances.
-		// If there's just one member, or if the selected member is the local one, this is effectively a
-		// no-op, since GetNodeWithLeastInstances() will return an empty string.
-		// If the target is a cluster group, find a suitable member within the group.
 		if targetMemberInfo == nil {
 			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
