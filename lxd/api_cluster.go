@@ -73,6 +73,7 @@ var clusterNodeCmd = APIEndpoint{
 var clusterNodeStateCmd = APIEndpoint{
 	Path: "cluster/members/{name}/state",
 
+	Get:  APIEndpointAction{Handler: clusterNodeStateGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: clusterNodeStatePost},
 }
 
@@ -2801,6 +2802,62 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 	}
 
 	return response.SyncResponse(true, nil)
+}
+
+// swagger:operation GET /1.0/cluster/members/{name}/state cluster cluster_member_state_get
+//
+// Get state of the cluster member
+//
+// Gets state of a specific cluster member.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Cluster member state
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/ClusterMemberState"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterNodeStateGet(d *Daemon, r *http.Request) response.Response {
+	memberName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	s := d.State()
+
+	// Forward request.
+	resp := forwardedResponseToNode(s, r, memberName)
+	if resp != nil {
+		return resp
+	}
+
+	memberState, err := cluster.MemberState(r.Context(), s, memberName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, memberState)
 }
 
 // swagger:operation POST /1.0/cluster/members/{name}/state cluster cluster_member_state_post
