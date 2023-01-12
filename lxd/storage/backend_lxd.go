@@ -3035,8 +3035,16 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
-		if b.Driver().Info().BlockBacking && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem() {
-			l.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
+		blockModeChanged := b.Driver().Info().BlockBacking && !imgVol.IsBlockBacked() || !b.Driver().Info().BlockBacking && imgVol.IsBlockBacked()
+		blockFSChanged := imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem()
+
+		if blockModeChanged || blockFSChanged {
+			if blockModeChanged {
+				l.Debug("Block mode has changed, regenerating image volume")
+			} else {
+				l.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
+			}
+
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
 				return err
@@ -3110,6 +3118,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Validate config and create database entry for new storage volume.
+	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, imgVol.Config(), time.Time{}, contentType, false, false)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { _ = VolumeDBDelete(b, project.Default, fingerprint, drivers.VolumeTypeImage) })
+
 	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
 		return err
@@ -3117,19 +3133,14 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	revert.Add(func() { _ = b.driver.DeleteVolume(imgVol, op) })
 
-	var volConfig map[string]string
-
 	// If the volume filler has recorded the size of the unpacked volume, then store this in the image DB row.
 	if volFiller.Size != 0 {
-		volConfig = map[string]string{
-			"volatile.rootfs.size": fmt.Sprintf("%d", volFiller.Size),
-		}
-	}
+		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
 
-	// Validate config and create database entry for new storage volume.
-	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Time{}, contentType, false, false)
-	if err != nil {
-		return err
+		err = b.state.DB.Cluster.UpdateStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.id, b.db.Description, imgVol.Config())
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
