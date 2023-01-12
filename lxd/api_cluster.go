@@ -1373,7 +1373,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 //   - application/json
 // responses:
 //   "200":
-//     description: Profile
+//     description: Cluster member
 //     schema:
 //       type: object
 //       description: Sync response
