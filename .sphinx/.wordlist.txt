@@ -164,7 +164,6 @@ PKI
 PNG
 Pongo
 POSIX
-pprof
 pre
 preseed
 proxied

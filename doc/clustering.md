@@ -2,6 +2,7 @@
 discourse: 9076
 ---
 
+(clustering)=
 # Clustering
 
 ```{toctree}
