@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-12-09 21:30-0500\n"
+"POT-Creation-Date: 2023-01-12 16:28-0500\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Bulgarian <https://hosted.weblate.org/projects/linux-"
@@ -635,7 +635,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:366
+#: lxc/init.go:371
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -720,7 +720,7 @@ msgstr ""
 msgid "Backup exported successfully!"
 msgstr ""
 
-#: lxc/info.go:646 lxc/storage_volume.go:1284
+#: lxc/info.go:645 lxc/storage_volume.go:1284
 msgid "Backups:"
 msgstr ""
 
@@ -736,7 +736,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:136 lxc/init.go:210 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
 #: lxc/storage.go:131 lxc/storage_volume.go:565
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -882,7 +882,7 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:309
+#: lxc/init.go:314
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
@@ -1313,12 +1313,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:157
+#: lxc/init.go:162
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:155
+#: lxc/init.go:160
 msgid "Creating the instance"
 msgstr ""
 
@@ -1621,7 +1621,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:426
+#: lxc/init.go:431
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -1863,7 +1863,7 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/info.go:632 lxc/info.go:683 lxc/storage_volume.go:1271
+#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1271
 #: lxc/storage_volume.go:1321
 msgid "Expires at"
 msgstr ""
@@ -1976,7 +1976,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:288
+#: lxc/init.go:293
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
 msgstr ""
@@ -2454,7 +2454,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/info.go:684
+#: lxc/info.go:683
 msgid "Instance Only"
 msgstr ""
 
@@ -2471,7 +2471,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:416 lxc/init.go:433
+#: lxc/copy.go:416 lxc/init.go:438
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2964,7 +2964,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:711
 msgid "Log:"
 msgstr ""
 
@@ -3554,7 +3554,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1269
+#: lxc/info.go:629 lxc/info.go:680 lxc/storage_volume.go:1269
 #: lxc/storage_volume.go:1319
 msgid "Name"
 msgstr ""
@@ -3782,7 +3782,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr ""
 
-#: lxc/info.go:685 lxc/storage_volume.go:1323
+#: lxc/info.go:684 lxc/storage_volume.go:1323
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4328,7 +4328,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:380
+#: lxc/init.go:385
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -4870,7 +4870,7 @@ msgstr ""
 msgid "State: %s"
 msgstr ""
 
-#: lxc/info.go:633
+#: lxc/info.go:632
 msgid "Stateful"
 msgstr ""
 
@@ -5002,7 +5002,7 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1320
+#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1320
 msgid "Taken at"
 msgstr ""
 
@@ -5064,7 +5064,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:484
+#: lxc/init.go:489
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -5073,12 +5073,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr ""
 
-#: lxc/init.go:468
+#: lxc/init.go:473
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:464
+#: lxc/init.go:469
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -5140,11 +5140,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:486
+#: lxc/init.go:491
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:485
+#: lxc/init.go:490
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -5398,7 +5398,7 @@ msgstr ""
 msgid "Unset storage volume configuration keys"
 msgstr ""
 
-#: lxc/info.go:704
+#: lxc/info.go:703
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
