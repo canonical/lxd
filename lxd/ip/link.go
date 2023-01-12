@@ -77,6 +77,16 @@ func (l *Link) SetMTU(mtu string) error {
 	return nil
 }
 
+// SetTXQueueLength sets the txqueuelen of the link device.
+func (l *Link) SetTXQueueLength(queueLength uint32) error {
+	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "txqueuelen", fmt.Sprintf("%d", queueLength))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // SetAddress sets the address of the link device.
 func (l *Link) SetAddress(address string) error {
 	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "address", address)

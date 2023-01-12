@@ -62,6 +62,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"name",
 		"parent",
 		"mtu",
+		"queue.tx.length",
 		"hwaddr",
 		"host_name",
 		"vlan",
