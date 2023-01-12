@@ -1090,7 +1090,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed)
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 			if err != nil {
 				return err
 			}
