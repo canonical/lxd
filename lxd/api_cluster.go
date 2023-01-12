@@ -2910,7 +2910,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 					return fmt.Errorf("Failed getting cluster members: %w", err)
 				}
 
-				candidateMembers, err := tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil)
+				candidateMembers, err := tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, s.GlobalConfig.OfflineThreshold())
 				if err != nil {
 					return err
 				}
