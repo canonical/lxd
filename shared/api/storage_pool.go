@@ -89,3 +89,12 @@ type StoragePoolPut struct {
 func (storagePool *StoragePool) Writable() StoragePoolPut {
 	return storagePool.StoragePoolPut
 }
+
+// StoragePoolState represents the state of a storage pool.
+//
+// swagger:model
+//
+// API extension: cluster_member_state.
+type StoragePoolState struct {
+	ResourcesStoragePool `yaml:",inline"`
+}
