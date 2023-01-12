@@ -1126,13 +1126,16 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
 
-	var err error
-	var members []db.NodeInfo
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get the nodes.
-		members, err = tx.GetNodes(ctx)
+	leaderAddress, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	var raftNodes []db.RaftNode
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+		raftNodes, err = tx.GetRaftNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
+			return fmt.Errorf("Failed loading RAFT nodes: %w", err)
 		}
 
 		return nil
@@ -1141,29 +1144,64 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	leader, err := d.gateway.LeaderAddress()
+	var members []db.NodeInfo
+	var membersInfo []api.ClusterMember
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		failureDomains, err := tx.GetFailureDomainsNames(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading failure domains names: %w", err)
+		}
+
+		memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading member failure domains: %w", err)
+		}
+
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		maxVersion, err := tx.GetNodeMaxVersion(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting max member version: %w", err)
+		}
+
+		args := db.NodeInfoArgs{
+			LeaderAddress:        leaderAddress,
+			FailureDomains:       failureDomains,
+			MemberFailureDomains: memberFailureDomains,
+			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			MaxMemberVersion:     maxVersion,
+			RaftNodes:            raftNodes,
+		}
+
+		if recursion {
+			membersInfo = make([]api.ClusterMember, 0, len(members))
+			for i := range members {
+				member, err := members[i].ToAPI(ctx, tx, args)
+				if err != nil {
+					return err
+				}
+
+				membersInfo = append(membersInfo, *member)
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	if recursion {
-		result := []api.ClusterMember{}
-		for _, member := range members {
-			member, err := member.ToAPI(s.DB.Cluster, s.DB.Node, leader)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			result = append(result, *member)
-		}
-
-		return response.SyncResponse(true, result)
+		return response.SyncResponse(true, membersInfo)
 	}
 
-	urls := []string{}
-	for _, node := range members {
-		url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.Name)
-		urls = append(urls, url)
+	urls := make([]string, 0, len(members))
+	for _, member := range members {
+		u := api.NewURL().Path(version.APIVersion, "cluster", "members", member.Name)
+		urls = append(urls, u.String())
 	}
 
 	return response.SyncResponse(true, urls)
@@ -1366,12 +1404,16 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var members []db.NodeInfo
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get the node.
-		members, err = tx.GetNodes(ctx)
+	leaderAddress, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	var raftNodes []db.RaftNode
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+		raftNodes, err = tx.GetRaftNodes(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed getting cluster members: %w", err)
+			return fmt.Errorf("Failed loading RAFT nodes: %w", err)
 		}
 
 		return nil
@@ -1380,25 +1422,49 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	for _, member := range members {
-		if member.Name != name {
-			continue
-		}
-
-		member, err := member.ToAPI(s.DB.Cluster, s.DB.Node, leader)
+	var memberInfo *api.ClusterMember
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		failureDomains, err := tx.GetFailureDomainsNames(ctx)
 		if err != nil {
-			return response.InternalError(err)
+			return fmt.Errorf("Failed loading failure domains names: %w", err)
 		}
 
-		return response.SyncResponseETag(true, member, member.ClusterMemberPut)
+		memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading member failure domains: %w", err)
+		}
+
+		member, err := tx.GetNodeByName(ctx, name)
+		if err != nil {
+			return err
+		}
+
+		maxVersion, err := tx.GetNodeMaxVersion(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting max member version: %w", err)
+		}
+
+		args := db.NodeInfoArgs{
+			LeaderAddress:        leaderAddress,
+			FailureDomains:       failureDomains,
+			MemberFailureDomains: memberFailureDomains,
+			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			MaxMemberVersion:     maxVersion,
+			RaftNodes:            raftNodes,
+		}
+
+		memberInfo, err = member.ToAPI(ctx, tx, args)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	return response.NotFound(fmt.Errorf("Member %q not found", name))
+	return response.SyncResponseETag(true, memberInfo, memberInfo.ClusterMemberPut)
 }
 
 // swagger:operation PATCH /1.0/cluster/members/{name} cluster cluster_member_patch
@@ -1476,10 +1542,57 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.SmartError(err)
 	}
 
-	var node db.NodeInfo
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get the node.
-		node, err = tx.GetNodeByName(ctx, name)
+	leaderAddress, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	var raftNodes []db.RaftNode
+	err = s.DB.Node.Transaction(r.Context(), func(ctx context.Context, tx *db.NodeTx) error {
+		raftNodes, err = tx.GetRaftNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading RAFT nodes: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var member db.NodeInfo
+	var memberInfo *api.ClusterMember
+	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		failureDomains, err := tx.GetFailureDomainsNames(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading failure domains names: %w", err)
+		}
+
+		memberFailureDomains, err := tx.GetNodesFailureDomains(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading member failure domains: %w", err)
+		}
+
+		member, err = tx.GetNodeByName(ctx, name)
+		if err != nil {
+			return err
+		}
+
+		maxVersion, err := tx.GetNodeMaxVersion(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting max member version: %w", err)
+		}
+
+		args := db.NodeInfoArgs{
+			LeaderAddress:        leaderAddress,
+			FailureDomains:       failureDomains,
+			MemberFailureDomains: memberFailureDomains,
+			OfflineThreshold:     s.GlobalConfig.OfflineThreshold(),
+			MaxMemberVersion:     maxVersion,
+			RaftNodes:            raftNodes,
+		}
+
+		memberInfo, err = member.ToAPI(ctx, tx, args)
 		if err != nil {
 			return err
 		}
@@ -1490,18 +1603,8 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.SmartError(err)
 	}
 
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	member, err := node.ToAPI(s.DB.Cluster, s.DB.Node, leader)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
 	// Validate the request is fine
-	err = util.EtagCheck(r, member.ClusterMemberPut)
+	err = util.EtagCheck(r, memberInfo.ClusterMemberPut)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
@@ -1566,7 +1669,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		}
 
 		// Update the description.
-		if req.Description != member.Description {
+		if req.Description != memberInfo.Description {
 			err = tx.SetDescription(nodeInfo.ID, req.Description)
 			if err != nil {
 				return fmt.Errorf("Update description: %w", err)
@@ -1597,7 +1700,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	}
 
 	// If cluster roles changed, then distribute the info to all members.
-	if s.Endpoints != nil && clusterRolesChanged(node.Roles, newRoles) {
+	if s.Endpoints != nil && clusterRolesChanged(member.Roles, newRoles) {
 		cluster.NotifyHeartbeat(s, d.gateway)
 	}
 
