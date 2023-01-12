@@ -78,69 +78,32 @@ func (n NodeInfo) IsOffline(threshold time.Duration) bool {
 	return nodeIsOffline(threshold, n.Heartbeat)
 }
 
+// NodeInfoArgs provides information about the cluster environment for use with NodeInfo.ToAPI().
+type NodeInfoArgs struct {
+	LeaderAddress        string
+	FailureDomains       map[uint64]string
+	MemberFailureDomains map[string]uint64
+	OfflineThreshold     time.Duration
+	MaxMemberVersion     [2]int
+	RaftNodes            []RaftNode
+}
+
 // ToAPI returns a LXD API entry.
-func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.ClusterMember, error) {
-	// Load some needed data.
+func (n NodeInfo) ToAPI(ctx context.Context, tx *ClusterTx, args NodeInfoArgs) (*api.ClusterMember, error) {
 	var err error
-	var offlineThreshold time.Duration
 	var maxVersion [2]int
 	var failureDomain string
 
-	// From cluster database.
-	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		// Get offline threshold.
-		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
-		if err != nil {
-			return fmt.Errorf("Load offline threshold config: %w", err)
-		}
-
-		// Get failure domains.
-		nodesDomains, err := tx.GetNodesFailureDomains(ctx)
-		if err != nil {
-			return fmt.Errorf("Load nodes failure domains: %w", err)
-		}
-
-		domainsNames, err := tx.GetFailureDomainsNames(ctx)
-		if err != nil {
-			return fmt.Errorf("Load failure domains names: %w", err)
-		}
-
-		domainID := nodesDomains[n.Address]
-		failureDomain = domainsNames[domainID]
-
-		// Get the highest schema and API versions.
-		maxVersion, err = tx.GetNodeMaxVersion(ctx)
-		if err != nil {
-			return fmt.Errorf("Get max version: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
+	domainID := args.MemberFailureDomains[n.Address]
+	failureDomain = args.FailureDomains[domainID]
 
 	// From local database.
 	var raftNode *RaftNode
-	err = node.Transaction(context.TODO(), func(ctx context.Context, tx *NodeTx) error {
-		nodes, err := tx.GetRaftNodes(ctx)
-		if err != nil {
-			return fmt.Errorf("Load offline threshold config: %w", err)
-		}
-
-		for _, node := range nodes {
-			if node.Address != n.Address {
-				continue
-			}
-
+	for _, node := range args.RaftNodes {
+		if node.Address == n.Address {
 			raftNode = &node
 			break
 		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	// Fill in the struct.
@@ -158,8 +121,8 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 
 	result.Groups = n.Groups
 
-	// Check if node is the leader node
-	if leader == n.Address {
+	// Check if member is the leader.
+	if args.LeaderAddress == n.Address {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabaseLeader))
 		result.Database = true
 	}
@@ -188,8 +151,9 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	if n.State == ClusterMemberStateEvacuated {
 		result.Status = "Evacuated"
 		result.Message = "Unavailable due to maintenance"
-	} else if n.IsOffline(offlineThreshold) {
+	} else if n.IsOffline(args.OfflineThreshold) {
 		result.Status = "Offline"
+		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
 		n, err := util.CompareVersions(maxVersion, n.Version())
@@ -201,10 +165,6 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 			result.Status = "Blocked"
 			result.Message = "Needs updating to newer version"
 		}
-	}
-
-	if n.IsOffline(offlineThreshold) {
-		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Since(n.Heartbeat), n.Heartbeat)
 	}
 
 	return &result, nil
