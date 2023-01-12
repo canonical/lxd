@@ -1617,12 +1617,12 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	}
 
 	// Validate the request
-	if shared.StringInSlice(string(db.ClusterRoleDatabase), member.Roles) && !shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
-		return response.BadRequest(fmt.Errorf("The '%s' role cannot be dropped at this time", db.ClusterRoleDatabase))
+	if shared.StringInSlice(string(db.ClusterRoleDatabase), memberInfo.Roles) && !shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+		return response.BadRequest(fmt.Errorf("The %q role cannot be dropped at this time", db.ClusterRoleDatabase))
 	}
 
-	if !shared.StringInSlice(string(db.ClusterRoleDatabase), member.Roles) && shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
-		return response.BadRequest(fmt.Errorf("The '%s' role cannot be added at this time", db.ClusterRoleDatabase))
+	if !shared.StringInSlice(string(db.ClusterRoleDatabase), memberInfo.Roles) && shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+		return response.BadRequest(fmt.Errorf("The %q role cannot be added at this time", db.ClusterRoleDatabase))
 	}
 
 	// Nodes must belong to at least one group.
