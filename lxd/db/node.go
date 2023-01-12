@@ -194,7 +194,7 @@ func (c *ClusterTx) GetNodeByAddress(ctx context.Context, address string) (NodeI
 	}
 }
 
-// GetNodeMaxVersion returns the highest version possible on the cluster.
+// GetNodeMaxVersion returns the highest schema and API versions possible on the cluster.
 func (c *ClusterTx) GetNodeMaxVersion(ctx context.Context) ([2]int, error) {
 	version := [2]int{}
 
