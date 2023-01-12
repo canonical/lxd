@@ -242,8 +242,8 @@ func (c *ClusterTx) GetStoragePoolVolume(ctx context.Context, poolID int64, proj
 func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	remoteDrivers := StorageRemoteDriverNames()
 
-	// ORDER BY creation_date and then id is important here as the users of this function can expect that the
-	// results will be returned in the order that the snapshots were created. This is specifically used
+	// ORDER BY id is important here as the users of this function can expect that the results
+	// will be returned in the order that the snapshots were created. This is specifically used
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
 	queryStr := fmt.Sprintf(`
@@ -259,7 +259,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
     AND storage_volumes.name=?
     AND projects.name=?
     AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
-  ORDER BY storage_volumes_snapshots.creation_date, storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
+  ORDER BY storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
 
 	args := []any{poolID, volumeType, volumeName, projectName, c.nodeID}
 	for _, driver := range remoteDrivers {
