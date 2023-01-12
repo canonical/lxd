@@ -835,18 +835,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
-	target := queryParam(r, "target")
-	if !clustered && target != "" {
-		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
-	}
-
-	var targetMember, targetGroup string
-	if strings.HasPrefix(target, "@") {
-		targetGroup = strings.TrimPrefix(target, "@")
-	} else {
-		targetMember = target
-	}
-
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
@@ -857,6 +845,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		target := queryParam(r, "target")
+		if !clustered && target != "" {
+			return api.StatusErrorf(http.StatusBadRequest, "Target only allowed when clustered")
+		}
+
+		var targetMember, targetGroup string
+		if strings.HasPrefix(target, "@") {
+			targetGroup = strings.TrimPrefix(target, "@")
+		} else {
+			targetMember = target
+		}
+
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project: %w", err)
@@ -1070,8 +1070,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			// If no architectures have been ascertained from the source then use the default architecture
-			// from project or global config if available.
+			// If no architectures have been ascertained from the source then use the default
+			// architecture from project or global config if available.
 			if len(architectures) < 1 {
 				defaultArch := targetProject.Config["images.default_architecture"]
 				if defaultArch == "" {
@@ -1090,7 +1090,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 			}
 
-			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed)
+			candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, architectures, targetGroup, clusterGroupsAllowed, s.GlobalConfig.OfflineThreshold())
 			if err != nil {
 				return err
 			}
@@ -1120,9 +1120,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	if clustered && !clusterNotification && targetMemberInfo == nil {
 		// If no target member was selected yet, pick the member with the least number of instances.
-		// If there's just one member, or if the selected member is the local one, this is effectively a
-		// no-op, since GetNodeWithLeastInstances() will return an empty string.
-		// If the target is a cluster group, find a suitable member within the group.
 		if targetMemberInfo == nil {
 			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
