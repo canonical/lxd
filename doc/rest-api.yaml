@@ -6864,7 +6864,7 @@ paths:
                 - application/json
             responses:
                 "200":
-                    description: Profile
+                    description: Cluster member
                     schema:
                         description: Sync response
                         properties:
