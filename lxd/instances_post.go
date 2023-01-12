@@ -835,18 +835,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
-	target := queryParam(r, "target")
-	if !clustered && target != "" {
-		return response.BadRequest(fmt.Errorf("Target only allowed when clustered"))
-	}
-
-	var targetMember, targetGroup string
-	if strings.HasPrefix(target, "@") {
-		targetGroup = strings.TrimPrefix(target, "@")
-	} else {
-		targetMember = target
-	}
-
 	var targetProject *api.Project
 	var profiles []api.Profile
 	var sourceInst *dbCluster.Instance
@@ -857,6 +845,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var targetMemberInfo *db.NodeInfo
 
 	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		target := queryParam(r, "target")
+		if !clustered && target != "" {
+			return api.StatusErrorf(http.StatusBadRequest, "Target only allowed when clustered")
+		}
+
+		var targetMember, targetGroup string
+		if strings.HasPrefix(target, "@") {
+			targetGroup = strings.TrimPrefix(target, "@")
+		} else {
+			targetMember = target
+		}
+
 		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), targetProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project: %w", err)
