@@ -69,6 +69,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"network",
 		"parent",
 		"mtu",
+		"queue.tx.length",
 		"hwaddr",
 		"host_name",
 		"limits.ingress",
