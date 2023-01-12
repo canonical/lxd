@@ -185,6 +185,7 @@ rST
 runtime
 SATA
 scalable
+scriptlet
 SDN
 Seccomp
 SFTP
@@ -202,6 +203,7 @@ SquashFS
 SSDs
 SSL
 stateful
+Starlark
 stderr
 stdin
 stdout
