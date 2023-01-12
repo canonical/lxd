@@ -321,7 +321,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	allMembers, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil, time.Duration(db.DefaultOfflineThreshold)*time.Second)
 	require.NoError(t, err)
 	require.Len(t, members, 2)
 
@@ -352,7 +352,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	allMembers, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil, time.Duration(db.DefaultOfflineThreshold)*time.Second)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
@@ -379,7 +379,7 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 	allMembers, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil)
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, nil, "", nil, time.Duration(db.DefaultOfflineThreshold)*time.Second)
 	require.NoError(t, err)
 	require.Len(t, members, 2)
 
@@ -414,7 +414,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	allMembers, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{localArch}, "", nil)
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{localArch}, "", nil, time.Duration(db.DefaultOfflineThreshold)*time.Second)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
@@ -476,7 +476,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	allMembers, err := tx.GetNodes(context.Background())
 	require.NoError(t, err)
 
-	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{testArch}, "", nil)
+	members, err := tx.GetCandidateMembers(context.Background(), allMembers, []int{testArch}, "", nil, time.Duration(db.DefaultOfflineThreshold)*time.Second)
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
