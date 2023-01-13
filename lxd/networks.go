@@ -750,8 +750,10 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1163,8 +1165,10 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1756,8 +1760,10 @@ func networkRestartOVN(s *state.State) error {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
