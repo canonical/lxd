@@ -224,7 +224,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -265,7 +265,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkLoadBalancerCreated.Event(n, req.ListenAddress, request.CreateRequestor(r), nil)
-	d.State().Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -302,7 +302,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -312,7 +312,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -338,7 +338,7 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting load balancer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -391,7 +391,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -401,7 +401,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -508,7 +508,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -518,7 +518,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -584,7 +584,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating load balancer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkLoadBalancerUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
