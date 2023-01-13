@@ -161,7 +161,8 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGet(d *Daemon, r *http.Request) response.Response {
-	serverName := d.State().ServerName
+	s := d.State()
+	serverName := s.ServerName
 
 	// If the name is set to the hard-coded default node name, then
 	// clustering is not enabled.
@@ -1253,7 +1254,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("This server is not clustered"))
 	}
 
-	expiry, err := shared.GetExpiry(time.Now(), d.State().GlobalConfig.ClusterJoinTokenExpiry())
+	expiry, err := shared.GetExpiry(time.Now(), s.GlobalConfig.ClusterJoinTokenExpiry())
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1851,7 +1852,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowing what nodes are part of the raft cluster.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2144,7 +2145,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		localClusterAddress := d.State().LocalConfig.ClusterAddress()
+		localClusterAddress := s.LocalConfig.ClusterAddress()
 
 		for _, member := range members {
 			if member.Address == localClusterAddress {
@@ -2202,7 +2203,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2288,9 +2289,11 @@ type internalRaftNode struct {
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
@@ -2421,8 +2424,10 @@ func changeMemberRole(d *Daemon, r *http.Request, address string, nodes []db.Raf
 
 // Try to handover the role of this member to another one.
 func handoverMemberRole(d *Daemon) error {
+	s := d.State()
+
 	// If we aren't clustered, there's nothing to do.
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return err
 	}
@@ -2432,7 +2437,7 @@ func handoverMemberRole(d *Daemon) error {
 	}
 
 	// Figure out our own cluster address.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	post := &internalClusterPostHandoverRequest{
 		Address: localClusterAddress,
@@ -2530,7 +2535,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// authoritative knowledge of the current raft configuration.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
