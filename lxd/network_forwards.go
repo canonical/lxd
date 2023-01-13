@@ -216,7 +216,9 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -292,7 +294,9 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -379,7 +383,9 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -494,7 +500,9 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
