@@ -299,12 +299,12 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := project.AllowBackupCreation(tx, projectName)
 		return err
 	})
@@ -328,7 +328,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	}
 
 	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, volumeName, true)
 		return err
 	})
@@ -363,7 +363,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 
 	if req.Name == "" {
 		// come up with a name.
-		backups, err := d.db.Cluster.GetStoragePoolVolumeBackupsNames(projectName, volumeName, poolID)
+		backups, err := s.DB.Cluster.GetStoragePoolVolumeBackupsNames(projectName, volumeName, poolID)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -412,12 +412,12 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := volumeBackupCreate(d.State(), args, projectName, poolName, volumeName)
+		err := volumeBackupCreate(s, args, projectName, poolName, volumeName)
 		if err != nil {
 			return fmt.Errorf("Create volume backup: %w", err)
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, args.Name, projectName, op.Requestor(), logger.Ctx{"type": volumeTypeName}))
+		s.Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, args.Name, projectName, op.Requestor(), logger.Ctx{"type": volumeTypeName}))
 
 		return nil
 	}
@@ -426,7 +426,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 	resources["storage_volumes"] = []string{volumeName}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupCreate, resources, nil, backup, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -517,7 +517,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -617,7 +617,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -645,7 +645,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 
 	oldName := volumeName + shared.SnapshotDelimiter + backupName
 
-	backup, err := storagePoolVolumeBackupLoadByName(d.State(), projectName, poolName, oldName)
+	backup, err := storagePoolVolumeBackupLoadByName(s, projectName, poolName, oldName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -658,7 +658,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, newName, projectName, op.Requestor(), logger.Ctx{"old_name": oldName}))
+		s.Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, newName, projectName, op.Requestor(), logger.Ctx{"old_name": oldName}))
 
 		return nil
 	}
@@ -743,7 +743,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -760,7 +760,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
 
-	backup, err := storagePoolVolumeBackupLoadByName(d.State(), projectName, poolName, fullName)
+	backup, err := storagePoolVolumeBackupLoadByName(s, projectName, poolName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -771,7 +771,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 			return err
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupDeleted.Event(poolName, volumeTypeName, fullName, projectName, op.Requestor(), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupDeleted.Event(poolName, volumeTypeName, fullName, projectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -779,7 +779,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRemove, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -852,7 +852,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -870,7 +870,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
 
 	// Ensure the volume exists
-	_, err = storagePoolVolumeBackupLoadByName(d.State(), projectName, poolName, fullName)
+	_, err = storagePoolVolumeBackupLoadByName(s, projectName, poolName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -879,7 +879,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		Path: shared.VarPath("backups", "custom", poolName, project.StorageVolume(projectName, fullName)),
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, fullName, projectName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, fullName, projectName, request.CreateRequestor(r), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }
