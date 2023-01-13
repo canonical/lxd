@@ -2746,8 +2746,10 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	s := d.State()
+
 	// Forward request
-	resp := forwardedResponseToNode(d, r, name)
+	resp := forwardedResponseToNode(s, r, name)
 	if resp != nil {
 		return resp
 	}
