@@ -282,7 +282,9 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -527,6 +529,8 @@ func filterVolumes(volumes []*db.StorageVolume, clauses []filter.Clause, allProj
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -537,7 +541,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -749,7 +753,9 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -955,6 +961,8 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -1025,7 +1033,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	r.Body = shared.BytesReadCloser{Buf: &buf}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1311,6 +1319,8 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
 	if err != nil {
 		return response.SmartError(err)
@@ -1345,7 +1355,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1423,6 +1433,8 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
 	if err != nil {
@@ -1462,7 +1474,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1592,6 +1604,8 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -1634,7 +1648,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1722,6 +1736,8 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -1760,7 +1776,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
