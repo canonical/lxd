@@ -85,6 +85,8 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the pool.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -143,7 +145,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -473,6 +475,8 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -515,7 +519,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -609,6 +613,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -647,7 +653,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -730,6 +736,8 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -768,7 +776,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -856,6 +864,8 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -894,7 +904,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1010,6 +1020,8 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName stri
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -1052,7 +1064,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
