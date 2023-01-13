@@ -174,6 +174,23 @@ func (r *ProtocolLXD) UpdateClusterCertificate(certs api.ClusterCertificatePut, 
 	return nil
 }
 
+// GetClusterMemberState gets state information about a cluster member.
+func (r *ProtocolLXD) GetClusterMemberState(name string) (*api.ClusterMemberState, string, error) {
+	err := r.CheckExtension("cluster_member_state")
+	if err != nil {
+		return nil, "", err
+	}
+
+	state := api.ClusterMemberState{}
+	u := api.NewURL().Path("cluster", "members", name, "state")
+	etag, err := r.queryStruct("GET", u.String(), nil, "", &state)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &state, etag, err
+}
+
 // UpdateClusterMemberState evacuates or restores a cluster member.
 func (r *ProtocolLXD) UpdateClusterMemberState(name string, state api.ClusterMemberStatePost) (Operation, error) {
 	if !r.HasExtension("clustering_evacuation") {
