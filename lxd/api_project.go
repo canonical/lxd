@@ -268,6 +268,8 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Parse the request.
 	project := api.ProjectsPost{}
 
@@ -295,13 +297,13 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the configuration.
-	err = projectValidateConfig(d.State(), project.Config)
+	err = projectValidateConfig(s, project.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
 	var id int64
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err = cluster.CreateProject(ctx, tx.Tx(), cluster.Project{Description: project.Description, Name: project.Name})
 		if err != nil {
 			return fmt.Errorf("Failed adding database record: %w", err)
@@ -341,7 +343,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 
 	requestor := request.CreateRequestor(r)
 	lc := lifecycle.ProjectCreated.Event(project.Name, requestor, nil)
-	d.State().Events.SendLifecycle(project.Name, lc)
+	s.Events.SendLifecycle(project.Name, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -465,6 +467,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -519,7 +523,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
+	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(d, project, req)
 }
@@ -554,6 +558,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -566,7 +572,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -638,13 +644,15 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
+	s.Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(d, project, req)
 }
 
 // Common logic between PUT and PATCH.
 func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
+	s := d.State()
+
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
@@ -697,7 +705,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Validate the configuration.
-	err := projectValidateConfig(d.State(), req.Config)
+	err := projectValidateConfig(s, req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -774,6 +782,8 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -843,12 +853,12 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		requestor := request.CreateRequestor(r)
-		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
+		s.Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
 		return nil
 	}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.ProjectRename, nil, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -875,6 +885,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -921,7 +933,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
+	s.Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
 }
