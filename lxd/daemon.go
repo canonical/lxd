@@ -464,6 +464,7 @@ func (d *Daemon) State() *state.State {
 		GlobalConfig:           globalConfig,
 		LocalConfig:            localConfig,
 		ServerName:             d.serverName,
+		StartTime:              d.startTime,
 	}
 }
 
