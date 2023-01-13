@@ -246,8 +246,8 @@ type StoragePoolState int
 
 // Storage pools state.
 const (
-	storagePoolPending StoragePoolState = iota // Storage pool defined but not yet created globally or on specific node.
-	storagePoolCreated                         // Storage pool created globally or on specific node.
+	StoragePoolPending StoragePoolState = iota // Storage pool defined but not yet created globally or on specific node.
+	StoragePoolCreated                         // Storage pool created globally or on specific node.
 	storagePoolErrored                         // Deprecated (should no longer occur).
 )
 
