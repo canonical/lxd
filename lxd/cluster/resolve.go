@@ -4,34 +4,28 @@ import (
 	"context"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 )
 
-// ResolveTarget is a convenience for handling the value ?targetNode query
-// parameter. It returns the address of the given node, or the empty string if
-// the given node is the local one.
-func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
-	address := ""
-	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		name, err := tx.GetLocalNodeName(ctx)
+// ResolveTarget is a convenience for resolving a target member name to address.
+// It returns the address of the given member, or the empty string if the given member is the local one.
+func ResolveTarget(ctx context.Context, s *state.State, targetMember string) (string, error) {
+	// Avoid starting a transaction if the requested target is this local server.
+	if targetMember == s.ServerName {
+		return "", nil
+	}
+
+	var memberAddress string
+	err := s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		member, err := tx.GetNodeByName(ctx, targetMember)
 		if err != nil {
 			return err
 		}
 
-		if target == name {
-			return nil
-		}
-
-		node, err := tx.GetNodeByName(ctx, target)
-		if err != nil {
-			return err
-		}
-
-		if node.Name != name {
-			address = node.Address
-		}
+		memberAddress = member.Address
 
 		return nil
 	})
 
-	return address, err
+	return memberAddress, err
 }
