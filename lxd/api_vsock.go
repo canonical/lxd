@@ -13,6 +13,8 @@ import (
 )
 
 func authenticateAgentCert(d *Daemon, r *http.Request) (bool, instance.Instance, error) {
+	s := d.State()
+
 	var vsockID int
 	trusted := false
 
@@ -23,7 +25,7 @@ func authenticateAgentCert(d *Daemon, r *http.Request) (bool, instance.Instance,
 
 	var clusterInst *cluster.Instance
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		clusterInst, err = tx.GetLocalInstanceWithVsockID(ctx, vsockID)
@@ -37,7 +39,7 @@ func authenticateAgentCert(d *Daemon, r *http.Request) (bool, instance.Instance,
 		return false, nil, err
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), clusterInst.Project, clusterInst.Name)
+	inst, err := instance.LoadByProjectAndName(s, clusterInst.Project, clusterInst.Name)
 	if err != nil {
 		return false, nil, err
 	}
