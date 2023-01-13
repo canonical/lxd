@@ -34,8 +34,10 @@ var metricsCmd = APIEndpoint{
 }
 
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Check if API is wide open.
-	if !d.State().GlobalConfig.MetricsAuthentication() {
+	if !s.GlobalConfig.MetricsAuthentication() {
 		return response.EmptySyncResponse
 	}
 
@@ -74,6 +76,8 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func metricsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := queryParam(r, "project")
 
 	// Forward if requested.
@@ -84,8 +88,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Wait until daemon is fully started.
 	<-d.waitReady.Done()
-
-	s := d.State()
 
 	// Prepare response.
 	metricSet := metrics.NewMetricSet(nil)
