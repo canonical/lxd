@@ -77,7 +77,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	projectName := queryParam(r, "project")
 
 	// Forward if requested.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
