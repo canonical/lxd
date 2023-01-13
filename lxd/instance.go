@@ -66,16 +66,16 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 }
 
 // instanceImageTransfer transfers an image from another cluster node.
-func instanceImageTransfer(d *Daemon, r *http.Request, projectName string, hash string, nodeAddress string) error {
+func instanceImageTransfer(s *state.State, r *http.Request, projectName string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
-	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+	client, err := cluster.Connect(nodeAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return err
 	}
 
 	client = client.UseProject(projectName)
 
-	err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
+	err = imageImportFromNode(filepath.Join(s.OS.VarDir, "images"), client, hash)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db
 	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
 	// think it needs to download the image and store the record in the database as well, which will lead to
 	// duplicate record errors.
-	unlock := d.imageOperationLock(img.Fingerprint)
+	unlock := imageOperationLock(img.Fingerprint)
 
 	nodeAddress, err := s.DB.Cluster.LocateImage(img.Fingerprint)
 	if err != nil {
@@ -115,7 +115,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, img *api.Image, args db
 
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(d, r, args.Project, img.Fingerprint, nodeAddress)
+		err = instanceImageTransfer(s, r, args.Project, img.Fingerprint, nodeAddress)
 		if err != nil {
 			unlock()
 			return nil, fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, nodeAddress, err)
