@@ -361,7 +361,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	fullSrv.Environment = env
 
 	if rbac.UserIsAdmin(r) {
-		fullSrv.Config, err = daemonConfigRender(d.State())
+		fullSrv.Config, err = daemonConfigRender(s)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -456,7 +456,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	render, err := daemonConfigRender(d.State())
+	render, err := daemonConfigRender(s)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -515,7 +515,7 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 	// Don't apply changes to settings until daemon is fully started.
 	<-d.waitReady.Done()
 
-	render, err := daemonConfigRender(d.State())
+	render, err := daemonConfigRender(s)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -701,7 +701,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(project.Default, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
