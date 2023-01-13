@@ -1985,6 +1985,8 @@ func (d *Daemon) hasMemberStateChanged(heartbeatData *cluster.APIHeartbeat) bool
 
 // heartbeatHandler handles heartbeat requests from other cluster members.
 func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLeader bool, hbData *cluster.APIHeartbeat) {
+	s := d.State()
+
 	var err error
 
 	// Look for time skews.
@@ -2051,7 +2053,7 @@ func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLead
 		return
 	}
 
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	if hbData.FullStateList {
 		// If there is an ongoing heartbeat round (and by implication this is the leader), then this could
@@ -2090,7 +2092,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		return
 	}
 
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
 
 	if !heartbeatData.FullStateList || len(heartbeatData.Members) <= 0 {
 		logger.Error("Heartbeat member refresh task called with partial state list", logger.Ctx{"local": localClusterAddress})
