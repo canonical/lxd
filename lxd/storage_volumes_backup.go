@@ -268,6 +268,8 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -310,7 +312,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -478,6 +480,8 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -518,7 +522,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -576,6 +580,8 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -616,7 +622,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -700,6 +706,8 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -740,7 +748,7 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -807,6 +815,8 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage volume.
 	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -847,7 +857,7 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 		return response.SmartError(err)
 	}
 
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
