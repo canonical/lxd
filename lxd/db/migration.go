@@ -224,7 +224,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 				fallthrough
 			case "storage_pools":
 				columns = append(columns, "state")
-				row = append(row, storagePoolCreated)
+				row = append(row, StoragePoolCreated)
 			case "storage_volumes":
 				appendNodeID()
 			}
