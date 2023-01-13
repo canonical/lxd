@@ -216,7 +216,9 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -288,7 +290,9 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -373,7 +377,9 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -487,7 +493,9 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
