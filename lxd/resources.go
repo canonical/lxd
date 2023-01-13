@@ -65,8 +65,10 @@ var storagePoolResourcesCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -121,8 +123,10 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
