@@ -224,7 +224,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -405,8 +405,10 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func api10Put(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -502,8 +504,10 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func api10Patch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
