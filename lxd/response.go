@@ -6,19 +6,19 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 )
 
-func forwardedResponseToNode(d *Daemon, r *http.Request, node string) response.Response {
-	// Figure out the address of the target node (which is possibly
-	// this very same node).
-	address, err := cluster.ResolveTarget(d.db.Cluster, node)
+func forwardedResponseToNode(s *state.State, r *http.Request, memberName string) response.Response {
+	// Figure out the address of the target member (which is possibly this very same member).
+	address, err := cluster.ResolveTarget(r.Context(), s, memberName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Forward the response if not local.
 	if address != "" {
-		// Forward the response.
-		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+		client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -29,15 +29,15 @@ func forwardedResponseToNode(d *Daemon, r *http.Request, node string) response.R
 	return nil
 }
 
-// forwardedResponseIfTargetIsRemote redirects a request to the request has a
-// targetNode parameter pointing to a node which is not the local one.
-func forwardedResponseIfTargetIsRemote(d *Daemon, r *http.Request) response.Response {
+// forwardedResponseIfTargetIsRemote forwards a request to the request has a target parameter pointing to a member
+// which is not the local one.
+func forwardedResponseIfTargetIsRemote(s *state.State, r *http.Request) response.Response {
 	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		return nil
 	}
 
-	return forwardedResponseToNode(d, r, targetNode)
+	return forwardedResponseToNode(s, r, targetNode)
 }
 
 // forwardedResponseIfInstanceIsRemote redirects a request to the node running
