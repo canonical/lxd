@@ -133,16 +133,45 @@ func LoadByType(state *state.State, driverType string) (Type, error) {
 	return &pool, nil
 }
 
+// LoadByRecord instantiates a pool from its record and returns a Pool interface.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
+func LoadByRecord(s *state.State, poolID int64, poolInfo api.StoragePool, poolMembers map[int64]db.StoragePoolNode) (Pool, error) {
+	// Ensure a config map exists.
+	if poolInfo.Config == nil {
+		poolInfo.Config = map[string]string{}
+	}
+
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": poolInfo.Driver, "pool": poolInfo.Name})
+
+	// Load the storage driver.
+	driver, err := drivers.Load(s, poolInfo.Driver, poolInfo.Name, poolInfo.Config, logger, volIDFuncMake(s, poolID), commonRules())
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup the pool struct.
+	pool := lxdBackend{}
+	pool.driver = driver
+	pool.id = poolID
+	pool.db = poolInfo
+	pool.name = poolInfo.Name
+	pool.state = s
+	pool.logger = logger
+	pool.nodes = poolMembers
+
+	return &pool, nil
+}
+
 // LoadByName retrieves the pool from the database by its name and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func LoadByName(state *state.State, name string) (Pool, error) {
+func LoadByName(s *state.State, name string) (Pool, error) {
 	// Handle mock requests.
-	if state.OS.MockMode {
+	if s.OS.MockMode {
 		pool := mockBackend{}
 		pool.name = name
-		pool.state = state
+		pool.state = s
 		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		driver, err := drivers.Load(s, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -153,35 +182,12 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 	}
 
 	// Load the database record.
-	poolID, dbPool, poolNodes, err := state.DB.Cluster.GetStoragePoolInAnyState(name)
+	poolID, dbPool, poolNodes, err := s.DB.Cluster.GetStoragePoolInAnyState(name)
 	if err != nil {
 		return nil, err
 	}
 
-	// Ensure a config map exists.
-	if dbPool.Config == nil {
-		dbPool.Config = map[string]string{}
-	}
-
-	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
-
-	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
-	if err != nil {
-		return nil, err
-	}
-
-	// Setup the pool struct.
-	pool := lxdBackend{}
-	pool.driver = driver
-	pool.id = poolID
-	pool.db = *dbPool
-	pool.name = dbPool.Name
-	pool.state = state
-	pool.logger = logger
-	pool.nodes = poolNodes
-
-	return &pool, nil
+	return LoadByRecord(s, poolID, *dbPool, poolNodes)
 }
 
 // LoadByInstance retrieves the pool from the database using the instance's pool.
