@@ -292,11 +292,13 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 
 func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		s := d.State()
+
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredContainerBackups(ctx, d)
+			return pruneExpiredContainerBackups(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.BackupsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired instance backups operation", logger.Ctx{"err": err})
 			return
@@ -329,20 +331,20 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
+func pruneExpiredContainerBackups(ctx context.Context, s *state.State) error {
 	// Get the list of expired backups.
-	backups, err := d.db.Cluster.GetExpiredInstanceBackups()
+	backups, err := s.DB.Cluster.GetExpiredInstanceBackups()
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve the list of expired instance backups: %w", err)
 	}
 
 	for _, b := range backups {
-		inst, err := instance.LoadByID(d.State(), b.InstanceID)
+		inst, err := instance.LoadByID(s, b.InstanceID)
 		if err != nil {
 			return fmt.Errorf("Error loading instance for deleting backup %q: %w", b.Name, err)
 		}
 
-		instBackup := backup.NewInstanceBackup(d.State(), inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
+		instBackup := backup.NewInstanceBackup(s, inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
 		err = instBackup.Delete()
 		if err != nil {
 			return fmt.Errorf("Error deleting instance backup %q: %w", b.Name, err)
