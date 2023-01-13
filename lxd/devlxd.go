@@ -238,7 +238,9 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 			return
 		}
 
-		c, err := findContainerForPid(cred.Pid, d.State())
+		s := d.State()
+
+		c, err := findContainerForPid(cred.Pid, s)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
