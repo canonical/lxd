@@ -640,14 +640,41 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 //
 // The pool must be in the created stated, not pending.
 func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(true, "name=?", poolName)
+	stateCreated := storagePoolCreated
+	pools, poolMembers, err := c.GetStoragePools(context.TODO(), &stateCreated, poolName)
+	if (err == nil && len(pools) <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
+	} else if err == nil && len(pools) > 1 {
+		return -1, nil, nil, api.StatusErrorf(http.StatusConflict, "More than 1 storage pool found for that name")
+	} else if err != nil {
+		return -1, nil, nil, err
+	}
+
+	for poolID, pool := range pools {
+		return poolID, &pool, poolMembers[poolID], err // Only single pool in map.
+	}
+
+	return -1, nil, nil, fmt.Errorf("Unexpected pool list size")
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
-func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(false, "name=?", name)
+func (c *Cluster) GetStoragePoolInAnyState(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+	pools, poolMembers, err := c.GetStoragePools(context.TODO(), nil, poolName)
+	if (err == nil && len(pools) <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
+	} else if err == nil && len(pools) > 1 {
+		return -1, nil, nil, api.StatusErrorf(http.StatusConflict, "More than 1 storage pool found for that name")
+	} else if err != nil {
+		return -1, nil, nil, err
+	}
+
+	for poolID, pool := range pools {
+		return poolID, &pool, poolMembers[poolID], err // Only single pool in map.
+	}
+
+	return -1, nil, nil, fmt.Errorf("Unexpected pool list size")
 }
 
 // GetStoragePoolWithID returns the storage pool with the given ID.
