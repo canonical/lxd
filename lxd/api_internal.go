@@ -189,6 +189,8 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	req := &internalImageOptimizePost{}
 
 	// Parse the request.
@@ -197,7 +199,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = imageCreateInPool(d, &req.Image, req.Pool)
+	err = imageCreateInPool(s, &req.Image, req.Pool)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -206,7 +208,9 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
-	err := autoUpdateImages(d.shutdownCtx, d)
+	s := d.State()
+
+	err := autoUpdateImages(s.ShutdownCtx, s)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -315,7 +319,9 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 }
 
 func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
-	inst, err := internalContainerHookLoadFromReference(d.State(), r)
+	s := d.State()
+
+	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
 		logger.Error("The start hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
@@ -331,7 +337,9 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
-	inst, err := internalContainerHookLoadFromReference(d.State(), r)
+	s := d.State()
+
+	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
 		logger.Error("The stopns hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
@@ -359,7 +367,9 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
-	inst, err := internalContainerHookLoadFromReference(d.State(), r)
+	s := d.State()
+
+	inst, err := internalContainerHookLoadFromReference(s, r)
 	if err != nil {
 		logger.Error("The stop hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
@@ -574,6 +584,8 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf("The name of the instance is required")
 	}
 
+	s := d.State()
+
 	storagePoolsPath := shared.VarPath("storage-pools")
 	storagePoolsDir, err := os.Open(storagePoolsPath)
 	if err != nil {
@@ -656,15 +668,15 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
-	pool, err := storagePools.LoadByName(d.State(), instancePoolName)
+	pool, err := storagePools.LoadByName(s, instancePoolName)
 	if response.IsNotFoundError(err) {
 		// Create the storage pool db entry if it doesn't exist.
-		_, err = storagePoolDBCreate(d.State(), instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
+		_, err = storagePoolDBCreate(s, instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
 			return fmt.Errorf("Create storage pool database entry: %w", err)
 		}
 
-		pool, err = storagePools.LoadByName(d.State(), instancePoolName)
+		pool, err = storagePools.LoadByName(s, instancePoolName)
 		if err != nil {
 			return fmt.Errorf("Load storage pool database entry: %w", err)
 		}
@@ -748,7 +760,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 	}
 
-	profiles, err := d.State().DB.Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
+	profiles, err := s.DB.Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
@@ -771,12 +783,12 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		return fmt.Errorf("No instance config in backup config")
 	}
 
-	instDBArgs, err := backup.ConfigToInstanceDBArgs(d.State(), backupConf, projectName, true)
+	instDBArgs, err := backup.ConfigToInstanceDBArgs(s, backupConf, projectName, true)
 	if err != nil {
 		return err
 	}
 
-	_, instOp, cleanup, err := instance.CreateInternal(d.State(), *instDBArgs, true)
+	_, instOp, cleanup, err := instance.CreateInternal(s, *instDBArgs, true)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -849,7 +861,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			return err
 		}
 
-		profiles, err := d.State().DB.Cluster.GetProfiles(projectName, snap.Profiles)
+		profiles, err := s.DB.Cluster.GetProfiles(projectName, snap.Profiles)
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles for instance snapshot %q: %w", snapInstName, err)
 		}
@@ -865,7 +877,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		internalImportRootDevicePopulate(instancePoolName, snap.Devices, snap.ExpandedDevices, profiles)
 
-		_, snapInstOp, cleanup, err := instance.CreateInternal(d.State(), db.InstanceArgs{
+		_, snapInstOp, cleanup, err := instance.CreateInternal(s, db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
@@ -1028,5 +1040,7 @@ func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalBGPState(d *Daemon, r *http.Request) response.Response {
-	return response.SyncResponse(true, d.State().BGP.Debug())
+	s := d.State()
+
+	return response.SyncResponse(true, s.BGP.Debug())
 }
