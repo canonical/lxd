@@ -91,6 +91,7 @@ Key                      | Type    | Default           | Managed | Description
 `name`                   | string  | kernel assigned   | no      | The name of the interface inside the instance
 `network`                | string  | -                 | no      | The managed network to link the device to (instead of specifying the `nictype` directly)
 `parent`                 | string  | -                 | yes     | The name of the host device (required if specifying the `nictype` directly)
+`queue.tx.length`        | integer | -                 | no      | The transmit queue length for the NIC
 `security.ipv4_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's IPv4 address (enables `security.mac_filtering`)
 `security.ipv6_filtering`| bool    | `false`           | no      | Prevent the instance from spoofing another instance's IPv6 address (enables `security.mac_filtering`)
 `security.mac_filtering` | bool    | `false`           | no      | Prevent the instance from spoofing another instance's MAC address
@@ -337,6 +338,7 @@ Key                     | Type    | Default           | Description
 `limits.max`            | string  | -                 | I/O limit in bit/s for both incoming and outgoing traffic (same as setting both `limits.ingress` and `limits.egress`)
 `mtu`                   | integer | kernel assigned   | The MTU of the new interface
 `name`                  | string  | kernel assigned   | The name of the interface inside the instance
+`queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
 
 (nic-routed)=
 ### `nictype`: `routed`
@@ -428,6 +430,7 @@ Key                     | Type    | Default           | Description
 `mtu`                   | integer | parent MTU        | The MTU of the new interface
 `name`                  | string  | kernel assigned   | The name of the interface inside the instance
 `parent`                | string  | -                 | The name of the host device to join the instance to
+`queue.tx.length`       | integer | -                 | The transmit queue length for the NIC
 `vlan`                  | integer | -                 | The VLAN ID to attach to
 
 ## `bridged`, `macvlan` or `ipvlan` for connection to physical network
