@@ -41,6 +41,8 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
+	s := d.State()
+
 	// Detect project mode.
 	projectName := queryParam(r, "project")
 	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
@@ -92,7 +94,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
-	d.events.SetLocalLocation(d.State().ServerName)
+	d.events.SetLocalLocation(s.ServerName)
 
 	var excludeLocations []string
 	// Get the current local serverName and store it for the events.

@@ -426,6 +426,87 @@ func (c *ClusterTx) storagePoolNodeState(poolID int64, state StoragePoolState) e
 	return nil
 }
 
+// GetStoragePools returns map of Storage Pools keyed on ID and Storage Pool member info keyed on ID and Member ID.
+// Can optionally accept a state filter, if nil, then pools in any state are returned.
+// Can optionally accept one or more poolNames to further filter the returned pools.
+func (c *Cluster) GetStoragePools(ctx context.Context, state *StoragePoolState, poolNames ...string) (map[int64]api.StoragePool, map[int64]map[int64]StoragePoolNode, error) {
+	var q *strings.Builder = &strings.Builder{}
+	var args []any
+
+	q.WriteString("SELECT id, name, driver, description, state FROM storage_pools ")
+
+	if state != nil {
+		q.WriteString("WHERE storage_pools.state = ? ")
+		args = append(args, *state)
+	}
+
+	if len(poolNames) > 0 {
+		verb := "WHERE"
+		if len(args) > 0 {
+			verb = "AND"
+		}
+
+		q.WriteString(fmt.Sprintf("%s storage_pools.name IN %s", verb, query.Params(len(poolNames))))
+		for _, poolName := range poolNames {
+			args = append(args, poolName)
+		}
+	}
+
+	var err error
+	pools := make(map[int64]api.StoragePool)
+	memberInfo := make(map[int64]map[int64]StoragePoolNode)
+
+	err = c.Transaction(ctx, func(ctx context.Context, tx *ClusterTx) error {
+		err = query.Scan(ctx, tx.Tx(), q.String(), func(scan func(dest ...any) error) error {
+			var poolID int64 = int64(-1)
+			var poolState StoragePoolState
+			var pool api.StoragePool
+
+			err := scan(&poolID, &pool.Name, &pool.Driver, &pool.Description, &poolState)
+			if err != nil {
+				return err
+			}
+
+			pool.Status = StoragePoolStateToAPIStatus(poolState)
+
+			pools[poolID] = pool
+
+			return nil
+		}, args...)
+		if err != nil {
+			return err
+		}
+
+		for poolID := range pools {
+			pool := pools[poolID]
+
+			err = c.getStoragePoolConfig(ctx, tx, poolID, &pool)
+			if err != nil {
+				return err
+			}
+
+			memberInfo[poolID], err = tx.storagePoolNodes(ctx, poolID)
+			if err != nil {
+				return err
+			}
+
+			pool.Locations = make([]string, 0, len(memberInfo[poolID]))
+			for _, node := range memberInfo[poolID] {
+				pool.Locations = append(pool.Locations, node.Name)
+			}
+
+			pools[poolID] = pool
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pools, memberInfo, nil
+}
+
 // GetStoragePoolNodeConfigs returns the node-specific configuration of all
 // nodes grouped by node name, for the given poolID.
 //
@@ -559,14 +640,41 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 //
 // The pool must be in the created stated, not pending.
 func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(true, "name=?", poolName)
+	stateCreated := storagePoolCreated
+	pools, poolMembers, err := c.GetStoragePools(context.TODO(), &stateCreated, poolName)
+	if (err == nil && len(pools) <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
+	} else if err == nil && len(pools) > 1 {
+		return -1, nil, nil, api.StatusErrorf(http.StatusConflict, "More than 1 storage pool found for that name")
+	} else if err != nil {
+		return -1, nil, nil, err
+	}
+
+	for poolID, pool := range pools {
+		return poolID, &pool, poolMembers[poolID], err // Only single pool in map.
+	}
+
+	return -1, nil, nil, fmt.Errorf("Unexpected pool list size")
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
-func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(false, "name=?", name)
+func (c *Cluster) GetStoragePoolInAnyState(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+	pools, poolMembers, err := c.GetStoragePools(context.TODO(), nil, poolName)
+	if (err == nil && len(pools) <= 0) || errors.Is(err, sql.ErrNoRows) {
+		return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
+	} else if err == nil && len(pools) > 1 {
+		return -1, nil, nil, api.StatusErrorf(http.StatusConflict, "More than 1 storage pool found for that name")
+	} else if err != nil {
+		return -1, nil, nil, err
+	}
+
+	for poolID, pool := range pools {
+		return poolID, &pool, poolMembers[poolID], err // Only single pool in map.
+	}
+
+	return -1, nil, nil, fmt.Errorf("Unexpected pool list size")
 }
 
 // GetStoragePoolWithID returns the storage pool with the given ID.

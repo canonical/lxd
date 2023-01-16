@@ -38,10 +38,10 @@ test_storage_volume_snapshots() {
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q 'description: foo'
 
   # edit volume snapshot expiry date
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^expires_at:.*/expires_at: 2006-01-02T15:04:05Z/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^expires_at:.*/expires_at: 2100-01-02T15:04:05Z/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   # Depending on the timezone of the runner, some values will be different.
-  # Both the year (2006) and the month (01) will be constant though.
-  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 2006-01'
+  # Both the year (2100) and the month (01) will be constant though.
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 2100-01'
   # Reset/remove expiry date
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed '/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 0001-01-01T00:00:00Z'

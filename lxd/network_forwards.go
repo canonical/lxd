@@ -216,12 +216,14 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -240,7 +242,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -292,12 +294,14 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -307,7 +311,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -333,7 +337,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkForwardDeleted.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -379,12 +383,14 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -394,7 +400,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -494,12 +500,14 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -509,7 +517,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -569,7 +577,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkForwardUpdated.Event(n, listenAddress, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

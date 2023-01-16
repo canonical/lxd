@@ -47,6 +47,8 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 		return response.BadRequest(err)
 	}
 
+	s := d.State()
+
 	run := func(op *operations.Operation) error {
 		args := db.InstanceArgs{
 			Project:     p.Name,
@@ -64,11 +66,11 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 			if p.Config["images.auto_update_cached"] != "" {
 				autoUpdate = shared.IsTrue(p.Config["images.auto_update_cached"])
 			} else {
-				autoUpdate = d.State().GlobalConfig.ImagesAutoUpdateCached()
+				autoUpdate = s.GlobalConfig.ImagesAutoUpdateCached()
 			}
 
 			var budget int64
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				budget, err = project.GetImageSpaceBudget(tx, p.Name)
 				return err
 			})
@@ -76,7 +78,7 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 				return err
 			}
 
-			img, err = d.ImageDownload(r, op, &ImageDownloadArgs{
+			img, err = ImageDownload(r, s, op, &ImageDownloadArgs{
 				Server:       req.Source.Server,
 				Protocol:     req.Source.Protocol,
 				Certificate:  req.Source.Certificate,
@@ -115,7 +117,7 @@ func createFromImage(d *Daemon, r *http.Request, p api.Project, profiles []api.P
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
+	op, err := operations.OperationCreate(s, p.Name, operations.OperationClassTask, operationtype.InstanceCreate, resources, nil, run, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

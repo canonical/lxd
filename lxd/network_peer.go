@@ -216,12 +216,14 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -238,7 +240,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -258,7 +260,7 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.NetworkPeerCreated.Event(n, req.Name, request.CreateRequestor(r), nil)
-	d.State().Events.SendLifecycle(projectName, lc)
+	s.Events.SendLifecycle(projectName, lc)
 
 	return response.SyncResponseLocation(true, nil, lc.Source)
 }
@@ -288,12 +290,14 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -303,7 +307,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -327,7 +331,7 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting peer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkPeerDeleted.Event(n, peerName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkPeerDeleted.Event(n, peerName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -373,12 +377,14 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -388,7 +394,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -407,7 +413,7 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, peer, err := d.State().DB.Cluster.GetNetworkPeer(n.ID(), peerName)
+	_, peer, err := s.DB.Cluster.GetNetworkPeer(n.ID(), peerName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -487,12 +493,14 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -502,7 +510,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -533,7 +541,7 @@ func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating peer: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkPeerUpdated.Event(n, peerName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.NetworkPeerUpdated.Event(n, peerName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

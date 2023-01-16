@@ -750,13 +750,15 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1163,13 +1165,15 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1180,7 +1184,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing network.
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -1756,13 +1760,15 @@ func networkRestartOVN(s *state.State) error {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}

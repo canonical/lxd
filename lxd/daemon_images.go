@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -47,7 +48,7 @@ type ImageDownloadArgs struct {
 }
 
 // imageOperationLock acquires a lock for operating on an image and returns the unlock function.
-func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
+func imageOperationLock(fingerprint string) locking.UnlockFunc {
 	l := logger.AddContext(logger.Log, logger.Ctx{"fingerprint": fingerprint})
 	l.Debug("Acquiring lock for image")
 	defer l.Debug("Lock acquired for image")
@@ -56,7 +57,7 @@ func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it.
-func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
+func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
 	var err error
 	var ctxMap logger.Ctx
 
@@ -80,8 +81,8 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		clientArgs := &lxd.ConnectionArgs{
 			TLSServerCert: args.Certificate,
 			UserAgent:     version.UserAgent,
-			Proxy:         d.proxy,
-			CachePath:     d.os.CacheDir,
+			Proxy:         s.Proxy,
+			CachePath:     s.OS.CacheDir,
 			CacheExpiry:   time.Hour,
 		}
 
@@ -123,7 +124,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Ensure we are the only ones operating on this image.
-	unlock := d.imageOperationLock(fp)
+	unlock := imageOperationLock(fp)
 	defer unlock()
 
 	// If auto-update is on and we're being given the image by
@@ -131,11 +132,11 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval := d.State().GlobalConfig.ImagesAutoUpdateIntervalHours()
+	interval := s.GlobalConfig.ImagesAutoUpdateIntervalHours()
 
 	if args.PreferCached && interval > 0 && alias != fp {
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			for _, architecture := range d.os.Architectures {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			for _, architecture := range s.OS.Architectures {
 				cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, args.Server, args.Protocol, alias, args.Type, architecture)
 				if err == nil && cachedFingerprint != fp {
 					fp = cachedFingerprint
@@ -151,59 +152,59 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Check if the image already exists in this project (partial hash match).
-	_, imgInfo, err := d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
+	_, imgInfo, err := s.DB.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 	if err == nil {
 		// Check if the image is available locally or it's on another node.
-		nodeAddress, err := d.State().DB.Cluster.LocateImage(imgInfo.Fingerprint)
+		nodeAddress, err := s.DB.Cluster.LocateImage(imgInfo.Fingerprint)
 		if err != nil {
 			return nil, fmt.Errorf("Failed locating image %q in the cluster: %w", imgInfo.Fingerprint, err)
 		}
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
-			err = instanceImageTransfer(d, r, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
+			err = instanceImageTransfer(s, r, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
 				return nil, fmt.Errorf("Failed transferring image %q from %q: %w", imgInfo.Fingerprint, nodeAddress, err)
 			}
 
 			// As the image record already exists in the project, just add the node ID to the image.
-			err = d.db.Cluster.AddImageToLocalNode(args.ProjectName, imgInfo.Fingerprint)
+			err = s.DB.Cluster.AddImageToLocalNode(args.ProjectName, imgInfo.Fingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
 	} else if response.IsNotFoundError(err) {
 		// Check if the image already exists in some other project.
-		_, imgInfo, err = d.db.Cluster.GetImageFromAnyProject(fp)
+		_, imgInfo, err = s.DB.Cluster.GetImageFromAnyProject(fp)
 		if err == nil {
 			// Check if the image is available locally or it's on another node. Do this before creating
 			// the missing DB record so we don't include ourself in the search results.
-			nodeAddress, err := d.State().DB.Cluster.LocateImage(imgInfo.Fingerprint)
+			nodeAddress, err := s.DB.Cluster.LocateImage(imgInfo.Fingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("Locate image %q in the cluster: %w", imgInfo.Fingerprint, err)
 			}
 
 			// We need to insert the database entry for this project, including the node ID entry.
-			err = d.db.Cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
+			err = s.DB.Cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
 			if err != nil {
 				return nil, err
 			}
 
 			// Mark the image as "cached" if downloading for an instance.
 			if args.SetCached {
-				err := d.db.Cluster.SetImageCachedAndLastUseDate(args.ProjectName, imgInfo.Fingerprint, time.Now().UTC())
+				err := s.DB.Cluster.SetImageCachedAndLastUseDate(args.ProjectName, imgInfo.Fingerprint, time.Now().UTC())
 				if err != nil {
 					return nil, fmt.Errorf("Failed setting cached flag and last use date: %w", err)
 				}
 			}
 
 			var id int
-			id, imgInfo, err = d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
+			id, imgInfo, err = s.DB.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
 				return nil, err
 			}
 
-			err = d.db.Cluster.CreateImageSource(id, args.Server, args.Protocol, args.Certificate, alias)
+			err = s.DB.Cluster.CreateImageSource(id, args.Server, args.Protocol, args.Certificate, alias)
 			if err != nil {
 				return nil, err
 			}
@@ -211,7 +212,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			// Transfer image if needed (after database record has been created above).
 			if nodeAddress != "" {
 				// The image is available from another node, let's try to import it.
-				err = instanceImageTransfer(d, r, args.ProjectName, info.Fingerprint, nodeAddress)
+				err = instanceImageTransfer(s, r, args.ProjectName, info.Fingerprint, nodeAddress)
 				if err != nil {
 					return nil, fmt.Errorf("Failed transferring image: %w", err)
 				}
@@ -232,13 +233,13 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		ctxMap["pool"] = args.StoragePool
 
 		// Get the ID of the target storage pool.
-		poolID, err := d.db.Cluster.GetStoragePoolID(args.StoragePool)
+		poolID, err := s.DB.Cluster.GetStoragePoolID(args.StoragePool)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if the image is already in the pool.
-		poolIDs, err := d.db.Cluster.GetPoolsWithImage(info.Fingerprint)
+		poolIDs, err := s.DB.Cluster.GetPoolsWithImage(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +252,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		// Import the image in the pool.
 		logger.Debug("Image does not exist on storage pool", ctxMap)
 
-		err = imageCreateInPool(d, info, args.StoragePool)
+		err = imageCreateInPool(s, info, args.StoragePool)
 		if err != nil {
 			ctxMap["err"] = err
 			logger.Debug("Failed to create image on storage pool", ctxMap)
@@ -410,7 +411,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		}
 	} else if protocol == "direct" {
 		// Setup HTTP client
-		httpClient, err := util.HTTPClient(args.Certificate, d.proxy)
+		httpClient, err := util.HTTPClient(args.Certificate, s.Proxy)
 		if err != nil {
 			return nil, err
 		}
@@ -507,7 +508,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Create the database entry
-	err = d.db.Cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
+	err = s.DB.Cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -533,12 +534,12 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.db.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
+		id, _, err := s.DB.Cluster.GetImage(fp, cluster.ImageFilter{Project: &args.ProjectName})
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.db.Cluster.CreateImageSource(id, args.Server, protocol, args.Certificate, alias)
+		err = s.DB.Cluster.CreateImageSource(id, args.Server, protocol, args.Certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +547,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Import into the requested storage pool
 	if args.StoragePool != "" {
-		err = imageCreateInPool(d, info, args.StoragePool)
+		err = imageCreateInPool(s, info, args.StoragePool)
 		if err != nil {
 			return nil, err
 		}
@@ -554,7 +555,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Mark the image as "cached" if downloading for an instance
 	if args.SetCached {
-		err := d.db.Cluster.SetImageCachedAndLastUseDate(args.ProjectName, fp, time.Now().UTC())
+		err := s.DB.Cluster.SetImageCachedAndLastUseDate(args.ProjectName, fp, time.Now().UTC())
 		if err != nil {
 			return nil, fmt.Errorf("Failed setting cached flag and last use date: %w", err)
 		}
@@ -569,7 +570,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		requestor = request.CreateRequestor(r)
 	}
 
-	d.State().Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))
+	s.Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))
 
 	return info, nil
 }

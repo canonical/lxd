@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/lxc/lxd/lxd/bgp"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
@@ -73,4 +74,7 @@ type State struct {
 
 	// Local server name.
 	ServerName string
+
+	// Local server start time.
+	StartTime time.Time
 }
