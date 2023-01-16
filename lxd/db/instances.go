@@ -149,12 +149,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
-func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(ctx context.Context, projects []string, instType instancetype.Type) (map[string][][2]string, error) {
-	offlineThreshold, err := c.GetNodeOfflineThreshold(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(ctx context.Context, offlineThreshold time.Duration, projects []string, instType instancetype.Type) (map[string][][2]string, error) {
 	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
