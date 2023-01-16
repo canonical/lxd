@@ -71,7 +71,8 @@ func restServer(d *Daemon) *http.Server {
 	uiPath := os.Getenv("LXD_UI")
 	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
 	if uiEnabled {
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(uiPath))))
+		uiHttpDir := uiHttpDir{http.Dir(uiPath)}
+		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHttpDir)))
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -381,4 +382,17 @@ func queryParam(request *http.Request, key string) string {
 	}
 
 	return values.Get(key)
+}
+
+type uiHttpDir struct {
+	http.FileSystem
+}
+
+func (fs uiHttpDir) Open(name string) (http.File, error) {
+	fsFile, err := fs.FileSystem.Open(name)
+	if err != nil && os.IsNotExist(err) {
+		return fs.FileSystem.Open("index.html")
+	}
+
+	return fsFile, err
 }
