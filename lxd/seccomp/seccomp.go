@@ -1743,7 +1743,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 
 	instMetrics := Sysinfo{} // Architecture independent place to hold instance metrics.
 
-	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid), liblxc.HasApiExtension("cgroup2"))
+	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid), liblxc.HasAPIExtension("cgroup2"))
 	if err != nil {
 		l.Warn("Failed loading cgroup", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
