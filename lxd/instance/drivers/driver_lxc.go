@@ -6688,7 +6688,7 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 
 	defer d.release()
 
-	if !liblxc.HasApiExtension("devpts_fd") {
+	if !liblxc.HasAPIExtension("devpts_fd") {
 		return nil, fmt.Errorf("Missing devpts_fd extension")
 	}
 
@@ -6769,7 +6769,7 @@ func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 		return nil, err
 	}
 
-	cg.UnifiedCapable = liblxc.HasApiExtension("cgroup2")
+	cg.UnifiedCapable = liblxc.HasAPIExtension("cgroup2")
 	return cg, nil
 }
 
