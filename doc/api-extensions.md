@@ -2133,3 +2133,7 @@ but new projects will need to specify this explicitly.
 ## `instance_nic_txqueuelength`
 
 Adds a `txqueuelen` key to control the `txqueuelen` parameter of the NIC device.
+
+## `cluster_member_state`
+
+Adds `GET /1.0/cluster/members/<member>/state` API endpoint and associated `ClusterMemberState` API response type.
