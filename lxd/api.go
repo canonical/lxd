@@ -69,13 +69,23 @@ func restServer(d *Daemon) *http.Server {
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
 	uiPath := os.Getenv("LXD_UI")
-	if uiPath != "" && shared.PathExists(uiPath) {
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(uiPath))))
+	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
+	if uiEnabled {
+		uiHttpDir := uiHttpDir{http.Dir(uiPath)}
+		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHttpDir)))
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+
+		ua := r.Header.Get("User-Agent")
+		if uiEnabled && strings.Contains(ua, "Gecko") {
+			// Web browser handling.
+			http.Redirect(w, r, "/ui/", 301)
+		} else {
+			// Normal client handling.
+			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		}
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
@@ -372,4 +382,17 @@ func queryParam(request *http.Request, key string) string {
 	}
 
 	return values.Get(key)
+}
+
+type uiHttpDir struct {
+	http.FileSystem
+}
+
+func (fs uiHttpDir) Open(name string) (http.File, error) {
+	fsFile, err := fs.FileSystem.Open(name)
+	if err != nil && os.IsNotExist(err) {
+		return fs.FileSystem.Open("index.html")
+	}
+
+	return fsFile, err
 }
