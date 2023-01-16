@@ -63,13 +63,22 @@ func restServer(d *Daemon) *http.Server {
 	mux.UseEncodedPath() // Allow encoded values in path segments.
 
 	uiPath := os.Getenv("LXD_UI")
-	if uiPath != "" && shared.PathExists(uiPath) {
+	uiEnabled := uiPath != "" && shared.PathExists(uiPath)
+	if uiEnabled {
 		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(uiPath))))
 	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+
+		ua := r.Header.Get("User-Agent")
+		if uiEnabled && strings.Contains(ua, "Gecko") {
+			// Web browser handling.
+			http.Redirect(w, r, "/ui/", 301)
+		} else {
+			// Normal client handling.
+			_ = response.SyncResponse(true, []string{"/1.0"}).Render(w)
+		}
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.heartbeatHandler, d.getTrustedCertificates) {
