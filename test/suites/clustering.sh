@@ -256,6 +256,10 @@ test_clustering_membership() {
   lxc network list cluster: | grep -q "${bridge}"
   lxc remote remove cluster
 
+  # Check info for single node (from local and remote node).
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster info node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster info node5
+
   # Disable image replication
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
 
