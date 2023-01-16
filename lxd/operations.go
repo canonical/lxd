@@ -550,7 +550,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get all nodes with running operations in this project.
 	var membersWithOps []string
-	var offlineThreshold time.Duration
 	var members []db.NodeInfo
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -558,11 +557,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		membersWithOps, err = tx.GetNodesWithOperations(ctx, projectName)
 		if err != nil {
 			return fmt.Errorf("Failed getting members with operations: %w", err)
-		}
-
-		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
 		members, err = tx.GetNodes(ctx)
@@ -576,8 +570,11 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	s := d.State()
+
 	// Get local address.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
+	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
 	memberOnline := func(memberAddress string) bool {
 		for _, member := range members {
@@ -672,15 +669,9 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	}
 
 	// Get all operations of the specified type in project.
-	var offlineThreshold time.Duration
 	var members []db.NodeInfo
 	memberOps := make(map[string]map[string]dbCluster.Operation)
 	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		offlineThreshold, err = tx.GetNodeOfflineThreshold(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
-		}
-
 		members, err = tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
@@ -706,8 +697,11 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		return nil, err
 	}
 
+	s := d.State()
+
 	// Get local address.
-	localClusterAddress := d.State().LocalConfig.ClusterAddress()
+	localClusterAddress := s.LocalConfig.ClusterAddress()
+	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
 	memberOnline := func(memberAddress string) bool {
 		for _, member := range members {
@@ -1117,13 +1111,10 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 	logger.Debug("Removing orphaned operations across the cluster")
 
-	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		// Get offline threshold.
-		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
-		if err != nil {
-			return fmt.Errorf("Load offline threshold config: %w", err)
-		}
+	s := d.State()
+	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		members, err := tx.GetNodes(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed getting cluster members: %w", err)
