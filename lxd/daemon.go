@@ -881,7 +881,7 @@ func (d *Daemon) init() error {
 	}
 
 	for _, extension := range lxcExtensions {
-		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
+		d.os.LXCFeatures[extension] = liblxc.HasAPIExtension(extension)
 	}
 
 	// Look for kernel features

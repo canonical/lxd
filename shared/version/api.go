@@ -357,6 +357,7 @@ var APIExtensions = []string{
 	"cpu_hotplug",
 	"projects_networks_zones",
 	"network_txqueuelen",
+	"cluster_member_state",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

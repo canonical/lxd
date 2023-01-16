@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -218,8 +219,10 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     $ref: "#/responses/InternalServerError"
 
 func instancesGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	for i := 0; i < 100; i++ {
-		result, err := doInstancesGet(d, r)
+		result, err := doInstancesGet(s, r)
 		if err == nil {
 			return response.SyncResponse(true, result)
 		}
@@ -238,7 +241,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
+func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	resultString := []string{}
 	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
@@ -281,7 +284,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
 	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
 	filteredProjects := []string{}
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		if allProjects {
@@ -301,7 +304,9 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, filteredProjects, instanceType)
+		offlineThreshold := s.GlobalConfig.OfflineThreshold()
+
+		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, offlineThreshold, filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}
@@ -322,7 +327,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
 		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
+			insts, err := instanceLoadNodeProjectAll(s, project, instanceType)
 			if err != nil {
 				return nil, err
 			}
@@ -367,7 +372,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 
 	// Get the data
 	wg := sync.WaitGroup{}
-	networkCert := d.endpoints.NetworkCert()
+	networkCert := s.Endpoints.NetworkCert()
 	for address, projectsInstances := range nodesProjectsInstances {
 		// If this is an internal request from another cluster node,
 		// ignore containers from other projectInstanceToNodeName, and return only the ones
@@ -397,7 +402,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 				defer wg.Done()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
+					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
 					if err != nil {
 						for _, projectInstance := range projectsInstances {
 							resultListAppend(projectInstance, api.Instance{}, err)
@@ -413,7 +418,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
+				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
 				if err != nil {
 					for _, projectInstance := range projectsInstances {
 						resultFullListAppend(projectInstance, api.InstanceFull{}, err)

@@ -458,6 +458,18 @@ definitions:
                 x-go-name: Roles
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
+    ClusterMemberState:
+        properties:
+            storage_pools:
+                additionalProperties:
+                    $ref: '#/definitions/StoragePoolState'
+                type: object
+                x-go-name: StoragePools
+            sysinfo:
+                $ref: '#/definitions/ClusterMemberSysInfo'
+        title: ClusterMemberState represents the state of a cluster member.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
     ClusterMemberStatePost:
         properties:
             action:
@@ -471,6 +483,49 @@ definitions:
                 type: string
                 x-go-name: Mode
         title: ClusterMemberStatePost represents the fields required to evacuate a cluster member.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    ClusterMemberSysInfo:
+        properties:
+            buffered_ram:
+                format: uint64
+                type: integer
+                x-go-name: BufferRAM
+            free_ram:
+                format: uint64
+                type: integer
+                x-go-name: FreeRAM
+            free_swap:
+                format: uint64
+                type: integer
+                x-go-name: FreeSwap
+            load_averages:
+                items:
+                    format: double
+                    type: number
+                type: array
+                x-go-name: LoadAverages
+            processes:
+                format: uint16
+                type: integer
+                x-go-name: Processes
+            shared_ram:
+                format: uint64
+                type: integer
+                x-go-name: SharedRAM
+            total_ram:
+                format: uint64
+                type: integer
+                x-go-name: TotalRAM
+            total_swap:
+                format: uint64
+                type: integer
+                x-go-name: TotalSwap
+            uptime:
+                format: int64
+                type: integer
+                x-go-name: Uptime
+        title: ClusterMemberSysInfo represents the sysinfo of a cluster member.
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     ClusterMembersPost:
@@ -5501,6 +5556,15 @@ definitions:
         title: StoragePoolPut represents the modifiable fields of a LXD storage pool.
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
+    StoragePoolState:
+        properties:
+            inodes:
+                $ref: '#/definitions/ResourcesStoragePoolInodes'
+            space:
+                $ref: '#/definitions/ResourcesStoragePoolSpace'
+        title: StoragePoolState represents the state of a storage pool.
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
     StoragePoolVolumeBackup:
         description: StoragePoolVolumeBackup represents a LXD volume backup
         properties:
@@ -6973,6 +7037,39 @@ paths:
             tags:
                 - cluster
     /1.0/cluster/members/{name}/state:
+        get:
+            description: Gets state of a specific cluster member.
+            operationId: cluster_member_state_get
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Cluster member state
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/ClusterMemberState'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get state of the cluster member
+            tags:
+                - cluster
         post:
             consumes:
                 - application/json

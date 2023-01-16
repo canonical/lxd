@@ -424,7 +424,7 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c4")
 
 	instType := instancetype.Container
-	result, err := tx.GetProjectAndInstanceNamesByNodeAddress(context.Background(), []string{"default"}, instType)
+	result, err := tx.GetProjectAndInstanceNamesByNodeAddress(context.Background(), time.Duration(db.DefaultOfflineThreshold)*time.Second, []string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
