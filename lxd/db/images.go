@@ -1204,7 +1204,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 	return c.getNodesByImageFingerprint(q, fingerprint, nil)
 }
 
-func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdate *bool) ([]string, error) {
+func (c *Cluster) getNodesByImageFingerprint(stmt string, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
 	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		offlineThreshold, err := tx.GetNodeOfflineThreshold(ctx)
