@@ -2761,35 +2761,18 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	chResult := make(chan error)
-	go func() {
-		chResult <- d.c.Shutdown(timeout)
-	}()
+	// Extend operation lock for the specified timeout plus some buffer time for d.c.Shutdown to complete.
+	err = op.ResetTimeout(timeout + operationlock.TimeoutDefault)
+	if err != nil {
+		return err
+	}
+
 	d.logger.Debug("Shutdown request sent to instance")
-
-	// Setup ticker that is half the timeout of operationlock.TimeoutDefault.
-	ticker := time.NewTicker(operationlock.TimeoutDefault / 2)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case err = <-chResult:
-			// Shutdown request has returned with a result.
-			if err != nil {
-				// If shutdown failed, cancel operation with the error, otherwise expect the
-				// onStop() hook to cancel operation when done.
-				op.Done(err)
-			}
-
-		case <-ticker.C:
-			// Keep the operation alive so its around for onStop() if the instance takes longer than
-			// the default operationlock.TimeoutDefault that the operation is kept alive for.
-			if op.Reset() == nil {
-				continue
-			}
-		}
-
-		break
+	// Reqeust shutdown with timeout. If shutdown fails then cancel operation with the error, otherwise expect
+	// the onStop() hook to cancel operation when done.
+	err = d.c.Shutdown(timeout)
+	if err != nil {
+		op.Done(err)
 	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
