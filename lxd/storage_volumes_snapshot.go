@@ -85,6 +85,8 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the pool.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -115,12 +117,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := dbCluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
@@ -143,7 +145,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -162,12 +164,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.db.Cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
+		i := s.DB.Cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
 	// Check that this isn't a restricted volume
-	used, err := storagePools.VolumeUsedByDaemon(d.State(), poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(s, poolName, volumeName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -177,7 +179,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Retrieve the storage pool (and check if the storage pool exists).
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -189,7 +191,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	var parentDBVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Ensure that the snapshot doesn't already exist.
 		snapDBVolume, err := tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, fmt.Sprintf("%s/%s", volumeName, req.Name), true)
 		if err != nil && !response.IsNotFoundError(err) {
@@ -229,7 +231,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotCreate, resources, nil, snapshot, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotCreate, resources, nil, snapshot, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -473,6 +475,8 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -509,13 +513,13 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -544,7 +548,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 	// Rename the snapshot.
 	snapshotRename := func(op *operations.Operation) error {
-		pool, err := storagePools.LoadByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
 			return err
 		}
@@ -555,7 +559,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotRename, resources, nil, snapshotRename, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotRename, resources, nil, snapshotRename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -609,6 +613,8 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -641,13 +647,13 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -665,7 +671,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
@@ -673,7 +679,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
+	expiry, err := s.DB.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -730,6 +736,8 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -762,13 +770,13 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -786,7 +794,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
@@ -794,7 +802,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
+	expiry, err := s.DB.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -856,6 +864,8 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
@@ -888,13 +898,13 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -912,12 +922,12 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, poolID, projectName, volumeType, fullSnapshotName, true)
 		return err
 	})
 
-	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
+	expiry, err := s.DB.Cluster.GetStorageVolumeSnapshotExpiry(dbVolume.ID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1010,6 +1020,8 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName stri
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
 	if err != nil {
@@ -1046,13 +1058,13 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Forward if needed.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -1064,7 +1076,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotDelete := func(op *operations.Operation) error {
-		pool, err := storagePools.LoadByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
 			return err
 		}
@@ -1075,7 +1087,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.VolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

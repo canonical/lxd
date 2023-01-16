@@ -262,12 +262,14 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -277,7 +279,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -295,7 +297,7 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := targetMember != ""
 
 	var bucket *db.StorageBucket
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		return err
 	})
@@ -344,12 +346,14 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -366,7 +370,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -395,7 +399,7 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed creating storage bucket admin key: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketCreated.Event(pool, bucketProjectName, req.Name, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketCreated.Event(pool, bucketProjectName, req.Name, request.CreateRequestor(r), nil))
 
 	u := api.NewURL().Path(version.APIVersion, "storage-pools", pool.Name(), "buckets", req.Name)
 
@@ -483,12 +487,14 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -543,7 +549,7 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketUpdated.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketUpdated.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -578,12 +584,14 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -593,7 +601,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -608,7 +616,7 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketDeleted.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketDeleted.Event(pool, bucketProjectName, bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -808,12 +816,14 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -835,7 +845,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -846,7 +856,7 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	lc := lifecycle.StorageBucketKeyCreated.Event(pool, bucketProjectName, pool.Name(), req.Name, request.CreateRequestor(r), nil)
-	d.State().Events.SendLifecycle(bucketProjectName, lc)
+	s.Events.SendLifecycle(bucketProjectName, lc)
 
 	return response.SyncResponseLocation(true, key, lc.Source)
 }
@@ -881,12 +891,14 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -896,7 +908,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -916,7 +928,7 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed deleting storage bucket key: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyDeleted.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyDeleted.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -962,12 +974,14 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -977,7 +991,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -1000,7 +1014,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := targetMember != ""
 
 	var bucketKey *db.StorageBucketKey
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		bucket, err := tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
 		if err != nil {
 			return err
@@ -1060,12 +1074,14 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	s := d.State()
+
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
 
-	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
+	bucketProjectName, err := project.StorageBucketProject(r.Context(), s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1075,7 +1091,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading storage pool: %w", err))
 	}
@@ -1102,7 +1118,7 @@ func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Failed updating storage bucket key: %w", err))
 	}
 
-	d.State().Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyUpdated.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(bucketProjectName, lifecycle.StorageBucketKeyUpdated.Event(pool, bucketProjectName, pool.Name(), bucketName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

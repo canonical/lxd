@@ -175,13 +175,15 @@ func storageBucketsServer(d *Daemon) *http.Server {
 		// Wait until daemon is fully started.
 		<-d.waitReady.Done()
 
+		s := d.State()
+
 		// Check if request contains an access key, and if so try and route it to the associated bucket.
 		accessKey := s3.AuthorizationHeaderAccessKey(r.Header.Get("Authorization"))
 		if accessKey != "" {
 			// Lookup access key to ascertain if it maps to a bucket.
 			var err error
 			var bucket *db.StorageBucket
-			err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				bucket, err = tx.GetStoragePoolLocalBucketByAccessKey(ctx, accessKey)
 				return err
 			})
@@ -199,7 +201,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 				return
 			}
 
-			pool, err := storagePools.LoadByName(d.State(), bucket.PoolName)
+			pool, err := storagePools.LoadByName(s, bucket.PoolName)
 			if err != nil {
 				errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 				errResult.Response(w)
@@ -233,6 +235,8 @@ func storageBucketsServer(d *Daemon) *http.Server {
 		// Wait until daemon is fully started.
 		<-d.waitReady.Done()
 
+		s := d.State()
+
 		pathParts := strings.Split(r.RequestURI, "/")
 		bucketName, err := url.PathUnescape(pathParts[1])
 		if err != nil {
@@ -244,7 +248,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 
 		// Lookup bucket.
 		var bucket *db.StorageBucket
-		err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			bucket, err = tx.GetStoragePoolLocalBucket(ctx, bucketName)
 			return err
 		})
@@ -262,7 +266,7 @@ func storageBucketsServer(d *Daemon) *http.Server {
 			return
 		}
 
-		pool, err := storagePools.LoadByName(d.State(), bucket.PoolName)
+		pool, err := storagePools.LoadByName(s, bucket.PoolName)
 		if err != nil {
 			errResult := s3.Error{Code: s3.ErrorCodeInternalError, Message: err.Error()}
 			errResult.Response(w)

@@ -569,8 +569,10 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -591,13 +593,13 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage pool.
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePools.UsedBy(r.Context(), d.State(), pool, false, memberSpecific)
+	poolUsedBy, err := storagePools.UsedBy(r.Context(), s, pool, false, memberSpecific)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -665,8 +667,10 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolPut(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	// If a target was specified, forward the request to the relevant node.
-	resp := forwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(s, r)
 	if resp != nil {
 		return resp
 	}
@@ -677,7 +681,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing storage pool.
-	pool, err := storagePools.LoadByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -752,7 +756,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		ctx["target"] = targetNode
 	}
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
+	s.Events.SendLifecycle(project.Default, lifecycle.StoragePoolUpdated.Event(pool.Name(), requestor, ctx))
 
 	return response
 }
