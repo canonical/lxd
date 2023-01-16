@@ -2959,7 +2959,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = migrateInstance(d, r, inst, targetNode.Name, false, req, op)
 			if err != nil {
-				return fmt.Errorf("Failed to migrate instance: %w", err)
+				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
 
 			if !isRunning || live {
@@ -2969,7 +2969,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Start it back up on target.
 			dest, err := cluster.Connect(targetNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return fmt.Errorf("Failed to connect to destination: %w", err)
+				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
 			}
 
 			dest = dest.UseProject(inst.Project().Name)
