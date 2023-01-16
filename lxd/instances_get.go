@@ -239,6 +239,8 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
+	s := d.State()
+
 	resultString := []string{}
 	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
@@ -281,7 +283,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
 	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
 	filteredProjects := []string{}
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		if allProjects {
@@ -301,7 +303,9 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, filteredProjects, instanceType)
+		offlineThreshold := s.GlobalConfig.OfflineThreshold()
+
+		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, offlineThreshold, filteredProjects, instanceType)
 		if err != nil {
 			return err
 		}
@@ -322,7 +326,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
 		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
+			insts, err := instanceLoadNodeProjectAll(s, project, instanceType)
 			if err != nil {
 				return nil, err
 			}
