@@ -46,6 +46,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	clusterShowCmd := cmdClusterShow{global: c.global, cluster: c}
 	cmd.AddCommand(clusterShowCmd.Command())
 
+	// Info
+	clusterInfoCmd := cmdClusterInfo{global: c.global, cluster: c}
+	cmd.AddCommand(clusterInfoCmd.Command())
+
 	// Get
 	clusterGetCmd := cmdClusterGet{global: c.global, cluster: c}
 	cmd.AddCommand(clusterGetCmd.Command())
@@ -230,6 +234,55 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render as YAML
+	data, err := yaml.Marshal(&member)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+	return nil
+}
+
+// Info.
+type cmdClusterInfo struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("info", i18n.G("[<remote>:]<member>"))
+	cmd.Short = i18n.G("Show useful information about a cluster member")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show useful information about a cluster member`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterInfo) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the member state information.
+	member, _, err := resource.server.GetClusterMemberState(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Render as YAML.
 	data, err := yaml.Marshal(&member)
 	if err != nil {
 		return err
