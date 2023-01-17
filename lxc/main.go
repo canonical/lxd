@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -333,7 +333,13 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		c.conf = config.NewConfig(filepath.Dir(c.confPath), true)
+		confDir := filepath.Dir(c.confPath)
+		if !shared.PathExists(confDir) {
+			if err = os.MkdirAll(confDir, 0700); err != nil {
+				return err
+			}
+		}
+		c.conf = config.NewConfig(confDir, true)
 	}
 
 	// Override the project
