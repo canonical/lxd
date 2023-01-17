@@ -1,5 +1,9 @@
 package migration
 
+import (
+	"fmt"
+)
+
 // IndexHeaderVersion version of the index header to be sent/recv.
 const IndexHeaderVersion uint32 = 1
 
@@ -86,3 +90,14 @@ func (m *MigrationHeader) GetBtrfsFeaturesSlice() []string {
 
 	return features
 }
+
+const (
+	unableToLiveMigrate = "Unable to perform live container migration."
+	toMigrateLive       = "To migrate the container, stop the container before migration or install CRIU"
+)
+
+var (
+	ErrNoLiveMigrationSource = fmt.Errorf("%s CRIU isn't installed on the source server. %s on the source server", unableToLiveMigrate, toMigrateLive)
+	ErrNoLiveMigrationTarget = fmt.Errorf("%s CRIU isn't installed on the target server. %s on the target server", unableToLiveMigrate, toMigrateLive)
+	ErrNoLiveMigration       = fmt.Errorf("%s CRIU isn't installed. %s", unableToLiveMigrate, toMigrateLive)
+)
