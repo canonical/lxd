@@ -44,6 +44,7 @@ import (
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/metrics"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -4951,7 +4952,7 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
-		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed")
+		return migration.ErrNoLiveMigration
 	}
 
 	d.logger.Info("Migrating container", ctxMap)
