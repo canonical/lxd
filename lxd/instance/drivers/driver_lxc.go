@@ -632,6 +632,12 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
+	// To discuss: take defalt timeout value from some global config?
+	err = cc.SetTimeout(time.Duration(10) * time.Second)
+	if err != nil {
+		return err
+	}
+
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc)
 	if err != nil {
