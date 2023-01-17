@@ -131,8 +131,8 @@ By default, all cluster members belong to the `default` group.
 
 See {ref}`howto-cluster-groups` and {ref}`cluster-target-instance` for more information.
 
-(clustering-assignment)=
-## Automatic assignment of instances
+(clustering-instance-placement)=
+## Automatic placement of instances
 
 In a cluster setup, each instance lives on one of the cluster members.
 When you launch an instance, you can target it to a specific cluster member, to a cluster group or have LXD automatically assign it to a cluster member.
