@@ -58,7 +58,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 		if inst.Type() == instancetype.Container {
 			_, err := exec.LookPath("criu")
 			if err != nil {
-				return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
+				return nil, migration.ErrNoLiveMigrationSource
 			}
 
 			ret.criuSecret, err = shared.RandomCryptoString()
@@ -795,9 +795,9 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	if sink.src.instance.Type() == instancetype.Container {
 		_, err = exec.LookPath("criu")
 		if sink.push && sink.dest.live && err != nil {
-			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+			return nil, migration.ErrNoLiveMigrationTarget
 		} else if sink.src.live && err != nil {
-			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+			return nil, migration.ErrNoLiveMigrationTarget
 		}
 	}
 
