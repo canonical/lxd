@@ -954,8 +954,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
-				req.Profiles = make([]string, 0, len(sourceInstArgs[0].Profiles))
-				for _, profile := range sourceInstArgs[0].Profiles {
+				req.Profiles = make([]string, 0, len(sourceInstArgs[sourceInst.ID].Profiles))
+				for _, profile := range sourceInstArgs[sourceInst.ID].Profiles {
 					req.Profiles = append(req.Profiles, profile.Name)
 				}
 			}
