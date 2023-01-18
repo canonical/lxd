@@ -49,8 +49,8 @@ var architectureAliases = map[int][]string{
 	ARCH_32BIT_POWERPC_BIG_ENDIAN:    {"powerpc"},
 	ARCH_64BIT_POWERPC_BIG_ENDIAN:    {"powerpc64", "ppc64"},
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: {"ppc64el"},
-	ARCH_32BIT_MIPS:                  {"mipsel"},
-	ARCH_64BIT_MIPS:                  {"mips64el"},
+	ARCH_32BIT_MIPS:                  {"mipsel", "mipsle"},
+	ARCH_64BIT_MIPS:                  {"mips64el", "mips64le"},
 	ARCH_32BIT_RISCV_LITTLE_ENDIAN:   {},
 	ARCH_64BIT_RISCV_LITTLE_ENDIAN:   {},
 }
