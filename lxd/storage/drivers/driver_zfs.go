@@ -573,6 +573,10 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 	// Detect ZFS features.
 	features := []string{migration.ZFSFeatureMigrationHeader}
 
+	if contentType == ContentTypeFS {
+		features = append(features, migration.ZFSFeatureZvolFilesystems)
+	}
+
 	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
 		features = append(features, "compress")
 	}

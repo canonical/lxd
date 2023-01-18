@@ -2116,6 +2116,11 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		}
 	}
 
+	// If we haven't negotiated zvol support, ensure volume is not a zvol.
+	if !shared.StringInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol) {
+		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
+	}
+
 	incrementalStream := true
 	var migrationHeader ZFSMetaDataHeader
 
