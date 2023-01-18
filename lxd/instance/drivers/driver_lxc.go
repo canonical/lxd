@@ -2769,7 +2769,8 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	d.logger.Debug("Shutdown request sent to instance")
-	// Reqeust shutdown with timeout. If shutdown fails then cancel operation with the error, otherwise expect
+
+	// Request shutdown with timeout. If shutdown fails then cancel operation with the error, otherwise expect
 	// the onStop() hook to cancel operation when done.
 	err = d.c.Shutdown(timeout)
 	if err != nil {
