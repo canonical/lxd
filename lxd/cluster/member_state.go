@@ -61,7 +61,7 @@ func MemberState(ctx context.Context, s *state.State, memberName string) (*api.C
 
 	// Account for different representations of Sysinfo_t on different architectures.
 	memberState.SysInfo.Uptime = int64(info.Uptime)
-	memberState.SysInfo.TotalRAM = uint64(info.Bufferram)
+	memberState.SysInfo.TotalRAM = uint64(info.Totalram)
 	memberState.SysInfo.SharedRAM = uint64(info.Sharedram)
 	memberState.SysInfo.BufferRAM = uint64(info.Bufferram)
 	memberState.SysInfo.FreeRAM = uint64(info.Freeram)
