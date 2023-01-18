@@ -7,3 +7,14 @@
 - Edit
 - Use aliases
 - Export an image as a file
+
+
+
+## Export images
+Use:
+
+	lxc image export imagename [target folder] [flags]
+
+Flags:
+
+`--vm` - Query virtual machine images
