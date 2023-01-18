@@ -2,8 +2,8 @@
 discourse: 9310
 ---
 
-(image-handling)=
-# Image handling
+(about-images)=
+# About images
 
 ```{youtube} https://www.youtube.com/watch?v=wT7IDjo0Wgg
 ```
