@@ -57,7 +57,7 @@ Remote access (see {ref}`security_remote_access` and {ref}`authentication`)
 
   You can choose to add client certificates to the server (manually or through tokens, the recommended way) or set a trust password.
 
-Automatic image update (see {ref}`image-handling`)
+Automatic image update (see {ref}`about-images`)
 : You can download images from image servers.
   In this case, images can be updated automatically.
 
