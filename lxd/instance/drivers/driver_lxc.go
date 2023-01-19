@@ -2762,19 +2762,24 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	// Extend operation lock for the specified timeout plus some buffer time for d.c.Shutdown to complete.
-	err = op.ResetTimeout(timeout + operationlock.TimeoutDefault)
+	// Request shutdown, but don't wait for container to stop. If call fails then cancel operation with error,
+	// otherwise expect the onStop() hook to cancel operation when done (when the container has stopped).
+	err = d.c.Shutdown(0)
 	if err != nil {
-		return err
+		op.Done(err)
 	}
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	// Request shutdown with timeout. If shutdown fails then cancel operation with the error, otherwise expect
-	// the onStop() hook to cancel operation when done.
-	err = d.c.Shutdown(timeout)
+	// Use default operation timeout if not specified (negatively or positively).
+	if timeout == 0 {
+		timeout = operationlock.TimeoutDefault
+	}
+
+	// Extend operation lock for the requested timeout.
+	err = op.ResetTimeout(timeout)
 	if err != nil {
-		op.Done(err)
+		return err
 	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
