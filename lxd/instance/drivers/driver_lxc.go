@@ -2843,10 +2843,12 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	_, err := d.onStopOperationSetup(target)
+	op, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
+
+	_ = op.Reset()
 
 	// Clean up devices.
 	d.cleanupDevices(false, netns)
@@ -2871,6 +2873,8 @@ func (d *lxc) onStop(args map[string]string) error {
 		return err
 	}
 
+	_ = op.Reset()
+
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
 
@@ -2888,8 +2892,8 @@ func (d *lxc) onStop(args map[string]string) error {
 		// Unlock on return
 		defer op.Done(nil)
 
-		// Wait for other post-stop actions to be done and the container actually stopping.
-		d.IsRunning()
+		_ = op.ResetTimeout(operationlock.TimeoutShutdown)
+
 		d.logger.Debug("Container stopped, cleaning up")
 
 		// Wait for any file operations to complete.
@@ -2913,8 +2917,6 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Stop the storage for this container
-		waitTimeout := operationlock.TimeoutShutdown
-		_ = op.ResetTimeout(waitTimeout)
 		err = d.unmount()
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			err = fmt.Errorf("Failed unmounting instance: %w", err)
