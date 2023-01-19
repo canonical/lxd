@@ -19,8 +19,8 @@ import (
 // tmpVolSuffix Suffix to use for any temporary volumes created by LXD.
 const tmpVolSuffix = ".lxdtmp"
 
-// defaultBlockSize Default size of block volumes.
-const defaultBlockSize = "10GiB"
+// DefaultBlockSize is the default size of block volumes.
+const DefaultBlockSize = "10GiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
@@ -461,7 +461,7 @@ func (v Volume) ConfigSize() string {
 	// If volume size isn't defined in either volume or pool config, then for block volumes or block-backed
 	// volumes return the defaultBlockSize.
 	if (size == "" || size == "0") && (v.contentType == ContentTypeBlock || v.driver.Info().BlockBacking) {
-		return defaultBlockSize
+		return DefaultBlockSize
 	}
 
 	// Return defined size or empty string if not defined.
