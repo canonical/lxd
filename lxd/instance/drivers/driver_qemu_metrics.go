@@ -144,7 +144,7 @@ func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics
 	// Get max memory usage.
 	memTotal := d.expandedConfig["limits.memory"]
 	if memTotal == "" {
-		memTotal = qemuDefaultMemSize // Default if no memory limit specified.
+		memTotal = QEMUDefaultMemSize // Default if no memory limit specified.
 	}
 
 	memTotalBytes, err := units.ParseByteSizeString(memTotal)
