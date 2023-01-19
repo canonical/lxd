@@ -96,14 +96,14 @@ test_container_devices_unix() {
   lxc start "${ctName}"
   ! ls "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
   mknod "${testDev}" "${deviceTypeCode}" 0 0
-  sleep 0.5
+  sleep 1
   lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   lxc exec "${ctName}" -- stat -c '%F %a %t %T' /tmp/testdev | grep "${deviceTypeDesc} 660 0 0"
   stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev | grep "${deviceTypeDesc} 660 0 0"
 
   # Remove host side device and check it is dynamically removed from instance.
   rm "${testDev}"
-  sleep 0.5
+  sleep 1
   ! lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   ! lxc exec "${ctName}" -- ls /tmp/testdev
   ! ls "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
@@ -112,7 +112,7 @@ test_container_devices_unix() {
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
   mknod "${testDev}" "${deviceTypeCode}" 0 0
-  sleep 0.5
+  sleep 1
   lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   lxc exec "${ctName}" -- stat -c '%F %a %t %T' /tmp/testdev | grep "${deviceTypeDesc} 660 0 0"
   stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev | grep "${deviceTypeDesc} 660 0 0"
@@ -128,14 +128,14 @@ test_container_devices_unix() {
 
   mkdir "${testDev}"
   mknod "${testDevSubDir}" "${deviceTypeCode}" 0 0
-  sleep 0.5
+  sleep 1
   lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   lxc exec "${ctName}" -- stat -c '%F %a %t %T' /tmp/testdev | grep "${deviceTypeDesc} 660 0 0"
   stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev | grep "${deviceTypeDesc} 660 0 0"
 
   # Cleanup.
   rm -rvf "${testDev}"
-  sleep 0.5
+  sleep 1
   ! lxc exec "${ctName}" -- mount | grep "/tmp/testdev"
   ! lxc exec "${ctName}" -- ls /tmp/testdev
   ! ls "${LXD_DIR}"/devices/"${ctName}"/unix.test--dev--dynamic.tmp-testdev
@@ -147,7 +147,7 @@ test_container_devices_unix() {
   lxc launch testimage "${ctName}2"
   lxc config device add "${ctName}2" test-dev-dynamic "${deviceType}" required=false source="${testDev}" path=/tmp/testdev2
   mknod "${testDev}" "${deviceTypeCode}" 0 0
-  sleep 0.5
+  sleep 1
   lxc exec "${ctName}1" -- mount | grep "/tmp/testdev1"
   lxc exec "${ctName}1" -- stat -c '%F %a %t %T' /tmp/testdev1 | grep "${deviceTypeDesc} 660 0 0"
   stat -c '%F %a %t %T' "${LXD_DIR}"/devices/"${ctName}"1/unix.test--dev--dynamic.tmp-testdev1 | grep "${deviceTypeDesc} 660 0 0"
@@ -159,7 +159,7 @@ test_container_devices_unix() {
   # instance was stopped. This checks the removal logic when multiple containers share watch path.
   lxc stop -f "${ctName}1"
   rm "${testDev}"
-  sleep 0.5
+  sleep 1
   ! lxc exec "${ctName}2" -- mount | grep "/tmp/testdev2"
   ! lxc exec "${ctName}2" -- ls /tmp/testdev2
   ! ls "${LXD_DIR}"/devices/"${ctName}"2/unix.test--dev--dynamic.tmp-testdev2
