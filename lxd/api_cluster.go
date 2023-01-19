@@ -2813,6 +2813,9 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 	return nil
 }
 
+// evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
+const evacuateHostShutdownDefaultTimeout = 30
+
 func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2883,7 +2886,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
-					val = 30
+					val = evacuateHostShutdownDefaultTimeout
 				}
 
 				// Start with a clean shutdown.
@@ -3125,7 +3128,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
-					val = 30
+					val = evacuateHostShutdownDefaultTimeout
 				}
 
 				// Attempt a clean stop.
