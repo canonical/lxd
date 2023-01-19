@@ -73,11 +73,14 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// QEMUDefaultCPUCores defines the default number of cores a VM will get if no limit specified.
+const QEMUDefaultCPUCores = 1
+
+// QEMUDefaultMemSize is the default memory size for VMs if no limit specified.
+const QEMUDefaultMemSize = "1GiB"
+
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
-
-// qemuDefaultMemSize is the default memory size for VMs if not limit specified.
-const qemuDefaultMemSize = "1GiB"
 
 // qemuPCIDeviceIDStart is the first PCI slot used for user configurable devices.
 const qemuPCIDeviceIDStart = 4
@@ -916,7 +919,7 @@ func (d *qemu) validateStartup(stateful bool) error {
 			return err
 		}
 
-		memoryLimitStr := qemuDefaultMemSize
+		memoryLimitStr := QEMUDefaultMemSize
 		if d.expandedConfig["limits.memory"] != "" {
 			memoryLimitStr = d.expandedConfig["limits.memory"]
 		}
@@ -2951,7 +2954,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 	// Configure memory limit.
 	memSize := d.expandedConfig["limits.memory"]
 	if memSize == "" {
-		memSize = qemuDefaultMemSize // Default if no memory limit specified.
+		memSize = QEMUDefaultMemSize // Default if no memory limit specified.
 	}
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
