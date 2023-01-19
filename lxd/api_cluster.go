@@ -3090,6 +3090,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Migrate back the remote instances.
 		for _, inst := range instances {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 			// Check if live-migratable.
 			_, live := inst.CanMigrate()
 
@@ -3140,6 +3142,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				// Wait for the stop operation to complete or timeout.
 				err = stopOp.Wait()
 				if err != nil {
+					l.Warn("Failed shutting down instance, forcing stop", logger.Ctx{"err": err})
+
 					// On failure, attempt a forceful stop.
 					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
 					if err != nil {
@@ -3149,7 +3153,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 					// Wait for the forceful stop to complete.
 					err = stopOp.Wait()
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "The instance is already stopped") {
 						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
