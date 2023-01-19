@@ -24,7 +24,7 @@ import (
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/drivers"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
@@ -2896,7 +2896,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 					// Fallback to forced stop.
 					err = inst.Stop(false)
-					if err != nil && !errors.Is(err, drivers.ErrInstanceIsStopped) {
+					if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
 						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
