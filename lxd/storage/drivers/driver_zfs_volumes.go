@@ -74,7 +74,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 					return err
 				}
 
-				poolVolSize := defaultBlockSize
+				poolVolSize := DefaultBlockSize
 				if vol.poolConfig["volume.size"] != "" {
 					poolVolSize = vol.poolConfig["volume.size"]
 				}
