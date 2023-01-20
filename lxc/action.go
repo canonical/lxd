@@ -123,8 +123,8 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	}
 
 	if shared.StringInSlice(action, []string{"restart", "stop"}) {
-		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the instance to shutdown"))
-		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the instance before killing it")+"``")
+		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the instance to stop"))
+		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the instance to shutdown cleanly")+"``")
 	}
 
 	return cmd
