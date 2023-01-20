@@ -6718,6 +6718,22 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 
 // statusCode returns instance status code.
 func (d *lxc) statusCode() api.StatusCode {
+	// Shortcut to avoid spamming liblxc during ongoing operations.
+	op := operationlock.Get(d.Project().Name, d.Name())
+	if op != nil {
+		if op.Action() == operationlock.ActionStart {
+			return api.Stopped
+		}
+
+		if op.Action() == operationlock.ActionStop {
+			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+				return api.Ready
+			}
+
+			return api.Running
+		}
+	}
+
 	state, err := d.getLxcState()
 	if err != nil {
 		return api.Error
