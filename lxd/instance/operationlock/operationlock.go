@@ -107,10 +107,18 @@ func Create(projectName string, instanceName string, action Action, createReusua
 				return
 			case timeout = <-op.chanReset:
 				if !timer.Stop() {
-					<-timer.C
+					// Empty timer's channel if needed.
+					select {
+					case <-timer.C:
+					default:
+					}
 				}
 
-				timer.Reset(timeout)
+				// A timeout less than zero will never expire.
+				if timeout > -1 {
+					timer.Reset(timeout)
+				}
+
 				continue
 			case <-timer.C:
 				op.Done(fmt.Errorf("Instance %q operation timed out after %v", op.action, timeout))
@@ -208,6 +216,7 @@ func (op *InstanceOperation) Reset() error {
 }
 
 // ResetTimeout resets the operation using a custom timeout until it expires.
+// A timeout less than zero will never expire.
 func (op *InstanceOperation) ResetTimeout(timeout time.Duration) error {
 	// This function can be called on a nil struct.
 	if op == nil {

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-16 14:20+0000\n"
+"POT-Creation-Date: 2023-01-20 15:06+0000\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Berber <https://hosted.weblate.org/projects/linux-containers/"
@@ -2096,7 +2096,7 @@ msgid "Force removing a member, even if degraded"
 msgstr ""
 
 #: lxc/action.go:126
-msgid "Force the instance to shutdown"
+msgid "Force the instance to stop"
 msgstr ""
 
 #: lxc/delete.go:35
@@ -5138,7 +5138,7 @@ msgid "Threads:"
 msgstr ""
 
 #: lxc/action.go:127
-msgid "Time to wait for the instance before killing it"
+msgid "Time to wait for the instance to shutdown cleanly"
 msgstr ""
 
 #: lxc/image.go:949

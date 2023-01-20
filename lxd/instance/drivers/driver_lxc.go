@@ -2762,19 +2762,24 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	// Extend operation lock for the specified timeout plus some buffer time for d.c.Shutdown to complete.
-	err = op.ResetTimeout(timeout + operationlock.TimeoutDefault)
+	// Request shutdown, but don't wait for container to stop. If call fails then cancel operation with error,
+	// otherwise expect the onStop() hook to cancel operation when done (when the container has stopped).
+	err = d.c.Shutdown(0)
 	if err != nil {
-		return err
+		op.Done(err)
 	}
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	// Request shutdown with timeout. If shutdown fails then cancel operation with the error, otherwise expect
-	// the onStop() hook to cancel operation when done.
-	err = d.c.Shutdown(timeout)
+	// Use default operation timeout if not specified (negatively or positively).
+	if timeout == 0 {
+		timeout = operationlock.TimeoutDefault
+	}
+
+	// Extend operation lock for the requested timeout.
+	err = op.ResetTimeout(timeout)
 	if err != nil {
-		op.Done(err)
+		return err
 	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
@@ -2838,10 +2843,12 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	_, err := d.onStopOperationSetup(target)
+	op, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
+
+	_ = op.Reset()
 
 	// Clean up devices.
 	d.cleanupDevices(false, netns)
@@ -2866,6 +2873,8 @@ func (d *lxc) onStop(args map[string]string) error {
 		return err
 	}
 
+	_ = op.Reset()
+
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
 
@@ -2886,8 +2895,8 @@ func (d *lxc) onStop(args map[string]string) error {
 		// Unlock on return
 		defer op.Done(nil)
 
-		// Wait for other post-stop actions to be done and the container actually stopping.
-		d.IsRunning()
+		_ = op.ResetTimeout(operationlock.TimeoutShutdown)
+
 		d.logger.Debug("Container stopped, cleaning up")
 
 		// Wait for any file operations to complete.
@@ -2911,8 +2920,6 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Stop the storage for this container
-		waitTimeout := operationlock.TimeoutShutdown
-		_ = op.ResetTimeout(waitTimeout)
 		err = d.unmount()
 		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			err = fmt.Errorf("Failed unmounting instance: %w", err)
@@ -5896,7 +5903,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 		nw, err := netutils.NetnsGetifaddrs(int32(pid), hostInterfaces)
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
-			d.logger.Error("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
+			d.logger.Warn("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
 		} else {
 			result = nw
 		}
@@ -6714,6 +6721,22 @@ func (d *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 
 // statusCode returns instance status code.
 func (d *lxc) statusCode() api.StatusCode {
+	// Shortcut to avoid spamming liblxc during ongoing operations.
+	op := operationlock.Get(d.Project().Name, d.Name())
+	if op != nil {
+		if op.Action() == operationlock.ActionStart {
+			return api.Stopped
+		}
+
+		if op.Action() == operationlock.ActionStop {
+			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
+				return api.Ready
+			}
+
+			return api.Running
+		}
+	}
+
 	state, err := d.getLxcState()
 	if err != nil {
 		return api.Error

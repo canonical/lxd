@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-16 14:20+0000\n"
+"POT-Creation-Date: 2023-01-20 15:06+0000\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2407,7 +2407,8 @@ msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
 
 #: lxc/action.go:126
-msgid "Force the instance to shutdown"
+#, fuzzy
+msgid "Force the instance to stop"
 msgstr "インスタンスを強制シャットダウンします"
 
 #: lxc/delete.go:35
@@ -5742,7 +5743,8 @@ msgid "Threads:"
 msgstr "スレッド:"
 
 #: lxc/action.go:127
-msgid "Time to wait for the instance before killing it"
+#, fuzzy
+msgid "Time to wait for the instance to shutdown cleanly"
 msgstr "インスタンスを強制停止するまで待つ時間"
 
 #: lxc/image.go:949
