@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-10 17:25-0500\n"
+"POT-Creation-Date: 2023-01-23 14:51-0500\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Telugu <https://hosted.weblate.org/projects/linux-containers/"
@@ -357,7 +357,7 @@ msgstr ""
 msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
-#: lxc/query.go:71
+#: lxc/query.go:72
 msgid "--project cannot be used with the query command"
 msgstr ""
 
@@ -435,7 +435,7 @@ msgstr ""
 msgid "Acknowledge warning"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Action (defaults to GET)"
 msgstr ""
 
@@ -567,7 +567,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:366
+#: lxc/init.go:371
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -652,7 +652,7 @@ msgstr ""
 msgid "Backup exported successfully!"
 msgstr ""
 
-#: lxc/info.go:646 lxc/storage_volume.go:1280
+#: lxc/info.go:645 lxc/storage_volume.go:1280
 msgid "Backups:"
 msgstr ""
 
@@ -667,7 +667,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:136 lxc/init.go:210 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
 #: lxc/storage.go:127 lxc/storage_volume.go:565
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -813,7 +813,7 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:309
+#: lxc/init.go:314
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
@@ -1220,12 +1220,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:157
+#: lxc/init.go:162
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:155
+#: lxc/init.go:160
 msgid "Creating the instance"
 msgstr ""
 
@@ -1407,7 +1407,7 @@ msgstr ""
 #: lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
 #: lxc/project.go:222 lxc/project.go:344 lxc/project.go:394 lxc/project.go:495
 #: lxc/project.go:550 lxc/project.go:610 lxc/project.go:639 lxc/project.go:692
-#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:32 lxc/remote.go:34
+#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:33 lxc/remote.go:34
 #: lxc/remote.go:89 lxc/remote.go:625 lxc/remote.go:661 lxc/remote.go:749
 #: lxc/remote.go:821 lxc/remote.go:875 lxc/remote.go:913 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
@@ -1499,7 +1499,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:426
+#: lxc/init.go:431
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -1729,7 +1729,7 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/info.go:632 lxc/info.go:683 lxc/storage_volume.go:1267
+#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1267
 #: lxc/storage_volume.go:1317
 msgid "Expires at"
 msgstr ""
@@ -1842,7 +1842,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:288
+#: lxc/init.go:293
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
 msgstr ""
@@ -1957,7 +1957,7 @@ msgid "Force removing a member, even if degraded"
 msgstr ""
 
 #: lxc/action.go:126
-msgid "Force the instance to shutdown"
+msgid "Force the instance to stop"
 msgstr ""
 
 #: lxc/delete.go:35
@@ -2302,11 +2302,11 @@ msgstr ""
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:43
+#: lxc/query.go:44
 msgid "Input data"
 msgstr ""
 
-#: lxc/info.go:684
+#: lxc/info.go:683
 msgid "Instance Only"
 msgstr ""
 
@@ -2323,7 +2323,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:416 lxc/init.go:433
+#: lxc/copy.go:416 lxc/init.go:438
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2803,7 +2803,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:711
 msgid "Log:"
 msgstr ""
 
@@ -3329,7 +3329,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1265
+#: lxc/info.go:629 lxc/info.go:680 lxc/storage_volume.go:1265
 #: lxc/storage_volume.go:1315
 msgid "Name"
 msgstr ""
@@ -3543,7 +3543,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr ""
 
-#: lxc/info.go:685 lxc/storage_volume.go:1319
+#: lxc/info.go:684 lxc/storage_volume.go:1319
 msgid "Optimized Storage"
 msgstr ""
 
@@ -3669,7 +3669,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Print the raw response"
 msgstr ""
 
@@ -3806,7 +3806,7 @@ msgstr ""
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:82
+#: lxc/query.go:83
 msgid "Query path must start with /"
 msgstr ""
 
@@ -4067,7 +4067,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:380
+#: lxc/init.go:385
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -4139,7 +4139,7 @@ msgstr ""
 msgid "STP"
 msgstr ""
 
-#: lxc/query.go:31 lxc/query.go:32
+#: lxc/query.go:32 lxc/query.go:33
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -4554,7 +4554,7 @@ msgstr ""
 msgid "State: %s"
 msgstr ""
 
-#: lxc/info.go:633
+#: lxc/info.go:632
 msgid "Stateful"
 msgstr ""
 
@@ -4666,7 +4666,7 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1316
+#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1316
 msgid "Taken at"
 msgstr ""
 
@@ -4728,7 +4728,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:484
+#: lxc/init.go:489
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -4737,12 +4737,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr ""
 
-#: lxc/init.go:468
+#: lxc/init.go:473
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:464
+#: lxc/init.go:469
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -4797,18 +4797,18 @@ msgid "Threads:"
 msgstr ""
 
 #: lxc/action.go:127
-msgid "Time to wait for the instance before killing it"
+msgid "Time to wait for the instance to shutdown cleanly"
 msgstr ""
 
 #: lxc/image.go:946
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:486
+#: lxc/init.go:491
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:485
+#: lxc/init.go:490
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -5050,7 +5050,7 @@ msgstr ""
 msgid "Unset storage volume configuration keys"
 msgstr ""
 
-#: lxc/info.go:704
+#: lxc/info.go:703
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -5151,7 +5151,7 @@ msgstr ""
 msgid "WWN: %s"
 msgstr ""
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -5256,7 +5256,7 @@ msgstr ""
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr ""
 
-#: lxc/query.go:30
+#: lxc/query.go:31
 msgid "[<remote>:]<API path>"
 msgstr ""
 
@@ -5973,7 +5973,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:34
+#: lxc/query.go:35
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."

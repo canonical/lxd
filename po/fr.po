@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-10 17:25-0500\n"
+"POT-Creation-Date: 2023-01-23 14:51-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -569,7 +569,7 @@ msgstr "--instance-only ne peut être utilisé lorsque la source est un snapshot
 msgid "--no-profiles cannot be used with --refresh"
 msgstr "--no-profiles ne peut pas être utilisé avec --refresh"
 
-#: lxc/query.go:71
+#: lxc/query.go:72
 msgid "--project cannot be used with the query command"
 msgstr "--project ne peut pas être utilisé avec la commande query"
 
@@ -663,7 +663,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Acknowledge warning"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Action (defaults to GET)"
 msgstr "Action (GET par défaut)"
 
@@ -812,7 +812,7 @@ msgstr ""
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:366
+#: lxc/init.go:371
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -904,7 +904,7 @@ msgstr "Copie de l'image : %s"
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/info.go:646 lxc/storage_volume.go:1280
+#: lxc/info.go:645 lxc/storage_volume.go:1280
 msgid "Backups:"
 msgstr ""
 
@@ -919,7 +919,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:136 lxc/init.go:210 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
 #: lxc/storage.go:127 lxc/storage_volume.go:565
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1071,7 +1071,7 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/init.go:309
+#: lxc/init.go:314
 #, c-format
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
@@ -1527,12 +1527,12 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/init.go:157
+#: lxc/init.go:162
 #, c-format
 msgid "Creating %s"
 msgstr "Création de %s"
 
-#: lxc/init.go:155
+#: lxc/init.go:160
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Création du conteneur"
@@ -1727,7 +1727,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
 #: lxc/project.go:222 lxc/project.go:344 lxc/project.go:394 lxc/project.go:495
 #: lxc/project.go:550 lxc/project.go:610 lxc/project.go:639 lxc/project.go:692
-#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:32 lxc/remote.go:34
+#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:33 lxc/remote.go:34
 #: lxc/remote.go:89 lxc/remote.go:625 lxc/remote.go:661 lxc/remote.go:749
 #: lxc/remote.go:821 lxc/remote.go:875 lxc/remote.go:913 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
@@ -1822,7 +1822,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr "Serveur distant : %s"
 
-#: lxc/init.go:426
+#: lxc/init.go:431
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
@@ -2089,7 +2089,7 @@ msgstr ""
 "sélectionné si à la fois stdin et stdout sont des terminaux (stderr\n"
 "est ignoré)."
 
-#: lxc/info.go:632 lxc/info.go:683 lxc/storage_volume.go:1267
+#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1267
 #: lxc/storage_volume.go:1317
 #, fuzzy
 msgid "Expires at"
@@ -2209,7 +2209,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/init.go:288
+#: lxc/init.go:293
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
 msgstr ""
@@ -2329,7 +2329,7 @@ msgstr ""
 
 #: lxc/action.go:126
 #, fuzzy
-msgid "Force the instance to shutdown"
+msgid "Force the instance to stop"
 msgstr "Forcer le conteneur à s'arrêter"
 
 #: lxc/delete.go:35
@@ -2701,11 +2701,11 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:43
+#: lxc/query.go:44
 msgid "Input data"
 msgstr ""
 
-#: lxc/info.go:684
+#: lxc/info.go:683
 #, fuzzy
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
@@ -2725,7 +2725,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:416 lxc/init.go:433
+#: lxc/copy.go:416 lxc/init.go:438
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -3279,7 +3279,7 @@ msgstr ""
 msgid "Log level filtering can only be used with pretty formatting"
 msgstr ""
 
-#: lxc/info.go:712
+#: lxc/info.go:711
 msgid "Log:"
 msgstr "Journal : "
 
@@ -3857,7 +3857,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1265
+#: lxc/info.go:629 lxc/info.go:680 lxc/storage_volume.go:1265
 #: lxc/storage_volume.go:1315
 #, fuzzy
 msgid "Name"
@@ -4088,7 +4088,7 @@ msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 msgid "Operation %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/info.go:685 lxc/storage_volume.go:1319
+#: lxc/info.go:684 lxc/storage_volume.go:1319
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4220,7 +4220,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Print the raw response"
 msgstr ""
 
@@ -4364,7 +4364,7 @@ msgstr "Création du conteneur"
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:82
+#: lxc/query.go:83
 msgid "Query path must start with /"
 msgstr ""
 
@@ -4666,7 +4666,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:380
+#: lxc/init.go:385
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -4742,7 +4742,7 @@ msgstr "ENSEMBLE DE STOCKAGE"
 msgid "STP"
 msgstr ""
 
-#: lxc/query.go:31 lxc/query.go:32
+#: lxc/query.go:32 lxc/query.go:33
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -5198,7 +5198,7 @@ msgstr "État : %s"
 msgid "State: %s"
 msgstr "État : %s"
 
-#: lxc/info.go:633
+#: lxc/info.go:632
 #, fuzzy
 msgid "Stateful"
 msgstr "à suivi d'état"
@@ -5319,7 +5319,7 @@ msgstr ""
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/info.go:631 lxc/info.go:682 lxc/storage_volume.go:1316
+#: lxc/info.go:630 lxc/info.go:681 lxc/storage_volume.go:1316
 #, fuzzy
 msgid "Taken at"
 msgstr "pris à %s"
@@ -5388,7 +5388,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:484
+#: lxc/init.go:489
 #, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
@@ -5399,12 +5399,12 @@ msgstr ""
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/init.go:468
+#: lxc/init.go:473
 #, fuzzy, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/init.go:464
+#: lxc/init.go:469
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -5462,19 +5462,19 @@ msgstr ""
 
 #: lxc/action.go:127
 #, fuzzy
-msgid "Time to wait for the instance before killing it"
+msgid "Time to wait for the instance to shutdown cleanly"
 msgstr "Temps d'attente du conteneur avant de le tuer"
 
 #: lxc/image.go:946
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:486
+#: lxc/init.go:491
 #, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:485
+#: lxc/init.go:490
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -5737,7 +5737,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset storage volume configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/info.go:704
+#: lxc/info.go:703
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -5841,7 +5841,7 @@ msgstr ""
 msgid "WWN: %s"
 msgstr "Nom : %s"
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -6020,7 +6020,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/query.go:30
+#: lxc/query.go:31
 #, fuzzy
 msgid "[<remote>:]<API path>"
 msgstr ""
@@ -7357,7 +7357,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:34
+#: lxc/query.go:35
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
