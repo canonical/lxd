@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-01-16 14:20+0000\n"
+"POT-Creation-Date: 2023-01-20 15:06+0000\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2471,7 +2471,7 @@ msgstr ""
 
 #: lxc/action.go:126
 #, fuzzy
-msgid "Force the instance to shutdown"
+msgid "Force the instance to stop"
 msgstr "Herunterfahren des Containers erzwingen."
 
 #: lxc/delete.go:35
@@ -5729,7 +5729,7 @@ msgstr ""
 
 #: lxc/action.go:127
 #, fuzzy
-msgid "Time to wait for the instance before killing it"
+msgid "Time to wait for the instance to shutdown cleanly"
 msgstr "Wartezeit bevor der Container gestoppt wird."
 
 #: lxc/image.go:949

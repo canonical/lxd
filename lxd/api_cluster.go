@@ -2955,6 +2955,9 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 	return nil
 }
 
+// evacuateHostShutdownDefaultTimeout default timeout (in seconds) for waiting for clean shutdown to complete.
+const evacuateHostShutdownDefaultTimeout = 30
+
 func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Response {
 	s := d.State()
 
@@ -3039,7 +3042,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
-					val = 30
+					val = evacuateHostShutdownDefaultTimeout
 				}
 
 				// Start with a clean shutdown.
@@ -3243,6 +3246,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Migrate back the remote instances.
 		for _, inst := range instances {
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+
 			// Check if live-migratable.
 			_, live := inst.CanMigrate()
 
@@ -3281,7 +3286,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
-					val = 30
+					val = evacuateHostShutdownDefaultTimeout
 				}
 
 				// Attempt a clean stop.
@@ -3293,6 +3298,8 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				// Wait for the stop operation to complete or timeout.
 				err = stopOp.Wait()
 				if err != nil {
+					l.Warn("Failed shutting down instance, forcing stop", logger.Ctx{"err": err})
+
 					// On failure, attempt a forceful stop.
 					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
 					if err != nil {
@@ -3302,7 +3309,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 					// Wait for the forceful stop to complete.
 					err = stopOp.Wait()
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "The instance is already stopped") {
 						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
