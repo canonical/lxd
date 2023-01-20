@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
-var cephAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
 var cephVersion string
 var cephLoaded bool
 
