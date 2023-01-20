@@ -675,18 +675,6 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	// Get the wait channel.
-	chDisconnect, err := monitor.Wait()
-	if err != nil {
-		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
-			return nil
-		}
-
-		op.Done(err)
-		return err
-	}
-
 	// Send the system_powerdown command.
 	err = monitor.Powerdown()
 	if err != nil {
@@ -701,32 +689,15 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	var timeoutCh <-chan time.Time // If no timeout specified, will be nil, and a nil channel always blocks.
-	if timeout > 0 {
-		timeoutCh = time.After(timeout)
+	// Use default operation timeout if not specified (negatively or positively).
+	if timeout == 0 {
+		timeout = operationlock.TimeoutDefault
 	}
 
-	// Setup ticker that is half the timeout of operationlock.TimeoutDefault.
-	ticker := time.NewTicker(operationlock.TimeoutDefault / 2)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-chDisconnect:
-			// VM monitor disconnected, VM is on the way to stopping, now wait for onStop() to finish.
-		case <-timeoutCh:
-			// User specified timeout has elapsed without VM stopping.
-			err = fmt.Errorf("Instance was not shutdown after timeout")
-			op.Done(err)
-		case <-ticker.C:
-			// Keep the operation alive so its around for onStop() if the instance takes longer than
-			// the default operationlock.TimeoutDefault that the operation is kept alive for.
-			if op.Reset() == nil {
-				continue
-			}
-		}
-
-		break
+	// Extend operation lock for the requested timeout.
+	err = op.ResetTimeout(timeout)
+	if err != nil {
+		return err
 	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
