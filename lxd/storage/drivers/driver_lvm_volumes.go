@@ -293,7 +293,7 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 func (d *lvm) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
 		"block.mount_options": validate.IsAny,
-		"block.filesystem":    validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
+		"block.filesystem":    validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		"lvm.stripes":         validate.Optional(validate.IsUint32),
 		"lvm.stripes.size":    validate.Optional(validate.IsSize),
 	}
