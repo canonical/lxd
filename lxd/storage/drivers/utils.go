@@ -22,6 +22,9 @@ import (
 // MinBlockBoundary minimum block boundary size to use.
 const MinBlockBoundary = 8192
 
+// blockBackedAllowedFilesystems allowed filesystems for block volumes.
+var blockBackedAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
+
 // wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
 	// List all entries.
