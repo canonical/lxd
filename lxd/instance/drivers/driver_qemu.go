@@ -6020,11 +6020,11 @@ func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
 	op := operationlock.Get(d.Project().Name, d.Name())
 	if op != nil {
-		if op.Action() == "start" {
+		if op.Action() == operationlock.ActionStart {
 			return api.Stopped
 		}
 
-		if op.Action() == "stop" {
+		if op.Action() == operationlock.ActionStop {
 			if shared.IsTrue(d.LocalConfig()["volatile.last_state.ready"]) {
 				return api.Ready
 			}
