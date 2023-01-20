@@ -924,6 +924,8 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 		}
 
 		op.SetInstanceInitiated(true)
+	} else {
+		d.logger.Debug("Instance operation lock inherited for stop", logger.Ctx{"action": op.Action()})
 	}
 
 	return op, nil
