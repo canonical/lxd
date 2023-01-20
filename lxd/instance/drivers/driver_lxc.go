@@ -5893,7 +5893,7 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 		nw, err := netutils.NetnsGetifaddrs(int32(pid), hostInterfaces)
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
-			d.logger.Error("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
+			d.logger.Warn("Failed to retrieve network information via netlink", logger.Ctx{"pid": pid})
 		} else {
 			result = nw
 		}
