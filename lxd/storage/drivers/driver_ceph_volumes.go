@@ -813,7 +813,7 @@ func (d *ceph) FillVolumeConfig(vol Volume) error {
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *ceph) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
-		"block.filesystem":    validate.Optional(validate.IsOneOf(cephAllowedFilesystems...)),
+		"block.filesystem":    validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
 		"block.mount_options": validate.IsAny,
 	}
 }
