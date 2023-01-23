@@ -24,8 +24,6 @@ const lvmVgPoolMarker = "lxd_pool" // Indicator tag used to mark volume groups a
 var lvmLoaded bool
 var lvmVersion string
 
-var lvmAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
-
 type lvm struct {
 	common
 }
