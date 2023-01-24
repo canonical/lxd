@@ -2933,33 +2933,44 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1 \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node1 \
     -s pool1 \
     -c cluster.evacuate=auto \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c3 --target=node1 \
     -c cluster.evacuate=stop \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c4 --target=node1 \
     -s pool1 \
     -c cluster.evacuate=migrate \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c5 --target=node1 \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c6 --target=node2 \
-    -c boot.host_shutdown_timeout=1
+    -c boot.host_shutdown_timeout=1 \
+    -c raw.lxc=lxc.log.level=trace
 
   # For debugging
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Evacuate first node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force
+  if LXD_DIR="${LXD_TWO_DIR}" lxc cluster evacuate node1 --force; then
+    true
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc info c1 --show-log
+    false
+  fi
 
   # Ensure the node is evacuated
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"

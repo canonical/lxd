@@ -2659,8 +2659,13 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 	}
 
+	initPID := d.c.InitPid()
+	if initPID > 0 {
+		unix.Kill(initPID, unix.SIGKILL)
+	}
+
 	err = d.c.Stop()
-	if err != nil {
+	if err != nil && !strings.HasPrefix(err.Error(), liblxc.ErrNotRunning.Error()) {
 		op.Done(err)
 		return err
 	}
