@@ -1,82 +1,63 @@
----
-discourse: 9310
----
-
 (about-images)=
 # About images
 
 ```{youtube} https://www.youtube.com/watch?v=wT7IDjo0Wgg
 ```
 
-Instances are based on images, which contain a basic operating system (for example a Linux distribution) and some other LXD-related information.
+LXD uses an image-based workflow.
+Each instance is based on an image, which contains a basic operating system (for example, a Linux distribution) and some LXD-related information.
 
-## Introduction
+Images are available from remote image stores (see {ref}`remote-image-servers` for an overview), but you can also create your own images, either based on an existing instances or a rootfs image.
 
-LXD uses an image based workflow. It comes with a built-in image store
-where the user or external tools can import images.
+You can copy images from remote servers to your local image store, or copy local images to remote servers.
+You can also use a local image to create a remote instance.
 
-Containers are then started from those images.
-
-It's possible to spawn remote instances using local images or local
-instances using remote images. In such cases, the image may be cached
-on the target LXD.
-
-## Sources
-
-LXD supports importing images from three different sources:
-
-- Remote image server (LXD or simplestreams)
-- Direct pushing of the image files
-- File on a remote web server
+Each image is identified by a fingerprint (SHA256).
+To make it easier to manage images, LXD allows defining one or more aliases for each image.
 
 ## Caching
 
-When spawning an instance from a remote image, the remote image is
-downloaded into the local image store with the cached bit set. The image
-will be kept locally as a private image until either it's been unused
-(no new instance spawned) for the number of days set in
-`images.remote_cache_expiry` or until the image's expiry is reached
-whichever comes first.
+When you create an instance using a remote image, LXD downloads the image and caches it locally.
+It is stored in the local image store with the cached flag set.
+The image is kept locally as a private image until either:
 
-LXD keeps track of image usage by updating the `last_used_at` image
-property every time a new instance is spawned from the image.
+- The image has not been used to create a new instance for the number of days set in [`images.remote_cache_expiry`](server-options-images).
+- The image's expiry date (one of the image properties; see {ref}`images-manage-edit` for information on how to change it) is reached.
+
+LXD keeps track of the image usage by updating the `last_used_at` image property every time a new instance is spawned from the image.
 
 ## Auto-update
 
-LXD can keep images up to date. By default, any image which comes from a
-remote server and was requested through an alias will be automatically
-updated by LXD. This can be changed with `images.auto_update_cached`.
+LXD can automatically keep images that come from a remote server up to date.
 
-On startup and then every 6 hours (unless `images.auto_update_interval`
-is set), the LXD daemon will go look for more recent version of all the
-images in the store which are marked as auto-update and have a recorded
-source server.
+```{note}
+Only images that are requested through an alias can be updated.
+If you request an image through a fingerprint, you request an exact image version.
+```
 
-When a new image is found, it is downloaded into the image store, the
-aliases pointing to the old image are moved to the new one and the old
-image is removed from the store.
+Whether auto-update is enabled for an image depends on how the image was downloaded:
 
-The user can also request a particular image be kept up to date when
-manually copying an image from a remote server.
+- If the image was downloaded and cached when creating an instance, it is automatically updated if [`images.auto_update_cached`](server-options-images) was set to `true` (the default) at download time.
+- If the image was copied from a remote server using the `lxc image copy` command, it is automatically updated only if the `--auto-update` flag was specified.
 
-If a new upstream image update is published and the local LXD has the
-previous image in its cache when the user requests a new instance to be
-created from it, LXD will use the previous version of the image rather
-than delay the instance creation.
+You can change this behavior for an image by [editing the `auto_update` property](images-manage-edit).
 
-This behavior only happens if the current image is scheduled to be
-auto-updated and can be disabled by setting `images.auto_update_interval` to 0.
+On startup and after every [`images.auto_update_interval`](server-options-images) (by default, every six hours), the LXD daemon checks for more recent versions of all the images in the store that are marked to be auto-updated and have a recorded source server.
+
+When a new version of an image is found, it is downloaded into the image store.
+Then any aliases pointing to the old image are moved to the new one, and the old image is removed from the store.
+
+To not delay instance creation, LXD does not check if a new version is available when creating an instance from a cached image.
+This means that the instance might use an older version of an image for the new instance until the image is updated at the next update interval.
 
 ## Special image properties
 
-Image properties beginning with the prefix ***requirements*** (e.g. `requirements.XYZ`)
-are used by LXD to determine the compatibility of the host system and the
-instance to be created by said image. In the event that these are incompatible,
-LXD will not start the instance.
+Image properties that begin with the prefix `requirements` (for example, `requirements.XYZ`) are used by LXD to determine the compatibility of the host system and the instance that is created based on the image.
+If these are incompatible, LXD does not start the instance.
 
-At the moment, the following requirements are supported:
+The following requirements are supported:
 
 Key                                         | Type      | Default      | Description
 :--                                         | :---      | :------      | :----------
-`requirements.secureboot`                   | string    | -            | If set to `false`, indicates the image will not boot under secure boot
-`requirements.cgroup`                       | string    | -            | If set to `v1`, indicates the image requires the host to run `CGroupV1`
+`requirements.secureboot`                   | string    | -            | If set to `false`, indicates that the image cannot boot under secure boot.
+`requirements.cgroup`                       | string    | -            | If set to `v1`, indicates that the image requires the host to run cgroup v1.
