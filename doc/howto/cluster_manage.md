@@ -24,6 +24,10 @@ To see more detailed information about an individual cluster member, run the fol
 
     lxc cluster show <member_name>
 
+To see state and usage information for a cluster member, run the following command:
+
+    lxc cluster info <member_name>
+
 ## Configure your cluster
 
 To configure your cluster, use `lxc config`.
