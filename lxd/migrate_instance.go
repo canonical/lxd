@@ -140,28 +140,14 @@ func snapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
 	}
 }
 
-// Check if CRIU supports pre-dumping and number of
-// pre-dump iterations.
+// Check if CRIU supports pre-dumping and number of pre-dump iterations.
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
-	// Ask CRIU if this architecture/kernel/criu combination
-	// supports pre-copy (dirty memory tracking)
-	criuMigrationArgs := instance.CriuMigrationArgs{
-		Cmd:          liblxc.MIGRATE_FEATURE_CHECK,
-		StateDir:     "",
-		Function:     "feature-check",
-		Stop:         false,
-		ActionScript: false,
-		DumpDir:      "",
-		PreDumpDir:   "",
-		Features:     liblxc.FEATURE_MEM_TRACK,
-	}
-
 	if s.instance.Type() != instancetype.Container {
 		return false, 0
 	}
 
-	err := s.instance.Migrate(&criuMigrationArgs)
-
+	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
+	_, err := shared.RunCommand("criu", "check", "--feature", "mem_dirty_track")
 	if err != nil {
 		// CRIU says it does not know about dirty memory tracking.
 		// This means the rest of this function is irrelevant.
