@@ -939,7 +939,10 @@ func (d *qemu) Start(stateful bool) error {
 	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
-	err := d.validateStartup(stateful)
+	// Check that we are startable before creating an operation lock.
+	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
+	// existence of a Start operation lock.
+	err := d.validateStartup(stateful, d.statusCode())
 	if err != nil {
 		return err
 	}
