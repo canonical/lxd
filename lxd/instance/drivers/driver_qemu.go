@@ -886,23 +886,8 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 }
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
-func (d *qemu) validateStartup(stateful bool) error {
-	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
-	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
-	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
-	// error with an ERROR status code from the instance check instead.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
-	if err != nil {
-		return err
-	}
-
-	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
-		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
-	}
-
-	// Check that we are startable before creating an operation lock, so if the instance is in the
-	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
-	err = d.isStartableStatusCode(d.statusCode())
+func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
+	err := d.common.validateStartup(stateful, statusCode)
 	if err != nil {
 		return err
 	}
