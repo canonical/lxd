@@ -900,11 +900,11 @@ func (d *common) maasDelete(inst instance.Instance) error {
 func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
 	var err error
 
-	// Pick up the existing stop operation lock created in Stop() function.
-	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
-	// to run the hook (this should be quick as it will fail showing instance is already running).
+	// Pick up the existing stop operation lock created in Start(), Restart(), Shutdown() or Stop() functions.
+	// If there is another ongoing operation that isn't in our inheritable list, wait until that has finished
+	// before proceeding to run the hook.
 	op := operationlock.Get(d.Project().Name, d.Name())
-	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
+	if op != nil && !op.ActionMatch(operationlock.ActionStart, operationlock.ActionRestart, operationlock.ActionStop, operationlock.ActionRestore) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		_ = op.Wait()
 		op = nil
