@@ -1719,12 +1719,6 @@ func (d *qemu) RegisterDevices() {
 	d.devicesRegister(d)
 }
 
-// SaveConfigFile is not used by VMs because the Qemu config file is generated at start up and is not needed
-// after that, so doesn't need to support being regenerated.
-func (d *qemu) SaveConfigFile() error {
-	return nil
-}
-
 func (d *qemu) saveConnectionInfo(connInfo *agentAPI.API10Put) error {
 	configDrivePath := filepath.Join(d.Path(), "config")
 

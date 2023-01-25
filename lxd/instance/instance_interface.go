@@ -72,7 +72,6 @@ type Instance interface {
 	Restart(timeout time.Duration) error
 	Unfreeze() error
 	RegisterDevices()
-	SaveConfigFile() error
 
 	Info() Info
 	IsPrivileged() bool
