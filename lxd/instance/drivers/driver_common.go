@@ -893,6 +893,31 @@ func (d *common) maasDelete(inst instance.Instance) error {
 	return d.state.MAAS.DeleteContainer(d)
 }
 
+// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
+func (d *common) validateStartup(stateful bool, statusCode api.StatusCode) error {
+	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
+	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
+	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
+	// error with an ERROR status code from the instance check instead.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
+	}
+
+	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
+	// existence of a Start operation lock.
+	err = d.isStartableStatusCode(statusCode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
 // ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
 // request run at the same time from overlapping with the stop process.
