@@ -97,6 +97,18 @@ func (l *Link) SetAddress(address string) error {
 	return nil
 }
 
+// SetAllMulticast when enabled instructs network driver to retrieve all multicast packets from the network to the
+// kernel for further processing.
+func (l *Link) SetAllMulticast(enabled bool) error {
+	mode := "off"
+	if enabled {
+		mode = "on"
+	}
+
+	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "allmulticast", mode)
+	return err
+}
+
 // SetMaster sets the master of the link device.
 func (l *Link) SetMaster(master string) error {
 	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "master", master)
