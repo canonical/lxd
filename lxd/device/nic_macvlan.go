@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -11,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -198,6 +200,19 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		err = macvtap.Add()
 		if err != nil {
 			return nil, err
+		}
+
+		// Enable all multicast processing which is required for IPv6 NDP functionality.
+		link := &ip.Link{Name: saveData["host_name"]}
+		err = link.SetAllMulticast(true)
+		if err != nil {
+			return nil, fmt.Errorf("Failed setting all multicast on %q: %w", link.Name, err)
+		}
+
+		// Disable IPv6 on host interface to avoid getting IPv6 link-local addresses unnecessarily.
+		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", link.Name), "1")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Failed to disable IPv6 on host interface %q: %w", link.Name, err)
 		}
 	}
 
