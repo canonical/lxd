@@ -288,6 +288,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
 			"type":         api.InstanceTypeVM,
 			"storage-pool": d.storagePool.Name(),
+			"location":     d.Location(),
 		}))
 	}
 
