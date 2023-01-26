@@ -3303,7 +3303,12 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
 
 	revert.Success()
 	return nil
@@ -3432,7 +3437,12 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			return err
 		}
 
-		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
+		eventCtx := logger.Ctx{"type": vol.Type()}
+		if !b.Driver().Info().Remote {
+			eventCtx["location"] = b.state.ServerName
+		}
+
+		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
 
 		revert.Success()
 		return nil
@@ -3822,7 +3832,12 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, eventCtx))
 
 	revert.Success()
 	return nil
@@ -5499,7 +5514,12 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		return fmt.Errorf("Custom volume restore doesn't support post hooks")
 	}
 
-	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, logger.Ctx{"type": vol.Type()}))
+	eventCtx := logger.Ctx{"type": vol.Type()}
+	if !b.Driver().Info().Remote {
+		eventCtx["location"] = b.state.ServerName
+	}
+
+	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, eventCtx))
 
 	revert.Success()
 	return nil
