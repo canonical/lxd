@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/scriptlet"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -3089,6 +3090,42 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			}
 
 			var targetMemberInfo *db.NodeInfo
+
+			// Run instance placement scriptlet if enabled.
+			if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+				leaderAddress, err := d.gateway.LeaderAddress()
+				if err != nil {
+					return err
+				}
+
+				// Copy request so we don't modify it when expanding the config.
+				reqExpanded := api.InstancesPost{
+					Name: inst.Name(),
+					Type: api.InstanceType(inst.Type().String()),
+					InstancePut: api.InstancePut{
+						Config:  inst.ExpandedConfig(),
+						Devices: inst.ExpandedDevices().CloneNative(),
+					},
+				}
+
+				reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
+				if err != nil {
+					return fmt.Errorf("Failed getting architecture for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				}
+
+				for _, p := range inst.Profiles() {
+					reqExpanded.Profiles = append(reqExpanded.Profiles, p.Name)
+				}
+
+				ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+				targetMemberInfo, err = scriptlet.InstancePlacementRun(ctx, logger.Log, s, scriptlet.InstancePlacementReasonEvacuation, &reqExpanded, candidateMembers, leaderAddress)
+				if err != nil {
+					cancel()
+					return fmt.Errorf("Failed instance placement scriptlet for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				}
+
+				cancel()
+			}
 
 			// If target member not specified yet, then find the least loaded cluster member which
 			// supports the instance's architecture.
