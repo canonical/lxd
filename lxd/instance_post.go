@@ -26,6 +26,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var internalClusterInstanceMovedCmd = APIEndpoint{
@@ -625,6 +626,8 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return fmt.Errorf("Failed getting instance %q state: %w", inst.Name(), err)
 		}
 
+		logger.Error("tomp instancePostClusteringMigrate", logger.Ctx{"instance": inst.Name(), "StatusCode": entry.StatusCode})
+
 		startAgain := false
 		if entry.StatusCode != api.Stopped {
 			startAgain = true
@@ -634,6 +637,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 				Timeout:  30,
 			}
 
+			logger.Error("tomp instancePostClusteringMigrate stopping", logger.Ctx{"instance": inst.Name()})
 			op, err := source.UpdateInstanceState(inst.Name(), req, "")
 			if err != nil {
 				return err
@@ -736,6 +740,8 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		}
 
 		if startAgain {
+			logger.Error("tomp instancePostClusteringMigrate starting", logger.Ctx{"instance": inst.Name()})
+
 			req := api.InstanceStatePut{
 				Action:   "start",
 				Stateful: stateful,
