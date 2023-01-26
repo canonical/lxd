@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	scriptletLoad "github.com/lxc/lxd/lxd/scriptlet/load"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -943,6 +944,15 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	if acmeCAURLChanged || acmeDomainChanged {
 		err := autoRenewCertificate(d.shutdownCtx, d, acmeCAURLChanged)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Compile and load the instance placement scriptlet.
+	value, ok = clusterChanged["instances.placement.scriptlet"]
+	if ok {
+		err := scriptletLoad.InstancePlacementSet(value)
 		if err != nil {
 			return err
 		}

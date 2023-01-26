@@ -79,7 +79,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 				return err
 			}
 
-			poolVolSize := defaultBlockSize
+			poolVolSize := DefaultBlockSize
 			if vol.poolConfig["volume.size"] != "" {
 				poolVolSize = vol.poolConfig["volume.size"]
 			}

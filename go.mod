@@ -127,6 +127,7 @@ require (
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
+	go.starlark.net v0.0.0-20230110155749-dcdc0f0598e3 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect

@@ -28,7 +28,7 @@ With cluster groups, you can target an instance to run on one of the members of 
 ```{note}
 [`scheduler.instance`](cluster-member-config) must be set to either `all` (the default) or `group` to allow instances to be targeted to a cluster group.
 
-See {ref}`clustering-assignment` for more information.
+See {ref}`clustering-instance-placement` for more information.
 ```
 
 To launch an instance on a member of a cluster group, follow the instructions in {ref}`cluster-target-instance`, but use the group name prefixed with `@` for the `--target` flag.
