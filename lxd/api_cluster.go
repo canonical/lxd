@@ -26,7 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/drivers"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/scriptlet"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -2992,8 +2993,6 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		instances[i] = inst
 	}
 
-	var targetNode *db.NodeInfo
-
 	run := func(op *operations.Operation) error {
 		// Setup a reverter.
 		revert := revert.New()
@@ -3011,6 +3010,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 		})
 
 		metadata := make(map[string]any)
+
+		ctx := context.TODO()
 
 		for _, inst := range instances {
 			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
@@ -3052,7 +3053,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 					// Fallback to forced stop.
 					err = inst.Stop(false)
-					if err != nil && !errors.Is(err, drivers.ErrInstanceIsStopped) {
+					if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
 						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
@@ -3069,19 +3070,15 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				continue
 			}
 
-			// Find the least loaded cluster member which supports the architecture.
-			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Get candidate cluster members to move instances to.
+			var candidateMembers []db.NodeInfo
+			err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
 				allMembers, err := tx.GetNodes(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed getting cluster members: %w", err)
 				}
 
-				candidateMembers, err := tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, s.GlobalConfig.OfflineThreshold())
-				if err != nil {
-					return err
-				}
-
-				targetNode, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+				candidateMembers, err = tx.GetCandidateMembers(ctx, allMembers, []int{inst.Architecture()}, "", nil, s.GlobalConfig.OfflineThreshold())
 				if err != nil {
 					return err
 				}
@@ -3092,14 +3089,68 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				return err
 			}
 
+			var targetMemberInfo *db.NodeInfo
+
+			// Run instance placement scriptlet if enabled.
+			if s.GlobalConfig.InstancesPlacementScriptlet() != "" {
+				leaderAddress, err := d.gateway.LeaderAddress()
+				if err != nil {
+					return err
+				}
+
+				// Copy request so we don't modify it when expanding the config.
+				reqExpanded := api.InstancesPost{
+					Name: inst.Name(),
+					Type: api.InstanceType(inst.Type().String()),
+					InstancePut: api.InstancePut{
+						Config:  inst.ExpandedConfig(),
+						Devices: inst.ExpandedDevices().CloneNative(),
+					},
+				}
+
+				reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
+				if err != nil {
+					return fmt.Errorf("Failed getting architecture for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				}
+
+				for _, p := range inst.Profiles() {
+					reqExpanded.Profiles = append(reqExpanded.Profiles, p.Name)
+				}
+
+				ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+				targetMemberInfo, err = scriptlet.InstancePlacementRun(ctx, logger.Log, s, scriptlet.InstancePlacementReasonEvacuation, &reqExpanded, candidateMembers, leaderAddress)
+				if err != nil {
+					cancel()
+					return fmt.Errorf("Failed instance placement scriptlet for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				}
+
+				cancel()
+			}
+
+			// If target member not specified yet, then find the least loaded cluster member which
+			// supports the instance's architecture.
+			if targetMemberInfo == nil {
+				err = d.db.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+					targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+
 			// Skip migration if no target available.
-			if targetNode == nil {
+			if targetMemberInfo == nil {
 				l.Warn("No migration target available for instance")
 				continue
 			}
 
 			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetNode.Name)
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetMemberInfo.Name)
 			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
@@ -3113,9 +3164,9 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				Live: live,
 			}
 
-			err = migrateInstance(d, r, inst, targetNode.Name, false, req, op)
+			err = migrateInstance(d, r, inst, targetMemberInfo.Name, false, req, op)
 			if err != nil {
-				return fmt.Errorf("Failed to migrate instance: %w", err)
+				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
 			}
 
 			if !isRunning || live {
@@ -3123,9 +3174,9 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 			}
 
 			// Start it back up on target.
-			dest, err := cluster.Connect(targetNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			dest, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return fmt.Errorf("Failed to connect to destination: %w", err)
+				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
 			}
 
 			dest = dest.UseProject(inst.Project().Name)

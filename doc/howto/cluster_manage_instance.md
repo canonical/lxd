@@ -17,7 +17,7 @@ For example, to launch an instance named `c1` on the cluster member `server2`, u
 You can launch instances on specific cluster members or on specific {ref}`cluster groups <howto-cluster-groups>`.
 
 If you do not specify a target, the instance is assigned to a cluster member automatically.
-See {ref}`clustering-assignment` for more information.
+See {ref}`clustering-instance-placement` for more information.
 
 ## Check where an instance is located
 
