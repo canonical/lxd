@@ -643,7 +643,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
 			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return fmt.Errorf("Failed to mount LVM logical volume: %w", err)
@@ -936,7 +936,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		// Default to mounting the original snapshot directly. This may be changed below if a temporary
 		// snapshot needs to be taken.
 		mountVol := snapVol
-		mountFlags, mountOptions := resolveMountOptions(mountVol.ConfigBlockMountOptions())
+		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(mountVol.ConfigBlockMountOptions(), ","))
 
 		// Regenerate filesystem UUID if needed. This is because some filesystems do not allow mounting
 		// multiple volumes that share the same UUID. As snapshotting a volume will copy its UUID we need

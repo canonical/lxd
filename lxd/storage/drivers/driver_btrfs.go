@@ -305,7 +305,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 
 	// Trigger a re-mount.
 	d.config["btrfs.mount_options"] = val
-	mntFlags, mntOptions := resolveMountOptions(d.getMountOptions())
+	mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
 	mntFlags |= unix.MS_REMOUNT
 
 	err := TryMount("", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
@@ -355,7 +355,7 @@ func (d *btrfs) Mount() (bool, error) {
 	}
 
 	// Get the custom mount flags/options.
-	mntFlags, mntOptions := resolveMountOptions(d.getMountOptions())
+	mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
 
 	// Handle bind-mounts first.
 	if mntFilesystem == "none" {
