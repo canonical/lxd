@@ -1245,7 +1245,7 @@ func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
-	mntOptions := shared.SplitNTrimSpace(d.config["raw.mount.options"], "-", -1, true)
+	mntOptions := shared.SplitNTrimSpace(d.config["raw.mount.options"], ",", -1, true)
 	fsName := "none"
 
 	var isFile bool
