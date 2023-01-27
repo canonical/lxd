@@ -164,3 +164,61 @@ func PathNameDecode(text string) string {
 	// converted back to "/" before making a final pass to convert "\0" back to original "-".
 	return strings.Replace(strings.Replace(strings.Replace(text, "--", "\000", -1), "-", "/", -1), "\000", "-", -1)
 }
+
+// mountOption represents an individual mount option.
+type mountOption struct {
+	capture bool
+	flag    uintptr
+}
+
+// mountFlagTypes represents a list of possible mount flags.
+var mountFlagTypes = map[string]mountOption{
+	"async":         {false, unix.MS_SYNCHRONOUS},
+	"atime":         {false, unix.MS_NOATIME},
+	"bind":          {true, unix.MS_BIND},
+	"defaults":      {true, 0},
+	"dev":           {false, unix.MS_NODEV},
+	"diratime":      {false, unix.MS_NODIRATIME},
+	"dirsync":       {true, unix.MS_DIRSYNC},
+	"exec":          {false, unix.MS_NOEXEC},
+	"lazytime":      {true, unix.MS_LAZYTIME},
+	"mand":          {true, unix.MS_MANDLOCK},
+	"noatime":       {true, unix.MS_NOATIME},
+	"nodev":         {true, unix.MS_NODEV},
+	"nodiratime":    {true, unix.MS_NODIRATIME},
+	"noexec":        {true, unix.MS_NOEXEC},
+	"nomand":        {false, unix.MS_MANDLOCK},
+	"norelatime":    {false, unix.MS_RELATIME},
+	"nostrictatime": {false, unix.MS_STRICTATIME},
+	"nosuid":        {true, unix.MS_NOSUID},
+	"rbind":         {true, unix.MS_BIND | unix.MS_REC},
+	"relatime":      {true, unix.MS_RELATIME},
+	"remount":       {true, unix.MS_REMOUNT},
+	"ro":            {true, unix.MS_RDONLY},
+	"rw":            {false, unix.MS_RDONLY},
+	"strictatime":   {true, unix.MS_STRICTATIME},
+	"suid":          {false, unix.MS_NOSUID},
+	"sync":          {true, unix.MS_SYNCHRONOUS},
+}
+
+// ResolveMountOptions resolves the provided mount options.
+func ResolveMountOptions(options []string) (uintptr, string) {
+	mountFlags := uintptr(0)
+	var mountOptions []string
+
+	for i := range options {
+		do, ok := mountFlagTypes[options[i]]
+		if !ok {
+			mountOptions = append(mountOptions, options[i])
+			continue
+		}
+
+		if do.capture {
+			mountFlags |= do.flag
+		} else {
+			mountFlags &= ^do.flag
+		}
+	}
+
+	return mountFlags, strings.Join(mountOptions, ",")
+}
