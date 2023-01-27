@@ -675,9 +675,13 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// We don't know the volume's config yet as tarball hasn't been unpacked.
-	// We will apply the config as part of the post hook function returned if driver needs to.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	var volumeConfig map[string]string
+
+	if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+		volumeConfig = srcBackup.Config.Volume.Config
+	}
+
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 
 	importRevert := revert.New()
 	defer importRevert.Fail()
