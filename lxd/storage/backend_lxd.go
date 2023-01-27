@@ -1937,6 +1937,11 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	revert := revert.New()
 	defer revert.Fail()
 
+	volume, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
 	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
 	if err != nil {
@@ -1979,8 +1984,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	newVolStorageName := project.Instance(inst.Project().Name, newName)
 	contentType := InstanceContentType(inst)
 
-	// There's no need to pass config as it's not needed when renaming a volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	vol := b.GetVolume(volType, contentType, volStorageName, volume.Config)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
@@ -3910,8 +3914,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	volStorageName := project.StorageVolume(projectName, volName)
 	newVolStorageName := project.StorageVolume(projectName, newVolName)
 
-	// There's no need to pass the config as it's not needed when renaming a volume.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
