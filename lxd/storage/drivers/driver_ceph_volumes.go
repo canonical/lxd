@@ -1172,7 +1172,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 				}
 			}
 
-			mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
 			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return err
@@ -1611,7 +1611,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		revert.Add(func() { _ = d.rbdUnmapVolume(cloneVol, true) })
 
 		RBDFilesystem := snapVol.ConfigBlockFilesystem()
-		mountFlags, mountOptions := resolveMountOptions(snapVol.ConfigBlockMountOptions())
+		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(snapVol.ConfigBlockMountOptions(), ","))
 
 		if renegerateFilesystemUUIDNeeded(RBDFilesystem) {
 			if RBDFilesystem == "xfs" {
