@@ -48,6 +48,9 @@ type ConnectionArgs struct {
 	// Custom HTTP Client (used as base for the connection)
 	HTTPClient *http.Client
 
+	// TransportWrapper wraps the *http.Transport set by lxd
+	TransportWrapper func(*http.Transport) http.RoundTripper
+
 	// Controls whether a client verifies the server's certificate chain and host name.
 	InsecureSkipVerify bool
 
@@ -259,7 +262,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy, args.TransportWrapper)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +333,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy, args.TransportWrapper)
 	if err != nil {
 		return nil, err
 	}
