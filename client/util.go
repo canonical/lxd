@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
+func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) http.RoundTripper) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
 	if err != nil {
@@ -88,7 +88,11 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 		client = &http.Client{}
 	}
 
-	client.Transport = transport
+	if transportWrapper != nil {
+		client.Transport = transportWrapper(transport)
+	} else {
+		client.Transport = transport
+	}
 
 	// Setup redirect policy
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
