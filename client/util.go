@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) http.RoundTripper) (*http.Client, error) {
+func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool, proxy func(req *http.Request) (*url.URL, error), transportWrapper func(t *http.Transport) HTTPTransporter) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
 	if err != nil {
@@ -231,4 +231,13 @@ func parseFilters(filters []string) string {
 		}
 	}
 	return strings.Join(result, " and ")
+}
+
+// HTTPTransporter represents a wrapper around *http.Transport.
+// It is used to add some pre and postprocessing logic to http requests / responses.
+type HTTPTransporter interface {
+	http.RoundTripper
+
+	// Transport what this struct wraps
+	Transport() *http.Transport
 }
