@@ -75,17 +75,19 @@ test_container_devices_raw_mount_options() {
 
   lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ] || false
+  lxc exec foo-priv -- touch /mnt/foo
   lxc config device remove foo-priv loop_raw_mount_options
 
-  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  ! lxc exec foo-priv -- touch /mnt/foo || false
   lxc config device remove foo-priv loop_raw_mount_options
 
   lxc stop foo-priv -f
-  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456,ro
   lxc start foo-priv
-
   [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  ! lxc exec foo-priv -- touch /mnt/foo || false
   lxc config device remove foo-priv loop_raw_mount_options
 
   lxc delete -f foo-priv
