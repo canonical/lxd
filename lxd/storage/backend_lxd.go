@@ -5799,7 +5799,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		apiContentType = db.StoragePoolVolumeContentTypeNameFS
 
 		// Detect block volume filesystem (by mounting it (if not already) with filesystem probe mode).
-		if b.driver.Info().BlockBacking {
+		if vol.IsBlockBacked() {
 			var blockFS string
 			mountPath := vol.MountPath()
 			if filesystem.IsMountPoint(mountPath) {
