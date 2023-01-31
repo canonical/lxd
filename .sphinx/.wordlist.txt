@@ -99,6 +99,7 @@ IOV
 IPs
 IPv
 IPVLAN
+JIT
 jq
 JSON
 kB
