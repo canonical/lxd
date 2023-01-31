@@ -364,7 +364,7 @@ func (v Volume) SnapshotsMatch(snapNames []string, op *operations.Operation) err
 
 // IsBlockBacked indicates whether storage device is block backed.
 func (v Volume) IsBlockBacked() bool {
-	return v.driver.Info().BlockBacking
+	return v.driver.Info().BlockBacking || v.mountFilesystemProbe
 }
 
 // Type returns the volume type.
