@@ -49,7 +49,7 @@ type ConnectionArgs struct {
 	HTTPClient *http.Client
 
 	// TransportWrapper wraps the *http.Transport set by lxd
-	TransportWrapper func(*http.Transport) http.RoundTripper
+	TransportWrapper func(*http.Transport) HTTPTransporter
 
 	// Controls whether a client verifies the server's certificate chain and host name.
 	InsecureSkipVerify bool
