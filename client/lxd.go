@@ -407,7 +407,10 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 
 func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	// Grab the http transport handler
-	httpTransport := r.http.Transport.(*http.Transport)
+	httpTransport, err := r.getUnderlyingHTTPTransport()
+	if err != nil {
+		return nil, err
+	}
 
 	// Setup a new websocket dialer based on it
 	dialer := websocket.Dialer{
@@ -470,4 +473,17 @@ func (r *ProtocolLXD) WithContext(ctx context.Context) InstanceServer {
 	rr := r
 	rr.ctx = ctx
 	return rr
+}
+
+// getUnderlyingHTTPTransport returns the *http.Transport used by the http client. If the http
+// client was initialized with a HTTPTransporter, it returns the wrapped *http.Transport.
+func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
+	switch t := r.http.Transport.(type) {
+	case *http.Transport:
+		return t, nil
+	case HTTPTransporter:
+		return t.Transport(), nil
+	default:
+		return nil, fmt.Errorf("Unexpected http.Transport type, %T", r)
+	}
 }
