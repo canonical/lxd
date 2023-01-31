@@ -581,7 +581,13 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		// volume (so that only the single "logical" volume is returned).
 		existingVol, foundExisting := vols[volName]
 		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
-			vols[volName] = NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+			v := NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+
+			if contentType == ContentTypeFS {
+				v.SetMountFilesystemProbe(true)
+			}
+
+			vols[volName] = v
 			continue
 		}
 
