@@ -220,8 +220,8 @@ func TestSetNodeHeartbeat(t *testing.T) {
 	assert.True(t, node.IsOffline(20*time.Second))
 }
 
-// A node is considered empty only if it has no containers.
-func TestNodeIsEmpty_Containers(t *testing.T) {
+// A node is considered empty only if it has no instances.
+func TestNodeIsEmpty_Instances(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -239,7 +239,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 
 	message, err = tx.NodeIsEmpty(context.Background(), id)
 	require.NoError(t, err)
-	assert.Equal(t, "Node still has the following containers: foo", message)
+	assert.Equal(t, "Node still has the following instances: foo", message)
 
 	err = tx.ClearNode(context.Background(), id)
 	require.NoError(t, err)
