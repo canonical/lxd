@@ -106,51 +106,27 @@ Here is an example of a `prometheus.yaml` configuration where multiple jobs are 
 
 ```yaml
 scrape_configs:
-  # abydos, langara and orilla are part of a single cluster
-  # initially bootstrapped by abydos which is why all 3 nodes
-  # share the its `ca_file` and `server_name`.
+  # abydos, langara and orilla are part of a single cluster (called `hdc` here)
+  # initially bootstrapped by abydos which is why all 3 targets
+  # share the same `ca_file` and `server_name`. That `ca_file` corresponds
+  # to the `/var/snap/lxd/common/lxd/cluster.crt` file found on every member of
+  # the LXD cluster.
   #
-  # Note: 2 params are provided:
-  #   `project`: needed when not using the `default` project or
-  #              when multiple are used.
-  #   `target`: the individual cluster member to scrape because
-  #             they only report about instances running locally.
-  - job_name: "lxd-abydos"
+  # Note: the `project` param is are provided when not using the `default` project
+  #       or when multiple projects are used.
+  #
+  # Note: each member of the cluster only provide metrics for instances it runs locally
+  #       this is why the `lxd-hdc` cluster lists 3 targets
+  - job_name: "lxd-hdc"
     metrics_path: '/1.0/metrics'
     params:
       project: ['jdoe']
-      target: ['abydos']
     scheme: 'https'
     static_configs:
-      - targets: ['abydos.hosts.example.net:8444']
-    tls_config:
-      ca_file: 'tls/abydos.crt'
-      cert_file: 'tls/metrics.crt'
-      key_file: 'tls/metrics.key'
-      server_name: 'abydos'
-
-  - job_name: "lxd-langara"
-    metrics_path: '/1.0/metrics'
-    params:
-      project: ['jdoe']
-      target: ['langara']
-    scheme: 'https'
-    static_configs:
-      - targets: ['langara.hosts.example.net:8444']
-    tls_config:
-      ca_file: 'tls/abydos.crt'
-      cert_file: 'tls/metrics.crt'
-      key_file: 'tls/metrics.key'
-      server_name: 'abydos'
-
-  - job_name: "lxd-orilla"
-    metrics_path: '/1.0/metrics'
-    params:
-      project: ['jdoe']
-      target: ['orilla']
-    scheme: 'https'
-    static_configs:
-      - targets: ['orilla.hosts.example.net:8444']
+      - targets:
+        - 'abydos.hosts.example.net:8444'
+        - 'langara.hosts.example.net:8444'
+        - 'orilla.hosts.example.net:8444'
     tls_config:
       ca_file: 'tls/abydos.crt'
       cert_file: 'tls/metrics.crt'
