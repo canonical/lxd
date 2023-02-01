@@ -304,7 +304,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id, de
 }
 
 // If there are 2 online nodes, return the address of the one with the least
-// number of containers.
+// number of instances.
 func TestGetNodeWithLeastInstances(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -312,7 +312,7 @@ func TestGetNodeWithLeastInstances(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	// Add a container to the default node (ID 1)
+	// Add an instance to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
 INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, 1, 'foo', 1, 1, 1, '')
 `)
@@ -331,7 +331,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 }
 
 // If there are nodes, and one of them is offline, return the name of the
-// online node, even if the offline one has more containers.
+// online node, even if the offline one has more instances.
 func TestGetNodeWithLeastInstances_OfflineNode(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -339,7 +339,7 @@ func TestGetNodeWithLeastInstances_OfflineNode(t *testing.T) {
 	id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	// Add a container to the newly created node.
+	// Add an instance to the newly created node.
 	_, err = tx.Tx().Exec(`
 INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, ?, 'foo', 1, 1, 1, '')
 `, id)
@@ -361,8 +361,8 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	assert.Equal(t, "buzz", member.Name)
 }
 
-// If there are 2 online nodes, and a container is pending on one of them,
-// return the address of the other one number of containers.
+// If there are 2 online nodes, and an instance is pending on one of them,
+// return the address of the other one number of instances.
 func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -370,7 +370,7 @@ func TestGetNodeWithLeastInstances_Pending(t *testing.T) {
 	_, err := tx.CreateNode("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	// Add a pending container to the default node (ID 1)
+	// Add a pending instance to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
 INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1, ?, 1)
 `, operationtype.InstanceCreate)
@@ -405,7 +405,7 @@ func TestGetNodeWithLeastInstances_Architecture(t *testing.T) {
 	_, err = tx.CreateNodeWithArch("buzz", "1.2.3.4:666", testArch)
 	require.NoError(t, err)
 
-	// Add a container to the default node (ID 1)
+	// Add an instance to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
 INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, 1, 'foo', 1, 1, 1, '')
 `)
@@ -418,7 +418,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 	require.NoError(t, err)
 	require.Len(t, members, 1)
 
-	// The local member is returned despite it has more containers.
+	// The local member is returned despite it has more instances.
 	member, err := tx.GetNodeWithLeastInstances(context.Background(), members)
 	require.NoError(t, err)
 	assert.Equal(t, "none", member.Name)
@@ -467,7 +467,7 @@ func TestGetNodeWithLeastInstances_DefaultArch(t *testing.T) {
 	id, err := tx.CreateNodeWithArch("buzz", "1.2.3.4:666", testArch)
 	require.NoError(t, err)
 
-	// Add a container to the newly created node.
+	// Add an instance to the newly created node.
 	_, err = tx.Tx().Exec(`
 INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, ?, 'foo', 1, 1, 1, '')
 `, id)
