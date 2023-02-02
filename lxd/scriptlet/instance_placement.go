@@ -32,7 +32,7 @@ const InstancePlacementReasonRelocation = "relocation"
 const InstancePlacementReasonEvacuation = "evacuation"
 
 // InstancePlacementRun runs the instance placement scriptlet and returns the chosen cluster member target.
-func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, reason string, req *api.InstancesPost, candidateMembers []db.NodeInfo, leaderAddress string) (*db.NodeInfo, error) {
+func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, req *apiScriptlet.InstancePlacement, candidateMembers []db.NodeInfo, leaderAddress string) (*db.NodeInfo, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -353,10 +353,6 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 
 	// Call starlark function from Go.
 	v, err := starlark.Call(thread, instancePlacement, nil, []starlark.Tuple{
-		{
-			starlark.String("reason"),
-			starlark.String(reason),
-		},
 		{
 			starlark.String("request"),
 			rv,
