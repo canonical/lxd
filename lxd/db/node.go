@@ -905,18 +905,18 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 }
 
 // NodeIsEmpty returns an empty string if the node with the given ID has no
-// containers or images associated with it. Otherwise, it returns a message
+// instances or images associated with it. Otherwise, it returns a message
 // say what's left.
 func (c *ClusterTx) NodeIsEmpty(ctx context.Context, id int64) (string, error) {
 	// Check if the node has any instances.
-	containers, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM instances WHERE node_id=?", id)
+	instances, err := query.SelectStrings(ctx, c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get instances for node %d: %w", id, err)
 	}
 
-	if len(containers) > 0 {
+	if len(instances) > 0 {
 		message := fmt.Sprintf(
-			"Node still has the following containers: %s", strings.Join(containers, ", "))
+			"Node still has the following instances: %s", strings.Join(instances, ", "))
 		return message, nil
 	}
 
