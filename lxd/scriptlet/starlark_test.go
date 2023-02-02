@@ -1,0 +1,189 @@
+package scriptlet_test
+
+import (
+	"fmt"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/lxc/lxd/lxd/scriptlet"
+	"go.starlark.net/starlark"
+)
+
+type starlarkMarshalTest struct {
+	from   any
+	to     starlark.Value
+	expect string
+}
+
+func (s *starlarkMarshalTest) run(t *testing.T) {
+	defer func() {
+		if err := recover(); err != nil {
+			t.Errorf("Unexpected panic: %v", err)
+		}
+	}()
+
+	name := fmt.Sprintf("%#v (%T)", s.from, s.from)
+	converted, err := scriptlet.StarlarkMarshal(s.from)
+
+	if err == nil && s.expect != "" {
+		t.Errorf("Expected error converting %v", name)
+	} else if err != nil && (s.expect == "" || !strings.HasPrefix(err.Error(), s.expect)) {
+		t.Errorf("Unexpected error converting %v: %v", name, err)
+	}
+
+	if !reflect.DeepEqual(s.to, converted) {
+		t.Errorf("Incorrect value returned converting %v: expected %v but got %v", name, s.to, converted)
+	}
+}
+
+type DummyStringer int
+
+var _ fmt.Stringer = DummyStringer(0)
+
+func (DummyStringer) String() string { return "(DummyStringer)" }
+
+func TestStarlarkMarshal(t *testing.T) {
+	type DummyEmbeddedStruct struct {
+		A string
+	}
+
+	tests := []starlarkMarshalTest{{
+		from: starlark.MakeInt(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
+		from: nil,
+		to:   starlark.None,
+	}, {
+		from: true,
+		to:   starlark.True,
+	}, {
+		from: int(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
+		from: int8(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
+		from: int16(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
+		from: int64(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
+		from: uint(1),
+		to:   starlark.MakeInt(1),
+	}, {
+		from: uint8(1),
+		to:   starlark.MakeInt(1),
+	}, {
+		from: uint16(1),
+		to:   starlark.MakeInt(1),
+	}, {
+		from: uint32(1),
+		to:   starlark.MakeInt(1),
+	}, {
+		from: uint64(1),
+		to:   starlark.MakeInt(1),
+	}, {
+		from: float32(0.5),
+		to:   starlark.Float(0.5),
+	}, {
+		from: float64(0.5),
+		to:   starlark.Float(0.5),
+	}, {
+		from: func() any {
+			v := 1
+			return &v
+		}(),
+		to: starlark.MakeInt(1),
+	}, {
+		from: 'a',
+		to:   starlark.String("a"),
+	}, {
+		from: "foo",
+		to:   starlark.String("foo"),
+	}, {
+		from: []bool{true, false},
+		to:   starlark.NewList([]starlark.Value{starlark.True, starlark.False}),
+	}, {
+		from: [...]bool{true, false},
+		to:   starlark.NewList([]starlark.Value{starlark.True, starlark.False}),
+	}, {
+		from: []struct{ A, B string }{{A: "a1", B: "b1"}, {A: "a2", B: "b2"}},
+		to: func() starlark.Value {
+			s1 := starlark.NewDict(2)
+			assertOk(s1.SetKey(starlark.String("A"), starlark.String("a1")))
+			assertOk(s1.SetKey(starlark.String("B"), starlark.String("b1")))
+
+			s2 := starlark.NewDict(2)
+			assertOk(s2.SetKey(starlark.String("A"), starlark.String("a2")))
+			assertOk(s2.SetKey(starlark.String("B"), starlark.String("b2")))
+
+			return starlark.NewList([]starlark.Value{s1, s2})
+		}(),
+	}, {
+		from: map[string]string{"a": "b", "c": "d"},
+		to: func() starlark.Value {
+			ret := starlark.NewDict(1)
+			assertOk(ret.SetKey(starlark.String("a"), starlark.String("b")))
+			assertOk(ret.SetKey(starlark.String("c"), starlark.String("d")))
+			return ret
+		}(),
+	}, {
+		from:   map[int]string{1: "1", 2: "2"},
+		expect: "Only string keys are supported, found int",
+	}, {
+		from:   map[*int]string{nil: "a"},
+		expect: "Only string keys are supported, found ptr",
+	}, {
+		from: struct {
+			A string `json:"foo"`
+			B string `json:"bar"`
+		}{A: "a", B: "b"},
+		to: func() starlark.Value {
+			ret := starlark.NewDict(2)
+			assertOk(ret.SetKey(starlark.String("foo"), starlark.String("a")))
+			assertOk(ret.SetKey(starlark.String("bar"), starlark.String("b")))
+			return ret
+		}(),
+	}, {
+		from: struct{ DummyEmbeddedStruct }{DummyEmbeddedStruct: DummyEmbeddedStruct{A: "a"}},
+		to: func() starlark.Value {
+			ret := starlark.NewDict(1)
+			assertOk(ret.SetKey(starlark.String("A"), starlark.String("a")))
+			return ret
+		}(),
+	}, {
+		from: struct{ fmt.Stringer }{Stringer: DummyStringer(0xbaa)},
+		to: func() starlark.Value {
+			ret := starlark.NewDict(1)
+			assertOk(ret.SetKey(starlark.String("Stringer"), starlark.MakeInt(0xbaa)))
+			return ret
+		}(),
+	}, {
+		from: struct {
+			fmt.Stringer `json:"foo"`
+		}{Stringer: DummyStringer(0xbaa)},
+		to: func() starlark.Value {
+			ret := starlark.NewDict(1)
+			assertOk(ret.SetKey(starlark.String("foo"), starlark.MakeInt(0xbaa)))
+			return ret
+		}(),
+	}, {
+		from:   func() {},
+		expect: "Unrecognised type func()",
+	}, {
+		from:   make(chan int),
+		expect: "Unrecognised type chan int",
+	}}
+
+	for _, test := range tests {
+		test.run(t)
+	}
+}
+
+func assertOk(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

@@ -3,6 +3,7 @@ package scriptlet
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"go.starlark.net/starlark"
@@ -14,12 +15,28 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 	var err error
 	var sv starlark.Value
 
-	v := reflect.ValueOf(input)
+	if input == nil {
+		return starlark.None, nil
+	}
+
+	if value, ok := input.(starlark.Value); ok {
+		return value, nil
+	}
+
+	if r, ok := input.(rune); ok {
+		// NB: runes are indistinguishable from int32s.
+		return starlark.String(string(r)), nil
+	}
+
+	v, ok := input.(reflect.Value)
+	if !ok {
+		v = reflect.ValueOf(input)
+	}
 
 	switch v.Type().Kind() {
 	case reflect.String:
 		sv = starlark.String(v.String())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
 		sv = starlark.MakeInt(int(v.Int()))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		sv = starlark.MakeUint(uint(v.Uint()))
@@ -27,12 +44,12 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sv = starlark.Float(v.Float())
 	case reflect.Bool:
 		sv = starlark.Bool(v.Bool())
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		vlen := v.Len()
 		listElems := make([]starlark.Value, 0, vlen)
 
 		for i := 0; i < vlen; i++ {
-			lv, err := StarlarkMarshal(v.Index(i).Interface())
+			lv, err := StarlarkMarshal(v.Index(i))
 			if err != nil {
 				return nil, err
 			}
@@ -45,9 +62,18 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		mKeys := v.MapKeys()
 		d := starlark.NewDict(len(mKeys))
 
-		for _, k := range v.MapKeys() {
+		for _, k := range mKeys {
+			if kind := k.Kind(); kind != reflect.String {
+				return nil, fmt.Errorf("Only string keys are supported, found %s", kind)
+			}
+		}
+
+		sort.Slice(mKeys, func(i, j int) bool {
+			return mKeys[i].String() < mKeys[j].String()
+		})
+		for _, k := range mKeys {
 			mv := v.MapIndex(k)
-			dv, err := StarlarkMarshal(mv.Interface())
+			dv, err := StarlarkMarshal(mv)
 			if err != nil {
 				return nil, err
 			}
@@ -72,20 +98,37 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 			}
 
 			if field.Anonymous {
-				for i := 0; i < fieldValue.Type().NumField(); i++ {
-					anonField := fieldValue.Type().Field(i)
-					anonFieldValue := fieldValue.Field(i)
+				if fieldValue.Kind() == reflect.Struct {
+					for i := 0; i < fieldValue.Type().NumField(); i++ {
+						anonField := fieldValue.Type().Field(i)
+						anonFieldValue := fieldValue.Field(i)
 
-					key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
+						key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
+						if key == "" {
+							key = anonField.Name
+						}
+
+						if !anonField.IsExported() {
+							continue
+						}
+
+						dv, err := StarlarkMarshal(anonFieldValue)
+						if err != nil {
+							return nil, err
+						}
+
+						err = d.SetKey(starlark.String(key), dv)
+						if err != nil {
+							return nil, fmt.Errorf("Failed setting struct field %q to %v: %w", key, dv, err)
+						}
+					}
+				} else {
+					key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 					if key == "" {
-						key = anonField.Name
+						key = field.Name
 					}
 
-					if !anonField.IsExported() {
-						continue
-					}
-
-					dv, err := StarlarkMarshal(anonFieldValue.Interface())
+					dv, err := StarlarkMarshal(fieldValue)
 					if err != nil {
 						return nil, err
 					}
@@ -96,7 +139,7 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 					}
 				}
 			} else {
-				dv, err := StarlarkMarshal(fieldValue.Interface())
+				dv, err := StarlarkMarshal(fieldValue)
 				if err != nil {
 					return nil, err
 				}
@@ -115,14 +158,12 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 
 		sv = d
 	case reflect.Pointer:
-		if v.IsZero() {
-			sv = starlark.None
-		} else {
-			sv, err = StarlarkMarshal(v.Elem().Interface())
-			if err != nil {
-				return nil, err
-			}
+		sv, err = StarlarkMarshal(v.Elem())
+		if err != nil {
+			return nil, err
 		}
+	case reflect.Interface:
+		return StarlarkMarshal(v.Interface())
 	}
 
 	if sv == nil {
