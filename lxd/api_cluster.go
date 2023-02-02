@@ -3116,7 +3116,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 
 				reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
 				if err != nil {
-					return fmt.Errorf("Failed getting architecture for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+					return fmt.Errorf("Failed getting architecture for instance %q in project %q: %w", inst.Name(), instProject.Name, err)
 				}
 
 				for _, p := range inst.Profiles() {
@@ -3124,10 +3124,10 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				}
 
 				ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-				targetMemberInfo, err = scriptlet.InstancePlacementRun(ctx, logger.Log, s, scriptlet.InstancePlacementReasonEvacuation, &reqExpanded, candidateMembers, leaderAddress)
+				targetMemberInfo, err = scriptlet.InstancePlacementRun(ctx, logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
 				if err != nil {
 					cancel()
-					return fmt.Errorf("Failed instance placement scriptlet for instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+					return fmt.Errorf("Failed instance placement scriptlet for instance %q in project %q: %w", inst.Name(), instProject.Name, err)
 				}
 
 				cancel()
