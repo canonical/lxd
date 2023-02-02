@@ -39,6 +39,7 @@ import (
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	apiScriptlet "github.com/lxc/lxd/shared/api/scriptlet"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/validate"
@@ -3100,13 +3101,17 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				}
 
 				// Copy request so we don't modify it when expanding the config.
-				reqExpanded := api.InstancesPost{
-					Name: inst.Name(),
-					Type: api.InstanceType(inst.Type().String()),
-					InstancePut: api.InstancePut{
-						Config:  inst.ExpandedConfig(),
-						Devices: inst.ExpandedDevices().CloneNative(),
+				reqExpanded := apiScriptlet.InstancePlacement{
+					InstancesPost: api.InstancesPost{
+						Name: inst.Name(),
+						Type: api.InstanceType(inst.Type().String()),
+						InstancePut: api.InstancePut{
+							Config:  inst.ExpandedConfig(),
+							Devices: inst.ExpandedDevices().CloneNative(),
+						},
 					},
+					Project: instProject.Name,
+					Reason:  scriptlet.InstancePlacementReasonEvacuation,
 				}
 
 				reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
