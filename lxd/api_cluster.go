@@ -2871,7 +2871,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		ctx := context.TODO()
 
 		for _, inst := range instances {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+			instProject := inst.Project()
+			l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": inst.Name()})
 
 			// Check if migratable.
 			migrate, live := inst.CanMigrate()
@@ -2879,7 +2880,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
 			if isRunning && !(migrate && live) {
-				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project().Name)
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), instProject.Name)
 				_ = op.UpdateMetadata(metadata)
 
 				// Get the shutdown timeout for the instance.
@@ -2897,7 +2898,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 					// Fallback to forced stop.
 					err = inst.Stop(false)
 					if err != nil && !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
-						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
+						return fmt.Errorf("Failed to stop instance %q in project %q: %w", inst.Name(), instProject.Name, err)
 					}
 				}
 
@@ -2957,7 +2958,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project().Name, targetMemberInfo.Name)
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), instProject.Name, targetMemberInfo.Name)
 			_ = op.UpdateMetadata(metadata)
 
 			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
@@ -2973,7 +2974,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = migrateInstance(d, r, inst, targetMemberInfo.Name, false, req, op)
 			if err != nil {
-				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), inst.Project().Name, err)
+				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), instProject.Name, err)
 			}
 
 			if !isRunning || live {
@@ -2983,12 +2984,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Start it back up on target.
 			dest, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), inst.Project().Name, err)
+				return fmt.Errorf("Failed to connect to destination %q for instance %q in project %q: %w", targetMemberInfo.Address, inst.Name(), instProject.Name, err)
 			}
 
 			dest = dest.UseProject(inst.Project().Name)
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project().Name)
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), instProject.Name)
 			_ = op.UpdateMetadata(metadata)
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
