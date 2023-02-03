@@ -43,12 +43,15 @@ test_clustering_instance_placement_scriptlet() {
   # And by extension checks each of the scriptlet environment functions are callable.
   # Also checks that the instance_resources are provided as expected.
   cat << EOF | lxc config set instances.placement.scriptlet=-
-def instance_placement(reason, request, candidate_members):
+def instance_placement(request, candidate_members):
         instance_resources = get_instance_resources()
-        log_info("instance placement started: ", reason, ", ", request, ", ", instance_resources)
+        log_info("instance placement started: ", request, ", ", instance_resources)
 
-        if reason != "new":
+        if request["reason"] != "new":
                 return "Expecting reason new"
+
+        if request["project"] != "default":
+                return "Expecting project default"
 
         if instance_resources["cpu_cores"] != 1:
                 return "Expecting cpu_cores of 1"
@@ -92,7 +95,7 @@ EOF
 
   # Set instance placement scriptlet that returns an error and test instance creation fails.
   cat << EOF | lxc config set instances.placement.scriptlet=-
-def instance_placement(reason, request, candidate_members):
+def instance_placement(request, candidate_members):
         log_error("instance placement not allowed") # Log placement error.
 
         return "Instance not allowed" # Return placement error to prevent instance creation.
@@ -102,7 +105,7 @@ EOF
 
   # Set instance placement scriptlet containing runtime error in it and test instance creation fails.
   cat << EOF | lxc config set instances.placement.scriptlet=-
-def instance_placement(reason, request, candidate_members):
+def instance_placement(request, candidate_members):
         log_info("Accessing invalid field ", candidate_members[4])
 
         return
@@ -113,7 +116,7 @@ EOF
   # Set instance placement scriptlet to one that sets an invalid cluster member target.
   # Check that instance placement uses LXD's built in logic instead (as if setTarget hadn't been called at all).
   cat << EOF | lxc config set instances.placement.scriptlet=-
-def instance_placement(reason, request, candidate_members):
+def instance_placement(request, candidate_members):
         # Set invalid member target.
         result = set_target("foo")
         log_warn("Setting invalid member target result: ", result)
@@ -126,10 +129,10 @@ EOF
 
   # Set basic instance placement scriptlet that statically targets to 3rd member.
   cat << EOF | lxc config set instances.placement.scriptlet=-
-def instance_placement(reason, request, candidate_members):
-        log_info("instance placement started: ", reason, " ", request)
+def instance_placement(request, candidate_members):
+        log_info("instance placement started: ", request)
 
-        if reason != "evacuation":
+        if request["reason"] != "evacuation":
                 return "Expecting reason evacuation"
 
         # Log info, state and resources for each candidate member.
