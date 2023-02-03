@@ -26,14 +26,6 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		}
 	}
 
-	{
-		r, ok := input.(rune)
-		if ok {
-			// NB: runes are indistinguishable from int32s.
-			return starlark.String(string(r)), nil
-		}
-	}
-
 	v, ok := input.(reflect.Value)
 	if !ok {
 		v = reflect.ValueOf(input)
@@ -42,7 +34,7 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 	switch v.Type().Kind() {
 	case reflect.String:
 		sv = starlark.String(v.String())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		sv = starlark.MakeInt(int(v.Int()))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		sv = starlark.MakeUint(uint(v.Uint()))

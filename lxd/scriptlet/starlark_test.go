@@ -68,6 +68,9 @@ func TestStarlarkMarshal(t *testing.T) {
 		from: int16(-1),
 		to:   starlark.MakeInt(-1),
 	}, {
+		from: int32(-1),
+		to:   starlark.MakeInt(-1),
+	}, {
 		from: int64(-1),
 		to:   starlark.MakeInt(-1),
 	}, {
@@ -97,9 +100,6 @@ func TestStarlarkMarshal(t *testing.T) {
 			return &v
 		}(),
 		to: starlark.MakeInt(1),
-	}, {
-		from: 'a',
-		to:   starlark.String("a"),
 	}, {
 		from: "foo",
 		to:   starlark.String("foo"),
