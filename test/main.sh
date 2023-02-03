@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
 
     struct sock_filter filter[] = {
         BPF_STMT(BPF_LD|BPF_W|BPF_ABS, offsetof(struct seccomp_data, nr)),
-        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_io_uring_setup, 1, 0),
-        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_seccomp, 0, 1),
+        //BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_seccomp, 1, 0),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_io_uring_setup, 0, 1),
         BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | ENOSYS),
         BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
     };
