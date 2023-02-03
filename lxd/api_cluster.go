@@ -3111,7 +3111,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 						},
 					},
 					Project: instProject.Name,
-					Reason:  scriptlet.InstancePlacementReasonEvacuation,
+					Reason:  apiScriptlet.InstancePlacementReasonEvacuation,
 				}
 
 				reqExpanded.Architecture, err = osarch.ArchitectureName(inst.Architecture())
