@@ -459,15 +459,19 @@ test_basic_usage() {
     echo "==> SKIP: apparmor tests (missing kernel support)"
   fi
 
-  lxc launch testimage lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
-  [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "2" ]
-  lxc stop --force lxd-seccomp-test
-  lxc config set lxd-seccomp-test security.syscalls.deny_default false
-  lxc start lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
-  [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "0" ]
-  lxc delete --force lxd-seccomp-test
+  if [ "$(awk '/^Seccomp:/ {print $2}' "/proc/self/status")" -eq "0" ]; then
+    lxc launch testimage lxd-seccomp-test
+    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "2" ]
+    lxc stop --force lxd-seccomp-test
+    lxc config set lxd-seccomp-test security.syscalls.deny_default false
+    lxc start lxd-seccomp-test
+    init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+    [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "0" ]
+    lxc delete --force lxd-seccomp-test
+  else
+    echo "==> SKIP: seccomp tests (seccomp filtering is externally enabled)"
+  fi
 
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
