@@ -123,6 +123,9 @@ func TestStarlarkMarshal(t *testing.T) {
 			return starlark.NewList([]starlark.Value{s1, s2})
 		}(),
 	}, {
+		from: map[string]string{},
+		to:   starlark.NewDict(0),
+	}, {
 		from: map[string]string{"a": "b", "c": "d"},
 		to: func() starlark.Value {
 			ret := starlark.NewDict(1)
