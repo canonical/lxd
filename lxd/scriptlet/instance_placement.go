@@ -22,15 +22,6 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// InstancePlacementReasonNew is when a new instance request is received.
-const InstancePlacementReasonNew = "new"
-
-// InstancePlacementReasonRelocation is when an existing instance is temporarily migrated because a cluster member is down.
-const InstancePlacementReasonRelocation = "relocation"
-
-// InstancePlacementReasonEvacuation is when an existing instance is temporarily migrated because a cluster member is being evacuated.
-const InstancePlacementReasonEvacuation = "evacuation"
-
 // InstancePlacementRun runs the instance placement scriptlet and returns the chosen cluster member target.
 func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, req *apiScriptlet.InstancePlacement, candidateMembers []db.NodeInfo, leaderAddress string) (*db.NodeInfo, error) {
 	ctx, cancel := context.WithCancel(ctx)
