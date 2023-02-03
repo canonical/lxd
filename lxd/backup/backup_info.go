@@ -26,6 +26,8 @@ const TypeVM = Type("virtual-machine")
 // TypeCustom defines the backup type value for a custom volume.
 const TypeCustom = Type("custom")
 
+const backupIndexPath = "backup/index.yaml"
+
 // InstanceTypeToBackupType converts instance type to backup type.
 func InstanceTypeToBackupType(instanceType api.InstanceType) Type {
 	switch instanceType {
@@ -78,7 +80,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 			return nil, fmt.Errorf("Error reading backup file info: %w", err)
 		}
 
-		if hdr.Name == "backup/index.yaml" {
+		if hdr.Name == backupIndexPath {
 			err = yaml.NewDecoder(tr).Decode(&result)
 			if err != nil {
 				return nil, err
@@ -125,7 +127,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 	cancelFunc() // Done reading archive.
 
 	if !hasIndexFile {
-		return nil, fmt.Errorf("Backup is missing index.yaml")
+		return nil, fmt.Errorf("Backup is missing at %q", backupIndexPath)
 	}
 
 	return &result, nil
