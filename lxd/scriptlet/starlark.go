@@ -19,13 +19,19 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		return starlark.None, nil
 	}
 
-	if value, ok := input.(starlark.Value); ok {
-		return value, nil
+	{
+		value, ok := input.(starlark.Value)
+		if ok {
+			return value, nil
+		}
 	}
 
-	if r, ok := input.(rune); ok {
-		// NB: runes are indistinguishable from int32s.
-		return starlark.String(string(r)), nil
+	{
+		r, ok := input.(rune)
+		if ok {
+			// NB: runes are indistinguishable from int32s.
+			return starlark.String(string(r)), nil
+		}
 	}
 
 	v, ok := input.(reflect.Value)
@@ -71,6 +77,7 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sort.Slice(mKeys, func(i, j int) bool {
 			return mKeys[i].String() < mKeys[j].String()
 		})
+
 		for _, k := range mKeys {
 			mv := v.MapIndex(k)
 			dv, err := StarlarkMarshal(mv)

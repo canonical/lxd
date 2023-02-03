@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/scriptlet"
 	"go.starlark.net/starlark"
+
+	"github.com/lxc/lxd/lxd/scriptlet"
 )
 
 type starlarkMarshalTest struct {
