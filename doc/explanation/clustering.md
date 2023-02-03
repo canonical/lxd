@@ -170,18 +170,17 @@ It is also possible for the scriptlet to request information about each candidat
 
 An instance placement scriptlet must implement the `instance_placement` function with the following signature:
 
-   `instance_placement(reason, request, candidate_members)`:
+   `instance_placement(request, candidate_members)`:
 
-- `reason` will be a `string` indicating the reason for the instance placement request (`new`, `evacuation`, `relocation`).
-- `request` will be a `dict` containing an expanded representation of [`api.InstancesPost`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#InstancesPost).
+- `request` will be a `dict` containing an expanded representation of [`scriptlet.InstancePlacement`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstancePlacement). This request includes `project` and `reason` fields. The `reason` can be `new`, `evacuation` or `relocation`.
 - `candidate_members` will be a `list` of cluster member `dicts` representing [`api.ClusterMember`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMember) entries.
 
 For example:
 
 ```python
-def instance_placement(reason, request, candidate_members):
+def instance_placement(request, candidate_members):
     # Example of logging info, this will appear in LXD's log.
-    log_info("instance placement started: ", reason, request)
+    log_info("instance placement started: ", request)
 
     # Example of applying logic based on the instance request.
     if request["name"] == "foo":
