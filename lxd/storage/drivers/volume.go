@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/locking"
@@ -539,4 +540,46 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 // SetMountFilesystemProbe enables or disables the probing mode when mounting the filesystem volume.
 func (v *Volume) SetMountFilesystemProbe(probe bool) {
 	v.mountFilesystemProbe = probe
+}
+
+// FillVolumeConfig populates volume config with defaults from pool.
+// excludeKeys allow exclude some keys from copying to volume config.
+// Sometimes that can be useful when copying is dependant from specific conditions
+// and shouldn't be done in generic way.
+func (v *Volume) FillConfig(excludedKeys ...string) error {
+	for k := range v.poolConfig {
+		if !strings.HasPrefix(k, "volume.") {
+			continue
+		}
+
+		volKey := strings.TrimPrefix(k, "volume.")
+
+		isExcluded := false
+		for _, excludedKey := range excludedKeys {
+			if excludedKey == volKey {
+				isExcluded = true
+				break
+			}
+		}
+
+		if isExcluded {
+			continue
+		}
+
+		// If volume type is not custom or bucket, don't copy "size" property to volume config.
+		if (v.volType != VolumeTypeCustom && v.volType != VolumeTypeBucket) && volKey == "size" {
+			continue
+		}
+
+		// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
+		if (v.volType != VolumeTypeCustom || v.contentType != ContentTypeFS) && (volKey == "security.shifted" || volKey == "security.unmapped") {
+			continue
+		}
+
+		if v.config[volKey] == "" {
+			v.config[volKey] = v.poolConfig[k]
+		}
+	}
+
+	return nil
 }
