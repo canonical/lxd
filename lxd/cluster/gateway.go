@@ -337,15 +337,6 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 	}
 }
 
-// Snapshot can be used to manually trigger a RAFT snapshot.
-func (g *Gateway) Snapshot() error {
-	g.lock.RLock()
-	defer g.lock.RUnlock()
-
-	// TODO: implement support for forcing a snapshot in dqlite v1
-	return fmt.Errorf("Not supported")
-}
-
 // WaitUpgradeNotification waits for a notification from another node that all
 // nodes in the cluster should now have been upgraded and have matching schema
 // and API versions.
