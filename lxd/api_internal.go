@@ -1027,16 +1027,9 @@ func internalGC(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
-	logger.Infof("Started forced RAFT snapshot")
-	err := d.gateway.Snapshot()
-	if err != nil {
-		logger.Errorf("Failed forced RAFT snapshot: %v", err)
-		return response.InternalError(err)
-	}
+	logger.Warn("Forced RAFT snapshot not supported")
 
-	logger.Infof("Completed forced RAFT snapshot")
-
-	return response.EmptySyncResponse
+	return response.InternalError(fmt.Errorf("Not supported"))
 }
 
 func internalBGPState(d *Daemon, r *http.Request) response.Response {
