@@ -1134,7 +1134,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			reqExpanded := apiScriptlet.InstancePlacement{
 				InstancesPost: req,
 				Project:       targetProjectName,
-				Reason:        scriptlet.InstancePlacementReasonNew,
+				Reason:        apiScriptlet.InstancePlacementReasonNew,
 			}
 
 			reqExpanded.Config = db.ExpandInstanceConfig(reqExpanded.Config, profiles)
