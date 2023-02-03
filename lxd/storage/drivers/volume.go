@@ -91,6 +91,7 @@ type Volume struct {
 	driver               Driver
 	mountCustomPath      string // Mount the filesystem volume at a custom location.
 	mountFilesystemProbe bool   // Probe filesystem type when mounting volume (when needed).
+	hasSource            bool   // Whether the volume is created from a source volume.
 }
 
 // NewVolume instantiates a new Volume struct.
@@ -539,4 +540,9 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 // SetMountFilesystemProbe enables or disables the probing mode when mounting the filesystem volume.
 func (v *Volume) SetMountFilesystemProbe(probe bool) {
 	v.mountFilesystemProbe = probe
+}
+
+// SetHasSource indicates whether the Volume is created from a source.
+func (v *Volume) SetHasSource(hasSource bool) {
+	v.hasSource = hasSource
 }
