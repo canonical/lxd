@@ -92,41 +92,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 // Sometimes that can be useful when copying is dependant from specific conditions
 // and shouldn't be done in generic way.
 func (d *common) fillVolumeConfig(vol *Volume, excludedKeys ...string) error {
-	for k := range d.config {
-		if !strings.HasPrefix(k, "volume.") {
-			continue
-		}
-
-		volKey := strings.TrimPrefix(k, "volume.")
-
-		isExcluded := false
-		for _, excludedKey := range excludedKeys {
-			if excludedKey == volKey {
-				isExcluded = true
-				break
-			}
-		}
-
-		if isExcluded {
-			continue
-		}
-
-		// If volume type is not custom or bucket, don't copy "size" property to volume config.
-		if (vol.volType != VolumeTypeCustom && vol.volType != VolumeTypeBucket) && volKey == "size" {
-			continue
-		}
-
-		// security.shifted and security.unmapped are only relevant for custom filesystem volumes.
-		if (vol.Type() != VolumeTypeCustom || vol.ContentType() != ContentTypeFS) && (volKey == "security.shifted" || volKey == "security.unmapped") {
-			continue
-		}
-
-		if vol.config[volKey] == "" {
-			vol.config[volKey] = d.config[k]
-		}
-	}
-
-	return nil
+	return vol.FillConfig(excludedKeys...)
 }
 
 // FillVolumeConfig populate volume with default config.
