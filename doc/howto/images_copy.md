@@ -1,100 +1,88 @@
----
-discourse: 9310
----
-
 (images-copy)=
 # How to copy and import images
 
-- Copy images from a remote (can also copy to another server)
-- Import an image from a file
+To add images to an image store, you can either copy them from another server or import them from files (either local files or files on a web server).
 
-  - local file
-  - file on web server
+## Copy an image from a remote
 
+To copy an image from one server to another, enter the following command:
 
-### Direct pushing of the image files
+    lxc image copy [<source_remote>:]<image> <target_remote>:
 
-This is mostly useful for air-gapped environments where images cannot be
-directly retrieved from an external server.
+```{note}
+To copy the image to your local image store, specify `local:` as the target remote.
+```
 
-In such a scenario, image files can be downloaded on another system using:
+See `lxc image copy --help` for a list of all available flags.
+The most relevant ones are:
 
-    lxc image export ubuntu:22.04
+`--alias`
+: Assign an alias to the copy of the image.
 
-Then transferred to the target system and manually imported into the
-local image store with:
+`--copy-aliases`
+: Copy the aliases that the source image has.
 
-    lxc image import META ROOTFS --alias ubuntu-22.04
+`--auto-update`
+: Keep the copy up-to-date with the original image.
 
-`lxc image import` supports both unified images (single file) and split
-images (two files) with the example above using the latter.
+`--vm`
+: When copying from an alias, copy the image that can be used to create virtual machines.
 
-### File on a remote web server
+## Import an image from files
 
-As an alternative to running a full image server only to distribute a
-single image to users, LXD also supports importing images by URL.
+If you have image files that use the required {ref}`image-format`, you can import them into your image store.
 
-There are a few limitations to that method though:
+There are several ways of obtaining such image files:
 
-- Only unified (single file) images are supported
-- Additional HTTP headers must be returned by the remote server
+- Exporting an existing image (see {ref}`images-manage-export`)
+- Building your own image using `distrobuilder` (see {ref}`images-create-build`)
+- Downloading image files from the [image server](https://images.linuxcontainers.org/images/) (note that it is usually easier to {ref}`use the remote image <images-remote>` directly instead of downloading it to a file and importing it)
 
-LXD will set the following headers when querying the server:
+### Import from the local file system
 
-- `LXD-Server-Architectures` to a comma-separated list of architectures the client supports
-- `LXD-Server-Version` to the version of LXD in use
+To import an image from the local file system, use the `lxc image import` command.
+This command supports both {ref}`unified images <image-format-unified>` (compressed file or directory) and {ref}`split images <image-format-split>` (two files).
 
-And expects `LXD-Image-Hash` and `LXD-Image-URL` to be set by the remote server.
-The former being the SHA256 of the image being downloaded and the latter
-the URL to download the image from.
+To import a unified image from one file or directory, enter the following command:
 
-This allows for reasonably complex image servers to be implemented using
-only a basic web server with support for custom headers.
+    lxc image import <image_file_or_directory_path> [<target_remote>:]
 
-On the client side, this is used with:
+To import a split image, enter the following command:
 
-    lxc image import URL --alias some-name
+    lxc image import <metadata_tarball_path> <rootfs_tarball_path> [<target_remote>:]
 
+In both cases, you can assign an alias with the `--alias` flag.
+See `lxc image import --help` for all available flags.
 
-## Import images
-You can import images, that you:
+### Import from a file on a remote web server
 
-- built yourself (see [Build Images](#build-images)),
-- downloaded manually (see [Manual Download](#manual-download))
-- exported from images or containers (see [Export Images](#export-images) and [Create Image from Containers](#create-image-from-containers))
+You can import image files from a remote web server by URL.
+This method is an alternative to running a LXD server for the sole purpose of distributing an image to users.
+It only requires a basic web server with support for custom headers (see {ref}`images-copy-http-headers`).
 
-#### Import container image
+The image files must be provided as unified images (see {ref}`image-format-unified`).
 
-Components:
+To import an image file from a remote web server, enter the following command:
 
-- lxd.tar.xz
-- rootfs.squashfs
+    lxc image import <URL>
 
-Use:
+You can assign an alias to the local image with the `--alias` flag.
 
-	lxc image import lxd.tar.xz rootfs.squashfs --alias custom-imagename
+(images-copy-http-headers)=
+#### Custom HTTP headers
 
+LXD requires the following custom HTTP headers to be set by the web server:
 
-#### Import virtual-machine image
+`LXD-Image-Hash`
+: The SHA256 of the image that is being downloaded.
 
-Components:
+`LXD-Image-URL`
+: The URL from which to download the image.
 
-- lxd.tar.xz
-- disk.qcow2
+LXD sets the following headers when querying the server:
 
-Use:
+`LXD-Server-Architectures`
+: A comma-separated list of architectures that the client supports.
 
-	lxc image import lxd.tar.xz disk.qcow2 --alias custom-imagename
-
-
-### Manual download
-You can also download images manually. For that you need to download the components described [above](#import-images).
-
-#### From official LXD image server
-
-!!! note
-    It is easier to use the usual method with `lxc launch`. Use manual download only if you have a specific reason, like modification of the files before use for example.
-
-**Link to official image server:**
-
-[https://images.linuxcontainers.org/images/](https://images.linuxcontainers.org/images/)
+`LXD-Server-Version`
+: The version of LXD in use.
