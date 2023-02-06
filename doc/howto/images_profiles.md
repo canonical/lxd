@@ -1,13 +1,22 @@
 (images-profiles)=
 # How to associate profiles with an image
 
-## Profiles
+You can associate one or more profiles with a specific image.
+Instances that are created from the image will then automatically use the associated profiles in the order they were specified.
 
-A list of profiles can be associated with an image using the `lxc image edit`
-command. After associating profiles with an image, an instance launched
-using the image will have the profiles applied in order. If `nil` is passed
-as the list of profiles, only the `default` profile will be associated with
-the image. If an empty list is passed, then no profile will be associated
-with the image, not even the `default` profile. An image's associated
-profiles can be overridden when launching an instance by using the
-`--profile` and the `--no-profiles` flags to `lxc launch`.
+To associate a list of profiles with an image, use the `lxc image edit` command and edit the `profiles:` section:
+
+```yaml
+profiles:
+- default
+```
+
+Most provided images come with a profile list that includes only the `default` profile.
+To prevent any profile (including the `default` profile) from being associated with an image, pass an empty list.
+
+```{note}
+Passing an empty list is different than passing `nil`.
+If you pass `nil` as the profile list, only the `default` profile is associated with the image.
+```
+
+You can override the associated profiles for an image when creating an instance by adding the `--profile` or the `--no-profiles` flag to the launch or init command.
