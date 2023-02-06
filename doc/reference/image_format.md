@@ -1,64 +1,35 @@
 (image-format)=
 # Image format
 
-## Image format
+Images contain a root file system and a metadata file that describes the image.
+They can also contain templates for creating files inside an instance that uses the image.
 
-LXD currently supports two LXD-specific image formats.
+Images can be packaged as either a unified image (single file) or a split image (two files).
 
-The first is a unified tarball, where a single tarball
-contains both the instance root and the needed metadata.
+## Content
 
-The second is a split model, using two files instead, one containing
-the root, the other containing the metadata.
+Images for containers have the following directory structure:
 
-The former is what's produced by LXD itself and what people should be
-using for LXD-specific images.
+```
+metadata.yaml
+rootfs/
+templates/
+```
 
-The latter is designed to allow for easy image building from existing
-non-LXD rootfs tarballs already available today.
+Images for VMs have the following directory structure:
 
-### Unified tarball
+```
+metadata.yaml
+rootfs.img
+templates/
+```
 
-Tarball, can be compressed and contains:
+For both instance types, the `templates/` directory is optional.
 
-- `rootfs/`
-- `metadata.yaml`
-- `templates/` (optional)
+### Metadata
 
-In this mode, the image identifier is the SHA-256 of the tarball.
-
-### Split tarballs
-
-Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
-
-`metadata.tar` contains:
-
-- `metadata.yaml`
-- `templates/` (optional)
-
-`rootfs.tar` contains a Linux root file system at its root.
-
-In this mode the image identifier is the SHA-256 of the concatenation of
-the metadata and rootfs tarball (in that order).
-
-### Supported compression
-
-LXD supports a wide variety of compression algorithms for tarballs
-though for compatibility purposes, `gzip` or `xz` should be preferred.
-
-For split images, the rootfs file can also be SquashFS-formatted in the
-container case. For virtual machines, the `rootfs.img` file is always
-`qcow2` and can optionally be compressed using `qcow2`'s native compression.
-
-### Content
-
-For containers, the rootfs directory (or tarball) contains a full file system tree of what will become the `/`.
-For VMs, this is instead a `rootfs.img` file which becomes the main disk device.
-
-The templates directory contains Pongo2-formatted templates of files inside the instance.
-
-`metadata.yaml` contains information relevant to running the image under
-LXD, at the moment, this contains:
+The `metadata.yaml` file contains information that is relevant to running the image in LXD.
+It includes the following information:
 
 ```yaml
 architecture: x86_64
@@ -67,6 +38,38 @@ properties:
   description: Ubuntu 22.04 LTS Intel 64bit
   os: Ubuntu
   release: jammy 22.04
+templates:
+  ...
+```
+
+The `architecture` and `creation_date` fields are mandatory.
+The `properties` field contains a set of default properties for the image.
+The `os`, `release`, `name` and `description` fields are commonly used, but are not mandatory.
+
+The `templates` field is optional.
+See {ref}`image_format_templates` for information on how to configure templates.
+
+### Root file system
+
+For containers, the `rootfs/` directory contains a full file system tree of the root directory (`/`) in the container.
+
+Virtual machines use a `rootfs.img` `qcow2` file instead of a `rootfs/` directory.
+This file becomes the main disk device.
+
+(image_format_templates)=
+### Templates (optional)
+
+You can use templates to dynamically create files inside an instance.
+To do so, configure template rules in the `metadata.yaml` file and place the template files in a `templates/` directory.
+
+As a general rule, you should never template a file that is owned by a package or is otherwise expected to be overwritten by normal operation of an instance.
+
+#### Template rules
+
+For each file that should be generated, create a rule in the `metadata.yaml` file.
+For example:
+
+```yaml
 templates:
   /etc/hosts:
     when:
@@ -86,33 +89,66 @@ templates:
     create_only: true
 ```
 
-The `architecture` and `creation_date` fields are mandatory, the properties
-are just a set of default properties for the image. The `os`, `release`,
-`name` and `description` fields while not mandatory in any way, should be
-pretty common.
+The `when` key can be one or more of:
 
-For templates, the `when` key can be one or more of:
+- `create` - run at the time a new instance is created from the image
+- `copy` - run when an instance is created from an existing one
+- `start` - run every time the instance is started
 
-- `create` (run at the time a new instance is created from the image)
-- `copy` (run when an instance is created from an existing one)
-- `start` (run every time the instance is started)
+The `template` key points to the template file in the `templates/` directory.
 
-The templates will always receive the following context:
+You can pass user-defined template properties to the template file through the `properties` key.
 
-- `trigger`: name of the event which triggered the template (string)
-- `path`: path of the file that uses the template (string)
-- `container`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string) (deprecated in favor of `instance`)
-- `instance`: key/value map of instance properties (name, architecture, privileged and ephemeral) (map[string]string)
-- `config`: key/value map of the instance's configuration (map[string]string)
-- `devices`: key/value map of the devices assigned to this instance (map[string]map[string]string)
-- `properties`: key/value map of the template properties specified in `metadata.yaml` (map[string]string)
+Set the `create_only` key if you want LXD to create the file if it doesn't exist, but not overwrite an existing file.
 
-The `create_only` key can be set to have LXD only only create missing files but not overwrite an existing file.
+#### Template files
 
-As a general rule, you should never template a file which is owned by a
-package or is otherwise expected to be overwritten by normal operation
-of the instance.
+Template files use the [Pongo2](https://www.schlachter.tech/solutions/pongo2-template-engine/) format.
 
-For convenience the following functions are exported to Pongo2 templates:
+They always receive the following context:
 
-- `config_get("user.foo", "bar")` => Returns the value of `user.foo` or `"bar"` if unset.
+| Variable     | Type                           | Description                                                                         |
+|--------------|--------------------------------|-------------------------------------------------------------------------------------|
+| `trigger`    | `string`                       | Name of the event that triggered the template                                       |
+| `path`       | `string`                       | Path of the file that uses the template                                             |
+| `instance`   | `map[string]string`            | Key/value map of instance properties (name, architecture, privileged and ephemeral) |
+| `config`     | `map[string]string`            | Key/value map of the instance's configuration                                       |
+| `devices`    | `map[string]map[string]string` | Key/value map of the devices assigned to the instance                               |
+| `properties` | `map[string]string`            | Key/value map of the template properties specified in `metadata.yaml`               |
+
+For convenience, the following functions are exported to the Pongo2 templates:
+
+- `config_get("user.foo", "bar")` - Returns the value of `user.foo`, or `"bar"` if not set.
+
+## Image tarballs
+
+LXD supports two LXD-specific image formats: a unified tarball and split tarballs.
+
+These tarballs can be compressed.
+LXD supports a wide variety of compression algorithms for tarballs.
+However, for compatibility purposes, you should use `gzip` or `xz`.
+
+(image-format-unified)=
+### Unified tarball
+
+A unified tarball is a single tarball (usually `*.tar.xz`) that contains the full content of the image, including the metadata, the root file system and optionally the template files.
+
+This is the format that LXD itself uses internally when publishing images.
+It is usually easier to work with; therefore, you should use the unified format when creating LXD-specific images.
+
+The image identifier for such images is the SHA-256 of the tarball.
+
+(image-format-split)=
+### Split tarballs
+
+A split image consists of two separate tarballs.
+One tarball contains the metadata and optionally the template files (usually `*.tar.xz`), and the other contains the root file system (usually `*.squashfs` for containers or `*.qcow2` for virtual machines).
+
+For containers, the root file system tarball can be SquashFS-formatted.
+For virtual machines, the `rootfs.img` file always uses the `qcow2` format.
+It can optionally be compressed using `qcow2`'s native compression.
+
+This format is designed to allow for easy image building from existing non-LXD rootfs tarballs that are already available.
+You should also use this format if you want to create images that can be consumed by both LXD and other tools.
+
+The image identifier for such images is the SHA-256 of the concatenation of the metadata and root file system tarball (in that order).
