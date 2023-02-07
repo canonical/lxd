@@ -334,6 +334,7 @@ static int create_detached_idmapped_mount(const char *path, const char *fstype)
 	} else {
 		mnt_fd = lxd_open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
 	}
+
 	if (mnt_fd < 0)
 		return -errno;
 

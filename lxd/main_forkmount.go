@@ -99,15 +99,18 @@ static void ensure_file(char *dest)
 	}
 }
 
-static void create(char *src, char *dest)
+static void create(int fd_src, char *src, char *dest)
 {
 	__do_free char *dirdup = NULL;
 	char *destdirname;
-
 	struct stat sb;
-	if (stat(src, &sb) < 0) {
-		fprintf(stderr, "source %s does not exist\n", src);
-		_exit(1);
+
+	if (src) {
+		if (stat(src, &sb) < 0)
+			die("source %s does not exist", src);
+	} else {
+		if (fstat(fd_src, &sb) < 0)
+			die("source %s does not exist", src);
 	}
 
 	dirdup = strdup(dest);
@@ -209,7 +212,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 		_exit(1);
 	}
 
-	create(src, dest);
+	create(-EBADF, src, dest);
 
 	if (access(src, F_OK) < 0) {
 		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
@@ -264,6 +267,154 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 			_exit(1);
 		}
 	}
+
+	_exit(0);
+}
+
+int lxc_safe_uint(const char *numstr, unsigned int *converted)
+{
+	char *err = NULL;
+	unsigned long int uli;
+
+	while (isspace(*numstr))
+		numstr++;
+
+	if (*numstr == '-')
+		return -EINVAL;
+
+	errno = 0;
+	uli = strtoul(numstr, &err, 0);
+	if (errno == ERANGE && uli == ULONG_MAX)
+		return -ERANGE;
+
+	if (err == numstr || *err != '\0')
+		return -EINVAL;
+
+	if (uli > UINT_MAX)
+		return -ERANGE;
+
+	*converted = (unsigned int)uli;
+	return 0;
+}
+
+int mnt_attributes_new(unsigned int old_flags, unsigned int *new_flags)
+{
+	unsigned int flags = 0;
+
+	if (old_flags & MS_RDONLY) {
+		flags |= MOUNT_ATTR_RDONLY;
+		old_flags &= ~MS_RDONLY;
+	}
+
+	if (old_flags & MS_NOSUID) {
+		flags |= MOUNT_ATTR_NOSUID;
+		old_flags &= ~MS_NOSUID;
+	}
+
+	if (old_flags & MS_NODEV) {
+		flags |= MOUNT_ATTR_NODEV;
+		old_flags &= ~MS_NODEV;
+	}
+
+	if (old_flags & MS_NOEXEC) {
+		flags |= MOUNT_ATTR_NOEXEC;
+		old_flags &= ~MS_NOEXEC;
+	}
+
+	if (old_flags & MS_RELATIME) {
+		flags |= MOUNT_ATTR_RELATIME;
+		old_flags &= ~MS_RELATIME;
+	}
+
+	if (old_flags & MS_NOATIME) {
+		flags |= MOUNT_ATTR_NOATIME;
+		old_flags &= ~MS_NOATIME;
+	}
+
+	if (old_flags & MS_STRICTATIME) {
+		flags |= MOUNT_ATTR_STRICTATIME;
+		old_flags &= ~MS_STRICTATIME;
+	}
+
+	if (old_flags & MS_NODIRATIME) {
+		flags |= MOUNT_ATTR_NODIRATIME;
+		old_flags &= ~MS_NODIRATIME;
+	}
+
+	*new_flags |= flags;
+	return old_flags;
+}
+
+static void do_move_forkmount(int pidfd, int ns_fd)
+{
+	__do_close int fs_fd = -EBADF, mnt_fd = -EBADF, fd_userns = -EBADF;;
+	int ret;
+	char *fstype, *src, *dest, *idmapType, *flags;
+	unsigned int old_mntflags = 0, new_mntflags = 0;
+
+	fstype = advance_arg(true);
+	src = advance_arg(true);
+	dest = advance_arg(true);
+	idmapType = advance_arg(true);
+	flags = advance_arg(true);
+
+	ret = lxc_safe_uint(flags, &old_mntflags);
+	if (ret < 0)
+		die("parse mount flags");
+
+	mnt_attributes_new(old_mntflags, &new_mntflags);
+
+	if (strcmp(fstype, "") && strcmp(fstype, "none")) {
+		fs_fd = lxd_fsopen(fstype, FSOPEN_CLOEXEC);
+		if (fs_fd < 0)
+			die("fsopen: %s", fstype);
+
+		ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "source", src, 0);
+		if (ret < 0)
+			die("fsconfig: source");
+
+		ret = lxd_fsconfig(fs_fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0);
+		if (ret < 0)
+			die("fsconfig: create");
+
+		mnt_fd = lxd_fsmount(fs_fd, FSMOUNT_CLOEXEC, new_mntflags);
+		if (mnt_fd < 0)
+			die("fsmount");
+	} else {
+		mnt_fd = lxd_open_tree(-EBADF, src, OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+		if (mnt_fd < 0)
+			die("open_tree");
+	}
+
+	fd_userns = preserve_ns(-ESRCH, ns_fd, "user");
+	if (fd_userns < 0)
+		die("preserve userns");
+
+	if (strcmp(idmapType, "idmapped") == 0) {
+		struct lxc_mount_attr attr = {
+			.attr_set	= MOUNT_ATTR_IDMAP,
+			.userns_fd	= fd_userns,
+
+		};
+
+		ret = lxd_mount_setattr(mnt_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+		if (ret)
+			die("idmap mount");
+	}
+
+	attach_userns_fd(ns_fd);
+
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
+		die("Failed setns to container mount namespace");
+
+	create(mnt_fd, NULL, dest);
+
+	if (access(dest, F_OK) < 0)
+		die("Mount destination doesn't exist");
+
+	ret = lxd_move_mount(mnt_fd, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
+	if (ret)
+		die("Failed to move detached mount to target from %d to %s", mnt_fd, dest);
 
 	_exit(0);
 }
@@ -416,6 +567,22 @@ void forkmount(void)
 		do_lxd_forkmount(pidfd, ns_fd);
 	} else if (strcmp(command, "lxc-mount") == 0) {
 		do_lxc_forkmount();
+	} else if (strcmp(command, "move-mount") == 0) {
+		// Get the pid
+		cur = advance_arg(false);
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
+			return;
+
+		pid = atoi(cur);
+		if (pid <= 0)
+			_exit(EXIT_FAILURE);
+
+		pidfd = atoi(advance_arg(true));
+		ns_fd = pidfd_nsfd(pidfd, pid);
+		if (ns_fd < 0)
+			_exit(EXIT_FAILURE);
+
+		do_move_forkmount(pidfd, ns_fd);
 	} else if (strcmp(command, "lxd-umount") == 0) {
 		// Get the pid
 		cur = advance_arg(false);

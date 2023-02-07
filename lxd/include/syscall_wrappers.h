@@ -27,35 +27,6 @@ static inline int lxd_close_range(unsigned int fd, unsigned int max_fd, unsigned
 	return syscall(__NR_close_range, fd, max_fd, flags);
 }
 
-static inline int lxd_open_tree(int dfd, const char *filename, unsigned int flags)
-{
-	return syscall(__NR_open_tree, dfd, filename, flags);
-}
-
-/*
- * mount_setattr()
- */
-struct lxc_mount_attr {
-	__u64 attr_set;
-	__u64 attr_clr;
-	__u64 propagation;
-	__u64 userns_fd;
-};
-
-static inline int lxd_mount_setattr(int dfd, const char *path, unsigned int flags,
-				    struct lxc_mount_attr *attr, size_t size)
-{
-	return syscall(__NR_mount_setattr, dfd, path, flags, attr, size);
-}
-
-static inline int lxd_move_mount(int from_dfd, const char *from_pathname,
-				 int to_dfd, const char *to_pathname,
-				 unsigned int flags)
-{
-	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd,
-		       to_pathname, flags);
-}
-
 /* arg1 of prctl() */
 #ifndef PR_SCHED_CORE
 #define PR_SCHED_CORE 62
