@@ -602,7 +602,7 @@ type Instance interface {
 	RootfsPath() string
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
-	IdmappedStorage(path string) idmap.IdmapStorageType
+	IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
 
@@ -2293,7 +2293,7 @@ func (s *Server) MountSyscallShift(c Instance, path string) idmap.IdmapStorageTy
 		}
 
 		if diskIdmap == nil {
-			return c.IdmappedStorage(path)
+			return c.IdmappedStorage(path, "none")
 		}
 	}
 
