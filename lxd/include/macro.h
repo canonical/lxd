@@ -338,4 +338,17 @@ enum {
 #define STRINGIFY(a) __STRINGIFY(a)
 #define __STRINGIFY(a) #a
 
+#define log_stderr(format, ...)                                               \
+	fprintf(stderr, "%s: %d: %s - %m - " format "\n", __FILE__, __LINE__, \
+		__func__, ##__VA_ARGS__)
+
+#define die_errno(__errno__, format, ...)          \
+	({                                         \
+		errno = (__errno__);               \
+		log_stderr(format, ##__VA_ARGS__); \
+		_exit(EXIT_FAILURE);               \
+	})
+
+#define die(format, ...) die_errno(errno, format, ##__VA_ARGS__)
+
 #endif /* __LXC_MACRO_H */
