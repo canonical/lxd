@@ -15,7 +15,9 @@ You should consider using LXD if you want to containerize different environments
 ## Get started
 
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
-Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
+This interactive demo guides you through the basic steps of using LXD and shows how to launch and inspect your first instances, update the configuration, work with commands and files inside an instance and create snapshots.
+
+Then, if you want to run LXD locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) for installation instructions.
 
 - Release announcements: [`https://linuxcontainers.org/lxd/news/`](https://linuxcontainers.org/lxd/news/)
 - Release tarballs: [`https://linuxcontainers.org/lxd/downloads/`](https://linuxcontainers.org/lxd/downloads/)
