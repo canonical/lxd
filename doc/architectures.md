@@ -1,26 +1,12 @@
+(architectures)=
 # Architectures
 
-## Introduction
+LXD can run on just about any architecture that is supported by the Linux kernel and by Go.
 
-LXD just like LXC can run on just about any architecture that's
-supported by the Linux kernel and by Go.
+Some objects in LXD are tied to an architecture, for example, the instances, instance snapshots and images.
 
-Some objects in LXD are tied to an architecture, like the container,
-container snapshots and images.
-
-This document lists all the supported architectures, their unique
-identifier (used in the database), how they should be named and some
-notes.
-
-Please note that what LXD cares about is the kernel architecture, not
-the particular userspace flavor as determined by the toolchain.
-
-That means that LXD considers ARMv7 hard-float to be the same as ARMv7
-soft-float and refers to both as `armv7`. If useful to the user, the
-exact userspace ABI may be set as an image and container property,
-allowing easy query.
-
-## Architectures
+The following table lists all supported architectures including their unique identifier and the name used to refer to them.
+The architecture names are typically aligned with the Linux kernel architecture names.
 
 ID    | Name          | Notes                           | Personalities
 :---  | :---          | :----                           | :------------
@@ -37,5 +23,9 @@ ID    | Name          | Notes                           | Personalities
 11    | `riscv32`     | 32bit RISC-V little-endian      |
 12    | `riscv64`     | 64bit RISC-V little-endian      |
 
-The architecture names above are typically aligned with the Linux kernel
-architecture names.
+```{note}
+LXD cares only about the kernel architecture, not the particular userspace flavor as determined by the toolchain.
+
+That means that LXD considers ARMv7 hard-float to be the same as ARMv7 soft-float and refers to both as `armv7`.
+If useful to the user, the exact userspace ABI may be set as an image and container property, allowing easy query.
+```
