@@ -253,7 +253,9 @@ func (d *btrfs) getQGroup(path string) (string, int64, error) {
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) != 4 {
+
+		// The BTRFS tooling changed the number of columns between versions so we only check for minimum.
+		if len(fields) < 3 {
 			continue
 		}
 
