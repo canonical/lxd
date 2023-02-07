@@ -6177,7 +6177,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	}
 
 	_, err = shared.RunCommandInheritFds(
-		context.TODO(),
+		context.Background(),
 		[]*os.File{pidFd},
 		d.state.OS.ExecPath,
 		"forkmount",
@@ -6226,7 +6226,58 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	return nil
 }
 
+func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+	// Get the init PID
+	pid := d.InitPID()
+	if pid == -1 {
+		// Container isn't running
+		return fmt.Errorf("Can't insert mount into stopped container")
+	}
+
+	switch idmapType {
+	case idmap.IdmapStorageIdmapped:
+	case idmap.IdmapStorageNone:
+	default:
+		return fmt.Errorf("Invalid idmap value specified")
+	}
+
+	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
+	if pidFdNr >= 0 {
+		defer func() { _ = pidFd.Close() }()
+	}
+
+	pidStr := fmt.Sprintf("%d", pid)
+
+	if !strings.HasPrefix(target, "/") {
+		target = "/" + target
+	}
+
+	_, err := shared.RunCommandInheritFds(
+		context.Background(),
+		[]*os.File{pidFd},
+		d.state.OS.ExecPath,
+		"forkmount",
+		"move-mount",
+		"--",
+		pidStr,
+		fmt.Sprintf("%d", pidFdNr),
+		fstype,
+		source,
+		target,
+		string(idmapType),
+		fmt.Sprintf("%d", flags))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+	if d.state.OS.IdmappedMounts && idmapType != idmap.IdmapStorageShiftfs {
+		return d.moveMount(source, target, fstype, flags, idmapType)
+	}
+
 	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}
