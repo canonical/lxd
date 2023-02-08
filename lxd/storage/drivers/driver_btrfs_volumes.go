@@ -1382,27 +1382,27 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 	// Transfer the snapshots (and any subvolumes if supported) to target first.
 	lastVolPath := "" // Used as parent for differential transfers.
 
-	if volSrcArgs.Refresh && !volSrcArgs.VolumeOnly {
+	if !vol.IsSnapshot() && !volSrcArgs.VolumeOnly {
 		snapshots, err := vol.Snapshots(op)
 		if err != nil {
 			return err
 		}
 
-		for i, snap := range snapshots {
-			if i == 0 {
-				continue
-			}
+		if volSrcArgs.Refresh {
+			for i, snap := range snapshots {
+				if i == 0 {
+					continue
+				}
 
-			_, snapName, _ := api.GetParentAndSnapshotName(snap.name)
+				_, snapName, _ := api.GetParentAndSnapshotName(snap.name)
 
-			if len(volSrcArgs.Snapshots) > 0 && snapName == volSrcArgs.Snapshots[0] {
-				lastVolPath = snapshots[i-1].MountPath()
-				break
+				if len(volSrcArgs.Snapshots) > 0 && snapName == volSrcArgs.Snapshots[0] {
+					lastVolPath = snapshots[i-1].MountPath()
+					break
+				}
 			}
 		}
-	}
 
-	if !volSrcArgs.VolumeOnly {
 		for _, snapName := range volSrcArgs.Snapshots {
 			snapVol, _ := vol.NewSnapshot(snapName)
 			err := sendVolume(snapVol, snapVol.MountPath(), lastVolPath)
