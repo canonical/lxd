@@ -12,6 +12,6 @@ For syntax help and guidelines, see the [documentation cheat sheet](https://linu
 
 ## Building the documentation
 
-To build the documentation, run `make doc` from the root folder of the repository. This command installs the required tools and renders the output to the `doc/html/` folder. To update the documentation for changed files only (without re-installing the tools), run `make doc-incremental`.
+To build the documentation, run `make doc` from the root directory of the repository. This command installs the required tools and renders the output to the `doc/html/` directory. To update the documentation for changed files only (without re-installing the tools), run `make doc-incremental`.
 
 After building, run `make doc-serve` and go to <http://localhost:8001> to view the rendered documentation.
