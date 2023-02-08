@@ -17,6 +17,18 @@ type starlarkMarshalTest struct {
 	errPrefix string
 }
 
+type LowerStruct struct {
+	Config map[string]string `json:"config"`
+}
+
+type MiddleStruct struct {
+	LowerStruct
+}
+
+type TopStruct struct {
+	MiddleStruct
+}
+
 type DummyStringer int
 
 var _ fmt.Stringer = DummyStringer(0)
@@ -158,6 +170,23 @@ func TestStarlarkMarshal(t *testing.T) {
 	}, {
 		from:      make(chan int),
 		errPrefix: "Unrecognised type chan int",
+	}, {
+		from: TopStruct{
+			MiddleStruct: MiddleStruct{
+				LowerStruct: LowerStruct{
+					Config: map[string]string{"name": "foo"},
+				},
+			},
+		},
+		to: func() starlark.Value {
+			config := starlark.NewDict(1)
+			assert.NoError(t, config.SetKey(starlark.String("name"), starlark.String("foo")))
+
+			ret := starlark.NewDict(1)
+			assert.NoError(t, ret.SetKey(starlark.String("config"), config))
+
+			return ret
+		}(),
 	}} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			sv, err := scriptlet.StarlarkMarshal(scenario.from)
