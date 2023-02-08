@@ -24,7 +24,7 @@ if the impact is too high.
 ## Create metrics certificate
 
 The `/1.0/metrics` endpoint is a special one as it also accepts a `metrics` type certificate.
-This kind of certificate is meant for metrics only, and won't work for interaction with instances or any other LXD objects.
+This kind of certificate is meant for metrics only, and won't work for interaction with instances or any other LXD entities.
 
 Here's how to create a new certificate (this is not specific to metrics):
 

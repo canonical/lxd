@@ -21,7 +21,7 @@ Snapshots can be read-write or read-only.
 ## `btrfs` driver in LXD
 
 The `btrfs` driver in LXD uses a subvolume per instance, image and snapshot.
-When creating a new object (for example, launching a new instance), it creates a Btrfs snapshot.
+When creating a new entity (for example, launching a new instance), it creates a Btrfs snapshot.
 
 Btrfs doesn't natively support storing block devices.
 Therefore, when using Btrfs for VMs, LXD creates a big file on disk to store the VM.
