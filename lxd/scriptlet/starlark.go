@@ -3,6 +3,7 @@ package scriptlet
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"go.starlark.net/starlark"
@@ -52,6 +53,17 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 	case reflect.Map:
 		mKeys := v.MapKeys()
 		d := starlark.NewDict(len(mKeys))
+
+		for _, k := range mKeys {
+			kind := k.Kind()
+			if kind != reflect.String {
+				return nil, fmt.Errorf("Only string keys are supported, found %s", kind)
+			}
+		}
+
+		sort.Slice(mKeys, func(i, j int) bool {
+			return mKeys[i].String() < mKeys[j].String()
+		})
 
 		for _, k := range v.MapKeys() {
 			mv := v.MapIndex(k)
