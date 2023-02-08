@@ -351,7 +351,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
+	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false, !s.instanceOnly)
 	if len(poolMigrationTypes) == 0 {
 		return abort(fmt.Errorf("No source migration types available"))
 	}
@@ -895,7 +895,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
 	contentType := storagePools.InstanceContentType(c.src.instance)
-	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh))
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh, !c.src.instanceOnly))
 	if err != nil {
 		return err
 	}
