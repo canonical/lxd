@@ -148,9 +148,11 @@ func (b *lxdBackend) Driver() drivers.Driver {
 }
 
 // MigrationTypes returns the migration transport method preferred when sending a migration,
-// based on the migration method requested by the driver's ability.
-func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {
-	return b.driver.MigrationTypes(contentType, refresh)
+// based on the migration method requested by the driver's ability. The snapshots argument
+// indicates whether snapshots are migrated as well. It is used to determine whether to use
+// optimized migration.
+func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh bool, copySnapshots bool) []migration.Type {
+	return b.driver.MigrationTypes(contentType, refresh, copySnapshots)
 }
 
 // Create creates the storage pool layout on the storage device.
@@ -1021,9 +1023,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		l.Debug("CreateInstanceFromCopy cross-pool mode detected")
 
 		// Negotiate the migration type to use.
-		offeredTypes := srcPool.MigrationTypes(contentType, false)
+		offeredTypes := srcPool.MigrationTypes(contentType, false, snapshots)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false, snapshots))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
@@ -1280,9 +1282,9 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		l.Debug("RefreshCustomVolume cross-pool mode detected")
 
 		// Negotiate the migration type to use.
-		offeredTypes := srcPool.MigrationTypes(contentType, true)
+		offeredTypes := srcPool.MigrationTypes(contentType, true, snapshots)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true, snapshots))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
@@ -1500,9 +1502,9 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		l.Debug("RefreshInstance cross-pool mode detected")
 
 		// Negotiate the migration type to use.
-		offeredTypes := srcPool.MigrationTypes(contentType, true)
+		offeredTypes := srcPool.MigrationTypes(contentType, true, snapshots)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true, snapshots))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
@@ -4127,9 +4129,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	l.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
 
 	// Negotiate the migration type to use.
-	offeredTypes := srcPool.MigrationTypes(contentType, false)
+	offeredTypes := srcPool.MigrationTypes(contentType, false, snapshots)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
-	migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
+	migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false, snapshots))
 	if err != nil {
 		return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 	}
