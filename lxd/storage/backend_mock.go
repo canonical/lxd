@@ -61,7 +61,7 @@ func (b *mockBackend) Driver() drivers.Driver {
 	return b.driver
 }
 
-func (b *mockBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {
+func (b *mockBackend) MigrationTypes(contentType drivers.ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	return []migration.Type{
 		{
 			FSType:   FallbackMigrationType(contentType),
