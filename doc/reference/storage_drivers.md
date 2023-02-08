@@ -32,7 +32,7 @@ Feature                                     | Directory | Btrfs | LVM   | ZFS  |
 Optimized instance creation                 | no        | yes   | yes   | yes  | yes      | n/a    | n/a
 Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes      | yes    | n/a
 Optimized image transfer                    | no        | yes   | no    | yes  | yes      | n/a    | n/a
-{ref}`storage-optimized-instance-transfer`  | no        | yes   | no    | yes  | yes      | n/a    | n/a
+{ref}`storage-optimized-volume-transfer`  | no        | yes   | no    | yes  | yes      | n/a    | n/a
 Copy on write                               | no        | yes   | yes   | yes  | yes      | yes    | n/a
 Block based                                 | no        | no    | yes   | no   | yes      | no     | n/a
 Instant cloning                             | no        | yes   | yes   | yes  | yes      | yes    | n/a
@@ -51,16 +51,26 @@ To make instance creation near instantaneous, LXD clones a pre-made image volume
 To prevent preparing such a volume on a storage pool that might never be used with that image, the volume is generated on demand.
 Therefore, the first instance takes longer to create than subsequent ones.
 
-(storage-optimized-instance-transfer)=
-### Optimized instance transfer
+(storage-optimized-volume-transfer)=
+### Optimized volume transfer
 
 Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
-LXD uses this mechanism to transfer instances and snapshots between servers.
 
-This optimized transfer is available only when transferring volumes between storage pools that use the same storage driver.
-When transferring between storage pools that use different drivers or drivers that don't support optimized instance transfer, LXD uses `rsync` to transfer the individual files instead.
+LXD uses this optimized transfer when transferring instances and snapshots between storage pools that use the same storage driver, if the storage driver supports optimized transfer.
+Otherwise, LXD uses `rsync` to transfer container and file system volumes, or raw block transfer to transfer virtual machine and custom block volumes.
 
-When using `rsync`, you can specify an upper limit on the amount of socket I/O by setting the `rsync.bwlimit` storage pool property to a non-zero value.
+The optimized transfer uses the underlying storage driver's native functionality for transferring data, which is usually faster than using `rsync`.
+However, the full potential of the optimized transfer becomes apparent when refreshing a copy of an instance or custom volume that uses periodic snapshots.
+With optimized transfer, LXD bases the refresh on the latest snapshot, which means:
+
+- When you take a first snapshot and refresh the copy, the transfer will take roughly the same time as a full copy.
+  LXD transfers the new snapshot and the difference between the snapshot and the main volume.
+- For subsequent snapshots, the transfer is considerably faster.
+  LXD does not transfer the full new snapshot, but only the difference between the new snapshot and the latest snapshot that already exists on the target.
+- When refreshing without a new snapshot, LXD transfers only the differences between the main volume and the latest snapshot on the target.
+  This transfer is usually faster than using `rsync` (as long as the latest snapshot is not too outdated).
+
+On the other hand, refreshing copies of instances without snapshots might actually be slower than using `rsync`, because LXD will transfer the difference between the (non-existent) latest snapshot and the main volume, thus the full volume.
 
 ## Recommended setup
 
