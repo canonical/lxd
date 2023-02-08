@@ -92,20 +92,37 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 			}
 
 			if field.Anonymous {
-				for i := 0; i < fieldValue.Type().NumField(); i++ {
-					anonField := fieldValue.Type().Field(i)
-					anonFieldValue := fieldValue.Field(i)
+				if fieldValue.Kind() == reflect.Struct {
+					for i := 0; i < fieldValue.Type().NumField(); i++ {
+						anonField := fieldValue.Type().Field(i)
+						anonFieldValue := fieldValue.Field(i)
 
-					key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
+						key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
+						if key == "" {
+							key = anonField.Name
+						}
+
+						if !anonField.IsExported() {
+							continue
+						}
+
+						dv, err := StarlarkMarshal(anonFieldValue.Interface())
+						if err != nil {
+							return nil, err
+						}
+
+						err = d.SetKey(starlark.String(key), dv)
+						if err != nil {
+							return nil, fmt.Errorf("Failed setting struct field %q to %v: %w", key, dv, err)
+						}
+					}
+				} else {
+					key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 					if key == "" {
-						key = anonField.Name
+						key = field.Name
 					}
 
-					if !anonField.IsExported() {
-						continue
-					}
-
-					dv, err := StarlarkMarshal(anonFieldValue.Interface())
+					dv, err := StarlarkMarshal(fieldValue.Interface())
 					if err != nil {
 						return nil, err
 					}
