@@ -1412,6 +1412,13 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			lastVolPath = snapVol.MountPath()
 		}
+
+		// If no snapshots are to be copied (because they are on the target already), but snapshots
+		// exist on the source, use the latest snapshot as the parent in order to speed up
+		// optimized refresh.
+		if volSrcArgs.Refresh && len(volSrcArgs.Snapshots) == 0 && len(snapshots) > 0 {
+			lastVolPath = snapshots[len(snapshots)-1].MountPath()
+		}
 	}
 
 	// Get instances directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers).
