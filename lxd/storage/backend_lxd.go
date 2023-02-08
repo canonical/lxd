@@ -1386,11 +1386,15 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 
 // RefreshInstance synchronises one instance's volume (and optionally snapshots) over another.
 // Snapshots that are not present in the source but are in the destination are removed from the
-// destination if snapshots are included in the synchronisation.
+// destination if snapshots are included in the synchronisation. An empty srcSnapshots argument
+// indicates a volume-only refresh.
 func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
 	l.Debug("RefreshInstance started")
 	defer l.Debug("RefreshInstance finished")
+
+	// This indicates whether or not it's a volume-only refresh.
+	snapshots := len(srcSnapshots) > 0
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -1424,7 +1428,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Check source volume exists, and get its config.
-	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, len(srcSnapshots) > 0, op)
+	srcConfig, err := srcPool.GenerateInstanceBackupConfig(src, snapshots, op)
 	if err != nil {
 		return fmt.Errorf("Failed generating instance refresh config: %w", err)
 	}
@@ -1521,6 +1525,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				AllowInconsistent:  allowInconsistent,
 				Refresh:            true, // Indicate to sender to use incremental streams.
 				Info:               &migration.Info{Config: srcConfig},
+				VolumeOnly:         !snapshots,
 			}, op)
 
 			if err != nil {
@@ -1538,6 +1543,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				MigrationType:      migrationTypes[0],
 				Refresh:            true,  // Indicate to receiver volume should exist.
 				TrackProgress:      false, // Do not use a progress tracker on receiver.
+				VolumeOnly:         !snapshots,
 			}, op)
 
 			if err != nil {
