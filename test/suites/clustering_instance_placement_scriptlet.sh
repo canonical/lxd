@@ -53,6 +53,9 @@ def instance_placement(request, candidate_members):
         if request["project"] != "default":
                 return "Expecting project default"
 
+        if request["config"]["limits.memory"] != "512MiB":
+                return "Expecting config limits.memory of 512MiB"
+
         if instance_resources["cpu_cores"] != 1:
                 return "Expecting cpu_cores of 1"
 
