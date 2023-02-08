@@ -11,8 +11,16 @@ import (
 // StarlarkMarshal converts input to a starlark Value.
 // It only includes exported struct fields, and uses the "json" tag for field names.
 func StarlarkMarshal(input any) (starlark.Value, error) {
+	if input == nil {
+		return starlark.None, nil
+	}
+
+	sv, ok := input.(starlark.Value)
+	if ok {
+		return sv, nil
+	}
+
 	var err error
-	var sv starlark.Value
 
 	v := reflect.ValueOf(input)
 
@@ -27,7 +35,7 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sv = starlark.Float(v.Float())
 	case reflect.Bool:
 		sv = starlark.Bool(v.Bool())
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		vlen := v.Len()
 		listElems := make([]starlark.Value, 0, vlen)
 
