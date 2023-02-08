@@ -353,11 +353,11 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start: %w", err)
+		return nil, fmt.Errorf("Failed to run: %w", err)
 	}
 
 	if v.Type() != "NoneType" {
-		return nil, fmt.Errorf("Failed with return value: %v", v)
+		return nil, fmt.Errorf("Failed with unexpected return value: %v", v)
 	}
 
 	return targetMember, nil
