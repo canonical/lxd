@@ -3,7 +3,7 @@
 
 LXD can run on just about any architecture that is supported by the Linux kernel and by Go.
 
-Some objects in LXD are tied to an architecture, for example, the instances, instance snapshots and images.
+Some entities in LXD are tied to an architecture, for example, the instances, instance snapshots and images.
 
 The following table lists all supported architectures including their unique identifier and the name used to refer to them.
 The architecture names are typically aligned with the Linux kernel architecture names.
