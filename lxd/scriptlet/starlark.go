@@ -12,6 +12,14 @@ import (
 // StarlarkMarshal converts input to a starlark Value.
 // It only includes exported struct fields, and uses the "json" tag for field names.
 func StarlarkMarshal(input any) (starlark.Value, error) {
+	return starlarkMarshal(input, nil)
+}
+
+// starlarkMarshal converts input to a starlark Value.
+// It only includes exported struct fields, and uses the "json" tag for field names.
+// Takes optional parent Starlark dictionary which will be used to set fields from anonymous (embedded) structs
+// in to the parent struct.
+func starlarkMarshal(input any, parent *starlark.Dict) (starlark.Value, error) {
 	if input == nil {
 		return starlark.None, nil
 	}
@@ -81,7 +89,11 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sv = d
 	case reflect.Struct:
 		fieldCount := v.Type().NumField()
-		d := starlark.NewDict(fieldCount)
+
+		d := parent
+		if d == nil {
+			d = starlark.NewDict(fieldCount)
+		}
 
 		for i := 0; i < fieldCount; i++ {
 			field := v.Type().Field(i)
@@ -91,46 +103,12 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 				continue
 			}
 
-			if field.Anonymous {
-				if fieldValue.Kind() == reflect.Struct {
-					for i := 0; i < fieldValue.Type().NumField(); i++ {
-						anonField := fieldValue.Type().Field(i)
-						anonFieldValue := fieldValue.Field(i)
-
-						key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
-						if key == "" {
-							key = anonField.Name
-						}
-
-						if !anonField.IsExported() {
-							continue
-						}
-
-						dv, err := StarlarkMarshal(anonFieldValue.Interface())
-						if err != nil {
-							return nil, err
-						}
-
-						err = d.SetKey(starlark.String(key), dv)
-						if err != nil {
-							return nil, fmt.Errorf("Failed setting struct field %q to %v: %w", key, dv, err)
-						}
-					}
-				} else {
-					key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-					if key == "" {
-						key = field.Name
-					}
-
-					dv, err := StarlarkMarshal(fieldValue.Interface())
-					if err != nil {
-						return nil, err
-					}
-
-					err = d.SetKey(starlark.String(key), dv)
-					if err != nil {
-						return nil, fmt.Errorf("Failed setting struct field %q to %v: %w", key, dv, err)
-					}
+			if field.Anonymous && fieldValue.Kind() == reflect.Struct {
+				// If anonymous struct field's value is another struct then pass the the current
+				// starlark dictionary to starlarkMarshal so its fields will be set on the parent.
+				_, err = starlarkMarshal(fieldValue.Interface(), d)
+				if err != nil {
+					return nil, err
 				}
 			} else {
 				dv, err := StarlarkMarshal(fieldValue.Interface())
