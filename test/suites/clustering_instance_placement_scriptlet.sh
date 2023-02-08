@@ -98,7 +98,7 @@ EOF
 def instance_placement(request, candidate_members):
         log_error("instance placement not allowed") # Log placement error.
 
-        return "Instance not allowed" # Return placement error to prevent instance creation.
+        fail("Instance not allowed") # Fail to prevent instance creation.
 EOF
 
   ! LXD_DIR="${LXD_ONE_DIR}" lxc init testimage c1 || false
