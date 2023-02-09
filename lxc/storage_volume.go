@@ -363,8 +363,34 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	srcServer := srcResource.server
 	srcPath := srcResource.name
 
-	// If a target was specified, specify the volume on the given member.
-	if c.storage.flagTarget != "" {
+	// If the source server is standalone then --target cannot be provided.
+	if c.storage.flagTarget != "" && !srcServer.IsClustered() {
+		return fmt.Errorf(i18n.G("Cannot set --target when source server is not clustered"))
+	}
+
+	// Get source pool and volume name
+	srcVolName, srcVolPool := c.storageVolume.parseVolumeWithPool(srcPath)
+	if srcVolPool == "" {
+		return fmt.Errorf(i18n.G("No storage pool for source volume specified"))
+	}
+
+	// Check if requested storage volume exists.
+	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(srcVolName)
+	srcVol, _, err := srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolParentName)
+	if err != nil {
+		return err
+	}
+
+	// If the volume is in local storage, set the target to its location (or provide a helpful error
+	// message if the target is incorrect). If the volume is in remote storage (and the source server is clustered) we
+	// can use any provided target. Note that for standalone servers, this will set the target to "none".
+	if srcVol.Location != "" && srcVol.Location != "none" {
+		if c.storage.flagTarget != "" && c.storage.flagTarget != srcVol.Location {
+			return fmt.Errorf(i18n.G("Given target %q does not match source volume location %q"), c.storage.flagTarget, srcVol.Location)
+		}
+
+		srcServer = srcServer.UseTarget(srcVol.Location)
+	} else if c.storage.flagTarget != "" && srcServer.IsClustered() {
 		srcServer = srcServer.UseTarget(c.storage.flagTarget)
 	}
 
@@ -373,10 +399,14 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	dstServer := dstResource.server
 	dstPath := dstResource.name
 
-	// Get source pool and volume name
-	srcVolName, srcVolPool := c.storageVolume.parseVolumeWithPool(srcPath)
-	if srcVolPool == "" {
-		return fmt.Errorf(i18n.G("No storage pool for source volume specified"))
+	// We can always set the destination target if the destination server is clustered (for local storage volumes this
+	// places the volume on the target member, for remote volumes this does nothing).
+	if c.storageVolume.flagDestinationTarget != "" {
+		if !dstServer.IsClustered() {
+			return fmt.Errorf(i18n.G("Cannot set --destination-target when destination server is not clustered"))
+		}
+
+		dstServer = dstServer.UseTarget(c.storageVolume.flagDestinationTarget)
 	}
 
 	// Get destination pool and volume name
@@ -403,15 +433,6 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		finalMsg = i18n.G("Storage volume moved successfully!")
 	}
 
-	var srcVol *api.StorageVolume
-
-	// Check if requested storage volume exists.
-	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(srcVolName)
-	srcVol, _, err = srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolParentName)
-	if err != nil {
-		return err
-	}
-
 	// If source is a snapshot get source snapshot volume info and apply to the srcVol.
 	if srcIsSnapshot {
 		srcVolSnapshot, _, err := srcServer.GetStoragePoolVolumeSnapshot(srcVolPool, "custom", srcVolParentName, srcVolSnapName)
@@ -423,23 +444,6 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		srcVol.Name = srcVolName
 		srcVol.Config = srcVolSnapshot.Config
 		srcVol.Description = srcVolSnapshot.Description
-	}
-
-	if srcResource.remote == dstResource.remote {
-		// If destination target was specified, copy the volume onto the given member.
-		// If no destination target is specified, this will be the same as the source.
-		if c.storageVolume.flagDestinationTarget != "" {
-			dstServer = dstServer.UseTarget(c.storageVolume.flagDestinationTarget)
-		} else {
-			dstServer = dstServer.UseTarget(srcVol.Location)
-		}
-	} else if c.storageVolume.flagDestinationTarget != "" {
-		return fmt.Errorf("Cannot use ---destination-target when copying to another remote")
-	}
-
-	// If no target is specified, use the member that contains the source volume.
-	if c.storage.flagTarget == "" {
-		srcServer = srcServer.UseTarget(srcVol.Location)
 	}
 
 	if cmd.Name() == "move" && srcServer == dstServer {
