@@ -5662,10 +5662,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
 		}
 	} else {
-		// We won't know what filesystem some block backed volumes are using, so ask the storage
-		// driver to probe the block device for us (if appropriate).
-		vol.SetMountFilesystemProbe(true)
-
 		// If backup file not accessible, we take this to mean the instance isn't running
 		// and so we need to mount the volume to access the backup file and then unmount.
 		// This will also create the mount path if needed.
@@ -5808,7 +5804,6 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 					return err
 				}
 			} else {
-				vol.SetMountFilesystemProbe(true)
 				err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 					blockFS, err = filesystem.Detect(mountPath)
 					if err != nil {
