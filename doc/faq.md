@@ -113,7 +113,7 @@ file systems automatically if it can.
 
 The [container requirements](container-environment.md) specify that
 every container must come with an empty `/dev`, `/proc` and `/sys`
-folder, as well as `/sbin/init` existing.  If those folders don't
+directory, as well as `/sbin/init` existing.  If those directories don't
 exist, LXD will be unable to mount to them, and `systemd` will then
 try to. As this is an unprivileged container, `systemd` does not have
 the ability to do this, and it then freezes.
@@ -148,7 +148,7 @@ not running as well as expected.
     sys
     [root@systemd /]# exit
 
-Because LXD tries to auto-heal, it did create some of the folders when it was
+Because LXD tries to auto-heal, it did create some of the directories when it was
 starting up. Shutting down and restarting the container will fix the problem, but
 the original cause is still there - the **template does not contain the required
 files**.

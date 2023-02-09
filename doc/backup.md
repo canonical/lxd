@@ -7,7 +7,7 @@ discourse: 11296
 
 ## What to back up
 
-When planning to back up a LXD server, consider all the different objects
+When planning to back up a LXD server, consider all the different entities
 that are stored/managed by LXD:
 
 - Instances (database records and file systems)
