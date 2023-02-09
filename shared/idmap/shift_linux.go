@@ -307,9 +307,9 @@ static int get_userns_fd(void)
 	return ret;
 }
 
-static int create_detached_idmapped_mount(const char *path)
+static int create_detached_idmapped_mount(const char *path, const char *fstype)
 {
-	__do_close int fd_tree = -EBADF, fd_userns = -EBADF;
+	__do_close int fs_fd = -EBADF, mnt_fd = -EBADF, fd_userns = -EBADF;
 	struct lxc_mount_attr attr = {
 	    .attr_set		= MOUNT_ATTR_IDMAP,
 	    .propagation	= MS_SLAVE,
@@ -317,8 +317,25 @@ static int create_detached_idmapped_mount(const char *path)
 	};
 	int ret;
 
-	fd_tree = lxd_open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
-	if (fd_tree < 0)
+	if (strcmp(fstype, "") && strcmp(fstype, "none")) {
+		fs_fd = lxd_fsopen(fstype, FSOPEN_CLOEXEC);
+		if (fs_fd < 0)
+			return -errno;
+
+		ret = lxd_fsconfig(fs_fd, FSCONFIG_SET_STRING, "source", path, 0);
+		if (ret < 0)
+			return -errno;
+
+		ret = lxd_fsconfig(fs_fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0);
+		if (ret < 0)
+			return -errno;
+
+		mnt_fd = lxd_fsmount(fs_fd, FSMOUNT_CLOEXEC, 0);
+	} else {
+		mnt_fd = lxd_open_tree(-EBADF, path, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	}
+
+	if (mnt_fd < 0)
 		return -errno;
 
 	fd_userns = get_userns_fd();
@@ -327,7 +344,7 @@ static int create_detached_idmapped_mount(const char *path)
 
 	attr.userns_fd = fd_userns;
 
-	ret = lxd_mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	ret = lxd_mount_setattr(mnt_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr));
 	if (ret < 0)
 		return -errno;
 
@@ -609,9 +626,11 @@ const (
 	IdmapStorageShiftfs  = "shiftfs"
 )
 
-func CanIdmapMount(path string) bool {
+func CanIdmapMount(path string, fstype string) bool {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
+	cfstype := C.CString(fstype)
+	defer C.free(unsafe.Pointer(cfstype))
 
-	return bool(C.create_detached_idmapped_mount(cpath) == 0)
+	return bool(C.create_detached_idmapped_mount(cpath, cfstype) == 0)
 }

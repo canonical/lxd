@@ -1276,11 +1276,13 @@ func (d *lxc) initLXC(config bool) error {
 }
 
 var idmappedStorageMap map[unix.Fsid]idmap.IdmapStorageType = map[unix.Fsid]idmap.IdmapStorageType{}
+var idmappedStorageMapString map[string]idmap.IdmapStorageType = map[string]idmap.IdmapStorageType{}
 var idmappedStorageMapLock sync.Mutex
 
 // IdmappedStorage determines if the container can use idmapped mounts or shiftfs.
-func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
+func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType {
 	var mode idmap.IdmapStorageType = idmap.IdmapStorageNone
+	var bindMount bool = fstype == "none" || fstype == ""
 
 	if d.state.OS.Shiftfs {
 		// Fallback to shiftfs.
@@ -1292,28 +1294,44 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	}
 
 	buf := &unix.Statfs_t{}
-	err := unix.Statfs(path, buf)
-	if err != nil {
-		// Log error but fallback to shiftfs
-		d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
-		return mode
+
+	if bindMount {
+		err := unix.Statfs(path, buf)
+		if err != nil {
+			// Log error but fallback to shiftfs
+			d.logger.Error("Failed to statfs", logger.Ctx{"path": path, "err": err})
+			return mode
+		}
 	}
 
 	idmappedStorageMapLock.Lock()
 	defer idmappedStorageMapLock.Unlock()
 
-	val, ok := idmappedStorageMap[buf.Fsid]
-	if ok {
-		// Return recorded idmapping type.
-		return val
+	if bindMount {
+		val, ok := idmappedStorageMap[buf.Fsid]
+		if ok {
+			// Return recorded idmapping type.
+			return val
+		}
+	} else {
+		val, ok := idmappedStorageMapString[fstype]
+		if ok {
+			// Return recorded idmapping type.
+			return val
+		}
 	}
 
-	if idmap.CanIdmapMount(path) {
+	d.logger.Error("", logger.Ctx{"path": path, "fstype": fstype})
+	if idmap.CanIdmapMount(path, fstype) {
 		// Use idmapped mounts.
 		mode = idmap.IdmapStorageIdmapped
 	}
 
-	idmappedStorageMap[buf.Fsid] = mode
+	if bindMount {
+		idmappedStorageMap[buf.Fsid] = mode
+	} else {
+		idmappedStorageMapString[fstype] = mode
+	}
 
 	return mode
 }
@@ -1628,7 +1646,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 			var idmapType idmap.IdmapStorageType = idmap.IdmapStorageNone
 			if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-				idmapType = d.IdmappedStorage(mount.DevPath)
+				idmapType = d.IdmappedStorage(mount.DevPath, mount.FSType)
 				if idmapType == idmap.IdmapStorageNone {
 					return fmt.Errorf("Required idmapping abilities not available")
 				}
@@ -1758,7 +1776,7 @@ func (d *lxc) handleIdmappedStorage() (idmap.IdmapStorageType, *idmap.IdmapSet, 
 
 	// There's no on-disk idmap applied and the container can use idmapped
 	// storage.
-	idmapType := d.IdmappedStorage(d.RootfsPath())
+	idmapType := d.IdmappedStorage(d.RootfsPath(), "none")
 	if diskIdmap == nil && idmapType != idmap.IdmapStorageNone {
 		return idmapType, nextIdmap, nil
 	}
@@ -2090,7 +2108,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				mntOptions := strings.Join(mount.Opts, ",")
 
 				if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
-					switch d.IdmappedStorage(mount.DevPath) {
+					switch d.IdmappedStorage(mount.DevPath, mount.FSType) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
 					case idmap.IdmapStorageShiftfs:
@@ -6060,7 +6078,7 @@ func (d *lxc) unmount() error {
 		return err
 	}
 
-	if d.IdmappedStorage(d.RootfsPath()) == idmap.IdmapStorageShiftfs && !d.IsPrivileged() && diskIdmap == nil {
+	if d.IdmappedStorage(d.RootfsPath(), "none") == idmap.IdmapStorageShiftfs && !d.IsPrivileged() && diskIdmap == nil {
 		_ = unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
 	}
 
@@ -6162,7 +6180,7 @@ func (d *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 	}
 
 	_, err = shared.RunCommandInheritFds(
-		context.TODO(),
+		context.Background(),
 		[]*os.File{pidFd},
 		d.state.OS.ExecPath,
 		"forkmount",
@@ -6211,7 +6229,58 @@ func (d *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	return nil
 }
 
+func (d *lxc) moveMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+	// Get the init PID
+	pid := d.InitPID()
+	if pid == -1 {
+		// Container isn't running
+		return fmt.Errorf("Can't insert mount into stopped container")
+	}
+
+	switch idmapType {
+	case idmap.IdmapStorageIdmapped:
+	case idmap.IdmapStorageNone:
+	default:
+		return fmt.Errorf("Invalid idmap value specified")
+	}
+
+	pidFdNr, pidFd := seccomp.MakePidFd(pid, d.state)
+	if pidFdNr >= 0 {
+		defer func() { _ = pidFd.Close() }()
+	}
+
+	pidStr := fmt.Sprintf("%d", pid)
+
+	if !strings.HasPrefix(target, "/") {
+		target = "/" + target
+	}
+
+	_, err := shared.RunCommandInheritFds(
+		context.Background(),
+		[]*os.File{pidFd},
+		d.state.OS.ExecPath,
+		"forkmount",
+		"move-mount",
+		"--",
+		pidStr,
+		fmt.Sprintf("%d", pidFdNr),
+		fstype,
+		source,
+		target,
+		string(idmapType),
+		fmt.Sprintf("%d", flags))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *lxc) insertMount(source, target, fstype string, flags int, idmapType idmap.IdmapStorageType) error {
+	if d.state.OS.IdmappedMounts && idmapType != idmap.IdmapStorageShiftfs {
+		return d.moveMount(source, target, fstype, flags, idmapType)
+	}
+
 	if d.state.OS.LXCFeatures["mount_injection_file"] && idmapType == idmap.IdmapStorageNone {
 		return d.insertMountLXC(source, target, fstype, flags)
 	}

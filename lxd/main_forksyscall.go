@@ -30,6 +30,7 @@ import (
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include "include/macro.h"
 #include "include/memory_utils.h"
 #include "include/mount_utils.h"
 #include "include/syscall_numbers.h"
@@ -41,19 +42,6 @@ extern int pidfd_nsfd(int pidfd, pid_t pid);
 extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 extern int mount_detach_idmap(const char *path, int fd_userns);
-
-#define log_stderr(format, ...)                                                         \
-	fprintf(stderr, "%s: %d: %s - %m - " format "\n", __FILE__, __LINE__, __func__, \
-		##__VA_ARGS__)
-
-#define die_errno(__errno__, format, ...)          \
-	({                                         \
-		errno = (__errno__);               \
-		log_stderr(format, ##__VA_ARGS__); \
-		_exit(EXIT_FAILURE);                \
-	})
-
-#define die(format, ...) die_errno(errno, format, ##__VA_ARGS__)
 
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
