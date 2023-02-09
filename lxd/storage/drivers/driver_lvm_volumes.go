@@ -411,7 +411,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	}
 
-	logCtx := logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
+	l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
 
 	// Activate volume if needed.
 	activated, err := d.activateVolume(vol)
@@ -449,7 +449,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 				return err
 			}
 
-			d.logger.Debug("Logical volume filesystem shrunk", logCtx)
+			l.Debug("Logical volume filesystem shrunk")
 
 			// Shrink the block device.
 			err = d.resizeLogicalVolume(volDevPath, sizeBytes)
@@ -469,7 +469,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 				return err
 			}
 
-			d.logger.Debug("Logical volume filesystem grown", logCtx)
+			l.Debug("Logical volume filesystem grown")
 		}
 	} else {
 		// Only perform pre-resize checks if we are not in "unsafe" mode.
@@ -581,7 +581,13 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		// volume (so that only the single "logical" volume is returned).
 		existingVol, foundExisting := vols[volName]
 		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
-			vols[volName] = NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+			v := NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+
+			if contentType == ContentTypeFS {
+				v.SetMountFilesystemProbe(true)
+			}
+
+			vols[volName] = v
 			continue
 		}
 

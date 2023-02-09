@@ -233,19 +233,7 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 
 // GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config.
 func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
-	// Copy the config map to avoid internal modifications affecting external state.
-	newConfig := make(map[string]string, len(volConfig))
-	for k, v := range volConfig {
-		newConfig[k] = v
-	}
-
-	// Copy the pool config map to avoid internal modifications affecting external state.
-	newPoolConfig := make(map[string]string, len(b.db.Config))
-	for k, v := range b.db.Config {
-		newPoolConfig[k] = v
-	}
-
-	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, newConfig, newPoolConfig)
+	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig, b.db.Config).Clone()
 }
 
 // GetResources returns utilisation information about the pool.
@@ -693,9 +681,13 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// We don't know the volume's config yet as tarball hasn't been unpacked.
-	// We will apply the config as part of the post hook function returned if driver needs to.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	var volumeConfig map[string]string
+
+	if srcBackup.Config != nil && srcBackup.Config.Volume != nil {
+		volumeConfig = srcBackup.Config.Volume.Config
+	}
+
+	vol := b.GetVolume(volType, contentType, volStorageName, volumeConfig)
 
 	importRevert := revert.New()
 	defer importRevert.Fail()
@@ -1978,6 +1970,11 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	revert := revert.New()
 	defer revert.Fail()
 
+	volume, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil && !response.IsNotFoundError(err) {
+		return err
+	}
+
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
 	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
 	if err != nil {
@@ -2020,8 +2017,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	newVolStorageName := project.Instance(inst.Project().Name, newName)
 	contentType := InstanceContentType(inst)
 
-	// There's no need to pass config as it's not needed when renaming a volume.
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+	vol := b.GetVolume(volType, contentType, volStorageName, volume.Config)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
@@ -4570,8 +4566,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	volStorageName := project.StorageVolume(projectName, volName)
 	newVolStorageName := project.StorageVolume(projectName, newVolName)
 
-	// There's no need to pass the config as it's not needed when renaming a volume.
-	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
+	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, volume.Config)
 
 	err = b.driver.RenameVolume(vol, newVolStorageName, op)
 	if err != nil {
@@ -5667,10 +5662,6 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 			return fmt.Errorf("Failed parsing backup file %q: %w", backupYamlPath, err)
 		}
 	} else {
-		// We won't know what filesystem some block backed volumes are using, so ask the storage
-		// driver to probe the block device for us (if appropriate).
-		vol.SetMountFilesystemProbe(true)
-
 		// If backup file not accessible, we take this to mean the instance isn't running
 		// and so we need to mount the volume to access the backup file and then unmount.
 		// This will also create the mount path if needed.
@@ -5804,7 +5795,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 		apiContentType = db.StoragePoolVolumeContentTypeNameFS
 
 		// Detect block volume filesystem (by mounting it (if not already) with filesystem probe mode).
-		if b.driver.Info().BlockBacking {
+		if vol.IsBlockBacked() {
 			var blockFS string
 			mountPath := vol.MountPath()
 			if filesystem.IsMountPoint(mountPath) {
@@ -5813,7 +5804,6 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 					return err
 				}
 			} else {
-				vol.SetMountFilesystemProbe(true)
 				err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 					blockFS, err = filesystem.Detect(mountPath)
 					if err != nil {
