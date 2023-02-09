@@ -489,7 +489,7 @@ Adhere to the following conventions:
 
 Adhere to the following conventions:
 
-- For pictures in the `doc` folder, start the path with `/` (for example, `/images/image.png`).
+- For pictures in the `doc` directory, start the path with `/` (for example, `/images/image.png`).
 - Use PNG format for screenshots and SVG format for graphics.
 
 ## Reuse
