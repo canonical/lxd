@@ -21,6 +21,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
+	lxdCluster "github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/operationtype"
@@ -1098,6 +1099,15 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return err
 	})
 	if err != nil {
+		// Check if the user provided an incorrect target query parameter and return a helpful error message.
+		_, volumeNotFound := api.StatusErrorMatch(err, http.StatusNotFound)
+		targetIsSet := r.URL.Query().Get("target") != ""
+		serverIsClustered, _ := lxdCluster.Enabled(d.db.Node)
+
+		if serverIsClustered && targetIsSet && volumeNotFound {
+			return response.NotFound(fmt.Errorf("Storage volume not found on this cluster member"))
+		}
+
 		return response.SmartError(err)
 	}
 
