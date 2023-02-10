@@ -413,7 +413,7 @@ func (c *ClusterTx) AddNodeToClusterGroup(ctx context.Context, groupName string,
 		return fmt.Errorf("Failed to get node info: %w", err)
 	}
 
-	_, err = c.tx.Exec(`INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(?, ?);`, nodeInfo.ID, groupID)
+	_, err = c.tx.Exec(`INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(?, ?)`, nodeInfo.ID, groupID)
 	if err != nil {
 		return err
 	}
