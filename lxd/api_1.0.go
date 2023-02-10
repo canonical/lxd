@@ -916,7 +916,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed reconfiguring BGP: %w", err)
 		}
 	}
 
@@ -925,7 +925,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 		err := s.DNS.Reconfigure(address)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed reconfiguring DNS: %w", err)
 		}
 	}
 
@@ -954,7 +954,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	if ok {
 		err := scriptletLoad.InstancePlacementSet(value)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed saving instance placement scriptlet: %w", err)
 		}
 	}
 
