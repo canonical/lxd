@@ -79,7 +79,7 @@ func (c *Cluster) GetNetworkZoneKeys() (map[string]string, error) {
 	q := `SELECT networks_zones.name, networks_zones_config.key, networks_zones_config.value
 		FROM networks_zones
 		JOIN networks_zones_config ON networks_zones_config.network_zone_id=networks_zones.id
-		WHERE networks_zones_config.key LIKE 'peers.%.key';
+		WHERE networks_zones_config.key LIKE 'peers.%.key'
 	`
 
 	secrets := map[string]string{}
