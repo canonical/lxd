@@ -172,8 +172,8 @@ An instance placement scriptlet must implement the `instance_placement` function
 
    `instance_placement(request, candidate_members)`:
 
-- `request` will be a `dict` containing an expanded representation of [`scriptlet.InstancePlacement`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstancePlacement). This request includes `project` and `reason` fields. The `reason` can be `new`, `evacuation` or `relocation`.
-- `candidate_members` will be a `list` of cluster member `dicts` representing [`api.ClusterMember`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMember) entries.
+- `request` will be an object containing an expanded representation of [`scriptlet.InstancePlacement`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstancePlacement). This request includes `project` and `reason` fields. The `reason` can be `new`, `evacuation` or `relocation`.
+- `candidate_members` will be a `list` of cluster member objects representing [`api.ClusterMember`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMember) entries.
 
 For example:
 
@@ -183,14 +183,14 @@ def instance_placement(request, candidate_members):
     log_info("instance placement started: ", request)
 
     # Example of applying logic based on the instance request.
-    if request["name"] == "foo":
+    if request.name == "foo":
         # Example of logging an error, this will appear in LXD's log.
-        log_error("Invalid name supplied: ", request["name"])
+        log_error("Invalid name supplied: ", request.name)
 
         return "Invalid name" # Return an error to reject instance placement.
 
     # Place the instance on the first candidate server provided.
-    set_target(candidate_members[0]["server_name"])
+    set_target(candidate_members[0].server_name)
 
     return # Return empty to allow instance placement to proceed.
 ```
@@ -209,10 +209,10 @@ The following functions are available to the scriptlet (in addition to those pro
 - `log_warn(*messages)`: Add a log entry to LXD's log at warn level. `messages` is one or more message arguments.
 - `log_error(*messages)`: Add a log entry to LXD's log at error level. `messages` is one or more message arguments.
 - `set_cluster_member_target(member_name)`: Set the cluster member where the instance should be created. `member_name` is the name of the cluster member the instance should be created on. If this is not called then LXD will use its built-in instance placement logic.
-- `get_cluster_member_state(member_name)`: Get the cluster member's state. Returns a `dict` with the cluster member's state in the form of [`api.ClusterMemberState`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMemberState). `member_name` is the name of the cluster member to get state for.
-- `get_cluster_member_resources(member_name)`: Get information about resources on the cluster member. Returns a `dict` with the resource info in the form of [`api.Resources`. `member_name`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#Resources) is the name of the cluster member to get resource info for.
-- `get_instance_resources()`: Get information about the resources the instance will require. Returns a `dict` with the resource info in the form of [`scriptlet.InstanceResources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstanceResources).
+- `get_cluster_member_state(member_name)`: Get the cluster member's state. Returns an object with the cluster member's state in the form of [`api.ClusterMemberState`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMemberState). `member_name` is the name of the cluster member to get state for.
+- `get_cluster_member_resources(member_name)`: Get information about resources on the cluster member. Returns an object with the resource info in the form of [`api.Resources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#Resources). `member_name` is the name of the cluster member to get resource info for.
+- `get_instance_resources()`: Get information about the resources the instance will require. Returns an object with the resource info in the form of [`scriptlet.InstanceResources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstanceResources).
 
 ```{note}
-The fields in the response `dict` types are equivalent to the JSON field names in the associated Go types.
+Field names in the object types are equivalent to the JSON field names in the associated Go types.
 ```
