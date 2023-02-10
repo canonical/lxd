@@ -26,7 +26,7 @@ func (n *Node) GetAppliedPatches() ([]string, error) {
 
 // MarkPatchAsApplied marks the patch with the given name as applied on this node.
 func (n *Node) MarkPatchAsApplied(patch string) error {
-	stmt := `INSERT INTO patches (name, applied_at) VALUES (?, strftime("%s"));`
+	stmt := `INSERT INTO patches (name, applied_at) VALUES (?, strftime("%s"))`
 	_, err := n.db.Exec(stmt, patch)
 	return err
 }
