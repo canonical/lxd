@@ -1,4 +1,7 @@
 test_clustering_instance_placement_scriptlet() {
+  # shellcheck disable=2039,3043,SC2034
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -47,32 +50,32 @@ def instance_placement(request, candidate_members):
         instance_resources = get_instance_resources()
         log_info("instance placement started: ", request, ", ", instance_resources)
 
-        if request["reason"] != "new":
+        if request.reason != "new":
                 return "Expecting reason new"
 
-        if request["project"] != "default":
+        if request.project != "default":
                 return "Expecting project default"
 
-        if request["config"]["limits.memory"] != "512MiB":
+        if request.config["limits.memory"] != "512MiB":
                 return "Expecting config limits.memory of 512MiB"
 
-        if instance_resources["cpu_cores"] != 1:
+        if instance_resources.cpu_cores != 1:
                 return "Expecting cpu_cores of 1"
 
-        if instance_resources["memory_size"] != 536870912:
+        if instance_resources.memory_size != 536870912:
                 return "Expecting memory_size of 536870912"
 
-        if instance_resources["root_disk_size"] != 209715200:
+        if instance_resources.root_disk_size != 209715200:
                 return "Expecting root_disk_size of 209715200"
 
         # Log info, state and resources for each candidate member.
         for member in candidate_members:
                 log_info("instance placement member: ", member)
-                log_info("instance placement member resources: ", get_cluster_member_resources(member["server_name"]))
-                log_info("instance placement member state: ", get_cluster_member_state(member["server_name"]))
+                log_info("instance placement member resources: ", get_cluster_member_resources(member.server_name))
+                log_info("instance placement member state: ", get_cluster_member_state(member.server_name))
 
         # Set statically target to 2nd member.
-        set_target(candidate_members[1]["server_name"])
+        set_target(candidate_members[1].server_name)
 
         return # No error.
 EOF
@@ -135,7 +138,7 @@ EOF
 def instance_placement(request, candidate_members):
         log_info("instance placement started: ", request)
 
-        if request["reason"] != "evacuation":
+        if request.reason != "evacuation":
                 return "Expecting reason evacuation"
 
         # Log info, state and resources for each candidate member.
@@ -145,7 +148,7 @@ def instance_placement(request, candidate_members):
         # Set statically target to 3rd member.
         # Note: We expect the candidate members to not contain the member being evacuated, and thus the 3rd
         # member is the 2nd entry in the candidate_members list now.
-        set_target(candidate_members[1]["server_name"])
+        set_target(candidate_members[1].server_name)
 
         return # No error.
 EOF
