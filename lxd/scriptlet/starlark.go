@@ -9,6 +9,55 @@ import (
 	"go.starlark.net/starlark"
 )
 
+// starlarkObject wraps a starlark.Dict and is used to provide custom object types to the Starlark scriptlets.
+// This implements the starlark.HasAttrs interface.
+type starlarkObject struct {
+	d        *starlark.Dict
+	typeName string
+}
+
+func (s *starlarkObject) Type() string {
+	return s.typeName
+}
+
+func (s *starlarkObject) String() string {
+	return s.d.String()
+}
+
+func (s *starlarkObject) Freeze() {
+}
+
+func (s *starlarkObject) Hash() (uint32, error) {
+	return 0, fmt.Errorf("Unhashable type %s", s.Type())
+}
+
+func (s *starlarkObject) Truth() starlark.Bool {
+	return starlark.True
+}
+
+func (s *starlarkObject) AttrNames() []string {
+	keys := s.d.Keys()
+	keyNames := make([]string, 0, len(keys))
+	for _, k := range keys {
+		keyNames = append(keyNames, k.String())
+	}
+
+	return keyNames
+}
+
+func (s *starlarkObject) Attr(name string) (starlark.Value, error) {
+	field, found, err := s.d.Get(starlark.String(name))
+	if err != nil {
+		return nil, err
+	}
+
+	if !found {
+		return nil, fmt.Errorf("Invalid field %q", name)
+	}
+
+	return field, nil
+}
+
 // StarlarkMarshal converts input to a starlark Value.
 // It only includes exported struct fields, and uses the "json" tag for field names.
 func StarlarkMarshal(input any) (starlark.Value, error) {
@@ -128,7 +177,18 @@ func starlarkMarshal(input any, parent *starlark.Dict) (starlark.Value, error) {
 			}
 		}
 
-		sv = d
+		// Only convert the top-level struct to a Starlark object.
+		if parent == nil {
+			ss := starlarkObject{
+				d:        d,
+				typeName: v.Type().Name(),
+			}
+
+			sv = &ss
+		} else {
+			sv = d
+		}
+
 	case reflect.Pointer:
 		if v.IsZero() {
 			sv = starlark.None
