@@ -22,17 +22,8 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// InstancePlacementReasonNew is when a new instance request is received.
-const InstancePlacementReasonNew = "new"
-
-// InstancePlacementReasonRelocation is when an existing instance is temporarily migrated because a cluster member is down.
-const InstancePlacementReasonRelocation = "relocation"
-
-// InstancePlacementReasonEvacuation is when an existing instance is temporarily migrated because a cluster member is being evacuated.
-const InstancePlacementReasonEvacuation = "evacuation"
-
 // InstancePlacementRun runs the instance placement scriptlet and returns the chosen cluster member target.
-func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, reason string, req *api.InstancesPost, candidateMembers []db.NodeInfo, leaderAddress string) (*db.NodeInfo, error) {
+func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, req *apiScriptlet.InstancePlacement, candidateMembers []db.NodeInfo, leaderAddress string) (*db.NodeInfo, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -354,10 +345,6 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 	// Call starlark function from Go.
 	v, err := starlark.Call(thread, instancePlacement, nil, []starlark.Tuple{
 		{
-			starlark.String("reason"),
-			starlark.String(reason),
-		},
-		{
 			starlark.String("request"),
 			rv,
 		}, {
@@ -366,11 +353,11 @@ func InstancePlacementRun(ctx context.Context, l logger.Logger, s *state.State, 
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to start: %w", err)
+		return nil, fmt.Errorf("Failed to run: %w", err)
 	}
 
 	if v.Type() != "NoneType" {
-		return nil, fmt.Errorf("Failed with return value: %v", v)
+		return nil, fmt.Errorf("Failed with unexpected return value: %v", v)
 	}
 
 	return targetMember, nil

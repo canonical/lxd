@@ -34,6 +34,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	apiScriptlet "github.com/lxc/lxd/shared/api/scriptlet"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -1130,11 +1131,16 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Copy request so we don't modify it when expanding the config.
-			reqExpanded := req
+			reqExpanded := apiScriptlet.InstancePlacement{
+				InstancesPost: req,
+				Project:       targetProjectName,
+				Reason:        apiScriptlet.InstancePlacementReasonNew,
+			}
+
 			reqExpanded.Config = db.ExpandInstanceConfig(reqExpanded.Config, profiles)
 			reqExpanded.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(reqExpanded.Devices), profiles).CloneNative()
 
-			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, scriptlet.InstancePlacementReasonNew, &reqExpanded, candidateMembers, leaderAddress)
+			targetMemberInfo, err = scriptlet.InstancePlacementRun(r.Context(), logger.Log, s, &reqExpanded, candidateMembers, leaderAddress)
 			if err != nil {
 				return response.SmartError(fmt.Errorf("Failed instance placement scriptlet: %w", err))
 			}

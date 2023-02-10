@@ -3,6 +3,7 @@ package scriptlet
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"go.starlark.net/starlark"
@@ -11,8 +12,24 @@ import (
 // StarlarkMarshal converts input to a starlark Value.
 // It only includes exported struct fields, and uses the "json" tag for field names.
 func StarlarkMarshal(input any) (starlark.Value, error) {
+	return starlarkMarshal(input, nil)
+}
+
+// starlarkMarshal converts input to a starlark Value.
+// It only includes exported struct fields, and uses the "json" tag for field names.
+// Takes optional parent Starlark dictionary which will be used to set fields from anonymous (embedded) structs
+// in to the parent struct.
+func starlarkMarshal(input any, parent *starlark.Dict) (starlark.Value, error) {
+	if input == nil {
+		return starlark.None, nil
+	}
+
+	sv, ok := input.(starlark.Value)
+	if ok {
+		return sv, nil
+	}
+
 	var err error
-	var sv starlark.Value
 
 	v := reflect.ValueOf(input)
 
@@ -27,7 +44,7 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sv = starlark.Float(v.Float())
 	case reflect.Bool:
 		sv = starlark.Bool(v.Bool())
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		vlen := v.Len()
 		listElems := make([]starlark.Value, 0, vlen)
 
@@ -45,6 +62,17 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		mKeys := v.MapKeys()
 		d := starlark.NewDict(len(mKeys))
 
+		for _, k := range mKeys {
+			kind := k.Kind()
+			if kind != reflect.String {
+				return nil, fmt.Errorf("Only string keys are supported, found %s", kind)
+			}
+		}
+
+		sort.Slice(mKeys, func(i, j int) bool {
+			return mKeys[i].String() < mKeys[j].String()
+		})
+
 		for _, k := range v.MapKeys() {
 			mv := v.MapIndex(k)
 			dv, err := StarlarkMarshal(mv.Interface())
@@ -61,7 +89,11 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 		sv = d
 	case reflect.Struct:
 		fieldCount := v.Type().NumField()
-		d := starlark.NewDict(fieldCount)
+
+		d := parent
+		if d == nil {
+			d = starlark.NewDict(fieldCount)
+		}
 
 		for i := 0; i < fieldCount; i++ {
 			field := v.Type().Field(i)
@@ -71,29 +103,12 @@ func StarlarkMarshal(input any) (starlark.Value, error) {
 				continue
 			}
 
-			if field.Anonymous {
-				for i := 0; i < fieldValue.Type().NumField(); i++ {
-					anonField := fieldValue.Type().Field(i)
-					anonFieldValue := fieldValue.Field(i)
-
-					key, _, _ := strings.Cut(anonField.Tag.Get("json"), ",")
-					if key == "" {
-						key = anonField.Name
-					}
-
-					if !anonField.IsExported() {
-						continue
-					}
-
-					dv, err := StarlarkMarshal(anonFieldValue.Interface())
-					if err != nil {
-						return nil, err
-					}
-
-					err = d.SetKey(starlark.String(key), dv)
-					if err != nil {
-						return nil, fmt.Errorf("Failed setting struct field %q to %v: %w", key, dv, err)
-					}
+			if field.Anonymous && fieldValue.Kind() == reflect.Struct {
+				// If anonymous struct field's value is another struct then pass the the current
+				// starlark dictionary to starlarkMarshal so its fields will be set on the parent.
+				_, err = starlarkMarshal(fieldValue.Interface(), d)
+				if err != nil {
+					return nil, err
 				}
 			} else {
 				dv, err := StarlarkMarshal(fieldValue.Interface())
