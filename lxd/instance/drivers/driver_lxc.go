@@ -305,7 +305,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		revert.Add(cleanup)
 	}
 
-	d.logger.Info("Created container", logger.Ctx{"ephemeral": d.ephemeral})
+	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
@@ -2331,13 +2331,13 @@ func (d *lxc) Start(stateful bool) error {
 		"stateful":  stateful}
 
 	if op.Action() == "start" {
-		d.logger.Info("Starting container", ctxMap)
+		d.logger.Info("Starting instance", ctxMap)
 	}
 
 	// If stateful, restore now
 	if stateful {
 		if !d.stateful {
-			err = fmt.Errorf("Container has no existing state to restore")
+			err = fmt.Errorf("Instance has no existing state to restore")
 			op.Done(err)
 			return err
 		}
@@ -2364,7 +2364,7 @@ func (d *lxc) Start(stateful bool) error {
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Start container: %w", err)
+			return fmt.Errorf("Start instance: %w", err)
 		}
 
 		// Run any post start hooks.
@@ -2379,7 +2379,7 @@ func (d *lxc) Start(stateful bool) error {
 		}
 
 		if op.Action() == "start" {
-			d.logger.Info("Started container", ctxMap)
+			d.logger.Info("Started instance", ctxMap)
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 		}
 
@@ -2446,7 +2446,7 @@ func (d *lxc) Start(stateful bool) error {
 			}
 		}
 
-		d.logger.Error("Failed starting container", ctxMap)
+		d.logger.Error("Failed starting instance", ctxMap)
 
 		// Return the actual error
 		op.Done(err)
@@ -2465,7 +2465,7 @@ func (d *lxc) Start(stateful bool) error {
 	}
 
 	if op.Action() == "start" {
-		d.logger.Info("Started container", ctxMap)
+		d.logger.Info("Started instance", ctxMap)
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
@@ -2573,7 +2573,7 @@ func (d *lxc) Stop(stateful bool) error {
 		"stateful":  stateful}
 
 	if op.Action() == "stop" {
-		d.logger.Info("Stopping container", ctxMap)
+		d.logger.Info("Stopping instance", ctxMap)
 	}
 
 	// Handle stateful stop
@@ -2613,11 +2613,11 @@ func (d *lxc) Stop(stateful bool) error {
 		d.stateful = true
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
-			d.logger.Error("Failed stopping container", ctxMap)
+			d.logger.Error("Failed stopping instance", ctxMap)
 			return err
 		}
 
-		d.logger.Info("Stopped container", ctxMap)
+		d.logger.Info("Stopped instance", ctxMap)
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStopped.Event(d, nil))
 
 		return nil
@@ -2752,7 +2752,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		"timeout":   timeout}
 
 	if op.Action() == "stop" {
-		d.logger.Info("Shutting down container", ctxMap)
+		d.logger.Info("Shutting down instance", ctxMap)
 	}
 
 	// Release liblxc container once done.
@@ -2836,14 +2836,14 @@ func (d *lxc) Restart(timeout time.Duration) error {
 		"used":      d.lastUsedDate,
 		"timeout":   timeout}
 
-	d.logger.Info("Restarting container", ctxMap)
+	d.logger.Info("Restarting instance", ctxMap)
 
 	err := d.restartCommon(d, timeout)
 	if err != nil {
 		return err
 	}
 
-	d.logger.Info("Restarted container", ctxMap)
+	d.logger.Info("Restarted instance", ctxMap)
 	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
@@ -2913,7 +2913,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		_ = op.ResetTimeout(operationlock.TimeoutShutdown)
 
-		d.logger.Debug("Container stopped, cleaning up")
+		d.logger.Debug("Instance stopped, cleaning up")
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
@@ -2974,7 +2974,7 @@ func (d *lxc) onStop(args map[string]string) error {
 				"stateful":  false,
 			}
 
-			d.logger.Info("Shut down container", ctxMap)
+			d.logger.Info("Shut down instance", ctxMap)
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceShutdown.Event(d, nil))
 		}
 
@@ -2983,7 +2983,7 @@ func (d *lxc) onStop(args map[string]string) error {
 			// Start the container again
 			err = d.Start(false)
 			if err != nil {
-				op.Done(fmt.Errorf("Failed restarting container: %w", err))
+				op.Done(fmt.Errorf("Failed restarting instance: %w", err))
 				return
 			}
 
@@ -2999,7 +2999,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		if d.ephemeral {
 			err = d.delete(true)
 			if err != nil {
-				op.Done(fmt.Errorf("Failed deleting ephemeral container: %w", err))
+				op.Done(fmt.Errorf("Failed deleting ephemeral instance: %w", err))
 				return
 			}
 		}
@@ -3051,7 +3051,7 @@ func (d *lxc) Freeze() error {
 
 	// Check that we're running
 	if !d.IsRunning() {
-		return fmt.Errorf("The container isn't running")
+		return fmt.Errorf("The instance isn't running")
 	}
 
 	cg, err := d.cgroup(nil)
@@ -3454,7 +3454,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		"used":      d.lastUsedDate,
 		"source":    sourceContainer.Name()}
 
-	d.logger.Info("Restoring container", ctxMap)
+	d.logger.Info("Restoring instance", ctxMap)
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
@@ -3562,7 +3562,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		d.logger.Debug("Performed stateful restore", ctxMap)
-		d.logger.Info("Restored container", ctxMap)
+		d.logger.Info("Restored instance", ctxMap)
 		return nil
 	}
 
@@ -3577,7 +3577,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	}
 
 	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": sourceContainer.Name()}))
-	d.logger.Info("Restored container", ctxMap)
+	d.logger.Info("Restored instance", ctxMap)
 
 	return nil
 }
@@ -3622,11 +3622,11 @@ func (d *lxc) delete(force bool) error {
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	d.logger.Info("Deleting container", ctxMap)
+	d.logger.Info("Deleting instance", ctxMap)
 
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
-		err := fmt.Errorf("Container is protected")
-		d.logger.Warn("Failed to delete container", logger.Ctx{"err": err})
+		err := fmt.Errorf("Instance is protected")
+		d.logger.Warn("Failed to delete instance", logger.Ctx{"err": err})
 		return err
 	}
 
@@ -3687,7 +3687,7 @@ func (d *lxc) delete(force bool) error {
 		// Delete the MAAS entry.
 		err = d.maasDelete(d)
 		if err != nil {
-			d.logger.Error("Failed deleting container MAAS record", logger.Ctx{"err": err})
+			d.logger.Error("Failed deleting instance MAAS record", logger.Ctx{"err": err})
 			return err
 		}
 
@@ -3701,7 +3701,7 @@ func (d *lxc) delete(force bool) error {
 	// Remove the database record of the instance or snapshot instance.
 	err = d.state.DB.Cluster.DeleteInstance(d.project.Name, d.Name())
 	if err != nil {
-		d.logger.Error("Failed deleting container entry", logger.Ctx{"err": err})
+		d.logger.Error("Failed deleting instance entry", logger.Ctx{"err": err})
 		return err
 	}
 
@@ -3722,7 +3722,7 @@ func (d *lxc) delete(force bool) error {
 		}
 	}
 
-	d.logger.Info("Deleted container", ctxMap)
+	d.logger.Info("Deleted instance", ctxMap)
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
@@ -3741,7 +3741,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		"used":      d.lastUsedDate,
 		"newname":   newName}
 
-	d.logger.Info("Renaming container", ctxMap)
+	d.logger.Info("Renaming instance", ctxMap)
 
 	// Quick checks.
 	err := instance.ValidName(newName, d.IsSnapshot())
@@ -3750,7 +3750,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	if d.IsRunning() {
-		return fmt.Errorf("Renaming of running container not allowed")
+		return fmt.Errorf("Renaming of running instance not allowed")
 	}
 
 	// Clean things up.
@@ -3785,8 +3785,8 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		// Rename all the instance snapshot database entries.
 		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project.Name, oldName)
 		if err != nil {
-			d.logger.Error("Failed to get container snapshots", ctxMap)
-			return fmt.Errorf("Failed to get container snapshots: %w", err)
+			d.logger.Error("Failed to get instance snapshots", ctxMap)
+			return fmt.Errorf("Failed to get instance snapshots: %w", err)
 		}
 
 		for _, sname := range results {
@@ -3814,8 +3814,8 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		return cluster.RenameInstance(ctx, tx.Tx(), d.project.Name, oldName, newName)
 	})
 	if err != nil {
-		d.logger.Error("Failed renaming container", ctxMap)
-		return fmt.Errorf("Failed renaming container: %w", err)
+		d.logger.Error("Failed renaming instance", ctxMap)
+		return fmt.Errorf("Failed renaming instance: %w", err)
 	}
 
 	// Rename the logging path.
@@ -3824,8 +3824,8 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	if shared.PathExists(d.LogPath()) {
 		err := os.Rename(d.LogPath(), shared.LogPath(newFullName))
 		if err != nil {
-			d.logger.Error("Failed renaming container", ctxMap)
-			return fmt.Errorf("Failed renaming container: %w", err)
+			d.logger.Error("Failed renaming instance", ctxMap)
+			return fmt.Errorf("Failed renaming instance: %w", err)
 		}
 	}
 
@@ -3889,7 +3889,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 		return err
 	}
 
-	d.logger.Info("Renamed container", ctxMap)
+	d.logger.Info("Renamed instance", ctxMap)
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
