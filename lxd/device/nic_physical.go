@@ -89,53 +89,6 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		requiredFields = append(requiredFields, "parent")
 	}
 
-	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
-		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
-	}
-
-	if d.config["network"] != "" {
-		requiredFields = append(requiredFields, "network")
-
-		bannedKeys := []string{"nictype", "parent", "mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
-		for _, bannedKey := range bannedKeys {
-			if d.config[bannedKey] != "" {
-				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
-			}
-		}
-
-		// If network property is specified, lookup network settings and apply them to the device's config.
-		// project.Default is used here as physical networks don't support projects.
-		var err error
-		d.network, err = network.LoadByName(d.state, project.Default, d.config["network"])
-		if err != nil {
-			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
-		}
-
-		if d.network.Status() != api.NetworkStatusCreated {
-			return fmt.Errorf("Specified network is not fully created")
-		}
-
-		if d.network.Type() != "physical" {
-			return fmt.Errorf("Specified network must be of type physical")
-		}
-
-		netConfig := d.network.Config()
-
-		// Get actual parent device from network's parent setting.
-		d.config["parent"] = netConfig["parent"]
-
-		// Copy certain keys verbatim from the network's settings.
-		for _, field := range optionalFields {
-			_, found := netConfig[field]
-			if found {
-				d.config[field] = netConfig[field]
-			}
-		}
-	} else {
-		// If no network property supplied, then parent property is required.
-		requiredFields = append(requiredFields, "parent")
-	}
-
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
