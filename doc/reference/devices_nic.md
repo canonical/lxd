@@ -250,17 +250,18 @@ The targeted device will vanish from the host and appear in the instance (which 
 
 NIC devices of type `physical` have the following device options:
 
-Key                     | Type    | Default           | Description
-:--                     | :--     | :--               | :--
-`boot.priority`         | integer | -                 | Boot priority for VMs (higher value boots first)
-`gvrp`                  | bool    | `false`           | Register VLAN using GARP VLAN Registration Protocol
-`hwaddr`                | string  | randomly assigned | The MAC address of the new interface
-`maas.subnet.ipv4`      | string  | -                 | MAAS IPv4 subnet to register the instance in
-`maas.subnet.ipv6`      | string  | -                 | MAAS IPv6 subnet to register the instance in
-`mtu`                   | integer | parent MTU        | The MTU of the new interface
-`name`                  | string  | kernel assigned   | The name of the interface inside the instance
-`parent`                | string  | -                 | The name of the host device (required)
-`vlan`                  | integer | -                 | The VLAN ID to attach to
+Key                     | Type    | Default           | Managed | Description
+:--                     | :--     | :--               | :--     | :--
+`boot.priority`         | integer | -                 | no      | Boot priority for VMs (higher value boots first)
+`gvrp`                  | bool    | `false`           | no      | Register VLAN using GARP VLAN Registration Protocol
+`hwaddr`                | string  | randomly assigned | no      | The MAC address of the new interface
+`maas.subnet.ipv4`      | string  | -                 | no      | MAAS IPv4 subnet to register the instance in
+`maas.subnet.ipv6`      | string  | -                 | no      | MAAS IPv6 subnet to register the instance in
+`mtu`                   | integer | parent MTU        | no      | The MTU of the new interface
+`name`                  | string  | kernel assigned   | no      | The name of the interface inside the instance
+`network`               | string  | -                 | no      | The managed network to ink the device to (instead of specifying the `nictype` directly)
+`parent`                | string  | -                 | yes      | The name of the host device (required if specifying the `nictype` directly)
+`vlan`                  | integer | -                 | no      | The VLAN ID to attach to
 
 (nic-ipvlan)=
 ### `nictype`: `ipvlan`
