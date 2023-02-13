@@ -42,6 +42,10 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		"gvrp",
 	}
 
+	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
+		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
+	}
+
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
 
@@ -74,20 +78,15 @@ func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
 		d.config["parent"] = netConfig["parent"]
 
 		// Copy certain keys verbatim from the network's settings.
-		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
-		for _, inheritKey := range inheritKeys {
-			_, found := netConfig[inheritKey]
+		for _, field := range optionalFields {
+			_, found := netConfig[field]
 			if found {
-				d.config[inheritKey] = netConfig[inheritKey]
+				d.config[field] = netConfig[field]
 			}
 		}
 	} else {
 		// If no network property supplied, then parent property is required.
 		requiredFields = append(requiredFields, "parent")
-	}
-
-	if instConf.Type() == instancetype.Container || instConf.Type() == instancetype.Any {
-		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
 	}
 
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
