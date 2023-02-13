@@ -52,6 +52,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   ptrace (read),
   ptrace (trace),
 
+  /etc/machine-id r,
+  {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
+  {{ .rootPath }}/run/{resolvconf,NetworkManager,systemd/resolve,connman,netconfig}/resolv.conf r,
+  {{ .rootPath }}/usr/lib/systemd/resolv.conf r,
+
   # Needed for lxd fork commands
   {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
@@ -66,6 +71,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny @{PROC}/@{pid}/cgroup r,
   deny /sys/module/apparmor/parameters/enabled r,
   deny /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
+  deny /sys/devices/virtual/dmi/id/product_uuid r,
 
 {{- if .snap }}
   # The binary itself (for nesting)
