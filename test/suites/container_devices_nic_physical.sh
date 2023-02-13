@@ -6,6 +6,8 @@ test_container_devices_nic_physical() {
   dummyMAC="aa:3b:97:97:0f:d5"
   ctMAC="0a:92:a7:0d:b7:d9"
 
+  networkName="testnet"
+
   # Create dummy interface for use as parent.
   ip link add "${ctName}" address "${dummyMAC}" type dummy
 
@@ -186,6 +188,23 @@ test_container_devices_nic_physical() {
     echo "mac invalid"
     false
   fi
+
+  # create a dummy test network of type physical
+  lxc network create "${networkName}" --type=physical parent="${ctName}"
+
+  # Test adding a physical network to container
+  lxc config device add "${ctName}" eth1 nic \
+    network="${networkName}"
+
+  # Check that network config has been applied
+  if ! lxc config show "${ctName}" | grep "network: ${networkName}" ; then
+    echo "no network configuration detected"
+    false
+  fi
+  # Check container can start with the physical network configuration
+  lxc start "${ctName}"
+  # Stop container
+  lxc stop -f "${ctName}"
 
   lxc delete "${ctName}"
 
