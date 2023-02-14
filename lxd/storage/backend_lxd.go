@@ -3176,7 +3176,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if volFiller.Size != 0 {
 		imgVol.Config()["volatile.rootfs.size"] = fmt.Sprintf("%d", volFiller.Size)
 
-		err = b.state.DB.Cluster.UpdateStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.id, b.db.Description, imgVol.Config())
+		err = b.state.DB.Cluster.UpdateStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.id, "", imgVol.Config())
 		if err != nil {
 			return err
 		}
