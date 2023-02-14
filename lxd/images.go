@@ -2204,22 +2204,50 @@ func pruneLeftoverImages(d *Daemon) {
 }
 
 func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Operation) error {
-	var projects []api.Project
-	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
+	var err error
+	var projectsImageRemoteCacheExpiryDays map[string]int64
+	var allImages map[string][]dbCluster.Image
+
+	err = s.DB.Cluster.Transaction(ctx, func(ctx context.Context, tx *db.ClusterTx) error {
+		// Get an image remote cache expiry days value for each project and store keyed on project name.
+		globalImageRemoteCacheExpiryDays := s.GlobalConfig.ImagesRemoteCacheExpiryDays()
+
 		dbProjects, err := dbCluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
 
-		projects = make([]api.Project, 0, len(dbProjects))
-		for _, project := range dbProjects {
-			p, err := project.ToAPI(ctx, tx.Tx())
+		projectsImageRemoteCacheExpiryDays = make(map[string]int64, len(dbProjects))
+		for _, p := range dbProjects {
+			p, err := p.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
 
-			projects = append(projects, *p)
+			// If there is a project specific image expiry set use that.
+			if p.Config["images.remote_cache_expiry"] != "" {
+				expiry, err := strconv.ParseInt(p.Config["images.remote_cache_expiry"], 10, 64)
+				if err != nil {
+					return fmt.Errorf("Unable to fetch project configuration: %w", err)
+				}
+
+				projectsImageRemoteCacheExpiryDays[p.Name] = expiry
+			} else {
+				// Otherwise use the global default.
+				projectsImageRemoteCacheExpiryDays[p.Name] = globalImageRemoteCacheExpiryDays
+			}
+		}
+
+		// Get all cached images across all projects and store them keyed on fingerprint.
+		cached := true
+		images, err := dbCluster.GetImages(ctx, tx.Tx(), dbCluster.ImageFilter{Cached: &cached})
+		if err != nil {
+			return fmt.Errorf("Failed getting images: %w", err)
+		}
+
+		allImages = make(map[string][]dbCluster.Image, len(images))
+		for i := range images {
+			allImages[images[i].Fingerprint] = append(allImages[images[i].Fingerprint], images[i])
 		}
 
 		return nil
@@ -2228,52 +2256,58 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 		return fmt.Errorf("Unable to retrieve project names: %w", err)
 	}
 
-	for _, project := range projects {
-		err := pruneExpiredImagesInProject(ctx, s, project, op)
-		if err != nil {
-			return fmt.Errorf("Unable to prune images for project %q: %w", project.Name, err)
-		}
-	}
-
-	return nil
-}
-
-func pruneExpiredImagesInProject(ctx context.Context, s *state.State, project api.Project, op *operations.Operation) error {
-	var expiry int64
-	var err error
-	if project.Config["images.remote_cache_expiry"] != "" {
-		expiry, err = strconv.ParseInt(project.Config["images.remote_cache_expiry"], 10, 64)
-		if err != nil {
-			return fmt.Errorf("Unable to fetch project configuration: %w", err)
-		}
-	} else {
-		expiry = s.GlobalConfig.ImagesRemoteCacheExpiryDays()
-	}
-
-	// Check if we're supposed to prune at all
-	if expiry <= 0 {
-		return nil
-	}
-
-	// Get the list of expired images.
-	images, err := s.DB.Cluster.GetExpiredImagesInProject(expiry, project.Name)
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve the list of expired images: %w", err)
-	}
-
-	// Delete them
-	for _, fingerprint := range images {
-		// At each iteration we check if we got cancelled in the
-		// meantime. It is safe to abort here since anything not
-		// expired now will be expired at the next run.
+	for fingerprint, dbImages := range allImages {
+		// At each iteration we check if we got cancelled in the meantime. It is safe to abort here since
+		// anything not expired now will be expired at the next run.
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
 		}
 
-		// Get the IDs of all storage pools on which a storage volume
-		// for the requested image currently exists.
+		dbImagesDeleted := 0
+		for _, dbImage := range dbImages {
+			// Get expiry days for image's project.
+			expiryDays := projectsImageRemoteCacheExpiryDays[dbImage.Project]
+
+			// Skip if no project expiry time set.
+			if expiryDays <= 0 {
+				continue
+			}
+
+			// Figure out the expiry of image.
+			timestamp := dbImage.UploadDate
+			if !dbImage.LastUseDate.Time.IsZero() {
+				timestamp = dbImage.LastUseDate.Time
+			}
+
+			imageExpiry := timestamp.Add(time.Duration(expiryDays) * time.Hour * 24)
+
+			// Skip if image is not expired.
+			if imageExpiry.After(time.Now()) {
+				continue
+			}
+
+			// Remove the database entry for the image.
+			err = s.DB.Cluster.DeleteImage(dbImage.ID)
+			if err != nil {
+				return fmt.Errorf("Error deleting image %q in project %q from database: %w", fingerprint, dbImage.Project, err)
+			}
+
+			dbImagesDeleted++
+
+			logger.Info("Deleted expired cached image record", logger.Ctx{"fingerprint": fingerprint, "project": dbImage.Project, "expiry": imageExpiry})
+
+			s.Events.SendLifecycle(dbImage.Project, lifecycle.ImageDeleted.Event(fingerprint, dbImage.Project, op.Requestor(), nil))
+		}
+
+		// Skip deleting the image files and image storage volumes on disk if image is not expired in all
+		// of its projects.
+		if dbImagesDeleted < len(dbImages) {
+			continue
+		}
+
+		// Get the IDs of all storage pools on which a storage volume for the image currently exists.
 		poolIDs, err := s.DB.Cluster.GetPoolsWithImage(fingerprint)
 		if err != nil {
 			continue
@@ -2288,45 +2322,30 @@ func pruneExpiredImagesInProject(ctx context.Context, s *state.State, project ap
 		for _, poolName := range poolNames {
 			pool, err := storagePools.LoadByName(s, poolName)
 			if err != nil {
-				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, fingerprint, err)
+				return fmt.Errorf("Error loading storage pool %q to delete image volume %q: %w", poolName, fingerprint, err)
 			}
 
 			err = pool.DeleteImage(fingerprint, op)
 			if err != nil {
-				return fmt.Errorf("Error deleting image %q from storage pool %q: %w", fingerprint, pool.Name(), err)
+				return fmt.Errorf("Error deleting image volume %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
 		}
 
 		// Remove main image file.
 		fname := filepath.Join(s.OS.VarDir, "images", fingerprint)
-		if shared.PathExists(fname) {
-			err = os.Remove(fname)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Error deleting image file %q: %w", fname, err)
-			}
+		err = os.Remove(fname)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
 		}
 
 		// Remove the rootfs file for the image.
 		fname = filepath.Join(s.OS.VarDir, "images", fingerprint) + ".rootfs"
-		if shared.PathExists(fname) {
-			err = os.Remove(fname)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("Error deleting image file %q: %w", fname, err)
-			}
+		err = os.Remove(fname)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("Error deleting image file %q: %w", fname, err)
 		}
 
-		imgID, _, err := s.DB.Cluster.GetImage(fingerprint, dbCluster.ImageFilter{Project: &project.Name})
-		if err != nil {
-			return fmt.Errorf("Error retrieving image info for fingerprint %q and project %q: %w", fingerprint, project.Name, err)
-		}
-
-		// Remove the database entry for the image.
-		err = s.DB.Cluster.DeleteImage(imgID)
-		if err != nil {
-			return fmt.Errorf("Error deleting image %q from database: %w", fingerprint, err)
-		}
-
-		s.Events.SendLifecycle(project.Name, lifecycle.ImageDeleted.Event(fingerprint, project.Name, op.Requestor(), nil))
+		logger.Info("Deleted expired cached image files and volumes", logger.Ctx{"fingerprint": fingerprint})
 	}
 
 	return nil
