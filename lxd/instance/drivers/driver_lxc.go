@@ -1321,7 +1321,6 @@ func (d *lxc) IdmappedStorage(path string, fstype string) idmap.IdmapStorageType
 		}
 	}
 
-	d.logger.Error("", logger.Ctx{"path": path, "fstype": fstype})
 	if idmap.CanIdmapMount(path, fstype) {
 		// Use idmapped mounts.
 		mode = idmap.IdmapStorageIdmapped
