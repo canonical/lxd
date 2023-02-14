@@ -221,7 +221,11 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		d.lastUsedDate = time.Time{}
 	}
 
-	d.logger.Info("Creating instance", logger.Ctx{"ephemeral": d.ephemeral})
+	if args.Snapshot {
+		d.logger.Info("Creating instance snapshot", logger.Ctx{"ephemeral": d.ephemeral})
+	} else {
+		d.logger.Info("Creating instance", logger.Ctx{"ephemeral": d.ephemeral})
+	}
 
 	// Load the config.
 	err = d.init()
@@ -283,7 +287,11 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		revert.Add(cleanup)
 	}
 
-	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
+	if d.snapshot {
+		d.logger.Info("Created instance snapshot", logger.Ctx{"ephemeral": d.ephemeral})
+	} else {
+		d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
+	}
 
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
@@ -5079,7 +5087,11 @@ func (d *qemu) delete(force bool) error {
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	d.logger.Info("Deleting instance", ctxMap)
+	if d.snapshot {
+		d.logger.Info("Deleting instance snapshot", ctxMap)
+	} else {
+		d.logger.Info("Deleting instance", ctxMap)
+	}
 
 	// Check if instance is delete protected.
 	if !force && shared.IsTrue(d.expandedConfig["security.protection.delete"]) && !d.IsSnapshot() {
@@ -5172,7 +5184,11 @@ func (d *qemu) delete(force bool) error {
 		}
 	}
 
-	d.logger.Info("Deleted instance", ctxMap)
+	if d.snapshot {
+		d.logger.Info("Deleted instance snapshot", ctxMap)
+	} else {
+		d.logger.Info("Deleted instance", ctxMap)
+	}
 
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
