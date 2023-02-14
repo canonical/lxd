@@ -3068,9 +3068,15 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		// Add existing image volume's config to imgVol.
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
-		blockModeChanged := b.Driver().Info().BlockBacking && !imgVol.IsBlockBacked() || !b.Driver().Info().BlockBacking && imgVol.IsBlockBacked()
-		blockFSChanged := imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem()
+		// Check if the volume's block backed mode differs from the pool's current setting for new volumes.
+		blockModeChanged := b.Driver().Info().BlockBacking != imgVol.IsBlockBacked()
 
+		// Check if the volume is block backed and its filesystem is different from the pool's current
+		// setting for new volumes.
+		blockFSChanged := imgVol.IsBlockBacked() && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem()
+
+		// If the existing image volume no longer matches the pool's settings for new volumes then we need
+		// to delete and re-create it.
 		if blockModeChanged || blockFSChanged {
 			if blockModeChanged {
 				l.Debug("Block mode has changed, regenerating image volume")
