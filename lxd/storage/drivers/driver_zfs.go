@@ -119,7 +119,7 @@ func (d *zfs) Info() Info {
 		PreservesInodes:   true,
 		Remote:            d.isRemote(),
 		VolumeTypes:       []VolumeType{VolumeTypeBucket, VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:      false,
+		BlockBacking:      shared.IsTrue(d.config["volume.zfs.block_mode"]),
 		RunningCopyFreeze: false,
 		DirectIO:          zfsDirectIO,
 		MountedRoot:       false,
@@ -572,6 +572,10 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 
 	// Detect ZFS features.
 	features := []string{migration.ZFSFeatureMigrationHeader}
+
+	if contentType == ContentTypeFS {
+		features = append(features, migration.ZFSFeatureZvolFilesystems)
+	}
 
 	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
 		features = append(features, "compress")

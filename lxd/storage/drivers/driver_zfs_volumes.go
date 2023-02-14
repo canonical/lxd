@@ -61,9 +61,9 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if exists {
 			canRestore := true
 
-			// For block volumes check if the cached image volume is larger than the current pool volume.size
-			// setting (if so we won't be able to resize the snapshot to that the smaller size later).
-			if vol.contentType == ContentTypeBlock {
+			if vol.IsBlockBacked() && (vol.contentType == ContentTypeBlock || d.isBlockBacked(vol)) {
+				// For block volumes check if the cached image volume is larger than the current pool volume.size
+				// setting (if so we won't be able to resize the snapshot to that the smaller size later).
 				volSize, err := d.getDatasetProperty(d.dataset(vol, true), "volsize")
 				if err != nil {
 					return err
@@ -92,7 +92,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				// be restored in the future and a new cached image volume will be created instead.
 				if volSizeBytes != poolVolSizeBytes {
 					d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", logger.Ctx{"fingerprint": vol.Name()})
-					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, uuid.New(), vol.config, vol.poolConfig)
+					randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, d.randomVolumeName(vol), vol.config, vol.poolConfig)
 
 					_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
 					if err != nil {
@@ -141,7 +141,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// After this point we'll have a volume, so setup revert.
 	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 
-	if vol.contentType == ContentTypeFS {
+	if vol.contentType == ContentTypeFS && !d.isBlockBacked(vol) {
 		// Create the filesystem dataset.
 		err := d.createDataset(d.dataset(vol, false), "mountpoint=legacy", "canmount=noauto")
 		if err != nil {
@@ -165,8 +165,15 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		// Use volmode=none so volume is invisible until mounted.
-		opts := []string{"volmode=none"}
+		var opts []string
+
+		if vol.contentType == ContentTypeFS {
+			// Use volmode=dev so volume is visible as we need to run makeFSType.
+			opts = []string{"volmode=dev"}
+		} else {
+			// Use volmode=none so volume is invisible until mounted.
+			opts = []string{"volmode=none"}
+		}
 
 		loopPath := loopFilePath(d.name)
 		if d.config["source"] == loopPath {
@@ -195,6 +202,28 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		err = d.createVolume(d.dataset(vol, false), sizeBytes, opts...)
 		if err != nil {
 			return err
+		}
+
+		if vol.contentType == ContentTypeFS {
+			// Wait half a second to give udev a chance to kick in.
+			time.Sleep(500 * time.Millisecond)
+
+			zfsFilesystem := vol.ConfigBlockFilesystem()
+
+			devPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			_, err = makeFSType(devPath, zfsFilesystem, nil)
+			if err != nil {
+				return err
+			}
+
+			err = d.setDatasetProperties(d.dataset(vol, false), "volmode=none")
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -357,7 +386,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 			if hdr.Name == srcFile {
 				// Extract the backup.
-				if v.ContentType() == ContentTypeBlock {
+				if v.ContentType() == ContentTypeBlock || d.isBlockBacked(v) {
 					err = shared.RunCommandWithFds(context.TODO(), tr, nil, "zfs", "receive", "-F", target)
 				} else {
 					err = shared.RunCommandWithFds(context.TODO(), tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
@@ -583,7 +612,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// Send/receive the snapshot.
 		var sender *exec.Cmd
 		var receiver *exec.Cmd
-		if vol.ContentType() == ContentTypeBlock {
+		if vol.ContentType() == ContentTypeBlock || d.isBlockBacked(vol) {
 			receiver = exec.Command("zfs", "receive", d.dataset(vol, false))
 		} else {
 			receiver = exec.Command("zfs", "receive", "-x", "mountpoint", d.dataset(vol, false))
@@ -707,23 +736,54 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Apply the properties.
 	if vol.contentType == ContentTypeFS {
-		err := d.setDatasetProperties(d.dataset(vol, false), "mountpoint=legacy", "canmount=noauto")
-		if err != nil {
-			return err
-		}
+		if !d.isBlockBacked(srcVol) {
+			err := d.setDatasetProperties(d.dataset(vol, false), "mountpoint=legacy", "canmount=noauto")
+			if err != nil {
+				return err
+			}
 
-		// Apply the blocksize.
-		err = d.setBlocksizeFromConfig(vol)
-		if err != nil {
-			return err
+			// Apply the blocksize.
+			err = d.setBlocksizeFromConfig(vol)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
-		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+		err := vol.MountTask(func(_ string, _ *operations.Operation) error {
 			return vol.EnsureMountPath()
 		}, op)
 		if err != nil {
 			return err
+		}
+
+		if d.isBlockBacked(srcVol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+			dataset := d.dataset(vol, false)
+
+			err := d.setDatasetProperties(dataset, "volmode=dev")
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() {
+				_ = d.setDatasetProperties(dataset, "volmode=none")
+			})
+
+			// Wait half a second to give udev a chance to kick in.
+			time.Sleep(500 * time.Millisecond)
+
+			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
+
+			volPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
+			err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1006,22 +1066,24 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 			return err
 		}
 
-		// Re-apply the base mount options.
-		err = d.setDatasetProperties(d.dataset(vol, false), "mountpoint=legacy", "canmount=noauto")
-		if err != nil {
-			return err
-		}
+		if !d.isBlockBacked(vol) {
+			// Re-apply the base mount options.
+			err = d.setDatasetProperties(d.dataset(vol, false), "mountpoint=legacy", "canmount=noauto")
+			if err != nil {
+				return err
+			}
 
-		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
-		if err != nil {
-			return err
-		}
+			// Apply the size limit.
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
+			if err != nil {
+				return err
+			}
 
-		// Apply the blocksize.
-		err = d.setBlocksizeFromConfig(vol)
-		if err != nil {
-			return err
+			// Apply the blocksize.
+			err = d.setBlocksizeFromConfig(vol)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1229,7 +1291,27 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, al
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
+// For image volumes, both filesystem and block volumes will be removed.
 func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
+	if vol.volType == VolumeTypeImage {
+		// We need to clone vol the otherwise changing `zfs.block_mode`
+		// in tmpVol will also change it in vol.
+		tmpVol := vol.Clone()
+
+		for _, filesystem := range blockBackedAllowedFilesystems {
+			tmpVol.config["block.filesystem"] = filesystem
+
+			err := d.deleteVolume(tmpVol, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return d.deleteVolume(vol, op)
+}
+
+func (d *zfs) deleteVolume(vol Volume, op *operations.Operation) error {
 	// Check that we have a dataset to delete.
 	exists, err := d.datasetExists(d.dataset(vol, false))
 	if err != nil {
@@ -1292,10 +1374,13 @@ func (d *zfs) HasVolume(vol Volume) (bool, error) {
 // commonVolumeRules returns validation rules which are common for pool and volume.
 func (d *zfs) commonVolumeRules() map[string]func(value string) error {
 	return map[string]func(value string) error{
+		"block.filesystem":     validate.Optional(validate.IsOneOf(blockBackedAllowedFilesystems...)),
+		"block.mount_options":  validate.IsAny,
+		"zfs.block_mode":       validate.Optional(validate.IsBool),
 		"zfs.blocksize":        validate.Optional(ValidateZfsBlocksize),
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
-		"zfs.use_refquota":     validate.Optional(validate.IsBool),
 		"zfs.reserve_space":    validate.Optional(validate.IsBool),
+		"zfs.use_refquota":     validate.Optional(validate.IsBool),
 	}
 }
 
@@ -1395,7 +1480,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	}
 
 	// Handle volume datasets.
-	if vol.contentType == ContentTypeBlock {
+	if vol.contentType == ContentTypeBlock || d.isBlockBacked(vol) && vol.contentType == ContentTypeFS {
 		// Do nothing if size isn't specified.
 		if sizeBytes <= 0 {
 			return nil
@@ -1419,28 +1504,82 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 			return nil
 		}
 
-		// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
-		// updated when the volume's size is changed, and this is what instances are created from.
-		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-		if !allowUnsafeResize && vol.volType == VolumeTypeImage {
-			return ErrNotSupported
-		}
+		if vol.contentType == ContentTypeFS {
+			if vol.volType == VolumeTypeImage {
+				return fmt.Errorf("Image volumes cannot be resized: %w", ErrCannotBeShrunk)
+			}
 
-		// Only perform pre-resize checks if we are not in "unsafe" mode.
-		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-		if !allowUnsafeResize {
+			fsType := vol.ConfigBlockFilesystem()
+
+			volDevPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			l := d.logger.AddContext(logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)})
+
 			if sizeBytes < oldVolSizeBytes {
-				return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
+				if !filesystemTypeCanBeShrunk(fsType) {
+					return fmt.Errorf("Filesystem %q cannot be shrunk: %w", fsType, ErrCannotBeShrunk)
+				}
+
+				if vol.MountInUse() {
+					return ErrInUse // We don't allow online shrinking of filesystem block volumes.
+				}
+
+				// Shrink filesystem first.
+				// Pass allowUnsafeResize to allow disabling of filesystem resize safety checks.
+				err = shrinkFileSystem(fsType, volDevPath, vol, sizeBytes, allowUnsafeResize)
+				if err != nil {
+					return err
+				}
+
+				l.Debug("ZFS volume filesystem shrunk")
+
+				// Shrink the block device.
+				err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+				if err != nil {
+					return err
+				}
+			} else if sizeBytes > oldVolSizeBytes {
+				// Grow block device first.
+				err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+				if err != nil {
+					return err
+				}
+
+				// Grow the filesystem to fill block device.
+				err = growFileSystem(fsType, volDevPath, vol)
+				if err != nil {
+					return err
+				}
+
+				l.Debug("ZFS volume filesystem grown")
+			}
+		} else {
+			// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
+			// updated when the volume's size is changed, and this is what instances are created from.
+			// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
+			if !allowUnsafeResize && vol.volType == VolumeTypeImage {
+				return ErrNotSupported
 			}
 
-			if vol.MountInUse() {
-				return ErrInUse // We don't allow online resizing of block volumes.
-			}
-		}
+			// Only perform pre-resize checks if we are not in "unsafe" mode.
+			// In unsafe mode we expect the caller to know what they are doing and understand the risks.
+			if !allowUnsafeResize {
+				if sizeBytes < oldVolSizeBytes {
+					return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
+				}
 
-		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
-		if err != nil {
-			return err
+				if vol.MountInUse() {
+					return ErrInUse // We don't allow online resizing of block volumes.
+				}
+			}
+
+			err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+			if err != nil {
+				return err
+			}
 		}
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
@@ -1498,11 +1637,10 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	return nil
 }
 
-// GetVolumeDiskPath returns the location of a root disk block device.
-func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
+func (d *zfs) getVolumeDiskPathFromDataset(dataset string) (string, error) {
 	// Shortcut for udev.
-	if shared.PathExists(filepath.Join("/dev/zvol", d.dataset(vol, false))) {
-		return filepath.Join("/dev/zvol", d.dataset(vol, false)), nil
+	if shared.PathExists(filepath.Join("/dev/zvol", dataset)) {
+		return filepath.Join("/dev/zvol", dataset), nil
 	}
 
 	// Locate zvol_id.
@@ -1541,12 +1679,17 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 			continue
 		}
 
-		if strings.TrimSpace(output) == d.dataset(vol, false) {
+		if strings.TrimSpace(output) == dataset {
 			return entryPath, nil
 		}
 	}
 
-	return "", fmt.Errorf("Could not locate a zvol for %s", d.dataset(vol, false))
+	return "", fmt.Errorf("Could not locate a zvol for %s", dataset)
+}
+
+// GetVolumeDiskPath returns the location of a root disk block device.
+func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
+	return d.getVolumeDiskPathFromDataset(d.dataset(vol, false))
 }
 
 // ListVolumes returns a list of LXD volumes in storage pool.
@@ -1605,7 +1748,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		}
 
 		// Detect if a volume is block content type using both the defined suffix and the dataset type.
-		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix) || zfsContentType == "volume"
+		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix) && zfsContentType == "volume"
 
 		if volType == VolumeTypeVM && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
@@ -1623,7 +1766,13 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		// volume (so that only the single "logical" volume is returned).
 		existingVol, foundExisting := vols[volName]
 		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
-			vols[volName] = NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+			v := NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+
+			if zfsContentType == "volume" {
+				v.SetMountFilesystemProbe(true)
+			}
+
+			vols[volName] = v
 			continue
 		}
 
@@ -1657,10 +1806,10 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	defer revert.Fail()
 
 	dataset := d.dataset(vol, false)
+	mountPath := vol.MountPath()
 
 	// Check if filesystem volume already mounted.
-	if vol.contentType == ContentTypeFS {
-		mountPath := vol.MountPath()
+	if vol.contentType == ContentTypeFS && !d.isBlockBacked(vol) {
 		if !filesystem.IsMountPoint(mountPath) {
 			err := d.setDatasetProperties(dataset, "mountpoint=legacy", "canmount=noauto")
 			if err != nil {
@@ -1680,7 +1829,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 
 			d.logger.Debug("Mounted ZFS dataset", logger.Ctx{"dev": dataset, "path": mountPath})
 		}
-	} else if vol.contentType == ContentTypeBlock {
+	} else {
 		// For block devices, we make them appear.
 		// Check if already active.
 		current, err := d.getDatasetProperty(dataset, "volmode")
@@ -1701,6 +1850,25 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			time.Sleep(500 * time.Millisecond)
 
 			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
+		}
+
+		if vol.contentType != ContentTypeBlock && d.isBlockBacked(vol) && !filesystem.IsMountPoint(mountPath) {
+			volPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			err = vol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
+
+			err = TryMount(volPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
+			if err != nil {
+				return err
+			}
 		}
 
 		if vol.IsVMBlock() {
@@ -1731,6 +1899,62 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 	refCount := vol.MountRefCountDecrement()
 
+	// The returned boolean indicates whether the volume could be unmounted successfully.
+	deactivate := func() (bool, error) {
+		current, err := d.getDatasetProperty(dataset, "volmode")
+		if err != nil {
+			return false, err
+		}
+
+		if current == "dev" {
+			if refCount > 0 {
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+				return false, ErrInUse
+			}
+
+			devPath, _ := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return false, fmt.Errorf("Failed locating zvol for deactivation: %w", err)
+			}
+
+			// We cannot wait longer than the operationlock.TimeoutShutdown to avoid continuing
+			// the unmount process beyond the ongoing request.
+			waitDuration := operationlock.TimeoutShutdown
+			waitUntil := time.Now().Add(waitDuration)
+			i := 0
+			for {
+				// Sometimes it takes multiple attempts for ZFS to actually apply this.
+				err = d.setDatasetProperties(dataset, "volmode=none")
+				if err != nil {
+					return false, err
+				}
+
+				if !shared.PathExists(devPath) {
+					d.logger.Debug("Deactivated ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset})
+					break
+				}
+
+				if time.Now().After(waitUntil) {
+					return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
+				}
+
+				// Wait for ZFS a chance to flush and udev to remove the device path.
+				d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
+
+				if i <= 5 {
+					// Retry more quickly early on.
+					time.Sleep(time.Second * time.Duration(i))
+				} else {
+					time.Sleep(time.Second * time.Duration(5))
+				}
+
+				i++
+			}
+		}
+
+		return true, nil
+	}
+
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		if refCount > 0 {
 			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
@@ -1745,6 +1969,14 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 		ourUnmount = true
+
+		// If vol is a zvol, also deactivate it.
+		if d.isBlockBacked(vol) && !keepBlockDev {
+			ourUnmount, err = deactivate()
+			if err != nil {
+				return false, err
+			}
+		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, also unmount the filesystem dataset.
 		if vol.IsVMBlock() {
@@ -1757,57 +1989,9 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		// For block devices, we make them disappear if active.
 		if !keepBlockDev {
-			current, err := d.getDatasetProperty(dataset, "volmode")
+			ourUnmount, err = deactivate()
 			if err != nil {
 				return false, err
-			}
-
-			if current == "dev" {
-				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-					return false, ErrInUse
-				}
-
-				devPath, _ := d.GetVolumeDiskPath(vol)
-				if err != nil {
-					return false, fmt.Errorf("Failed locating zvol for deactivation: %w", err)
-				}
-
-				// We cannot wait longer than the operationlock.TimeoutShutdown to avoid continuing
-				// the unmount process beyond the ongoing request.
-				waitDuration := operationlock.TimeoutShutdown
-				waitUntil := time.Now().Add(waitDuration)
-				i := 0
-				for {
-					// Sometimes it takes multiple attempts for ZFS to actually apply this.
-					err = d.setDatasetProperties(dataset, "volmode=none")
-					if err != nil {
-						return false, err
-					}
-
-					if !shared.PathExists(devPath) {
-						d.logger.Debug("Deactivated ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset})
-						break
-					}
-
-					if time.Now().After(waitUntil) {
-						return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
-					}
-
-					// Wait for ZFS a chance to flush and udev to remove the device path.
-					d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
-
-					if i <= 5 {
-						// Retry more quickly early on.
-						time.Sleep(time.Second * time.Duration(i))
-					} else {
-						time.Sleep(time.Second * time.Duration(5))
-					}
-
-					i++
-				}
-
-				ourUnmount = true
 			}
 		}
 	}
@@ -1844,7 +2028,7 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	})
 
 	// Ensure the volume has correct mountpoint settings.
-	if vol.contentType == ContentTypeFS {
+	if vol.contentType == ContentTypeFS && !d.isBlockBacked(vol) {
 		err = d.setDatasetProperties(d.dataset(newVol, false), "mountpoint=legacy", "canmount=noauto")
 		if err != nil {
 			return err
@@ -1930,6 +2114,11 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		if err != nil {
 			return fmt.Errorf("Failed closing ZFS migration header frame: %w", err)
 		}
+	}
+
+	// If we haven't negotiated zvol support, ensure volume is not a zvol.
+	if !shared.StringInSlice(migration.ZFSFeatureZvolFilesystems, volSrcArgs.MigrationType.Features) && d.isBlockBacked(vol) {
+		return fmt.Errorf("Filesystem zvol detected in source but target does not support receiving zvols")
 	}
 
 	incrementalStream := true
@@ -2094,8 +2283,10 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 		return "", nil, err
 	}
 
+	dataset := d.dataset(vol, false)
+	srcSnapshot := fmt.Sprintf("%s@temp_ro-%s", dataset, uuid.New())
+
 	// Create a temporary snapshot.
-	srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.New())
 	_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
 	if err != nil {
 		return "", nil, err
@@ -2111,13 +2302,49 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 
 	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
 
-	// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
-	// already mounted by the time genericVFSBackupVolume tries to mount it below,
-	// thus preventing it from trying to unmount it at the end, as this is a custom snapshot,
-	// the normal mount and unmount logic will fail.
-	err = TryMount(srcSnapshot, tmpDir, "zfs", 0, "")
-	if err != nil {
-		return "", nil, err
+	if d.isBlockBacked(vol) {
+		// For block devices, we make them appear.
+		// Check if already active.
+		current, err := d.getDatasetProperty(dataset, "volmode")
+		if err != nil {
+			return "", nil, err
+		}
+
+		if current != "dev" {
+			// Activate.
+			err = d.setDatasetProperties(dataset, "volmode=dev", "snapdev=visible")
+			if err != nil {
+				return "", nil, err
+			}
+
+			defer func() { _ = d.setDatasetProperties(dataset, "volmode=none", "snapdev=hidden") }()
+
+			// Wait half a second to give udev a chance to kick in.
+			time.Sleep(500 * time.Millisecond)
+
+			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
+		}
+
+		volPath, err := d.getVolumeDiskPathFromDataset(srcSnapshot)
+		if err != nil {
+			return "", nil, err
+		}
+
+		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
+
+		err = TryMount(volPath, tmpDir, vol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
+		if err != nil {
+			return "", nil, err
+		}
+	} else {
+		// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
+		// already mounted by the time genericVFSBackupVolume tries to mount it below,
+		// thus preventing it from trying to unmount it at the end, as this is a custom snapshot,
+		// the normal mount and unmount logic will fail.
+		err = TryMount(srcSnapshot, tmpDir, "zfs", unix.MS_RDONLY, "")
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
@@ -2143,7 +2370,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		// Because the generic backup method will not take a consistent backup if files are being modified
 		// as they are copied to the tarball, as ZFS allows us to take a quick snapshot without impacting
 		// the parent volume we do so here to ensure the backup taken is consistent.
-		if vol.contentType == ContentTypeFS {
+		if vol.contentType == ContentTypeFS && !d.isBlockBacked(vol) {
 			snapshotPath, cleanup, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
@@ -2389,7 +2616,6 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	unlock := snapVol.MountLock()
 	defer unlock()
 
-	var err error
 	mountPath := snapVol.MountPath()
 	snapshotDataset := d.dataset(snapVol, false)
 
@@ -2397,25 +2623,28 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	defer revert.Fail()
 
 	// Check if filesystem volume already mounted.
-	if snapVol.contentType == ContentTypeFS && !filesystem.IsMountPoint(mountPath) {
-		err := snapVol.EnsureMountPath()
-		if err != nil {
-			return err
-		}
+	if snapVol.contentType == ContentTypeFS && !d.isBlockBacked(snapVol) {
+		if !filesystem.IsMountPoint(mountPath) {
+			err := snapVol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
 
-		// Mount the snapshot directly (not possible through tools).
-		err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
-		if err != nil {
-			return err
-		}
+			// Mount the snapshot directly (not possible through tools).
+			err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+			if err != nil {
+				return err
+			}
 
-		d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
-	} else if snapVol.contentType == ContentTypeBlock {
+			d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+		}
+	} else {
 		// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the parent volume.
 		// Ensure snap volume parent is activated to avoid issues activating the snapshot volume device.
-		parent, _, _ := api.GetParentAndSnapshotName(snapVol.Name())
+		parent, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.Name())
 		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
-		err = d.MountVolume(parentVol, op)
+
+		err := d.MountVolume(parentVol, op)
 		if err != nil {
 			return err
 		}
@@ -2454,6 +2683,90 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 			d.logger.Debug("Activated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 		}
 
+		if snapVol.contentType != ContentTypeBlock && d.isBlockBacked(snapVol) && !filesystem.IsMountPoint(mountPath) {
+			err = snapVol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+
+			mountVol := snapVol
+			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(mountVol.ConfigBlockMountOptions(), ","))
+
+			dataset := d.dataset(snapVol, false)
+
+			// Regenerate filesystem UUID if needed. This is because some filesystems do not allow mounting
+			// multiple volumes that share the same UUID. As snapshotting a volume will copy its UUID we need
+			// to potentially regenerate the UUID of the snapshot now that we are trying to mount it.
+			// This is done at mount time rather than snapshot time for 2 reasons; firstly snapshots need to be
+			// as fast as possible, and on some filesystems regenerating the UUID is a slow process, secondly
+			// we do not want to modify a snapshot in case it is corrupted for some reason, so at mount time
+			// we take another snapshot of the snapshot, regenerate the temporary snapshot's UUID and then
+			// mount that.
+			regenerateFSUUID := renegerateFilesystemUUIDNeeded(snapVol.ConfigBlockFilesystem())
+			if regenerateFSUUID {
+				// Instantiate a new volume to be the temporary writable snapshot.
+				tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
+				tmpVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, tmpVolName, snapVol.config, snapVol.poolConfig)
+
+				dataset = fmt.Sprintf("%s_%s%s", parentDataset, snapshotOnlyName, tmpVolSuffix)
+
+				// Clone snapshot.
+				_, err = shared.RunCommand("zfs", "clone", snapshotDataset, dataset)
+				if err != nil {
+					return err
+				}
+
+				// Delete on revert.
+				revert.Add(func() { _ = d.DeleteVolume(tmpVol, op) })
+
+				err := d.setDatasetProperties(dataset, "volmode=dev")
+				if err != nil {
+					return err
+				}
+
+				defer func() {
+					_ = d.setDatasetProperties(dataset, "volmode=none")
+				}()
+
+				// Wait half a second to give udev a chance to kick in.
+				time.Sleep(500 * time.Millisecond)
+
+				d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
+
+				// We are going to mount the temporary volume instead.
+				mountVol = tmpVol
+			}
+
+			volPath, err := d.getVolumeDiskPathFromDataset(dataset)
+			if err != nil {
+				return err
+			}
+
+			if regenerateFSUUID {
+				tmpVolFsType := mountVol.ConfigBlockFilesystem()
+
+				// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
+				// regenerating the filesystem UUID.
+				if tmpVolFsType == "xfs" {
+					idx := strings.Index(mountOptions, "nouuid")
+					if idx < 0 {
+						mountOptions += ",nouuid"
+					}
+				} else {
+					d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": tmpVolFsType})
+					err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volPath)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			err = TryMount(volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
+			if err != nil {
+				return fmt.Errorf("Failed mounting volume snapshot: %w", err)
+			}
+		}
+
 		if snapVol.IsVMBlock() {
 			// For VMs, also mount the filesystem dataset.
 			fsVol := snapVol.NewVMBlockFilesystemVolume()
@@ -2482,7 +2795,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	refCount := snapVol.MountRefCountDecrement()
 
 	// For block devices, we make them disappear.
-	if snapVol.contentType == ContentTypeBlock {
+	if snapVol.contentType == ContentTypeBlock || snapVol.contentType == ContentTypeFS && d.isBlockBacked(snapVol) {
 		// For VMs, also mount the filesystem dataset.
 		if snapVol.IsVMBlock() {
 			fsSnapVol := snapVol.NewVMBlockFilesystemVolume()
@@ -2492,7 +2805,43 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			}
 		}
 
-		current, err := d.getDatasetProperty(d.dataset(snapVol, false), "snapdev")
+		if snapVol.contentType == ContentTypeFS && d.isBlockBacked(snapVol) && filesystem.IsMountPoint(mountPath) {
+			if refCount > 0 {
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+				return false, ErrInUse
+			}
+
+			_, err := forceUnmount(mountPath)
+			if err != nil {
+				return false, err
+			}
+
+			d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+			ourUnmount = true
+
+			parent, snapshotOnlyName, _ := api.GetParentAndSnapshotName(snapVol.Name())
+			parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
+			parentDataset := d.dataset(parentVol, false)
+			dataset := fmt.Sprintf("%s_%s%s", parentDataset, snapshotOnlyName, tmpVolSuffix)
+
+			exists, err := d.datasetExists(dataset)
+			if err != nil {
+				return true, fmt.Errorf("Failed to check existence of temporary ZFS snapshot volume %q: %w", dataset, err)
+			}
+
+			if exists {
+				err = d.deleteDatasetRecursive(dataset)
+				if err != nil {
+					return true, err
+				}
+			}
+		}
+
+		parent, _, _ := api.GetParentAndSnapshotName(snapVol.Name())
+		parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
+		parentDataset := d.dataset(parentVol, false)
+
+		current, err := d.getDatasetProperty(parentDataset, "snapdev")
 		if err != nil {
 			return false, err
 		}
@@ -2502,10 +2851,6 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
-
-			parent, _, _ := api.GetParentAndSnapshotName(snapVol.Name())
-			parentVol := NewVolume(d, d.Name(), snapVol.volType, snapVol.contentType, parent, snapVol.config, snapVol.poolConfig)
-			parentDataset := d.dataset(parentVol, false)
 
 			err := d.setDatasetProperties(parentDataset, "snapdev=hidden")
 			if err != nil {
@@ -2671,4 +3016,57 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	revert.Success()
 
 	return nil
+}
+
+// FillVolumeConfig populate volume with default config.
+func (d *zfs) FillVolumeConfig(vol Volume) error {
+	var excludedKeys []string
+
+	// Copy volume.* configuration options from pool.
+	// If vol has a source, ignore the block mode related config keys from the pool.
+	if vol.hasSource {
+		excludedKeys = []string{"zfs.block_mode", "block.filesystem", "block.mount_options"}
+	}
+
+	err := d.fillVolumeConfig(&vol, excludedKeys...)
+	if err != nil {
+		return err
+	}
+
+	// Only validate filesystem config keys for filesystem volumes or VM block volumes (which have an
+	// associated filesystem volume).
+	if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS || vol.IsVMBlock() {
+		// Inherit block mode from pool if not set.
+		if d.isBlockBacked(vol) && vol.ContentType() == ContentTypeFS && vol.config["zfs.block_mode"] == "" {
+			vol.config["zfs.block_mode"] = d.config["volume.zfs.block_mode"]
+		}
+
+		// Inherit filesystem from pool if not set.
+		if vol.config["block.filesystem"] == "" {
+			vol.config["block.filesystem"] = d.config["volume.block.filesystem"]
+		}
+
+		// Default filesystem if neither volume nor pool specify an override.
+		if vol.config["block.filesystem"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.filesystem"] = DefaultFilesystem
+		}
+
+		// Inherit filesystem mount options from pool if not set.
+		if vol.config["block.mount_options"] == "" {
+			vol.config["block.mount_options"] = d.config["volume.block.mount_options"]
+		}
+
+		// Default filesystem mount options if neither volume nor pool specify an override.
+		if vol.config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			vol.config["block.mount_options"] = "discard"
+		}
+	}
+
+	return nil
+}
+
+func (d *zfs) isBlockBacked(vol Volume) bool {
+	return shared.IsTrue(vol.Config()["zfs.block_mode"])
 }
