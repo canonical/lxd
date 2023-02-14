@@ -19,6 +19,9 @@ const BTRFSFeatureSubvolumeUUIDs = "header_subvolume_uuids"
 // ZFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel after index header.
 const ZFSFeatureMigrationHeader = "migration_header"
 
+// ZFSFeatureZvolFilesystems indicates migration can send/recv zvols.
+const ZFSFeatureZvolFilesystems = "header_zvol_filesystems"
+
 // GetRsyncFeaturesSlice returns a slice of strings representing the supported RSYNC features.
 func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	features := []string{}
@@ -61,6 +64,10 @@ func (m *MigrationHeader) GetZfsFeaturesSlice() []string {
 
 		if m.ZfsFeatures.MigrationHeader != nil && *m.ZfsFeatures.MigrationHeader {
 			features = append(features, ZFSFeatureMigrationHeader)
+		}
+
+		if m.ZfsFeatures.HeaderZvols != nil && *m.ZfsFeatures.HeaderZvols {
+			features = append(features, ZFSFeatureZvolFilesystems)
 		}
 	}
 

@@ -511,3 +511,7 @@ func (d *common) roundVolumeBlockSizeBytes(sizeBytes int64) int64 {
 
 	return roundedSizeBytes
 }
+
+func (d *common) isBlockBacked(vol Volume) bool {
+	return vol.driver.Info().BlockBacking
+}

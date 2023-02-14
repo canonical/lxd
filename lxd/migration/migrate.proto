@@ -59,6 +59,7 @@ message rsyncFeatures {
 message zfsFeatures {
 	optional bool		compress = 1;
 	optional bool		migration_header = 2;
+	optional bool		header_zvols = 3;
 }
 
 message btrfsFeatures {

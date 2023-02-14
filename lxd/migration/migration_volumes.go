@@ -105,6 +105,8 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 				features.Compress = &hasFeature
 			} else if feature == ZFSFeatureMigrationHeader {
 				features.MigrationHeader = &hasFeature
+			} else if feature == ZFSFeatureZvolFilesystems {
+				features.HeaderZvols = &hasFeature
 			}
 		}
 
