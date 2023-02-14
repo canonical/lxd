@@ -55,7 +55,7 @@ func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 
 		return n, nil
 	case V2:
-		val, err := cg.rw.Get(version, "memory", "memory.low")
+		val, err := cg.rw.Get(version, "memory", "memory.high")
 		if err != nil {
 			return -1, err
 		}
@@ -81,10 +81,10 @@ func (cg *CGroup) SetMemorySoftLimit(limit int64) error {
 		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", fmt.Sprintf("%d", limit))
 	case V2:
 		if limit == -1 {
-			return cg.rw.Set(version, "memory", "memory.low", "max")
+			return cg.rw.Set(version, "memory", "memory.high", "max")
 		}
 
-		return cg.rw.Set(version, "memory", "memory.low", fmt.Sprintf("%d", limit))
+		return cg.rw.Set(version, "memory", "memory.high", fmt.Sprintf("%d", limit))
 	}
 
 	return ErrUnknownVersion
