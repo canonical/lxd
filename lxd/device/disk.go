@@ -733,9 +733,30 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				var revertFunc func()
 
-				// If the pool is ceph backed, don't mount it, instead pass config to QEMU instance
+				// Derive the effective storage project name from the instance config's project.
+				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project().Name, db.StoragePoolVolumeTypeCustom)
+				if err != nil {
+					return nil, err
+				}
+
+				// GetStoragePoolVolume returns a volume with an empty Location field for remote drivers.
+				var dbVolume *db.StorageVolume
+				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					dbVolume, err = tx.GetStoragePoolVolume(ctx, d.pool.ID(), storageProjectName, db.StoragePoolVolumeTypeCustom, d.config["source"], true)
+					return err
+				})
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading custom volume: %w", err)
+				}
+
+				contentType, err := storagePools.VolumeContentTypeNameToContentType(dbVolume.ContentType)
+				if err != nil {
+					return nil, err
+				}
+
+				// If the pool is ceph backed and a block device, don't mount it, instead pass config to QEMU instance
 				// to use the built in RBD support.
-				if d.pool.Driver().Info().Name == "ceph" {
+				if d.pool.Driver().Info().Name == "ceph" && contentType == db.StoragePoolVolumeContentTypeBlock {
 					config := d.pool.ToAPI().Config
 					poolName := config["ceph.osd.pool_name"]
 
