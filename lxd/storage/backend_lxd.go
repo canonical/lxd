@@ -3081,7 +3081,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			if blockModeChanged {
 				l.Debug("Block mode has changed, regenerating image volume")
 			} else {
-				l.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
+				l.Debug("Block volume filesystem of pool has changed since cached image volume created, regenerating image volume")
 			}
 
 			err = b.DeleteImage(fingerprint, op)
