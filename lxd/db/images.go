@@ -209,41 +209,6 @@ SELECT fingerprint
 	return fingerprints, nil
 }
 
-// GetExpiredImagesInProject returns the names of all images that have expired since the given time.
-func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
-	var images []cluster.Image
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		var err error
-		cached := true
-		images, err = cluster.GetImages(ctx, tx.tx, cluster.ImageFilter{Cached: &cached, Project: &project})
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	results := []string{}
-	for _, r := range images {
-		// Figure out the expiry
-		timestamp := r.UploadDate
-		if !r.LastUseDate.Time.IsZero() {
-			timestamp = r.LastUseDate.Time
-		}
-
-		imageExpiry := timestamp
-		imageExpiry = imageExpiry.Add(time.Duration(expiry*24) * time.Hour)
-
-		// Check if expired
-		if imageExpiry.After(time.Now()) {
-			continue
-		}
-
-		results = append(results, r.Fingerprint)
-	}
-
-	return results, nil
-}
-
 // CreateImageSource inserts a new image source.
 func (c *Cluster) CreateImageSource(id int, server string, protocol string, certificate string, alias string) error {
 	protocolInt := -1
