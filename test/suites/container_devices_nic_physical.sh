@@ -6,6 +6,8 @@ test_container_devices_nic_physical() {
   dummyMAC="aa:3b:97:97:0f:d5"
   ctMAC="0a:92:a7:0d:b7:d9"
 
+  networkName="testnet"
+
   # Create dummy interface for use as parent.
   ip link add "${ctName}" address "${dummyMAC}" type dummy
 
@@ -187,7 +189,36 @@ test_container_devices_nic_physical() {
     false
   fi
 
-  lxc delete "${ctName}"
+  # create a dummy test network of type physical
+  lxc network create "${networkName}" --type=physical parent="${ctName}" mtu=1400
+
+  # remove existing device nic of the container
+  lxc config device remove "${ctName}" eth1
+
+  # Test adding a physical network to container
+  lxc config device add "${ctName}" eth1 nic \
+    network="${networkName}"
+
+  # Check that network config has been applied
+  if ! lxc config show "${ctName}" | grep "network: ${networkName}" ; then
+    echo "no network configuration detected"
+    false
+  fi
+
+  # Check container can start with the physical network configuration
+  lxc start "${ctName}"
+
+  # Check custom MTU is applied if feature available in LXD.
+  if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
+    if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth1/mtu ; then
+      echo "mtu invalid"
+      false
+    fi
+  fi
+
+  lxc delete "${ctName}" -f
+
+  lxc network delete "${networkName}"
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
