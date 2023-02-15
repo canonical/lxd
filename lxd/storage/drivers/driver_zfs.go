@@ -600,6 +600,15 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshot
 		}
 	}
 
+	if refresh && !copySnapshots {
+		return []migration.Type{
+			{
+				FSType:   migration.MigrationFSType_RSYNC,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
 	return []migration.Type{
 		{
 			FSType:   migration.MigrationFSType_ZFS,
