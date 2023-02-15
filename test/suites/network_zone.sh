@@ -114,6 +114,7 @@ test_network_zone() {
 
   # Test extra records
   lxc network zone record create lxd.example.net demo user.foo=bar
+  ! lxc network zone record create lxd.example.net demo user.foo=bar || false
   lxc network zone record entry add lxd.example.net demo A 1.1.1.1 --ttl 900
   lxc network zone record entry add lxd.example.net demo A 2.2.2.2
   lxc network zone record entry add lxd.example.net demo AAAA 1111::1111 --ttl 1800
@@ -121,7 +122,21 @@ test_network_zone() {
   lxc network zone record entry add lxd.example.net demo MX "1 mx1.example.net." --ttl 900
   lxc network zone record entry add lxd.example.net demo MX "10 mx2.example.net." --ttl 900
   lxc network zone record list lxd.example.net
-  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep demo
+  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep -Fc demo.lxd.example.net | grep -Fx 6
+  lxc network zone record entry remove lxd.example.net demo A 1.1.1.1
+
+  lxd sql global 'select * from networks_zones_records'
+  lxc network zone record create lxdfoo.example.net demo user.foo=bar --project foo
+  ! lxc network zone record create lxdfoo.example.net demo user.foo=bar --project foo || false
+  lxc network zone record entry add lxdfoo.example.net demo A 1.1.1.1 --ttl 900 --project foo
+  lxc network zone record entry add lxdfoo.example.net demo A 2.2.2.2 --project foo
+  lxc network zone record entry add lxdfoo.example.net demo AAAA 1111::1111 --ttl 1800 --project foo
+  lxc network zone record entry add lxdfoo.example.net demo AAAA 2222::2222 --project foo
+  lxc network zone record entry add lxdfoo.example.net demo MX "1 mx1.example.net." --ttl 900 --project foo
+  lxc network zone record entry add lxdfoo.example.net demo MX "10 mx2.example.net." --ttl 900 --project foo
+  lxc network zone record list lxdfoo.example.net --project foo
+  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxdfoo.example.net | grep -Fc demo.lxdfoo.example.net | grep -Fx 6
+  lxc network zone record entry remove lxdfoo.example.net demo A 1.1.1.1 --project foo
 
   # Cleanup
   lxc delete -f c1
