@@ -14,6 +14,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 
 	"github.com/lxc/lxd/lxd/apparmor"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/warningtype"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -110,6 +111,11 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
+	err = d.validateListenAddressConflicts(net.ParseIP(listenAddr.Address))
+	if err != nil {
+		return err
+	}
+
 	if (listenAddr.ConnType != "unix" && len(connectAddr.Ports) > len(listenAddr.Ports)) || (listenAddr.ConnType == "unix" && len(connectAddr.Ports) > 1) {
 		// Cannot support single address (or port) -> multiple port.
 		return fmt.Errorf("Mismatch between listen port(s) and connect port(s) count")
@@ -180,6 +186,30 @@ func (d *proxy) validateEnvironment() error {
 	}
 
 	return nil
+}
+
+// validateListenAddressConflicts checks that the proxy device about to be created does not
+// overlap on existing network forward (both entities can't have the same listening address with
+// the same port number).
+func (d *proxy) validateListenAddressConflicts(proxyListenAddr net.IP) error {
+	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectNetworksForwardsOnUplink, err := tx.GetProjectNetworkForwardListenAddressesOnMember(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
+		}
+
+		for _, networks := range projectNetworksForwardsOnUplink {
+			for _, listenAddresses := range networks {
+				for _, netFwdAddr := range listenAddresses {
+					if proxyListenAddr.Equal(net.ParseIP(netFwdAddr)) {
+						return fmt.Errorf("Listen address %q conflicts with existing network forward", netFwdAddr)
+					}
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 // Start is run when the device is added to the instance.
