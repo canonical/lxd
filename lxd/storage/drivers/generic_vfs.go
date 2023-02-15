@@ -306,7 +306,9 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
 		}
 
-		d.Logger().Debug("Receiving filesystem volume", logger.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving filesystem volume started", logger.Ctx{"volName": volName, "path": path})
+		defer d.Logger().Debug("Receiving filesystem volume stopped", logger.Ctx{"volName": volName, "path": path})
+
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 	}
 
@@ -332,7 +334,9 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 		}
 
-		d.Logger().Debug("Receiving block volume", logger.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving block volume started", logger.Ctx{"volName": volName, "path": path})
+		defer d.Logger().Debug("Receiving block volume stopped", logger.Ctx{"volName": volName, "path": path})
+
 		_, err = io.Copy(to, fromPipe)
 		if err != nil {
 			return fmt.Errorf("Error copying from migration connection to %q: %w", path, err)
