@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -142,12 +143,10 @@ func CephMonitors(cluster string) ([]string, error) {
 	return cephMon, nil
 }
 
-// CephKeyring gets the key for a particular Ceph cluster and client name.
-func CephKeyring(cluster string, client string) (string, error) {
-	// Open the CEPH keyring.
-	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client))
+func getCephKeyFromFile(path string) (string, error) {
+	cephKeyring, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open %q: %w", fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client), err)
+		return "", fmt.Errorf("Failed to open %q: %w", path, err)
 	}
 
 	// Locate the keyring entry and its value.
@@ -169,6 +168,66 @@ func CephKeyring(cluster string, client string) (string, error) {
 
 			cephSecret = strings.TrimSpace(fields[1])
 			break
+		}
+	}
+
+	if cephSecret == "" {
+		return "", fmt.Errorf("Couldn't find a keyring entry")
+	}
+
+	return cephSecret, nil
+}
+
+// CephKeyring gets the key for a particular Ceph cluster and client name.
+func CephKeyring(cluster string, client string) (string, error) {
+	var cephSecret string
+	keyringPath := fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client)
+	cephConfigPath := fmt.Sprintf("/etc/ceph/%v.conf", cluster)
+
+	if shared.PathExists(keyringPath) {
+		return getCephKeyFromFile(keyringPath)
+	} else if shared.PathExists(cephConfigPath) {
+		// Open the CEPH config file.
+		cephConfig, err := os.Open(cephConfigPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed to open %q: %w", cephConfigPath, err)
+		}
+
+		// Locate the keyring entry and its value.
+		scan := bufio.NewScanner(cephConfig)
+		for scan.Scan() {
+			line := scan.Text()
+			line = strings.TrimSpace(line)
+
+			if line == "" {
+				continue
+			}
+
+			if strings.HasPrefix(line, "key") {
+				fields := strings.SplitN(line, "=", 2)
+				if len(fields) < 2 {
+					continue
+				}
+
+				// Check all key related config keys.
+				switch strings.TrimSpace(fields[0]) {
+				case "key":
+					cephSecret = strings.TrimSpace(fields[1])
+				case "keyfile":
+					key, err := os.ReadFile(fields[1])
+					if err != nil {
+						return "", err
+					}
+
+					cephSecret = strings.TrimSpace(string(key))
+				case "keyring":
+					return getCephKeyFromFile(strings.TrimSpace(fields[1]))
+				}
+			}
+
+			if cephSecret != "" {
+				break
+			}
 		}
 	}
 
