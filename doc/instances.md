@@ -10,6 +10,7 @@ Manage instances <howto/instances_manage.md>
 Configure instances <howto/instances_configure.md>
 Create snapshots <howto/instances_snapshots.md>
 Use profiles <profiles.md>
+Use cloud-init <cloud-init>
 Run commands <instance-exec.md>
 Access the console <howto/instances_console.md>
 Access files <howto/instances_access_files.md>

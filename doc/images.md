@@ -4,7 +4,12 @@
 ```{toctree}
 :maxdepth: 1
 
-architectures
-Cloud-init <cloud-init>
-Handling <image-handling>
+image-handling
+Use remote images <howto/images_remote>
+Manage images <howto/images_manage>
+Copy and import images <howto/images_copy>
+Create images <howto/images_create>
+Associate profiles <howto/images_profiles>
+reference/remote_image_servers
+reference/image_format
 ```
