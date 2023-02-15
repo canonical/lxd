@@ -1,4 +1,4 @@
-package scriptlet_test
+package scriptlet
 
 import (
 	"fmt"
@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.starlark.net/starlark"
-
-	"github.com/lxc/lxd/lxd/scriptlet"
 )
 
 type starlarkMarshalTest struct {
@@ -88,6 +86,7 @@ func TestStarlarkMarshal(t *testing.T) {
 	}, {
 		from: func() any {
 			v := 1
+
 			return &v
 		}(),
 		to: starlark.MakeInt(1),
@@ -106,13 +105,15 @@ func TestStarlarkMarshal(t *testing.T) {
 	}, {
 		from: []struct{ A, B string }{{A: "a1", B: "b1"}, {A: "a2", B: "b2"}},
 		to: func() starlark.Value {
-			s1 := starlark.NewDict(2)
-			assert.NoError(t, s1.SetKey(starlark.String("A"), starlark.String("a1")))
-			assert.NoError(t, s1.SetKey(starlark.String("B"), starlark.String("b1")))
+			d1 := starlark.NewDict(2)
+			assert.NoError(t, d1.SetKey(starlark.String("A"), starlark.String("a1")))
+			assert.NoError(t, d1.SetKey(starlark.String("B"), starlark.String("b1")))
+			s1 := &starlarkObject{d: d1}
 
-			s2 := starlark.NewDict(2)
-			assert.NoError(t, s2.SetKey(starlark.String("A"), starlark.String("a2")))
-			assert.NoError(t, s2.SetKey(starlark.String("B"), starlark.String("b2")))
+			d2 := starlark.NewDict(2)
+			assert.NoError(t, d2.SetKey(starlark.String("A"), starlark.String("a2")))
+			assert.NoError(t, d2.SetKey(starlark.String("B"), starlark.String("b2")))
+			s2 := &starlarkObject{d: d2}
 
 			return starlark.NewList([]starlark.Value{s1, s2})
 		}(),
@@ -122,6 +123,7 @@ func TestStarlarkMarshal(t *testing.T) {
 			ret := starlark.NewDict(1)
 			assert.NoError(t, ret.SetKey(starlark.String("a"), starlark.String("b")))
 			assert.NoError(t, ret.SetKey(starlark.String("c"), starlark.String("d")))
+
 			return ret
 		}(),
 	}, {
@@ -136,23 +138,29 @@ func TestStarlarkMarshal(t *testing.T) {
 			B string `json:"bar"`
 		}{A: "a", B: "b"},
 		to: func() starlark.Value {
-			ret := starlark.NewDict(2)
-			assert.NoError(t, ret.SetKey(starlark.String("foo"), starlark.String("a")))
-			assert.NoError(t, ret.SetKey(starlark.String("bar"), starlark.String("b")))
+			d1 := starlark.NewDict(2)
+			assert.NoError(t, d1.SetKey(starlark.String("foo"), starlark.String("a")))
+			assert.NoError(t, d1.SetKey(starlark.String("bar"), starlark.String("b")))
+			ret := &starlarkObject{d: d1}
+
 			return ret
 		}(),
 	}, {
 		from: struct{ DummyEmbeddedStruct }{DummyEmbeddedStruct: DummyEmbeddedStruct{A: "a"}},
 		to: func() starlark.Value {
-			ret := starlark.NewDict(1)
-			assert.NoError(t, ret.SetKey(starlark.String("A"), starlark.String("a")))
+			d1 := starlark.NewDict(1)
+			assert.NoError(t, d1.SetKey(starlark.String("A"), starlark.String("a")))
+			ret := &starlarkObject{d: d1}
+
 			return ret
 		}(),
 	}, {
 		from: struct{ fmt.Stringer }{Stringer: DummyStringer(0xbaa)},
 		to: func() starlark.Value {
-			ret := starlark.NewDict(1)
-			assert.NoError(t, ret.SetKey(starlark.String("Stringer"), starlark.MakeInt(0xbaa)))
+			d1 := starlark.NewDict(1)
+			assert.NoError(t, d1.SetKey(starlark.String("Stringer"), starlark.MakeInt(0xbaa)))
+			ret := &starlarkObject{d: d1}
+
 			return ret
 		}(),
 	}, {
@@ -160,8 +168,10 @@ func TestStarlarkMarshal(t *testing.T) {
 			fmt.Stringer `json:"foo"`
 		}{Stringer: DummyStringer(0xbaa)},
 		to: func() starlark.Value {
-			ret := starlark.NewDict(1)
-			assert.NoError(t, ret.SetKey(starlark.String("foo"), starlark.MakeInt(0xbaa)))
+			d1 := starlark.NewDict(1)
+			assert.NoError(t, d1.SetKey(starlark.String("foo"), starlark.MakeInt(0xbaa)))
+			ret := &starlarkObject{d: d1}
+
 			return ret
 		}(),
 	}, {
@@ -182,14 +192,15 @@ func TestStarlarkMarshal(t *testing.T) {
 			config := starlark.NewDict(1)
 			assert.NoError(t, config.SetKey(starlark.String("name"), starlark.String("foo")))
 
-			ret := starlark.NewDict(1)
-			assert.NoError(t, ret.SetKey(starlark.String("config"), config))
+			d1 := starlark.NewDict(1)
+			assert.NoError(t, d1.SetKey(starlark.String("config"), config))
+			ret := &starlarkObject{d: d1, typeName: "TopStruct"}
 
 			return ret
 		}(),
 	}} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			sv, err := scriptlet.StarlarkMarshal(scenario.from)
+			sv, err := StarlarkMarshal(scenario.from)
 			if scenario.errPrefix == "" {
 				assert.NoError(t, err)
 			} else {
