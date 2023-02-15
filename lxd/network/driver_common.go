@@ -53,6 +53,7 @@ const (
 	subnetUsageNetworkSNAT
 	subnetUsageNetworkForward
 	subnetUsageInstance
+	subnetUsageProxy
 )
 
 // externalSubnetUsage represents usage of a subnet by a network or NIC.
