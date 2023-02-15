@@ -64,7 +64,7 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 
 	err = d.LoadConfigFile(configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed loading config file %q: %w", configPath, err)
 	}
 
 	/* see https://github.com/golang/go/issues/13155, startContainer, and dc3a229 */
