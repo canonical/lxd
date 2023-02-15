@@ -129,7 +129,7 @@ var networkZoneRecordCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -203,7 +203,7 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -263,7 +263,7 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -336,7 +336,7 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -436,7 +436,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
