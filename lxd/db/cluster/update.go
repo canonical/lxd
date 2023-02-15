@@ -105,6 +105,45 @@ var updates = map[int]schema.Update{
 	66: updateFromV65,
 	67: updateFromV66,
 	68: updateFromV67,
+	69: updateFromV68,
+}
+
+// updateFromV68 fixes unique index for record name to make it zone specific.
+func updateFromV68(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE networks_zones_records_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	entries TEXT NOT NULL,
+	UNIQUE (network_zone_id, name),
+	FOREIGN KEY (network_zone_id) REFERENCES networks_zones (id) ON DELETE CASCADE
+);
+
+CREATE TABLE networks_zones_records_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_record_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (network_zone_record_id, key),
+	FOREIGN KEY (network_zone_record_id) REFERENCES networks_zones_records_new (id) ON DELETE CASCADE
+);
+
+	INSERT INTO "networks_zones_records_new" SELECT * FROM "networks_zones_records";
+	INSERT INTO "networks_zones_records_config_new" SELECT * FROM "networks_zones_records_config";
+
+	DROP TABLE "networks_zones_records";
+	ALTER TABLE "networks_zones_records_new" RENAME TO "networks_zones_records";
+
+	DROP TABLE "networks_zones_records_config";
+	ALTER TABLE "networks_zones_records_config_new" RENAME TO "networks_zones_records_config";
+`)
+	if err != nil {
+		return fmt.Errorf("Failed altering network_zones_records schema: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV67 adds features.networks.zones=true to any project that has features.networks=true.
