@@ -56,7 +56,7 @@ Therefore, the first instance takes longer to create than subsequent ones.
 
 Btrfs, ZFS and Ceph RBD have an internal send/receive mechanism that allows for optimized volume transfer.
 
-LXD uses this optimized transfer when transferring instances and snapshots between storage pools that use the same storage driver, if the storage driver supports optimized transfer.
+LXD uses this optimized transfer when transferring instances and snapshots between storage pools that use the same storage driver, if the storage driver supports optimized transfer and the optimized transfer is actually quicker.
 Otherwise, LXD uses `rsync` to transfer container and file system volumes, or raw block transfer to transfer virtual machine and custom block volumes.
 
 The optimized transfer uses the underlying storage driver's native functionality for transferring data, which is usually faster than using `rsync`.
@@ -70,7 +70,9 @@ With optimized transfer, LXD bases the refresh on the latest snapshot, which mea
 - When refreshing without a new snapshot, LXD transfers only the differences between the main volume and the latest snapshot on the target.
   This transfer is usually faster than using `rsync` (as long as the latest snapshot is not too outdated).
 
-On the other hand, refreshing copies of instances without snapshots might actually be slower than using `rsync`, because LXD will transfer the difference between the (non-existent) latest snapshot and the main volume, thus the full volume.
+On the other hand, refreshing copies of instances without snapshots (either because the instance doesn't have any snapshots or because the refresh uses the `--instance-only` flag) would actually be slower than using `rsync`.
+In such cases, the optimized transfer would transfer the difference between the (non-existent) latest snapshot and the main volume, thus the full volume.
+Therefore, LXD uses `rsync` instead of the optimized transfer for refreshes without snapshots.
 
 ## Recommended setup
 
