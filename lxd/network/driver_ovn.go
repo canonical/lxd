@@ -246,12 +246,12 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 	return nil
 }
 
-// getExternalSubnetInUse returns information about usage of external subnets by OVN networks and NICs connected to
-// the specified uplinkNetworkName.
+// getExternalSubnetInUse returns information about usage of external subnets by networks and NICs connected to,
+// or used by, the specified uplinkNetworkName.
 func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
-	var projectNetworksForwardsOnUplink, projectNetworksLoadBalancersOnUplink map[string]map[int64][]string
+	var externalSubnets []externalSubnetUsage
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
@@ -260,16 +260,9 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
-		// Get all network forward listen addresses for all networks (of any type) connected to our uplink.
-		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, uplinkNetworkName)
+		externalSubnets, err = n.common.getExternalSubnetInUse(ctx, tx, uplinkNetworkName, false)
 		if err != nil {
-			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
-		}
-
-		// Get all network load balancer listen addresses for all networks (of any type) connected to our uplink.
-		projectNetworksLoadBalancersOnUplink, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, uplinkNetworkName)
-		if err != nil {
-			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
+			return fmt.Errorf("Failed getting external subnets in use: %w", err)
 		}
 
 		return nil
@@ -293,55 +286,8 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 		return nil, err
 	}
 
-	externalSubnets := make([]externalSubnetUsage, 0, len(ovnNetworkExternalSubnets)+len(ovnNICExternalRoutes))
 	externalSubnets = append(externalSubnets, ovnNetworkExternalSubnets...)
 	externalSubnets = append(externalSubnets, ovnNICExternalRoutes...)
-
-	// Add forward listen addresses to this list.
-	for projectName, networks := range projectNetworksForwardsOnUplink {
-		for networkID, listenAddresses := range networks {
-			for _, listenAddress := range listenAddresses {
-				// Convert listen address to subnet.
-				listenAddressNet, err := ParseIPToNet(listenAddress)
-				if err != nil {
-					return nil, fmt.Errorf("Invalid existing forward listen address %q", listenAddress)
-				}
-
-				// Create an externalSubnetUsage for the listen address by using the network ID
-				// of the listen address to retrieve the already loaded network name from the
-				// projectNetworks map.
-				externalSubnets = append(externalSubnets, externalSubnetUsage{
-					subnet:         *listenAddressNet,
-					networkProject: projectName,
-					networkName:    projectNetworks[projectName][networkID].Name,
-					usageType:      subnetUsageNetworkForward,
-				})
-			}
-		}
-	}
-
-	// Add load balancer listen addresses to this list.
-	for projectName, networks := range projectNetworksLoadBalancersOnUplink {
-		for networkID, listenAddresses := range networks {
-			for _, listenAddress := range listenAddresses {
-				// Convert listen address to subnet.
-				listenAddressNet, err := ParseIPToNet(listenAddress)
-				if err != nil {
-					return nil, fmt.Errorf("Invalid existing load balancer listen address %q", listenAddress)
-				}
-
-				// Create an externalSubnetUsage for the listen address by using the network ID
-				// of the listen address to retrieve the already loaded network name from the
-				// projectNetworks map.
-				externalSubnets = append(externalSubnets, externalSubnetUsage{
-					subnet:         *listenAddressNet,
-					networkProject: projectName,
-					networkName:    projectNetworks[projectName][networkID].Name,
-					usageType:      subnetUsageNetworkLoadBalancer,
-				})
-			}
-		}
-	}
 
 	return externalSubnets, nil
 }
@@ -538,7 +484,7 @@ func (n *ovn) Validate(config map[string]string) error {
 				if SubnetContains(&externalSubnetUser.subnet, externalSubnet) || SubnetContains(externalSubnet, &externalSubnetUser.subnet) {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
-					return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", externalSubnet.String())
+					return fmt.Errorf("External subnet %q overlaps with another network or NIC", externalSubnet.String())
 				}
 			}
 		}
@@ -3265,7 +3211,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 			if SubnetContains(&externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", portExternalRoute.String())
+				return fmt.Errorf("External subnet %q overlaps with another network or NIC", portExternalRoute.String())
 			}
 		}
 	}
@@ -4416,7 +4362,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("Forward listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+				return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 
@@ -4727,7 +4673,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("Load balancer listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+				return fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 

@@ -2499,6 +2499,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 	var projectNetworksForwardsOnUplink map[string]map[int64][]string
+	var externalSubnets []externalSubnetUsage
 
 	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
@@ -2511,6 +2512,11 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesOnMember(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
+		}
+
+		externalSubnets, err = n.common.getExternalSubnetInUse(ctx, tx, n.name, true)
+		if err != nil {
+			return fmt.Errorf("Failed getting external subnets in use: %w", err)
 		}
 
 		return nil
@@ -2534,7 +2540,6 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 		return nil, err
 	}
 
-	externalSubnets := make([]externalSubnetUsage, 0, len(bridgeNetworkExternalSubnets)+len(bridgedNICExternalRoutes))
 	externalSubnets = append(externalSubnets, bridgeNetworkExternalSubnets...)
 	externalSubnets = append(externalSubnets, bridgedNICExternalRoutes...)
 
