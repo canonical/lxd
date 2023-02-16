@@ -5104,9 +5104,22 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			}
 		}
 	} else {
-		err := d.initLXC(true)
-		if err != nil {
-			return err
+		// Load the go-lxc struct
+		if d.expandedConfig["raw.lxc"] != "" {
+			err = d.initLXC(true)
+			if err != nil {
+				return err
+			}
+
+			err = d.loadRawLXCConfig()
+			if err != nil {
+				return err
+			}
+		} else {
+			err = d.initLXC(false)
+			if err != nil {
+				return err
+			}
 		}
 
 		script := ""
