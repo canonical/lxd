@@ -3321,6 +3321,41 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 			return fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
 		}
 
+		// Cleanup any existing state
+		stateDir := d.StatePath()
+		_ = os.RemoveAll(stateDir)
+
+		// Create the state path and make sure we don't keep state around after the snapshot has been made.
+		err = os.MkdirAll(stateDir, 0700)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = os.RemoveAll(stateDir) }()
+
+		// Release liblxc container once done.
+		defer func() {
+			d.release()
+		}()
+
+		// Load the go-lxc struct
+		if d.expandedConfig["raw.lxc"] != "" {
+			err = d.initLXC(true)
+			if err != nil {
+				return err
+			}
+
+			err = d.loadRawLXCConfig()
+			if err != nil {
+				return err
+			}
+		} else {
+			err = d.initLXC(false)
+			if err != nil {
+				return err
+			}
+		}
+
 		/* TODO: ideally we would freeze here and unfreeze below after
 		 * we've copied the filesystem, to make sure there are no
 		 * changes by the container while snapshotting. Unfortunately
@@ -3332,7 +3367,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 		 */
 		criuMigrationArgs := instance.CriuMigrationArgs{
 			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     d.StatePath(),
+			StateDir:     stateDir,
 			Function:     "snapshot",
 			Stop:         false,
 			ActionScript: false,
@@ -3340,18 +3375,10 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		// Create the state path and Make sure we don't keep state around after the snapshot has been made.
-		err = os.MkdirAll(d.StatePath(), 0700)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = os.RemoveAll(d.StatePath()) }()
-
 		// Dump the state.
 		err = d.Migrate(&criuMigrationArgs)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
 	}
 
