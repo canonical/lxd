@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-02-08 17:01+0000\n"
+"POT-Creation-Date: 2023-02-09 08:52+0000\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -555,11 +555,13 @@ msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
 msgstr ""
+"### Essa é uma representação yaml do membro do cluster.\n"
+"### Qualquer linha iniciando em '# será ignorada"
 
 #: lxc/info.go:320
 #, c-format
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
-msgstr ""
+msgstr "%d (id: %d, online: %v, NUMA nó: %v)"
 
 #: lxc/info.go:162
 #, fuzzy, c-format
@@ -593,12 +595,12 @@ msgstr "(nenhum)"
 #: lxc/info.go:310
 #, c-format
 msgid "- Level %d (type: %s): %s"
-msgstr ""
+msgstr "- Nível %d (tipo: %s): %s"
 
 #: lxc/info.go:289
 #, c-format
 msgid "- Partition %d"
-msgstr ""
+msgstr "- Partição %d"
 
 #: lxc/info.go:198
 #, c-format
@@ -7055,19 +7057,19 @@ msgstr "sim"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "Criar perfis"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "Aceitar certificado"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "par de chave=valor inválido %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Aceitar certificado"
 
@@ -7083,7 +7085,7 @@ msgstr "sim"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Criar novas redes"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Versão do cliente: %s\n"
 
@@ -7109,6 +7111,7 @@ msgstr "sim"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado do cliente armazenado no servidor: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Não é possível ler stdin: %s"
 
@@ -7116,7 +7119,7 @@ msgstr "sim"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nome de membro do cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nome de membro do cluster"
 
@@ -7197,9 +7200,10 @@ msgstr "sim"
 #~ "###\n"
 #~ "### Note que o nome é exibido, porém não pode ser alterado."
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Admin password for %s:"
 #~ msgstr "Senha de administrador para %s: "
 
+#, c-format
 #~ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 #~ msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"

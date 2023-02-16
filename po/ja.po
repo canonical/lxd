@@ -7,17 +7,17 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-02-08 17:01+0000\n"
-"PO-Revision-Date: 2022-03-31 14:23+0000\n"
+"POT-Creation-Date: 2023-02-09 08:52+0000\n"
+"PO-Revision-Date: 2023-02-10 12:39+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
-"containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/"
+"linux-containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.12-dev\n"
+"X-Generator: Weblate 4.16-dev\n"
 
 #: lxc/storage_bucket.go:256 lxc/storage_bucket.go:964
 msgid ""
@@ -976,10 +976,11 @@ msgid "Backups:"
 msgstr "バックアップ:"
 
 #: lxc/utils.go:96
-#, fuzzy, c-format
+#, c-format
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
-"書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
+"デバイスを上書きする際の書式が不適切です。次のような形式で指定してください "
+"<device>,<key>=<value>: %s"
 
 #: lxc/network.go:325 lxc/network_acl.go:369 lxc/network_forward.go:285
 #: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
@@ -1140,17 +1141,18 @@ msgstr "使用する Candid ドメイン"
 msgid ""
 "Cannot override config for device %q: Device not found in profile devices"
 msgstr ""
+"デバイス %q の設定を上書きできません: プロファイルのデバイス内にデバイスが見"
+"つかりません"
 
 #: lxc/storage_volume.go:406
-#, fuzzy
 msgid ""
 "Cannot set --destination-target when destination server is not clustered"
-msgstr "移動先の LXD サーバはクラスタに属していません"
+msgstr "コピー先のサーバーがクラスターに属していない場合は --destination-target "
+"は指定できません"
 
 #: lxc/storage_volume.go:368
-#, fuzzy
 msgid "Cannot set --target when source server is not clustered"
-msgstr "移動元の LXD サーバはクラスタに属していません"
+msgstr "コピー元のサーバーがクラスターに属していない場合は --target は指定できません"
 
 #: lxc/network_acl.go:781
 #, c-format
@@ -2302,7 +2304,7 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 #: lxc/init.go:293
 #, c-format
 msgid "Failed loading profile %q for device override: %w"
-msgstr ""
+msgstr "デバイス上書きのためのプロファイル %q のロードに失敗しました: %w"
 
 #: lxc/file.go:1180
 #, c-format
@@ -2418,9 +2420,8 @@ msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
 
 #: lxc/action.go:126
-#, fuzzy
 msgid "Force the instance to stop"
-msgstr "インスタンスを強制シャットダウンします"
+msgstr "インスタンスを強制停止します"
 
 #: lxc/delete.go:35
 msgid "Force the removal of running instances"
@@ -2609,7 +2610,7 @@ msgstr "ストレージボリュームの設定値を取得します"
 #: lxc/storage_volume.go:389
 #, c-format
 msgid "Given target %q does not match source volume location %q"
-msgstr ""
+msgstr "指定したコピー先 %q がコピー元のボリュームの場所 %q と一致しません"
 
 #: lxc/exec.go:60
 msgid "Group ID to run the command as (default 0)"
@@ -4050,9 +4051,8 @@ msgid "NAME"
 msgstr "NAME"
 
 #: lxc/project.go:488
-#, fuzzy
 msgid "NETWORK ZONES"
-msgstr "NETWORKS"
+msgstr "NETWORK ZONES"
 
 #: lxc/project.go:487
 msgid "NETWORKS"
@@ -5410,9 +5410,8 @@ msgid "Show trust configurations"
 msgstr "信頼済みクライアントの設定を表示します"
 
 #: lxc/cluster.go:255 lxc/cluster.go:256
-#, fuzzy
 msgid "Show useful information about a cluster member"
-msgstr "イメージについての情報を表示します"
+msgstr "クラスターメンバーについての情報を表示します"
 
 #: lxc/image.go:884 lxc/image.go:885
 msgid "Show useful information about images"
@@ -5759,9 +5758,8 @@ msgid "Threads:"
 msgstr "スレッド:"
 
 #: lxc/action.go:127
-#, fuzzy
 msgid "Time to wait for the instance to shutdown cleanly"
-msgstr "インスタンスを強制停止するまで待つ時間"
+msgstr "インスタンスがクリーンにシャットダウンするまで待つ時間"
 
 #: lxc/image.go:949
 msgid "Timestamps:"
@@ -7333,7 +7331,7 @@ msgstr "yes"
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to validate \"%s:%s\": %w"
 #~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
@@ -7373,16 +7371,18 @@ msgstr "yes"
 #~ "lxc launch ubuntu:20.04 v1 --vm\n"
 #~ "    仮想マシンを作成し、起動します"
 
+#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
+#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -7399,7 +7399,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -9496,7 +9496,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -9504,6 +9504,7 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -9561,6 +9562,7 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
+#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 
@@ -9747,13 +9749,21 @@ msgstr "yes"
 #~ "    L - インスタンスの場所 (例: its cluster member)\n"
 #~ "    U - 現在のディスク使用量"
 
+#, c-format
 #~ msgid "Admin password for %s:"
 #~ msgstr "%s の管理者パスワード:"
 
 #~ msgid "Path to an alternate server directory"
 #~ msgstr "別のサーバ用設定ディレクトリ"
 
+#, c-format
 #~ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 #~ msgstr ""
 #~ "書式が不適切です。次のような形式で指定してください <device>,"
 #~ "<key>=<value>: %s"
+
+#~ msgid "Force the instance to shutdown"
+#~ msgstr "インスタンスを強制シャットダウンします"
+
+#~ msgid "Time to wait for the instance before killing it"
+#~ msgstr "インスタンスを強制停止するまで待つ時間"
