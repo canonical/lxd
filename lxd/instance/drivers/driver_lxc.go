@@ -2287,8 +2287,6 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	var ctxMap logger.Ctx
-
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
@@ -2315,7 +2313,7 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	ctxMap = logger.Ctx{
+	ctxMap := logger.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
