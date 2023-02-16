@@ -253,7 +253,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 
 	err := s.instance.Migrate(&criuMigrationArgs)
 	if err != nil {
-		return final, err
+		return final, fmt.Errorf("Failed sending instance: %w", err)
 	}
 
 	// Send the pre-dump.
@@ -577,7 +577,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
-						return fmt.Errorf("missing secret")
+						return fmt.Errorf("Missing action script secret")
 					}
 
 					if secret != actionScriptOpSecret {
