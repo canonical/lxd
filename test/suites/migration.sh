@@ -563,7 +563,7 @@ migration() {
   fi
 
   echo "==> CRIU: starting testing live-migration"
-  lxc_remote launch testimage l1:migratee
+  lxc_remote launch testimage l1:migratee -c raw.lxc=lxc.console.path=none
 
   # Wait for the container to be done booting
   sleep 1
@@ -573,10 +573,18 @@ migration() {
   lxc_remote start l1:migratee
 
   # Test stateful snapshots
+  # There is apparently a bug in CRIU that prevents checkpointing an instance that has been started from a
+  # checkpoint. So stop instance first before taking stateful snapshot.
+  lxc_remote stop -f l1:migratee
+  lxc_remote start l1:migratee
   lxc_remote snapshot --stateful l1:migratee
   lxc_remote restore l1:migratee snap0
 
   # Test live migration of container
+  # There is apparently a bug in CRIU that prevents checkpointing an instance that has been started from a
+  # checkpoint. So stop instance first before taking stateful snapshot.
+  lxc_remote stop -f l1:migratee
+  lxc_remote start l1:migratee
   lxc_remote move l1:migratee l2:migratee
 
   # Test copy of stateful snapshot
