@@ -2237,6 +2237,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
+	// can be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return "", nil, err
+	}
+
 	revert.Success()
 	return configPath, postStartHooks, nil
 }
