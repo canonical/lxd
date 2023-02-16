@@ -5000,8 +5000,6 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		prettyCmd = "dump"
 	case liblxc.MIGRATE_RESTORE:
 		prettyCmd = "restore"
-	case liblxc.MIGRATE_FEATURE_CHECK:
-		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
 		d.logger.Warn("Unknown migrate call", logger.Ctx{"cmd": args.Cmd})
@@ -5102,23 +5100,6 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 				return err
 			}
 		}
-	} else if args.Cmd == liblxc.MIGRATE_FEATURE_CHECK {
-		err := d.initLXC(true)
-		if err != nil {
-			return err
-		}
-
-		opts := liblxc.MigrateOptions{
-			FeaturesToCheck: args.Features,
-		}
-
-		migrateErr = d.c.Migrate(args.Cmd, opts)
-		if migrateErr != nil {
-			d.logger.Info("CRIU feature check failed", ctxMap)
-			return migrateErr
-		}
-
-		return nil
 	} else {
 		err := d.initLXC(true)
 		if err != nil {
