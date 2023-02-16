@@ -338,6 +338,8 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
 
+	restoreSuccess := make(chan bool, 1)
+
 	// All failure paths need to do a few things to correctly handle errors before returning.
 	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
 	// status of driver and the error value. The error value is especially tricky due to the
@@ -346,6 +348,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// the purpose of using defer. An abort function reduces the odds of mishandling errors
 	// without introducing the fragility of closing on err.
 	abort := func(err error) error {
+		close(restoreSuccess)
 		l.Error("Migration failed on source", logger.Ctx{"err": err})
 		s.sendControl(err)
 		return err
@@ -525,7 +528,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return abort(err)
 	}
 
-	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
 
 	if s.live && s.instance.Type() == instancetype.Container {
