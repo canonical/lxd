@@ -484,7 +484,7 @@ func (n *ovn) Validate(config map[string]string) error {
 				if SubnetContains(&externalSubnetUser.subnet, externalSubnet) || SubnetContains(externalSubnet, &externalSubnetUser.subnet) {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
-					return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", externalSubnet.String())
+					return fmt.Errorf("External subnet %q overlaps with another network or NIC", externalSubnet.String())
 				}
 			}
 		}
@@ -3211,7 +3211,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 			if SubnetContains(&externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", portExternalRoute.String())
+				return fmt.Errorf("External subnet %q overlaps with another network or NIC", portExternalRoute.String())
 			}
 		}
 	}
@@ -4362,7 +4362,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("Forward listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+				return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 
@@ -4673,7 +4673,7 @@ func (n *ovn) LoadBalancerCreate(loadBalancer api.NetworkLoadBalancersPost, clie
 			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
-				return fmt.Errorf("Load balancer listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+				return fmt.Errorf("Load balancer listen address %q overlaps with another network or NIC", listenAddressNet.String())
 			}
 		}
 
