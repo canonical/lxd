@@ -1022,7 +1022,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return response.BadRequest(fmt.Errorf("missing secret"))
+		return response.BadRequest(fmt.Errorf("Missing websocket secret"))
 	}
 
 	var address string
