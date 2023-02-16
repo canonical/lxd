@@ -2548,6 +2548,32 @@ func (d *lxc) Stop(stateful bool) error {
 		d.logger.Info("Stopping instance", ctxMap)
 	}
 
+	// Release liblxc container once done.
+	defer func() {
+		d.release()
+	}()
+
+	// Load the go-lxc struct
+	if d.expandedConfig["raw.lxc"] != "" {
+		err = d.initLXC(true)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		err = d.loadRawLXCConfig()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	} else {
+		err = d.initLXC(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	}
+
 	// Handle stateful stop
 	if stateful {
 		// Cleanup any existing state
@@ -2585,8 +2611,7 @@ func (d *lxc) Stop(stateful bool) error {
 		d.stateful = true
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
-			d.logger.Error("Failed stopping instance", ctxMap)
-			return err
+			return fmt.Errorf("Failed updating instance stateful flag: %w", err)
 		}
 
 		d.logger.Info("Stopped instance", ctxMap)
@@ -2595,33 +2620,6 @@ func (d *lxc) Stop(stateful bool) error {
 		return nil
 	} else if shared.PathExists(d.StatePath()) {
 		_ = os.RemoveAll(d.StatePath())
-	}
-
-	// Release liblxc container once done.
-	defer func() {
-		d.release()
-	}()
-
-	// Load the go-lxc struct
-	if d.expandedConfig["raw.lxc"] != "" {
-		err = d.initLXC(true)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		// Load the config.
-		err = d.loadRawLXCConfig()
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-	} else {
-		err = d.initLXC(false)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
 	}
 
 	// Load cgroup abstraction
