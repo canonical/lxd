@@ -65,7 +65,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	validateAddr := func(input string) error {
-		_, err := ProxyParseAddr(input)
+		_, err := network.ProxyParseAddr(input)
 		return err
 	}
 
@@ -101,12 +101,12 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return fmt.Errorf("Only NAT mode is supported for proxies on VM instances")
 	}
 
-	listenAddr, err := ProxyParseAddr(d.config["listen"])
+	listenAddr, err := network.ProxyParseAddr(d.config["listen"])
 	if err != nil {
 		return err
 	}
 
-	connectAddr, err := ProxyParseAddr(d.config["connect"])
+	connectAddr, err := network.ProxyParseAddr(d.config["connect"])
 	if err != nil {
 		return err
 	}
@@ -378,12 +378,12 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 }
 
 func (d *proxy) setupNAT() error {
-	listenAddr, err := ProxyParseAddr(d.config["listen"])
+	listenAddr, err := network.ProxyParseAddr(d.config["listen"])
 	if err != nil {
 		return err
 	}
 
-	connectAddr, err := ProxyParseAddr(d.config["connect"])
+	connectAddr, err := network.ProxyParseAddr(d.config["connect"])
 	if err != nil {
 		return err
 	}
