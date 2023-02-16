@@ -3400,10 +3400,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	defer op.Done(nil)
 
 	// Stop the container.
-	wasRunning := false
-	if d.IsRunning() {
-		wasRunning = true
-
+	wasRunning := d.IsRunning()
+	if wasRunning {
 		ephemeral := d.IsEphemeral()
 		if ephemeral {
 			// Unset ephemeral flag.
@@ -3469,12 +3467,17 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Debug("Mounting instance to check for CRIU state path existence")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	_, err = pool.MountInstance(d, nil)
+	_, err = d.mount()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
+
+	revert.Add(func() { _ = d.unmount() })
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	// Requires container be mounted to check StatePath exists.
@@ -3487,11 +3490,13 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	err = pool.UnmountInstance(d, nil)
+	err = d.unmount()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
+
+	revert.Success()
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
@@ -3524,7 +3529,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// If the container wasn't running but was stateful, should we restore it as running?
 	if stateful {
 		if !shared.PathExists(d.StatePath()) {
-			err = fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			err = fmt.Errorf("Stateful snapshot restore requested but snapshot is stateless")
 			op.Done(err)
 			return err
 		}
@@ -3543,10 +3548,10 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Checkpoint.
-		err := d.Migrate(&criuMigrationArgs)
+		err = d.Migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
-			return err
+			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
