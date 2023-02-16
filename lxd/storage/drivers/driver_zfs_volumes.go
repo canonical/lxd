@@ -2424,19 +2424,32 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 	if d.isBlockBacked(vol) {
 		// For block devices, we make them appear.
 		// Check if already active.
-		current, err := d.getDatasetProperty(dataset, "volmode")
+		volmode, err := d.getDatasetProperty(dataset, "volmode")
 		if err != nil {
 			return "", nil, err
 		}
 
-		if current != "dev" {
-			// Activate.
-			err = d.setDatasetProperties(dataset, "volmode=dev", "snapdev=visible")
+		if volmode != "dev" {
+			err = d.setDatasetProperties(dataset, "volmode=dev")
 			if err != nil {
 				return "", nil, err
 			}
 
-			defer func() { _ = d.setDatasetProperties(dataset, "volmode=none", "snapdev=hidden") }()
+			defer func() { _ = d.setDatasetProperties(dataset, "snapdev=none") }()
+		}
+
+		snapdevMode, err := d.getDatasetProperty(dataset, "snapdev")
+		if err != nil {
+			return "", nil, err
+		}
+
+		if snapdevMode != "visible" {
+			err = d.setDatasetProperties(dataset, "snapdev=visible")
+			if err != nil {
+				return "", nil, err
+			}
+
+			defer func() { _ = d.setDatasetProperties(dataset, "snapdev=hidden") }()
 
 			// Wait half a second to give udev a chance to kick in.
 			time.Sleep(500 * time.Millisecond)
