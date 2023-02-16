@@ -629,11 +629,12 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Check if already initialized
-	if d.c != nil {
-		if !config || d.cConfig {
-			return nil
-		}
+	if d.c != nil && (!config || d.cConfig) {
+		return nil
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Load the go-lxc struct
 	cname := project.Instance(d.Project().Name, d.Name())
@@ -642,18 +643,15 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
+	revert.Add(func() {
+		_ = cc.Release()
+	})
+
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
-
-	freeContainer := true
-	defer func() {
-		if freeContainer {
-			_ = cc.Release()
-		}
-	}()
 
 	// Setup logging
 	logfile := d.LogFilePath()
@@ -715,7 +713,8 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		d.c = cc
-		freeContainer = false
+
+		revert.Success()
 		return nil
 	}
 
@@ -1279,8 +1278,7 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	d.c = cc
-	freeContainer = false
-
+	revert.Success()
 	return nil
 }
 
