@@ -805,7 +805,12 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name()})
+	live := c.src.live
+	if c.push {
+		live = c.dest.live
+	}
+
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live})
 
 	var err error
 
@@ -828,6 +833,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		disconnector = c.src.disconnect
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
+			err = fmt.Errorf("Failed connecting control sink socket: %w", err)
 			return err
 		}
 
@@ -835,6 +841,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 		if err != nil {
+			err = fmt.Errorf("Failed connecting filesystem sink socket: %w", err)
 			c.src.sendControl(err)
 			return err
 		}
@@ -842,6 +849,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		if c.src.live && c.src.instance.Type() == instancetype.Container {
 			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 			if err != nil {
+				err = fmt.Errorf("Failed connecting CRIU sink socket: %w", err)
 				c.src.sendControl(err)
 				return err
 			}
@@ -872,11 +880,6 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		err = fmt.Errorf("Failed receiving migration offer header: %w", err)
 		controller(err)
 		return err
-	}
-
-	live := c.src.live
-	if c.push {
-		live = c.dest.live
 	}
 
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
@@ -1208,7 +1211,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 			if respHeader.GetPredump() {
 				for !sync.GetFinalPreDump() {
-					l.Debug("About to receive rsync")
+					l.Debug("About to receive pre-dump rsync")
 					// Transfer a CRIU pre-dump.
 					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
 					if err != nil {
@@ -1216,9 +1219,9 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 						return
 					}
 
-					l.Debug("Done receiving from rsync")
+					l.Debug("Done receiving pre-dump rsync")
 
-					l.Debug("About to receive header")
+					l.Debug("About to receive pre-dump header")
 					// Check if this was the last pre-dump.
 					// Only the FinalPreDump element if of interest.
 					mtype, data, err := criuConn.ReadMessage()
@@ -1226,6 +1229,8 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 						restore <- err
 						return
 					}
+
+					l.Debug("Done receiving pre-dump header")
 
 					if mtype != websocket.BinaryMessage {
 						restore <- err
@@ -1241,7 +1246,9 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 
 			// Final CRIU dump.
+			l.Debug("About to receive final dump rsync")
 			err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
+			l.Debug("Done receiving final dump rsync")
 			if err != nil {
 				restore <- err
 				return
