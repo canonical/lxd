@@ -282,46 +282,60 @@ func (c *Cluster) GetNetworkLoadBalancerListenAddresses(networkID int64, memberS
 
 // GetProjectNetworkLoadBalancerListenAddressesByUplink returns map of Network Load Balancer Listen Addresses
 // that belong to networks connected to the specified uplinkNetworkName.
-// Returns a map keyed on project name and network ID containing a slice of listen addresses.
-func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx context.Context, uplinkNetworkName string) (map[string]map[int64][]string, error) {
+// Returns a map keyed on project name and network name containing a slice of listen addresses.
+func (c *ClusterTx) GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx context.Context, uplinkNetworkName string, memberSpecific bool) (map[string]map[string][]string, error) {
+	q := strings.Builder{}
+	args := []any{uplinkNetworkName}
+
 	// As uplink networks can only be in default project, it is safe to look for networks that reference the
-	// specified uplinkNetworkName in their "network" config property.
-	q := `
+	// specified uplinkNetworkName in their "network" config property or are the uplink network themselves in
+	// the default project.
+	q.WriteString(`
 	SELECT
 		projects.name,
-		networks.id,
+		networks.name,
 		networks_load_balancers.listen_address
 	FROM networks_load_balancers
 	JOIN networks on networks.id = networks_load_balancers.network_id
 	JOIN networks_config on networks.id = networks_config.network_id
 	JOIN projects ON projects.id = networks.project_id
-	WHERE networks_config.key = "network"
-	AND networks_config.value = ?
-	`
-	loadBalancers := make(map[string]map[int64][]string)
+	WHERE (
+		(networks_config.key = "network" AND networks_config.value = ?1)
+		OR (projects.name = "default" AND networks.name = ?1)
+	)
+	`)
 
-	err := query.Scan(ctx, c.Tx(), q, func(scan func(dest ...any) error) error {
+	if memberSpecific {
+		q.WriteString("AND (networks_load_balancers.node_id = ?2 OR networks_load_balancers.node_id IS NULL) ")
+		args = append(args, c.nodeID)
+	}
+
+	q.WriteString("GROUP BY projects.name, networks.id, networks_load_balancers.listen_address")
+
+	loadBalancers := make(map[string]map[string][]string)
+
+	err := query.Scan(ctx, c.Tx(), q.String(), func(scan func(dest ...any) error) error {
 		var projectName string
-		var networkID int64 = int64(-1)
+		var networkName string
 		var listenAddress string
 
-		err := scan(&projectName, &networkID, &listenAddress)
+		err := scan(&projectName, &networkName, &listenAddress)
 		if err != nil {
 			return err
 		}
 
 		if loadBalancers[projectName] == nil {
-			loadBalancers[projectName] = make(map[int64][]string)
+			loadBalancers[projectName] = make(map[string][]string)
 		}
 
-		if loadBalancers[projectName][networkID] == nil {
-			loadBalancers[projectName][networkID] = make([]string, 0)
+		if loadBalancers[projectName][networkName] == nil {
+			loadBalancers[projectName][networkName] = make([]string, 0)
 		}
 
-		loadBalancers[projectName][networkID] = append(loadBalancers[projectName][networkID], listenAddress)
+		loadBalancers[projectName][networkName] = append(loadBalancers[projectName][networkName], listenAddress)
 
 		return nil
-	}, uplinkNetworkName)
+	}, args...)
 	if err != nil {
 		return nil, err
 	}
