@@ -188,6 +188,7 @@ type CriuMigrationArgs struct {
 	DumpDir      string
 	PreDumpDir   string
 	Features     liblxc.CriuFeatures
+	Op           *operationlock.InstanceOperation
 }
 
 // Info represents information about an instance driver.
