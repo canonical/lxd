@@ -5032,10 +5032,14 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			return fmt.Errorf("The container is already running")
 		}
 
-		// Run the shared start
-		_, postStartHooks, err := d.startCommon()
+		// Run the shared start code.
+		configPath, postStartHooks, err := d.startCommon()
 		if err != nil {
-			return fmt.Errorf("Failed preparing container for start: %w", err)
+			if args.Op != nil {
+				args.Op.Done(err)
+			}
+
+			return err
 		}
 
 		/*
@@ -5068,18 +5072,8 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			}
 		}
 
-		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-
 		if args.DumpDir != "" {
 			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
-		}
-
-		// Update the backup.yaml file just before starting the instance process, but after all devices
-		// have been setup, so that the backup file contains the volatile keys used for this instance
-		// start, so that they can be used for instance cleanup.
-		err = d.UpdateBackupFile()
-		if err != nil {
-			return err
 		}
 
 		_, migrateErr = shared.RunCommand(
@@ -5089,14 +5083,20 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprintf("%v", preservesInodes))
+			fmt.Sprintf("%v", preservesInodes),
+		)
 
 		if migrateErr == nil {
 			// Run any post start hooks.
-			err := d.runHooks(postStartHooks)
+			err = d.runHooks(postStartHooks)
 			if err != nil {
+				if args.Op != nil {
+					args.Op.Done(err) // Must come before Stop() otherwise stop will not proceed.
+				}
+
 				// Attempt to stop container.
 				_ = d.Stop(false)
+
 				return err
 			}
 		}
