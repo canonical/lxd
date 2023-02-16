@@ -653,17 +653,13 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		if reqNew.Name == "" {
-			return response.BadRequest(fmt.Errorf(`A new name for the ` +
-				`container must be provided`))
+			return response.BadRequest(fmt.Errorf("A new name for the instance must be provided"))
 		}
 
 		if reqNew.Live {
 			sourceName, _, _ := api.GetParentAndSnapshotName(containerName)
 			if sourceName != reqNew.Name {
-				return response.BadRequest(fmt.Errorf(`Copying `+
-					`stateful containers requires that `+
-					`source "%s" and `+`target "%s" name `+
-					`be identical`, sourceName, reqNew.Name))
+				return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, reqNew.Name))
 			}
 		}
 
