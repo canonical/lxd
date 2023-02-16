@@ -659,7 +659,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		if reqNew.Live {
 			sourceName, _, _ := api.GetParentAndSnapshotName(containerName)
 			if sourceName != reqNew.Name {
-				return response.BadRequest(fmt.Errorf("Copying stateful instances requires that source %q and target %q name be identical", sourceName, reqNew.Name))
+				return response.BadRequest(fmt.Errorf("Instance name cannot be changed during stateful copy (%q to %q)", sourceName, reqNew.Name))
 			}
 		}
 
