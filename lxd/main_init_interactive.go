@@ -360,16 +360,6 @@ func (c *cmdInit) askClustering(config *api.InitPreseed, d lxd.InstanceServer, s
 			if err != nil {
 				return err
 			}
-
-			// Password authentication
-			clusterUsePassword, err := cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=no]: ", "no")
-			if err != nil {
-				return err
-			}
-
-			if clusterUsePassword {
-				config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
-			}
 		}
 	}
 
@@ -1020,10 +1010,6 @@ they otherwise would.
 			}
 
 			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
-			config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
-			if config.Node.Config["core.trust_password"] == "" {
-				fmt.Printf("No password set, client certificates will have to be manually trusted.")
-			}
 		}
 	}
 
