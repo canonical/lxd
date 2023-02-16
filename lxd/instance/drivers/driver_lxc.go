@@ -2306,13 +2306,6 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	// Run the shared start code
-	configPath, postStartHooks, err := d.startCommon()
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
 	ctxMap := logger.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
@@ -2332,6 +2325,8 @@ func (d *lxc) Start(stateful bool) error {
 			return err
 		}
 
+		d.logger.Info("Restoring stateful checkpoint")
+
 		criuMigrationArgs := instance.CriuMigrationArgs{
 			Cmd:          liblxc.MIGRATE_RESTORE,
 			StateDir:     d.StatePath(),
@@ -2342,10 +2337,10 @@ func (d *lxc) Start(stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		err := d.Migrate(&criuMigrationArgs)
+		err = d.Migrate(&criuMigrationArgs)
 		if err != nil && !d.IsRunning() {
 			op.Done(err)
-			return fmt.Errorf("Migrate: %w", err)
+			return fmt.Errorf("Failed restoring stateful checkpoint: %w", err)
 		}
 
 		_ = os.RemoveAll(d.StatePath())
@@ -2354,18 +2349,7 @@ func (d *lxc) Start(stateful bool) error {
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Start instance: %w", err)
-		}
-
-		// Run any post start hooks.
-		err = d.runHooks(postStartHooks)
-		if err != nil {
-			op.Done(err) // Must come before Stop() otherwise stop will not proceed.
-
-			// Attempt to stop container.
-			_ = d.Stop(false)
-
-			return err
+			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
 		}
 
 		if op.Action() == "start" {
@@ -2386,14 +2370,12 @@ func (d *lxc) Start(stateful bool) error {
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Persist stateful flag: %w", err)
+			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
 		}
 	}
 
-	// Update the backup.yaml file just before starting the instance process, but after all devices have been
-	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
-	// can be used for instance cleanup.
-	err = d.UpdateBackupFile()
+	// Run the shared start code.
+	configPath, postStartHooks, err := d.startCommon()
 	if err != nil {
 		op.Done(err)
 		return err
