@@ -2289,7 +2289,7 @@ func (d *lxc) Start(stateful bool) error {
 
 	var ctxMap logger.Ctx
 
-	// Setup a new operation
+	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
@@ -2326,7 +2326,7 @@ func (d *lxc) Start(stateful bool) error {
 		d.logger.Info("Starting instance", ctxMap)
 	}
 
-	// If stateful, restore now
+	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
 			err = fmt.Errorf("Instance has no existing state to restore")
