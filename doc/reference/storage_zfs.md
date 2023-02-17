@@ -117,6 +117,7 @@ Key                     | Type      | Condition                 | Default       
 `snapshots.pattern`     | string    | custom volume             | same as `volume.snapshots.pattern` or `snap%d` | {{snapshot_pattern_format}} [^*]
 `snapshots.schedule`    | string    | custom volume             | same as `snapshots.schedule`                   | {{snapshot_schedule_format}}
 `zfs.blocksize`         | string    | ZFS driver                | same as `volume.zfs.blocksize`                 | Size of the ZFS block in range from 512 to 16 MiB (must be power of 2) - for block volume, a maximum value of 128 KiB will be used even if a higher value is set
+`zfs.block_mode`        | bool      | ZFS driver                | same as `volume.zfs.block_mode`                | Whether to use a formatted `zvol` rather than a {spellexception}`dataset`
 `zfs.remove_snapshots`  | bool      | ZFS driver                | same as `volume.zfs.remove_snapshots` or `false` | Remove snapshots as needed
 `zfs.use_refquota`      | bool      | ZFS driver                | same as `volume.zfs.use_refquota` or `false`   | Use `refquota` instead of `quota` for space
 `zfs.reserve_space`     | bool      | ZFS driver                | same as `volume.zfs.reserve_space` or `false`  | Use `reservation`/`refreservation` along with `quota`/`refquota`
