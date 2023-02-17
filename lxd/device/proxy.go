@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/socket"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -486,7 +487,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	if d.state.OS.PidFds {
 		cPidFd, err := cc.InitPidFd()
 		if err == nil {
-			dPidFd, err := shared.PidFdOpen(os.Getpid(), 0)
+			dPidFd, err := socket.PidFdOpen(os.Getpid(), 0)
 			if err == nil {
 				inheritFd = []*os.File{cPidFd, dPidFd}
 				containerPidFd = 3

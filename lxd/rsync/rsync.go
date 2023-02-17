@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/socket"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -98,8 +99,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	auds := fmt.Sprintf("@lxd/%s", uuid.New())
 	// We simply copy a part of the uuid if it's longer than the allowed
 	// maximum. That should be safe enough for our purposes.
-	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
-		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
+	if len(auds) > socket.ABSTRACT_UNIX_SOCK_LEN-1 {
+		auds = auds[:socket.ABSTRACT_UNIX_SOCK_LEN-1]
 	}
 
 	l, err := net.Listen("unix", auds)

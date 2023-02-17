@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/socket"
 )
 
 // Send an rsync stream of a path over a websocket.
@@ -52,8 +53,8 @@ func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs
 // Spawn the rsync process.
 func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instanceType api.InstanceType) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	auds := fmt.Sprintf("@lxd-migrate/%s", uuid.New())
-	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
-		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
+	if len(auds) > socket.ABSTRACT_UNIX_SOCK_LEN-1 {
+		auds = auds[:socket.ABSTRACT_UNIX_SOCK_LEN-1]
 	}
 
 	l, err := net.Listen("unix", auds)
