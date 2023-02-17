@@ -43,6 +43,8 @@ The following NICs can be added using the `nictype` or `network` options:
 - [`bridged`](nic-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
 - [`macvlan`](nic-macvlan): Sets up a new network device based on an existing one, but using a different MAC address.
 - [`sriov`](nic-sriov): Passes a virtual function of an SR-IOV-enabled physical network device into the instance.
+- [`physical`](nic-physical): Passes a physical device from the host through to the instance.
+  The targeted device will vanish from the host and appear in the instance.
 
 The following NICs can be added using only the `network` option:
 
@@ -50,8 +52,6 @@ The following NICs can be added using only the `network` option:
 
 The following NICs can be added using only the `nictype` option:
 
-- [`physical`](nic-physical): Passes a physical device from the host through to the instance.
-  The targeted device will vanish from the host and appear in the instance.
 - [`ipvlan`](nic-ipvlan): Sets up a new network device based on an existing one, using the same MAC address but a different IP.
 - [`p2p`](nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 - [`routed`](nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
@@ -238,8 +238,7 @@ Key                                  | Type    | Default           | Managed | D
 ### `nictype`: `physical`
 
 ```{note}
-- You can select this NIC type only through the `nictype` option.
-(The [`physical` network type](network-physical) can only be used to provide an uplink network for the {ref}`network-ovn`.)
+- You can select this NIC type through the `nictype` option or the `network` option.
 - You can have only one `physical` NIC for each parent device.
 ```
 
