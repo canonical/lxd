@@ -629,11 +629,12 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	// Check if already initialized
-	if d.c != nil {
-		if !config || d.cConfig {
-			return nil
-		}
+	if d.c != nil && (!config || d.cConfig) {
+		return nil
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Load the go-lxc struct
 	cname := project.Instance(d.Project().Name, d.Name())
@@ -642,18 +643,15 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
+	revert.Add(func() {
+		_ = cc.Release()
+	})
+
 	// Load cgroup abstraction
 	cg, err := d.cgroup(cc)
 	if err != nil {
 		return err
 	}
-
-	freeContainer := true
-	defer func() {
-		if freeContainer {
-			_ = cc.Release()
-		}
-	}()
 
 	// Setup logging
 	logfile := d.LogFilePath()
@@ -715,7 +713,8 @@ func (d *lxc) initLXC(config bool) error {
 		}
 
 		d.c = cc
-		freeContainer = false
+
+		revert.Success()
 		return nil
 	}
 
@@ -1279,8 +1278,7 @@ func (d *lxc) initLXC(config bool) error {
 	}
 
 	d.c = cc
-	freeContainer = false
-
+	revert.Success()
 	return nil
 }
 
@@ -2239,6 +2237,14 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
+	// can be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return "", nil, err
+	}
+
 	revert.Success()
 	return configPath, postStartHooks, nil
 }
@@ -2268,44 +2274,20 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	return nil
 }
 
-// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
-func (d *lxc) validateStartup(stateful bool) error {
-	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
-	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
-	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
-	// error with an ERROR status code from the instance check instead.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
-	if err != nil {
-		return err
-	}
-
-	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
-		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
-	}
-
-	// Check that we are startable before creating an operation lock, so if the instance is in the
-	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
-	err = d.isStartableStatusCode(d.statusCode())
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
 	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
-	err := d.validateStartup(stateful)
+	// Check that we are startable before creating an operation lock.
+	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
+	// existence of a Start operation lock.
+	err := d.validateStartup(stateful, d.statusCode())
 	if err != nil {
 		return err
 	}
 
-	var ctxMap logger.Ctx
-
-	// Setup a new operation
+	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
@@ -2324,14 +2306,7 @@ func (d *lxc) Start(stateful bool) error {
 		return err
 	}
 
-	// Run the shared start code
-	configPath, postStartHooks, err := d.startCommon()
-	if err != nil {
-		op.Done(err)
-		return err
-	}
-
-	ctxMap = logger.Ctx{
+	ctxMap := logger.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2342,13 +2317,15 @@ func (d *lxc) Start(stateful bool) error {
 		d.logger.Info("Starting instance", ctxMap)
 	}
 
-	// If stateful, restore now
+	// If stateful, restore now.
 	if stateful {
 		if !d.stateful {
 			err = fmt.Errorf("Instance has no existing state to restore")
 			op.Done(err)
 			return err
 		}
+
+		d.logger.Info("Restoring stateful checkpoint")
 
 		criuMigrationArgs := instance.CriuMigrationArgs{
 			Cmd:          liblxc.MIGRATE_RESTORE,
@@ -2360,10 +2337,10 @@ func (d *lxc) Start(stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		err := d.Migrate(&criuMigrationArgs)
+		err = d.Migrate(&criuMigrationArgs)
 		if err != nil && !d.IsRunning() {
 			op.Done(err)
-			return fmt.Errorf("Migrate: %w", err)
+			return fmt.Errorf("Failed restoring stateful checkpoint: %w", err)
 		}
 
 		_ = os.RemoveAll(d.StatePath())
@@ -2372,18 +2349,7 @@ func (d *lxc) Start(stateful bool) error {
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Start instance: %w", err)
-		}
-
-		// Run any post start hooks.
-		err = d.runHooks(postStartHooks)
-		if err != nil {
-			op.Done(err) // Must come before Stop() otherwise stop will not proceed.
-
-			// Attempt to stop container.
-			_ = d.Stop(false)
-
-			return err
+			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
 		}
 
 		if op.Action() == "start" {
@@ -2404,14 +2370,12 @@ func (d *lxc) Start(stateful bool) error {
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Persist stateful flag: %w", err)
+			return fmt.Errorf("Failed clearing instance stateful flag: %w", err)
 		}
 	}
 
-	// Update the backup.yaml file just before starting the instance process, but after all devices have been
-	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
-	// can be used for instance cleanup.
-	err = d.UpdateBackupFile()
+	// Run the shared start code.
+	configPath, postStartHooks, err := d.startCommon()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -2584,6 +2548,32 @@ func (d *lxc) Stop(stateful bool) error {
 		d.logger.Info("Stopping instance", ctxMap)
 	}
 
+	// Release liblxc container once done.
+	defer func() {
+		d.release()
+	}()
+
+	// Load the go-lxc struct
+	if d.expandedConfig["raw.lxc"] != "" {
+		err = d.initLXC(true)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+
+		err = d.loadRawLXCConfig()
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	} else {
+		err = d.initLXC(false)
+		if err != nil {
+			op.Done(err)
+			return err
+		}
+	}
+
 	// Handle stateful stop
 	if stateful {
 		// Cleanup any existing state
@@ -2621,8 +2611,7 @@ func (d *lxc) Stop(stateful bool) error {
 		d.stateful = true
 		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
-			d.logger.Error("Failed stopping instance", ctxMap)
-			return err
+			return fmt.Errorf("Failed updating instance stateful flag: %w", err)
 		}
 
 		d.logger.Info("Stopped instance", ctxMap)
@@ -2631,33 +2620,6 @@ func (d *lxc) Stop(stateful bool) error {
 		return nil
 	} else if shared.PathExists(d.StatePath()) {
 		_ = os.RemoveAll(d.StatePath())
-	}
-
-	// Release liblxc container once done.
-	defer func() {
-		d.release()
-	}()
-
-	// Load the go-lxc struct
-	if d.expandedConfig["raw.lxc"] != "" {
-		err = d.initLXC(true)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-
-		// Load the config.
-		err = d.loadRawLXCConfig()
-		if err != nil {
-			op.Done(err)
-			return err
-		}
-	} else {
-		err = d.initLXC(false)
-		if err != nil {
-			op.Done(err)
-			return err
-		}
 	}
 
 	// Load cgroup abstraction
@@ -3359,6 +3321,41 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 			return fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
 		}
 
+		// Cleanup any existing state
+		stateDir := d.StatePath()
+		_ = os.RemoveAll(stateDir)
+
+		// Create the state path and make sure we don't keep state around after the snapshot has been made.
+		err = os.MkdirAll(stateDir, 0700)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = os.RemoveAll(stateDir) }()
+
+		// Release liblxc container once done.
+		defer func() {
+			d.release()
+		}()
+
+		// Load the go-lxc struct
+		if d.expandedConfig["raw.lxc"] != "" {
+			err = d.initLXC(true)
+			if err != nil {
+				return err
+			}
+
+			err = d.loadRawLXCConfig()
+			if err != nil {
+				return err
+			}
+		} else {
+			err = d.initLXC(false)
+			if err != nil {
+				return err
+			}
+		}
+
 		/* TODO: ideally we would freeze here and unfreeze below after
 		 * we've copied the filesystem, to make sure there are no
 		 * changes by the container while snapshotting. Unfortunately
@@ -3370,7 +3367,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 		 */
 		criuMigrationArgs := instance.CriuMigrationArgs{
 			Cmd:          liblxc.MIGRATE_DUMP,
-			StateDir:     d.StatePath(),
+			StateDir:     stateDir,
 			Function:     "snapshot",
 			Stop:         false,
 			ActionScript: false,
@@ -3378,18 +3375,10 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		// Create the state path and Make sure we don't keep state around after the snapshot has been made.
-		err = os.MkdirAll(d.StatePath(), 0700)
-		if err != nil {
-			return err
-		}
-
-		defer func() { _ = os.RemoveAll(d.StatePath()) }()
-
 		// Dump the state.
 		err = d.Migrate(&criuMigrationArgs)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
 	}
 
@@ -3411,10 +3400,8 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	defer op.Done(nil)
 
 	// Stop the container.
-	wasRunning := false
-	if d.IsRunning() {
-		wasRunning = true
-
+	wasRunning := d.IsRunning()
+	if wasRunning {
 		ephemeral := d.IsEphemeral()
 		if ephemeral {
 			// Unset ephemeral flag.
@@ -3480,12 +3467,17 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	d.logger.Debug("Mounting instance to check for CRIU state path existence")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-	_, err = pool.MountInstance(d, nil)
+	_, err = d.mount()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
+
+	revert.Add(func() { _ = d.unmount() })
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	// Requires container be mounted to check StatePath exists.
@@ -3498,11 +3490,13 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	err = pool.UnmountInstance(d, nil)
+	err = d.unmount()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
+
+	revert.Success()
 
 	// Restore the rootfs.
 	err = pool.RestoreInstanceSnapshot(d, sourceContainer, nil)
@@ -3535,7 +3529,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	// If the container wasn't running but was stateful, should we restore it as running?
 	if stateful {
 		if !shared.PathExists(d.StatePath()) {
-			err = fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+			err = fmt.Errorf("Stateful snapshot restore requested but snapshot is stateless")
 			op.Done(err)
 			return err
 		}
@@ -3554,10 +3548,10 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Checkpoint.
-		err := d.Migrate(&criuMigrationArgs)
+		err = d.Migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
-			return err
+			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
 
 		// Remove the state from the parent container; we only keep this in snapshots.
@@ -5009,8 +5003,6 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		prettyCmd = "dump"
 	case liblxc.MIGRATE_RESTORE:
 		prettyCmd = "restore"
-	case liblxc.MIGRATE_FEATURE_CHECK:
-		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
 		d.logger.Warn("Unknown migrate call", logger.Ctx{"cmd": args.Cmd})
@@ -5043,10 +5035,14 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			return fmt.Errorf("The container is already running")
 		}
 
-		// Run the shared start
-		_, postStartHooks, err := d.startCommon()
+		// Run the shared start code.
+		configPath, postStartHooks, err := d.startCommon()
 		if err != nil {
-			return fmt.Errorf("Failed preparing container for start: %w", err)
+			if args.Op != nil {
+				args.Op.Done(err)
+			}
+
+			return err
 		}
 
 		/*
@@ -5079,18 +5075,8 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			}
 		}
 
-		configPath := filepath.Join(d.LogPath(), "lxc.conf")
-
 		if args.DumpDir != "" {
 			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
-		}
-
-		// Update the backup.yaml file just before starting the instance process, but after all devices
-		// have been setup, so that the backup file contains the volatile keys used for this instance
-		// start, so that they can be used for instance cleanup.
-		err = d.UpdateBackupFile()
-		if err != nil {
-			return err
 		}
 
 		_, migrateErr = shared.RunCommand(
@@ -5100,38 +5086,40 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			d.state.OS.LxcPath,
 			configPath,
 			finalStateDir,
-			fmt.Sprintf("%v", preservesInodes))
+			fmt.Sprintf("%v", preservesInodes),
+		)
 
 		if migrateErr == nil {
 			// Run any post start hooks.
-			err := d.runHooks(postStartHooks)
+			err = d.runHooks(postStartHooks)
 			if err != nil {
+				if args.Op != nil {
+					args.Op.Done(err) // Must come before Stop() otherwise stop will not proceed.
+				}
+
 				// Attempt to stop container.
 				_ = d.Stop(false)
+
 				return err
 			}
 		}
-	} else if args.Cmd == liblxc.MIGRATE_FEATURE_CHECK {
-		err := d.initLXC(true)
-		if err != nil {
-			return err
-		}
-
-		opts := liblxc.MigrateOptions{
-			FeaturesToCheck: args.Features,
-		}
-
-		migrateErr = d.c.Migrate(args.Cmd, opts)
-		if migrateErr != nil {
-			d.logger.Info("CRIU feature check failed", ctxMap)
-			return migrateErr
-		}
-
-		return nil
 	} else {
-		err := d.initLXC(true)
-		if err != nil {
-			return err
+		// Load the go-lxc struct
+		if d.expandedConfig["raw.lxc"] != "" {
+			err = d.initLXC(true)
+			if err != nil {
+				return err
+			}
+
+			err = d.loadRawLXCConfig()
+			if err != nil {
+				return err
+			}
+		} else {
+			err = d.initLXC(false)
+			if err != nil {
+				return err
+			}
 		}
 
 		script := ""
@@ -6915,24 +6903,6 @@ func (d *lxc) UpdateBackupFile() error {
 	}
 
 	return pool.UpdateInstanceBackupFile(d, nil)
-}
-
-// SaveConfigFile generates the LXC config file on disk.
-func (d *lxc) SaveConfigFile() error {
-	err := d.initLXC(true)
-	if err != nil {
-		return fmt.Errorf("Failed to generate LXC config: %w", err)
-	}
-
-	// Generate the LXC config.
-	configPath := filepath.Join(d.LogPath(), "lxc.conf")
-	err = d.c.SaveConfigFile(configPath)
-	if err != nil {
-		_ = os.Remove(configPath)
-		return fmt.Errorf("Failed to save LXC config to file %q: %w", configPath, err)
-	}
-
-	return nil
 }
 
 // Info returns "lxc" and the currently loaded version of LXC.

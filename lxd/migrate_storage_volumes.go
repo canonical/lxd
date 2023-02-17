@@ -233,7 +233,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	} else {
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
-			logger.Errorf("Failed to connect migration sink control socket")
+			err = fmt.Errorf("Failed connecting control sink socket: %w", err)
 			return err
 		}
 
@@ -241,7 +241,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 		if err != nil {
-			logger.Errorf("Failed to connect migration sink filesystem socket")
+			err = fmt.Errorf("Failed connecting filesystem sink socket: %w", err)
 			c.src.sendControl(err)
 			return err
 		}
