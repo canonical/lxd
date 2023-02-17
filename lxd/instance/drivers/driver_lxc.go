@@ -63,6 +63,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/socket"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -5775,7 +5776,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		return nil, err
 	}
 
-	attachedPid := shared.ReadPid(rStatus)
+	attachedPid := socket.ReadPid(rStatus)
 	if attachedPid <= 0 {
 		_ = cmd.Wait()
 		d.logger.Error("Failed to retrieve PID of executing child process")
