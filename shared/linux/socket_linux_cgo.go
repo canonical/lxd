@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package shared
+package linux
 
 import (
 	"fmt"
@@ -31,8 +31,8 @@ import (
 #include <sys/types.h>
 #include <sys/un.h>
 
-#include "../lxd/include/process_utils.h"
-#include "../lxd/include/syscall_wrappers.h"
+#include "../../lxd/include/process_utils.h"
+#include "../../lxd/include/syscall_wrappers.h"
 
 #define ABSTRACT_UNIX_SOCK_LEN sizeof(((struct sockaddr_un *)0)->sun_path)
 
