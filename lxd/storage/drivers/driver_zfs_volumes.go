@@ -2748,9 +2748,16 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	unlock := snapVol.MountLock()
 	defer unlock()
 
-	mountPath := snapVol.MountPath()
-	snapshotDataset := d.dataset(snapVol, false)
+	_, err := d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), op)
+	if err != nil {
+		return err
+	}
 
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	return nil
+}
+
+func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountPath string, op *operations.Operation) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2759,13 +2766,13 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if !filesystem.IsMountPoint(mountPath) {
 			err := snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Mount the snapshot directly (not possible through tools).
 			err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
@@ -2778,7 +2785,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 		err := d.MountVolume(parentVol, op)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, op) })
@@ -2788,25 +2795,25 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		// Check if parent already active.
 		parentVolMode, err := d.getDatasetProperty(parentDataset, "volmode")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Order is important here, the parent volmode=dev must be set before snapdev=visible otherwise
 		// it won't take effect.
 		if parentVolMode != "dev" {
-			return fmt.Errorf("Parent block volume needs to be mounted first")
+			return nil, fmt.Errorf("Parent block volume needs to be mounted first")
 		}
 
 		// Check if snapdev already set visible.
 		parentSnapdevMode, err := d.getDatasetProperty(parentDataset, "snapdev")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if parentSnapdevMode != "visible" {
 			err = d.setDatasetProperties(parentDataset, "snapdev=visible")
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Wait half a second to give udev a chance to kick in.
@@ -2818,13 +2825,13 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if snapVol.contentType != ContentTypeBlock && d.isBlockBacked(snapVol) && !filesystem.IsMountPoint(mountPath) {
 			err = snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			mountVol := snapVol
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(mountVol.ConfigBlockMountOptions(), ","))
 
-			dataset := d.dataset(snapVol, false)
+			dataset := snapshotDataset
 
 			// Regenerate filesystem UUID if needed. This is because some filesystems do not allow mounting
 			// multiple volumes that share the same UUID. As snapshotting a volume will copy its UUID we need
@@ -2845,7 +2852,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 				// Clone snapshot.
 				_, err = shared.RunCommand("zfs", "clone", snapshotDataset, dataset)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// Delete on revert.
@@ -2853,7 +2860,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 				err := d.setDatasetProperties(dataset, "volmode=dev")
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				defer func() {
@@ -2871,7 +2878,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 			volPath, err := d.getVolumeDiskPathFromDataset(dataset)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if regenerateFSUUID {
@@ -2888,14 +2895,14 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 					d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": tmpVolFsType})
 					err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volPath)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 			}
 
 			err = TryMount(volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
 			if err != nil {
-				return fmt.Errorf("Failed mounting volume snapshot: %w", err)
+				return nil, fmt.Errorf("Failed mounting volume snapshot: %w", err)
 			}
 		}
 
@@ -2904,14 +2911,25 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 			fsVol := snapVol.NewVMBlockFilesystemVolume()
 			err = d.MountVolumeSnapshot(fsVol, op)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+
+	revert.Add(func() {
+		_, err := forceUnmount(mountPath)
+		if err != nil {
+			return
+		}
+
+		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+	})
+
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, nil
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
