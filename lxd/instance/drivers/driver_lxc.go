@@ -60,6 +60,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/shared/linux"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
@@ -5775,7 +5776,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		return nil, err
 	}
 
-	attachedPid := shared.ReadPid(rStatus)
+	attachedPid := linux.ReadPid(rStatus)
 	if attachedPid <= 0 {
 		_ = cmd.Wait()
 		d.logger.Error("Failed to retrieve PID of executing child process")
