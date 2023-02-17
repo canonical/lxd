@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/socket"
+	"github.com/lxc/lxd/shared/linux"
 )
 
 type cmdForkstart struct {
@@ -54,7 +54,7 @@ func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 	lxcpath := args[1]
 	configPath := args[2]
 
-	err := socket.CloseRange(uint32(os.Stderr.Fd())+1, ^uint32(0), socket.CLOSE_RANGE_CLOEXEC)
+	err := linux.CloseRange(uint32(os.Stderr.Fd())+1, ^uint32(0), linux.CLOSE_RANGE_CLOEXEC)
 	if err != nil {
 		return fmt.Errorf("Aborting attach to prevent leaking file descriptors into container")
 	}
