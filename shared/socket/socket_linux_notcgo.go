@@ -1,5 +1,5 @@
 //go:build linux && !cgo
 
-package shared
+package socket
 
 const ABSTRACT_UNIX_SOCK_LEN int = 107

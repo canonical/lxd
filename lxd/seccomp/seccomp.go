@@ -30,6 +30,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/socket"
 )
 
 /*
@@ -487,7 +488,8 @@ finit_module errno 38
 delete_module errno 38
 `
 
-//          8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
+//	8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
+//
 // 2146435072 == SECCOMP_RET_TRACE
 const seccompNotifyDisallow = `seccomp errno 22 [1,2146435072,SCMP_CMP_MASKED_EQ,2146435072]
 seccomp errno 22 [1,8,SCMP_CMP_MASKED_EQ,8]
@@ -705,7 +707,7 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 // MakePidFd prepares a pidfd to inherit for the init process of the container.
 func MakePidFd(pid int, s *state.State) (int, *os.File) {
 	if s.OS.PidFds {
-		pidFdFile, err := shared.PidFdOpen(pid, 0)
+		pidFdFile, err := socket.PidFdOpen(pid, 0)
 		if err != nil {
 			return -1, nil
 		}
@@ -1932,7 +1934,7 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	args.data = C.GoString(&mntData[0])
 	ctx["data"] = args.data
 
-	err := shared.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
+	err := socket.PidfdSendSignal(int(pidFd.Fd()), 0, 0)
 	if err != nil {
 		ctx["err"] = fmt.Sprintf("Failed to send signal to target process for of mount syscall: %s", err)
 		ctx["syscall_continue"] = "true"
