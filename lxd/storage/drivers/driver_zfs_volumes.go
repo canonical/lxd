@@ -2384,93 +2384,35 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 		return "", nil, err
 	}
 
-	dataset := d.dataset(vol, false)
-	srcSnapshot := fmt.Sprintf("%s@temp_ro-%s", dataset, uuid.New())
+	snapshotOnlyName := fmt.Sprintf("temp_ro-%s", uuid.New())
+
+	snapVol, err := vol.NewSnapshot(snapshotOnlyName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	snapshotDataset := fmt.Sprintf("%s@%s", d.dataset(vol, false), snapshotOnlyName)
 
 	// Create a temporary snapshot.
-	_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
+	_, err = shared.RunCommand("zfs", "snapshot", snapshotDataset)
 	if err != nil {
 		return "", nil, err
 	}
 
 	revert.Add(func() {
 		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		_, err := shared.RunCommand("zfs", "destroy", "-d", snapshotDataset)
 		if err != nil {
-			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": snapshotDataset, "err": err})
 		}
 	})
 
-	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
-
-	if d.isBlockBacked(vol) {
-		// For block devices, we make them appear.
-		// Check if already active.
-		volmode, err := d.getDatasetProperty(dataset, "volmode")
-		if err != nil {
-			return "", nil, err
-		}
-
-		if volmode != "dev" {
-			err = d.setDatasetProperties(dataset, "volmode=dev")
-			if err != nil {
-				return "", nil, err
-			}
-
-			defer func() { _ = d.setDatasetProperties(dataset, "snapdev=none") }()
-		}
-
-		snapdevMode, err := d.getDatasetProperty(dataset, "snapdev")
-		if err != nil {
-			return "", nil, err
-		}
-
-		if snapdevMode != "visible" {
-			err = d.setDatasetProperties(dataset, "snapdev=visible")
-			if err != nil {
-				return "", nil, err
-			}
-
-			defer func() { _ = d.setDatasetProperties(dataset, "snapdev=hidden") }()
-
-			// Wait half a second to give udev a chance to kick in.
-			time.Sleep(500 * time.Millisecond)
-
-			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
-		}
-
-		volPath, err := d.getVolumeDiskPathFromDataset(srcSnapshot)
-		if err != nil {
-			return "", nil, err
-		}
-
-		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
-
-		err = TryMount(volPath, tmpDir, vol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
-		if err != nil {
-			return "", nil, err
-		}
-	} else {
-		// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
-		// already mounted by the time genericVFSBackupVolume tries to mount it below,
-		// thus preventing it from trying to unmount it at the end, as this is a custom snapshot,
-		// the normal mount and unmount logic will fail.
-		err = TryMount(srcSnapshot, tmpDir, "zfs", unix.MS_RDONLY, "")
-		if err != nil {
-			return "", nil, err
-		}
+	hook, err := d.mountVolumeSnapshot(snapVol, snapshotDataset, tmpDir, nil)
+	if err != nil {
+		return "", nil, err
 	}
 
-	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
-
-	revert.Add(func() {
-		_, err := forceUnmount(tmpDir)
-		if err != nil {
-			return
-		}
-
-		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
-	})
+	revert.Add(hook)
 
 	cleanup := revert.Clone().Fail
 	revert.Success()
