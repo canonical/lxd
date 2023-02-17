@@ -893,6 +893,31 @@ func (d *common) maasDelete(inst instance.Instance) error {
 	return d.state.MAAS.DeleteContainer(d)
 }
 
+// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
+func (d *common) validateStartup(stateful bool, statusCode api.StatusCode) error {
+	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
+	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
+	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
+	// error with an ERROR status code from the instance check instead.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
+	}
+
+	// Must happen before creating operation Start lock to avoid the status check returning Stopped due to the
+	// existence of a Start operation lock.
+	err = d.isStartableStatusCode(statusCode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
 // ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
 // request run at the same time from overlapping with the stop process.
@@ -900,11 +925,11 @@ func (d *common) maasDelete(inst instance.Instance) error {
 func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
 	var err error
 
-	// Pick up the existing stop operation lock created in Stop() function.
-	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
-	// to run the hook (this should be quick as it will fail showing instance is already running).
+	// Pick up the existing stop operation lock created in Start(), Restart(), Shutdown() or Stop() functions.
+	// If there is another ongoing operation that isn't in our inheritable list, wait until that has finished
+	// before proceeding to run the hook.
 	op := operationlock.Get(d.Project().Name, d.Name())
-	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
+	if op != nil && !op.ActionMatch(operationlock.ActionStart, operationlock.ActionRestart, operationlock.ActionStop, operationlock.ActionRestore) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		_ = op.Wait()
 		op = nil

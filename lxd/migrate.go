@@ -165,7 +165,7 @@ func (s *migrationSourceWs) Metadata() any {
 func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return fmt.Errorf("Missing migration source secret")
 	}
 
 	var conn **websocket.Conn
@@ -348,7 +348,7 @@ func (s *migrationSink) Metadata() any {
 func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return fmt.Errorf("missing secret")
+		return fmt.Errorf("Missing migration sink secret")
 	}
 
 	var conn **websocket.Conn

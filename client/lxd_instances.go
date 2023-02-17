@@ -1555,7 +1555,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 		}
 
 		req.InstancePut.Stateful = snapshot.Stateful
-		req.Source.Live = args.Live
+		req.Source.Live = false // Snapshots are never running and so we don't need live migration.
 	}
 
 	req.Source.BaseImage = snapshot.Config["volatile.base_image"]
