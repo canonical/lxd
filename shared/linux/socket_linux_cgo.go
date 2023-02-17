@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package socket
+package linux
 
 import (
 	"fmt"
