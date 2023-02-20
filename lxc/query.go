@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -70,6 +71,10 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 
 	if c.global.flagProject != "" {
 		return fmt.Errorf(i18n.G("--project cannot be used with the query command"))
+	}
+
+	if !shared.StringInSlice(c.flagAction, []string{"GET", "PUT", "POST", "PATCH", "DELETE"}) {
+		return fmt.Errorf(i18n.G("Action %q isn't supported by this tool"), c.flagAction)
 	}
 
 	// Parse the remote
