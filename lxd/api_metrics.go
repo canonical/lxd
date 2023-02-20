@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/response"
@@ -212,7 +214,10 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 				projectName := inst.Project().Name
 				instanceMetrics, err := inst.Metrics(hostInterfaces)
 				if err != nil {
-					logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
+					// Ignore stopped instances.
+					if !errors.Is(err, instanceDrivers.ErrInstanceIsStopped) {
+						logger.Warn("Failed getting instance metrics", logger.Ctx{"instance": inst.Name(), "project": projectName, "err": err})
+					}
 				} else {
 					// Add the metrics.
 					newMetricsLock.Lock()
@@ -234,11 +239,6 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// Fetch what's missing.
 	for _, inst := range instances {
-		// Ignore stopped instances.
-		if !inst.IsRunning() {
-			continue
-		}
-
 		wg.Add(1)
 		instMetricsCh <- inst
 	}
