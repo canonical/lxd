@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-03-23 16:06-0500\n"
+"POT-Creation-Date: 2023-03-23 18:01-0400\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -574,7 +574,7 @@ msgstr "--container-only não pode ser passado quando a fonte é um snapshot"
 msgid "--no-profiles cannot be used with --refresh"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/query.go:72
+#: lxc/query.go:73
 #, fuzzy
 msgid "--project cannot be used with the query command"
 msgstr "--refresh só pode ser usado com containers"
@@ -657,7 +657,12 @@ msgstr "Editar configurações de perfil como YAML"
 msgid "Acknowledge warning"
 msgstr ""
 
-#: lxc/query.go:43
+#: lxc/query.go:77
+#, fuzzy, c-format
+msgid "Action %q isn't supported by this tool"
+msgstr "Tipo de autenticação '%s' não suportada pelo servidor"
+
+#: lxc/query.go:44
 msgid "Action (defaults to GET)"
 msgstr "Ação (padrão para o GET)"
 
@@ -1690,7 +1695,7 @@ msgstr ""
 #: lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
 #: lxc/project.go:222 lxc/project.go:344 lxc/project.go:394 lxc/project.go:495
 #: lxc/project.go:550 lxc/project.go:610 lxc/project.go:639 lxc/project.go:692
-#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:33 lxc/remote.go:34
+#: lxc/project.go:751 lxc/publish.go:32 lxc/query.go:34 lxc/remote.go:34
 #: lxc/remote.go:89 lxc/remote.go:625 lxc/remote.go:661 lxc/remote.go:749
 #: lxc/remote.go:821 lxc/remote.go:875 lxc/remote.go:913 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
@@ -2623,7 +2628,7 @@ msgstr "Editar arquivos no container"
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:44
+#: lxc/query.go:45
 msgid "Input data"
 msgstr ""
 
@@ -4026,7 +4031,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Print the raw response"
 msgstr ""
 
@@ -4168,7 +4173,7 @@ msgstr "Editar arquivos no container"
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:83
+#: lxc/query.go:88
 msgid "Query path must start with /"
 msgstr ""
 
@@ -4519,7 +4524,7 @@ msgstr ""
 msgid "STP"
 msgstr ""
 
-#: lxc/query.go:32 lxc/query.go:33
+#: lxc/query.go:33 lxc/query.go:34
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -5580,7 +5585,7 @@ msgstr ""
 msgid "WWN: %s"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -5695,7 +5700,7 @@ msgstr "Criar perfis"
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr "Editar templates de arquivo do container"
 
-#: lxc/query.go:31
+#: lxc/query.go:32
 msgid "[<remote>:]<API path>"
 msgstr ""
 
@@ -6455,7 +6460,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:35
+#: lxc/query.go:36
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
