@@ -4179,11 +4179,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	cg, err := d.cgroup(nil)
-	if err != nil {
-		return err
-	}
-
 	// If raw.lxc changed, re-validate the config.
 	if shared.StringInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
 		// Get a new liblxc instance.
@@ -4274,6 +4269,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Apply the live changes
 	if isRunning {
+		cg, err := d.cgroup(nil)
+		if err != nil {
+			return err
+		}
+
 		// Live update the container config
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
@@ -6856,6 +6856,10 @@ func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 		rw.cc = d.c
 	}
 
+	if rw.cc == nil {
+		return nil, fmt.Errorf("Container not initialized for cgroup")
+	}
+
 	cg, err := cgroup.New(&rw)
 	if err != nil {
 		return nil, err
@@ -6918,6 +6922,10 @@ func (d *lxc) Info() instance.Info {
 
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
+
+	if !d.IsRunning() {
+		return nil, ErrInstanceIsStopped
+	}
 
 	// Load cgroup abstraction
 	cg, err := d.cgroup(nil)
