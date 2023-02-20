@@ -4176,11 +4176,6 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	cg, err := d.cgroup(nil)
-	if err != nil {
-		return err
-	}
-
 	// If raw.lxc changed, re-validate the config.
 	if shared.StringInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
 		// Get a new liblxc instance.
@@ -4271,6 +4266,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Apply the live changes
 	if isRunning {
+		cg, err := d.cgroup(nil)
+		if err != nil {
+			return err
+		}
+
 		// Live update the container config
 		for _, key := range changedConfig {
 			value := d.expandedConfig[key]
