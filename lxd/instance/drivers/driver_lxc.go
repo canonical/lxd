@@ -6914,6 +6914,10 @@ func (d *lxc) Info() instance.Info {
 func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	out := metrics.NewMetricSet(map[string]string{"project": d.project.Name, "name": d.name, "type": instancetype.Container.String()})
 
+	if !d.IsRunning() {
+		return nil, ErrInstanceIsStopped
+	}
+
 	// Load cgroup abstraction
 	cg, err := d.cgroup(nil)
 	if err != nil {
