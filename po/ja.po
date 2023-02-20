@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-02-09 08:52+0000\n"
+"POT-Creation-Date: 2023-02-20 15:33-0500\n"
 "PO-Revision-Date: 2023-02-10 12:39+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/"
-"linux-containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
+"containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -621,7 +621,7 @@ msgstr "--instance-only はコピー元がスナップショットの場合は�
 msgid "--no-profiles cannot be used with --refresh"
 msgstr "--no-profiles と --refresh は同時に指定できません"
 
-#: lxc/query.go:72
+#: lxc/query.go:73
 msgid "--project cannot be used with the query command"
 msgstr "--project は query コマンドでは使えません"
 
@@ -709,7 +709,12 @@ msgstr "拡張した設定を表示する"
 msgid "Acknowledge warning"
 msgstr "警告を確認します"
 
-#: lxc/query.go:43
+#: lxc/query.go:77
+#, fuzzy, c-format
+msgid "Action %q isn't supported by this tool"
+msgstr "情報表示のフィルタリングはまだサポートされていません"
+
+#: lxc/query.go:44
 msgid "Action (defaults to GET)"
 msgstr "使用するHTTPのメソッド (デフォルト: GET)"
 
@@ -1147,12 +1152,14 @@ msgstr ""
 #: lxc/storage_volume.go:406
 msgid ""
 "Cannot set --destination-target when destination server is not clustered"
-msgstr "コピー先のサーバーがクラスターに属していない場合は --destination-target "
-"は指定できません"
+msgstr ""
+"コピー先のサーバーがクラスターに属していない場合は --destination-target は指"
+"定できません"
 
 #: lxc/storage_volume.go:368
 msgid "Cannot set --target when source server is not clustered"
-msgstr "コピー元のサーバーがクラスターに属していない場合は --target は指定できません"
+msgstr ""
+"コピー元のサーバーがクラスターに属していない場合は --target は指定できません"
 
 #: lxc/network_acl.go:781
 #, c-format
@@ -1812,7 +1819,7 @@ msgstr "警告を削除します"
 #: lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94
 #: lxc/project.go:159 lxc/project.go:222 lxc/project.go:344 lxc/project.go:394
 #: lxc/project.go:507 lxc/project.go:562 lxc/project.go:622 lxc/project.go:651
-#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:32 lxc/query.go:33
+#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:32 lxc/query.go:34
 #: lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:625 lxc/remote.go:661
 #: lxc/remote.go:749 lxc/remote.go:821 lxc/remote.go:875 lxc/remote.go:913
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
@@ -2804,7 +2811,7 @@ msgstr "インスタンスのインポート中: %s"
 msgid "Infiniband:"
 msgstr "Infiniband:"
 
-#: lxc/query.go:44
+#: lxc/query.go:45
 msgid "Input data"
 msgstr "入力するデータ"
 
@@ -3701,8 +3708,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -4451,7 +4458,7 @@ msgstr "Pretty レンダリング（--format=pretty の短縮系）"
 msgid "Print help"
 msgstr "ヘルプを表示します"
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Print the raw response"
 msgstr "レスポンスをそのまま表示します"
 
@@ -4592,7 +4599,7 @@ msgstr "インスタンス内にファイルをコピーします"
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 
-#: lxc/query.go:83
+#: lxc/query.go:88
 msgid "Query path must start with /"
 msgstr "query のパスは / で始める必要があります"
 
@@ -4965,7 +4972,7 @@ msgstr "秘密鍵（空白の場合自動生成）"
 msgid "Secret key: %s"
 msgstr "秘密鍵: %s"
 
-#: lxc/query.go:32 lxc/query.go:33
+#: lxc/query.go:33 lxc/query.go:34
 msgid "Send a raw query to LXD"
 msgstr "直接リクエスト (raw query) を LXD に送ります"
 
@@ -6139,7 +6146,7 @@ msgstr "Volume Only"
 msgid "WWN: %s"
 msgstr "WWN: %s"
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Wait for the operation to complete"
 msgstr "処理が完全に終わるまで待ちます"
 
@@ -6247,7 +6254,7 @@ msgstr "[<remote>:]<ACL> <new-name>"
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr "[<remote>:]<ACL> [key=value...]"
 
-#: lxc/query.go:31
+#: lxc/query.go:32
 msgid "[<remote>:]<API path>"
 msgstr "[<remote>:]<API path>"
 
@@ -7133,7 +7140,7 @@ msgstr ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    profile.yaml の内容でプロファイルを更新します"
 
-#: lxc/query.go:35
+#: lxc/query.go:36
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
@@ -7229,8 +7236,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -8943,8 +8950,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
