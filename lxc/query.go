@@ -100,9 +100,10 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	resp, _, err := d.RawQuery(c.flagAction, path, data, "")
 	if err != nil {
 		var jsonSyntaxError *json.SyntaxError
+		var jsonUnmarshalTypeError *json.UnmarshalTypeError
 
 		// If not JSON decoding error then fail immediately.
-		if !errors.As(err, &jsonSyntaxError) {
+		if !errors.As(err, &jsonSyntaxError) && !errors.As(err, &jsonUnmarshalTypeError) {
 			return err
 		}
 
