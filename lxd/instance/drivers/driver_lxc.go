@@ -6856,6 +6856,10 @@ func (d *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 		rw.cc = d.c
 	}
 
+	if rw.cc == nil {
+		return nil, fmt.Errorf("Container not initialized for cgroup")
+	}
+
 	cg, err := cgroup.New(&rw)
 	if err != nil {
 		return nil, err
