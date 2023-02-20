@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -787,6 +788,12 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	if err != nil {
 		return err
 	}
+
+	// Generate a new UUID for the instance doing a backup.
+	// We will later use this new instance UUID as a VM Generation ID
+	// in order to differentiate the two instances before and after snapshot
+	// restore that changes that instance's place in time (moving it backwards)
+	instDBArgs.Config["volatile.uuid"] = uuid.New()
 
 	_, instOp, cleanup, err := instance.CreateInternal(s, *instDBArgs, true)
 	if err != nil {
