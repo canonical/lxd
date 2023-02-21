@@ -253,9 +253,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	}
 
 	// Parse the recursion field.
-	recursionStr := r.FormValue("recursion")
-
-	recursion, err := strconv.Atoi(recursionStr)
+	recursion, err := strconv.Atoi(r.FormValue("recursion"))
 	if err != nil {
 		recursion = 0
 	}
