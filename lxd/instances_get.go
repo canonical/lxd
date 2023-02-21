@@ -278,12 +278,10 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	}
 
 	// Get the list and location of all instances.
-	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by member address.
-	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance.
-	filteredProjects := []string{}
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
+	var filteredProjects []string
+	var memberAddressInstances map[string][]db.Instance
 
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if allProjects {
 			projects, err := dbCluster.GetProjects(context.Background(), tx.Tx())
 			if err != nil {
@@ -303,24 +301,19 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 		offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, offlineThreshold, filteredProjects, instanceType)
+		memberAddressInstances, err = tx.GetInstancesByMemberAddress(ctx, offlineThreshold, filteredProjects, instanceType)
 		if err != nil {
-			return err
-		}
-
-		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(ctx, filteredProjects, instanceType)
-		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting instances by member address: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
 	// Get the local instances
-	nodeInstances := map[[2]string]instance.Instance{}
+	localInstancesByID := make(map[int64]instance.Instance)
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
 		for _, project := range filteredProjects {
@@ -330,41 +323,49 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			}
 
 			for _, inst := range insts {
-				nodeInstances[[2]string{inst.Project().Name, inst.Name()}] = inst
+				localInstancesByID[int64(inst.ID())] = inst
 			}
 		}
 	}
 
-	resultFullListAppend := func(projectInstance [2]string, c api.InstanceFull, err error) {
-		if err != nil {
-			c = api.InstanceFull{Instance: api.Instance{
-				Name:       projectInstance[1],
+	resultErrListAppend := func(inst db.Instance, err error) {
+		instFull := &api.InstanceFull{
+			Instance: api.Instance{
+				Name:       inst.Name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
-				Location:   projectInstanceToNodeName[projectInstance],
-				Project:    projectInstance[0],
-			}}
+				Location:   inst.Location,
+				Project:    inst.Project,
+			},
 		}
 
 		resultMu.Lock()
-		resultFullList = append(resultFullList, &c)
+		resultFullList = append(resultFullList, instFull)
 		resultMu.Unlock()
+	}
+
+	resultFullListAppend := func(instFull *api.InstanceFull) {
+		if instFull != nil {
+			resultMu.Lock()
+			resultFullList = append(resultFullList, instFull)
+			resultMu.Unlock()
+		}
 	}
 
 	// Get the data
 	wg := sync.WaitGroup{}
 	networkCert := s.Endpoints.NetworkCert()
-	for address, projectsInstances := range nodesProjectsInstances {
+	for memberAddress, instances := range memberAddressInstances {
 		// If this is an internal request from another cluster node, ignore instances from other
 		// projectInstanceToNodeName, and return only the ones on this member.
-		if isClusterNotification(r) && address != "" {
+		if isClusterNotification(r) && memberAddress != "" {
 			continue
 		}
 
 		// Mark instances on unavailable projectInstanceToNodeName as down.
-		if mustLoadObjects && address == "0.0.0.0" {
-			for _, projectInstance := range projectsInstances {
-				resultFullListAppend(projectInstance, api.InstanceFull{}, fmt.Errorf("unavailable"))
+		if mustLoadObjects && memberAddress == "0.0.0.0" {
+			for _, inst := range instances {
+				resultErrListAppend(inst, fmt.Errorf("unavailable"))
 			}
 
 			continue
@@ -372,47 +373,48 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 		// For recursion requests we need to fetch the state of remote instances from their respective
 		// projectInstanceToNodeName.
-		if mustLoadObjects && address != "" && !isClusterNotification(r) {
+		if mustLoadObjects && memberAddress != "" && !isClusterNotification(r) {
 			wg.Add(1)
-			go func(address string, projectsInstances [][2]string) {
+
+			go func(memberAddress string, instances []db.Instance) {
 				defer wg.Done()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
+					apiInsts, err := doContainersGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 					if err != nil {
-						for _, projectInstance := range projectsInstances {
-							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+						for _, inst := range instances {
+							resultErrListAppend(inst, err)
 						}
 
 						return
 					}
 
-					for _, c := range cs {
-						resultFullListAppend([2]string{c.Name, c.Project}, api.InstanceFull{Instance: c}, nil)
+					for _, apiInst := range apiInsts {
+						resultFullListAppend(&api.InstanceFull{Instance: apiInst})
 					}
 
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
+				cs, err := doContainersFullGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 				if err != nil {
-					for _, projectInstance := range projectsInstances {
-						resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+					for _, inst := range instances {
+						resultErrListAppend(inst, err)
 					}
 
 					return
 				}
 
 				for _, c := range cs {
-					resultFullListAppend([2]string{c.Name, c.Project}, c, nil)
+					resultFullListAppend(&c)
 				}
-			}(address, projectsInstances)
+			}(memberAddress, instances)
 
 			continue
 		}
 
 		if !mustLoadObjects {
-			for _, projectInstance := range projectsInstances {
+			for _, inst := range instances {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
@@ -420,29 +422,29 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 					instancePath = "virtual-machines"
 				}
 
-				url := api.NewURL().Path(version.APIVersion, instancePath, projectInstance[1]).Project(projectInstance[0])
+				url := api.NewURL().Path(version.APIVersion, instancePath, inst.Name).Project(inst.Project)
 				resultString = append(resultString, url.String())
 			}
 		} else {
 			threads := 4
-			if len(projectsInstances) < threads {
-				threads = len(projectsInstances)
+			if len(instances) < threads {
+				threads = len(instances)
 			}
 
 			hostInterfaces, _ := net.Interfaces()
-			queue := make(chan [2]string, threads)
+			queue := make(chan db.Instance, threads)
 
 			for i := 0; i < threads; i++ {
 				wg.Add(1)
 
 				go func() {
 					for {
-						projectInstance, more := <-queue
+						dbInst, more := <-queue
 						if !more {
 							break
 						}
 
-						inst, found := nodeInstances[projectInstance]
+						inst, found := localInstancesByID[dbInst.ID]
 						if !found {
 							continue
 						}
@@ -450,9 +452,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 						if recursion < 2 {
 							c, _, err := inst.Render()
 							if err != nil {
-								resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+								resultErrListAppend(dbInst, err)
 							} else {
-								resultFullListAppend(projectInstance, api.InstanceFull{Instance: *c.(*api.Instance)}, err)
+								resultFullListAppend(&api.InstanceFull{Instance: *c.(*api.Instance)})
 							}
 
 							continue
@@ -460,10 +462,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 						c, _, err := inst.RenderFull(hostInterfaces)
 						if err != nil {
-							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
-							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+							resultErrListAppend(dbInst, err)
 						} else {
-							resultFullListAppend(projectInstance, *c, err)
+							resultFullListAppend(c)
 						}
 					}
 
@@ -471,8 +472,8 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 				}()
 			}
 
-			for _, projectInstance := range projectsInstances {
-				queue <- projectInstance
+			for _, inst := range instances {
+				queue <- inst
 			}
 
 			close(queue)
