@@ -637,61 +637,6 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 	return instanceArgs, nil
 }
 
-// GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
-// instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetProjectInstanceToNodeMap(ctx context.Context, projects []string, instType instancetype.Type) (map[[2]string]string, error) {
-	args := make([]any, 0, 2) // Expect up to 2 filters.
-	var filters strings.Builder
-
-	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
-	for _, project := range projects {
-		args = append(args, project)
-	}
-
-	// Instance type filter.
-	if instType != instancetype.Any {
-		filters.WriteString(" AND instances.type = ?")
-		args = append(args, instType)
-	}
-
-	stmt := fmt.Sprintf(`
-SELECT instances.name, nodes.name, projects.name
-  FROM instances
-  JOIN nodes ON nodes.id = instances.node_id
-  JOIN projects ON projects.id = instances.project_id
-  WHERE %s
-`, filters.String())
-
-	rows, err := c.tx.QueryContext(ctx, stmt, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = rows.Close() }()
-
-	result := map[[2]string]string{}
-
-	for i := 0; rows.Next(); i++ {
-		var instanceName string
-		var nodeName string
-		var projectName string
-		err := rows.Scan(&instanceName, &nodeName, &projectName)
-		if err != nil {
-			return nil, err
-		}
-
-		result[[2]string{projectName, instanceName}] = nodeName
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
 // It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
 func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName string, newName string, newNode string, volumeType int) error {
