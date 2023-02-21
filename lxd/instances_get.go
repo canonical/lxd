@@ -517,10 +517,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 				resultString = append(resultString, url.String())
 			}
 		}
-		return resultString, nil
-	}
 
-	if recursion == 1 {
+		return resultString, nil
+	} else if recursion == 1 {
 		// Sort the result list by name.
 		sort.SliceStable(resultList, func(i, j int) bool {
 			return resultList[i].Name < resultList[j].Name
