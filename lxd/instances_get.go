@@ -252,7 +252,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	// Parse the recursion field
+	// Parse the recursion field.
 	recursionStr := r.FormValue("recursion")
 
 	recursion, err := strconv.Atoi(recursionStr)
@@ -260,7 +260,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		recursion = 0
 	}
 
-	// Parse filter value
+	// Parse filter value.
 	filterStr := r.FormValue("filter")
 	var clauses []filter.Clause
 	if filterStr != "" {
@@ -280,9 +280,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		projectName = project.Default
 	}
 
-	// Get the list and location of all containers
-	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
-	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
+	// Get the list and location of all instances.
+	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by member address.
+	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance.
 	filteredProjects := []string{}
 	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -338,7 +338,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		}
 	}
 
-	// Append containers to list and handle errors
+	// Append instances to list and handle errors.
 	resultListAppend := func(projectInstance [2]string, c api.Instance, err error) {
 		if err != nil {
 			c = api.Instance{
@@ -374,14 +374,13 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	wg := sync.WaitGroup{}
 	networkCert := s.Endpoints.NetworkCert()
 	for address, projectsInstances := range nodesProjectsInstances {
-		// If this is an internal request from another cluster node,
-		// ignore containers from other projectInstanceToNodeName, and return only the ones
-		// on this node
+		// If this is an internal request from another cluster node, ignore instances from other
+		// projectInstanceToNodeName, and return only the ones on this member.
 		if isClusterNotification(r) && address != "" {
 			continue
 		}
 
-		// Mark containers on unavailable projectInstanceToNodeName as down
+		// Mark instances on unavailable projectInstanceToNodeName as down.
 		if mustLoadObjects && address == "0.0.0.0" {
 			for _, projectInstance := range projectsInstances {
 				if recursion < 2 {
@@ -394,8 +393,8 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			continue
 		}
 
-		// For recursion requests we need to fetch the state of remote
-		// containers from their respective projectInstanceToNodeName.
+		// For recursion requests we need to fetch the state of remote instances from their respective
+		// projectInstanceToNodeName.
 		if mustLoadObjects && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
 			go func(address string, projectsInstances [][2]string) {
