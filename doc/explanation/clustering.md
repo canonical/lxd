@@ -1,5 +1,5 @@
 ---
-discourse: 15871
+discourse: 15728
 ---
 
 (exp-clustering)=
@@ -161,19 +161,19 @@ However, you can control this behavior with the [`scheduler.instance`](cluster-m
 ### Instance placement scriptlet
 
 LXD supports using custom logic to control automatic instance placement by using an embedded script (scriptlet).
-This provides more flexibility than the built-in instance placement functionality.
+This method provides more flexibility than the built-in instance placement functionality.
 
 The instance placement scriptlet must be written in the [Starlark language](https://github.com/bazelbuild/starlark) (which is a subset of Python).
-The scriptlet will be invoked each time LXD needs to know where to place an instance.
-The scriptlet will be provided with information about the instance being placed, as well as providing information on the candidate cluster members that could host the instance.
+The scriptlet is invoked each time LXD needs to know where to place an instance.
+The scriptlet receives information about the instance that is being placed and the candidate cluster members that could host the instance.
 It is also possible for the scriptlet to request information about each candidate cluster member's state and the hardware resources available.
 
 An instance placement scriptlet must implement the `instance_placement` function with the following signature:
 
    `instance_placement(request, candidate_members)`:
 
-- `request` will be an object containing an expanded representation of [`scriptlet.InstancePlacement`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstancePlacement). This request includes `project` and `reason` fields. The `reason` can be `new`, `evacuation` or `relocation`.
-- `candidate_members` will be a `list` of cluster member objects representing [`api.ClusterMember`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMember) entries.
+- `request` is an object that contains an expanded representation of [`scriptlet.InstancePlacement`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstancePlacement). This request includes `project` and `reason` fields. The `reason` can be `new`, `evacuation` or `relocation`.
+- `candidate_members` is a `list` of cluster member objects representing [`api.ClusterMember`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMember) entries.
 
 For example:
 
@@ -195,23 +195,23 @@ def instance_placement(request, candidate_members):
     return # Return empty to allow instance placement to proceed.
 ```
 
-The scriptlet needs to be applied to LXD by storing it in the `instances.placement.scriptlet` global configuration setting.
+The scriptlet must be applied to LXD by storing it in the `instances.placement.scriptlet` global configuration setting.
 
-For example if the scriptlet is saved inside a file called `instance_placement.star` then it can be applied to LXD using:
+For example, if the scriptlet is saved inside a file called `instance_placement.star`, then it can be applied to LXD with the following command:
 
     cat instance_placement.star | lxc config set instances.placement.scriptlet=-
 
-To see the current scriptlet applied to LXD use the `lxc config get instances.placement.scriptlet` command.
+To see the current scriptlet applied to LXD, use the `lxc config get instances.placement.scriptlet` command.
 
 The following functions are available to the scriptlet (in addition to those provided by Starlark):
 
-- `log_info(*messages)`: Add a log entry to LXD's log at info level. `messages` is one or more message arguments.
-- `log_warn(*messages)`: Add a log entry to LXD's log at warn level. `messages` is one or more message arguments.
-- `log_error(*messages)`: Add a log entry to LXD's log at error level. `messages` is one or more message arguments.
-- `set_cluster_member_target(member_name)`: Set the cluster member where the instance should be created. `member_name` is the name of the cluster member the instance should be created on. If this is not called then LXD will use its built-in instance placement logic.
-- `get_cluster_member_state(member_name)`: Get the cluster member's state. Returns an object with the cluster member's state in the form of [`api.ClusterMemberState`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMemberState). `member_name` is the name of the cluster member to get state for.
-- `get_cluster_member_resources(member_name)`: Get information about resources on the cluster member. Returns an object with the resource info in the form of [`api.Resources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#Resources). `member_name` is the name of the cluster member to get resource info for.
-- `get_instance_resources()`: Get information about the resources the instance will require. Returns an object with the resource info in the form of [`scriptlet.InstanceResources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstanceResources).
+- `log_info(*messages)`: Add a log entry to LXD's log at `info` level. `messages` is one or more message arguments.
+- `log_warn(*messages)`: Add a log entry to LXD's log at `warn` level. `messages` is one or more message arguments.
+- `log_error(*messages)`: Add a log entry to LXD's log at `error` level. `messages` is one or more message arguments.
+- `set_cluster_member_target(member_name)`: Set the cluster member where the instance should be created. `member_name` is the name of the cluster member the instance should be created on. If this function is not called, then LXD will use its built-in instance placement logic.
+- `get_cluster_member_state(member_name)`: Get the cluster member's state. Returns an object with the cluster member's state in the form of [`api.ClusterMemberState`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#ClusterMemberState). `member_name` is the name of the cluster member to get the state for.
+- `get_cluster_member_resources(member_name)`: Get information about resources on the cluster member. Returns an object with the resource information in the form of [`api.Resources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api#Resources). `member_name` is the name of the cluster member to get the resource information for.
+- `get_instance_resources()`: Get information about the resources the instance will require. Returns an object with the resource information in the form of [`scriptlet.InstanceResources`](https://pkg.go.dev/github.com/lxc/lxd/shared/api/scriptlet/#InstanceResources).
 
 ```{note}
 Field names in the object types are equivalent to the JSON field names in the associated Go types.
