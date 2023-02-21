@@ -242,7 +242,6 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func doInstancesGet(s *state.State, r *http.Request) (any, error) {
-	resultString := []string{}
 	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
 
@@ -401,15 +400,11 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 		if !mustLoadObjects {
 			for _, inst := range instances {
-				instancePath := "instances"
-				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-					instancePath = "containers"
-				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
-					instancePath = "virtual-machines"
-				}
-
-				url := api.NewURL().Path(version.APIVersion, instancePath, inst.Name).Project(inst.Project)
-				resultString = append(resultString, url.String())
+				resultFullListAppend(&api.InstanceFull{Instance: api.Instance{
+					Project:  inst.Project,
+					Name:     inst.Name,
+					Location: inst.Location,
+				}})
 			}
 		} else {
 			threads := 4
@@ -493,6 +488,23 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	// Filter result list if needed.
 	if clauses != nil {
 		resultFullList = instance.FilterFull(resultFullList, clauses)
+	}
+
+	if recursion == 0 {
+		resultList := make([]string, 0, len(resultFullList))
+		for i := range resultFullList {
+			instancePath := "instances"
+			if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+				instancePath = "containers"
+			} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+				instancePath = "virtual-machines"
+			}
+
+			url := api.NewURL().Path(version.APIVersion, instancePath, resultFullList[i].Name).Project(resultFullList[i].Project)
+			resultList = append(resultList, url.String())
+		}
+
+		return resultList, nil
 	}
 
 	if recursion == 1 {
