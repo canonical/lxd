@@ -1,5 +1,5 @@
 ---
-relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A
+relatedlinks: https://www.youtube.com/watch?v=6O0q3rSWr8A, https://ubuntu.com/tutorials/introduction-to-lxd-projects
 ---
 
 (projects)=
