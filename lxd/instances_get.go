@@ -481,27 +481,13 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	}
 	wg.Wait()
 
-	if recursion == 0 {
-		if clauses != nil {
-			for _, container := range instance.FilterFull(resultFullList, clauses) {
-				instancePath := "instances"
-				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-					instancePath = "containers"
-				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
-					instancePath = "virtual-machines"
-				}
-
-				url := api.NewURL().Path(version.APIVersion, instancePath, container.Name).Project(container.Project)
-				resultString = append(resultString, url.String())
-			}
+	// Sort the result list by project and then instance name.
+	sort.SliceStable(resultFullList, func(i, j int) bool {
+		if resultFullList[i].Project == resultFullList[j].Project {
+			return resultFullList[i].Name < resultFullList[j].Name
 		}
 
-		return resultString, nil
-	}
-
-	// Sort the result list by name.
-	sort.SliceStable(resultFullList, func(i, j int) bool {
-		return resultFullList[i].Name < resultFullList[j].Name
+		return resultFullList[i].Project < resultFullList[j].Project
 	})
 
 	// Filter result list if needed.
