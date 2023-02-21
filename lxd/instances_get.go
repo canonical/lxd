@@ -267,6 +267,8 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		}
 	}
 
+	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
+
 	// Detect project mode.
 	projectName := queryParam(r, "project")
 	allProjects := shared.IsTrue(r.FormValue("all-projects"))
@@ -311,8 +313,6 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 
 	resultErrListAppend := func(inst db.Instance, err error) {
 		instFull := &api.InstanceFull{
