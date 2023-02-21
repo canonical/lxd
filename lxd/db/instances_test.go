@@ -435,30 +435,6 @@ func TestGetInstancesByMemberAddress(t *testing.T) {
 		}, result)
 }
 
-// Instances are associated with their node name.
-func TestGetInstanceToNodeMap(t *testing.T) {
-	tx, cleanup := db.NewTestClusterTx(t)
-	defer cleanup()
-
-	nodeID1 := int64(1) // This is the default local member
-
-	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
-	require.NoError(t, err)
-
-	addContainer(t, tx, nodeID2, "c1")
-	addContainer(t, tx, nodeID1, "c2")
-
-	instType := instancetype.Container
-	result, err := tx.GetProjectInstanceToNodeMap(context.Background(), []string{"default"}, instType)
-	require.NoError(t, err)
-	assert.Equal(
-		t,
-		map[[2]string]string{
-			{project.Default, "c1"}: "node2",
-			{project.Default, "c2"}: "none",
-		}, result)
-}
-
 func TestGetInstancePool(t *testing.T) {
 	dbCluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
