@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
@@ -224,6 +225,9 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	networkCreateSharedDeviceLock.Lock()
 	defer networkCreateSharedDeviceLock.Unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 
 	// Record a random host name to use to detach the ipvlan interface back onto the host at stop time so we
@@ -270,65 +274,107 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "link", Value: parentName},
 	}
 
-	// Enable l2proxy for l3s mode.
-	if mode == ipvlanModeL3S {
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "l2proxy", Value: "1"})
-	}
-
 	if d.config["mtu"] != "" {
 		nic = append(nic, deviceConfig.RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
 	}
 
-	if d.config["ipv4.address"] != "" {
-		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-			addr = strings.TrimSpace(addr)
+	// Perform network configuration.
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		var ipFamilyArg string
 
+		switch keyPrefix {
+		case "ipv4":
+			ipFamilyArg = ip.FamilyV4
+		case "ipv6":
+			ipFamilyArg = ip.FamilyV6
+		}
+
+		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+
+		// Setup address configuration.
+		for _, addr := range addresses {
+			addr, err := d.parseAddress(addr, keyPrefix, mode)
+			if err != nil {
+				return nil, err
+			}
+
+			nic = append(nic, deviceConfig.RunConfigItem{
+				Key:   fmt.Sprintf("%s.address", keyPrefix),
+				Value: addr.String(),
+			})
+
+			// Perform host-side address configuration.
 			if mode == ipvlanModeL3S {
-				addr = fmt.Sprintf("%s/32", addr)
+				// Apply host-side static routes to main routing table to allow neighbour proxy.
+				r := ip.Route{
+					DevName: "lo",
+					Route:   addr.String(),
+					Table:   "main",
+					Family:  ipFamilyArg,
+				}
+
+				err = r.Add()
+				if err != nil {
+					return nil, fmt.Errorf("Failed adding host route %q: %w", r.Route, err)
+				}
+
+				revert.Add(func() { _ = r.Delete() })
+
+				// Add static routes to instance IPs from custom routing tables if specified.
+				hostTableKey := fmt.Sprintf("%s.host_table", keyPrefix)
+				if d.config[hostTableKey] != "" {
+					r := &ip.Route{
+						DevName: "lo",
+						Route:   addr.String(),
+						Table:   d.config[hostTableKey],
+						Family:  ipFamilyArg,
+					}
+
+					err := r.Add()
+					if err != nil {
+						return nil, fmt.Errorf("Failed adding host route %q: %w", r.Route, err)
+					}
+
+					revert.Add(func() { _ = r.Delete() })
+				}
+
+				// Add neighbour proxy entries on the host for l3s mode.
+				np := ip.NeighProxy{
+					DevName: parentName,
+					Addr:    addr.IP,
+				}
+
+				err = np.Add()
+				if err != nil {
+					return nil, fmt.Errorf("Failed adding neighbour proxy %q to %q: %w", np.Addr.String(), np.DevName, err)
+				}
+
+				revert.Add(func() { _ = np.Delete() })
+			}
+		}
+
+		// Setup gateway configuration.
+		if len(addresses) > 0 {
+			gwKeyName := fmt.Sprintf("%s.gateway", keyPrefix)
+			if mode == ipvlanModeL3S && nicHasAutoGateway(d.config[gwKeyName]) {
+				nic = append(nic, deviceConfig.RunConfigItem{
+					Key:   gwKeyName,
+					Value: "dev",
+				})
 			}
 
-			if mode == ipvlanModeL2 && validate.IsNetworkAddressV4(addr) == nil {
-				addr = fmt.Sprintf("%s/24", addr)
+			if mode == ipvlanModeL2 && d.config[gwKeyName] != "" {
+				nic = append(nic, deviceConfig.RunConfigItem{
+					Key:   gwKeyName,
+					Value: d.config[gwKeyName],
+				})
 			}
-
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: addr})
-		}
-
-		if mode == ipvlanModeL3S && nicHasAutoGateway(d.config["ipv4.gateway"]) {
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
-		}
-
-		if mode == ipvlanModeL2 && d.config["ipv4.gateway"] != "" {
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: d.config["ipv4.gateway"]})
-		}
-	}
-
-	if d.config["ipv6.address"] != "" {
-		for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-			addr = strings.TrimSpace(addr)
-
-			if mode == ipvlanModeL3S {
-				addr = fmt.Sprintf("%s/128", addr)
-			}
-
-			if mode == "l2" && validate.IsNetworkAddressV6(addr) == nil {
-				addr = fmt.Sprintf("%s/64", addr)
-			}
-
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: addr})
-		}
-
-		if mode == ipvlanModeL3S && nicHasAutoGateway(d.config["ipv6.gateway"]) {
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
-		}
-
-		if mode == ipvlanModeL2 && d.config["ipv6.gateway"] != "" {
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: d.config["ipv6.gateway"]})
 		}
 	}
 
 	runConf.NetworkInterface = nic
-	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
+
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -357,53 +403,6 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
 			return fmt.Errorf("Error setting net sysctl %s: %w", ipv6ProxyNdpPath, err)
-		}
-	}
-
-	return nil
-}
-
-// postStart is run after the instance is started.
-func (d *nicIPVLAN) postStart() error {
-	if d.config["ipv4.address"] != "" {
-		// Add static routes to instance IPs to custom routing tables if specified.
-		// This is in addition to the static route added by liblxc to the main routing table.
-		if d.config["ipv4.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
-					DevName: "lo",
-					Route:   fmt.Sprintf("%s/32", addr),
-					Table:   d.config["ipv4.host_table"],
-					Family:  ip.FamilyV4,
-				}
-
-				err := r.Add()
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	if d.config["ipv6.address"] != "" {
-		// Add static routes to instance IPs to custom routing tables if specified.
-		// This is in addition to the static route added by liblxc to the main routing table.
-		if d.config["ipv6.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
-					DevName: "lo",
-					Route:   fmt.Sprintf("%s/128", addr),
-					Table:   d.config["ipv6.host_table"],
-					Family:  ip.FamilyV6,
-				}
-
-				err := r.Add()
-				if err != nil {
-					return err
-				}
-			}
 		}
 	}
 
@@ -450,41 +449,68 @@ func (d *nicIPVLAN) postStop() error {
 		}
 	}
 
-	if d.config["ipv4.address"] != "" {
-		// Remove static routes to instance IPs to custom routing tables if specified.
-		if d.config["ipv4.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
-					DevName: "lo",
-					Route:   fmt.Sprintf("%s/32", addr),
-					Table:   d.config["ipv4.host_table"],
-					Family:  ip.FamilyV4,
-				}
+	mode := d.mode()
+	parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
-				err := r.Delete()
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
+	// Clean up host-side network configuration.
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		var ipFamilyArg string
+
+		switch keyPrefix {
+		case "ipv4":
+			ipFamilyArg = ip.FamilyV4
+		case "ipv6":
+			ipFamilyArg = ip.FamilyV6
 		}
-	}
 
-	if d.config["ipv6.address"] != "" {
-		// Remove static routes to instance IPs to custom routing tables if specified.
-		if d.config["ipv6.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
+		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+
+		// Remove host-side address configuration.
+		for _, addr := range addresses {
+			addr, err := d.parseAddress(addr, keyPrefix, mode)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+
+			// Remove static routes and neighbour proxy rules to instance IPs from main routing table.
+			if mode == ipvlanModeL3S {
+				r := ip.Route{
 					DevName: "lo",
-					Route:   fmt.Sprintf("%s/128", addr),
-					Table:   d.config["ipv6.host_table"],
-					Family:  ip.FamilyV6,
+					Route:   addr.String(),
+					Table:   "main",
+					Family:  ipFamilyArg,
 				}
 
 				err := r.Delete()
 				if err != nil {
 					errs = append(errs, err)
+				}
+
+				np := ip.NeighProxy{
+					DevName: parentName,
+					Addr:    addr.IP,
+				}
+
+				err = np.Delete()
+				if err != nil {
+					errs = append(errs, err)
+				}
+
+				// Remove static routes to instance IPs from custom routing tables if specified.
+				hostTableKey := fmt.Sprintf("%s.host_table", keyPrefix)
+				if d.config[hostTableKey] != "" {
+					r := &ip.Route{
+						DevName: "lo",
+						Route:   addr.String(),
+						Table:   d.config[hostTableKey],
+						Family:  ipFamilyArg,
+					}
+
+					err := r.Delete()
+					if err != nil {
+						errs = append(errs, err)
+					}
 				}
 			}
 		}
@@ -492,7 +518,6 @@ func (d *nicIPVLAN) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)
@@ -513,4 +538,42 @@ func (d *nicIPVLAN) mode() string {
 	}
 
 	return ipvlanModeL3S
+}
+
+// parseAddress converts the specified address into a CIDR based on the IP family and mode.
+func (d *nicIPVLAN) parseAddress(addr string, ipFamily string, mode string) (*net.IPNet, error) {
+	// If singular IP specified then convert to appropriate CIDR value for family and mode.
+	if !strings.Contains(addr, "/") {
+		var defaultSubnetSize int
+
+		switch mode {
+		case ipvlanModeL3S:
+			switch ipFamily {
+			case "ipv4":
+				defaultSubnetSize = 32
+			case "ipv6":
+				defaultSubnetSize = 128
+			}
+
+		case ipvlanModeL2:
+			switch ipFamily {
+			case "ipv4":
+				defaultSubnetSize = 24
+			case "ipv6":
+				defaultSubnetSize = 64
+			}
+
+		default:
+			return nil, fmt.Errorf("Invalid mode %q", mode)
+		}
+
+		addr = fmt.Sprintf("%s/%d", addr, defaultSubnetSize)
+	}
+
+	cidr, err := network.ParseIPCIDRToNet(addr)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid address %q", addr)
+	}
+
+	return cidr, nil
 }
