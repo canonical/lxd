@@ -106,6 +106,7 @@ Key                                  | Type      | Condition             | Defau
 `ipv6.routing`                       | bool      | IPv6 address          | `true`                    | Whether to route traffic in and out of the bridge
 `maas.subnet.ipv4`                   | string    | IPv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on NIC)
 `maas.subnet.ipv6`                   | string    | IPv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on NIC)
+`queue.tx.length`                    | integer   | -                     | -                         | Sets the `txqueuelength` of the network device to the specified value.
 `raw.dnsmasq`                        | string    | -                     | -                         | Additional `dnsmasq` configuration to append to the configuration file
 `security.acls`                      | string    | -                     | -                         | Comma-separated list of Network ACLs to apply to NICs connected to this network (see {ref}`network-acls-bridge-limitations`)
 `security.acls.default.egress.action`| string    | `security.acls`       | `reject`                  | Action to use for egress traffic that doesn't match any ACL rule
