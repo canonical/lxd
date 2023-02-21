@@ -119,7 +119,7 @@ func starlarkMarshal(input any, parent *starlark.Dict) (starlark.Value, error) {
 			return mKeys[i].String() < mKeys[j].String()
 		})
 
-		for _, k := range v.MapKeys() {
+		for _, k := range mKeys {
 			mv := v.MapIndex(k)
 			dv, err := StarlarkMarshal(mv.Interface())
 			if err != nil {
