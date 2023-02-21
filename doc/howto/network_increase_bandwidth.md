@@ -42,3 +42,5 @@ Complete the following steps to increase the network bandwidth on the LXD host:
 ## Increase the transmit queue length on the instances
 
 You must also change the `txqueuelen` value for all Ethernet interfaces in your instances, in the same way as described for the LXD host.
+
+Since LXD version 5.10 you can set the `queue.tx.length` value on the profile for network devices.
