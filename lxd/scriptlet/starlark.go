@@ -111,18 +111,15 @@ func starlarkMarshal(input any, parent *starlark.Dict) (starlark.Value, error) {
 		mKeys := v.MapKeys()
 		d := starlark.NewDict(len(mKeys))
 
-		for _, k := range mKeys {
-			kind := k.Kind()
-			if kind != reflect.String {
-				return nil, fmt.Errorf("Only string keys are supported, found %s", kind)
-			}
+		if v.Type().Key().Kind() != reflect.String {
+			return nil, fmt.Errorf("Only string keys are supported, found %s", v.Type().Key().Kind())
 		}
 
 		sort.Slice(mKeys, func(i, j int) bool {
 			return mKeys[i].String() < mKeys[j].String()
 		})
 
-		for _, k := range v.MapKeys() {
+		for _, k := range mKeys {
 			mv := v.MapIndex(k)
 			dv, err := StarlarkMarshal(mv.Interface())
 			if err != nil {
