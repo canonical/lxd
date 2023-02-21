@@ -187,7 +187,7 @@ def instance_placement(request, candidate_members):
         # Example of logging an error, this will appear in LXD's log.
         log_error("Invalid name supplied: ", request.name)
 
-        return "Invalid name" # Return an error to reject instance placement.
+        fail("Invalid name") # Exit with an error to reject instance placement.
 
     # Place the instance on the first candidate server provided.
     set_target(candidate_members[0].server_name)
