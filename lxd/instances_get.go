@@ -317,7 +317,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
 		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(s, project, instanceType)
+			insts, err := instanceLoadNodeProjectAll(r.Context(), s, project, instanceType)
 			if err != nil {
 				return nil, err
 			}
