@@ -312,21 +312,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	// Get the local instances
-	localInstancesByID := make(map[int64]instance.Instance)
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
-	if mustLoadObjects {
-		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(r.Context(), s, project, instanceType)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, inst := range insts {
-				localInstancesByID[int64(inst.ID())] = inst
-			}
-		}
-	}
 
 	resultErrListAppend := func(inst db.Instance, err error) {
 		instFull := &api.InstanceFull{
@@ -432,6 +418,20 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			}
 
 			hostInterfaces, _ := net.Interfaces()
+
+			// Get the local instances.
+			localInstancesByID := make(map[int64]instance.Instance)
+			for _, projectName := range filteredProjects {
+				insts, err := instanceLoadNodeProjectAll(r.Context(), s, projectName, instanceType)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading instances for project %q: %w", projectName, err)
+				}
+
+				for _, inst := range insts {
+					localInstancesByID[int64(inst.ID())] = inst
+				}
+			}
+
 			queue := make(chan db.Instance, threads)
 
 			for i := 0; i < threads; i++ {
