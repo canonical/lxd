@@ -243,7 +243,6 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 
 func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	resultString := []string{}
-	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
 
@@ -336,22 +335,6 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		}
 	}
 
-	// Append instances to list and handle errors.
-	resultListAppend := func(projectInstance [2]string, c api.Instance, err error) {
-		if err != nil {
-			c = api.Instance{
-				Name:       projectInstance[1],
-				Status:     api.Error.String(),
-				StatusCode: api.Error,
-				Location:   projectInstanceToNodeName[projectInstance],
-				Project:    projectInstance[0],
-			}
-		}
-		resultMu.Lock()
-		resultList = append(resultList, &c)
-		resultMu.Unlock()
-	}
-
 	resultFullListAppend := func(projectInstance [2]string, c api.InstanceFull, err error) {
 		if err != nil {
 			c = api.InstanceFull{Instance: api.Instance{
@@ -381,11 +364,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		// Mark instances on unavailable projectInstanceToNodeName as down.
 		if mustLoadObjects && address == "0.0.0.0" {
 			for _, projectInstance := range projectsInstances {
-				if recursion < 2 {
-					resultListAppend(projectInstance, api.Instance{}, fmt.Errorf("unavailable"))
-				} else {
-					resultFullListAppend(projectInstance, api.InstanceFull{}, fmt.Errorf("unavailable"))
-				}
+				resultFullListAppend(projectInstance, api.InstanceFull{}, fmt.Errorf("unavailable"))
 			}
 
 			continue
@@ -402,14 +381,14 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
 					if err != nil {
 						for _, projectInstance := range projectsInstances {
-							resultListAppend(projectInstance, api.Instance{}, err)
+							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 						}
 
 						return
 					}
 
 					for _, c := range cs {
-						resultListAppend([2]string{c.Name, c.Project}, c, nil)
+						resultFullListAppend([2]string{c.Name, c.Project}, api.InstanceFull{Instance: c}, nil)
 					}
 
 					return
@@ -471,9 +450,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 						if recursion < 2 {
 							c, _, err := inst.Render()
 							if err != nil {
-								resultListAppend(projectInstance, api.Instance{}, err)
+								resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 							} else {
-								resultListAppend(projectInstance, *c.(*api.Instance), err)
+								resultFullListAppend(projectInstance, api.InstanceFull{Instance: *c.(*api.Instance)}, err)
 							}
 
 							continue
@@ -503,7 +482,7 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 	if recursion == 0 {
 		if clauses != nil {
-			for _, container := range instance.Filter(resultList, clauses) {
+			for _, container := range instance.FilterFull(resultFullList, clauses) {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
@@ -517,17 +496,6 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		}
 
 		return resultString, nil
-	} else if recursion == 1 {
-		// Sort the result list by name.
-		sort.SliceStable(resultList, func(i, j int) bool {
-			return resultList[i].Name < resultList[j].Name
-		})
-
-		if clauses != nil {
-			resultList = instance.Filter(resultList, clauses)
-		}
-
-		return resultList, nil
 	}
 
 	// Sort the result list by name.
@@ -535,8 +503,18 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
+	// Filter result list if needed.
 	if clauses != nil {
 		resultFullList = instance.FilterFull(resultFullList, clauses)
+	}
+
+	if recursion == 1 {
+		resultList := make([]*api.Instance, 0, len(resultFullList))
+		for i := range resultFullList {
+			resultList = append(resultList, &resultFullList[i].Instance)
+		}
+
+		return resultList, nil
 	}
 
 	return resultFullList, nil
