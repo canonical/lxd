@@ -655,7 +655,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 				return fmt.Errorf("Failed to mount LVM logical volume: %w", err)
 			}
 
-			d.logger.Debug("Mounted logical volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
+			d.logger.Debug("Mounted logical volume", logger.Ctx{"volName": vol.name, "dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, mount the filesystem volume.
