@@ -1496,6 +1496,16 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		}
 
 		if vol.contentType == ContentTypeFS {
+			// Activate volume if needed.
+			activated, err := d.activateVolume(vol)
+			if err != nil {
+				return err
+			}
+
+			if activated {
+				defer func() { _, _ = d.deactivateVolume(vol) }()
+			}
+
 			if vol.volType == VolumeTypeImage {
 				return fmt.Errorf("Image volumes cannot be resized: %w", ErrCannotBeShrunk)
 			}
