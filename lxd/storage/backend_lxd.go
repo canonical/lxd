@@ -2395,9 +2395,15 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 	contentVolume := InstanceContentType(inst)
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project().Name, inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
 	// Apply the main volume quota.
 	// There's no need to pass config as it's not needed when setting quotas.
-	vol := b.GetVolume(volType, contentVolume, volStorageName, nil)
+	vol := b.GetVolume(volType, contentVolume, volStorageName, dbVol.Config)
 	err = b.driver.SetVolumeQuota(vol, size, false, op)
 	if err != nil {
 		return err
