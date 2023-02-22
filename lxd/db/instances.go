@@ -141,66 +141,70 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
-// GetProjectAndInstanceNamesByNodeAddress returns the project and name of all instances grouped by
-// cluster node address. Each node address has a slice of instances, where each instance is represented
-// as an array of length 2 in which element 0 is the project and element 1 is the instance name.
-//
-// The node address of instances running on the local member is set to the empty
-// string, to distinguish it from remote nodes.
-//
-// Instances whose node is down are added to the special address "0.0.0.0".
-func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(ctx context.Context, offlineThreshold time.Duration, projects []string, instType instancetype.Type) (map[string][][2]string, error) {
+// Instance represents basic instance info.
+type Instance struct {
+	ID       int64
+	Name     string
+	Project  string
+	Location string
+}
+
+// GetInstancesByMemberAddress returns the instances associated to each cluster member address.
+// The member address of instances running on the local member is set to the empty string, to distinguish it from
+// remote nodes. Instances whose member is down are added to the special address "0.0.0.0".
+func (c *ClusterTx) GetInstancesByMemberAddress(ctx context.Context, offlineThreshold time.Duration, projects []string, instType instancetype.Type) (map[string][]Instance, error) {
 	args := make([]any, 0, 2) // Expect up to 2 filters.
-	var filters strings.Builder
+	var q strings.Builder
+
+	q.WriteString(`SELECT
+		instances.id, instances.name,
+		nodes.id, nodes.name, nodes.address, nodes.heartbeat,
+		projects.name
+	FROM instances
+	JOIN nodes ON nodes.id = instances.node_id
+	JOIN projects ON projects.id = instances.project_id
+	`)
 
 	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
+	q.WriteString(fmt.Sprintf("WHERE projects.name IN %s", query.Params(len(projects))))
 	for _, project := range projects {
 		args = append(args, project)
 	}
 
 	// Instance type filter.
 	if instType != instancetype.Any {
-		filters.WriteString(" AND instances.type = ?")
+		q.WriteString(" AND instances.type = ?")
 		args = append(args, instType)
 	}
 
-	stmt := fmt.Sprintf(`
-SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
-  FROM instances
-  JOIN nodes ON nodes.id = instances.node_id
-  JOIN projects ON projects.id = instances.project_id
-  WHERE %s
-  ORDER BY instances.id
-`, filters.String())
+	q.WriteString(" ORDER BY instances.id")
 
-	rows, err := c.tx.QueryContext(ctx, stmt, args...)
+	rows, err := c.tx.QueryContext(ctx, q.String(), args...)
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() { _ = rows.Close() }()
 
-	result := map[string][][2]string{}
+	memberAddressInstances := make(map[string][]Instance)
 
-	for i := 0; rows.Next(); i++ {
-		var instanceName string
-		var nodeAddress string
-		var nodeID int64
-		var nodeHeartbeat time.Time
-		var projectName string
-		err := rows.Scan(&instanceName, &nodeID, &nodeAddress, &nodeHeartbeat, &projectName)
+	for rows.Next() {
+		var inst Instance
+		var memberAddress string
+		var memberID int64
+		var memberHeartbeat time.Time
+		err := rows.Scan(&inst.ID, &inst.Name, &memberID, &inst.Location, &memberAddress, &memberHeartbeat, &inst.Project)
 		if err != nil {
 			return nil, err
 		}
 
-		if nodeID == c.nodeID {
-			nodeAddress = ""
-		} else if nodeIsOffline(offlineThreshold, nodeHeartbeat) {
-			nodeAddress = "0.0.0.0"
+		if memberID == c.nodeID {
+			memberAddress = ""
+		} else if nodeIsOffline(offlineThreshold, memberHeartbeat) {
+			memberAddress = "0.0.0.0"
 		}
 
-		result[nodeAddress] = append(result[nodeAddress], [2]string{projectName, instanceName})
+		memberAddressInstances[memberAddress] = append(memberAddressInstances[memberAddress], inst)
 	}
 
 	err = rows.Err()
@@ -208,7 +212,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
 		return nil, err
 	}
 
-	return result, nil
+	return memberAddressInstances, nil
 }
 
 // ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
@@ -631,61 +635,6 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 	}
 
 	return instanceArgs, nil
-}
-
-// GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
-// instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetProjectInstanceToNodeMap(ctx context.Context, projects []string, instType instancetype.Type) (map[[2]string]string, error) {
-	args := make([]any, 0, 2) // Expect up to 2 filters.
-	var filters strings.Builder
-
-	// Project filter.
-	filters.WriteString(fmt.Sprintf("projects.name IN %s", query.Params(len(projects))))
-	for _, project := range projects {
-		args = append(args, project)
-	}
-
-	// Instance type filter.
-	if instType != instancetype.Any {
-		filters.WriteString(" AND instances.type = ?")
-		args = append(args, instType)
-	}
-
-	stmt := fmt.Sprintf(`
-SELECT instances.name, nodes.name, projects.name
-  FROM instances
-  JOIN nodes ON nodes.id = instances.node_id
-  JOIN projects ON projects.id = instances.project_id
-  WHERE %s
-`, filters.String())
-
-	rows, err := c.tx.QueryContext(ctx, stmt, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() { _ = rows.Close() }()
-
-	result := map[[2]string]string{}
-
-	for i := 0; rows.Next(); i++ {
-		var instanceName string
-		var nodeName string
-		var projectName string
-		err := rows.Scan(&instanceName, &nodeName, &projectName)
-		if err != nil {
-			return nil, err
-		}
-
-		result[[2]string{projectName, instanceName}] = nodeName
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }
 
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.

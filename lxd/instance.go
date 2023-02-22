@@ -390,7 +390,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 }
 
 // Load all instances of this nodes under the given project.
-func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
+func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	var err error
 	var instances []instance.Instance
 
@@ -399,7 +399,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 		filter.Node = &s.ServerName
 	}
 
-	err = s.DB.Cluster.InstanceList(context.TODO(), func(dbInst db.InstanceArgs, p api.Project) error {
+	err = s.DB.Cluster.InstanceList(ctx, func(dbInst db.InstanceArgs, p api.Project) error {
 		inst, err := instance.Load(s, dbInst, p)
 		if err != nil {
 			return fmt.Errorf("Failed loading instance %q in project %q: %w", dbInst.Name, dbInst.Project, err)
