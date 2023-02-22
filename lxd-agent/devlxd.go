@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -117,7 +118,18 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 }}
 
 var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	client, err := getVsockClient(d)
+	var client lxd.InstanceServer
+	var err error
+
+	for i := 0; i < 10; i++ {
+		client, err = getVsockClient(d)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
