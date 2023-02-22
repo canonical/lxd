@@ -1468,6 +1468,8 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return err
 	}
 
+	inUse := vol.MountInUse()
+
 	// Handle volume datasets.
 	if vol.contentType == ContentTypeBlock || d.isBlockBacked(vol) && vol.contentType == ContentTypeFS {
 		// Do nothing if size isn't specified.
@@ -1512,7 +1514,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 					return fmt.Errorf("Filesystem %q cannot be shrunk: %w", fsType, ErrCannotBeShrunk)
 				}
 
-				if vol.MountInUse() {
+				if inUse {
 					return ErrInUse // We don't allow online shrinking of filesystem block volumes.
 				}
 
@@ -1560,7 +1562,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 					return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
 				}
 
-				if vol.MountInUse() {
+				if inUse {
 					return ErrInUse // We don't allow online resizing of block volumes.
 				}
 			}
