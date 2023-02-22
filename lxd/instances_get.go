@@ -242,8 +242,6 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func doInstancesGet(s *state.State, r *http.Request) (any, error) {
-	resultString := []string{}
-	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
 
@@ -252,15 +250,13 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		return nil, err
 	}
 
-	// Parse the recursion field
-	recursionStr := r.FormValue("recursion")
-
-	recursion, err := strconv.Atoi(recursionStr)
+	// Parse the recursion field.
+	recursion, err := strconv.Atoi(r.FormValue("recursion"))
 	if err != nil {
 		recursion = 0
 	}
 
-	// Parse filter value
+	// Parse filter value.
 	filterStr := r.FormValue("filter")
 	var clauses []filter.Clause
 	if filterStr != "" {
@@ -269,6 +265,8 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 			return nil, fmt.Errorf("Invalid filter: %w", err)
 		}
 	}
+
+	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 
 	// Detect project mode.
 	projectName := queryParam(r, "project")
@@ -280,13 +278,11 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 		projectName = project.Default
 	}
 
-	// Get the list and location of all containers
-	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
-	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
-	filteredProjects := []string{}
-	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		var err error
+	// Get the list and location of all instances.
+	var filteredProjects []string
+	var memberAddressInstances map[string][]db.Instance
 
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if allProjects {
 			projects, err := dbCluster.GetProjects(context.Background(), tx.Tx())
 			if err != nil {
@@ -306,167 +302,144 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 		offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
-		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(ctx, offlineThreshold, filteredProjects, instanceType)
+		memberAddressInstances, err = tx.GetInstancesByMemberAddress(ctx, offlineThreshold, filteredProjects, instanceType)
 		if err != nil {
-			return err
-		}
-
-		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(ctx, filteredProjects, instanceType)
-		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting instances by member address: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	// Get the local instances
-	nodeInstances := map[[2]string]instance.Instance{}
-	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
-	if mustLoadObjects {
-		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(s, project, instanceType)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, inst := range insts {
-				nodeInstances[[2]string{inst.Project().Name, inst.Name()}] = inst
-			}
-		}
-	}
-
-	// Append containers to list and handle errors
-	resultListAppend := func(projectInstance [2]string, c api.Instance, err error) {
-		if err != nil {
-			c = api.Instance{
-				Name:       projectInstance[1],
+	resultErrListAppend := func(inst db.Instance, err error) {
+		instFull := &api.InstanceFull{
+			Instance: api.Instance{
+				Name:       inst.Name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
-				Location:   projectInstanceToNodeName[projectInstance],
-				Project:    projectInstance[0],
-			}
-		}
-		resultMu.Lock()
-		resultList = append(resultList, &c)
-		resultMu.Unlock()
-	}
-
-	resultFullListAppend := func(projectInstance [2]string, c api.InstanceFull, err error) {
-		if err != nil {
-			c = api.InstanceFull{Instance: api.Instance{
-				Name:       projectInstance[1],
-				Status:     api.Error.String(),
-				StatusCode: api.Error,
-				Location:   projectInstanceToNodeName[projectInstance],
-				Project:    projectInstance[0],
-			}}
+				Location:   inst.Location,
+				Project:    inst.Project,
+			},
 		}
 
 		resultMu.Lock()
-		resultFullList = append(resultFullList, &c)
+		resultFullList = append(resultFullList, instFull)
 		resultMu.Unlock()
+	}
+
+	resultFullListAppend := func(instFull *api.InstanceFull) {
+		if instFull != nil {
+			resultMu.Lock()
+			resultFullList = append(resultFullList, instFull)
+			resultMu.Unlock()
+		}
 	}
 
 	// Get the data
 	wg := sync.WaitGroup{}
 	networkCert := s.Endpoints.NetworkCert()
-	for address, projectsInstances := range nodesProjectsInstances {
-		// If this is an internal request from another cluster node,
-		// ignore containers from other projectInstanceToNodeName, and return only the ones
-		// on this node
-		if isClusterNotification(r) && address != "" {
+	for memberAddress, instances := range memberAddressInstances {
+		// If this is an internal request from another cluster node, ignore instances from other
+		// projectInstanceToNodeName, and return only the ones on this member.
+		if isClusterNotification(r) && memberAddress != "" {
 			continue
 		}
 
-		// Mark containers on unavailable projectInstanceToNodeName as down
-		if mustLoadObjects && address == "0.0.0.0" {
-			for _, projectInstance := range projectsInstances {
-				if recursion < 2 {
-					resultListAppend(projectInstance, api.Instance{}, fmt.Errorf("unavailable"))
-				} else {
-					resultFullListAppend(projectInstance, api.InstanceFull{}, fmt.Errorf("unavailable"))
-				}
+		// Mark instances on unavailable projectInstanceToNodeName as down.
+		if mustLoadObjects && memberAddress == "0.0.0.0" {
+			for _, inst := range instances {
+				resultErrListAppend(inst, fmt.Errorf("unavailable"))
 			}
 
 			continue
 		}
 
-		// For recursion requests we need to fetch the state of remote
-		// containers from their respective projectInstanceToNodeName.
-		if mustLoadObjects && address != "" && !isClusterNotification(r) {
+		// For recursion requests we need to fetch the state of remote instances from their respective
+		// projectInstanceToNodeName.
+		if mustLoadObjects && memberAddress != "" && !isClusterNotification(r) {
 			wg.Add(1)
-			go func(address string, projectsInstances [][2]string) {
+
+			go func(memberAddress string, instances []db.Instance) {
 				defer wg.Done()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
+					apiInsts, err := doContainersGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 					if err != nil {
-						for _, projectInstance := range projectsInstances {
-							resultListAppend(projectInstance, api.Instance{}, err)
+						for _, inst := range instances {
+							resultErrListAppend(inst, err)
 						}
 
 						return
 					}
 
-					for _, c := range cs {
-						resultListAppend([2]string{c.Name, c.Project}, c, nil)
+					for _, apiInst := range apiInsts {
+						resultFullListAppend(&api.InstanceFull{Instance: apiInst})
 					}
 
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, s.ServerCert(), r, instanceType)
+				cs, err := doContainersFullGetFromNode(filteredProjects, memberAddress, allProjects, networkCert, s.ServerCert(), r, instanceType)
 				if err != nil {
-					for _, projectInstance := range projectsInstances {
-						resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+					for _, inst := range instances {
+						resultErrListAppend(inst, err)
 					}
 
 					return
 				}
 
 				for _, c := range cs {
-					resultFullListAppend([2]string{c.Name, c.Project}, c, nil)
+					resultFullListAppend(&c)
 				}
-			}(address, projectsInstances)
+			}(memberAddress, instances)
 
 			continue
 		}
 
 		if !mustLoadObjects {
-			for _, projectInstance := range projectsInstances {
-				instancePath := "instances"
-				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-					instancePath = "containers"
-				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
-					instancePath = "virtual-machines"
-				}
-
-				url := api.NewURL().Path(version.APIVersion, instancePath, projectInstance[1]).Project(projectInstance[0])
-				resultString = append(resultString, url.String())
+			for _, inst := range instances {
+				resultFullListAppend(&api.InstanceFull{Instance: api.Instance{
+					Project:  inst.Project,
+					Name:     inst.Name,
+					Location: inst.Location,
+				}})
 			}
 		} else {
 			threads := 4
-			if len(projectsInstances) < threads {
-				threads = len(projectsInstances)
+			if len(instances) < threads {
+				threads = len(instances)
 			}
 
 			hostInterfaces, _ := net.Interfaces()
-			queue := make(chan [2]string, threads)
+
+			// Get the local instances.
+			localInstancesByID := make(map[int64]instance.Instance)
+			for _, projectName := range filteredProjects {
+				insts, err := instanceLoadNodeProjectAll(r.Context(), s, projectName, instanceType)
+				if err != nil {
+					return nil, fmt.Errorf("Failed loading instances for project %q: %w", projectName, err)
+				}
+
+				for _, inst := range insts {
+					localInstancesByID[int64(inst.ID())] = inst
+				}
+			}
+
+			queue := make(chan db.Instance, threads)
 
 			for i := 0; i < threads; i++ {
 				wg.Add(1)
 
 				go func() {
 					for {
-						projectInstance, more := <-queue
+						dbInst, more := <-queue
 						if !more {
 							break
 						}
 
-						inst, found := nodeInstances[projectInstance]
+						inst, found := localInstancesByID[dbInst.ID]
 						if !found {
 							continue
 						}
@@ -474,9 +447,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 						if recursion < 2 {
 							c, _, err := inst.Render()
 							if err != nil {
-								resultListAppend(projectInstance, api.Instance{}, err)
+								resultErrListAppend(dbInst, err)
 							} else {
-								resultListAppend(projectInstance, *c.(*api.Instance), err)
+								resultFullListAppend(&api.InstanceFull{Instance: *c.(*api.Instance)})
 							}
 
 							continue
@@ -484,10 +457,9 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 
 						c, _, err := inst.RenderFull(hostInterfaces)
 						if err != nil {
-							logger.Error("Unable to list instance", logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "err": err})
-							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
+							resultErrListAppend(dbInst, err)
 						} else {
-							resultFullListAppend(projectInstance, *c, err)
+							resultFullListAppend(c)
 						}
 					}
 
@@ -495,8 +467,8 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 				}()
 			}
 
-			for _, projectInstance := range projectsInstances {
-				queue <- projectInstance
+			for _, inst := range instances {
+				queue <- inst
 			}
 
 			close(queue)
@@ -504,43 +476,44 @@ func doInstancesGet(s *state.State, r *http.Request) (any, error) {
 	}
 	wg.Wait()
 
-	if recursion == 0 {
-		if clauses != nil {
-			for _, container := range instance.Filter(resultList, clauses) {
-				instancePath := "instances"
-				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-					instancePath = "containers"
-				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
-					instancePath = "virtual-machines"
-				}
-
-				url := api.NewURL().Path(version.APIVersion, instancePath, container.Name).Project(container.Project)
-				resultString = append(resultString, url.String())
-			}
+	// Sort the result list by project and then instance name.
+	sort.SliceStable(resultFullList, func(i, j int) bool {
+		if resultFullList[i].Project == resultFullList[j].Project {
+			return resultFullList[i].Name < resultFullList[j].Name
 		}
-		return resultString, nil
+
+		return resultFullList[i].Project < resultFullList[j].Project
+	})
+
+	// Filter result list if needed.
+	if clauses != nil {
+		resultFullList = instance.FilterFull(resultFullList, clauses)
 	}
 
-	if recursion == 1 {
-		// Sort the result list by name.
-		sort.SliceStable(resultList, func(i, j int) bool {
-			return resultList[i].Name < resultList[j].Name
-		})
+	if recursion == 0 {
+		resultList := make([]string, 0, len(resultFullList))
+		for i := range resultFullList {
+			instancePath := "instances"
+			if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+				instancePath = "containers"
+			} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+				instancePath = "virtual-machines"
+			}
 
-		if clauses != nil {
-			resultList = instance.Filter(resultList, clauses)
+			url := api.NewURL().Path(version.APIVersion, instancePath, resultFullList[i].Name).Project(resultFullList[i].Project)
+			resultList = append(resultList, url.String())
 		}
 
 		return resultList, nil
 	}
 
-	// Sort the result list by name.
-	sort.SliceStable(resultFullList, func(i, j int) bool {
-		return resultFullList[i].Name < resultFullList[j].Name
-	})
+	if recursion == 1 {
+		resultList := make([]*api.Instance, 0, len(resultFullList))
+		for i := range resultFullList {
+			resultList = append(resultList, &resultFullList[i].Instance)
+		}
 
-	if clauses != nil {
-		resultFullList = instance.FilterFull(resultFullList, clauses)
+		return resultList, nil
 	}
 
 	return resultFullList, nil

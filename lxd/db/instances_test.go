@@ -405,7 +405,7 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 }
 
 // Containers are grouped by node address.
-func TestGetInstanceNamesByNodeAddress(t *testing.T) {
+func TestGetInstancesByMemberAddress(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -424,38 +424,14 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c4")
 
 	instType := instancetype.Container
-	result, err := tx.GetProjectAndInstanceNamesByNodeAddress(context.Background(), time.Duration(db.DefaultOfflineThreshold)*time.Second, []string{"default"}, instType)
+	result, err := tx.GetInstancesByMemberAddress(context.Background(), time.Duration(db.DefaultOfflineThreshold)*time.Second, []string{"default"}, instType)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
-		map[string][][2]string{
-			"":            {{project.Default, "c2"}},
-			"1.2.3.4:666": {{project.Default, "c1"}, {project.Default, "c4"}},
-			"0.0.0.0":     {{project.Default, "c3"}},
-		}, result)
-}
-
-// Instances are associated with their node name.
-func TestGetInstanceToNodeMap(t *testing.T) {
-	tx, cleanup := db.NewTestClusterTx(t)
-	defer cleanup()
-
-	nodeID1 := int64(1) // This is the default local member
-
-	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
-	require.NoError(t, err)
-
-	addContainer(t, tx, nodeID2, "c1")
-	addContainer(t, tx, nodeID1, "c2")
-
-	instType := instancetype.Container
-	result, err := tx.GetProjectInstanceToNodeMap(context.Background(), []string{"default"}, instType)
-	require.NoError(t, err)
-	assert.Equal(
-		t,
-		map[[2]string]string{
-			{project.Default, "c1"}: "node2",
-			{project.Default, "c2"}: "none",
+		map[string][]db.Instance{
+			"":            {{ID: 2, Project: project.Default, Name: "c2", Location: "none"}},
+			"1.2.3.4:666": {{ID: 1, Project: project.Default, Name: "c1", Location: "node2"}, {ID: 4, Project: project.Default, Name: "c4", Location: "node2"}},
+			"0.0.0.0":     {{ID: 3, Project: project.Default, Name: "c3", Location: "node3"}},
 		}, result)
 }
 
