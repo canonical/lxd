@@ -40,14 +40,19 @@ do_storage_driver_zfs() {
   # Set block filesystem
   lxc storage set lxdtest-"$(basename "${LXD_DIR}")" volume.block.filesystem "${filesystem}"
 
-  # Create container in block mode
+  # Create container in block mode and check online grow.
   lxc launch testimage c2
+  lxc config device override c2 root size=11GiB
 
   # Check created zfs volumes
   zfs list lxdtest-"$(basename "${LXD_DIR}")/containers/c2"
   zfs list lxdtest-"$(basename "${LXD_DIR}")/images/${fingerprint}_${filesystem}"
   zfs list lxdtest-"$(basename "${LXD_DIR}")/images/${fingerprint}_${filesystem}@readonly"
   [ "$(zfs get -H -o value type lxdtest-"$(basename "${LXD_DIR}")/containers/c2")" = "volume" ]
+
+  # Create container in block mode with smaller size override.
+  lxc init testimage c3 -d root,size=5GiB
+  lxc delete -f c3
 
   # Delete image volume
   lxc storage volume rm lxdtest-"$(basename "${LXD_DIR}")" image/"${fingerprint}"
