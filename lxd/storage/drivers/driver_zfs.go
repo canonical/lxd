@@ -27,7 +27,6 @@ var zfsTrim bool
 var zfsRaw bool
 
 var zfsDefaultSettings = map[string]string{
-	"atime":      "off",
 	"relatime":   "on",
 	"mountpoint": "legacy",
 	"setuid":     "on",
