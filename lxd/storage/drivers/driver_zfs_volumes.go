@@ -3060,6 +3060,26 @@ func (d *zfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 		return err
 	}
 
+	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+		_, err = d.activateVolume(vol)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _, _ = d.deactivateVolume(vol) }()
+
+		volPath, err := d.GetVolumeDiskPath(vol)
+		if err != nil {
+			return err
+		}
+
+		d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
+		err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	// For VM images, restore the associated filesystem dataset too.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
