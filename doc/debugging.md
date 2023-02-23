@@ -1,6 +1,6 @@
 # Debugging
 
-For information on debugging instance issues, see [Frequently Asked Questions](faq.md)
+For information on debugging instance issues, see {ref}`instances-troubleshoot`.
 
 ## Debugging `lxc` and `lxd`
 
@@ -17,19 +17,6 @@ logging call:
 ### `lxc monitor`
 
 This command will monitor messages as they appear on remote server.
-
-### `lxd --debug`
-
-Shutting down `lxd` server and running it in foreground with `--debug`
-flag will bring a lot of (hopefully) useful info:
-
-```bash
-systemctl stop lxd lxd.socket
-lxd --debug --group lxd
-```
-
-`--group lxd` is needed to grant access to unprivileged users in this
-group.
 
 ## REST API through local socket
 
