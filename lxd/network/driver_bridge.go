@@ -2543,6 +2543,40 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	externalSubnets = append(externalSubnets, bridgeNetworkExternalSubnets...)
 	externalSubnets = append(externalSubnets, bridgedNICExternalRoutes...)
 
+	// Detect if there are any conflicting proxy devices on all instances with the to be created network forward
+	err = n.state.DB.Cluster.InstanceList(context.TODO(), func(inst db.InstanceArgs, p api.Project) error {
+		devices := db.ExpandInstanceDevices(inst.Devices, inst.Profiles)
+
+		for devName, devConfig := range devices {
+			if devConfig["type"] != "proxy" {
+				continue
+			}
+
+			proxyListenAddr, err := ProxyParseAddr(devConfig["listen"])
+			if err != nil {
+				return err
+			}
+
+			proxySubnet, err := ParseIPToNet(proxyListenAddr.Address)
+			if err != nil {
+				return err
+			}
+
+			externalSubnets = append(externalSubnets, externalSubnetUsage{
+				usageType:       subnetUsageProxy,
+				subnet:          *proxySubnet,
+				instanceProject: inst.Project,
+				instanceName:    inst.Name,
+				instanceDevice:  devName,
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	// Add forward listen addresses to this list.
 	for projectName, networks := range projectNetworksForwardsOnUplink {
 		for networkID, listenAddresses := range networks {

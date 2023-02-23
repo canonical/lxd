@@ -7,6 +7,7 @@ test_container_devices_proxy() {
   container_devices_proxy_unix
   container_devices_proxy_unix_udp
   container_devices_proxy_unix_tcp
+  container_devices_proxy_with_overlapping_forward_net
 }
 
 container_devices_proxy_validation() {
@@ -691,4 +692,55 @@ container_devices_proxy_tcp_udp() {
 
   # Cleanup
   lxc delete -f proxyTester
+}
+
+container_devices_proxy_with_overlapping_forward_net() {
+  echo "====> Testing proxy creation with overlapping network forward"
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  netName="testnet"
+
+  lxc network create "${netName}" \
+        ipv4.address=192.0.2.1/24 \
+        ipv6.address=fd42:4242:4242:1010::1/64
+
+  overlappingAddr="192.0.2.2"
+  proxyTesterStaticIP="192.0.2.3"
+  HOST_TCP_PORT=$(local_tcp_port)
+
+  # First, launch container with a static IP
+  lxc launch testimage proxyTester
+  lxc config device add proxyTester eth0 nic \
+    nictype=bridged \
+    name=eth0 \
+    parent=${netName} \
+    ipv4.address=${proxyTesterStaticIP}
+
+  # Check creating empty forward doesn't create any firewall rules.
+  lxc network forward create "${netName}" "${overlappingAddr}"
+
+  # Test overlapping issue (network forward exists --> proxy creation should fail)
+  ! lxc config device add proxyTester proxyDev proxy "listen=tcp:${overlappingAddr}:$HOST_TCP_PORT" "connect=tcp:${proxyTesterStaticIP}:4321" nat=true || false
+
+  # Intermediary cleanup
+  lxc delete -f proxyTester
+  lxc network forward delete "${netName}" "${overlappingAddr}"
+
+  # Same operations as before but in the reverse order
+  lxc launch testimage proxyTester
+  lxc config device add proxyTester eth0 nic \
+    nictype=bridged \
+    name=eth0 \
+    parent=${netName} \
+    ipv4.address=${proxyTesterStaticIP}
+
+  lxc config device add proxyTester proxyDev proxy "listen=tcp:${overlappingAddr}:$HOST_TCP_PORT" "connect=tcp:${proxyTesterStaticIP}:4321" nat=true
+
+  # Test overlapping issue (proxy exists --> network forward creation should fail)
+  ! lxc network forward create "${netName}" "${overlappingAddr}" || false
+
+  # Final cleanup
+  lxc delete -f proxyTester
+  lxc network delete "${netName}"
 }
