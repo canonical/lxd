@@ -16,9 +16,9 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/daemon"
-	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	_ "github.com/lxc/lxd/lxd/include" // Used by cgo
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/netutils"
 )
@@ -426,13 +426,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	listenAddr := args[2]
-	lAddr, err := device.ProxyParseAddr(listenAddr)
+	lAddr, err := network.ProxyParseAddr(listenAddr)
 	if err != nil {
 		return err
 	}
 
 	connectAddr := args[5]
-	cAddr, err := device.ProxyParseAddr(connectAddr)
+	cAddr, err := network.ProxyParseAddr(connectAddr)
 	if err != nil {
 		return err
 	}

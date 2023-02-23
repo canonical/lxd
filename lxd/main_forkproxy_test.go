@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/network"
 )
 
 func TestParseAddr(t *testing.T) {
@@ -179,7 +179,7 @@ func TestParseAddr(t *testing.T) {
 
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
-		addr, err := device.ProxyParseAddr(tt.address)
+		addr, err := network.ProxyParseAddr(tt.address)
 		if tt.shouldFail {
 			require.Error(t, err)
 			require.Nil(t, addr)
