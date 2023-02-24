@@ -70,8 +70,13 @@ func NetworkSetDevMAC(devName string, mac string) error {
 
 	// Only try and change the MAC if the requested mac is different to current one.
 	if curMac != mac {
+		hwaddr, err := net.ParseMAC(mac)
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", mac, err)
+		}
+
 		link := &ip.Link{Name: devName}
-		err := link.SetAddress(mac)
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return err
 		}
@@ -834,8 +839,13 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) error {
 	// Set the MAC address.
 	if config["hwaddr"] != "" {
+		hwaddr, err := net.ParseMAC(config["hwaddr"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", config["hwaddr"], err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err := link.SetAddress(config["hwaddr"])
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return fmt.Errorf("Failed setting MAC address %q on %q: %w", config["hwaddr"], hostName, err)
 		}
@@ -884,8 +894,13 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 			return fmt.Errorf("Failed generating random MAC for VF %q: %w", hostName, err)
 		}
 
+		hwaddr, err := net.ParseMAC(randMAC)
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", randMAC, err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err = link.SetAddress(randMAC)
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return fmt.Errorf("Failed to set random MAC address %q on %q: %w", randMAC, hostName, err)
 		}

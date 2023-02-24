@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -124,8 +125,13 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 		// Set the MAC address.
 		if d.config["hwaddr"] != "" {
+			hwaddr, err := net.ParseMAC(d.config["hwaddr"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing MAC address %q: %w", d.config["hwaddr"], err)
+			}
+
 			link := &ip.Link{Name: saveData["host_name"]}
-			err := link.SetAddress(d.config["hwaddr"])
+			err = link.SetAddress(hwaddr)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
 			}
