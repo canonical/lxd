@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -193,8 +194,13 @@ func (n *physical) setup(oldConfig map[string]string) error {
 
 	// Set the MTU.
 	if n.config["mtu"] != "" {
+		mtu, err := strconv.ParseUint(n.config["mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid MTU %q: %w", n.config["mtu"], err)
+		}
+
 		phyLink := &ip.Link{Name: hostName}
-		err = phyLink.SetMTU(n.config["mtu"])
+		err = phyLink.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", n.config["mtu"], phyLink.Name, err)
 		}
@@ -244,11 +250,11 @@ func (n *physical) Stop() error {
 
 	// Reset MTU back to 1500 if overridden in config.
 	if n.config["mtu"] != "" && InterfaceExists(hostName) {
-		resetMTU := "1500"
+		var resetMTU uint32 = 1500
 		link := &ip.Link{Name: hostName}
-		err := link.SetMTU(resetMTU)
+		err := link.SetMTU(1500)
 		if err != nil {
-			return fmt.Errorf("Failed setting MTU %q on %q: %w", link, link.Name, err)
+			return fmt.Errorf("Failed setting MTU %d on %q: %w", resetMTU, link.Name, err)
 		}
 	}
 
