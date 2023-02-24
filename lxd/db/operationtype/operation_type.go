@@ -6,8 +6,8 @@ type Type int64
 // Possible values for Type
 //
 // WARNING: The type codes are stored in the database, so this list of
-//          definitions should be normally append-only. Any other change
-//          requires a database update.
+// definitions should be normally append-only. Any other change
+// requires a database update.
 const (
 	Unknown Type = iota
 	ClusterBootstrap
