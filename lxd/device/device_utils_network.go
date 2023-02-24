@@ -42,7 +42,7 @@ func NetworkSetDevMTU(devName string, mtu uint32) error {
 	// Only try and change the MTU if the requested mac is different to current one.
 	if curMTU != mtu {
 		link := &ip.Link{Name: devName}
-		err := link.SetMTU(fmt.Sprintf("%d", mtu))
+		err := link.SetMTU(mtu)
 		if err != nil {
 			return err
 		}
@@ -70,8 +70,13 @@ func NetworkSetDevMAC(devName string, mac string) error {
 
 	// Only try and change the MAC if the requested mac is different to current one.
 	if curMac != mac {
+		hwaddr, err := net.ParseMAC(mac)
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", mac, err)
+		}
+
 		link := &ip.Link{Name: devName}
-		err := link.SetAddress(mac)
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return err
 		}
@@ -206,96 +211,72 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name and MTU used.
 func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint32, error) {
-	peerName := network.RandomDevName("veth")
+	var err error
 
 	veth := &ip.Veth{
 		Link: ip.Link{
 			Name: hostName,
+			Up:   true,
 		},
-		PeerName: peerName,
+		Peer: ip.Link{
+			Name: network.RandomDevName("veth"),
+		},
 	}
 
-	err := veth.Add()
-	if err != nil {
-		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, peerName, err)
-	}
-
-	err = veth.SetUp()
-	if err != nil {
-		_ = network.InterfaceRemove(hostName)
-		return "", 0, fmt.Errorf("Failed to bring up the veth interface %q: %w", hostName, err)
-	}
-
-	// Set the MAC address on peer.
-	if m["hwaddr"] != "" {
-		link := &ip.Link{Name: peerName}
-		err := link.SetAddress(m["hwaddr"])
-		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MAC address: %w", err)
-		}
-	}
-
-	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
-	var mtu uint32
+	// Set the MTU on both ends. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
-		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
 		}
 
-		mtu = uint32(nicMTU)
+		veth.MTU = uint32(mtu)
 	} else if m["parent"] != "" {
-		mtu, err = network.GetDevMTU(m["parent"])
+		mtu, err := network.GetDevMTU(m["parent"])
 		if err != nil {
 			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
 		}
+
+		veth.MTU = mtu
 	}
 
-	if mtu > 0 {
-		err = NetworkSetDevMTU(peerName, mtu)
+	veth.Peer.MTU = veth.MTU
+
+	// Set the MAC address on peer.
+	if m["hwaddr"] != "" {
+		hwaddr, err := net.ParseMAC(m["hwaddr"])
 		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+			return "", 0, fmt.Errorf("Failed parsing MAC address %q: %w", m["hwaddr"], err)
 		}
 
-		err = NetworkSetDevMTU(hostName, mtu)
-		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
-		}
+		veth.Peer.Address = hwaddr
 	}
 
-	var txqlen uint32
+	// Set TX queue length on both ends.
 	if m["queue.tx.length"] != "" {
 		nicTXqlen, err := strconv.ParseUint(m["queue.tx.length"], 10, 32)
 		if err != nil {
 			return "", 0, fmt.Errorf("Invalid txqueuelen specified: %w", err)
 		}
 
-		txqlen = uint32(nicTXqlen)
+		veth.TXQueueLength = uint32(nicTXqlen)
 	} else if m["parent"] != "" {
-		txqlen, err = network.GetTXQueueLength(m["parent"])
+		veth.TXQueueLength, err = network.GetTXQueueLength(m["parent"])
 		if err != nil {
 			return "", 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
 		}
 	}
 
-	if txqlen != 0 {
-		link := &ip.Link{Name: peerName}
-		err = link.SetTXQueueLength(txqlen)
-		if err != nil {
-			return "", 0, fmt.Errorf("Failed to set the SetTXQueueLength %d: %w", txqlen, err)
-		}
+	veth.Peer.TXQueueLength = veth.TXQueueLength
 
-		link = &ip.Link{Name: hostName}
-		err = link.SetTXQueueLength(txqlen)
-		if err != nil {
-			return "", 0, fmt.Errorf("Failed to set the SetTXQueueLength %d: %w", txqlen, err)
-		}
+	// Add and configure the interface in one operation to reduce the number of executions and to avoid
+	// systemd-udevd from applying the default MACAddressPolicy=persistent policy.
+	err = veth.Add()
+	if err != nil {
+		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, veth.Peer.Name, err)
 	}
 
-	return peerName, mtu, nil
+	return veth.Peer.Name, veth.MTU, nil
 }
 
 // networkCreateTap creates and configures a TAP device.
@@ -345,6 +326,29 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 		err = NetworkSetDevMTU(hostName, mtu)
 		if err != nil {
 			return 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+		}
+	}
+
+	// Set TX queue length on both ends.
+	var txqueuelen uint32
+	if m["queue.tx.length"] != "" {
+		nicTXqlen, err := strconv.ParseUint(m["queue.tx.length"], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("Invalid txqueuelen specified: %w", err)
+		}
+
+		txqueuelen = uint32(nicTXqlen)
+	} else if m["parent"] != "" {
+		txqueuelen, err = network.GetTXQueueLength(m["parent"])
+		if err != nil {
+			return 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+		}
+	}
+
+	if txqueuelen > 0 {
+		err = link.SetTXQueueLength(txqueuelen)
+		if err != nil {
+			return 0, fmt.Errorf("Failed to set the TX queue length %d: %w", txqueuelen, err)
 		}
 	}
 
@@ -882,8 +886,13 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) error {
 	// Set the MAC address.
 	if config["hwaddr"] != "" {
+		hwaddr, err := net.ParseMAC(config["hwaddr"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", config["hwaddr"], err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err := link.SetAddress(config["hwaddr"])
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return fmt.Errorf("Failed setting MAC address %q on %q: %w", config["hwaddr"], hostName, err)
 		}
@@ -891,8 +900,13 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 
 	// Set the MTU.
 	if config["mtu"] != "" {
+		mtu, err := strconv.ParseUint(config["mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid VF MTU specified %q: %w", config["mtu"], err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err := link.SetMTU(config["mtu"])
+		err = link.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", config["mtu"], hostName, err)
 		}
@@ -927,8 +941,13 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 			return fmt.Errorf("Failed generating random MAC for VF %q: %w", hostName, err)
 		}
 
+		hwaddr, err := net.ParseMAC(randMAC)
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", randMAC, err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err = link.SetAddress(randMAC)
+		err = link.SetAddress(hwaddr)
 		if err != nil {
 			return fmt.Errorf("Failed to set random MAC address %q on %q: %w", randMAC, hostName, err)
 		}

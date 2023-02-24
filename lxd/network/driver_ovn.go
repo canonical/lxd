@@ -1187,7 +1187,9 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 			Link: ip.Link{
 				Name: vars.uplinkEnd,
 			},
-			PeerName: vars.ovsEnd,
+			Peer: ip.Link{
+				Name: vars.ovsEnd,
+			},
 		}
 
 		err := veth.Add()
@@ -1208,14 +1210,19 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	if uplinkNetMTU != "" {
+		mtu, err := strconv.ParseUint(uplinkNetMTU, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid uplink MTU %q: %w", uplinkNetMTU, err)
+		}
+
 		uplinkEndLink := &ip.Link{Name: vars.uplinkEnd}
-		err := uplinkEndLink.SetMTU(uplinkNetMTU)
+		err = uplinkEndLink.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", uplinkNetMTU, uplinkEndLink.Name, err)
 		}
 
 		ovsEndLink := &ip.Link{Name: vars.ovsEnd}
-		err = ovsEndLink.SetMTU(uplinkNetMTU)
+		err = ovsEndLink.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", uplinkNetMTU, ovsEndLink.Name, err)
 		}
@@ -1256,7 +1263,7 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 
 	// Create uplink OVS bridge if needed.
 	ovs := openvswitch.NewOVS()
-	err = ovs.BridgeAdd(vars.ovsBridge, true)
+	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
@@ -1379,7 +1386,7 @@ func (n *ovn) startUplinkPortPhysical(uplinkNet Network) error {
 	}
 
 	// Create uplink OVS bridge if needed.
-	err = ovs.BridgeAdd(vars.ovsBridge, true)
+	err = ovs.BridgeAdd(vars.ovsBridge, true, nil, 0)
 	if err != nil {
 		return fmt.Errorf("Failed to create uplink OVS bridge %q: %w", vars.ovsBridge, err)
 	}
