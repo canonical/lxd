@@ -596,7 +596,82 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	bridgeLink := &ip.Link{Name: n.name}
+	var err error
+
+	// Build up the bridge interface's settings.
+	bridge := ip.Bridge{
+		Link: ip.Link{
+			Name: n.name,
+			MTU:  bridgeMTUDefault,
+		},
+	}
+
+	// Get a list of tunnels.
+	tunnels := n.getTunnels()
+
+	// Decide the MTU for the bridge interface.
+	if n.config["bridge.mtu"] != "" {
+		mtuInt, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid MTU %q: %w", n.config["bridge.mtu"], err)
+		}
+
+		bridge.MTU = uint32(mtuInt)
+	} else if len(tunnels) > 0 {
+		bridge.MTU = 1400
+	} else if n.config["bridge.mode"] == "fan" {
+		if n.config["fan.type"] == "ipip" {
+			bridge.MTU = 1480
+		} else {
+			bridge.MTU = 1450
+		}
+	}
+
+	// Decide the MAC address of bridge interface.
+	if n.config["bridge.hwaddr"] != "" {
+		bridge.Address, err = net.ParseMAC(n.config["bridge.hwaddr"])
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", n.config["bridge.hwaddr"], err)
+		}
+	} else {
+		// If no cluster wide static MAC address set, then generate one.
+		var seedNodeID int64
+
+		if n.checkClusterWideMACSafe(n.config) != nil {
+			// If not safe to use a cluster wide MAC or in in fan mode, then use cluster node's ID to
+			// generate a stable per-node & network derived random MAC.
+			seedNodeID = n.state.DB.Cluster.GetNodeID()
+		} else {
+			// If safe to use a cluster wide MAC, then use a static cluster node of 0 to generate a
+			// stable per-network derived random MAC.
+			seedNodeID = 0
+		}
+
+		// Load server certificate. This is needs to be the same certificate for all nodes in a cluster.
+		cert, err := util.LoadCert(n.state.OS.VarDir)
+		if err != nil {
+			return err
+		}
+
+		// Generate the random seed, this uses the server certificate fingerprint (to ensure that multiple
+		// standalone nodes with the same network ID connected to the same external network don't generate
+		// the same MAC for their networks). It relies on the certificate being the same for all nodes in a
+		// cluster to allow the same MAC to be generated on each bridge interface in the network when
+		// seedNodeID is 0 (when safe to do so).
+		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
+		r, err := util.GetStableRandomGenerator(seed)
+		if err != nil {
+			return fmt.Errorf("Failed generating stable random bridge MAC: %w", err)
+		}
+
+		randomHwaddr := randomHwaddr(r)
+		bridge.Address, err = net.ParseMAC(randomHwaddr)
+		if err != nil {
+			return fmt.Errorf("Failed parsing MAC address %q: %w", randomHwaddr, err)
+		}
+
+		n.logger.Debug("Stable MAC generated", logger.Ctx{"seed": seed, "hwAddr": bridge.Address.String()})
+	}
 
 	// Create the bridge interface if doesn't exist.
 	if !n.isRunning() {
@@ -606,17 +681,17 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return fmt.Errorf("Open vSwitch isn't installed on this system")
 			}
 
-			err := ovs.BridgeAdd(n.name, false)
+			// Add and configure the interface in one operation to reduce the number of executions and
+			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
+			err := ovs.BridgeAdd(n.name, false, bridge.Address, bridge.MTU)
 			if err != nil {
 				return err
 			}
 
 			revert.Add(func() { _ = ovs.BridgeDelete(n.name) })
 		} else {
-			bridge := &ip.Bridge{
-				Link: *bridgeLink,
-			}
-
+			// Add and configure the interface in one operation to reduce the number of executions and
+			// to avoid systemd-udevd from applying the default MACAddressPolicy=persistent policy.
 			err := bridge.Add()
 			if err != nil {
 				return err
@@ -624,10 +699,24 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			revert.Add(func() { _ = bridge.Delete() })
 		}
-	}
+	} else {
+		// If bridge already exists then re-apply settings. If we just created a bridge then we don't
+		// need to do this as the settings will have been applied as part of the add operation.
 
-	// Get a list of tunnels.
-	tunnels := n.getTunnels()
+		// Set the MTU on the bridge interface.
+		err := bridge.SetMTU(bridge.MTU)
+		if err != nil {
+			return err
+		}
+
+		// Set the MAC address on the bridge interface if specified.
+		if bridge.Address != nil {
+			err = bridge.SetAddress(bridge.Address.String())
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	// IPv6 bridge configuration.
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
@@ -678,31 +767,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Set the MTU.
-	var mtu uint32 = bridgeMTUDefault
-	if n.config["bridge.mtu"] != "" {
-		mtuInt, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
-		if err != nil {
-			return fmt.Errorf("Invalid MTU %q: %w", n.config["bridge.mtu"], err)
-		}
-
-		mtu = uint32(mtuInt)
-	} else if len(tunnels) > 0 {
-		mtu = 1400
-	} else if n.config["bridge.mode"] == "fan" {
-		if n.config["fan.type"] == "ipip" {
-			mtu = 1480
-		} else {
-			mtu = 1450
-		}
-	}
-
 	// Attempt to add a dummy device to the bridge to force the MTU.
-	if mtu != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
+	if bridge.MTU != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
 			Link: ip.Link{
 				Name: fmt.Sprintf("%s-mtu", n.name),
-				MTU:  mtu,
+				MTU:  bridge.MTU,
 			},
 		}
 
@@ -716,57 +786,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	err = bridgeLink.SetMTU(mtu)
-	if err != nil {
-		return err
-	}
-
-	// Always prefer static MAC address if set.
-	hwAddr := n.config["bridge.hwaddr"]
-
-	// If no cluster wide static MAC address set, then generate one.
-	if hwAddr == "" {
-		var seedNodeID int64
-
-		if n.checkClusterWideMACSafe(n.config) != nil {
-			// If not safe to use a cluster wide MAC or in in fan mode, then use cluster node's ID to
-			// generate a stable per-node & network derived random MAC.
-			seedNodeID = n.state.DB.Cluster.GetNodeID()
-		} else {
-			// If safe to use a cluster wide MAC, then use a static cluster node of 0 to generate a
-			// stable per-network derived random MAC.
-			seedNodeID = 0
-		}
-
-		// Load server certificate. This is needs to be the same certificate for all nodes in a cluster.
-		cert, err := util.LoadCert(n.state.OS.VarDir)
-		if err != nil {
-			return err
-		}
-
-		// Generate the random seed, this uses the server certificate fingerprint (to ensure that multiple
-		// standalone nodes with the same network ID connected to the same external network don't generate
-		// the same MAC for their networks). It relies on the certificate being the same for all nodes in a
-		// cluster to allow the same MAC to be generated on each bridge interface in the network when
-		// seedNodeID is 0 (when safe to do so).
-		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
-		r, err := util.GetStableRandomGenerator(seed)
-		if err != nil {
-			return fmt.Errorf("Failed generating stable random bridge MAC: %w", err)
-		}
-
-		hwAddr = randomHwaddr(r)
-		n.logger.Debug("Stable MAC generated", logger.Ctx{"seed": seed, "hwAddr": hwAddr})
-	}
-
-	// Set the MAC address on the bridge interface if specified.
-	if hwAddr != "" {
-		err = bridgeLink.SetAddress(hwAddr)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Enable VLAN filtering for Linux bridges.
 	if n.config["bridge.driver"] != "openvswitch" {
 		// Enable filtering.
@@ -777,7 +796,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Bring it up.
-	err = bridgeLink.SetUp()
+	err = bridge.SetUp()
 	if err != nil {
 		return err
 	}
@@ -945,8 +964,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
 			}
 
-			if mtu != bridgeMTUDefault {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%d", mtu))
+			if bridge.MTU != bridgeMTUDefault {
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%d", bridge.MTU))
 			}
 
 			dnsSearch := n.config["dns.search"]
@@ -1247,17 +1266,17 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 
 			// Apply changes.
-			if fanMTU != mtu {
-				mtu = fanMTU
+			if fanMTU != bridge.MTU {
+				bridge.MTU = fanMTU
 				if n.config["bridge.driver"] != "openvswitch" {
 					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
-					err = mtuLink.SetMTU(mtu)
+					err = mtuLink.SetMTU(bridge.MTU)
 					if err != nil {
 						return err
 					}
 				}
 
-				err = bridgeLink.SetMTU(mtu)
+				err = bridge.SetMTU(bridge.MTU)
 				if err != nil {
 					return err
 				}
@@ -1349,7 +1368,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			err = vxlan.SetMTU(mtu)
+			err = vxlan.SetMTU(bridge.MTU)
 			if err != nil {
 				return err
 			}
@@ -1359,7 +1378,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			err = bridgeLink.SetUp()
+			err = bridge.SetUp()
 			if err != nil {
 				return err
 			}
@@ -1486,7 +1505,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		tunLink := &ip.Link{Name: tunName}
-		err = tunLink.SetMTU(mtu)
+		err = tunLink.SetMTU(bridge.MTU)
 		if err != nil {
 			return err
 		}
@@ -1498,7 +1517,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Bring up network interface.
-		err = bridgeLink.SetUp()
+		err = bridge.SetUp()
 		if err != nil {
 			return err
 		}
