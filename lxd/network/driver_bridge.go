@@ -51,6 +51,9 @@ const ForkdnsServersListFile = "servers.conf"
 
 var forkdnsServersLock sync.Mutex
 
+// Default MTU for bridge interface.
+const bridgeMTUDefault = 1500
+
 // bridge represents a LXD bridge network.
 type bridge struct {
 	common
@@ -676,23 +679,31 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Set the MTU.
-	mtu := ""
+	var mtu uint32 = bridgeMTUDefault
 	if n.config["bridge.mtu"] != "" {
-		mtu = n.config["bridge.mtu"]
+		mtuInt, err := strconv.ParseUint(n.config["bridge.mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid MTU %q: %w", n.config["bridge.mtu"], err)
+		}
+
+		mtu = uint32(mtuInt)
 	} else if len(tunnels) > 0 {
-		mtu = "1400"
+		mtu = 1400
 	} else if n.config["bridge.mode"] == "fan" {
 		if n.config["fan.type"] == "ipip" {
-			mtu = "1480"
+			mtu = 1480
 		} else {
-			mtu = "1450"
+			mtu = 1450
 		}
 	}
 
 	// Attempt to add a dummy device to the bridge to force the MTU.
-	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
+	if mtu != bridgeMTUDefault && n.config["bridge.driver"] != "openvswitch" {
 		dummy := &ip.Dummy{
-			Link: ip.Link{Name: fmt.Sprintf("%s-mtu", n.name), MTU: mtu},
+			Link: ip.Link{
+				Name: fmt.Sprintf("%s-mtu", n.name),
+				MTU:  mtu,
+			},
 		}
 
 		err = dummy.Add()
@@ -703,11 +714,6 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				_ = AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
 		}
-	}
-
-	// Now, set a default MTU.
-	if mtu == "" {
-		mtu = "1500"
 	}
 
 	err = bridgeLink.SetMTU(mtu)
@@ -939,8 +945,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=3,%s", n.config["ipv4.dhcp.gateway"]))
 			}
 
-			if mtu != "1500" {
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%s", mtu))
+			if mtu != bridgeMTUDefault {
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option-force=26,%d", mtu))
 			}
 
 			dnsSearch := n.config["dns.search"]
@@ -1231,19 +1237,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Update the MTU based on overlay device (if available).
-		fanMtuInt, err := GetDevMTU(devName)
+		fanMTU, err := GetDevMTU(devName)
 		if err == nil {
 			// Apply overhead.
 			if n.config["fan.type"] == "ipip" {
-				fanMtuInt = fanMtuInt - 20
+				fanMTU = fanMTU - 20
 			} else {
-				fanMtuInt = fanMtuInt - 50
+				fanMTU = fanMTU - 50
 			}
 
 			// Apply changes.
-			fanMtu := fmt.Sprintf("%d", fanMtuInt)
-			if fanMtu != mtu {
-				mtu = fanMtu
+			if fanMTU != mtu {
+				mtu = fanMTU
 				if n.config["bridge.driver"] != "openvswitch" {
 					mtuLink := &ip.Link{Name: fmt.Sprintf("%s-mtu", n.name)}
 					err = mtuLink.SetMTU(mtu)
@@ -1286,7 +1291,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, []string{
 			fmt.Sprintf("--listen-address=%s", addr[0]),
 			"--dhcp-no-override", "--dhcp-authoritative",
-			fmt.Sprintf("--dhcp-option-force=26,%d", fanMtuInt),
+			fmt.Sprintf("--dhcp-option-force=26,%d", fanMTU),
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
 			"--dhcp-range", fmt.Sprintf("%s,%s,%s", dhcpalloc.GetIP(hostSubnet, 2).String(), dhcpalloc.GetIP(hostSubnet, -2).String(), expiry)}...)
