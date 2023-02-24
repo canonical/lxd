@@ -31,96 +31,96 @@ import (
 
 // swagger:operation GET /1.0/instances/{name}/snapshots instances instance_snapshots_get
 //
-// Get the snapshots
+//  Get the snapshots
 //
-// Returns a list of instance snapshots (URLs).
+//  Returns a list of instance snapshots (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/instances/foo/snapshots/snap0",
-//               "/1.0/instances/foo/snapshots/snap1"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/instances/foo/snapshots/snap0",
+//                "/1.0/instances/foo/snapshots/snap1"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/instances/{name}/snapshots?recursion=1 instances instance_snapshots_get_recursion1
 //
-// Get the snapshots
+//	Get the snapshots
 //
-// Returns a list of instance snapshots (structs).
+//	Returns a list of instance snapshots (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of instance snapshots
-//           items:
-//             $ref: "#/definitions/InstanceSnapshot"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of instance snapshots
+//	          items:
+//	            $ref: "#/definitions/InstanceSnapshot"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -197,36 +197,36 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/instances/{name}/snapshots instances instance_snapshots_post
 //
-// Create a snapshot
+//	Create a snapshot
 //
-// Creates a new snapshot.
+//	Creates a new snapshot.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: snapshot
-//     description: Snapshot request
-//     required: false
-//     schema:
-//       $ref: "#/definitions/InstanceSnapshotsPost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: snapshot
+//	    description: Snapshot request
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstanceSnapshotsPost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -389,36 +389,36 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_patch
 //
-// Partially update snapshot
+//	Partially update snapshot
 //
-// Updates a subset of the snapshot config.
+//	Updates a subset of the snapshot config.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: snapshot
-//     description: Snapshot update
-//     required: false
-//     schema:
-//       $ref: "#/definitions/InstanceSnapshotPut"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: snapshot
+//	    description: Snapshot update
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstanceSnapshotPut"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Only expires_at is currently editable, so PATCH is equivalent to PUT.
 	return snapshotPut(d, r, snapInst, name)
@@ -426,36 +426,36 @@ func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name 
 
 // swagger:operation PUT /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_put
 //
-// Update snapshot
+//	Update snapshot
 //
-// Updates the snapshot config.
+//	Updates the snapshot config.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: snapshot
-//     description: Snapshot update
-//     required: false
-//     schema:
-//       $ref: "#/definitions/InstanceSnapshotPut"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: snapshot
+//	    description: Snapshot update
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstanceSnapshotPut"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Validate the ETag
 	etag := []any{snapInst.ExpiryDate()}
@@ -535,44 +535,44 @@ func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name st
 
 // swagger:operation GET /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_get
 //
-// Get the snapshot
+//	Get the snapshot
 //
-// Gets a specific instance snapshot.
+//	Gets a specific instance snapshot.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Instance snapshot
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/InstanceSnapshot"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Instance snapshot
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/InstanceSnapshot"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func snapshotGet(s *state.State, snapInst instance.Instance, name string) response.Response {
 	render, _, err := snapInst.Render(storagePools.RenderSnapshotUsage(s, snapInst))
 	if err != nil {
@@ -585,42 +585,42 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 
 // swagger:operation POST /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_post
 //
-// Rename or move/migrate a snapshot
+//	Rename or move/migrate a snapshot
 //
-// Renames or migrates an instance snapshot to another server.
+//	Renames or migrates an instance snapshot to another server.
 //
-// The returned operation metadata will vary based on what's requested.
-// For rename or move within the same server, this is a simple background operation with progress data.
-// For migration, in the push case, this will similarly be a background
-// operation with progress data, for the pull case, it will be a websocket
-// operation with a number of secrets to be passed to the target server.
+//	The returned operation metadata will vary based on what's requested.
+//	For rename or move within the same server, this is a simple background operation with progress data.
+//	For migration, in the push case, this will similarly be a background
+//	operation with progress data, for the pull case, it will be a websocket
+//	operation with a number of secrets to be passed to the target server.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: snapshot
-//     description: Snapshot migration
-//     required: false
-//     schema:
-//       $ref: "#/definitions/InstanceSnapshotPost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: snapshot
+//	    description: Snapshot migration
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstanceSnapshotPost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, containerName string) response.Response {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -743,30 +743,30 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 
 // swagger:operation DELETE /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_delete
 //
-// Delete a snapshot
+//	Delete a snapshot
 //
-// Deletes the instance snapshot.
+//	Deletes the instance snapshot.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func snapshotDelete(s *state.State, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
 		return snapInst.Delete(false)

@@ -105,13 +105,16 @@ var imageAliasCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: imageAliasPut, AccessHandler: allowProjectPermission("images", "manage-images")},
 }
 
-/* We only want a single publish running at any one time.
-   The CPU and I/O load of publish is such that running multiple ones in
-   parallel takes longer than running them serially.
+/*
+We only want a single publish running at any one time.
 
-   Additionally, publishing the same container or container snapshot
-   twice would lead to storage problem, not to mention a conflict at the
-   end for whichever finishes last. */
+	The CPU and I/O load of publish is such that running multiple ones in
+	parallel takes longer than running them serially.
+
+	Additionally, publishing the same container or container snapshot
+	twice would lead to storage problem, not to mention a conflict at the
+	end for whichever finishes last.
+*/
 var imagePublishLock sync.Mutex
 
 // imageTaskMu prevents image related tasks from being scheduled at the same time as each other to prevent them
@@ -775,87 +778,111 @@ func imageCreateInPool(s *state.State, info *api.Image, storagePool string) erro
 
 // swagger:operation POST /1.0/images?public images images_post_untrusted
 //
-// Add an image
+//  Add an image
 //
-// Pushes the data to the target image server.
-// This is meant for LXD to LXD communication where a new image entry is
-// prepared on the target server and the source server is provided that URL
-// and a secret token to push the image content over.
+//  Pushes the data to the target image server.
+//  This is meant for LXD to LXD communication where a new image entry is
+//  prepared on the target server and the source server is provided that URL
+//  and a secret token to push the image content over.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image
-//     description: Image
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImagesPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: body
+//      name: image
+//      description: Image
+//      required: true
+//      schema:
+//        $ref: "#/definitions/ImagesPost"
+//  responses:
+//    "200":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation POST /1.0/images images images_post
 //
-// Add an image
+//	Add an image
 //
-// Adds a new image to the image store.
+//	Adds a new image to the image store.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image
-//     description: Image
-//     required: false
-//     schema:
-//       $ref: "#/definitions/ImagesPost"
-//   - in: body
-//     name: raw_image
-//     description: Raw image file
-//     required: false
-//   - in: header
-//     name: X-LXD-secret
-//     description: Push secret for server to server communication
-//     schema:
-//       type: string
-//     example: RANDOM-STRING
-//   - in: header
-//     name: X-LXD-fingerprint
-//     description: Expected fingerprint when pushing a raw image
-//     schema:
-//       type: string
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image
+//	    description: Image
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/ImagesPost"
+//	  - in: body
+//	    name: raw_image
+//	    description: Raw image file
+//	    required: false
+//	  - in: header
+//	    name: X-LXD-secret
+//	    description: Push secret for server to server communication
+//	    schema:
+//	      type: string
+//	    example: RANDOM-STRING
+//	  - in: header
+//	    name: X-LXD-fingerprint
+//	    description: Expected fingerprint when pushing a raw image
+//	    schema:
+//	      type: string
+//	  - in: header
+//	    name: X-LXD-properties
+//	    description: Descriptive properties
+//	    schema:
+//	      type: object
+//	      additionalProperties:
+//	        type: string
+//	  - in: header
+//	    name: X-LXD-public
+//	    description: Whether the image is available to unauthenticated users
+//	    schema:
+//	      type: boolean
+//	  - in: header
+//	    name: X-LXD-filename
+//	    description: Original filename of the image
+//	    schema:
+//	      type: string
+//	  - in: header
+//	    name: X-LXD-profiles
+//	    description: List of profiles to use
+//	    schema:
+//	      type: array
+//	      items:
+//	        type: string
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imagesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1267,209 +1294,209 @@ func doImagesGet(ctx context.Context, tx *db.ClusterTx, recursion bool, projectN
 
 // swagger:operation GET /1.0/images?public images images_get_untrusted
 //
-// Get the public images
+//  Get the public images
 //
-// Returns a list of publicly available images (URLs).
+//  Returns a list of publicly available images (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
-//               "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
+//                "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images?public&recursion=1 images images_get_recursion1_untrusted
 //
-// Get the public images
+//  Get the public images
 //
-// Returns a list of publicly available images (structs).
+//  Returns a list of publicly available images (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of images
-//           items:
-//             $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of images
+//            items:
+//              $ref: "#/definitions/Image"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images images images_get
 //
-// Get the images
+//  Get the images
 //
-// Returns a list of images (URLs).
+//  Returns a list of images (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
-//               "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/images/06b86454720d36b20f94e31c6812e05ec51c1b568cf3a8abd273769d213394bb",
+//                "/1.0/images/084dd79dd1360fd25a2479eb46674c2a5ef3022a40fe03c91ab3603e3402b8e1"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images?recursion=1 images images_get_recursion1
 //
-// Get the images
+//	Get the images
 //
-// Returns a list of images (structs).
+//	Returns a list of images (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of images
-//           items:
-//             $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: filter
+//	    description: Collection filter
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of images
+//	          items:
+//	            $ref: "#/definitions/Image"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	filterStr := r.FormValue("filter")
@@ -2353,28 +2380,28 @@ func pruneExpiredImages(ctx context.Context, s *state.State, op *operations.Oper
 
 // swagger:operation DELETE /1.0/images/{fingerprint} images image_delete
 //
-// Delete the image
+//	Delete the image
 //
-// Removes the image from the image store.
+//	Removes the image from the image store.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
@@ -2582,90 +2609,90 @@ func imageValidSecret(d *Daemon, r *http.Request, projectName string, fingerprin
 
 // swagger:operation GET /1.0/images/{fingerprint}?public images image_get_untrusted
 //
-// Get the public image
+//  Get the public image
 //
-// Gets a specific public image.
+//  Gets a specific public image.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: secret
-//     description: Secret token to retrieve a private image
-//     type: string
-//     example: RANDOM-STRING
-// responses:
-//   "200":
-//     description: Image
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: secret
+//      description: Secret token to retrieve a private image
+//      type: string
+//      example: RANDOM-STRING
+//  responses:
+//    "200":
+//      description: Image
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            $ref: "#/definitions/Image"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images/{fingerprint} images image_get
 //
-// Get the image
+//	Get the image
 //
-// Gets a specific image.
+//	Gets a specific image.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Image
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Image"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Image
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Image"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -2704,38 +2731,38 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/images/{fingerprint} images image_put
 //
-// Update the image
+//	Update the image
 //
-// Updates the entire image definition.
+//	Updates the entire image definition.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image
-//     description: Image configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImagePut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image
+//	    description: Image configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImagePut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imagePut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -2797,38 +2824,38 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/images/{fingerprint} images image_patch
 //
-// Partially update the image
+//	Partially update the image
 //
-// Updates a subset of the image definition.
+//	Updates a subset of the image definition.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image
-//     description: Image configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImagePut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image
+//	    description: Image configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImagePut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -2907,36 +2934,36 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/aliases images images_aliases_post
 //
-// Add an image alias
+//	Add an image alias
 //
-// Creates a new image alias.
+//	Creates a new image alias.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image alias
-//     description: Image alias
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageAliasesPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	req := api.ImageAliasesPost{}
@@ -2985,96 +3012,96 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/images/aliases images images_aliases_get
 //
-// Get the image aliases
+//  Get the image aliases
 //
-// Returns a list of image aliases (URLs).
+//  Returns a list of image aliases (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/images/aliases/foo",
-//               "/1.0/images/aliases/bar1"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/images/aliases/foo",
+//                "/1.0/images/aliases/bar1"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images/aliases?recursion=1 images images_aliases_get_recursion1
 //
-// Get the image aliases
+//	Get the image aliases
 //
-// Returns a list of image aliases (structs).
+//	Returns a list of image aliases (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of image aliases
-//           items:
-//             $ref: "#/definitions/ImageAliasesEntry"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of image aliases
+//	          items:
+//	            $ref: "#/definitions/ImageAliasesEntry"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
@@ -3122,86 +3149,86 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/images/aliases/{name}?public images image_alias_get_untrusted
 //
-// Get the public image alias
+//  Get the public image alias
 //
-// Gets a specific public image alias.
-// This untrusted endpoint only works for aliases pointing to public images.
+//  Gets a specific public image alias.
+//  This untrusted endpoint only works for aliases pointing to public images.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Image alias
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ImageAliasesEntry"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: Image alias
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            $ref: "#/definitions/ImageAliasesEntry"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images/aliases/{name} images image_alias_get
 //
-// Get the image alias
+//	Get the image alias
 //
-// Gets a specific image alias.
+//	Gets a specific image alias.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Image alias
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ImageAliasesEntry"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Image alias
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ImageAliasesEntry"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3226,28 +3253,28 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete
 //
-// Delete the image alias
+//	Delete the image alias
 //
-// Deletes a specific image alias.
+//	Deletes a specific image alias.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3280,38 +3307,38 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/images/aliases/{name} images images_aliases_put
 //
-// Update the image alias
+//	Update the image alias
 //
-// Updates the entire image alias configuration.
+//	Updates the entire image alias configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image alias
-//     description: Image alias configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -3369,38 +3396,38 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/images/aliases/{name} images images_alias_patch
 //
-// Partially update the image alias
+//	Partially update the image alias
 //
-// Updates a subset of the image alias configuration.
+//	Updates a subset of the image alias configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image alias
-//     description: Image alias configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
@@ -3473,36 +3500,36 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/aliases/{name} images images_alias_post
 //
-// Rename the image alias
+//	Rename the image alias
 //
-// Renames an existing image alias.
+//	Renames an existing image alias.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image alias
-//     description: Image alias rename request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageAliasesEntryPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image alias
+//	    description: Image alias rename request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageAliasesEntryPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
@@ -3552,58 +3579,58 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/images/{fingerprint}/export?public images image_export_get_untrusted
 //
-// Get the raw image file(s)
+//  Get the raw image file(s)
 //
-// Download the raw image file(s) of a public image from the server.
-// If the image is in split format, a multipart http transfer occurs.
+//  Download the raw image file(s) of a public image from the server.
+//  If the image is in split format, a multipart http transfer occurs.
 //
-// ---
-// produces:
-//   - application/octet-stream
-//   - multipart/form-data
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: secret
-//     description: Secret token to retrieve a private image
-//     type: string
-//     example: RANDOM-STRING
-// responses:
-//   "200":
-//     description: Raw image data
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/octet-stream
+//    - multipart/form-data
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: secret
+//      description: Secret token to retrieve a private image
+//      type: string
+//      example: RANDOM-STRING
+//  responses:
+//    "200":
+//      description: Raw image data
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/images/{fingerprint}/export images image_export_get
 //
-// Get the raw image file(s)
+//	Get the raw image file(s)
 //
-// Download the raw image file(s) from the server.
-// If the image is in split format, a multipart http transfer occurs.
+//	Download the raw image file(s) from the server.
+//	If the image is in split format, a multipart http transfer occurs.
 //
-// ---
-// produces:
-//   - application/octet-stream
-//   - multipart/form-data
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Raw image data
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/octet-stream
+//	  - multipart/form-data
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Raw image data
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -3708,32 +3735,32 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/{fingerprint}/export images images_export_post
 //
-// Make LXD push the image to a remote server
+//	Make LXD push the image to a remote server
 //
-// Gets LXD to connect to a remote server and push the image to it.
+//	Gets LXD to connect to a remote server and push the image to it.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: image
-//     description: Image push request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageExportPost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: image
+//	    description: Image push request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageExportPost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -3849,28 +3876,28 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/images/{fingerprint}/secret images images_secret_post
 //
-// Generate secret for retrieval of the image by an untrusted client
+//	Generate secret for retrieval of the image by an untrusted client
 //
-// This generates a background operation including a secret one time key
-// in its metadata which can be used to fetch this image from an untrusted
-// client.
+//	This generates a background operation including a secret one time key
+//	in its metadata which can be used to fetch this image from an untrusted
+//	client.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
@@ -3960,28 +3987,28 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 
 // swagger:operation POST /1.0/images/{fingerprint}/refresh images images_refresh_post
 //
-// Refresh an image
+//	Refresh an image
 //
-// This causes LXD to check the image source server for an updated
-// version of the image and if available to refresh the local copy with the
-// new version.
+//	This causes LXD to check the image source server for an updated
+//	version of the image and if available to refresh the local copy with the
+//	new version.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])

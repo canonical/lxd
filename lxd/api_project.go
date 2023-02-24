@@ -57,84 +57,84 @@ var projectStateCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/projects projects projects_get
 //
-// Get the projects
+//  Get the projects
 //
-// Returns a list of projects (URLs).
+//  Returns a list of projects (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/projects/default",
-//               "/1.0/projects/foo"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/projects/default",
+//                "/1.0/projects/foo"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/projects?recursion=1 projects projects_get_recursion1
 //
-// Get the projects
+//	Get the projects
 //
-// Returns a list of projects (structs).
+//	Returns a list of projects (structs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of projects
-//           items:
-//             $ref: "#/definitions/Project"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of projects
+//	          items:
+//	            $ref: "#/definitions/Project"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -242,31 +242,31 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 
 // swagger:operation POST /1.0/projects projects projects_post
 //
-// Add a project
+//	Add a project
 //
-// Creates a new project.
+//	Creates a new project.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: project
-//     description: Project
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ProjectsPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: project
+//	    description: Project
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ProjectsPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -366,38 +366,38 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 
 // swagger:operation GET /1.0/projects/{name} projects project_get
 //
-// Get the project
+//	Get the project
 //
-// Gets a specific project.
+//	Gets a specific project.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Project
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Project"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Project
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Project"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectGet(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -439,33 +439,33 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/projects/{name} projects project_put
 //
-// Update the project
+//	Update the project
 //
-// Updates the entire project configuration.
+//	Updates the entire project configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: project
-//     description: Project configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ProjectPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: project
+//	    description: Project configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ProjectPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -530,33 +530,33 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/projects/{name} projects project_patch
 //
-// Partially update the project
+//	Partially update the project
 //
-// Updates a subset of the project configuration.
+//	Updates a subset of the project configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: project
-//     description: Project configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ProjectPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: project
+//	    description: Project configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ProjectPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -756,31 +756,31 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 
 // swagger:operation POST /1.0/projects/{name} projects project_post
 //
-// Rename the project
+//	Rename the project
 //
-// Renames an existing project.
+//	Renames an existing project.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: project
-//     description: Project rename request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ProjectPost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: project
+//	    description: Project rename request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ProjectPost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -868,22 +868,22 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/projects/{name} projects project_delete
 //
-// Delete the project
+//	Delete the project
 //
-// Removes the project.
+//	Removes the project.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -940,38 +940,38 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/projects/{name}/state projects project_state_get
 //
-// Get the project state
+//	Get the project state
 //
-// Gets a specific project resource consumption information.
+//	Gets a specific project resource consumption information.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Project state
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ProjectState"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Project state
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ProjectState"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {

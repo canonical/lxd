@@ -128,38 +128,38 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/cluster cluster cluster_get
 //
-// Get the cluster configuration
+//	Get the cluster configuration
 //
-// Gets the current cluster configuration.
+//	Gets the current cluster configuration.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Cluster configuration
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Cluster"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster configuration
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Cluster"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 	serverName := s.ServerName
@@ -259,33 +259,33 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 // swagger:operation PUT /1.0/cluster cluster cluster_put
 //
-// Update the cluster configuration
+//	Update the cluster configuration
 //
-// Updates the entire cluster configuration.
+//	Updates the entire cluster configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterPut(d *Daemon, r *http.Request) response.Response {
 	req := api.ClusterPut{}
 
@@ -1042,84 +1042,84 @@ func clusterAcceptMember(client lxd.InstanceServer, name string, address string,
 
 // swagger:operation GET /1.0/cluster/members cluster cluster_members_get
 //
-// Get the cluster members
+//  Get the cluster members
 //
-// Returns a list of cluster members (URLs).
+//  Returns a list of cluster members (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/cluster/members/lxd01",
-//               "/1.0/cluster/members/lxd02"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/cluster/members/lxd01",
+//                "/1.0/cluster/members/lxd02"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/cluster/members?recursion=1 cluster cluster_members_get_recursion1
 //
-// Get the cluster members
+//	Get the cluster members
 //
-// Returns a list of cluster members (structs).
+//	Returns a list of cluster members (structs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of cluster members
-//           items:
-//             $ref: "#/definitions/ClusterMember"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of cluster members
+//	          items:
+//	            $ref: "#/definitions/ClusterMember"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 	s := d.State()
@@ -1209,31 +1209,31 @@ var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster
 
 // swagger:operation POST /1.0/cluster/members cluster cluster_members_post
 //
-// Request a join token
+//	Request a join token
 //
-// Requests a join token to add a cluster member.
+//	Requests a join token to add a cluster member.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster member add request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterMembersPost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster member add request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterMembersPost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1362,38 +1362,38 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/cluster/members/{name} cluster cluster_member_get
 //
-// Get the cluster member
+//	Get the cluster member
 //
-// Gets a specific cluster member.
+//	Gets a specific cluster member.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Cluster member
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ClusterMember"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster member
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterMember"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1467,66 +1467,66 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/cluster/members/{name} cluster cluster_member_patch
 //
-// Partially update the cluster member
+//	Partially update the cluster member
 //
-// Updates a subset of the cluster member configuration.
+//	Updates a subset of the cluster member configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster member configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterMemberPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster member configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterMemberPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 	return updateClusterNode(d, r, true)
 }
 
 // swagger:operation PUT /1.0/cluster/members/{name} cluster cluster_member_put
 //
-// Update the cluster member
+//	Update the cluster member
 //
-// Updates the entire cluster member configuration.
+//	Updates the entire cluster member configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster member configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterMemberPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster member configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterMemberPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 	return updateClusterNode(d, r, false)
 }
@@ -1765,31 +1765,31 @@ func clusterValidateConfig(config map[string]string) error {
 
 // swagger:operation POST /1.0/cluster/members/{name} cluster cluster_member_post
 //
-// Rename the cluster member
+//	Rename the cluster member
 //
-// Renames an existing cluster member.
+//	Renames an existing cluster member.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster member rename request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterMemberPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster member rename request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterMemberPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1821,22 +1821,22 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/cluster/members/{name} cluster cluster_member_delete
 //
-// Delete the cluster member
+//	Delete the cluster member
 //
-// Removes the member from the cluster.
+//	Removes the member from the cluster.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2079,32 +2079,32 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/cluster/certificate cluster clustering_update_cert
 //
-// Update the certificate for the cluster
+//	Update the certificate for the cluster
 //
-// Replaces existing cluster certificate and reloads LXD on each cluster
-// member.
+//	Replaces existing cluster certificate and reloads LXD on each cluster
+//	member.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster certificate replace request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterCertificatePut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster certificate replace request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterCertificatePut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -2720,31 +2720,31 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 
 // swagger:operation POST /1.0/cluster/members/{name}/state cluster cluster_member_state_post
 //
-// Evacuate or restore a cluster member
+//	Evacuate or restore a cluster member
 //
-// Evacuates or restores a cluster member.
+//	Evacuates or restores a cluster member.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster member state
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterMemberStatePost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster member state
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterMemberStatePost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3244,31 +3244,31 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/cluster/groups cluster cluster_groups_post
 //
-// Create a cluster group.
+//	Create a cluster group.
 //
-// Creates a new cluster group.
+//	Creates a new cluster group.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster
-//     description: Cluster group to create
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterGroupsPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster
+//	    description: Cluster group to create
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterGroupsPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3322,84 +3322,84 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/cluster/groups cluster-groups cluster_groups_get
 //
-// Get the cluster groups
+//  Get the cluster groups
 //
-// Returns a list of cluster groups (URLs).
+//  Returns a list of cluster groups (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/cluster/groups/lxd01",
-//               "/1.0/cluster/groups/lxd02"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/cluster/groups/lxd01",
+//                "/1.0/cluster/groups/lxd02"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/cluster/groups?recursion=1 cluster-groups cluster_groups_get_recursion1
 //
-// Get the cluster groups
+//	Get the cluster groups
 //
-// Returns a list of cluster groups (structs).
+//	Returns a list of cluster groups (structs).
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of cluster groups
-//           items:
-//             $ref: "#/definitions/ClusterGroup"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of cluster groups
+//	          items:
+//	            $ref: "#/definitions/ClusterGroup"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
@@ -3447,38 +3447,38 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/cluster/groups/{name} cluster-groups cluster_group_get
 //
-// Get the cluster group
+//	Get the cluster group
 //
-// Gets a specific cluster group.
+//	Gets a specific cluster group.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Cluster group
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ClusterGroup"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Cluster group
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ClusterGroup"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -3519,31 +3519,31 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/cluster/groups/{name} cluster-groups cluster_group_post
 //
-// Rename the cluster group
+//	Rename the cluster group
 //
-// Renames an existing cluster group.
+//	Renames an existing cluster group.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: name
-//     description: Cluster group rename request
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterGroupPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: name
+//	    description: Cluster group rename request
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterGroupPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3605,33 +3605,33 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/cluster/groups/{name} cluster-groups cluster_group_put
 //
-// Update the cluster group
+//	Update the cluster group
 //
-// Updates the entire cluster group configuration.
+//	Updates the entire cluster group configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster group
-//     description: cluster group configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterGroupPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster group
+//	    description: cluster group configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterGroupPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3730,33 +3730,33 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/cluster/groups/{name} cluster-groups cluster_group_patch
 //
-// Update the cluster group
+//	Update the cluster group
 //
-// Updates the cluster group configuration.
+//	Updates the cluster group configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: cluster group
-//     description: cluster group configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ClusterGroupPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: cluster group
+//	    description: cluster group configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ClusterGroupPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -3882,22 +3882,22 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/cluster/groups/{name} cluster-groups cluster_group_delete
 //
-// Delete the cluster group.
+//	Delete the cluster group.
 //
-// Removes the cluster group.
+//	Removes the cluster group.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
