@@ -58,12 +58,12 @@ func (d *ceph) osdPoolExists() bool {
 }
 
 // osdDeletePool destroys an OSD pool.
-// - A call to osdDeletePool will destroy a pool including any storage
-//   volumes that still exist in the pool.
-// - In case the OSD pool that is supposed to be deleted does not exist this
-//   command will still exit 0. This means that if the caller wants to be sure
-//   that this call actually deleted an OSD pool it needs to check for the
-//   existence of the pool first.
+//   - A call to osdDeletePool will destroy a pool including any storage
+//     volumes that still exist in the pool.
+//   - In case the OSD pool that is supposed to be deleted does not exist this
+//     command will still exit 0. This means that if the caller wants to be sure
+//     that this call actually deleted an OSD pool it needs to check for the
+//     existence of the pool first.
 func (d *ceph) osdDeletePool() error {
 	_, err := shared.RunCommand(
 		"ceph",
@@ -122,10 +122,10 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 }
 
 // rbdDeleteVolume deletes an RBD storage volume.
-// - In case the RBD storage volume that is supposed to be deleted does not
-//   exist this command will still exit 0. This means that if the caller wants
-//   to be sure that this call actually deleted an RBD storage volume it needs
-//   to check for the existence of the pool first.
+//   - In case the RBD storage volume that is supposed to be deleted does not
+//     exist this command will still exit 0. This means that if the caller wants
+//     to be sure that this call actually deleted an RBD storage volume it needs
+//     to check for the existence of the pool first.
 func (d *ceph) rbdDeleteVolume(vol Volume) error {
 	_, err := shared.RunCommand(
 		"rbd",
@@ -468,12 +468,12 @@ func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSn
 }
 
 // rbdGetVolumeParent will return the snapshot the RBD clone was created from:
-// - If the RBD storage volume is not a clone then this function will return
-//   db.NoSuchObjectError.
-// - The snapshot will be returned as
-//   <osd-pool-name>/<rbd-volume-name>@<rbd-snapshot-name>
-//   The caller will usually want to parse this according to its needs. This
-//   helper library provides two small functions to do this but see below.
+//   - If the RBD storage volume is not a clone then this function will return
+//     db.NoSuchObjectError.
+//   - The snapshot will be returned as
+//     <osd-pool-name>/<rbd-volume-name>@<rbd-snapshot-name>
+//     The caller will usually want to parse this according to its needs. This
+//     helper library provides two small functions to do this but see below.
 func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 	msg, err := shared.RunCommand(
 		"rbd",
@@ -623,22 +623,22 @@ func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName strin
 }
 
 // deleteVolume deletes the RBD storage volume of a container including any dependencies.
-// - This function takes care to delete any RBD storage entities that are marked
-//   as zombie and whose existence is solely dependent on the RBD storage volume
-//   for the container to be deleted.
-// - This function will mark any storage entities of the container to be deleted
-//   as zombies in case any RBD storage entities in the storage pool have a
-//   dependency relation with it.
-// - This function uses a C-style convention to return error or success simply
-//   because it is more elegant and simple than the go way.
-//   The function will return
-//   -1 on error
-//    0 if the RBD storage volume has been deleted
-//    1 if the RBD storage volume has been marked as a zombie
-// - deleteVolume in conjunction with deleteVolumeSnapshot
-//   recurses through an OSD storage pool to find and delete any storage
-//   entities that were kept around because of dependency relations but are not
-//   deletable.
+//   - This function takes care to delete any RBD storage entities that are marked
+//     as zombie and whose existence is solely dependent on the RBD storage volume
+//     for the container to be deleted.
+//   - This function will mark any storage entities of the container to be deleted
+//     as zombies in case any RBD storage entities in the storage pool have a
+//     dependency relation with it.
+//   - This function uses a C-style convention to return error or success simply
+//     because it is more elegant and simple than the go way.
+//     The function will return
+//     -1 on error
+//     0 if the RBD storage volume has been deleted
+//     1 if the RBD storage volume has been marked as a zombie
+//   - deleteVolume in conjunction with deleteVolumeSnapshot
+//     recurses through an OSD storage pool to find and delete any storage
+//     entities that were kept around because of dependency relations but are not
+//     deletable.
 func (d *ceph) deleteVolume(vol Volume) (int, error) {
 	snaps, err := d.rbdListVolumeSnapshots(vol)
 	if err == nil {
@@ -733,22 +733,22 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 }
 
 // deleteVolumeSnapshot deletes an RBD snapshot of a container including any dependencies.
-// - This function takes care to delete any RBD storage entities that are marked
-//   as zombie and whose existence is solely dependent on the RBD snapshot for
-//   the container to be deleted.
-// - This function will mark any storage entities of the container to be deleted
-//   as zombies in case any RBD storage entities in the storage pool have a
-//   dependency relation with it.
-// - This function uses a C-style convention to return error or success simply
-//   because it is more elegant and simple than the go way.
-//   The function will return
-//   -1 on error
-//    0 if the RBD storage volume has been deleted
-//    1 if the RBD storage volume has been marked as a zombie
-// - deleteVolumeSnapshot in conjunction with deleteVolume
-//   recurses through an OSD storage pool to find and delete any storage
-//   entities that were kept around because of dependency relations but are not
-//   deletable.
+//   - This function takes care to delete any RBD storage entities that are marked
+//     as zombie and whose existence is solely dependent on the RBD snapshot for
+//     the container to be deleted.
+//   - This function will mark any storage entities of the container to be deleted
+//     as zombies in case any RBD storage entities in the storage pool have a
+//     dependency relation with it.
+//   - This function uses a C-style convention to return error or success simply
+//     because it is more elegant and simple than the go way.
+//     The function will return
+//     -1 on error
+//     0 if the RBD storage volume has been deleted
+//     1 if the RBD storage volume has been marked as a zombie
+//   - deleteVolumeSnapshot in conjunction with deleteVolume
+//     recurses through an OSD storage pool to find and delete any storage
+//     entities that were kept around because of dependency relations but are not
+//     deletable.
 func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error) {
 	clones, err := d.rbdListSnapshotClones(vol, snapshotName)
 	if err != nil {
