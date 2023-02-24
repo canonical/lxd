@@ -206,67 +206,48 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name and MTU used.
 func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint32, error) {
-	peerName := network.RandomDevName("veth")
+	var err error
 
 	veth := &ip.Veth{
 		Link: ip.Link{
 			Name: hostName,
+			Up:   true,
 		},
-		PeerName: peerName,
+		Peer: ip.Link{
+			Name: network.RandomDevName("veth"),
+		},
 	}
 
-	err := veth.Add()
-	if err != nil {
-		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, peerName, err)
-	}
-
-	err = veth.SetUp()
-	if err != nil {
-		_ = network.InterfaceRemove(hostName)
-		return "", 0, fmt.Errorf("Failed to bring up the veth interface %q: %w", hostName, err)
-	}
-
-	// Set the MAC address on peer.
-	if m["hwaddr"] != "" {
-		link := &ip.Link{Name: peerName}
-		err := link.SetAddress(m["hwaddr"])
-		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MAC address: %w", err)
-		}
-	}
-
-	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
-	var mtu uint32
+	// Set the MTU on both ends. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
-		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
 		}
 
-		mtu = uint32(nicMTU)
+		veth.MTU = uint32(mtu)
 	} else if m["parent"] != "" {
-		mtu, err = network.GetDevMTU(m["parent"])
+		mtu, err := network.GetDevMTU(m["parent"])
 		if err != nil {
 			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
 		}
+
+		veth.MTU = mtu
 	}
 
-	if mtu > 0 {
-		err = NetworkSetDevMTU(peerName, mtu)
+	veth.Peer.MTU = veth.MTU
+
+	// Set the MAC address on peer.
+	if m["hwaddr"] != "" {
+		hwaddr, err := net.ParseMAC(m["hwaddr"])
 		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+			return "", 0, fmt.Errorf("Failed parsing MAC address %q: %w", m["hwaddr"], err)
 		}
 
-		err = NetworkSetDevMTU(hostName, mtu)
-		if err != nil {
-			_ = network.InterfaceRemove(peerName)
-			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
-		}
+		veth.Peer.Address = hwaddr
 	}
 
-	return peerName, mtu, nil
+	return veth.Peer.Name, veth.MTU, nil
 }
 
 // networkCreateTap creates and configures a TAP device.
