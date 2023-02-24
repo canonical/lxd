@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -120,7 +119,7 @@ func reconfigureNetworkInterfaces() {
 
 		link := ip.Link{
 			Name: currentNIC.Name,
-			MTU:  fmt.Sprintf("%d", currentNIC.MTU),
+			MTU:  uint32(currentNIC.MTU),
 		}
 
 		err := link.SetDown()
@@ -153,23 +152,21 @@ func reconfigureNetworkInterfaces() {
 
 		// Apply the MTU from the NIC config if needed.
 		if changeMTU {
-			newMTU := fmt.Sprintf("%d", nic.MTU)
-			err = link.SetMTU(newMTU)
+			err = link.SetMTU(nic.MTU)
 			if err != nil {
 				return err
 			}
 
+			link.MTU = nic.MTU
+
 			revert.Add(func() {
-				currentMTU := fmt.Sprintf("%d", currentNIC.MTU)
-				err := link.SetMTU(currentMTU)
+				err := link.SetMTU(uint32(currentNIC.MTU))
 				if err != nil {
 					return
 				}
 
-				link.MTU = currentMTU
+				link.MTU = uint32(currentNIC.MTU)
 			})
-
-			link.MTU = newMTU
 		}
 
 		err = link.SetUp()
