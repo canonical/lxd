@@ -151,6 +151,7 @@ snap_restore() {
   lxc exec bar -- rm /root/statelink
   lxc exec bar -- ln -s file_only_in_snap1 /root/statelink
   lxc exec bar -- mkdir /root/dir_only_in_snap1
+  initialUUID=$(lxc config get bar volatile.uuid)
   lxc stop bar --force
   lxc storage volume set "${pool}" container/bar user.foo=snap1
 
@@ -199,6 +200,45 @@ snap_restore() {
 
   # test restore using full snapshot name
   restore_and_compare_fs snap1
+
+  # Check that instances UUID are different before and after snapshoting
+  newUUID=$(lxc config get bar volatile.uuid)
+  if [ "${initialUUID}" = "${newUUID}" ]; then
+    echo "==> UUID of the instance should be different after restoring its snapshot"
+    false
+  fi
+
+  # Check that instances UUIS are different before and after snapshoting  (stateful mode)
+  if ! command -v criu >/dev/null 2>&1; then
+    echo "==> SKIP: stateful snapshotting with CRIU (missing binary)"
+  else
+    initialUUID=$(lxc config get bar volatile.uuid)
+    lxc start bar
+    lxc snapshot bar snap2 --stateful
+    restore_and_compare_fs snap2
+
+    newUUID=$(lxc config get bar volatile.uuid)
+    if [ "${initialUUID}" = "${newUUID}" ]; then
+      echo "==> UUID of the instance should be different after restoring its stateful snapshot"
+      false
+    fi
+
+    lxc stop bar --force
+  fi
+
+  # Check that instances have two different UUID after a snapshot copy
+  lxc launch testimage bar2
+  initialUUID=$(lxc config get bar2 volatile.uuid)
+  lxc copy bar2 bar3
+  newUUID=$(lxc config get bar3 volatile.uuid)
+
+  if [ "${initialUUID}" = "${newUUID}" ]; then
+    echo "==> UUID of the instance should be different after copying snapshot into instance"
+    false
+  fi
+
+  lxc delete --force bar2
+  lxc delete --force bar3
 
   # Check config value in snapshot has been restored
   cpus=$(lxc config get bar limits.cpu)
