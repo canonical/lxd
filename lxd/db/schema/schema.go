@@ -50,8 +50,8 @@ func New(updates []Update) *Schema {
 // (i.e. there are no missing versions).
 //
 // NOTE: the regular New() constructor would be formally enough, but for extra
-//       clarity we also support a map that indicates the version explicitly,
-//       see also PR #3704.
+// clarity we also support a map that indicates the version explicitly,
+// see also PR #3704.
 func NewFromMap(versionsToUpdates map[int]Update) *Schema {
 	// Collect all version keys.
 	versions := []int{}
@@ -117,8 +117,8 @@ func (s *Schema) Fresh(statement string) {
 // will be executed transactionally at the very start of Ensure(), before
 // anything else is done.
 //
-//If a schema hook was set with Hook(), it will be run before running the
-//queries in the file and it will be passed a patch version equals to -1.
+// If a schema hook was set with Hook(), it will be run before running the
+// queries in the file and it will be passed a patch version equals to -1.
 func (s *Schema) File(path string) {
 	s.path = path
 }
