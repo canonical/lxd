@@ -32,10 +32,10 @@ func socketUnixListen(path string) (*net.UnixListener, error) {
 // CheckAlreadyRunning checks if the socket at the given path is already
 // bound to a running LXD process, and return an error if so.
 //
-// FIXME: We should probably rather just try a regular unix socket
-//        connection without using the client. However this is the way
-//        this logic has historically behaved, so let's keep it like it
-//        was.
+//	FIXME: We should probably rather just try a regular unix socket
+//		connection without using the client. However this is the way
+//		this logic has historically behaved, so let's keep it like it
+//		was.
 func CheckAlreadyRunning(path string) error {
 	// If socket activated, nothing to do
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
