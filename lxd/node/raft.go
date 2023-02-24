@@ -16,19 +16,19 @@ import (
 //
 // The following rules are applied:
 //
-// - If no cluster.https_address config key is set, this is a non-clustered node
-//   and the returned RaftNode will have ID 1 but no address, to signal that
-//   the node should setup an in-memory raft cluster where the node itself
-//   is the only member and leader.
+//   - If no cluster.https_address config key is set, this is a non-clustered node
+//     and the returned RaftNode will have ID 1 but no address, to signal that
+//     the node should setup an in-memory raft cluster where the node itself
+//     is the only member and leader.
 //
-// - If cluster.https_address config key is set, but there is no row in the
-//   raft_nodes table, this is a brand new clustered node that is joining a
-//   cluster, and same behavior as the previous case applies.
+//   - If cluster.https_address config key is set, but there is no row in the
+//     raft_nodes table, this is a brand new clustered node that is joining a
+//     cluster, and same behavior as the previous case applies.
 //
-// - If cluster.https_address config key is set and there is at least one row
-//   in the raft_nodes table, then this node is considered a raft node if
-//   cluster.https_address matches one of the rows in raft_nodes. In that case,
-//   the matching db.RaftNode row is returned, otherwise nil.
+//   - If cluster.https_address config key is set and there is at least one row
+//     in the raft_nodes table, then this node is considered a raft node if
+//     cluster.https_address matches one of the rows in raft_nodes. In that case,
+//     the matching db.RaftNode row is returned, otherwise nil.
 func DetermineRaftNode(ctx context.Context, tx *db.NodeTx) (*db.RaftNode, error) {
 	config, err := ConfigLoad(ctx, tx)
 	if err != nil {
