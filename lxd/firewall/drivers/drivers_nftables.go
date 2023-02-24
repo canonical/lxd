@@ -384,7 +384,7 @@ func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
 	return nil
 }
 
-//instanceDeviceLabel returns the unique label used for instance device chains.
+// instanceDeviceLabel returns the unique label used for instance device chains.
 func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName string) string {
 	return fmt.Sprintf("%s%s%s", project.Instance(projectName, instanceName), nftablesChainSeparator, deviceName)
 }
