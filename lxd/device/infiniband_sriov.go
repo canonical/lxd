@@ -118,8 +118,13 @@ func (d *infinibandSRIOV) startContainer() (*deviceConfig.RunConfig, error) {
 
 	// Set the MTU.
 	if d.config["mtu"] != "" {
+		mtu, err := strconv.ParseUint(d.config["mtu"], 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid MTU specified %q: %w", d.config["mtu"], err)
+		}
+
 		link := &ip.Link{Name: saveData["host_name"]}
-		err := link.SetMTU(d.config["mtu"])
+		err = link.SetMTU(uint32(mtu))
 		if err != nil {
 			return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
 		}
