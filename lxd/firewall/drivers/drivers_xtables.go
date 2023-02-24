@@ -799,7 +799,7 @@ func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint
 	return nil
 }
 
-//instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
+// instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
 func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName string, deviceName string) string {
 	return fmt.Sprintf("LXD container %s (%s)", project.Instance(projectName, instanceName), deviceName)
 }
