@@ -711,7 +711,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		// Set the MAC address on the bridge interface if specified.
 		if bridge.Address != nil {
-			err = bridge.SetAddress(bridge.Address.String())
+			err = bridge.SetAddress(bridge.Address)
 			if err != nil {
 				return err
 			}
