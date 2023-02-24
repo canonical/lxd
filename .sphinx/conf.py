@@ -24,7 +24,8 @@ extensions = [
     "sphinxcontrib.jquery",
     "sphinx_copybutton",
     "sphinx.ext.intersphinx",
-    "terminal-output"
+    "terminal-output",
+    "config-options"
 ]
 
 myst_enable_extensions = [
