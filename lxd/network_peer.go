@@ -38,96 +38,96 @@ var networkPeerCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/networks/{networkName}/peers network-peers network_peers_get
 //
-// Get the network peers
+//  Get the network peers
 //
-// Returns a list of network peers (URLs).
+//  Returns a list of network peers (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/networks/lxdbr0/peers/my-peer-1",
-//               "/1.0/networks/lxdbr0/peers/my-peer-2"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/networks/lxdbr0/peers/my-peer-1",
+//                "/1.0/networks/lxdbr0/peers/my-peer-2"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/networks/{networkName}/peers?recursion=1 network-peers network_peer_get_recursion1
 //
-// Get the network peers
+//	Get the network peers
 //
-// Returns a list of network peers (structs).
+//	Returns a list of network peers (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of network peers
-//           items:
-//             $ref: "#/definitions/NetworkPeer"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of network peers
+//	          items:
+//	            $ref: "#/definitions/NetworkPeer"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -183,38 +183,38 @@ func networkPeersGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/networks/{networkName}/peers network-peers network_peers_post
 //
-// Add a network peer
+//	Add a network peer
 //
-// Initiates/creates a new network peering.
+//	Initiates/creates a new network peering.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: peer
-//     description: Peer
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkPeersPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "202":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: peer
+//	    description: Peer
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkPeersPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "202":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -267,28 +267,28 @@ func networkPeersPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_delete
 //
-// Delete the network peer
+//	Delete the network peer
 //
-// Removes the network peering.
+//	Removes the network peering.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -338,44 +338,44 @@ func networkPeerDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_get
 //
-// Get the network peer
+//	Get the network peer
 //
-// Gets a specific network peering.
+//	Gets a specific network peering.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Peer
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/NetworkPeer"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Peer
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/NetworkPeer"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -425,73 +425,73 @@ func networkPeerGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_patch
 //
-// Partially update the network peer
+//  Partially update the network peer
 //
-// Updates a subset of the network peering configuration.
+//  Updates a subset of the network peering configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: Peer
-//     description: Peer configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkPeerPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: body
+//      name: Peer
+//      description: Peer configuration
+//      required: true
+//      schema:
+//        $ref: "#/definitions/NetworkPeerPut"
+//  responses:
+//    "200":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "412":
+//      $ref: "#/responses/PreconditionFailed"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation PUT /1.0/networks/{networkName}/peers/{peerName} network-peers network_peer_put
 //
-// Update the network peer
+//	Update the network peer
 //
-// Updates the entire network peering configuration.
+//	Updates the entire network peering configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: peer
-//     description: Peer configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkPeerPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: peer
+//	    description: Peer configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkPeerPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkPeerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

@@ -52,171 +52,171 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 
 // swagger:operation GET /1.0/instances instances instances_get
 //
-// Get the instances
+//  Get the instances
 //
-// Returns a list of instances (URLs).
+//  Returns a list of instances (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-//   - in: query
-//     name: all-projects
-//     description: Retrieve instances from all projects
-//     type: boolean
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/instances/foo",
-//               "/1.0/instances/bar"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve instances from all projects
+//      type: boolean
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/instances/foo",
+//                "/1.0/instances/bar"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/instances?recursion=1 instances instances_get_recursion1
 //
-// Get the instances
+//  Get the instances
 //
-// Returns a list of instances (basic structs).
+//  Returns a list of instances (basic structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-//   - in: query
-//     name: all-projects
-//     description: Retrieve instances from all projects
-//     type: boolean
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of instances
-//           items:
-//             $ref: "#/definitions/Instance"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve instances from all projects
+//      type: boolean
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of instances
+//            items:
+//              $ref: "#/definitions/Instance"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/instances?recursion=2 instances instances_get_recursion2
 //
-// Get the instances
+//  Get the instances
 //
-// Returns a list of instances (full structs).
+//  Returns a list of instances (full structs).
 //
-// The main difference between recursion=1 and recursion=2 is that the
-// latter also includes state and snapshot information allowing for a
-// single API call to return everything needed by most clients.
+//  The main difference between recursion=1 and recursion=2 is that the
+//  latter also includes state and snapshot information allowing for a
+//  single API call to return everything needed by most clients.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: filter
-//     description: Collection filter
-//     type: string
-//     example: default
-//   - in: query
-//     name: all-projects
-//     description: Retrieve instances from all projects
-//     type: boolean
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of instances
-//           items:
-//             $ref: "#/definitions/InstanceFull"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: filter
+//      description: Collection filter
+//      type: string
+//      example: default
+//    - in: query
+//      name: all-projects
+//      description: Retrieve instances from all projects
+//      type: boolean
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of instances
+//            items:
+//              $ref: "#/definitions/InstanceFull"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 func instancesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
