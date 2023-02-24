@@ -154,37 +154,37 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 // swagger:operation GET /1.0/events server events_get
 //
-// Get the event stream
+//	Get the event stream
 //
-// Connects to the event API using websocket.
+//	Connects to the event API using websocket.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: type
-//     description: Event type(s), comma separated (valid types are logging, operation or lifecycle)
-//     type: string
-//     example: logging,lifecycle
-//   - in: query
-//     name: all-projects
-//     description: Retrieve instances from all projects
-//     type: boolean
-// responses:
-//   "200":
-//     description: Websocket message (JSON)
-//     schema:
-//       $ref: "#/definitions/Event"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: type
+//	    description: Event type(s), comma separated (valid types are logging, operation or lifecycle)
+//	    type: string
+//	    example: logging,lifecycle
+//	  - in: query
+//	    name: all-projects
+//	    description: Retrieve instances from all projects
+//	    type: boolean
+//	responses:
+//	  "200":
+//	    description: Websocket message (JSON)
+//	    schema:
+//	      $ref: "#/definitions/Event"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func eventsGet(d *Daemon, r *http.Request) response.Response {
 	return &eventsServe{req: r, d: d}
 }

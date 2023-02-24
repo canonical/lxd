@@ -82,8 +82,8 @@ func DirectAccess(db *sql.DB) *Node {
 // DB returns the low level database handle to the node-local SQLite
 // database.
 //
-// FIXME: this is used for compatibility with some legacy code, and should be
-//        dropped once there are no call sites left.
+//	FIXME: this is used for compatibility with some legacy code, and should be
+//		dropped once there are no call sites left.
 func (n *Node) DB() *sql.DB {
 	return n.db
 }
@@ -411,8 +411,8 @@ func (c *Cluster) Close() error {
 
 // DB returns the low level database handle to the cluster database.
 //
-// FIXME: this is used for compatibility with some legacy code, and should be
-//        dropped once there are no call sites left.
+//	FIXME: this is used for compatibility with some legacy code, and should be
+//		dropped once there are no call sites left.
 func (c *Cluster) DB() *sql.DB {
 	return c.db
 }

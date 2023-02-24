@@ -39,96 +39,96 @@ var networkLoadBalancerCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/networks/{networkName}/load-balancers network-load-balancers network_load_balancers_get
 //
-// Get the network address of load balancers
+//  Get the network address of load balancers
 //
-// Returns a list of network address load balancers (URLs).
+//  Returns a list of network address load balancers (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/networks/lxdbr0/load-balancers/192.0.2.1",
-//               "/1.0/networks/lxdbr0/load-balancers/192.0.2.2"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/networks/lxdbr0/load-balancers/192.0.2.1",
+//                "/1.0/networks/lxdbr0/load-balancers/192.0.2.2"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/networks/{networkName}/load-balancers?recursion=1 network-load-balancers network_load_balancer_get_recursion1
 //
-// Get the network address load balancers
+//	Get the network address load balancers
 //
-// Returns a list of network address load balancers (structs).
+//	Returns a list of network address load balancers (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of network address load balancers
-//           items:
-//             $ref: "#/definitions/NetworkLoadBalancer"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of network address load balancers
+//	          items:
+//	            $ref: "#/definitions/NetworkLoadBalancer"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -186,36 +186,36 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/networks/{networkName}/load-balancers network-load-balancers network_load_balancers_post
 //
-// Add a network load balancer
+//	Add a network load balancer
 //
-// Creates a new network load balancer.
+//	Creates a new network load balancer.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: load-balancer
-//     description: Load Balancer
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkLoadBalancersPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: load-balancer
+//	    description: Load Balancer
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkLoadBalancersPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -272,28 +272,28 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_delete
 //
-// Delete the network address load balancer
+//	Delete the network address load balancer
 //
-// Removes the network address load balancer.
+//	Removes the network address load balancer.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -345,44 +345,44 @@ func networkLoadBalancerDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_get
 //
-// Get the network address load balancer
+//	Get the network address load balancer
 //
-// Gets a specific network address load balancer.
+//	Gets a specific network address load balancer.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Load Balancer
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/NetworkLoadBalancer"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Load Balancer
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/NetworkLoadBalancer"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -433,73 +433,73 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_patch
 //
-// Partially update the network address load balancer
+//  Partially update the network address load balancer
 //
-// Updates a subset of the network address load balancer configuration.
+//  Updates a subset of the network address load balancer configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: load-balancer
-//     description: Address load balancer configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkLoadBalancerPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: body
+//      name: load-balancer
+//      description: Address load balancer configuration
+//      required: true
+//      schema:
+//        $ref: "#/definitions/NetworkLoadBalancerPut"
+//  responses:
+//    "200":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "412":
+//      $ref: "#/responses/PreconditionFailed"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation PUT /1.0/networks/{networkName}/load-balancers/{listenAddress} network-load-balancers network_load_balancer_put
 //
-// Update the network address load balancer
+//	Update the network address load balancer
 //
-// Updates the entire network address load balancer configuration.
+//	Updates the entire network address load balancer configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: load-balancer
-//     description: Address load balancer configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkLoadBalancerPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: load-balancer
+//	    description: Address load balancer configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkLoadBalancerPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

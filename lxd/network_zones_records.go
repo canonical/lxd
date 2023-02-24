@@ -38,96 +38,96 @@ var networkZoneRecordCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/network-zones/{zone}/records network-zones network_zone_records_get
 //
-// Get the network zone records
+//  Get the network zone records
 //
-// Returns a list of network zone records (URLs).
+//  Returns a list of network zone records (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/network-zones/example.net/records/foo",
-//               "/1.0/network-zones/example.net/records/bar"
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/network-zones/example.net/records/foo",
+//                "/1.0/network-zones/example.net/records/bar"
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/network-zones/{zone}/records?recursion=1 network-zones network_zone_records_get_recursion1
 //
-// Get the network zone records
+//	Get the network zone records
 //
-// Returns a list of network zone records (structs).
+//	Returns a list of network zone records (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of network zone records
-//           items:
-//             $ref: "#/definitions/NetworkZoneRecord"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of network zone records
+//	          items:
+//	            $ref: "#/definitions/NetworkZoneRecord"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -172,36 +172,36 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/network-zones/{zone}/records network-zones network_zone_records_post
 //
-// Add a network zone record
+//	Add a network zone record
 //
-// Creates a new network zone record.
+//	Creates a new network zone record.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: zone
-//     description: zone
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkZoneRecordsPost"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: zone
+//	    description: zone
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkZoneRecordsPost"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -240,28 +240,28 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_delete
 //
-// Delete the network zone record
+//	Delete the network zone record
 //
-// Removes the network zone record.
+//	Removes the network zone record.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -297,44 +297,44 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_get
 //
-// Get the network zone record
+//	Get the network zone record
 //
-// Gets a specific network zone record.
+//	Gets a specific network zone record.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: zone
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/NetworkZoneRecord"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: zone
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/NetworkZoneRecord"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -368,73 +368,73 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_patch
 //
-// Partially update the network zone record
+//  Partially update the network zone record
 //
-// Updates a subset of the network zone record configuration.
+//  Updates a subset of the network zone record configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: zone
-//     description: zone record configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkZoneRecordPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: body
+//      name: zone
+//      description: zone record configuration
+//      required: true
+//      schema:
+//        $ref: "#/definitions/NetworkZoneRecordPut"
+//  responses:
+//    "200":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "412":
+//      $ref: "#/responses/PreconditionFailed"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation PUT /1.0/network-zones/{zone}/records/{name} network-zones network_zone_record_put
 //
-// Update the network zone record
+//	Update the network zone record
 //
-// Updates the entire network zone record configuration.
+//	Updates the entire network zone record configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: zone
-//     description: zone record configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/NetworkZoneRecordPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: zone
+//	    description: zone record configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/NetworkZoneRecordPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	projectName, _, err := project.NetworkZoneProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
