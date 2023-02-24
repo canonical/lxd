@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -14,34 +15,64 @@ import (
 
 // Link represents base arguments for link device.
 type Link struct {
-	Name   string
-	MTU    string
-	Parent string
+	Name          string
+	MTU           uint32
+	Parent        string
+	Address       net.HardwareAddr
+	TXQueueLength uint32
+	AllMutlicast  bool
+	Master        string
+	Up            bool
 }
 
 // args generate common arguments for the virtual link.
-func (l *Link) args(linkType string) []string {
+func (l *Link) args() []string {
 	var result []string
+
+	if l.Name != "" {
+		result = append(result, "name", l.Name)
+	}
+
 	if l.Parent != "" {
 		result = append(result, "link", l.Parent)
 	}
 
-	if l.MTU != "" {
-		result = append(result, "mtu", l.MTU)
+	if l.MTU > 0 {
+		result = append(result, "mtu", fmt.Sprintf("%d", l.MTU))
 	}
 
-	result = append(result, "type", linkType)
+	if l.Address != nil {
+		result = append(result, "address", l.Address.String())
+	}
+
+	if l.TXQueueLength > 0 {
+		result = append(result, "txqueuelen", fmt.Sprintf("%d", l.TXQueueLength))
+	}
+
+	if l.AllMutlicast {
+		result = append(result, "allmulticast", "on")
+	}
+
+	if l.Master != "" {
+		result = append(result, "master", l.Master)
+	}
+
+	if l.Up {
+		result = append(result, "up")
+	}
+
 	return result
 }
 
 // add adds new virtual link.
 func (l *Link) add(linkType string, additionalArgs []string) error {
-	cmd := []string{"link", "add", l.Name}
-	cmd = append(cmd, l.args(linkType)...)
+	cmd := append([]string{"link", "add"}, l.args()...)
+	cmd = append(cmd, "type", linkType)
 	cmd = append(cmd, additionalArgs...)
+
 	_, err := shared.RunCommand("ip", cmd...)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed adding link: %w", err)
 	}
 
 	return nil
@@ -68,8 +99,8 @@ func (l *Link) SetDown() error {
 }
 
 // SetMTU sets the MTU of the link device.
-func (l *Link) SetMTU(mtu string) error {
-	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "mtu", mtu)
+func (l *Link) SetMTU(mtu uint32) error {
+	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "mtu", fmt.Sprintf("%d", mtu))
 	if err != nil {
 		return err
 	}
@@ -88,8 +119,8 @@ func (l *Link) SetTXQueueLength(queueLength uint32) error {
 }
 
 // SetAddress sets the address of the link device.
-func (l *Link) SetAddress(address string) error {
-	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "address", address)
+func (l *Link) SetAddress(address net.HardwareAddr) error {
+	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "address", address.String())
 	if err != nil {
 		return err
 	}

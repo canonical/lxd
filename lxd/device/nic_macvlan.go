@@ -2,8 +2,10 @@ package device
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -174,77 +176,66 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		})
 	}
 
-	if d.inst.Type() == instancetype.Container {
-		// Create MACVLAN interface.
-		macvlan := &ip.Macvlan{
-			Link: ip.Link{
-				Name:   saveData["host_name"],
-				Parent: actualParentName,
-			},
-			Mode: "bridge",
-		}
+	// Create MACVLAN interface.
+	link := &ip.Macvlan{
+		Link: ip.Link{
+			Name:   saveData["host_name"],
+			Parent: actualParentName,
+		},
+		Mode: "bridge",
+	}
 
-		err = macvlan.Add()
+	// Set the MAC address.
+	if d.config["hwaddr"] != "" {
+		hwaddr, err := net.ParseMAC(d.config["hwaddr"])
 		if err != nil {
-			return nil, err
-		}
-	} else if d.inst.Type() == instancetype.VM {
-		// Create MACVTAP interface.
-		macvtap := &ip.Macvtap{
-			Macvlan: ip.Macvlan{
-				Link: ip.Link{
-					Name:   saveData["host_name"],
-					Parent: actualParentName,
-				},
-				Mode: "bridge",
-			},
+			return nil, fmt.Errorf("Failed parsing MAC address %q: %w", d.config["hwaddr"], err)
 		}
 
-		err = macvtap.Add()
+		link.Address = hwaddr
+	}
+
+	// Set the MTU.
+	if d.config["mtu"] != "" {
+		mtu, err := strconv.ParseUint(d.config["mtu"], 10, 32)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Invalid MTU specified %q: %w", d.config["mtu"], err)
 		}
 
+		link.MTU = uint32(mtu)
+	}
+
+	if d.inst.Type() == instancetype.VM {
 		// Enable all multicast processing which is required for IPv6 NDP functionality.
-		link := &ip.Link{Name: saveData["host_name"]}
-		err = link.SetAllMulticast(true)
-		if err != nil {
-			return nil, fmt.Errorf("Failed setting all multicast on %q: %w", link.Name, err)
+		link.AllMutlicast = true
+
+		// Bring the interface up on host side.
+		link.Up = true
+
+		// Create macvtap interface using common macvlan settings.
+		link := &ip.Macvtap{
+			Macvlan: *link,
 		}
 
-		// Disable IPv6 on host interface to avoid getting IPv6 link-local addresses unnecessarily.
-		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", link.Name), "1")
-		if err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Failed to disable IPv6 on host interface %q: %w", link.Name, err)
+		err = link.Add()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Create macvlan interface.
+		err = link.Add()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
 
-	// Set the MAC address.
-	if d.config["hwaddr"] != "" {
-		link := &ip.Link{Name: saveData["host_name"]}
-		err := link.SetAddress(d.config["hwaddr"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
-		}
-	}
-
-	// Set the MTU.
-	if d.config["mtu"] != "" {
-		link := &ip.Link{Name: saveData["host_name"]}
-		err := link.SetMTU(d.config["mtu"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
-		}
-	}
-
 	if d.inst.Type() == instancetype.VM {
-		// Bring the interface up on host side.
-		link := &ip.Link{Name: saveData["host_name"]}
-		err := link.SetUp()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to bring up interface %s: %w", saveData["host_name"], err)
+		// Disable IPv6 on host interface to avoid getting IPv6 link-local addresses unnecessarily.
+		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", link.Name), "1")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Failed to disable IPv6 on host interface %q: %w", link.Name, err)
 		}
 	}
 
