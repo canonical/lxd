@@ -14,6 +14,11 @@ func (d *none) CanMigrate() bool {
 	return true
 }
 
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *none) CanHotPlug() bool {
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 // validateConfig checks the supplied config for correctness.
 func (d *none) validateConfig(instConf instance.ConfigReader) error {
