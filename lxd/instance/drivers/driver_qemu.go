@@ -6475,6 +6475,10 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 }
 
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
+	if !d.IsRunning() {
+		return nil, ErrInstanceIsStopped
+	}
+
 	if d.agentMetricsEnabled() {
 		metrics, err := d.getAgentMetrics()
 		if err != nil {
