@@ -1157,7 +1157,9 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 			Link: ip.Link{
 				Name: vars.uplinkEnd,
 			},
-			PeerName: vars.ovsEnd,
+			Peer: ip.Link{
+				Name: vars.ovsEnd,
+			},
 		}
 
 		err := veth.Add()
