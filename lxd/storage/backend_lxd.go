@@ -5474,6 +5474,11 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 	contentType := InstanceContentType(inst)
 	vol := b.GetVolume(volType, contentType, volStorageName, config.Volume.Config)
 
+	// Only need to activate and mount the VM's config volume.
+	if inst.Type() == instancetype.VM {
+		vol = vol.NewVMBlockFilesystemVolume()
+	}
+
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// Write the YAML
