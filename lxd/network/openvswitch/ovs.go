@@ -62,7 +62,7 @@ func (o *OVS) BridgeExists(bridgeName string) (bool, error) {
 }
 
 // BridgeAdd adds an OVS bridge.
-func (o *OVS) BridgeAdd(bridgeName string, mayExist bool) error {
+func (o *OVS) BridgeAdd(bridgeName string, mayExist bool, hwaddr net.HardwareAddr, mtu uint32) error {
 	args := []string{}
 
 	if mayExist {
@@ -70,6 +70,14 @@ func (o *OVS) BridgeAdd(bridgeName string, mayExist bool) error {
 	}
 
 	args = append(args, "add-br", bridgeName)
+
+	if hwaddr != nil {
+		args = append(args, "--", "set", "bridge", bridgeName, fmt.Sprintf(`other-config:hwaddr="%s"`, hwaddr.String()))
+	}
+
+	if mtu > 0 {
+		args = append(args, "--", "set", "int", bridgeName, fmt.Sprintf(`mtu_request=%d`, mtu))
+	}
 
 	_, err := shared.RunCommand("ovs-vsctl", args...)
 	if err != nil {
