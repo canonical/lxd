@@ -783,3 +783,26 @@ test_backup_volume_rename_delete() {
   lxc storage volume rm "${pool}" vol2
   ! stat "${LXD_DIR}"/backups/custom/"${pool}"/default_vol2 || false
 }
+
+test_backup_different_instance_uuid() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  echo "==> Checking instances UUID during backup operation"
+  lxc launch testimage c1
+  initialUUID=$(lxc config get c1 volatile.uuid)
+
+  # export and import to trigger new UUID generation
+  lxc export c1 "${LXD_DIR}/c1.tar.gz"
+  lxc delete -f c1
+  lxc import "${LXD_DIR}/c1.tar.gz"
+
+  newUUID=$(lxc config get c1 volatile.uuid)
+
+  if [ "${initialUUID}" = "${newUUID}" ]; then
+    echo "==> UUID of the instance should be different after importing the backup file"
+    false
+  fi
+
+  lxc delete -f c1
+}
