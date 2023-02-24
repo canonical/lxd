@@ -401,7 +401,7 @@ WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 	return uris, nil
 }
 
-//AddNodeToClusterGroup adds a given node to the given cluster group.
+// AddNodeToClusterGroup adds a given node to the given cluster group.
 func (c *ClusterTx) AddNodeToClusterGroup(ctx context.Context, groupName string, nodeName string) error {
 	groupID, err := c.GetClusterGroupID(groupName)
 	if err != nil {
@@ -441,7 +441,7 @@ func (c *ClusterTx) RemoveNodeFromClusterGroup(ctx context.Context, groupName st
 	return nil
 }
 
-//GetClusterGroupsWithNode returns a list of cluster group names the given node belongs to.
+// GetClusterGroupsWithNode returns a list of cluster group names the given node belongs to.
 func (c *ClusterTx) GetClusterGroupsWithNode(ctx context.Context, nodeName string) ([]string, error) {
 	q := `SELECT cluster_groups.name FROM nodes_cluster_groups
 JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id
