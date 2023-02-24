@@ -59,92 +59,92 @@ func filterWarnings(warnings []api.Warning, clauses []filter.Clause) []api.Warni
 
 // swagger:operation GET /1.0/warnings warnings warnings_get
 //
-// List the warnings
+//  List the warnings
 //
-// Returns a list of warnings.
+//  Returns a list of warnings.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Sync response
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/warnings/39c61a48-cc17-40ae-8248-4f7b4cadedf4",
-//               "/1.0/warnings/951779a5-2820-4d96-b01e-88fe820e5310"
-//             ]
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: Sync response
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/warnings/39c61a48-cc17-40ae-8248-4f7b4cadedf4",
+//                "/1.0/warnings/951779a5-2820-4d96-b01e-88fe820e5310"
+//              ]
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/warnings?recursion=1 warnings warnings_get_recursion1
 //
-// Get the warnings
+//	Get the warnings
 //
-// Returns a list of warnings (structs).
+//	Returns a list of warnings (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of warnings
-//           items:
-//             $ref: "#/definitions/Warning"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of warnings
+//	          items:
+//	            $ref: "#/definitions/Warning"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func warningsGet(d *Daemon, r *http.Request) response.Response {
 	// Parse the recursion field
 	recursionStr := r.FormValue("recursion")
@@ -215,38 +215,38 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/warnings/{uuid} warnings warning_get
 //
-// Get the warning
+//	Get the warning
 //
-// Gets a specific warning.
+//	Gets a specific warning.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     description: Warning
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Warning"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    description: Warning
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Warning"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func warningGet(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
@@ -278,62 +278,62 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/warnings/{uuid} warnings warning_patch
 //
-// Partially update the warning
+//	Partially update the warning
 //
-// Updates a subset of the warning status.
+//	Updates a subset of the warning status.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: warning
-//     description: Warning status
-//     required: true
-//     schema:
-//       $ref: "#/definitions/WarningPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: warning
+//	    description: Warning status
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/WarningPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func warningPatch(d *Daemon, r *http.Request) response.Response {
 	return warningPut(d, r)
 }
 
 // swagger:operation PUT /1.0/warnings/{uuid} warnings warning_put
 //
-// Update the warning
+//	Update the warning
 //
-// Updates the warning status.
+//	Updates the warning status.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: body
-//     name: warning
-//     description: Warning status
-//     required: true
-//     schema:
-//       $ref: "#/definitions/WarningPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: body
+//	    name: warning
+//	    description: Warning status
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/WarningPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func warningPut(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
@@ -381,18 +381,18 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/warnings/{uuid} warnings warning_delete
 //
-// Delete the warning
+//	Delete the warning
 //
-// Removes the warning.
+//	Removes the warning.
 //
-// ---
-// produces:
-//   - application/json
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func warningDelete(d *Daemon, r *http.Request) response.Response {
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {

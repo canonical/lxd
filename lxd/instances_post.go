@@ -736,48 +736,48 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 
 // swagger:operation POST /1.0/instances instances instances_post
 //
-// Create a new instance
+//	Create a new instance
 //
-// Creates a new instance on LXD.
-// Depending on the source, this can create an instance from an existing
-// local image, remote image, existing local instance or snapshot, remote
-// migration stream or backup file.
+//	Creates a new instance on LXD.
+//	Depending on the source, this can create an instance from an existing
+//	local image, remote image, existing local instance or snapshot, remote
+//	migration stream or backup file.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member
-//     type: string
-//     example: default
-//   - in: body
-//     name: instance
-//     description: Instance request
-//     required: false
-//     schema:
-//       $ref: "#/definitions/InstancesPost"
-//   - in: body
-//     name: raw_backup
-//     description: Raw backup file
-//     required: false
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: instance
+//	    description: Instance request
+//	    required: false
+//	    schema:
+//	      $ref: "#/definitions/InstancesPost"
+//	  - in: body
+//	    name: raw_backup
+//	    description: Raw backup file
+//	    required: false
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instancesPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

@@ -26,44 +26,44 @@ import (
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
 //
-// Get the instance image metadata
+//	Get the instance image metadata
 //
-// Gets the image metadata for the instance.
+//	Gets the image metadata for the instance.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Image metadata
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ImageMetadata"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Image metadata
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ImageMetadata"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -142,38 +142,38 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/instances/{name}/metadata instances instance_metadata_patch
 //
-// Partially update the image metadata
+//	Partially update the image metadata
 //
-// Updates a subset of the instance image metadata.
+//	Updates a subset of the instance image metadata.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: metadata
-//     description: Image metadata
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageMetadata"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: metadata
+//	    description: Image metadata
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageMetadata"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -260,38 +260,38 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/instances/{name}/metadata instances instance_metadata_put
 //
-// Update the image metadata
+//	Update the image metadata
 //
-// Updates the instance image metadata.
+//	Updates the instance image metadata.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: metadata
-//     description: Image metadata
-//     required: true
-//     schema:
-//       $ref: "#/definitions/ImageMetadata"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: metadata
+//	    description: Image metadata
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/ImageMetadata"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -368,52 +368,52 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 
 // swagger:operation GET /1.0/instances/{name}/metadata/templates instances instance_metadata_templates_get
 //
-// Get the template file names or a specific
+//	Get the template file names or a specific
 //
-// If no path specified, returns a list of template file names.
-// If a path is specified, returns the file content.
+//	If no path specified, returns a list of template file names.
+//	If a path is specified, returns the file content.
 //
-// ---
-// produces:
-//   - application/json
-//   - application/octet-stream
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: path
-//     description: Template name
-//     type: string
-//     example: hostname.tpl
-// responses:
-//   "200":
-//      description: Raw template file or file listing
-//      content:
-//        application/octet-stream:
-//          schema:
-//            type: string
-//            example: some-text
-//        application/json:
-//          schema:
-//            type: array
-//            items:
-//              type: string
-//            example: |-
-//              [
-//                "hostname.tpl",
-//                "hosts.tpl"
-//              ]
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	  - application/octet-stream
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: path
+//	    description: Template name
+//	    type: string
+//	    example: hostname.tpl
+//	responses:
+//	  "200":
+//	     description: Raw template file or file listing
+//	     content:
+//	       application/octet-stream:
+//	         schema:
+//	           type: string
+//	           example: some-text
+//	       application/json:
+//	         schema:
+//	           type: array
+//	           items:
+//	             type: string
+//	           example: |-
+//	             [
+//	               "hostname.tpl",
+//	               "hosts.tpl"
+//	             ]
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -530,40 +530,40 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 
 // swagger:operation POST /1.0/instances/{name}/metadata/templates instances instance_metadata_templates_post
 //
-// Create or replace a template file
+//	Create or replace a template file
 //
-// Creates a new image template file for the instance.
+//	Creates a new image template file for the instance.
 //
-// ---
-// consumes:
-//   - application/octet-stream
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: path
-//     description: Template name
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: raw_file
-//     description: Raw file content
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/octet-stream
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Template name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: raw_file
+//	    description: Raw file content
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -651,35 +651,35 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 
 // swagger:operation DELETE /1.0/instances/{name}/metadata/templates instances instance_metadata_templates_delete
 //
-// Delete a template file
+//	Delete a template file
 //
-// Removes the template file.
+//	Removes the template file.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: path
-//     description: Template name
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Template name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {

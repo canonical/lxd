@@ -369,37 +369,37 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 
 // swagger:operation POST /1.0/instances/{name}/console instances instance_console_post
 //
-// Connect to console
+//	Connect to console
 //
-// Connects to the console of an instance.
+//	Connects to the console of an instance.
 //
-// The returned operation metadata will contain two websockets, one for data and one for control.
+//	The returned operation metadata will contain two websockets, one for data and one for control.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: console
-//     description: Console request
-//     schema:
-//       $ref: "#/definitions/InstanceConsolePost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: console
+//	    description: Console request
+//	    schema:
+//	      $ref: "#/definitions/InstanceConsolePost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -511,35 +511,35 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/instances/{name}/console instances instance_console_get
 //
-// Get console log
+//	Get console log
 //
-// Gets the console log for the instance.
+//	Gets the console log for the instance.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//      description: Raw console log
-//      content:
-//        application/octet-stream:
-//          schema:
-//            type: string
-//            example: some-text
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	     description: Raw console log
+//	     content:
+//	       application/octet-stream:
+//	         schema:
+//	           type: string
+//	           example: some-text
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
@@ -621,30 +621,30 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/instances/{name}/console instances instance_console_delete
 //
-// Clear the console log
+//	Clear the console log
 //
-// Clears the console log buffer.
+//	Clears the console log buffer.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	if !liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))

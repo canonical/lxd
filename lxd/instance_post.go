@@ -36,41 +36,41 @@ var internalClusterInstanceMovedCmd = APIEndpoint{
 
 // swagger:operation POST /1.0/instances/{name} instances instance_post
 //
-// Rename or move/migrate an instance
+//	Rename or move/migrate an instance
 //
-// Renames, moves an instance between pools or migrates an instance to another server.
+//	Renames, moves an instance between pools or migrates an instance to another server.
 //
-// The returned operation metadata will vary based on what's requested.
-// For rename or move within the same server, this is a simple background operation with progress data.
-// For migration, in the push case, this will similarly be a background
-// operation with progress data, for the pull case, it will be a websocket
-// operation with a number of secrets to be passed to the target server.
+//	The returned operation metadata will vary based on what's requested.
+//	For rename or move within the same server, this is a simple background operation with progress data.
+//	For migration, in the push case, this will similarly be a background
+//	operation with progress data, for the pull case, it will be a websocket
+//	operation with a number of secrets to be passed to the target server.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: migration
-//     description: Migration request
-//     schema:
-//       $ref: "#/definitions/InstancePost"
-// responses:
-//   "202":
-//     $ref: "#/responses/Operation"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: migration
+//	    description: Migration request
+//	    schema:
+//	      $ref: "#/definitions/InstancePost"
+//	responses:
+//	  "202":
+//	    $ref: "#/responses/Operation"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
