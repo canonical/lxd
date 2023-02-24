@@ -1208,14 +1208,19 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	if uplinkNetMTU != "" {
+		mtu, err := strconv.ParseUint(uplinkNetMTU, 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid uplink MTU %q: %w", uplinkNetMTU, err)
+		}
+
 		uplinkEndLink := &ip.Link{Name: vars.uplinkEnd}
-		err := uplinkEndLink.SetMTU(uplinkNetMTU)
+		err = uplinkEndLink.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", uplinkNetMTU, uplinkEndLink.Name, err)
 		}
 
 		ovsEndLink := &ip.Link{Name: vars.ovsEnd}
-		err = ovsEndLink.SetMTU(uplinkNetMTU)
+		err = ovsEndLink.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", uplinkNetMTU, ovsEndLink.Name, err)
 		}
