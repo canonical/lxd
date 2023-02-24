@@ -403,13 +403,15 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // ImageUnpack unpacks a filesystem image into the destination path.
 // There are several formats that images can come in:
 // Container Format A: Separate metadata tarball and root squashfs file.
-// 	- Unpack metadata tarball into mountPath.
-//	- Unpack root squashfs file into mountPath/rootfs.
+//   - Unpack metadata tarball into mountPath.
+//   - Unpack root squashfs file into mountPath/rootfs.
+//
 // Container Format B: Combined tarball containing metadata files and root squashfs.
-//	- Unpack combined tarball into mountPath.
+//   - Unpack combined tarball into mountPath.
+//
 // VM Format A: Separate metadata tarball and root qcow2 file.
-// 	- Unpack metadata tarball into mountPath.
-//	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
+//   - Unpack metadata tarball into mountPath.
+//   - Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend bool, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	l := logger.AddContext(logger.Log, logger.Ctx{"imageFile": imageFile, "volName": vol.Name()})
 	l.Info("Image unpack started")
