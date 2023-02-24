@@ -9,9 +9,9 @@
 // certificates with a macaroon based (candid) authentication method also
 // supported.
 //
-//     Version: 1.0
-//     License: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0
-//     Contact: LXD upstream <lxc-devel@lists.linuxcontainers.org> https://github.com/lxc/lxd
+//	Version: 1.0
+//	License: Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0
+//	Contact: LXD upstream <lxc-devel@lists.linuxcontainers.org> https://github.com/lxc/lxd
 //
 // swagger:meta
 package main

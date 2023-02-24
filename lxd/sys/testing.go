@@ -43,9 +43,9 @@ func NewTestOS(t *testing.T) (*OS, func()) {
 // Since generating certificates is CPU intensive, they will be simply
 // symlink'ed from the test/deps/ directory.
 //
-// FIXME: this function is exported because some tests use it
-//        directly. Eventually we should rework those tests to use NewTestOS
-//        instead.
+//	FIXME: this function is exported because some tests use it
+//		directly. Eventually we should rework those tests to use NewTestOS
+//		instead.
 func SetupTestCerts(dir string) error {
 	_, filename, _, _ := runtime.Caller(0)
 	deps := filepath.Join(filepath.Dir(filename), "..", "..", "test", "deps")

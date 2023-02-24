@@ -82,72 +82,72 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/instances/{name}/files instances instance_files_get
 //
-// Get a file
+//	Get a file
 //
-// Gets the file content. If it's a directory, a json list of files will be returned instead.
+//	Gets the file content. If it's a directory, a json list of files will be returned instead.
 //
-// ---
-// produces:
-//   - application/json
-//   - application/octet-stream
-// parameters:
-//   - in: query
-//     name: path
-//     description: Path to the file
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//      description: Raw file or directory listing
-//      headers:
-//        X-LXD-uid:
-//          description: File owner UID
-//          schema:
-//            type: integer
-//        X-LXD-gid:
-//          description: File owner GID
-//          schema:
-//            type: integer
-//        X-LXD-mode:
-//          description: Mode mask
-//          schema:
-//            type: integer
-//        X-LXD-modified:
-//          description: Last modified date
-//          schema:
-//            type: string
-//        X-LXD-type:
-//          description: Type of file (file, symlink or directory)
-//          schema:
-//            type: string
-//      content:
-//        application/octet-stream:
-//          schema:
-//            type: string
-//            example: some-text
-//        application/json:
-//          schema:
-//            type: array
-//            items:
-//              type: string
-//            example: |-
-//              [
-//                "/etc",
-//                "/home"
-//              ]
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	  - application/octet-stream
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Path to the file
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	     description: Raw file or directory listing
+//	     headers:
+//	       X-LXD-uid:
+//	         description: File owner UID
+//	         schema:
+//	           type: integer
+//	       X-LXD-gid:
+//	         description: File owner GID
+//	         schema:
+//	           type: integer
+//	       X-LXD-mode:
+//	         description: Mode mask
+//	         schema:
+//	           type: integer
+//	       X-LXD-modified:
+//	         description: Last modified date
+//	         schema:
+//	           type: string
+//	       X-LXD-type:
+//	         description: Type of file (file, symlink or directory)
+//	         schema:
+//	           type: string
+//	     content:
+//	       application/octet-stream:
+//	         schema:
+//	           type: string
+//	           example: some-text
+//	       application/json:
+//	         schema:
+//	           type: array
+//	           items:
+//	             type: string
+//	           example: |-
+//	             [
+//	               "/etc",
+//	               "/home"
+//	             ]
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceFileGet(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -263,54 +263,54 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 // swagger:operation HEAD /1.0/instances/{name}/files instances instance_files_head
 //
-// Get metadata for a file
+//	Get metadata for a file
 //
-// Gets the file or directory metadata.
+//	Gets the file or directory metadata.
 //
-// ---
-// parameters:
-//   - in: query
-//     name: path
-//     description: Path to the file
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//      description: Raw file or directory listing
-//      headers:
-//        X-LXD-uid:
-//          description: File owner UID
-//          schema:
-//            type: integer
-//        X-LXD-gid:
-//          description: File owner GID
-//          schema:
-//            type: integer
-//        X-LXD-mode:
-//          description: Mode mask
-//          schema:
-//            type: integer
-//        X-LXD-modified:
-//          description: Last modified date
-//          schema:
-//            type: string
-//        X-LXD-type:
-//          description: Type of file (file, symlink or directory)
-//          schema:
-//            type: string
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Path to the file
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	     description: Raw file or directory listing
+//	     headers:
+//	       X-LXD-uid:
+//	         description: File owner UID
+//	         schema:
+//	           type: integer
+//	       X-LXD-gid:
+//	         description: File owner GID
+//	         schema:
+//	           type: integer
+//	       X-LXD-mode:
+//	         description: Mode mask
+//	         schema:
+//	           type: integer
+//	       X-LXD-modified:
+//	         description: Last modified date
+//	         schema:
+//	           type: string
+//	       X-LXD-type:
+//	         description: Type of file (file, symlink or directory)
+//	         schema:
+//	           type: string
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceFileHead(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	revert := revert.New()
 	defer revert.Fail()
@@ -362,70 +362,70 @@ func instanceFileHead(s *state.State, inst instance.Instance, path string, r *ht
 
 // swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
 //
-// Create or replace a file
+//	Create or replace a file
 //
-// Creates a new file in the instance.
+//	Creates a new file in the instance.
 //
-// ---
-// consumes:
-//   - application/octet-stream
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: path
-//     description: Path to the file
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: raw_file
-//     description: Raw file content
-//   - in: header
-//     name: X-LXD-uid
-//     description: File owner UID
-//     schema:
-//       type: integer
-//     example: 1000
-//   - in: header
-//     name: X-LXD-gid
-//     description: File owner GID
-//     schema:
-//       type: integer
-//     example: 1000
-//   - in: header
-//     name: X-LXD-mode
-//     description: File mode
-//     schema:
-//       type: integer
-//     example: 0644
-//   - in: header
-//     name: X-LXD-type
-//     description: Type of file (file, symlink or directory)
-//     schema:
-//       type: string
-//     example: file
-//   - in: header
-//     name: X-LXD-write
-//     description: Write mode (overwrite or append)
-//     schema:
-//       type: string
-//     example: overwrite
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/octet-stream
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Path to the file
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: raw_file
+//	    description: Raw file content
+//	  - in: header
+//	    name: X-LXD-uid
+//	    description: File owner UID
+//	    schema:
+//	      type: integer
+//	    example: 1000
+//	  - in: header
+//	    name: X-LXD-gid
+//	    description: File owner GID
+//	    schema:
+//	      type: integer
+//	    example: 1000
+//	  - in: header
+//	    name: X-LXD-mode
+//	    description: File mode
+//	    schema:
+//	      type: integer
+//	    example: 0644
+//	  - in: header
+//	    name: X-LXD-type
+//	    description: Type of file (file, symlink or directory)
+//	    schema:
+//	      type: string
+//	    example: file
+//	  - in: header
+//	    name: X-LXD-write
+//	    description: Write mode (overwrite or append)
+//	    schema:
+//	      type: string
+//	    example: overwrite
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceFilePost(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()
@@ -554,35 +554,35 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 
 // swagger:operation DELETE /1.0/instances/{name}/files instances instance_files_delete
 //
-// Delete a file
+//	Delete a file
 //
-// Removes the file.
+//	Removes the file.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: path
-//     description: Path to the file
-//     type: string
-//     example: default
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: path
+//	    description: Path to the file
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
 	// Get a SFTP client.
 	client, err := inst.FileSFTP()

@@ -57,96 +57,96 @@ var storagePoolBucketKeyCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets storage storage_pool_buckets_get
 //
-// Get the storage pool buckets
+//  Get the storage pool buckets
 //
-// Returns a list of storage pool buckets (URLs).
+//  Returns a list of storage pool buckets (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/storage-pools/default/buckets/foo",
-//               "/1.0/storage-pools/default/buckets/bar",
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/storage-pools/default/buckets/foo",
+//                "/1.0/storage-pools/default/buckets/bar",
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets?recursion=1 storage storage_pool_buckets_get_recursion1
 //
-// Get the storage pool buckets
+//	Get the storage pool buckets
 //
-// Returns a list of storage pool buckets (structs).
+//	Returns a list of storage pool buckets (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of storage pool buckets
-//           items:
-//             $ref: "#/definitions/StorageBucket"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of storage pool buckets
+//	          items:
+//	            $ref: "#/definitions/StorageBucket"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 	requestProjectName := projectParam(r)
 	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, requestProjectName)
@@ -223,44 +223,44 @@ func storagePoolBucketsGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets/{bucketName} storage storage_pool_bucket_get
 //
-// Get the storage pool bucket
+//	Get the storage pool bucket
 //
-// Gets a specific storage pool bucket.
+//	Gets a specific storage pool bucket.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Storage pool bucket
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/StorageBucket"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Storage pool bucket
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/StorageBucket"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -315,36 +315,36 @@ func storagePoolBucketGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/buckets storage storage_pool_bucket_post
 //
-// Add a storage pool bucket.
+//	Add a storage pool bucket.
 //
-// Creates a new storage pool bucket.
+//	Creates a new storage pool bucket.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: bucket
-//     description: Bucket
-//     required: true
-//     schema:
-//       $ref: "#/definitions/StorageBucketsPost"
-// responses:
-//   "200":
-//     $ref: '#/definitions/StorageBucketKey'
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: bucket
+//	    description: Bucket
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/StorageBucketsPost"
+//	responses:
+//	  "200":
+//	    $ref: '#/definitions/StorageBucketKey'
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -409,83 +409,83 @@ func storagePoolBucketsPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/storage-pools/{name}/buckets/{bucketName} storage storage_pool_bucket_patch
 //
-// Partially update the storage bucket.
+//  Partially update the storage bucket.
 //
-// Updates a subset of the storage bucket configuration.
+//  Updates a subset of the storage bucket configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-//   - in: body
-//     name: storage bucket
-//     description: Storage bucket configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/StorageBucketPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  consumes:
+//    - application/json
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//    - in: query
+//      name: target
+//      description: Cluster member name
+//      type: string
+//      example: lxd01
+//    - in: body
+//      name: storage bucket
+//      description: Storage bucket configuration
+//      required: true
+//      schema:
+//        $ref: "#/definitions/StorageBucketPut"
+//  responses:
+//    "200":
+//      $ref: "#/responses/EmptySyncResponse"
+//    "400":
+//      $ref: "#/responses/BadRequest"
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "412":
+//      $ref: "#/responses/PreconditionFailed"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation PUT /1.0/storage-pools/{name}/buckets/{bucketName} storage storage_pool_bucket_put
 //
-// Update the storage bucket
+//	Update the storage bucket
 //
-// Updates the entire storage bucket configuration.
+//	Updates the entire storage bucket configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-//   - in: body
-//     name: storage bucket
-//     description: Storage bucket configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/StorageBucketPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	  - in: body
+//	    name: storage bucket
+//	    description: Storage bucket configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/StorageBucketPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -556,33 +556,33 @@ func storagePoolBucketPut(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/storage-pools/{name}/buckets/{bucketName} storage storage_pool_bucket_delete
 //
-// Delete the storage bucket
+//	Delete the storage bucket
 //
-// Removes the storage bucket.
+//	Removes the storage bucket.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -625,96 +625,96 @@ func storagePoolBucketDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys storage storage_pool_bucket_keys_get
 //
-// Get the storage pool bucket keys
+//  Get the storage pool bucket keys
 //
-// Returns a list of storage pool bucket keys (URLs).
+//  Returns a list of storage pool bucket keys (URLs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of endpoints
-//           items:
-//             type: string
-//           example: |-
-//             [
-//               "/1.0/storage-pools/default/buckets/foo/keys/my-read-only-key",
-//               "/1.0/storage-pools/default/buckets/bar/keys/admin",
-//             ]
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//  ---
+//  produces:
+//    - application/json
+//  parameters:
+//    - in: query
+//      name: project
+//      description: Project name
+//      type: string
+//      example: default
+//  responses:
+//    "200":
+//      description: API endpoints
+//      schema:
+//        type: object
+//        description: Sync response
+//        properties:
+//          type:
+//            type: string
+//            description: Response type
+//            example: sync
+//          status:
+//            type: string
+//            description: Status description
+//            example: Success
+//          status_code:
+//            type: integer
+//            description: Status code
+//            example: 200
+//          metadata:
+//            type: array
+//            description: List of endpoints
+//            items:
+//              type: string
+//            example: |-
+//              [
+//                "/1.0/storage-pools/default/buckets/foo/keys/my-read-only-key",
+//                "/1.0/storage-pools/default/buckets/bar/keys/admin",
+//              ]
+//    "403":
+//      $ref: "#/responses/Forbidden"
+//    "500":
+//      $ref: "#/responses/InternalServerError"
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys?recursion=1 storage storage_pool_bucket_keys_get_recursion1
 //
-// Get the storage pool bucket keys
+//	Get the storage pool bucket keys
 //
-// Returns a list of storage pool bucket keys (structs).
+//	Returns a list of storage pool bucket keys (structs).
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: API endpoints
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           type: array
-//           description: List of storage pool bucket keys
-//           items:
-//             $ref: "#/definitions/StorageBucketKey"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: API endpoints
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          type: array
+//	          description: List of storage pool bucket keys
+//	          items:
+//	            $ref: "#/definitions/StorageBucketKey"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 	bucketProjectName, err := project.StorageBucketProject(r.Context(), d.State().DB.Cluster, projectParam(r))
 	if err != nil {
@@ -785,36 +785,36 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation POST /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys storage storage_pool_bucket_key_post
 //
-// Add a storage pool bucket key.
+//	Add a storage pool bucket key.
 //
-// Creates a new storage pool bucket key.
+//	Creates a new storage pool bucket key.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: body
-//     name: bucket
-//     description: Bucket
-//     required: true
-//     schema:
-//       $ref: "#/definitions/StorageBucketKeysPost"
-// responses:
-//   "200":
-//     $ref: '#/definitions/StorageBucketKey'
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: body
+//	    name: bucket
+//	    description: Bucket
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/StorageBucketKeysPost"
+//	responses:
+//	  "200":
+//	    $ref: '#/definitions/StorageBucketKey'
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -863,33 +863,33 @@ func storagePoolBucketKeysPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_delete
 //
-// Delete the storage bucket key
+//	Delete the storage bucket key
 //
-// Removes the storage bucket key.
+//	Removes the storage bucket key.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -935,44 +935,44 @@ func storagePoolBucketKeyDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/storage-pools/{poolName}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_get
 //
-// Get the storage pool bucket key
+//	Get the storage pool bucket key
 //
-// Gets a specific storage pool bucket key.
+//	Gets a specific storage pool bucket key.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-// responses:
-//   "200":
-//     description: Storage pool bucket key
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/StorageBucketKey"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	responses:
+//	  "200":
+//	    description: Storage pool bucket key
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/StorageBucketKey"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -1036,43 +1036,43 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_put
 //
-// Update the storage bucket key
+//	Update the storage bucket key
 //
-// Updates the entire storage bucket key configuration.
+//	Updates the entire storage bucket key configuration.
 //
-// ---
-// consumes:
-//   - application/json
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-//   - in: body
-//     name: storage bucket
-//     description: Storage bucket key configuration
-//     required: true
-//     schema:
-//       $ref: "#/definitions/StorageBucketKeyPut"
-// responses:
-//   "200":
-//     $ref: "#/responses/EmptySyncResponse"
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "412":
-//     $ref: "#/responses/PreconditionFailed"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	consumes:
+//	  - application/json
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	  - in: body
+//	    name: storage bucket
+//	    description: Storage bucket key configuration
+//	    required: true
+//	    schema:
+//	      $ref: "#/definitions/StorageBucketKeyPut"
+//	responses:
+//	  "200":
+//	    $ref: "#/responses/EmptySyncResponse"
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "412":
+//	    $ref: "#/responses/PreconditionFailed"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolBucketKeyPut(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

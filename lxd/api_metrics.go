@@ -49,34 +49,34 @@ func allowMetrics(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
 //
-// Get metrics
+//	Get metrics
 //
-// Gets metrics of instances.
+//	Gets metrics of instances.
 //
-// ---
-// produces:
-//   - text/plain
-// parameters:
-//   - in: query
-//     name: project
-//     description: Project name
-//     type: string
-//     example: default
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-// responses:
-//   "200":
-//     description: Metrics
-//     schema:
-//       type: string
-//       description: Instance metrics
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - text/plain
+//	parameters:
+//	  - in: query
+//	    name: project
+//	    description: Project name
+//	    type: string
+//	    example: default
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    description: Metrics
+//	    schema:
+//	      type: string
+//	      description: Instance metrics
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

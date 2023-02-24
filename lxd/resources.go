@@ -26,44 +26,44 @@ var storagePoolResourcesCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/resources server resources_get
 //
-// Get system resources information
+//	Get system resources information
 //
-// Gets the hardware information profile of the LXD server.
+//	Gets the hardware information profile of the LXD server.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-// responses:
-//   "200":
-//     description: Hardware resources
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/Resources"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    description: Hardware resources
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/Resources"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
@@ -84,44 +84,44 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/storage-pools/{name}/resources storage storage_pool_resources
 //
-// Get storage pool resources information
+//	Get storage pool resources information
 //
-// Gets the usage information for the storage pool.
+//	Gets the usage information for the storage pool.
 //
-// ---
-// produces:
-//   - application/json
-// parameters:
-//   - in: query
-//     name: target
-//     description: Cluster member name
-//     type: string
-//     example: lxd01
-// responses:
-//   "200":
-//     description: Hardware resources
-//     schema:
-//       type: object
-//       description: Sync response
-//       properties:
-//         type:
-//           type: string
-//           description: Response type
-//           example: sync
-//         status:
-//           type: string
-//           description: Status description
-//           example: Success
-//         status_code:
-//           type: integer
-//           description: Status code
-//           example: 200
-//         metadata:
-//           $ref: "#/definitions/ResourcesStoragePool"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	parameters:
+//	  - in: query
+//	    name: target
+//	    description: Cluster member name
+//	    type: string
+//	    example: lxd01
+//	responses:
+//	  "200":
+//	    description: Hardware resources
+//	    schema:
+//	      type: object
+//	      description: Sync response
+//	      properties:
+//	        type:
+//	          type: string
+//	          description: Response type
+//	          example: sync
+//	        status:
+//	          type: string
+//	          description: Status description
+//	          example: Success
+//	        status_code:
+//	          type: integer
+//	          description: Status code
+//	          example: 200
+//	        metadata:
+//	          $ref: "#/definitions/ResourcesStoragePool"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 

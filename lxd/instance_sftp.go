@@ -22,25 +22,25 @@ import (
 
 // swagger:operation GET /1.0/instances/{name}/sftp instances instance_sftp
 //
-// Get the instance SFTP connection
+//	Get the instance SFTP connection
 //
-// Upgrades the request to an SFTP connection of the instance's filesystem.
+//	Upgrades the request to an SFTP connection of the instance's filesystem.
 //
-// ---
-// produces:
-//   - application/json
-//   - application/octet-stream
-// responses:
-//   "101":
-//     description: Switching protocols to SFTP
-//   "400":
-//     $ref: "#/responses/BadRequest"
-//   "404":
-//     $ref: "#/responses/NotFound"
-//   "403":
-//     $ref: "#/responses/Forbidden"
-//   "500":
-//     $ref: "#/responses/InternalServerError"
+//	---
+//	produces:
+//	  - application/json
+//	  - application/octet-stream
+//	responses:
+//	  "101":
+//	    description: Switching protocols to SFTP
+//	  "400":
+//	    $ref: "#/responses/BadRequest"
+//	  "404":
+//	    $ref: "#/responses/NotFound"
+//	  "403":
+//	    $ref: "#/responses/Forbidden"
+//	  "500":
+//	    $ref: "#/responses/InternalServerError"
 func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	instName, err := url.PathUnescape(mux.Vars(r)["name"])
