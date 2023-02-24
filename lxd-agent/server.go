@@ -95,7 +95,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		err := resp.Render(w)
 		if err != nil {
 			writeErr := response.InternalError(err).Render(w)
-			if err != nil {
+			if writeErr != nil {
 				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "error": err, "writeErr": writeErr})
 			}
 		}
