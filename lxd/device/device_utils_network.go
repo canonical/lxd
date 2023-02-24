@@ -324,6 +324,29 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 		}
 	}
 
+	// Set TX queue length on both ends.
+	var txqueuelen uint32
+	if m["queue.tx.length"] != "" {
+		nicTXqlen, err := strconv.ParseUint(m["queue.tx.length"], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("Invalid txqueuelen specified: %w", err)
+		}
+
+		txqueuelen = uint32(nicTXqlen)
+	} else if m["parent"] != "" {
+		txqueuelen, err = network.GetTXQueueLength(m["parent"])
+		if err != nil {
+			return 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+		}
+	}
+
+	if txqueuelen > 0 {
+		err = link.SetTXQueueLength(txqueuelen)
+		if err != nil {
+			return 0, fmt.Errorf("Failed to set the TX queue length %d: %w", txqueuelen, err)
+		}
+	}
+
 	revert.Success()
 	return mtu, nil
 }
