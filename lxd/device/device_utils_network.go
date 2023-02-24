@@ -891,8 +891,13 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 
 	// Set the MTU.
 	if config["mtu"] != "" {
+		mtu, err := strconv.ParseUint(config["mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid VF MTU specified %q: %w", config["mtu"], err)
+		}
+
 		link := &ip.Link{Name: hostName}
-		err := link.SetMTU(config["mtu"])
+		err = link.SetMTU(uint32(mtu))
 		if err != nil {
 			return fmt.Errorf("Failed setting MTU %q on %q: %w", config["mtu"], hostName, err)
 		}
