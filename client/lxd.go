@@ -426,8 +426,12 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	r.addClientHeaders(req)
 
 	// Establish the connection
-	conn, _, err := dialer.Dial(url, req.Header)
+	conn, resp, err := dialer.Dial(url, req.Header)
 	if err != nil {
+		if resp != nil {
+			_, _, err = lxdParseResponse(resp)
+		}
+
 		return nil, err
 	}
 
