@@ -119,8 +119,8 @@ func (l *Link) SetTXQueueLength(queueLength uint32) error {
 }
 
 // SetAddress sets the address of the link device.
-func (l *Link) SetAddress(address string) error {
-	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "address", address)
+func (l *Link) SetAddress(address net.HardwareAddr) error {
+	_, err := shared.RunCommand("ip", "link", "set", "dev", l.Name, "address", address.String())
 	if err != nil {
 		return err
 	}
