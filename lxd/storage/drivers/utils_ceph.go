@@ -181,11 +181,21 @@ func getCephKeyFromFile(path string) (string, error) {
 // CephKeyring gets the key for a particular Ceph cluster and client name.
 func CephKeyring(cluster string, client string) (string, error) {
 	var cephSecret string
-	keyringPath := fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client)
 	cephConfigPath := fmt.Sprintf("/etc/ceph/%v.conf", cluster)
 
-	if shared.PathExists(keyringPath) {
-		return getCephKeyFromFile(keyringPath)
+	keyringPathFull := fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client)
+	keyringPathCluster := fmt.Sprintf("/etc/ceph/%v.keyring", cluster)
+	keyringPathGlobal := "/etc/ceph/keyring"
+	keyringPathGlobalBin := "/etc/ceph/keyring.bin"
+
+	if shared.PathExists(keyringPathFull) {
+		return getCephKeyFromFile(keyringPathFull)
+	} else if shared.PathExists(keyringPathCluster) {
+		return getCephKeyFromFile(keyringPathCluster)
+	} else if shared.PathExists(keyringPathGlobal) {
+		return getCephKeyFromFile(keyringPathGlobal)
+	} else if shared.PathExists(keyringPathGlobalBin) {
+		return getCephKeyFromFile(keyringPathGlobalBin)
 	} else if shared.PathExists(cephConfigPath) {
 		// Open the CEPH config file.
 		cephConfig, err := os.Open(cephConfigPath)
