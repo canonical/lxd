@@ -50,6 +50,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/metrics"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -5457,8 +5458,139 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 }
 
 // MigrateSend is not currently supported.
-func (d *qemu) MigrateSend(args any) error {
-	return fmt.Errorf("Not supported")
+func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
+	d.logger.Info("Migration send starting")
+	defer d.logger.Info("Migration send stopped")
+
+	var poolMigrationTypes []migration.Type
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return fmt.Errorf("Failed loading instance: %w", err)
+	}
+
+	// The refresh argument passed to MigrationTypes() is always set
+	// to false here. The migration source/sender doesn't need to care whether
+	// or not it's doing a refresh as the migration sink/receiver will know
+	// this, and adjust the migration types accordingly.
+	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(d), false)
+	if len(poolMigrationTypes) == 0 {
+		return fmt.Errorf("No source migration types available")
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
+
+	// For VMs, send block device size hint in offer header so that target can create the volume the same size.
+	blockSize, err := storagePools.InstanceDiskBlockSize(pool, d, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed getting source disk size: %w", err)
+	}
+
+	d.logger.Debug("Set migration offer volume size", logger.Ctx{"blockSize": blockSize})
+	offerHeader.VolumeSize = &blockSize
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance migration config: %w", err)
+	}
+
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	if args.Snapshots {
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.Snapshots))
+
+		for i := range srcConfig.Snapshots {
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.Snapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, instance.SnapshotToProtobuf(srcConfig.Snapshots[i]))
+		}
+	}
+
+	// Send offer to target.
+	d.logger.Debug("Sending migration offer to target")
+	err = args.ControlSend(offerHeader)
+	if err != nil {
+		return fmt.Errorf("Failed sending migration offer header: %w", err)
+	}
+
+	// Receive response from target.
+	d.logger.Debug("Waiting for migration offer response from target")
+	respHeader := &migration.MigrationHeader{}
+	err = args.ControlReceive(respHeader)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration offer response: %w", err)
+	}
+
+	d.logger.Debug("Got migration offer response from target")
+
+	// Negotiated migration types.
+	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	if err != nil {
+		return fmt.Errorf("Failed to negotiate migration type: %w", err)
+	}
+
+	volSourceArgs := &migration.VolumeSourceArgs{
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               d.Name(),
+		MigrationType:      migrationTypes[0],
+		Snapshots:          offerHeader.SnapshotNames,
+		TrackProgress:      true,
+		Refresh:            respHeader.GetRefresh(),
+		AllowInconsistent:  args.AllowInconsistent,
+		VolumeOnly:         !args.Snapshots,
+		Info:               &migration.Info{Config: srcConfig},
+	}
+
+	// Only send the snapshots that the target requests when refreshing.
+	if respHeader.GetRefresh() {
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+
+		// Ensure that only the requested snapshots are included in the migration index header.
+		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+			}
+		}
+	}
+
+	if args.Live {
+		err = d.Stop(true)
+		if err != nil {
+			return fmt.Errorf("Failed statefully stopping instance: %w", err)
+		}
+	}
+
+	d.logger.Debug("Starting storage migration phase")
+
+	err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+	if err != nil {
+		return err
+	}
+
+	d.logger.Debug("Finished storage migration phase")
+
+	// Receive response from target.
+	d.logger.Debug("Waiting for migration completion response from target")
+	msg := migration.MigrationControl{}
+	err = args.ControlReceive(&msg)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration completion response: %w", err)
+	}
+
+	d.logger.Debug("Got migration completion response from target", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
+
+	if !msg.GetSuccess() {
+		return fmt.Errorf(msg.GetMessage())
+	}
+
+	return nil
 }
 
 func (d *qemu) MigrateReceive(args any) error {
