@@ -247,7 +247,22 @@ func storageBucketsServer(d *Daemon) *http.Server {
 
 		s := d.State()
 
-		pathParts := strings.Split(r.RequestURI, "/")
+		reqURL, err := url.Parse(r.RequestURI)
+		if err != nil {
+			errResult := s3.Error{Code: s3.ErrorInvalidRequest, Message: err.Error()}
+			errResult.Response(w)
+
+			return
+		}
+
+		pathParts := strings.Split(reqURL.Path, "/")
+		if len(pathParts) < 2 {
+			errResult := s3.Error{Code: s3.ErrorInvalidRequest, Message: "Bucket name not specified"}
+			errResult.Response(w)
+
+			return
+		}
+
 		bucketName, err := url.PathUnescape(pathParts[1])
 		if err != nil {
 			errResult := s3.Error{Code: s3.ErrorCodeNoSuchBucket, BucketName: pathParts[1]}
