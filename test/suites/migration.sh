@@ -48,25 +48,26 @@ test_migration() {
 
   if [ "${LXD_BACKEND}" = "zfs" ]; then
     # Test that block mode zfs backends work fine with migration.
+    for fs in "ext4" "btrfs" "xfs"; do
+      # shellcheck disable=2039,3043
+      local storage_pool1 storage_pool2
+      # shellcheck disable=2153
+      storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode"
+      storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode"
+      lxc_remote storage create l1:"$storage_pool1" zfs volume.zfs.block_mode=true volume.block.filesystem="${fs}"
+      lxc_remote profile device set l1:default root pool "$storage_pool1"
 
-    # shellcheck disable=2039,3043
-    local storage_pool1 storage_pool2
-    # shellcheck disable=2153
-    storage_pool1="lxdtest-$(basename "${LXD_DIR}")-block-mode"
-    storage_pool2="lxdtest-$(basename "${LXD2_DIR}")-block-mode"
-    lxc_remote storage create l1:"$storage_pool1" zfs volume.zfs.block_mode=true
-    lxc_remote profile device set l1:default root pool "$storage_pool1"
+      lxc_remote storage create l2:"$storage_pool2" zfs volume.zfs.block_mode=true volume.block.filesystem="${fs}"
+      lxc_remote profile device set l2:default root pool "$storage_pool2"
 
-    lxc_remote storage create l2:"$storage_pool2" zfs volume.zfs.block_mode=true
-    lxc_remote profile device set l2:default root pool "$storage_pool2"
+      migration "$LXD2_DIR"
 
-    migration "$LXD2_DIR"
+      lxc_remote profile device set l1:default root pool "lxdtest-$(basename "${LXD_DIR}")"
+      lxc_remote profile device set l2:default root pool "lxdtest-$(basename "${LXD2_DIR}")"
 
-    lxc_remote profile device set l1:default root pool "lxdtest-$(basename "${LXD_DIR}")"
-    lxc_remote profile device set l2:default root pool "lxdtest-$(basename "${LXD2_DIR}")"
-
-    lxc_remote storage delete l1:"$storage_pool1"
-    lxc_remote storage delete l2:"$storage_pool2"
+      lxc_remote storage delete l1:"$storage_pool1"
+      lxc_remote storage delete l2:"$storage_pool2"
+    done
   fi
 
   lxc_remote remote remove l1
