@@ -428,8 +428,7 @@ func (w *WebsocketIO) Write(p []byte) (n int, err error) {
 	return n, wr.Close()
 }
 
-// Close sends a control message indicating the stream is finished, but it does not actually close
-// the socket.
+// Close sends a control message indicating the stream is finished, but it does not actually close the socket.
 func (w *WebsocketIO) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
