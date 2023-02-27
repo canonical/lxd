@@ -9,6 +9,7 @@ import (
 
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pkg/sftp"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cgroup"
@@ -147,7 +148,7 @@ type Instance interface {
 
 	// Migration.
 	CanMigrate() (bool, bool)
-	MigrateSend(args any) error
+	MigrateSend(args MigrateSendArgs) error
 	MigrateReceive(args any) error
 
 	// Progress reporting.
@@ -199,4 +200,21 @@ type Info struct {
 	Error    error             // Whether there is an operational impediment.
 	Type     instancetype.Type // Instance type that the driver provides support for.
 	Features []string          // List of supported features.
+}
+
+// MigrateArgs represent arguments for instance migration send and receive.
+type MigrateArgs struct {
+	ControlSend    func(m proto.Message) error
+	ControlReceive func(m proto.Message) error
+	LiveConn       io.ReadWriteCloser
+	DataConn       io.ReadWriteCloser
+	Snapshots      bool
+	Live           bool
+}
+
+// MigrateSendArgs represent arguments for instance migration send.
+type MigrateSendArgs struct {
+	MigrateArgs
+
+	AllowInconsistent bool
 }
