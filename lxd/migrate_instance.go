@@ -237,7 +237,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 		return false, fmt.Errorf("Instance is not container type")
 	}
 
-	err := s.instance.Migrate(&criuMigrationArgs)
+	err := s.instance.MigrateSend(&criuMigrationArgs)
 	if err != nil {
 		return final, fmt.Errorf("Failed sending instance: %w", err)
 	}
@@ -653,7 +653,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 				// Do the final CRIU dump. This is needs no special handling if
 				// pre-dumps are used or not.
-				dumpSuccess <- s.instance.Migrate(&criuMigrationArgs)
+				dumpSuccess <- s.instance.MigrateSend(&criuMigrationArgs)
 				_ = os.RemoveAll(checkpointDir)
 			}()
 
@@ -678,7 +678,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				PreDumpDir:   "",
 			}
 
-			err = s.instance.Migrate(&criuMigrationArgs)
+			err = s.instance.MigrateSend(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
@@ -1263,7 +1263,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 
 				// Currently we only do a single CRIU pre-dump so we can hardcode "final"
 				// here since we know that "final" is the folder for CRIU's final dump.
-				err = c.src.instance.Migrate(&criuMigrationArgs)
+				err = c.src.instance.MigrateReceive(&criuMigrationArgs)
 				if err != nil {
 					restore <- err
 					return
@@ -1271,7 +1271,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 
 			if c.src.instance.Type() == instancetype.VM {
-				err = c.src.instance.Migrate(nil)
+				err = c.src.instance.MigrateReceive(nil)
 				if err != nil {
 					restore <- err
 					return
