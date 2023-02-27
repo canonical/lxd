@@ -2011,3 +2011,8 @@ It can be set in the `core.remote_token_expiry` configuration key, and default t
 
 This adds CPU hotplugging for VMs.
 Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
+
+## `storage_pool_source_wipe`
+Adds support for a `source.wipe` Boolean on the storage pool, indicating
+that LXD should wipe partition headers off the requested disk rather
+than potentially fail due to pre-existing file systems.
