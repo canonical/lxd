@@ -5456,8 +5456,12 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	return meta, nil
 }
 
-// Migrate starts the instance from a migrated state file.
-func (d *qemu) Migrate(args *instance.CriuMigrationArgs) error {
+// MigrateSend is not currently supported.
+func (d *qemu) MigrateSend(args any) error {
+	return fmt.Errorf("Not supported")
+}
+
+func (d *qemu) MigrateReceive(args any) error {
 	// Although the instance technically isn't considered stateful, we set this to allow starting from the
 	// migrated state file.
 	d.stateful = true
