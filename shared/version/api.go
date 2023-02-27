@@ -359,6 +359,7 @@ var APIExtensions = []string{
 	"network_txqueuelen",
 	"cluster_member_state",
 	"instances_placement_scriptlet",
+	"storage_pool_source_wipe",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
