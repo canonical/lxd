@@ -15,10 +15,14 @@ const ErrorCodeInternalError = "InternalError"
 // ErrorCodeInvalidAccessKeyID means there was an invalid access key provided.
 const ErrorCodeInvalidAccessKeyID = "InvalidAccessKeyId"
 
+// ErrorInvalidRequest means there was an invalid request.
+const ErrorInvalidRequest = "InvalidRequest"
+
 var errorHTTPStatusCodes = map[string]int{
 	ErrorCodeNoSuchBucket:       http.StatusNotFound,
 	ErrorCodeInternalError:      http.StatusInternalServerError,
 	ErrorCodeInvalidAccessKeyID: http.StatusForbidden,
+	ErrorInvalidRequest:         http.StatusBadRequest,
 }
 
 // Error S3 error response.
