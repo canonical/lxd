@@ -147,7 +147,8 @@ type Instance interface {
 
 	// Migration.
 	CanMigrate() (bool, bool)
-	Migrate(args *CriuMigrationArgs) error
+	MigrateSend(args any) error
+	MigrateReceive(args any) error
 
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
