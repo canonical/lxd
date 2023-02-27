@@ -142,6 +142,16 @@ func (d *btrfs) Create() error {
 		// Unset size property since it's irrelevant.
 		d.config["size"] = ""
 
+		// Wipe if requested.
+		if shared.IsTrue(d.config["source.wipe"]) {
+			err := wipeBlockHeaders(d.config["source"])
+			if err != nil {
+				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+			}
+
+			d.config["source.wipe"] = ""
+		}
+
 		// Format the block device.
 		_, err := makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
