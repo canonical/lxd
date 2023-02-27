@@ -2338,7 +2338,7 @@ func (d *lxc) Start(stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil && !d.IsRunning() {
 			op.Done(err)
 			return fmt.Errorf("Failed restoring stateful checkpoint: %w", err)
@@ -2598,7 +2598,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		// Checkpoint
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -3374,7 +3374,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 		}
 
 		// Dump the state.
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
@@ -3546,7 +3546,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Checkpoint.
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
@@ -4974,8 +4974,12 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-// Migrate migrates the instance to another node.
 func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
+	return d.migrate(args)
+}
+
+// Migrate migrates the instance to another node.
+func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 	ctxMap := logger.Ctx{
 		"created":      d.creationDate,
 		"ephemeral":    d.ephemeral,
