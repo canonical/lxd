@@ -4977,8 +4977,22 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
-	return d.migrate(args)
+func (d *lxc) MigrateSend(args any) error {
+	criuArgs, ok := args.(*instance.CriuMigrationArgs)
+	if !ok {
+		return fmt.Errorf("args not instance.CriuMigrationArgs type")
+	}
+
+	return d.migrate(criuArgs)
+}
+
+func (d *lxc) MigrateReceive(args any) error {
+	criuArgs, ok := args.(*instance.CriuMigrationArgs)
+	if !ok {
+		return fmt.Errorf("args not instance.CriuMigrationArgs type")
+	}
+
+	return d.migrate(criuArgs)
 }
 
 // Migrate migrates the instance to another node.
