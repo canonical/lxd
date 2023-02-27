@@ -256,6 +256,16 @@ func (d *zfs) Create() error {
 			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
+		// Wipe if requested.
+		if shared.IsTrue(d.config["source.wipe"]) {
+			err := wipeBlockHeaders(d.config["source"])
+			if err != nil {
+				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+			}
+
+			d.config["source.wipe"] = ""
+		}
+
 		// Create the zpool.
 		_, err := shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
 		if err != nil {

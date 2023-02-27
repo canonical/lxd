@@ -358,6 +358,7 @@ func poolAndVolumeCommonRules(vol *drivers.Volume) map[string]func(string) error
 func validatePoolCommonRules() map[string]func(string) error {
 	rules := map[string]func(string) error{
 		"source":                  validate.IsAny,
+		"source.wipe":             validate.Optional(validate.IsBool),
 		"volatile.initial_source": validate.IsAny,
 		"rsync.bwlimit":           validate.Optional(validate.IsSize),
 		"rsync.compression":       validate.Optional(validate.IsBool),
