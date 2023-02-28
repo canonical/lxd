@@ -340,6 +340,7 @@ var APIExtensions = []string{
 	"init_preseed",
 	"cpu_hotplug",
 	"storage_pool_source_wipe",
+	"zfs_block_mode",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

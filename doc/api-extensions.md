@@ -2016,3 +2016,13 @@ Hotplugging is disabled when using CPU pinning, because this would require hotpl
 Adds support for a `source.wipe` Boolean on the storage pool, indicating
 that LXD should wipe partition headers off the requested disk rather
 than potentially fail due to pre-existing file systems.
+
+## `zfs_block_mode`
+
+This adds support for using ZFS block {spellexception}`filesystem` volumes allowing the use of different file systems on top of ZFS.
+
+This adds the following new configuration options for ZFS storage pools:
+
+* `volume.zfs.block_mode`
+* `volume.block.mount_options`
+* `volume.block.filesystem`
