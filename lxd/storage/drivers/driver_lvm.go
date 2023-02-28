@@ -184,6 +184,16 @@ func (d *lvm) Create() error {
 			return fmt.Errorf("Custom loop file locations are not supported")
 		}
 
+		// Wipe if requested.
+		if shared.IsTrue(d.config["source.wipe"]) {
+			err := wipeBlockHeaders(d.config["source"])
+			if err != nil {
+				return fmt.Errorf("Failed to wipe headers from disk %q: %w", d.config["source"], err)
+			}
+
+			d.config["source.wipe"] = ""
+		}
+
 		// Check if the volume group already exists.
 		vgExists, vgTags, err = d.volumeGroupExists(d.config["lvm.vg_name"])
 		if err != nil {

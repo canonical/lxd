@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -835,4 +836,31 @@ func loopDeviceSetup(sourcePath string) (string, error) {
 func loopDeviceAutoDetach(loopDevPath string) error {
 	_, err := shared.RunCommand("losetup", "--detach", loopDevPath)
 	return err
+}
+
+// wipeBlockHeaders will wipe the first 4MB of a block device.
+func wipeBlockHeaders(path string) error {
+	// Open /dev/zero.
+	fdZero, err := os.Open("/dev/zero")
+	if err != nil {
+		return err
+	}
+
+	defer fdZero.Close()
+
+	// Open the target disk.
+	fdDisk, err := os.OpenFile(path, os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+
+	defer fdDisk.Close()
+
+	// Wipe the 4MB header.
+	_, err = io.CopyN(fdDisk, fdZero, 1024*1024*4)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -906,6 +906,7 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 var NodeSpecificStorageConfig = []string{
 	"size",
 	"source",
+	"source.wipe",
 	"volatile.initial_source",
 	"zfs.pool_name",
 	"lvm.thinpool_name",
