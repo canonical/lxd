@@ -35,3 +35,4 @@ furo
 sphinxext-opengraph>=0.6.1
 lxd-sphinx-extensions
 pyspelling
+sphinx-copybutton
