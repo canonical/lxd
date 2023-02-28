@@ -21,7 +21,8 @@ extensions = [
     "youtube-links",
     "related-links",
     "custom-rst-roles",
-    "sphinxcontrib.jquery"
+    "sphinxcontrib.jquery",
+    "sphinx_copybutton"
 ]
 
 myst_enable_extensions = [
