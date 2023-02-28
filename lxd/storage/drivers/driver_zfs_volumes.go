@@ -2798,7 +2798,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				}
 
 				// Delete on revert.
-				revert.Add(func() { _ = d.DeleteVolume(tmpVol, op) })
+				revert.Add(func() { _ = d.deleteDatasetRecursive(dataset) })
 
 				err := d.setDatasetProperties(dataset, "volmode=dev")
 				if err != nil {
