@@ -360,6 +360,7 @@ var APIExtensions = []string{
 	"cluster_member_state",
 	"instances_placement_scriptlet",
 	"storage_pool_source_wipe",
+	"zfs_block_mode",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
