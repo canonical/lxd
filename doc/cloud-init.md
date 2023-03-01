@@ -9,6 +9,16 @@ relatedlinks: https://cloudinit.readthedocs.org/
 ```{youtube} https://www.youtube.com/watch?v=8OCG15TAldI
 ```
 
+## `cloud-init` support in images
+
+Before trying to use `cloud-init`, however, first determine which image source you are
+about to use as not all images have the `cloud-init` package installed.
+
+The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` enabled.
+Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
+
+## Configuration keys
+
 LXD supports [cloud-init](https://launchpad.net/cloud-init) via the following instance or profile
 configuration keys:
 
@@ -17,12 +27,6 @@ configuration keys:
 * `cloud-init.network-config`
 
 For more information, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the [LXD data source](https://cloudinit.readthedocs.io/en/latest/reference/datasources/lxd.html) in the `cloud-init` documentation.
-
-Before trying to use `cloud-init`, however, first determine which image source you are
-about to use as not all images have the `cloud-init` package installed.
-
-The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` enabled.
-Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
 
 Both `vendor-data` and `user-data` follow the same rules, with the following caveats:
 
@@ -41,9 +45,7 @@ In this case, configure how `cloud-init` should merge the provided data.
 See [Merging User-Data Sections](https://cloudinit.readthedocs.io/en/latest/reference/merging.html) in the `cloud-init` documentation for instructions.
 ```
 
-`cloud-config` examples can be found in the [`cloud-init` documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html).
-
-## Working with cloud-init
+## How to work with `cloud-init`
 
 For a safe way to test, use a new profile that's copied from the default profile.
 
@@ -90,7 +92,7 @@ config:
   cloud-init.network-config: |
 ```
 
-### Custom user-data configuration
+## How to specify user or vendor data
 
 cloud-init uses the `user-data` (and `vendor-data`) section to do things like upgrade packages, install packages or run arbitrary commands.
 
@@ -100,6 +102,11 @@ An instance's rootfs will contain the following files as a result:
 
 * `/var/lib/cloud/instance/cloud-config.txt`
 * `/var/lib/cloud/instance/user-data.txt`
+
+### Examples for `cloud-init` user data
+
+`cloud-config` examples can be found in the [`cloud-init` documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html).
+
 
 #### Upgrade packages on instance creation
 
@@ -160,7 +167,7 @@ config:
       - name: documentation_example
 ```
 
-### Custom network configuration
+## How to specify network configuration data
 
 `cloud-init` uses the `network-config` data to render the relevant network
 configuration on the system using either `ifupdown` or `netplan` depending
@@ -171,6 +178,8 @@ The default behavior is to use a DHCP client on an instance's `eth0` interface.
 In order to change this you need to define your own network configuration
 using `cloud-init.network-config` key in the configuration dictionary which will override
 the default configuration (this is due to how the template is structured).
+
+### Examples for a `cloud-init` network configuration
 
 For example, to configure a specific network interface with a static IPv4
 address and also use a custom name server use
