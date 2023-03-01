@@ -210,7 +210,7 @@ To reference a section within the documentation (on the same page or on another 
 
 Adhere to the following conventions:
 
-- Add targets for sections that are central and a "typical" place to link to, so you expect they will be linked frequently. For "one-off" links, use the automatically generated anchors.
+- Add targets for sections that are central and a "typical" place to link to, so you expect they will be linked frequently. For "one-off" links, you can use the automatically generated anchors.
 - Override the link text only when it is necessary. If you can use the section title as link text, do so, because the text will then update automatically if the title changes.
 - Never "override" the link text with the same text that would be generated automatically.
 
@@ -246,8 +246,8 @@ You can add targets at any place in the documentation. However, if there is no h
 
 ##### Using an automatically generated anchor
 
-When using MyST syntax, you must always specify the file name, even if the link points to a section in the same file.
-When using Markdown syntax, you can leave out the file name when linking within the same file.
+You must use Markdown syntax to use automatically generated anchors.
+You can leave out the file name when linking within the same file.
 
 ```{list-table}
    :header-rows: 1
@@ -256,10 +256,6 @@ When using Markdown syntax, you can leave out the file name when linking within 
   - Output
   - Output on GitHub
   - Description
-* - `` {ref}`doc-cheat-sheet.md#referencing-a-section` ``
-  - {ref}`doc-cheat-sheet.md#referencing-a-section`
-  - \{ref\}`doc-cheat-sheet.md#referencing-a-section`
-  - References an automatically generated anchor.
 * - `[](#referencing-a-section)`
   - [](#referencing-a-section)
   -
@@ -268,10 +264,6 @@ When using Markdown syntax, you can leave out the file name when linking within 
   - [link text](#referencing-a-section)
   - [link text](#referencing-a-section)
   - Preferred when overriding the link text.
-* - `` {ref}`link text <doc-cheat-sheet.md#referencing-a-section>` ``
-  - {ref}`link text <doc-cheat-sheet.md#referencing-a-section>`
-  - \{ref\}`link text <doc-cheat-sheet.md#referencing-a-section>`
-  - Alternative when overriding the link text.
 ```
 
 ## Navigation
