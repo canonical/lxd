@@ -1238,6 +1238,7 @@ func (d *qemu) Start(stateful bool) error {
 		"-name", d.Name(),
 		"-uuid", instUUID,
 		"-daemonize",
+		"-device", fmt.Sprintf("vmgenid,guid=%s", instUUID),
 		"-cpu", cpuType,
 		"-nographic",
 		"-serial", "chardev:console",
