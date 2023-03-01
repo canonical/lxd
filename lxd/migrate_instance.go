@@ -509,6 +509,12 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 	}
 
+	// Attempt to acquire exclusive access (succeeds if instance is stopped).
+	lock, err := s.instance.LockExclusive()
+	if err == nil {
+		defer lock.Done(nil)
+	}
+
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
 		return abort(err)

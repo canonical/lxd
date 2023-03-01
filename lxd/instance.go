@@ -204,6 +204,12 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 	}
 
+	// Attempt to acquire exclusive access (succeeds if instance is stopped).
+	sourceInstOp, err := opts.sourceInstance.LockExclusive()
+	if err == nil {
+		defer sourceInstOp.Done(nil)
+	}
+
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
