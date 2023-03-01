@@ -903,13 +903,12 @@ func (c *cmdInit) askStoragePool(config *api.InitPreseed, d lxd.InstanceServer, 
 			_, err := exec.LookPath("thin_check")
 			if err != nil {
 				fmt.Printf(`
-The LVM thin provisioning tools couldn't be found. LVM can still be used
-without thin provisioning but this will disable over-provisioning,
-increase the space requirements and creation time of images, containers
-and snapshots.
+The LVM thin provisioning tools couldn't be found.
+LVM can still be used without thin provisioning but this will disable over-provisioning,
+increase the space requirements and creation time of images, instances and snapshots.
 
-If you wish to use thin provisioning, abort now, install the tools from
-your Linux distribution and run "lxd init" again afterwards.
+If you wish to use thin provisioning, abort now, install the tools from your Linux distribution
+and make sure that your user can see and run the "thin_check" command before running "lxd init" again.
 
 `)
 				lvmContinueNoThin, err := cli.AskBool("Do you want to continue without thin provisioning? (yes/no) [default=yes]: ", "yes")
