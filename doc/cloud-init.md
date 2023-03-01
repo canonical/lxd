@@ -8,6 +8,16 @@ relatedlinks: https://cloudinit.readthedocs.org/
 
 ```{youtube} https://www.youtube.com/watch?v=8OCG15TAldI
 ```
+`cloud-init` is a software for automatic customization of a Linux distribution.
+
+Features include:
+
+* install packages
+* apply/edit configuration
+* add users
+* and more
+
+See the [Cloud-init documentation](https://cloudinit.readthedocs.io/en/latest/).
 
 ## `cloud-init` support in images
 
@@ -17,6 +27,10 @@ about to use as not all images have the `cloud-init` package installed.
 The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` enabled.
 Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
 
+Requirements:
+
+* Images with cloud-init support: For example, official LXD images that contain the term `cloud` in `ALIAS` have implemented cloud-init support.
+
 ## Configuration keys
 
 LXD supports [cloud-init](https://launchpad.net/cloud-init) via the following instance or profile
@@ -25,6 +39,10 @@ configuration keys:
 * `cloud-init.vendor-data`
 * `cloud-init.user-data`
 * `cloud-init.network-config`
+
+- `user.meta-data` - see [cloud-init docs - instance metadata](https://cloudinit.readthedocs.io/en/latest/explanation/instancedata.html)
+- `user.vendor-data` - see [cloud-init docs - vendordata](https://cloudinit.readthedocs.io/en/latest/explanation/vendordata.html)
+- `user.network-config` - see [cloud-init docs - network configuration](https://cloudinit.readthedocs.io/en/latest/reference/network-config.html)
 
 For more information, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the [LXD data source](https://cloudinit.readthedocs.io/en/latest/reference/datasources/lxd.html) in the `cloud-init` documentation.
 
@@ -91,6 +109,32 @@ config:
 config:
   cloud-init.network-config: |
 ```
+
+!!! Tip
+    You can check whether the syntax is correct with: [cloud-init FAQ - debug user-data](https://cloudinit.readthedocs.io/en/latest/reference/faq.html#how-can-i-debug-my-user-data)
+
+!!! note
+	Cloud-init may take a while until it is finished, depending on your instructions.
+
+#### Cloud-init status
+You can get the status of cloud-init with:
+
+	cloud-init status
+
+Reports:
+
+`status: running`: means cloud-init is still working
+
+or
+
+`status: done`: means cloud-init has finished work
+
+<br>
+
+You can also use the following flag, which will only respond when cloud-init is finished:
+
+	cloud-init status --wait
+
 
 ## How to specify user or vendor data
 
