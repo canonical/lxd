@@ -77,8 +77,8 @@ func (d *zfs) load() error {
 		zfsVersion = version
 	}
 
-	// Decide whether we can use direct I/O with datasets (which was added in v0.8).
-	ver80, err := version.Parse("0.8.0")
+	// Decide whether we can use features added by 0.8.0.
+	ver080, err := version.Parse("0.8.0")
 	if err != nil {
 		return err
 	}
@@ -88,19 +88,10 @@ func (d *zfs) load() error {
 		return err
 	}
 
-	// If running 0.8 or older, we can use direct I/O and trim.
-	if ourVer.Compare(ver80) >= 0 {
+	// If running 0.8.0 or newer, we can use direct I/O, trim and raw.
+	if ourVer.Compare(ver080) >= 0 {
 		zfsDirectIO = true
 		zfsTrim = true
-	}
-
-	ver080, err := version.Parse("0.8.0")
-	if err != nil {
-		return err
-	}
-
-	// If running 0.8.0 or newer, we can use the raw flag.
-	if ourVer.Compare(ver080) >= 0 {
 		zfsRaw = true
 	}
 
