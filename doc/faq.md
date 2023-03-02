@@ -38,7 +38,8 @@ lxc config set core.trust_password SECRET
 This will set the remote password that you can then use to do `lxc remote add`.
 
 You can also access the server without setting a password by copying the client
-certificate from `.config/lxc/client.crt` to the server and adding it with:
+certificate (`~/.config/lxc/client.crt` or `~/snap/lxd/common/config/client.crt`
+for snap users) to the server and adding it with:
 
 ```bash
 lxc config trust add client.crt
