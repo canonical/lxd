@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
@@ -514,4 +515,32 @@ func (d *common) roundVolumeBlockSizeBytes(sizeBytes int64) int64 {
 
 func (d *common) isBlockBacked(vol Volume) bool {
 	return vol.driver.Info().BlockBacking
+}
+
+// filesystemFreeze syncs and freezes a filesystem and returns an unfreeze function on success.
+func (d *common) filesystemFreeze(path string) (func() error, error) {
+	err := filesystem.SyncFS(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed syncing filesystem %q: %w", path, err)
+	}
+
+	_, err = shared.RunCommand("fsfreeze", "--freeze", path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed freezing filesystem %q: %w", path, err)
+	}
+
+	d.logger.Info("Filesystem frozen", logger.Ctx{"path": path})
+
+	unfreezeFS := func() error {
+		_, err := shared.RunCommand("fsfreeze", "--unfreeze", path)
+		if err != nil {
+			return fmt.Errorf("Failed unfreezing filesystem %q: %w", path, err)
+		}
+
+		d.logger.Info("Filesystem unfrozen", logger.Ctx{"path": path})
+
+		return nil
+	}
+
+	return unfreezeFS, nil
 }
