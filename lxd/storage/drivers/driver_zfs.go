@@ -255,12 +255,18 @@ func (d *zfs) Create() error {
 			}
 
 			d.config["source.wipe"] = ""
-		}
 
-		// Create the zpool.
-		_, err := shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
-		if err != nil {
-			return err
+			// Create the zpool.
+			_, err = shared.RunCommand("zpool", "create", "-f", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			if err != nil {
+				return err
+			}
+		} else {
+			// Create the zpool.
+			_, err := shared.RunCommand("zpool", "create", "-m", "none", "-O", "compression=on", d.config["zfs.pool_name"], d.config["source"])
+			if err != nil {
+				return err
+			}
 		}
 
 		// Apply auto-trim if supported.
