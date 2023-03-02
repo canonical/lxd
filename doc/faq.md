@@ -90,6 +90,18 @@ We have also received some reports that creating a `/.dockerenv` file in your
 container can help Docker ignore some errors it's getting due to running in a
 nested environment.
 
+### Where does `lxc` store its configuration?
+
+The `lxc` command stores its configuration under `~/.config/lxc` or in `~/snap/lxd/common/config`
+for snap users.
+
+Various configuration files are stored in that directory, among which are:
+
+- `client.crt`: client certificate (generated on demand)
+- `client.key`: client key (generated on demand)
+- `config.yml`: configuration file (info about `remotes`, `aliases`, etc)
+- `servercerts/`: directory with server certificates belonging to `remotes`
+
 ## Networking issues
 
 In a larger [Production Environment](performance-tuning), it is common to have
