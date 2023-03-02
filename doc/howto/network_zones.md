@@ -50,7 +50,8 @@ If you configure a zone with forward DNS records for `lxd.example.net` for your 
 - Manual records added to the zone.
 
 You can check the records that are generated with your zone setup with the `dig` command.
-For example, running `dig @<DNS_server_IP> -p 1053 axfr lxd.example.net` might give the following output:
+This assumes that `core.dns_address` was set to `<DNS_server_IP>:<DNS_server_PORT>`.
+For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr lxd.example.net` might give the following output:
 
 ```bash
 lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.example.net. 1669736788 120 60 86400 30
@@ -69,7 +70,7 @@ lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.ex
 
 If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` for a network using `192.0.2.0/24`, it generates reverse `PTR` DNS records for addresses from all projects that are referencing that network via one of their forward zones.
 
-For example, running `dig @<DNS_server_IP> -p 1053 axfr 2.0.192.in-addr.arpa` might give the following output:
+For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr 2.0.192.in-addr.arpa` might give the following output:
 
 ```bash
 2.0.192.in-addr.arpa.                  3600 IN SOA  2.0.192.in-addr.arpa. ns1.2.0.192.in-addr.arpa. 1669736828 120 60 86400 30
@@ -85,6 +86,7 @@ For example, running `dig @<DNS_server_IP> -p 1053 axfr 2.0.192.in-addr.arpa` mi
 To make use of network zones, you must enable the built-in DNS server.
 
 To do so, set the `core.dns_address` configuration option (see {ref}`server-options-core`) to a local address on the LXD server.
+To avoid conflicts with an existing DNS we suggest not using the port 53.
 This is the address on which the DNS server will listen.
 Note that in a LXD cluster, the address may be different on each cluster member.
 
