@@ -40,14 +40,15 @@ See the [RESTful API](rest-api.md) for available API.
 ## REST API through HTTPS
 
 [HTTPS connection to LXD](security.md) requires valid
-client certificate, generated in `~/.config/lxc/client.crt` on
-first `lxc remote add`. This certificate should be passed to
-connection tools for authentication and encryption.
+client certificate that is generated on first `lxc remote add`. This
+certificate should be passed to connection tools for authentication
+and encryption.
 
-Examining certificate. In case you are curious:
+If desired, `openssl` can be used to examine the certificate (`~/.config/lxc/client.crt`
+or `~/snap/lxd/common/config/client.crt` for snap users):
 
 ```bash
-openssl x509 -in client.crt -purpose
+openssl x509 -text -noout -in client.crt
 ```
 
 Among the lines you should see:
@@ -58,7 +59,10 @@ Among the lines you should see:
 ### With command line tools
 
 ```bash
-wget --no-check-certificate https://127.0.0.1:8443/1.0 --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
+wget --no-check-certificate --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -qO - https://127.0.0.1:8443/1.0
+
+# or for snap users
+wget --no-check-certificate --certificate=$HOME/snap/lxd/common/config/client.crt --private-key=$HOME/snap/lxd/common/config/client.key -qO - https://127.0.0.1:8443/1.0
 ```
 
 ### With browser
