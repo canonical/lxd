@@ -20,7 +20,7 @@ then use the `config set` command on the server:
 
 ```bash
 ip addr
-lxc config set core.https_address 192.168.1.15
+lxc config set core.https_address 192.0.2.1
 ```
 
 Also see {ref}`security_remote_access`.
