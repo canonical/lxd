@@ -67,7 +67,6 @@ Key                                             | Type      | Default           
 `cloud-init.network-config`                     | string    | `DHCP on eth0`    | no            | if supported by image     | Network configuration for `cloud-init` (content is used as seed value)
 `cloud-init.user-data`                          | string    | `#cloud-config`   | no            | if supported by image     | User data for `cloud-init` (content is used as seed value)
 `cloud-init.vendor-data`                        | string    | `#cloud-config`   | no            | if supported by image     | Vendor data for `cloud-init` (content is used as seed value)
-`user.meta-data`                                | string    | -                 | no            | if supported by image     | Legacy meta-data for `cloud-init` (content is appended to seed value)
 `user.network-config`                           | string    | `DHCP on eth0`    | no            | if supported by image     | Legacy version of `cloud-init.network-config`
 `user.user-data`                                | string    | `#cloud-config`   | no            | if supported by image     | Legacy version of `cloud-init.user-data`
 `user.vendor-data`                              | string    | `#cloud-config`   | no            | if supported by image     | Legacy version of `cloud-init.vendor-data`
