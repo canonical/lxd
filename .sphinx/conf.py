@@ -22,7 +22,8 @@ extensions = [
     "related-links",
     "custom-rst-roles",
     "sphinxcontrib.jquery",
-    "sphinx_copybutton"
+    "sphinx_copybutton",
+    "sphinx.ext.intersphinx"
 ]
 
 myst_enable_extensions = [
@@ -37,6 +38,10 @@ myst_heading_anchors = 7
 if os.path.exists("../doc/substitutions.yaml"):
     with open("../doc/substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.safe_load(fd.read())
+
+intersphinx_mapping = {
+    'cloud-init': ('https://cloudinit.readthedocs.io/en/latest/', None)
+}
 
 # Setup theme.
 templates_path = ["_templates"]
