@@ -530,13 +530,15 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, allowInconsistent bool, op *operations.Operation) error {
+	var err error
+
 	// Revert handling
 	revert := revert.New()
 	defer revert.Fail()
 
 	if vol.contentType == ContentTypeFS {
 		// Create mountpoint.
-		err := vol.EnsureMountPath()
+		err = vol.EnsureMountPath()
 		if err != nil {
 			return err
 		}
@@ -550,7 +552,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		srcFSVol := srcVol.NewVMBlockFilesystemVolume()
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
-		err := d.CreateVolumeFromCopy(fsVol, srcFSVol, copySnapshots, false, op)
+		err = d.CreateVolumeFromCopy(fsVol, srcFSVol, copySnapshots, false, op)
 		if err != nil {
 			return err
 		}
@@ -562,11 +564,24 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	// Retrieve snapshots on the source.
 	snapshots := []string{}
 	if !srcVol.IsSnapshot() && copySnapshots {
-		var err error
 		snapshots, err = d.VolumeSnapshots(srcVol, op)
 		if err != nil {
 			return err
 		}
+	}
+
+	// When not allowing inconsistent copies and the volume has a mounted filesystem, we must ensure it is
+	// consistent by syncing and freezing the filesystem to ensure unwritten pages are flushed and that no
+	// further modifications occur while taking the source snapshot.
+	var unfreezeFS func() error
+	sourcePath := srcVol.MountPath()
+	if !allowInconsistent && srcVol.contentType == ContentTypeFS && srcVol.IsBlockBacked() && filesystem.IsMountPoint(sourcePath) {
+		unfreezeFS, err = d.filesystemFreeze(sourcePath)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { _ = unfreezeFS() })
 	}
 
 	var srcSnapshot string
@@ -603,6 +618,11 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 				}
 			})
 		}
+	}
+
+	// Now that source snapshot has been taken we can safely unfreeze the source filesystem.
+	if unfreezeFS != nil {
+		_ = unfreezeFS()
 	}
 
 	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
@@ -778,7 +798,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err := d.SetVolumeQuota(vol, vol.config["size"], false, op)
+	err = d.SetVolumeQuota(vol, vol.config["size"], false, op)
 	if err != nil {
 		return err
 	}
