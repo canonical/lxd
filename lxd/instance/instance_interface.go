@@ -149,7 +149,7 @@ type Instance interface {
 	// Migration.
 	CanMigrate() (bool, bool)
 	MigrateSend(args MigrateSendArgs) error
-	MigrateReceive(args any) error
+	MigrateReceive(args MigrateReceiveArgs) error
 
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
@@ -217,4 +217,12 @@ type MigrateSendArgs struct {
 	MigrateArgs
 
 	AllowInconsistent bool
+}
+
+// MigrateReceiveArgs represent arguments for instance migration receive.
+type MigrateReceiveArgs struct {
+	MigrateArgs
+
+	InstanceOperation *operationlock.InstanceOperation
+	Refresh           bool
 }
