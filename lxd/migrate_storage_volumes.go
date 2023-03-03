@@ -449,7 +449,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		restore <- nil
 	}(c)
 
-	var source <-chan *migrationControlResponse
+	var source <-chan *migration.ControlResponse
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
@@ -469,10 +469,10 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 			return nil
 		case msg := <-source:
-			if msg.err != nil {
+			if msg.Err != nil {
 				disconnector()
 
-				return fmt.Errorf("Got error reading migration source: %w", msg.err)
+				return fmt.Errorf("Got error reading migration source: %w", msg.Err)
 			}
 
 			if !*msg.Success {
