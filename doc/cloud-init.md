@@ -4,106 +4,133 @@ relatedlinks: https://cloudinit.readthedocs.org/
 ---
 
 (cloud-init)=
-# cloud-init
+# How to use `cloud-init`
 
 ```{youtube} https://www.youtube.com/watch?v=8OCG15TAldI
 ```
 
-LXD supports [cloud-init](https://launchpad.net/cloud-init) via the following instance or profile
-configuration keys:
+[`cloud-init`](https://cloud-init.io/) is a tool for automatically initializing and customizing an instance of a Linux distribution.
 
-* `cloud-init.vendor-data`
-* `cloud-init.user-data`
-* `cloud-init.network-config`
+By adding `cloud-init` configuration to your instance, you can instruct `cloud-init` to execute specific actions at the first start of an instance.
+Possible actions include, for example:
 
-For more information, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the [LXD data source](https://cloudinit.readthedocs.io/en/latest/reference/datasources/lxd.html) in the `cloud-init` documentation.
+* Updating and installing packages
+* Applying certain configurations
+* Adding users
+* Enabling services
+* Running commands or scripts
+* Automatically growing the file system of a VM to the size of the disk
 
-Before trying to use `cloud-init`, however, first determine which image source you are
-about to use as not all images have the `cloud-init` package installed.
-
-The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` enabled.
-Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
-
-Both `vendor-data` and `user-data` follow the same rules, with the following caveats:
-
-* Users have ultimate control over vendor data. They can disable its execution or disable handling of specific parts of multipart input.
-* By default it only runs on first boot.
-* Vendor data can be disabled by the user. If the use of vendor data is required for the instance to run, then vendor data should not be used.
-* User supplied `cloud-config` is merged over `cloud-config` from vendor data.
-
-For LXD instances, `vendor-data` should be used in profiles rather than the instance configuration.
+See the {ref}`cloud-init:index` for detailed information.
 
 ```{note}
-If both `cloud-init.user-data` and `cloud-init.vendor-data` are supplied, `cloud-init` merges the two configurations.
+The `cloud-init` actions are run only once on the first start of the instance.
+Rebooting the instance does not re-trigger the actions.
+```
 
+## `cloud-init` support in images
+
+To use `cloud-init`, you must base your instance on an image that has `cloud-init` installed:
+
+* All images from the `ubuntu` and `ubuntu-daily` {ref}`image servers <remote-image-servers>` have `cloud-init` support.
+* Images from the [`images` remote](https://images.linuxcontainers.org/) have `cloud-init`-enabled variants, which are usually bigger in size than the default variant.
+  The cloud variants use the `/cloud` suffix, for example, `images:ubuntu/22.04/cloud`.
+
+## Configuration options
+
+LXD supports two different sets of configuration options for configuring `cloud-init`: `cloud-init.*` and `user.*`.
+Which of these sets you must use depends on the `cloud-init` support in the image that you use.
+As a rule of thumb, newer images support the `cloud-init.*` configuration options, while older images support `user.*`.
+However, there might be exceptions to that rule.
+
+The following configuration options are supported:
+
+* `cloud-init.vendor-data` or `user.vendor-data` (see {ref}`cloud-init:vendordata`)
+* `cloud-init.user-data` or `user.user-data` (see {ref}`cloud-init:user_data_formats`)
+* `cloud-init.network-config` or `user.network-config` (see {ref}`cloud-init:network_config`)
+
+For more information about the configuration options, see the [`cloud-init` instance options](instance-options-cloud-init), and the documentation for the {ref}`LXD data source <cloud-init:datasource_lxd>` in the `cloud-init` documentation.
+
+### Vendor data and user data
+
+Both `vendor-data` and `user-data` are used to provide {ref}`cloud configuration data <explanation/format:cloud config data>` to `cloud-init`.
+
+The main idea is that `vendor-data` is used for the general default configuration, while `user-data` is used for instance-specific configuration.
+This means that you should specify `vendor-data` in a profile and `user-data` in the instance configuration.
+LXD does not enforce this method, but allows using both `vendor-data` and `user-data` in profiles and in the instance configuration.
+
+If both `vendor-data` and `user-data` are supplied for an instance, `cloud-init` merges the two configurations.
 However, if you use the same keys in both configurations, merging might not be possible.
 In this case, configure how `cloud-init` should merge the provided data.
-See [Merging User-Data Sections](https://cloudinit.readthedocs.io/en/latest/reference/merging.html) in the `cloud-init` documentation for instructions.
-```
+See {ref}`cloud-init:merging_user_data` for instructions.
 
-`cloud-config` examples can be found in the [`cloud-init` documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html).
+## How to configure `cloud-init`
 
-## Working with cloud-init
+To configure `cloud-init` for an instance, add the corresponding configuration options to a {ref}`profile <profiles>` that the instance uses or directly to the {ref}`instance configuration <instances-configure>`.
 
-For a safe way to test, use a new profile that's copied from the default profile.
+When configuring `cloud-init` directly for an instance, keep in mind that `cloud-init` runs only on the first start of the instance.
+That means that you must configure `cloud-init` before you start the instance.
+To do so, create the instance with `lxc init` instead of `lxc launch`, and then start it after completing the configuration.
 
-    lxc profile copy default test
+### YAML format for `cloud-init` configuration
 
-Then edit the new `test` profile. You might want to set your `EDITOR` environment variable first.
+The `cloud-init` options require YAML's [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style).
+You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved.
 
-    lxc profile edit test
+The `vendor-data` and `user-data` options usually start with `#cloud-config`.
 
-For a new LXD installation, the configuration file should look similar to this example:
-
-```yaml
-config: {}
-description: Default LXD profile
-devices:
-  eth0:
-    name: eth0
-    network: lxdbr0
-    type: nic
-  root:
-    path: /
-    pool: default
-    type: disk
-```
-
-Once you've set up the `cloud-init` configuration, use `lxc launch` with `--profile <profilename>` to apply the profile to the instance.
-
-### Adding cloud-init keys to the configuration
-
-`cloud-init` keys require a specific syntax. You use a pipe symbol (`|`) to indicate that all indented text after the pipe should be passed to `cloud-init` as a single string, with new lines and indentation preserved; this is [literal style format](https://yaml.org/spec/1.2.2/#812-literal-style) used in YAML.
+For example:
 
 ```yaml
 config:
   cloud-init.user-data: |
+    #cloud-config
+    package_upgrade: true
+    packages:
+      - package1
+      - package2
 ```
 
-```yaml
-config:
-  cloud-init.vendor-data: |
+```{tip}
+See {ref}`cloud-init:reference/faq:how can i debug my user data?` for information on how to check whether the syntax is correct.
 ```
 
-```yaml
-config:
-  cloud-init.network-config: |
-```
+## How to check the `cloud-init` status
 
-### Custom user-data configuration
+`cloud-init` runs automatically on the first start of an instance.
+Depending on the configured actions, it might take a while until it finishes.
 
-cloud-init uses the `user-data` (and `vendor-data`) section to do things like upgrade packages, install packages or run arbitrary commands.
+To check the `cloud-init` status, log on to the instance and enter the following command:
 
-A `cloud-init.user-data` key must have a first line that indicates what type of [data format](https://cloudinit.readthedocs.io/en/latest/topics/format.html) is being passed to `cloud-init`. For activities like upgrading packages or setting up a user, `#cloud-config` is the data format to use.
+    cloud-init status
 
-An instance's rootfs will contain the following files as a result:
+If the result is `status: running`, `cloud-init` is still working. If the result is `status: done`, it has finished.
+
+Alternatively, use the following flag to be notified only when `cloud-init` is finished:
+
+    cloud-init status --wait
+
+## How to specify user or vendor data
+
+The `user-data` and `vendor-data` configuration can be used to, for example, upgrade or install packages, add users, or run commands.
+
+The provided values must have a first line that indicates what type of {ref}`user data format <cloud-init:user_data_formats>` is being passed to `cloud-init`.
+For activities like upgrading packages or setting up a user, `#cloud-config` is the data format to use.
+
+The configuration data is stored in the following files in the instance's root file system:
 
 * `/var/lib/cloud/instance/cloud-config.txt`
 * `/var/lib/cloud/instance/user-data.txt`
 
-#### Upgrade packages on instance creation
+### Examples
 
-To trigger a package upgrade from the repositories for the instance, use the `package_upgrade` key:
+See the following sections for the user data (or vendor data) configuration for different example use cases.
+
+You can find more advanced {ref}`examples <cloud-init:yaml_examples>` in the `cloud-init` documentation.
+
+#### Upgrade packages
+
+To trigger a package upgrade from the repositories for the instance right after the instance is created, use the `package_upgrade` key:
 
 ```yaml
 config:
@@ -112,7 +139,7 @@ config:
     package_upgrade: true
 ```
 
-#### Install packages on instance creation
+#### Install packages
 
 To install specific packages when the instance is set up, use the `packages` key and specify the package names as a list:
 
@@ -125,9 +152,9 @@ config:
       - openssh-server
 ```
 
-#### Set the time zone on instance creation
+#### Set the time zone
 
-To set the time zone for the instance, use the `timezone` key:
+To set the time zone for the instance on instance creation, use the `timezone` key:
 
 ```yaml
 config:
@@ -138,7 +165,7 @@ config:
 
 #### Run commands
 
-To run a command (such as writing a marker file), use the `runcmd` key and specify commands as a list:
+To run a command (such as writing a marker file), use the `runcmd` key and specify the commands as a list:
 
 ```yaml
 config:
@@ -150,7 +177,8 @@ config:
 
 #### Add a user account
 
-To add a user account, use the `user` key. See the [documentation](https://cloudinit.readthedocs.io/en/latest/topics/examples.html#including-users-and-groups) for more details about default users and which keys are supported.
+To add a user account, use the `user` key.
+See the {ref}`cloud-init:reference/examples:including users and groups` example in the `cloud-init` documentation for details about default users and which keys are supported.
 
 ```yaml
 config:
@@ -160,20 +188,22 @@ config:
       - name: documentation_example
 ```
 
-### Custom network configuration
+## How to specify network configuration data
 
-`cloud-init` uses the `network-config` data to render the relevant network
-configuration on the system using either `ifupdown` or `netplan` depending
-on the Ubuntu release.
+By default, `cloud-init` configures a DHCP client on an instance's `eth0` interface.
+You can define your own network configuration using the `network-config` option to override the default configuration (this is due to how the template is structured).
 
-The default behavior is to use a DHCP client on an instance's `eth0` interface.
+`cloud-init` then renders the relevant network configuration on the system using either `ifupdown` or `netplan`, depending on the Ubuntu release.
 
-In order to change this you need to define your own network configuration
-using `cloud-init.network-config` key in the configuration dictionary which will override
-the default configuration (this is due to how the template is structured).
+The configuration data is stored in the following files in the instance's root file system:
 
-For example, to configure a specific network interface with a static IPv4
-address and also use a custom name server use
+* `/var/lib/cloud/seed/nocloud-net/network-config`
+* `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
+* `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)
+
+### Example
+
+To configure a specific network interface with a static IPv4 address and also use a custom name server, use the following configuration:
 
 ```yaml
 config:
@@ -192,9 +222,3 @@ config:
       - type: nameserver
         address: 10.10.10.254
 ```
-
-An instance's rootfs will contain the following files as a result:
-
-* `/var/lib/cloud/seed/nocloud-net/network-config`
-* `/etc/network/interfaces.d/50-cloud-init.cfg` (if using `ifupdown`)
-* `/etc/netplan/50-cloud-init.yaml` (if using `netplan`)

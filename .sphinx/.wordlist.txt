@@ -274,6 +274,7 @@ WebSockets
 XFS
 XHR
 YAML
+YAML's
 Zettabyte
 ZFS
 zpool
