@@ -16,6 +16,7 @@ balancers
 benchmarking
 BGP
 bibi
+BitLocker
 bool
 bootable
 Btrfs
