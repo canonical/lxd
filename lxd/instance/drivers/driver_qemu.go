@@ -32,6 +32,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -5600,12 +5601,293 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	return nil
 }
 
-func (d *qemu) MigrateReceive(args any) error {
-	// Although the instance technically isn't considered stateful, we set this to allow starting from the
-	// migrated state file.
-	d.stateful = true
+func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
+	d.logger.Info("Migration receive starting")
+	defer d.logger.Info("Migration receive stopped")
 
-	return d.Start(true)
+	// Receive offer from source.
+	d.logger.Debug("Waiting for migration offer from source")
+	offerHeader := &migration.MigrationHeader{}
+	err := args.ControlReceive(offerHeader)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
+	}
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return err
+	}
+
+	// The source will never set Refresh in the offer header.
+	// However, to determine the correct migration type Refresh needs to be set.
+	offerHeader.Refresh = &args.Refresh
+
+	// Extract the source's migration type and then match it against our pool's supported types and features.
+	// If a match is found the combined features list will be sent back to requester.
+	contentType := storagePools.InstanceContentType(d)
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, args.Refresh))
+	if err != nil {
+		return err
+	}
+
+	// The migration header to be sent back to source with our target options.
+	// Convert response type to response header and copy snapshot info into it.
+	respHeader := migration.TypesToHeader(respTypes...)
+
+	// Respond with our maximum supported header version if the requested version is higher than ours.
+	// Otherwise just return the requested header version to the source.
+	indexHeaderVersion := offerHeader.GetIndexHeaderVersion()
+	if indexHeaderVersion > migration.IndexHeaderVersion {
+		indexHeaderVersion = migration.IndexHeaderVersion
+	}
+
+	respHeader.IndexHeaderVersion = &indexHeaderVersion
+	respHeader.SnapshotNames = offerHeader.SnapshotNames
+	respHeader.Snapshots = offerHeader.Snapshots
+	respHeader.Refresh = &args.Refresh
+
+	if args.Refresh {
+		// Get the remote snapshots on the source.
+		sourceSnapshots := offerHeader.GetSnapshots()
+		sourceSnapshotComparable := make([]storagePools.ComparableSnapshot, 0, len(sourceSnapshots))
+		for _, sourceSnap := range sourceSnapshots {
+			sourceSnapshotComparable = append(sourceSnapshotComparable, storagePools.ComparableSnapshot{
+				Name:         sourceSnap.GetName(),
+				CreationDate: time.Unix(sourceSnap.GetCreationDate(), 0),
+			})
+		}
+
+		// Get existing snapshots on the local target.
+		targetSnapshots, err := d.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		targetSnapshotsComparable := make([]storagePools.ComparableSnapshot, 0, len(targetSnapshots))
+		for _, targetSnap := range targetSnapshots {
+			_, targetSnapName, _ := api.GetParentAndSnapshotName(targetSnap.Name())
+
+			targetSnapshotsComparable = append(targetSnapshotsComparable, storagePools.ComparableSnapshot{
+				Name:         targetSnapName,
+				CreationDate: targetSnap.CreationDate(),
+			})
+		}
+
+		// Compare the two sets.
+		syncSourceSnapshotIndexes, deleteTargetSnapshotIndexes := storagePools.CompareSnapshots(sourceSnapshotComparable, targetSnapshotsComparable)
+
+		// Delete the extra local snapshots first.
+		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
+			err := targetSnapshots[deleteTargetSnapshotIndex].Delete(true)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Only request to send the snapshots that need updating.
+		syncSnapshotNames := make([]string, 0, len(syncSourceSnapshotIndexes))
+		syncSnapshots := make([]*migration.Snapshot, 0, len(syncSourceSnapshotIndexes))
+		for _, syncSourceSnapshotIndex := range syncSourceSnapshotIndexes {
+			syncSnapshotNames = append(syncSnapshotNames, sourceSnapshots[syncSourceSnapshotIndex].GetName())
+			syncSnapshots = append(syncSnapshots, sourceSnapshots[syncSourceSnapshotIndex])
+		}
+
+		respHeader.Snapshots = syncSnapshots
+		respHeader.SnapshotNames = syncSnapshotNames
+		offerHeader.Snapshots = syncSnapshots
+		offerHeader.SnapshotNames = syncSnapshotNames
+	}
+
+	// Send response to source.
+	d.logger.Debug("Sending migration response to source")
+	err = args.ControlSend(respHeader)
+	if err != nil {
+		return fmt.Errorf("Failed sending migration response to source: %w", err)
+	}
+
+	d.logger.Debug("Sent migration response to source")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	restore := make(chan error)
+	go func() {
+		snapshots := make([]*migration.Snapshot, 0)
+
+		// Legacy: we only sent the snapshot names, so we just copy the instances's config over,
+		// same as we used to do.
+		if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+			// Convert the instance to an api.InstanceSnapshot.
+
+			profileNames := make([]string, 0, len(d.Profiles()))
+			for _, p := range d.Profiles() {
+				profileNames = append(profileNames, p.Name)
+			}
+
+			architectureName, _ := osarch.ArchitectureName(d.Architecture())
+			apiInstSnap := &api.InstanceSnapshot{
+				InstanceSnapshotPut: api.InstanceSnapshotPut{
+					ExpiresAt: time.Time{},
+				},
+				Architecture: architectureName,
+				CreatedAt:    d.CreationDate(),
+				LastUsedAt:   d.LastUsedDate(),
+				Config:       d.LocalConfig(),
+				Devices:      d.LocalDevices().CloneNative(),
+				Ephemeral:    d.IsEphemeral(),
+				Stateful:     d.IsStateful(),
+				Profiles:     profileNames,
+			}
+
+			for _, name := range offerHeader.SnapshotNames {
+				base := instance.SnapshotToProtobuf(apiInstSnap)
+				base.Name = &name
+				snapshots = append(snapshots, base)
+			}
+		} else {
+			snapshots = offerHeader.Snapshots
+		}
+
+		volTargetArgs := migration.VolumeTargetArgs{
+			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
+			Name:               d.Name(),
+			MigrationType:      respTypes[0],
+			Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:               false,                       // Indicates we won't get a final rootfs sync.
+			VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:         !args.Snapshots,
+		}
+
+		// At this point we have already figured out the parent instances's root
+		// disk device so we can simply retrieve it from the expanded devices.
+		parentStoragePool := ""
+		parentExpandedDevices := d.ExpandedDevices()
+		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+		if parentLocalRootDiskDeviceKey != "" {
+			parentStoragePool = parentLocalRootDiskDevice["pool"]
+		}
+
+		if parentStoragePool == "" {
+			restore <- fmt.Errorf("Instance's root device is missing the pool property")
+			return
+		}
+
+		// A zero length Snapshots slice indicates volume only migration in
+		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		if args.Snapshots {
+			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
+			for _, snap := range snapshots {
+				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+				snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
+				if err != nil {
+					restore <- err
+					return
+				}
+
+				// Ensure that snapshot and parent instance have the same storage pool in
+				// their local root disk device. If the root disk device for the snapshot
+				// comes from a profile on the new instance as well we don't need to do
+				// anything.
+				if snapArgs.Devices != nil {
+					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+					if snapLocalRootDiskDeviceKey != "" {
+						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+					}
+				}
+
+				// Create the snapshot instance.
+				_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
+				if err != nil {
+					restore <- fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
+					return
+				}
+
+				revert.Add(cleanup)
+				defer snapInstOp.Done(err)
+			}
+		}
+
+		err = pool.CreateInstanceFromMigration(d, args.DataConn, volTargetArgs, d.op)
+		if err != nil {
+			restore <- fmt.Errorf("Failed creating instance on target: %w", err)
+			return
+		}
+
+		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
+		// deleting an existing conflicting volume.
+		if !volTargetArgs.Refresh {
+			revert.Add(func() { _ = d.delete(true) })
+		}
+
+		if args.Live {
+			// Although the instance technically isn't considered stateful, we set this to allow
+			// starting from the migrated state file.
+			d.stateful = true
+
+			err = d.start(true, args.InstanceOperation)
+			if err != nil {
+				restore <- err
+
+				return
+			}
+		}
+
+		restore <- nil
+	}()
+
+	source := make(chan *migration.ControlResponse, 1)
+	go func() {
+		resp := migration.ControlResponse{}
+		err := args.ControlReceive(&resp.MigrationControl)
+		if err != nil {
+			resp.Err = err
+			source <- &resp
+
+			return
+		}
+
+		source <- &resp
+	}()
+
+	select {
+	case err = <-restore:
+		if err != nil {
+			return err
+		}
+
+		break
+	case msg := <-source:
+		if msg.Err != nil {
+			return fmt.Errorf("Got error reading migration source: %w", msg.Err)
+		}
+
+		if !msg.GetSuccess() {
+			return fmt.Errorf(msg.GetMessage())
+		}
+
+		return fmt.Errorf("Unknown message from migration source: %v", msg.GetMessage())
+	}
+
+	d.logger.Debug("Sending migration completion response to source")
+
+	// Send success message to other side.
+	msg := migration.MigrationControl{
+		Success: proto.Bool(true),
+	}
+
+	sendErr := args.ControlSend(&msg)
+	if sendErr != nil {
+		return fmt.Errorf("Failed sending migration completion response to source: %w", err)
+	}
+
+	err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
 }
 
 // CGroupSet is not implemented for VMs.
