@@ -137,7 +137,7 @@ func (d *lvm) Create() error {
 		}
 
 		if shared.PathExists(d.config["source"]) {
-			return fmt.Errorf("Source file location already exists")
+			return fmt.Errorf("Source file location %q already exists", d.config["source"])
 		}
 
 		err = ensureSparseFile(d.config["source"], size)

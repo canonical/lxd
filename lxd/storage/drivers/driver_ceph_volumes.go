@@ -1469,12 +1469,12 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 		// been committed to disk. If we don't then the rbd snapshot of
 		// the underlying filesystem can be inconsistent or - worst case
 		// - empty.
-		unix.Sync()
-
-		_, err := shared.TryRunCommand("fsfreeze", "--freeze", sourcePath)
-		if err == nil {
-			defer func() { _, _ = shared.TryRunCommand("fsfreeze", "--unfreeze", sourcePath) }()
+		unfreezeFS, err := d.filesystemFreeze(sourcePath)
+		if err != nil {
+			return err
 		}
+
+		defer func() { _ = unfreezeFS() }()
 	}
 
 	// Create the parent directory.
