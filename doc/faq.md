@@ -20,7 +20,7 @@ then use the `config set` command on the server:
 
 ```bash
 ip addr
-lxc config set core.https_address 192.168.1.15
+lxc config set core.https_address 192.0.2.1
 ```
 
 Also see {ref}`security_remote_access`.
@@ -38,7 +38,8 @@ lxc config set core.trust_password SECRET
 This will set the remote password that you can then use to do `lxc remote add`.
 
 You can also access the server without setting a password by copying the client
-certificate from `.config/lxc/client.crt` to the server and adding it with:
+certificate (`~/.config/lxc/client.crt` or `~/snap/lxd/common/config/client.crt`
+for snap users) to the server and adding it with:
 
 ```bash
 lxc config trust add client.crt
@@ -88,6 +89,18 @@ lxc config set <container> linux.kernel_modules <modules>
 We have also received some reports that creating a `/.dockerenv` file in your
 container can help Docker ignore some errors it's getting due to running in a
 nested environment.
+
+### Where does `lxc` store its configuration?
+
+The `lxc` command stores its configuration under `~/.config/lxc` or in `~/snap/lxd/common/config`
+for snap users.
+
+Various configuration files are stored in that directory, among which are:
+
+- `client.crt`: client certificate (generated on demand)
+- `client.key`: client key (generated on demand)
+- `config.yml`: configuration file (info about `remotes`, `aliases`, etc)
+- `servercerts/`: directory with server certificates belonging to `remotes`
 
 ## Networking issues
 
