@@ -125,13 +125,13 @@ func (c *migrationFields) sendControl(err error) {
 	}
 }
 
-func (c *migrationFields) controlChannel() <-chan *migrationControlResponse {
-	ch := make(chan *migrationControlResponse)
+func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
+	ch := make(chan *migration.ControlResponse)
 	go func() {
-		resp := migrationControlResponse{}
+		resp := migration.ControlResponse{}
 		err := c.recv(&resp.MigrationControl)
 		if err != nil {
-			resp.err = err
+			resp.Err = err
 			ch <- &resp
 
 			return
