@@ -1148,3 +1148,56 @@ func SnapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
 		ExpiryDate:   &expiryDate,
 	}
 }
+
+// SnapshotProtobufToInstanceArgs converts a migration snapshot record to DB instance record format.
+func SnapshotProtobufToInstanceArgs(s *state.State, inst Instance, snap *migration.Snapshot) (*db.InstanceArgs, error) {
+	snapConfig := snap.GetLocalConfig()
+	config := make(map[string]string, len(snapConfig))
+	for _, ent := range snapConfig {
+		config[ent.GetKey()] = ent.GetValue()
+	}
+
+	snapDevices := snap.GetLocalDevices()
+	devices := make(deviceConfig.Devices, len(snapDevices))
+	for _, ent := range snap.GetLocalDevices() {
+		entConfig := ent.GetConfig()
+		props := make(map[string]string, len(entConfig))
+		for _, prop := range entConfig {
+			props[prop.GetKey()] = prop.GetValue()
+		}
+
+		devices[ent.GetName()] = props
+	}
+
+	profiles, err := s.DB.Cluster.GetProfiles(inst.Project().Name, snap.Profiles)
+	if err != nil {
+		return nil, err
+	}
+
+	args := db.InstanceArgs{
+		Architecture: int(snap.GetArchitecture()),
+		Config:       config,
+		Type:         inst.Type(),
+		Snapshot:     true,
+		Devices:      devices,
+		Ephemeral:    snap.GetEphemeral(),
+		Name:         inst.Name() + shared.SnapshotDelimiter + snap.GetName(),
+		Profiles:     profiles,
+		Stateful:     snap.GetStateful(),
+		Project:      inst.Project().Name,
+	}
+
+	if snap.GetCreationDate() != 0 {
+		args.CreationDate = time.Unix(snap.GetCreationDate(), 0)
+	}
+
+	if snap.GetLastUsedDate() != 0 {
+		args.LastUsedDate = time.Unix(snap.GetLastUsedDate(), 0)
+	}
+
+	if snap.GetExpiryDate() != 0 {
+		args.ExpiryDate = time.Unix(snap.GetExpiryDate(), 0)
+	}
+
+	return &args, nil
+}
