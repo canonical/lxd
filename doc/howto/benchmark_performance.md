@@ -96,7 +96,7 @@ Freezing a container pauses its processes, so this flag allows you to measure th
 
 To delete the benchmarking containers that you created, run the following command:
 
-    lxd.benchmark --delete
+    lxd.benchmark delete
 
 ```{note}
 You must delete all existing benchmarking containers before you can run a new benchmark.
