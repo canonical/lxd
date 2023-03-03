@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,7 +123,7 @@ func QemuImg(sysOS *sys.OS, cmd []string, imgPath string, dstPath string) (strin
 // qemuImgProfileLoad ensures that the qemu-img's policy is loaded into the kernel.
 func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCmdPaths []string) error {
 	profile := filepath.Join(aaPath, "profiles", qemuImgProfileFilename(imgPath))
-	content, err := ioutil.ReadFile(profile)
+	content, err := os.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -135,7 +134,7 @@ func qemuImgProfileLoad(sysOS *sys.OS, imgPath string, dstPath string, allowedCm
 	}
 
 	if string(content) != string(updated) {
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		err = os.WriteFile(profile, []byte(updated), 0600)
 		if err != nil {
 			return err
 		}
