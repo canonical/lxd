@@ -379,7 +379,7 @@ type WebsocketIO struct {
 }
 
 func (w *WebsocketIO) Read(p []byte) (n int, err error) {
-	// First read from this message
+	// Get new message if no active one.
 	if w.reader == nil {
 		var mt int
 
@@ -388,25 +388,23 @@ func (w *WebsocketIO) Read(p []byte) (n int, err error) {
 			return 0, err
 		}
 
-		if mt == websocket.CloseMessage {
-			return 0, io.EOF
-		}
+		if mt == websocket.CloseMessage || mt == websocket.TextMessage {
+			w.reader = nil // At the end of the message, reset reader.
 
-		if mt == websocket.TextMessage {
 			return 0, io.EOF
 		}
 	}
 
-	// Perform the read itself
+	// Perform the read itself.
 	n, err = w.reader.Read(p)
-	if err == io.EOF {
-		// At the end of the message, reset reader
-		w.reader = nil
-		return n, nil
-	}
-
 	if err != nil {
-		return 0, err
+		w.reader = nil // At the end of the message, reset reader.
+
+		if err == io.EOF {
+			return n, nil // Don't return EOF error at end of message.
+		}
+
+		return n, err
 	}
 
 	return n, nil
