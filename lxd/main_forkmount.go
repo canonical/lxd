@@ -271,7 +271,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	_exit(0);
 }
 
-int lxc_safe_uint(const char *numstr, unsigned int *converted)
+static int lxc_safe_uint(const char *numstr, unsigned int *converted)
 {
 	char *err = NULL;
 	unsigned long int uli;
@@ -297,7 +297,7 @@ int lxc_safe_uint(const char *numstr, unsigned int *converted)
 	return 0;
 }
 
-int mnt_attributes_new(unsigned int old_flags, unsigned int *new_flags)
+static int mnt_attributes_new(unsigned int old_flags, unsigned int *new_flags)
 {
 	unsigned int flags = 0;
 
@@ -345,9 +345,61 @@ int mnt_attributes_new(unsigned int old_flags, unsigned int *new_flags)
 	return old_flags;
 }
 
+static int make_final_open(struct stat *st_src, const char *dest)
+{
+	int ret;
+	int flags = O_CLOEXEC | O_NOFOLLOW | O_NOCTTY | O_CLOEXEC;
+	struct stat st_dest;
+
+	ret = stat(dest, &st_dest);
+	if (ret == 0) {
+		if ((st_dest.st_mode & S_IFMT) == (st_src->st_mode & S_IFMT))
+			goto out_open;
+
+		ret = remove(dest);
+		if (ret)
+			return -1;
+	}
+
+	if ((st_src->st_mode & S_IFMT) == S_IFDIR)
+		ret = mkdir(dest, 0000);
+	else
+		ret = mknod(dest, S_IFREG | 0000, 0);
+	if (ret)
+		return -1;
+
+out_open:
+	return open(dest, flags | O_PATH);
+}
+
+static int make_dest_open(int fd_src, const char *dest)
+{
+	__do_free char *dirdup = NULL;
+	int ret;
+	char *destdirname;
+	struct stat st_src;
+
+	ret = fstat(fd_src, &st_src);
+	if (ret)
+		return -1;
+
+	dirdup = strdup(dest);
+	if (!dirdup)
+		return -1;
+
+	destdirname = dirname(dirdup);
+
+	ret = mkdir_p(destdirname, 0755);
+	if (ret)
+		return -1;
+
+	return make_final_open(&st_src, dest);
+}
+
 static void do_move_forkmount(int pidfd, int ns_fd)
 {
-	__do_close int fs_fd = -EBADF, mnt_fd = -EBADF, fd_userns = -EBADF;;
+	__do_close int fs_fd = -EBADF, mnt_fd = -EBADF, fd_userns = -EBADF,
+		       dest_fd = -EBADF;
 	int ret;
 	char *fstype, *src, *dest, *idmapType, *flags;
 	unsigned int old_mntflags = 0, new_mntflags = 0;
@@ -407,16 +459,16 @@ static void do_move_forkmount(int pidfd, int ns_fd)
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNS))
 		die("Failed setns to container mount namespace");
 
-	create(mnt_fd, NULL, dest);
+	dest_fd = make_dest_open(mnt_fd, dest);
+	if (dest_fd < 0)
+		die("Failed to create destination mount point");
 
-	if (access(dest, F_OK) < 0)
-		die("Mount destination doesn't exist");
-
-	ret = lxd_move_mount(mnt_fd, "", -EBADF, dest, MOVE_MOUNT_F_EMPTY_PATH);
+	ret = lxd_move_mount(mnt_fd, "", dest_fd, "",
+			     MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH);
 	if (ret)
 		die("Failed to move detached mount to target from %d to %s", mnt_fd, dest);
 
-	_exit(0);
+	_exit(EXIT_SUCCESS);
 }
 
 static void do_lxd_forkumount(int pidfd, int ns_fd)
