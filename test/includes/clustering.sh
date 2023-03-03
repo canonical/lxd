@@ -165,6 +165,7 @@ EOF
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   config:
     volume.size: 25MB
+    lvm.vg_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
     fi
     if [ "${driver}" = "ceph" ]; then
