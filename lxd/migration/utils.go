@@ -22,6 +22,12 @@ const ZFSFeatureMigrationHeader = "migration_header"
 // ZFSFeatureZvolFilesystems indicates migration can send/recv zvols.
 const ZFSFeatureZvolFilesystems = "header_zvol_filesystems"
 
+// ControlResponse encapsulates MigrationControl with a receive error.
+type ControlResponse struct {
+	MigrationControl
+	Err error
+}
+
 // GetRsyncFeaturesSlice returns a slice of strings representing the supported RSYNC features.
 func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	features := []string{}
