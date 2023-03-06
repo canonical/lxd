@@ -4067,7 +4067,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 	if stateful {
 		// Confirm the instance has stateful migration enabled.
 		if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
-			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
+			return fmt.Errorf("Stateful snapshot requires migration.stateful to be set to true")
 		}
 
 		// Quick checks.
