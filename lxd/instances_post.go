@@ -296,7 +296,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 		}
 	}
 
-	defer instOp.Done(err)
+	revert.Add(func() { instOp.Done(err) })
 
 	var cert *x509.Certificate
 	if req.Source.Certificate != "" {
@@ -352,9 +352,13 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 		// And finally run the migration.
 		err = sink.Do(d.State(), instOp)
 		if err != nil {
-			return fmt.Errorf("Error transferring instance data: %w", err)
+			err = fmt.Errorf("Error transferring instance data: %w", err)
+			instOp.Done(err) // Complete operation that was created earlier, to release lock.
+
+			return err
 		}
 
+		instOp.Done(nil) // Complete operation that was created earlier, to release lock.
 		runRevert.Success()
 		return nil
 	}
