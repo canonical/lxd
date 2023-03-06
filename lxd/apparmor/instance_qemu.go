@@ -75,7 +75,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Snap-specific paths
   /var/snap/lxd/common/ceph/**                         r,
-  /var/snap/microceph/current/conf/**                  r,
+  /var/snap/microceph/*/conf/**                        r,
   {{ .rootPath }}/etc/ceph/**                          r,
   {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
   {{ .rootPath }}/run/systemd/resolve/resolv.conf      r,
