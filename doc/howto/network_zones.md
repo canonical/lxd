@@ -53,7 +53,9 @@ You can check the records that are generated with your zone setup with the `dig`
 This assumes that `core.dns_address` was set to `<DNS_server_IP>:<DNS_server_PORT>`.
 For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr lxd.example.net` might give the following output:
 
-```bash
+```{terminal}
+:input: dig @192.0.2.200 -p 1053 axfr lxd.example.net
+
 lxd.example.net.                        3600 IN SOA  lxd.example.net. ns1.lxd.example.net. 1669736788 120 60 86400 30
 lxd.example.net.                        300  IN NS   ns1.lxd.example.net.
 lxdtest.gw.lxd.example.net.             300  IN A    192.0.2.1
@@ -72,7 +74,9 @@ If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` 
 
 For example, running `dig @<DNS_server_IP> -p <DNS_server_PORT> axfr 2.0.192.in-addr.arpa` might give the following output:
 
-```bash
+```{terminal}
+:input: dig @192.0.2.200 -p 1053 axfr 2.0.192.in-addr.arpa
+
 2.0.192.in-addr.arpa.                  3600 IN SOA  2.0.192.in-addr.arpa. ns1.2.0.192.in-addr.arpa. 1669736828 120 60 86400 30
 2.0.192.in-addr.arpa.                  300  IN NS   ns1.2.0.192.in-addr.arpa.
 1.2.0.192.in-addr.arpa.                300  IN PTR  lxdtest.gw.lxd.example.net.

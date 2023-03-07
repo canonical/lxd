@@ -61,7 +61,9 @@ Complete the following steps to migrate an existing machine to a LXD instance:
    <details>
    <summary>Expand to see an example output</summary>
 
-   ```
+   ```{terminal}
+   :input: ./bin.linux.lxd-migrate
+
    Please provide LXD server URL: https://192.0.2.7:8443
    Certificate fingerprint: xxxxxxxxxxxxxxxxx
    ok (y/n)? y
