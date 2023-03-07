@@ -92,8 +92,9 @@ scrape_configs:
 
 In the above example, `/etc/prometheus/tls/server.crt` looks like:
 
-```
-$ openssl x509 -noout -text -in /etc/prometheus/tls/server.crt
+```{terminal}
+:input: openssl x509 -noout -text -in /etc/prometheus/tls/server.crt
+
 ...
             X509v3 Subject Alternative Name:
                 DNS:foo, IP Address:127.0.0.1, IP Address:0:0:0:0:0:0:0:1
