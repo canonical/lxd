@@ -934,6 +934,11 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	return d.start(stateful, nil)
+}
+
+// start starts the instance and can use an existing InstanceOperation lock.
+func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
@@ -950,15 +955,17 @@ func (d *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
-	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
-	if err != nil {
-		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
-			// An existing matching operation has now succeeded, return.
-			return nil
-		}
+	// Setup a new operation if needed.
+	if op == nil {
+		op, err = operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
+		if err != nil {
+			if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+				// An existing matching operation has now succeeded, return.
+				return nil
+			}
 
-		return fmt.Errorf("Failed to create instance start operation: %w", err)
+			return fmt.Errorf("Failed to create instance start operation: %w", err)
+		}
 	}
 
 	defer op.Done(nil)
