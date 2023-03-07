@@ -23,11 +23,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/checkpoint-restore/go-criu/v6/crit"
 	"github.com/flosch/pongo2"
+	"github.com/gorilla/websocket"
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/proto"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
@@ -35,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/operationtype"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -46,9 +50,11 @@ import (
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -2338,7 +2344,7 @@ func (d *lxc) Start(stateful bool) error {
 			PreDumpDir:   "",
 		}
 
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil && !d.IsRunning() {
 			op.Done(err)
 			return fmt.Errorf("Failed restoring stateful checkpoint: %w", err)
@@ -2598,7 +2604,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		// Checkpoint
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -3377,7 +3383,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 		}
 
 		// Dump the state.
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
 		}
@@ -3549,7 +3555,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Checkpoint.
-		err = d.Migrate(&criuMigrationArgs)
+		err = d.migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed taking stateful checkpoint: %w", err)
@@ -4977,8 +4983,586 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
+// Check if CRIU supports pre-dumping and number of pre-dump iterations.
+func (d *lxc) migrationSendCheckForPreDumpSupport() (bool, int) {
+	// Check if this architecture/kernel/criu combination supports pre-copy dirty memory tracking feature.
+	_, err := shared.RunCommand("criu", "check", "--feature", "mem_dirty_track")
+	if err != nil {
+		// CRIU says it does not know about dirty memory tracking.
+		// This means the rest of this function is irrelevant.
+		return false, 0
+	}
+
+	// CRIU says it can actually do pre-dump. Let's set it to true
+	// unless the user wants something else.
+	usePreDumps := true
+
+	// What does the configuration say about pre-copy
+	tmp := d.ExpandedConfig()["migration.incremental.memory"]
+
+	if tmp != "" {
+		usePreDumps = shared.IsTrue(tmp)
+	}
+
+	var maxIterations int
+
+	// migration.incremental.memory.iterations is the value after which the
+	// container will be definitely migrated, even if the remaining number
+	// of memory pages is below the defined threshold.
+	tmp = d.ExpandedConfig()["migration.incremental.memory.iterations"]
+	if tmp != "" {
+		maxIterations, _ = strconv.Atoi(tmp)
+	} else {
+		// default to 10
+		maxIterations = 10
+	}
+
+	if maxIterations > 999 {
+		// the pre-dump directory is hardcoded to a string
+		// with maximal 3 digits. 999 pre-dumps makes no
+		// sense at all, but let's make sure the number
+		// is not higher than this.
+		maxIterations = 999
+	}
+
+	logger.Debugf("Using maximal %d iterations for pre-dumping", maxIterations)
+
+	return usePreDumps, maxIterations
+}
+
+func (d *lxc) migrationSendWriteActionScript(directory string, operation string, secret string, execPath string) error {
+	script := fmt.Sprintf(`#!/bin/sh -e
+if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
+	%s migratedumpsuccess %s %s
+fi
+`, execPath, operation, secret)
+
+	f, err := os.Create(filepath.Join(directory, "action.sh"))
+	if err != nil {
+		return err
+	}
+
+	err = f.Chmod(0500)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.WriteString(script)
+	if err != nil {
+		return err
+	}
+
+	return f.Close()
+}
+
+func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
+	d.logger.Info("Migration send starting")
+	defer d.logger.Info("Migration send stopped")
+
+	restoreSuccess := make(chan bool, 1)
+	defer close(restoreSuccess)
+
+	pool, err := storagePools.LoadByInstance(d.state, d)
+	if err != nil {
+		return fmt.Errorf("Failed loading instance: %w", err)
+	}
+
+	// The refresh argument passed to MigrationTypes() is always set to false here.
+	// The migration source/sender doesn't need to care whether or not it's doing a refresh as the migration
+	// sink/receiver will know this, and adjust the migration types accordingly.
+	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false)
+	if len(poolMigrationTypes) == 0 {
+		return fmt.Errorf("No source migration types available")
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
+
+	// Offer to send index header.
+	indexHeaderVersion := migration.IndexHeaderVersion
+	offerHeader.IndexHeaderVersion = &indexHeaderVersion
+
+	// Add CRIU and predump info to source header.
+	maxDumpIterations := 0
+	if args.Live {
+		var offerUsePreDumps bool
+		offerUsePreDumps, maxDumpIterations = d.migrationSendCheckForPreDumpSupport()
+		offerHeader.Predump = proto.Bool(offerUsePreDumps)
+		offerHeader.Criu = migration.CRIUType_CRIU_RSYNC.Enum()
+	} else {
+		offerHeader.Predump = proto.Bool(false)
+
+		if d.IsRunning() {
+			// Indicate instance is running to target (can trigger MultiSync mode).
+			offerHeader.Criu = migration.CRIUType_NONE.Enum()
+		}
+	}
+
+	// Add idmap info to source header for containers.
+	idmapset, err := d.DiskIdmap()
+	if err != nil {
+		return fmt.Errorf("Failed getting container disk idmap: %w", err)
+	} else if idmapset != nil {
+		offerHeader.Idmap = make([]*migration.IDMapType, 0, len(idmapset.Idmap))
+		for _, ctnIdmap := range idmapset.Idmap {
+			idmap := migration.IDMapType{
+				Isuid:    proto.Bool(ctnIdmap.Isuid),
+				Isgid:    proto.Bool(ctnIdmap.Isgid),
+				Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
+				Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
+				Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+			}
+
+			offerHeader.Idmap = append(offerHeader.Idmap, &idmap)
+		}
+	}
+
+	srcConfig, err := pool.GenerateInstanceBackupConfig(d, args.Snapshots, d.op)
+	if err != nil {
+		return fmt.Errorf("Failed generating instance migration config: %w", err)
+	}
+
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	if args.Snapshots {
+		offerHeader.SnapshotNames = make([]string, 0, len(srcConfig.Snapshots))
+		offerHeader.Snapshots = make([]*migration.Snapshot, 0, len(srcConfig.Snapshots))
+
+		for i := range srcConfig.Snapshots {
+			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.Snapshots[i].Name)
+			offerHeader.Snapshots = append(offerHeader.Snapshots, instance.SnapshotToProtobuf(srcConfig.Snapshots[i]))
+		}
+	}
+
+	// Send offer to target.
+	d.logger.Debug("Sending migration offer to target")
+	err = args.ControlSend(offerHeader)
+	if err != nil {
+		return fmt.Errorf("Failed sending migration offer: %w", err)
+	}
+
+	// Receive response from target.
+	d.logger.Debug("Waiting for migration offer response from target")
+	respHeader := &migration.MigrationHeader{}
+	err = args.ControlReceive(respHeader)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration offer response: %w", err)
+	}
+
+	d.logger.Debug("Got migration offer response from target")
+
+	// Negotiated migration types.
+	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	if err != nil {
+		return fmt.Errorf("Failed to negotiate migration type: %w", err)
+	}
+
+	volSourceArgs := &migration.VolumeSourceArgs{
+		IndexHeaderVersion: respHeader.GetIndexHeaderVersion(), // Enable index header frame if supported.
+		Name:               d.Name(),
+		MigrationType:      migrationTypes[0],
+		Snapshots:          offerHeader.SnapshotNames,
+		TrackProgress:      true,
+		Refresh:            respHeader.GetRefresh(),
+		AllowInconsistent:  args.AllowInconsistent,
+		VolumeOnly:         !args.Snapshots,
+		Info:               &migration.Info{Config: srcConfig},
+	}
+
+	// Only send the snapshots that the target requests when refreshing.
+	if respHeader.GetRefresh() {
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+		allSnapshots := volSourceArgs.Info.Config.VolumeSnapshots
+
+		// Ensure that only the requested snapshots are included in the migration index header.
+		volSourceArgs.Info.Config.VolumeSnapshots = make([]*api.StorageVolumeSnapshot, 0, len(volSourceArgs.Snapshots))
+		for i := range allSnapshots {
+			if shared.StringInSlice(allSnapshots[i].Name, volSourceArgs.Snapshots) {
+				volSourceArgs.Info.Config.VolumeSnapshots = append(volSourceArgs.Info.Config.VolumeSnapshots, allSnapshots[i])
+			}
+		}
+	}
+
+	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the source instance
+	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
+	// should do a two stage transfer to minimize downtime.
+	instanceRunning := args.Live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
+	nonOptimizedMigration := volSourceArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSourceArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC
+	if instanceRunning && nonOptimizedMigration {
+		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
+		volSourceArgs.MultiSync = true
+	}
+
+	d.logger.Debug("Starting storage migration phase")
+
+	err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+	if err != nil {
+		return err
+	}
+
+	d.logger.Debug("Finished storage migration phase")
+
+	dumpSuccess := make(chan error, 1)
+
+	if args.Live {
+		d.logger.Debug("Starting live migration phase")
+
+		// Setup rsync options (used for CRIU state transfers).
+		rsyncBwlimit := pool.Driver().Config()["rsync.bwlimit"]
+		rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
+		if !shared.StringInSlice("bidirectional", rsyncFeatures) {
+			// If no bi-directional support, assume LXD 3.7 level.
+			// NOTE: Do NOT extend this list of arguments.
+			rsyncFeatures = []string{"xattrs", "delete", "compress"}
+		}
+
+		if respHeader.Criu == nil {
+			return fmt.Errorf("Got no CRIU socket type for live migration")
+		} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
+			return fmt.Errorf("Formats other than criu rsync not understood (%q)", respHeader.Criu)
+		}
+
+		checkpointDir, err := os.MkdirTemp("", "lxd_checkpoint_")
+		if err != nil {
+			return err
+		}
+
+		if liblxc.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
+			// What happens below is slightly convoluted. Due to various complications
+			// with networking, there's no easy way for criu to exit and leave the
+			// container in a frozen state for us to somehow resume later.
+			// Instead, we use what criu calls an "action-script", which is basically a
+			// callback that lets us know when the dump is done. (Unfortunately, we
+			// can't pass arguments, just an executable path, so we write a custom
+			// action script with the real command we want to run.)
+			// This script then blocks until the migration operation either finishes
+			// successfully or fails, and exits 1 or 0, which causes criu to either
+			// leave the container running or kill it as we asked.
+			dumpDone := make(chan bool, 1)
+			actionScriptOpSecret, err := shared.RandomCryptoString()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			actionScriptOp, err := operations.OperationCreate(
+				d.state,
+				d.Project().Name,
+				operations.OperationClassWebsocket,
+				operationtype.InstanceLiveMigrate,
+				nil,
+				nil,
+				func(op *operations.Operation) error {
+					result := <-restoreSuccess
+					if !result {
+						return fmt.Errorf("restore failed, failing CRIU")
+					}
+
+					return nil
+				},
+				nil,
+				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
+					secret := r.FormValue("secret")
+					if secret == "" {
+						return fmt.Errorf("Missing action script secret")
+					}
+
+					if secret != actionScriptOpSecret {
+						return os.ErrPermission
+					}
+
+					c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+					if err != nil {
+						return err
+					}
+
+					dumpDone <- true
+
+					closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+					return c.WriteMessage(websocket.CloseMessage, closeMsg)
+				},
+				nil,
+			)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			err = d.migrationSendWriteActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, d.state.OS.ExecPath)
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			preDumpCounter := 0
+			preDumpDir := ""
+
+			// Check if the other side knows about pre-dumping and the associated
+			// rsync protocol.
+			if respHeader.GetPredump() {
+				d.logger.Debug("The other side does support pre-copy")
+				final := false
+				for !final {
+					preDumpCounter++
+					if preDumpCounter < maxDumpIterations {
+						final = false
+					} else {
+						final = true
+					}
+
+					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+					loopArgs := preDumpLoopArgs{
+						liveConn:      args.LiveConn,
+						checkpointDir: checkpointDir,
+						bwlimit:       rsyncBwlimit,
+						preDumpDir:    preDumpDir,
+						dumpDir:       dumpDir,
+						final:         final,
+						rsyncFeatures: rsyncFeatures,
+					}
+
+					final, err = d.migrateSendPreDumpLoop(&loopArgs)
+					if err != nil {
+						_ = os.RemoveAll(checkpointDir)
+						return err
+					}
+
+					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+					preDumpCounter++
+				}
+			} else {
+				d.logger.Debug("The other side does not support pre-copy")
+			}
+
+			err = actionScriptOp.Start()
+			if err != nil {
+				_ = os.RemoveAll(checkpointDir)
+				return err
+			}
+
+			go func() {
+				criuMigrationArgs := instance.CriuMigrationArgs{
+					Cmd:          liblxc.MIGRATE_DUMP,
+					Stop:         true,
+					ActionScript: true,
+					PreDumpDir:   preDumpDir,
+					DumpDir:      "final",
+					StateDir:     checkpointDir,
+					Function:     "migration",
+				}
+
+				// Do the final CRIU dump. This is needs no special handling if
+				// pre-dumps are used or not.
+				dumpSuccess <- d.migrate(&criuMigrationArgs)
+				_ = os.RemoveAll(checkpointDir)
+			}()
+
+			select {
+			// The checkpoint failed, let's just abort.
+			case err = <-dumpSuccess:
+				return err
+			// The dump finished, let's continue on to the restore.
+			case <-dumpDone:
+				d.logger.Debug("Dump finished, continuing with restore...")
+			}
+		} else {
+			d.logger.Debug("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
+			defer func() { _ = os.RemoveAll(checkpointDir) }()
+			criuMigrationArgs := instance.CriuMigrationArgs{
+				Cmd:          liblxc.MIGRATE_DUMP,
+				StateDir:     checkpointDir,
+				Function:     "migration",
+				Stop:         true,
+				ActionScript: false,
+				DumpDir:      "final",
+				PreDumpDir:   "",
+			}
+
+			err = d.migrate(&criuMigrationArgs)
+			if err != nil {
+				return err
+			}
+		}
+
+		// We do the transfer serially right now, but there's really no reason for us to;
+		// since we have separate websockets, we can do it in parallel if we wanted to.
+		// However assuming we're network bound, there's really no reason to do these in.
+		// parallel. In the future when we're using p.haul's protocol, it will make sense
+		// to do these in parallel.
+		ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.LiveConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
+		if err != nil {
+			return err
+		}
+
+		d.logger.Debug("Finished live migration phase")
+	}
+
+	// Perform final sync if in multi sync mode.
+	if volSourceArgs.MultiSync {
+		d.logger.Debug("Starting final storage migration phase")
+
+		// Indicate to the storage driver we are doing final sync and because of this don't send
+		// snapshots as they don't need to have a final sync as not being modified.
+		volSourceArgs.FinalSync = true
+		volSourceArgs.Snapshots = nil
+		volSourceArgs.Info.Config.VolumeSnapshots = nil
+
+		err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+		if err != nil {
+			return err
+		}
+
+		d.logger.Debug("Finished final storage migration phase")
+	}
+
+	// Receive response from target.
+	d.logger.Debug("Waiting for migration completion response from target")
+	msg := migration.MigrationControl{}
+	err = args.ControlReceive(&msg)
+	if err != nil {
+		return fmt.Errorf("Failed receiving migration completion response from target: %w", err)
+	}
+
+	d.logger.Debug("Got migration completion response from target", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
+
+	if args.Live {
+		restoreSuccess <- msg.GetSuccess()
+		err := <-dumpSuccess
+		if err != nil {
+			d.logger.Error("Dump failed after successful restore", logger.Ctx{"err": err})
+		}
+	}
+
+	if !msg.GetSuccess() {
+		return fmt.Errorf(msg.GetMessage())
+	}
+
+	return nil
+}
+
+type preDumpLoopArgs struct {
+	liveConn      io.ReadWriteCloser
+	checkpointDir string
+	bwlimit       string
+	preDumpDir    string
+	dumpDir       string
+	final         bool
+	rsyncFeatures []string
+}
+
+// migrateSendPreDumpLoop is the main logic behind the pre-copy migration.
+// This function contains the actual pre-dump, the corresponding rsync transfer and it tells the outer loop to
+// abort if the threshold of memory pages transferred by pre-dumping has been reached.
+func (d *lxc) migrateSendPreDumpLoop(args *preDumpLoopArgs) (bool, error) {
+	// Do a CRIU pre-dump
+	criuMigrationArgs := instance.CriuMigrationArgs{
+		Cmd:          liblxc.MIGRATE_PRE_DUMP,
+		Stop:         false,
+		ActionScript: false,
+		PreDumpDir:   args.preDumpDir,
+		DumpDir:      args.dumpDir,
+		StateDir:     args.checkpointDir,
+		Function:     "migration",
+	}
+
+	d.logger.Debug("Doing another CRIU pre-dump", logger.Ctx{"preDumpDir": args.preDumpDir})
+
+	final := args.final
+
+	if d.Type() != instancetype.Container {
+		return false, fmt.Errorf("Instance is not container type")
+	}
+
+	err := d.migrate(&criuMigrationArgs)
+	if err != nil {
+		return final, fmt.Errorf("Failed sending instance: %w", err)
+	}
+
+	// Send the pre-dump.
+	ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
+	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), args.liveConn, nil, args.rsyncFeatures, args.bwlimit, d.state.OS.ExecPath)
+	if err != nil {
+		return final, err
+	}
+
+	// The function readCriuStatsDump() reads the CRIU 'stats-dump' file
+	// in path and returns the pages_written, pages_skipped_parent, error.
+	readCriuStatsDump := func(path string) (uint64, uint64, error) {
+		// Get dump statistics with crit
+		dumpStats, err := crit.GetDumpStats(path)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Failed to parse CRIU's 'stats-dump' file: %w", err)
+		}
+
+		return dumpStats.GetPagesWritten(), dumpStats.GetPagesSkippedParent(), nil
+	}
+
+	// Read the CRIU's 'stats-dump' file
+	dumpPath := shared.AddSlash(args.checkpointDir)
+	dumpPath += shared.AddSlash(args.dumpDir)
+	written, skippedParent, err := readCriuStatsDump(dumpPath)
+	if err != nil {
+		return final, err
+	}
+
+	totalPages := written + skippedParent
+	var percentageSkipped int
+	if totalPages > 0 {
+		percentageSkipped = int(100 - ((100 * written) / totalPages))
+	}
+
+	d.logger.Debug("CRIU pages", logger.Ctx{"pages": written, "skipped": skippedParent, "skippedPerc": percentageSkipped})
+
+	// threshold is the percentage of memory pages that needs
+	// to be pre-copied for the pre-copy migration to stop.
+	var threshold int
+	tmp := d.ExpandedConfig()["migration.incremental.memory.goal"]
+	if tmp != "" {
+		threshold, _ = strconv.Atoi(tmp)
+	} else {
+		// defaults to 70%
+		threshold = 70
+	}
+
+	if percentageSkipped > threshold {
+		d.logger.Debug("Memory pages skipped due to pre-copy is larger than threshold", logger.Ctx{"skippedPerc": percentageSkipped, "thresholdPerc": threshold})
+		d.logger.Debug("This was the last pre-dump; next dump is the final dump")
+		final = true
+	}
+
+	// If in pre-dump mode, the receiving side expects a message to know if this was the last pre-dump.
+	logger.Debug("Sending another CRIU pre-dump header")
+	sync := migration.MigrationSync{
+		FinalPreDump: proto.Bool(final),
+	}
+
+	data, err := proto.Marshal(&sync)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = args.liveConn.Write(data)
+	if err != nil {
+		return final, err
+	}
+
+	d.logger.Debug("Sending another CRIU pre-dump header done")
+
+	return final, nil
+}
+
+func (d *lxc) MigrateReceive(args any) error {
+	criuArgs, ok := args.(*instance.CriuMigrationArgs)
+	if !ok {
+		return fmt.Errorf("args not instance.CriuMigrationArgs type")
+	}
+
+	return d.migrate(criuArgs)
+}
+
 // Migrate migrates the instance to another node.
-func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
+func (d *lxc) migrate(args *instance.CriuMigrationArgs) error {
 	ctxMap := logger.Ctx{
 		"created":      d.creationDate,
 		"ephemeral":    d.ephemeral,
