@@ -38,14 +38,17 @@ To troubleshoot the problem, complete the following steps:
 
 In this example, let's investigate a RHEL 7 system in which `systemd` cannot start.
 
-    # lxc console --show-log systemd
-    Console log:
+```{terminal}
+:input: lxc console --show-log systemd
 
-    Failed to insert module 'autofs4'
-    Failed to insert module 'unix'
-    Failed to mount sysfs at /sys: Operation not permitted
-    Failed to mount proc at /proc: Operation not permitted
-    [!!!!!!] Failed to mount API filesystems, freezing.
+Console log:
+
+Failed to insert module 'autofs4'
+Failed to insert module 'unix'
+Failed to mount sysfs at /sys: Operation not permitted
+Failed to mount proc at /proc: Operation not permitted
+[!!!!!!] Failed to mount API filesystems, freezing.
+```
 
 The errors here say that `/sys` and `/proc` cannot be mounted - which is correct in an unprivileged container.
 However, LXD mounts these file systems automatically if it can.
@@ -61,25 +64,30 @@ This is equivalent to setting `init=/bin/bash` on the Linux kernel command line.
 
 Here is what it looks like:
 
-    root@lxc-01:~# lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'
-    root@lxc-01:~# lxc start systemd
-    root@lxc-01:~# lxc console --show-log systemd
+```{terminal}
+:input: lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'
 
-    Console log:
+:input: lxc start systemd
+:input: lxc console --show-log systemd
 
-    [root@systemd /]#
-    root@lxc-01:~#
+Console log:
+
+[root@systemd /]#
+```
 
 Now that the container has started, you can check it and see that things are not running as well as expected:
 
-    root@lxc-01:~# lxc exec systemd bash
-    [root@systemd ~]# ls
-    [root@systemd ~]# mount
-    mount: failed to read mtab: No such file or directory
-    [root@systemd ~]# cd /
-    [root@systemd /]# ls /proc/
-    sys
-    [root@systemd /]# exit
+```{terminal}
+:input: lxc exec systemd bash
+
+[root@systemd ~]# ls
+[root@systemd ~]# mount
+mount: failed to read mtab: No such file or directory
+[root@systemd ~]# cd /
+[root@systemd /]# ls /proc/
+sys
+[root@systemd /]# exit
+```
 
 Because LXD tries to auto-heal, it created some of the directories when it was starting up.
 Shutting down and restarting the container fixes the problem, but the original cause is still there - the template does not contain the required files.
