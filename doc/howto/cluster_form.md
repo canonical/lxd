@@ -44,7 +44,9 @@ You can accept the default values for most questions, but make sure to answer th
 <details>
 <summary>Expand to see a full example for <code>lxd init</code> on the bootstrap server</summary>
 
-```
+```{terminal}
+:input: lxd init
+
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.101]:
 Are you joining an existing cluster? (yes/no) [default=no]: no
@@ -140,7 +142,9 @@ Basically, the initialization process consists of the following steps:
 
 ````{group-tab} Authentication tokens (recommended)
 
-```
+```{terminal}
+:input: sudo lxd init
+
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.102]:
 Are you joining an existing cluster? (yes/no) [default=no]: yes
@@ -156,7 +160,9 @@ Would you like a YAML "lxd init" preseed to be printed? (yes/no) [default=no]:
 ````
 ````{group-tab} Trust password
 
-```
+```{terminal}
+:input: sudo lxd init
+
 Would you like to use LXD clustering? (yes/no) [default=no]: yes
 What IP address or DNS name should be used to reach this server? [default=192.0.2.102]:
 Are you joining an existing cluster? (yes/no) [default=no]: yes
