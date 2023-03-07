@@ -25,6 +25,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
@@ -1101,4 +1102,49 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.InstanceArgs) bool {
 	}
 
 	return false
+}
+
+// SnapshotToProtobuf converts a snapshot record to a migration snapshot record.
+func SnapshotToProtobuf(snap *api.InstanceSnapshot) *migration.Snapshot {
+	config := make([]*migration.Config, 0, len(snap.Config))
+	for k, v := range snap.Config {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	devices := make([]*migration.Device, 0, len(snap.Devices))
+	for name, d := range snap.Devices {
+		props := make([]*migration.Config, 0, len(snap.Devices))
+		for k, v := range d {
+			// Local loop vars.
+			kCopy := string(k)
+			vCopy := string(v)
+			props = append(props, &migration.Config{Key: &kCopy, Value: &vCopy})
+		}
+
+		nameCopy := name // Local loop var.
+		devices = append(devices, &migration.Device{Name: &nameCopy, Config: props})
+	}
+
+	isEphemeral := snap.Ephemeral
+	archID, _ := osarch.ArchitectureId(snap.Architecture)
+	arch := int32(archID)
+	stateful := snap.Stateful
+	creationDate := snap.CreatedAt.UTC().Unix()
+	lastUsedDate := snap.LastUsedAt.UTC().Unix()
+	expiryDate := snap.ExpiresAt.UTC().Unix()
+
+	return &migration.Snapshot{
+		Name:         &snap.Name,
+		LocalConfig:  config,
+		Profiles:     snap.Profiles,
+		Ephemeral:    &isEphemeral,
+		LocalDevices: devices,
+		Architecture: &arch,
+		Stateful:     &stateful,
+		CreationDate: &creationDate,
+		LastUsedDate: &lastUsedDate,
+		ExpiryDate:   &expiryDate,
+	}
 }
