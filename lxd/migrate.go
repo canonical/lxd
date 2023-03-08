@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/tcp"
@@ -147,7 +148,7 @@ func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected chan struct{}
+	allConnected *cancel.Canceller
 }
 
 func (s *migrationSourceWs) Metadata() any {
@@ -222,7 +223,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return nil
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
@@ -281,7 +282,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		*conn = wsConn
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
@@ -296,7 +297,7 @@ type migrationSink struct {
 
 	url                 string
 	dialer              websocket.Dialer
-	allConnected        chan struct{}
+	allConnected        *cancel.Canceller
 	push                bool
 	clusterSameNameMove bool
 	refresh             bool
@@ -405,7 +406,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return nil
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
