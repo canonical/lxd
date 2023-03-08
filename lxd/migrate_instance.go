@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -22,7 +24,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
-		allConnected: make(chan struct{}),
+		allConnected: cancel.New(context.Background()),
 	}
 
 	ret.instanceOnly = instanceOnly
@@ -64,8 +66,9 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	select {
 	case <-time.After(time.Second * 10):
+		s.allConnected.Cancel()
 		return fmt.Errorf("Timed out waiting for migration connections")
-	case <-s.allConnected:
+	case <-s.allConnected.Done():
 	}
 
 	l.Info("Migration channels connected on source")
@@ -114,7 +117,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	}
 
 	if sink.push {
-		sink.allConnected = make(chan struct{})
+		sink.allConnected = cancel.New(context.Background())
 	}
 
 	var ok bool
@@ -179,8 +182,9 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	if c.push {
 		select {
 		case <-time.After(time.Second * 10):
+			c.allConnected.Cancel()
 			return fmt.Errorf("Timed out waiting for migration connections")
-		case <-c.allConnected:
+		case <-c.allConnected.Done():
 		}
 	}
 
