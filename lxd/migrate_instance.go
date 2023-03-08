@@ -189,7 +189,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	} else {
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
-			err = fmt.Errorf("Failed connecting control sink socket: %w", err)
+			err = fmt.Errorf("Failed connecting migration control sink socket: %w", err)
 			return err
 		}
 
@@ -197,7 +197,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 		if err != nil {
-			err = fmt.Errorf("Failed connecting filesystem sink socket: %w", err)
+			err = fmt.Errorf("Failed connecting migration filesystem sink socket: %w", err)
 			c.src.sendControl(err)
 			return err
 		}
@@ -205,7 +205,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		if c.src.live && c.src.instance.Type() == instancetype.Container {
 			c.src.stateConn, err = c.connectWithSecret(c.src.stateSecret)
 			if err != nil {
-				err = fmt.Errorf("Failed connecting CRIU sink socket: %w", err)
+				err = fmt.Errorf("Failed connecting migration state sink socket: %w", err)
 				c.src.sendControl(err)
 				return err
 			}
