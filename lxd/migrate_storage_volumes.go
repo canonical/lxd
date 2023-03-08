@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -14,13 +15,14 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{},
-		allConnected:    make(chan struct{}),
+		allConnected:    cancel.New(context.Background()),
 	}
 
 	ret.volumeOnly = volumeOnly
@@ -43,8 +45,9 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	logger.Info("Waiting for migration channel connections")
 	select {
 	case <-time.After(time.Second * 10):
+		s.allConnected.Cancel()
 		return fmt.Errorf("Timed out waiting for connections")
-	case <-s.allConnected:
+	case <-s.allConnected.Done():
 	}
 
 	logger.Info("Migration channels connected")
@@ -173,7 +176,7 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	}
 
 	if sink.push {
-		sink.allConnected = make(chan struct{})
+		sink.allConnected = cancel.New(context.Background())
 	}
 
 	var ok bool
@@ -210,8 +213,9 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		logger.Info("Waiting for migration channel connections")
 		select {
 		case <-time.After(time.Second * 10):
+			c.allConnected.Cancel()
 			return fmt.Errorf("Timed out waiting for connections")
-		case <-c.allConnected:
+		case <-c.allConnected.Done():
 		}
 
 		logger.Info("Migration channels connected")
