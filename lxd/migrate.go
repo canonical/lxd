@@ -170,19 +170,27 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	}
 
 	var conn **websocket.Conn
+	var connName string
 
 	switch secret {
 	case s.controlSecret:
 		conn = &s.controlConn
+		connName = api.SecretNameControl
 	case s.stateSecret:
 		conn = &s.stateConn
+		connName = api.SecretNameState
 	case s.fsSecret:
 		conn = &s.fsConn
+		connName = api.SecretNameFilesystem
 	default:
 		// If we didn't find the right secret, the user provided a bad
 		// one, which 403, not 404, since this operation actually
 		// exists.
 		return os.ErrPermission
+	}
+
+	if *conn != nil {
+		return api.StatusErrorf(http.StatusConflict, "Migration source %q connection already established", connName)
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
@@ -355,18 +363,26 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	}
 
 	var conn **websocket.Conn
+	var connName string
 
 	switch secret {
 	case s.dest.controlSecret:
 		conn = &s.dest.controlConn
+		connName = api.SecretNameControl
 	case s.dest.stateSecret:
 		conn = &s.dest.stateConn
+		connName = api.SecretNameState
 	case s.dest.fsSecret:
 		conn = &s.dest.fsConn
+		connName = api.SecretNameFilesystem
 	default:
 		/* If we didn't find the right secret, the user provided a bad one,
 		 * which 403, not 404, since this operation actually exists */
 		return os.ErrPermission
+	}
+
+	if *conn != nil {
+		return api.StatusErrorf(http.StatusConflict, "Migration target %q connection already established", connName)
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
