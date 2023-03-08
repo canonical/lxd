@@ -973,7 +973,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 	}
 
-	defer op.Done(nil)
+	defer op.Done(err)
 
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err = util.LoadModule("vhost_vsock")
@@ -1081,7 +1081,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		return fmt.Errorf("Failed setting volatile keys: %w", err)
+		err = fmt.Errorf("Failed setting volatile keys: %w", err)
+		op.Done(err)
+		return err
 	}
 
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(d.expandedDevices))
@@ -1095,13 +1097,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	for _, entry := range sortedDevices {
 		dev, err := d.deviceLoad(d, entry.Name, entry.Config)
 		if err != nil {
-			op.Done(err)
-
 			if errors.Is(err, device.ErrUnsupportedDevType) {
 				continue // Skip unsupported device (allows for mixed instance type profiles).
 			}
 
-			return fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
+			err = fmt.Errorf("Failed start validation for device %q: %w", entry.Name, err)
+			op.Done(err)
+			return err
 		}
 
 		// Run pre-start of check all devices before starting any device to avoid expensive revert.
@@ -1121,8 +1123,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
+			err = fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			op.Done(err)
-			return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			return err
 		}
 
 		revert.Add(func() {
@@ -1153,12 +1156,16 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	configMntPath := d.configDriveMountPath()
 	err = d.configDriveMountPathClear()
 	if err != nil {
-		return fmt.Errorf("Failed cleaning config drive mount path %q: %w", configMntPath, err)
+		err = fmt.Errorf("Failed cleaning config drive mount path %q: %w", configMntPath, err)
+		op.Done(err)
+		return err
 	}
 
 	err = os.Mkdir(configMntPath, 0700)
 	if err != nil {
-		return fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
+		err = fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
+		op.Done(err)
+		return err
 	}
 
 	revert.Add(func() { _ = d.configDriveMountPathClear() })
@@ -1168,7 +1175,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	configSrcPath := filepath.Join(d.Path(), "config")
 	err = device.DiskMount(configSrcPath, configMntPath, false, "", []string{"ro"}, "none")
 	if err != nil {
-		return fmt.Errorf("Failed mounting device mount path %q for config drive: %w", configMntPath, err)
+		err = fmt.Errorf("Failed mounting device mount path %q for config drive: %w", configMntPath, err)
+		op.Done(err)
+		return err
 	}
 
 	// Setup virtiofsd for the config drive mount path.
@@ -1191,8 +1200,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		} else {
 			// Resolve previous warning.
 			_ = warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project.Name, warningtype.MissingVirtiofsd)
+			err = fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 			op.Done(err)
-			return fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
+			return err
 		}
 	} else {
 		revert.Add(revertFunc)
@@ -1313,11 +1323,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			// file for writing.
 			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 
 			err = os.Chmod(nvRAMPath, 0600)
 			if err != nil {
+				op.Done(err)
 				return err
 			}
 		}
@@ -1410,6 +1422,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// be used for instance cleanup.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		err = fmt.Errorf("Failed updating backup file: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -1470,7 +1483,9 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			if d.architectureSupportsCPUHotplug() && limit > 1 {
 				err := d.setCPUs(limit)
 				if err != nil {
-					return fmt.Errorf("Failed to add CPUs: %w", err)
+					err = fmt.Errorf("Failed to add CPUs: %w", err)
+					op.Done(err)
+					return err
 				}
 			}
 		} else {
@@ -1586,6 +1601,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
+	op.Done(nil)
 	return nil
 }
 
