@@ -319,6 +319,10 @@ type qemu struct {
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
 	architectureName string
+
+	// Stateful migration streams.
+	migrationSendStateful    io.WriteCloser
+	migrationReceiveStateful io.ReadCloser
 }
 
 // getAgentClient returns the current agent client handle.
@@ -810,41 +814,64 @@ func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	return nil
 }
 
-// restoreState restores the saved state of the VM from the state file on disk.
+// restoreState restores VM state from state file or from migration source if d.migrationReceiveStateful set.
 func (d *qemu) restoreState(monitor *qmp.Monitor) error {
-	statePath := d.StatePath()
-	d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": statePath})
-	defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": statePath})
+	if d.migrationReceiveStateful != nil {
+		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": "migration"})
+		defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": "migration"})
 
-	stateFile, err := os.Open(statePath)
-	if err != nil {
-		return fmt.Errorf("Failed opening state file %q: %w", statePath, err)
-	}
+		// Receive checkpoint from QEMU process on source.
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
 
-	defer func() { _ = stateFile.Close() }()
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
 
-	uncompressedState, err := gzip.NewReader(stateFile)
-	if err != nil {
-		return fmt.Errorf("Failed opening state gzip reader: %w", err)
-	}
+		go func() { _, _ = io.Copy(pipeWrite, d.migrationReceiveStateful) }()
 
-	defer func() { _ = uncompressedState.Close() }()
+		err = d.restoreStateHandle(monitor, pipeRead)
+		if err != nil {
+			return fmt.Errorf("Failed restoring checkpoint from source: %w", err)
+		}
+	} else {
+		statePath := d.StatePath()
+		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": statePath})
+		defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": statePath})
 
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		return err
-	}
+		stateFile, err := os.Open(statePath)
+		if err != nil {
+			return fmt.Errorf("Failed opening state file %q: %w", statePath, err)
+		}
 
-	defer func() {
-		_ = pipeRead.Close()
-		_ = pipeWrite.Close()
-	}()
+		defer func() { _ = stateFile.Close() }()
 
-	go func() { _, _ = io.Copy(pipeWrite, uncompressedState) }()
+		uncompressedState, err := gzip.NewReader(stateFile)
+		if err != nil {
+			return fmt.Errorf("Failed opening state gzip reader: %w", err)
+		}
 
-	err = d.restoreStateHandle(monitor, pipeRead)
-	if err != nil {
-		return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
+		defer func() { _ = uncompressedState.Close() }()
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(pipeWrite, uncompressedState) }()
+
+		err = d.restoreStateHandle(monitor, pipeRead)
+		if err != nil {
+			return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
+		}
 	}
 
 	return nil
@@ -862,51 +889,75 @@ func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	// Issue the migration command.
 	err = monitor.Migrate("fd:migration")
 	if err != nil {
-		return fmt.Errorf("Failed saving state: %w", err)
+		return err
 	}
 
 	return nil
 }
 
-// saveState dumps the current VM state to disk.
+// saveState dumps the current VM state to state file or to migration target if d.migrationSendStateful set.
 // Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
 func (d *qemu) saveState(monitor *qmp.Monitor) error {
-	statePath := d.StatePath()
-	d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
-	defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
+	if d.migrationSendStateful != nil {
+		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": "migration"})
+		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": "migration"})
 
-	_ = os.Remove(statePath)
+		// Send checkpoint to QEMU process on target.
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
 
-	// Prepare the state file.
-	stateFile, err := os.Create(statePath)
-	if err != nil {
-		return err
-	}
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
 
-	defer func() { _ = stateFile.Close() }()
+		go func() { _, _ = io.Copy(d.migrationSendStateful, pipeRead) }()
 
-	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-	if err != nil {
-		return err
-	}
+		err = d.saveStateHandle(monitor, pipeWrite)
+		if err != nil {
+			return fmt.Errorf("Failed transferring state to target: %w", err)
+		}
+	} else {
+		statePath := d.StatePath()
+		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
+		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
 
-	defer func() { _ = compressedState.Close() }()
+		// Save the checkpoint to state file.
+		_ = os.Remove(statePath)
 
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		return err
-	}
+		// Prepare the state file.
+		stateFile, err := os.Create(statePath)
+		if err != nil {
+			return err
+		}
 
-	defer func() {
-		_ = pipeRead.Close()
-		_ = pipeWrite.Close()
-	}()
+		defer func() { _ = stateFile.Close() }()
 
-	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
+		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+		if err != nil {
+			return err
+		}
 
-	err = d.saveStateHandle(monitor, pipeWrite)
-	if err != nil {
-		return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
+		defer func() { _ = compressedState.Close() }()
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(compressedState, pipeRead) }()
+
+		err = d.saveStateHandle(monitor, pipeWrite)
+		if err != nil {
+			return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
+		}
 	}
 
 	return nil
