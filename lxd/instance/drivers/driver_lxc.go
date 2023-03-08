@@ -1966,6 +1966,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		volatileSet["volatile.uuid"] = instUUID
 	}
 
+	// For a container instance, we must also set the generation UUID.
+	genUUID := d.localConfig["volatile.uuid.generation"]
+	if genUUID == "" {
+		genUUID = instUUID
+		volatileSet["volatile.uuid.generation"] = genUUID
+	}
+
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {

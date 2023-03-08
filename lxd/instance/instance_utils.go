@@ -768,6 +768,8 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool) (Ins
 		args.Config["volatile.uuid"] = uuid.New()
 	}
 
+	args.Config["volatile.uuid.generation"] = args.Config["volatile.uuid"]
+
 	if args.Devices == nil {
 		args.Devices = deviceConfig.Devices{}
 	}

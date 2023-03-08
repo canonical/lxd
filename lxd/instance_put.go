@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -201,6 +202,9 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 			return err
 		}
 	}
+
+	// Generate a new `volatile.uuid.generation` to differentiate this instance restored from a snapshot from the original instance.
+	source.LocalConfig()["volatile.uuid.generation"] = uuid.New()
 
 	err = inst.Restore(source, stateful)
 	if err != nil {
