@@ -795,35 +795,9 @@ func (d *qemu) killQemuProcess(pid int) error {
 	return nil
 }
 
-// restoreState restores the saved state of the VM.
-func (d *qemu) restoreState(monitor *qmp.Monitor) error {
-	stateFile, err := os.Open(d.StatePath())
-	if err != nil {
-		return err
-	}
-
-	uncompressedState, err := gzip.NewReader(stateFile)
-	if err != nil {
-		_ = stateFile.Close()
-		return err
-	}
-
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		_ = uncompressedState.Close()
-		_ = stateFile.Close()
-		return err
-	}
-
-	go func() {
-		_, _ = io.Copy(pipeWrite, uncompressedState)
-		_ = uncompressedState.Close()
-		_ = stateFile.Close()
-		_ = pipeWrite.Close()
-		_ = pipeRead.Close()
-	}()
-
-	err = monitor.SendFile("migration", pipeRead)
+// restoreState restores the VM state from a file handle.
+func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
+	err := monitor.SendFile("migration", f)
 	if err != nil {
 		return err
 	}
@@ -831,6 +805,46 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 	err = monitor.MigrateIncoming("fd:migration")
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// restoreState restores the saved state of the VM from the state file on disk.
+func (d *qemu) restoreState(monitor *qmp.Monitor) error {
+	statePath := d.StatePath()
+	d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": statePath})
+	defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": statePath})
+
+	stateFile, err := os.Open(statePath)
+	if err != nil {
+		return fmt.Errorf("Failed opening state file %q: %w", statePath, err)
+	}
+
+	defer func() { _ = stateFile.Close() }()
+
+	uncompressedState, err := gzip.NewReader(stateFile)
+	if err != nil {
+		return fmt.Errorf("Failed opening state gzip reader: %w", err)
+	}
+
+	defer func() { _ = uncompressedState.Close() }()
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = pipeRead.Close()
+		_ = pipeWrite.Close()
+	}()
+
+	go func() { _, _ = io.Copy(pipeWrite, uncompressedState) }()
+
+	err = d.restoreStateHandle(monitor, pipeRead)
+	if err != nil {
+		return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
 	}
 
 	return nil
@@ -1543,7 +1557,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Restore the state.
 	if stateful {
-		err := d.restoreState(monitor)
+		err = d.restoreState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
