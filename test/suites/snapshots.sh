@@ -201,14 +201,14 @@ snap_restore() {
   # test restore using full snapshot name
   restore_and_compare_fs snap1
 
-  # Check that instances UUID are different before and after snapshoting
+  # Check that instances UUID remain the same before and after snapshoting
   newUUID=$(lxc config get bar volatile.uuid)
-  if [ "${initialUUID}" = "${newUUID}" ]; then
-    echo "==> UUID of the instance should be different after restoring its snapshot"
+  if [ "${initialUUID}" != "${newUUID}" ]; then
+    echo "==> UUID of the instance should remain the same after restoring its snapshot"
     false
   fi
 
-  # Check that instances UUIS are different before and after snapshoting  (stateful mode)
+  # Check that instances UUIS remain the same before and after snapshoting  (stateful mode)
   if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: stateful snapshotting with CRIU (missing binary)"
   else
@@ -218,8 +218,8 @@ snap_restore() {
     restore_and_compare_fs snap2
 
     newUUID=$(lxc config get bar volatile.uuid)
-    if [ "${initialUUID}" = "${newUUID}" ]; then
-      echo "==> UUID of the instance should be different after restoring its stateful snapshot"
+    if [ "${initialUUID}" != "${newUUID}" ]; then
+      echo "==> UUID of the instance should remain the same after restoring its stateful snapshot"
       false
     fi
 
