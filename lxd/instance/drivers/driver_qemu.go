@@ -1026,6 +1026,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		volatileSet["volatile.uuid"] = instUUID
 	}
 
+	// For a VM instance, we must also set the VM generation ID.
+	vmGenUUID := d.localConfig["volatile.uuid.generation"]
+	if vmGenUUID == "" {
+		vmGenUUID = instUUID
+		volatileSet["volatile.uuid.generation"] = vmGenUUID
+	}
+
 	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
@@ -1279,6 +1286,11 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
 		}
+	}
+
+	// VM generation ID is only used on UEFI compatible architectures.
+	if d.architectureSupportsUEFI(d.architecture) {
+		qemuCmd = append(qemuCmd, "-device", fmt.Sprintf("vmgenid,guid=%s", d.localConfig["volatile.uuid.generation"]))
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
