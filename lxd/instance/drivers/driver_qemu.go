@@ -850,54 +850,64 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 	return nil
 }
 
-// saveState dumps the current VM state to disk.
+// saveStateHandle dumps the current VM state to a file handle.
 // Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
-func (d *qemu) saveState(monitor *qmp.Monitor) error {
-	_ = os.Remove(d.StatePath())
-
-	// Prepare the state file.
-	stateFile, err := os.Create(d.StatePath())
-	if err != nil {
-		return err
-	}
-
-	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-	if err != nil {
-		_ = stateFile.Close()
-		return err
-	}
-
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
-		return err
-	}
-
-	defer func() { _ = pipeRead.Close() }()
-	defer func() { _ = pipeWrite.Close() }()
-
-	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
-
+func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	// Send the target file to qemu.
-	err = monitor.SendFile("migration", pipeWrite)
+	err := monitor.SendFile("migration", f)
 	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
 		return err
 	}
 
 	// Issue the migration command.
 	err = monitor.Migrate("fd:migration")
 	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
+		return fmt.Errorf("Failed saving state: %w", err)
+	}
+
+	return nil
+}
+
+// saveState dumps the current VM state to disk.
+// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+func (d *qemu) saveState(monitor *qmp.Monitor) error {
+	statePath := d.StatePath()
+	d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
+	defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
+
+	_ = os.Remove(statePath)
+
+	// Prepare the state file.
+	stateFile, err := os.Create(statePath)
+	if err != nil {
 		return err
 	}
 
-	// Close the file to avoid unmount delays.
-	_ = compressedState.Close()
-	_ = stateFile.Close()
+	defer func() { _ = stateFile.Close() }()
+
+	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = compressedState.Close() }()
+
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = pipeRead.Close()
+		_ = pipeWrite.Close()
+	}()
+
+	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
+
+	err = d.saveStateHandle(monitor, pipeWrite)
+	if err != nil {
+		return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
+	}
 
 	return nil
 }
