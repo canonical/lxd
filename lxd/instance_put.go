@@ -8,7 +8,6 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -202,12 +201,6 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 			return err
 		}
 	}
-
-	// Generate a new UUID for the instance when restoring it.
-	// We will later use this new instance UUID as a VM Generation ID
-	// in order to differentiate the two instances before and after snapshot
-	// restore that changes that instance's place in time (moving it backwards).
-	source.LocalConfig()["volatile.uuid"] = uuid.New()
 
 	err = inst.Restore(source, stateful)
 	if err != nil {
