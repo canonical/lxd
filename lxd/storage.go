@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -18,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -42,39 +40,6 @@ func readStoragePoolDriversCache() ([]api.ServerStorageDriverInfo, map[string]st
 	}
 
 	return supportedDrivers.([]api.ServerStorageDriverInfo), usedDrivers.(map[string]string)
-}
-
-func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.IdmapSet) error {
-	dstIdmap, err := container.DiskIdmap()
-	if err != nil {
-		return err
-	}
-
-	if dstIdmap == nil {
-		dstIdmap = new(idmap.IdmapSet)
-	}
-
-	if !srcIdmap.Equals(dstIdmap) {
-		var jsonIdmap string
-		if srcIdmap != nil {
-			idmapBytes, err := json.Marshal(srcIdmap.Idmap)
-			if err != nil {
-				return err
-			}
-
-			jsonIdmap = string(idmapBytes)
-		} else {
-			jsonIdmap = "[]"
-		}
-
-		logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"project": container.Project().Name, "instance": container.Name(), "sourceIdmap": srcIdmap})
-		err := container.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func storageStartup(s *state.State, forceCheck bool) error {
