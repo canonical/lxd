@@ -1247,7 +1247,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		"-name", d.Name(),
 		"-uuid", instUUID,
 		"-daemonize",
-		"-device", fmt.Sprintf("vmgenid,guid=%s", instUUID),
 		"-cpu", cpuType,
 		"-nographic",
 		"-serial", "chardev:console",
