@@ -119,7 +119,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	return nil
 }
 
-func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
