@@ -890,8 +890,12 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			}
 		} else {
 			// Create the instance mount point.
+			req := internalClusterInstanceMovedPostRequest{
+				Action: "create",
+			}
+
 			url := api.NewURL().Project(inst.Project().Name).Path("internal", "cluster", "instance-moved", newName)
-			resp, _, err := target.RawQuery("POST", url.String(), nil, "")
+			resp, _, err := target.RawQuery("POST", url.String(), req, "")
 			if err != nil {
 				return fmt.Errorf("Failed creating mount point on target member: %w", err)
 			}
@@ -925,6 +929,10 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	return run, nil
 }
 
+type internalClusterInstanceMovedPostRequest struct {
+	Action string
+}
+
 // Notification that an instance was moved.
 //
 // At the moment it's used for ceph-based instances, where the target node needs
@@ -936,14 +944,55 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, instanceName)
+	req := internalClusterInstanceMovedPostRequest{}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading instance on target node: %w", err))
+		return response.BadRequest(err)
 	}
 
-	err = instancePostCreateInstanceMountPoint(d, inst)
+	s := d.State()
+	inst, err := instance.LoadByProjectAndName(s, projectName, instanceName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading instance: %w", err))
+	}
+
+	if req.Action == "delete" {
+		pool, err := storagePools.LoadByInstance(s, inst)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed loading instance storage pool on source member: %w", err))
+		}
+
+		if pool.Driver().Info().Remote {
+			return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Instance storage pool %q is not local", pool.Name()))
+		}
+
+		snapshots, err := inst.Snapshots()
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed getting instance snapshots: %w", err))
+		}
+
+		snapshotCount := len(snapshots)
+		for k := range snapshots {
+			// Delete the snapshots in reverse order.
+			k = snapshotCount - 1 - k
+
+			err = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed delete instance snapshot %q: %w", snapshots[k].Name(), err))
+			}
+		}
+
+		err = pool.DeleteInstance(inst, nil)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed deleting instance on source member: %w", err))
+		}
+	} else if req.Action == "create" {
+		err = instancePostCreateInstanceMountPoint(d, inst)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed creating instance mount point on target member: %w", err))
+		}
 	}
 
 	return response.EmptySyncResponse
