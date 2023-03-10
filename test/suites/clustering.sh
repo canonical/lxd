@@ -3678,3 +3678,60 @@ test_clustering_events() {
   kill_lxd "${LXD_FOUR_DIR}"
   kill_lxd "${LXD_FIVE_DIR}"
 }
+
+test_clustering_uuid() {
+  # shellcheck disable=2039,3043
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # create two cluster nodes
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  ensure_import_testimage
+
+  # spawn an instance on the first LXD node
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
+  # get its volatile.uuid
+  uuid_before_move=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile.uuid)
+  # stop the instance
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop -f c1
+  # move the instance to the second LXD node
+  LXD_DIR="${LXD_ONE_DIR}" lxc move c1 --target=node2
+  # get the volatile.uuid of the moved instance on the second node
+  uuid_after_move=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get c1 volatile.uuid)
+
+  # check that the uuid have not changed, else return an error
+  if [ "${uuid_before_move}" != "${uuid_after_move}" ]; then
+    echo "UUID changed after move"
+    false
+  fi
+
+  # cleanup
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1 -f
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}

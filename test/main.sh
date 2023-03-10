@@ -232,6 +232,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     # run_test test_clustering_upgrade "clustering upgrade"
     run_test test_clustering_groups "clustering groups"
     run_test test_clustering_events "clustering events"
+    run_test test_clustering_uuid "clustering uuid"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
