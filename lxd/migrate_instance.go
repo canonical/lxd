@@ -102,7 +102,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			sendErr := s.send(&msg)
 			if sendErr != nil {
-				return fmt.Errorf("Failed sending control error to target: %v (%w)", sendErr, err)
+				l.Error("Failed sending control error to target", logger.Ctx{"err": sendErr})
+			} else {
+				// Wait for confirmation of receipt from other side.
+				// This provides the ability for both sides to synchronise and ensures we don't close our
+				// connections too early, which can cause the other side to process disconnect errors
+				// before our control message, causing the true failure cause to be masked.
+				_ = s.controlConn.SetReadDeadline(time.Now().Add(time.Second * 5))
+				_, _, _ = s.controlConn.ReadMessage()
 			}
 		}
 
