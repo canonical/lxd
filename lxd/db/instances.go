@@ -639,44 +639,22 @@ func (c *ClusterTx) InstancesToInstanceArgs(ctx context.Context, fillProfiles bo
 
 // UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
 // It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
-func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project, oldName string, newName string, newNode string, volumeType int) error {
-	// First check that the container to be moved is backed by a ceph
-	// volume.
-	poolName, err := c.GetInstancePool(ctx, project, oldName)
-	if err != nil {
-		return fmt.Errorf("Failed to get instance's storage pool name: %w", err)
-	}
-
-	poolID, err := c.GetStoragePoolID(ctx, poolName)
-	if err != nil {
-		return fmt.Errorf("Failed to get instance's storage pool ID: %w", err)
-	}
-
-	poolDriver, err := c.GetStoragePoolDriver(ctx, poolID)
-	if err != nil {
-		return fmt.Errorf("Failed to get instance's storage pool driver: %w", err)
-	}
-
-	if poolDriver != "ceph" {
-		return fmt.Errorf("Instance's storage pool is not of type ceph")
-	}
-
-	// Update the name of the container and of its snapshots, and the node
-	// ID they are associated with.
-	containerID, err := cluster.GetInstanceID(ctx, c.tx, project, oldName)
+func (c *ClusterTx) UpdateInstanceNode(ctx context.Context, project string, oldName string, newName string, newMemberName string, poolID int64, volumeType int) error {
+	// Update the name of the instance and its snapshots, and the member ID they are associated with.
+	instanceID, err := cluster.GetInstanceID(ctx, c.tx, project, oldName)
 	if err != nil {
 		return fmt.Errorf("Failed to get instance's ID: %w", err)
 	}
 
-	node, err := c.GetNodeByName(ctx, newNode)
+	member, err := c.GetNodeByName(ctx, newMemberName)
 	if err != nil {
-		return fmt.Errorf("Failed to get new node's info: %w", err)
+		return fmt.Errorf("Failed to get new member %q info: %w", newMemberName, err)
 	}
 
 	stmt := "UPDATE instances SET node_id=?, name=? WHERE id=?"
-	result, err := c.tx.Exec(stmt, node.ID, newName, containerID)
+	result, err := c.tx.Exec(stmt, member.ID, newName, instanceID)
 	if err != nil {
-		return fmt.Errorf("Failed to update instance's name and node ID: %w", err)
+		return fmt.Errorf("Failed to update instance's name and member ID: %w", err)
 	}
 
 	n, err := result.RowsAffected()
