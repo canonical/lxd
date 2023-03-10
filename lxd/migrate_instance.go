@@ -104,12 +104,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
-		dest:    migrationFields{instanceOnly: args.InstanceOnly},
-		url:     args.URL,
-		dialer:  args.Dialer,
-		push:    args.Push,
-		refresh: args.Refresh,
+		src:                 migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
+		dest:                migrationFields{instanceOnly: args.InstanceOnly},
+		url:                 args.URL,
+		clusterSameNameMove: args.ClusterSameNameMove,
+		dialer:              args.Dialer,
+		push:                args.Push,
+		refresh:             args.Refresh,
 	}
 
 	if sink.push {
@@ -169,7 +170,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		live = c.dest.live
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live, "clusterSameNameMove": c.clusterSameNameMove})
 
 	var err error
 
@@ -244,8 +245,9 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 				}
 			},
 		},
-		InstanceOperation: instOp,
-		Refresh:           c.refresh,
+		InstanceOperation:   instOp,
+		ClusterSameNameMove: c.clusterSameNameMove,
+		Refresh:             c.refresh,
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})
