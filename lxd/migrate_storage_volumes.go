@@ -164,7 +164,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	return nil
 }
 
-func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{volumeOnly: args.VolumeOnly},
 		dest:    migrationFields{volumeOnly: args.VolumeOnly},
@@ -271,7 +271,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	}
 
 	// The function that will be executed to receive the sender's migration data.
-	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
+	var myTarget func(conn *websocket.Conn, op *operations.Operation, args migrationSinkArgs) error
 
 	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
@@ -318,7 +318,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 	// with the new storage layer.
-	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
+	myTarget = func(conn *websocket.Conn, op *operations.Operation, args migrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
 			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
 			Name:               req.Name,
@@ -422,7 +422,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			// Get rsync options from sender, these are passed into mySink function
 			// as part of MigrationSinkArgs below.
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-			args := MigrationSinkArgs{
+			args := migrationSinkArgs{
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     respHeader.Snapshots,
 				VolumeOnly:    c.src.volumeOnly,
