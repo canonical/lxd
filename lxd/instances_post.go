@@ -257,15 +257,22 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 	var instOp *operationlock.InstanceOperation
 	var cleanup revert.Hook
 
+	isClusterSameNameMove := r != nil && isClusterNotification(r)
+
 	// Early check for refresh.
-	if req.Source.Refresh {
+	if req.Source.Refresh || isClusterSameNameMove {
 		// Check if the instance exists.
 		inst, err = instance.LoadByProjectAndName(d.State(), projectName, req.Name)
 		if err != nil {
 			if response.IsNotFoundError(err) {
+				if isClusterSameNameMove {
+					// Cluster move doesn't allowed renaming as part of migration so fail here.
+					return response.SmartError(err)
+				}
+
 				req.Source.Refresh = false
 			} else {
-				return response.InternalError(err)
+				return response.SmartError(err)
 			}
 		}
 	}
@@ -275,7 +282,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
-	if !req.Source.Refresh {
+	if !req.Source.Refresh && !isClusterSameNameMove {
 		_, err := storagePools.LoadByName(d.State(), storagePool)
 		if err != nil {
 			return response.InternalError(err)
@@ -330,12 +337,13 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 			NetDialContext:   shared.RFC3493Dialer,
 			HandshakeTimeout: time.Second * 5,
 		},
-		Instance:     inst,
-		Secrets:      req.Source.Websockets,
-		Push:         push,
-		Live:         req.Source.Live,
-		InstanceOnly: instanceOnly,
-		Refresh:      req.Source.Refresh,
+		Instance:            inst,
+		Secrets:             req.Source.Websockets,
+		Push:                push,
+		Live:                req.Source.Live,
+		InstanceOnly:        instanceOnly,
+		ClusterSameNameMove: isClusterSameNameMove,
+		Refresh:             req.Source.Refresh,
 	}
 
 	sink, err := newMigrationSink(&migrationArgs)
