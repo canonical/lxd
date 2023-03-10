@@ -7123,13 +7123,19 @@ func (d *qemu) setCPUs(count int) error {
 
 			devID := fmt.Sprintf("cpu%d%d%d", cpu.Props.SocketID, cpu.Props.CoreID, cpu.Props.ThreadID)
 
-			err := monitor.AddDevice(map[string]string{
-				"id":        devID,
-				"driver":    cpu.Type,
-				"socket-id": fmt.Sprintf("%d", cpu.Props.SocketID),
-				"core-id":   fmt.Sprintf("%d", cpu.Props.CoreID),
-				"thread-id": fmt.Sprintf("%d", cpu.Props.ThreadID),
-			})
+			dev := map[string]string{
+				"id":      devID,
+				"driver":  cpu.Type,
+				"core-id": fmt.Sprintf("%d", cpu.Props.CoreID),
+			}
+
+			// No such thing as sockets and threads on s390x.
+			if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+				dev["socket-id"] = fmt.Sprintf("%d", cpu.Props.SocketID)
+				dev["thread-id"] = fmt.Sprintf("%d", cpu.Props.ThreadID)
+			}
+
+			err := monitor.AddDevice(dev)
 			if err != nil {
 				return fmt.Errorf("Failed to add device: %w", err)
 			}
