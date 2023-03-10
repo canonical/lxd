@@ -5827,66 +5827,78 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			err = d.start(true, args.InstanceOperation)
 			if err != nil {
 				restore <- err
-
 				return
 			}
+		}
+
+		err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+		if err != nil {
+			restore <- err
+			return
 		}
 
 		restore <- nil
 	}()
 
-	source := make(chan *migration.ControlResponse, 1)
+	control := make(chan error)
 	go func() {
-		resp := migration.ControlResponse{}
-		err := args.ControlReceive(&resp.MigrationControl)
+		resp := migration.MigrationControl{}
+		err := args.ControlReceive(&resp)
 		if err != nil {
-			resp.Err = err
-			source <- &resp
-
-			return
+			err = fmt.Errorf("Got error reading migration source: %w", err)
+		} else if !resp.GetSuccess() {
+			err = fmt.Errorf(resp.GetMessage())
 		}
 
-		source <- &resp
+		control <- err
 	}()
 
-	select {
-	case err = <-restore:
-		if err != nil {
-			return err
+	var resultErr error
+	for i := 0; i < 2; i++ {
+		var err error
+
+		select {
+		case err = <-control:
+			// Send response to source to confirm receipt if first result and control not closed.
+			var wsCloseErr *websocket.CloseError
+			if i == 0 && !errors.As(err, &wsCloseErr) {
+				msg := migration.MigrationControl{
+					Success: proto.Bool(err == nil),
+					Message: proto.String(err.Error()),
+				}
+
+				sendErr := args.ControlSend(&msg)
+				if sendErr != nil {
+					d.logger.Warn("Failed sending control receipt to source", logger.Ctx{"err": sendErr})
+				}
+			}
+		case err = <-restore:
+			// Send restore response to source if first result.
+			if i == 0 {
+				msg := migration.MigrationControl{
+					Success: proto.Bool(err == nil),
+				}
+
+				if err != nil {
+					msg.Message = proto.String(err.Error())
+				}
+
+				d.logger.Debug("Sent migration completion response to source", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
+				sendErr := args.ControlSend(&msg)
+				if sendErr != nil {
+					d.logger.Warn("Failed sending control error to source", logger.Ctx{"err": sendErr})
+				}
+			}
 		}
 
-		break
-	case msg := <-source:
-		if msg.Err != nil {
-			return fmt.Errorf("Got error reading migration source: %w", msg.Err)
+		// Record first non-nil error to return.
+		if err != nil && i == 0 {
+			resultErr = err
 		}
-
-		if !msg.GetSuccess() {
-			return fmt.Errorf(msg.GetMessage())
-		}
-
-		return fmt.Errorf("Unknown message from migration source: %v", msg.GetMessage())
-	}
-
-	d.logger.Debug("Sending migration completion response to source")
-
-	// Send success message to other side.
-	msg := migration.MigrationControl{
-		Success: proto.Bool(true),
-	}
-
-	sendErr := args.ControlSend(&msg)
-	if sendErr != nil {
-		return fmt.Errorf("Failed sending migration completion response to source: %w", err)
-	}
-
-	err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
-	if err != nil {
-		return err
 	}
 
 	revert.Success()
-	return nil
+	return resultErr
 }
 
 // CGroupSet is not implemented for VMs.
