@@ -321,7 +321,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 		push = true
 	}
 
-	migrationArgs := MigrationSinkArgs{
+	migrationArgs := migrationSinkArgs{
 		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
