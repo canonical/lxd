@@ -286,11 +286,12 @@ type migrationSink struct {
 	// fields are used since the client will connect to the sockets.
 	dest migrationFields
 
-	url          string
-	dialer       websocket.Dialer
-	allConnected chan struct{}
-	push         bool
-	refresh      bool
+	url                 string
+	dialer              websocket.Dialer
+	allConnected        chan struct{}
+	push                bool
+	clusterSameNameMove bool
+	refresh             bool
 }
 
 // MigrationSinkArgs arguments to configure migration sink.
@@ -302,12 +303,13 @@ type migrationSinkArgs struct {
 	URL     string
 
 	// Instance specific fields
-	Instance     instance.Instance
-	InstanceOnly bool
-	Idmap        *idmap.IdmapSet
-	Live         bool
-	Refresh      bool
-	Snapshots    []*migration.Snapshot
+	Instance            instance.Instance
+	InstanceOnly        bool
+	Idmap               *idmap.IdmapSet
+	Live                bool
+	Refresh             bool
+	ClusterSameNameMove bool
+	Snapshots           []*migration.Snapshot
 
 	// Storage specific fields
 	VolumeOnly bool
