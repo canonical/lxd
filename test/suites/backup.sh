@@ -799,8 +799,8 @@ test_backup_different_instance_uuid() {
 
   newUUID=$(lxc config get c1 volatile.uuid)
 
-  if [ "${initialUUID}" = "${newUUID}" ]; then
-    echo "==> UUID of the instance should be different after importing the backup file"
+  if [ "${initialUUID}" != "${newUUID}" ]; then
+    echo "==> UUID of the instance should remain the same after importing the backup file"
     false
   fi
 
