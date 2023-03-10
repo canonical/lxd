@@ -791,6 +791,7 @@ test_backup_different_instance_uuid() {
   echo "==> Checking instances UUID during backup operation"
   lxc launch testimage c1
   initialUUID=$(lxc config get c1 volatile.uuid)
+  initialGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
   # export and import to trigger new UUID generation
   lxc export c1 "${LXD_DIR}/c1.tar.gz"
@@ -798,8 +799,9 @@ test_backup_different_instance_uuid() {
   lxc import "${LXD_DIR}/c1.tar.gz"
 
   newUUID=$(lxc config get c1 volatile.uuid)
+  newGenerationID=$(lxc config get c1 volatile.uuid.generation)
 
-  if [ "${initialUUID}" != "${newUUID}" ]; then
+  if [ "${initialGenerationID}" != "${newGenerationID}" ] || [ "${initialUUID}" != "${newUUID}" ]; then
     echo "==> UUID of the instance should remain the same after importing the backup file"
     false
   fi
