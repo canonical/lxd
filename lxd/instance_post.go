@@ -1091,7 +1091,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return err
 	}
 
-	f, err := instancePostClusteringMigrate(d, r, inst, req.Name, targetNode, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(d.State(), r, inst, req.Name, targetNode, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}
