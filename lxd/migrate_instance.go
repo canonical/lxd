@@ -257,21 +257,6 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})
-
-		var wsCloseErr *websocket.CloseError
-		if !errors.As(err, &wsCloseErr) {
-			// Send error to other side if not closed.
-			msg := migration.MigrationControl{
-				Success: proto.Bool(err == nil),
-				Message: proto.String(err.Error()),
-			}
-
-			sendErr := sender(&msg)
-			if sendErr != nil {
-				return fmt.Errorf("Failed sending control error to source: %v (%w)", sendErr, err)
-			}
-		}
-
 		return fmt.Errorf("Failed migration on target: %w", err)
 	}
 
