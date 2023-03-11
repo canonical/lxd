@@ -5903,8 +5903,10 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		// Record first non-nil error to return.
+		// Handle first non-nil error to return.
 		if err != nil && i == 0 {
+			args.Disconnect() // Close everything down (causes receive go routines to end).
+
 			resultErr = err
 		}
 	}
