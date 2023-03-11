@@ -210,6 +210,7 @@ type MigrateArgs struct {
 	DataConn       io.ReadWriteCloser
 	Snapshots      bool
 	Live           bool
+	Disconnect     func()
 }
 
 // MigrateSendArgs represent arguments for instance migration send.
