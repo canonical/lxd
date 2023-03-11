@@ -86,6 +86,15 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			DataConn:       &shared.WebsocketIO{Conn: s.fsConn},
 			Snapshots:      !s.instanceOnly,
 			Live:           s.live,
+			Disconnect: func() {
+				if s.fsConn != nil {
+					_ = s.fsConn.Close()
+				}
+
+				if s.criuConn != nil {
+					_ = s.criuConn.Close()
+				}
+			},
 		},
 		AllowInconsistent: s.allowInconsistent,
 	})
@@ -251,6 +260,15 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 			DataConn:       &shared.WebsocketIO{Conn: dataConn},
 			Snapshots:      !c.dest.instanceOnly,
 			Live:           live,
+			Disconnect: func() {
+				if dataConn != nil {
+					_ = dataConn.Close()
+				}
+
+				if liveConn != nil {
+					_ = liveConn.Close()
+				}
+			},
 		},
 		InstanceOperation: instOp,
 		Refresh:           c.refresh,
