@@ -1167,7 +1167,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Address != s.ServerName {
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
 		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
@@ -1176,7 +1176,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		client = client.UseProject(targetProjectName)
 		client = client.UseTarget(targetMemberInfo.Name)
 
-		logger.Debug("Forward instance post request", logger.Ctx{"member": targetMemberInfo.Address})
+		logger.Debug("Forward instance post request", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
 		op, err := client.CreateInstance(req)
 		if err != nil {
 			return response.SmartError(err)
