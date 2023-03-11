@@ -6009,7 +6009,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					msg.Message = proto.String(err.Error())
 				}
 
-				d.logger.Debug("Sent migration completion response to source", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
+				d.logger.Debug("Sending migration completion response to source", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
 				sendErr := args.ControlSend(&msg)
 				if sendErr != nil {
 					d.logger.Warn("Failed sending control error to source", logger.Ctx{"err": sendErr})
