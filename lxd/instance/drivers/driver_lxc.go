@@ -3673,15 +3673,13 @@ func (d *lxc) delete(force bool) error {
 				return err
 			}
 		} else {
-			// Remove all snapshots by initialising each snapshot as an Instance and
-			// calling its Delete function.
+			// Remove all snapshots.
 			err := instance.DeleteSnapshots(d)
 			if err != nil {
-				d.logger.Error("Failed to delete instance snapshots", logger.Ctx{"err": err})
-				return err
+				return fmt.Errorf("Failed deleting instance snapshots; %w", err)
 			}
 
-			// Remove the storage volume, snapshot volumes and database records.
+			// Remove the storage volume and database records.
 			err = pool.DeleteInstance(d, nil)
 			if err != nil {
 				return err
