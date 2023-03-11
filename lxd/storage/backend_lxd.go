@@ -2082,14 +2082,14 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
-	snapshots, err := b.state.DB.Cluster.GetInstanceSnapshotsNames(inst.Project().Name, inst.Name())
+	// Get any snapshot volume DB records that the instance has.
+	dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project().Name, inst.Name(), volType)
 	if err != nil {
 		return err
 	}
 
 	// Check all snapshots are already removed.
-	if len(snapshots) > 0 {
+	if len(dbVolSnaps) > 0 {
 		return fmt.Errorf("Cannot remove an instance volume that has snapshots")
 	}
 
