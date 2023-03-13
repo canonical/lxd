@@ -361,6 +361,7 @@ var APIExtensions = []string{
 	"instances_placement_scriptlet",
 	"storage_pool_source_wipe",
 	"zfs_block_mode",
+	"instance_generation_id",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
