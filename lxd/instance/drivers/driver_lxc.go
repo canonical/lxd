@@ -29,6 +29,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	yaml "gopkg.in/yaml.v2"
@@ -5765,170 +5766,221 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	d.logger.Debug("Sent migration response to source")
 
+	srcIdmap := new(idmap.IdmapSet)
+	for _, idmapSet := range offerHeader.Idmap {
+		e := idmap.IdmapEntry{
+			Isuid:    *idmapSet.Isuid,
+			Isgid:    *idmapSet.Isgid,
+			Nsid:     int64(*idmapSet.Nsid),
+			Hostid:   int64(*idmapSet.Hostid),
+			Maprange: int64(*idmapSet.Maprange),
+		}
+
+		srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
-	restore := make(chan error)
-	go func() {
-		imagesDir := ""
-		srcIdmap := new(idmap.IdmapSet)
+	g, ctx := errgroup.WithContext(context.Background())
 
-		for _, idmapSet := range offerHeader.Idmap {
-			e := idmap.IdmapEntry{
-				Isuid:    *idmapSet.Isuid,
-				Isgid:    *idmapSet.Isgid,
-				Nsid:     int64(*idmapSet.Nsid),
-				Hostid:   int64(*idmapSet.Hostid),
-				Maprange: int64(*idmapSet.Maprange),
+	// Start control connection monitor.
+	g.Go(func() error {
+		d.logger.Debug("Migrate receive control monitor started")
+		defer d.logger.Debug("Migrate receive control monitor finished")
+
+		controlResult := make(chan error, 1) // Buffered to allow go routine to end if no readers.
+
+		// This will read the result message from the source side and detect disconnections.
+		go func() {
+			resp := migration.MigrationControl{}
+			err := args.ControlReceive(&resp)
+			if err != nil {
+				err = fmt.Errorf("Error reading migration control source: %w", err)
+			} else if !resp.GetSuccess() {
+				err = fmt.Errorf("Error from migration control source: %s", resp.GetMessage())
 			}
 
-			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
+			controlResult <- err
+		}()
+
+		// End as soon as we get control message/disconnection from the source side or a local error.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-controlResult:
 		}
+
+		return err
+	})
+
+	// Start error monitoring routine, this will detect when an error is returned from the other routines,
+	// and if that happens it will disconnect the migration connections which will trigger the other routines
+	// to finish.
+	go func() {
+		<-ctx.Done()
+		args.Disconnect()
+	}()
+
+	// Start filesystem transfer routine and initialise a channel that is closed when the routine finishes.
+	fsTransferDone := make(chan struct{})
+	g.Go(func() error {
+		defer close(fsTransferDone)
+
+		d.logger.Debug("Migrate receive filesystem transfer started")
+		defer d.logger.Debug("Migrate receive filesystem transfer finished")
+
+		var err error
 
 		// We do the fs receive in parallel so we don't have to reason about when to receive
 		// what. The sending side is smart enough to send the filesystem bits that it can
 		// before it seizes the container to start checkpointing, so the total transfer time
 		// will be minimized even if we're dumb here.
-		fsTransfer := make(chan error)
-		go func() {
-			snapshots := []*migration.Snapshot{}
+		snapshots := []*migration.Snapshot{}
 
-			// Legacy: we only sent the snapshot names, so we just copy the container's
-			// config over, same as we used to do.
-			if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
-				// Convert the instance to an api.InstanceSnapshot.
+		// Legacy: we only sent the snapshot names, so we just copy the container's
+		// config over, same as we used to do.
+		if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+			// Convert the instance to an api.InstanceSnapshot.
 
-				profileNames := make([]string, 0, len(d.Profiles()))
-				for _, p := range d.Profiles() {
-					profileNames = append(profileNames, p.Name)
-				}
-
-				architectureName, _ := osarch.ArchitectureName(d.Architecture())
-				apiInstSnap := &api.InstanceSnapshot{
-					InstanceSnapshotPut: api.InstanceSnapshotPut{
-						ExpiresAt: time.Time{},
-					},
-					Architecture: architectureName,
-					CreatedAt:    d.CreationDate(),
-					LastUsedAt:   d.LastUsedDate(),
-					Config:       d.LocalConfig(),
-					Devices:      d.LocalDevices().CloneNative(),
-					Ephemeral:    d.IsEphemeral(),
-					Stateful:     d.IsStateful(),
-					Profiles:     profileNames,
-				}
-
-				for _, name := range offerHeader.SnapshotNames {
-					base := instance.SnapshotToProtobuf(apiInstSnap)
-					base.Name = &name
-					snapshots = append(snapshots, base)
-				}
-			} else {
-				snapshots = offerHeader.Snapshots
+			profileNames := make([]string, 0, len(d.Profiles()))
+			for _, p := range d.Profiles() {
+				profileNames = append(profileNames, p.Name)
 			}
 
-			// Default to not expecting to receive the final rootfs sync.
-			sendFinalFsDelta := false
-
-			// If we are doing a stateful live transfer or the CRIU type indicates we
-			// are doing a stateless transfer with a running instance then we should
-			// expect the source to send us a final rootfs sync.
-			if args.Live {
-				sendFinalFsDelta = true
-			} else if criuType != nil && *criuType == migration.CRIUType_NONE {
-				sendFinalFsDelta = true
+			architectureName, _ := osarch.ArchitectureName(d.Architecture())
+			apiInstSnap := &api.InstanceSnapshot{
+				InstanceSnapshotPut: api.InstanceSnapshotPut{
+					ExpiresAt: time.Time{},
+				},
+				Architecture: architectureName,
+				CreatedAt:    d.CreationDate(),
+				LastUsedAt:   d.LastUsedDate(),
+				Config:       d.LocalConfig(),
+				Devices:      d.LocalDevices().CloneNative(),
+				Ephemeral:    d.IsEphemeral(),
+				Stateful:     d.IsStateful(),
+				Profiles:     profileNames,
 			}
 
-			volTargetArgs := migration.VolumeTargetArgs{
-				IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
-				Name:               d.Name(),
-				MigrationType:      respTypes[0],
-				Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
-				TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
-				Live:               sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
-				VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
-				VolumeOnly:         !args.Snapshots,
+			for _, name := range offerHeader.SnapshotNames {
+				base := instance.SnapshotToProtobuf(apiInstSnap)
+				base.Name = &name
+				snapshots = append(snapshots, base)
 			}
+		} else {
+			snapshots = offerHeader.Snapshots
+		}
 
-			// At this point we have already figured out the parent container's root
-			// disk device so we can simply retrieve it from the expanded devices.
-			parentStoragePool := ""
-			parentExpandedDevices := d.ExpandedDevices()
-			parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-			if parentLocalRootDiskDeviceKey != "" {
-				parentStoragePool = parentLocalRootDiskDevice["pool"]
-			}
+		// Default to not expecting to receive the final rootfs sync.
+		sendFinalFsDelta := false
 
-			if parentStoragePool == "" {
-				fsTransfer <- fmt.Errorf("Instance's root device is missing the pool property")
-				return
-			}
-
-			// A zero length Snapshots slice indicates volume only migration in
-			// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
-			if args.Snapshots {
-				volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
-				for _, snap := range snapshots {
-					volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
-					if err != nil {
-						fsTransfer <- err
-						return
-					}
-
-					// Ensure that snapshot and parent container have the same
-					// storage pool in their local root disk device. If the root
-					// disk device for the snapshot comes from a profile on the
-					// new instance as well we don't need to do anything.
-					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
-						if snapLocalRootDiskDeviceKey != "" {
-							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
-						}
-					}
-
-					// Create the snapshot instance.
-					_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
-					if err != nil {
-						fsTransfer <- fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
-						return
-					}
-
-					revert.Add(cleanup)
-					defer snapInstOp.Done(err)
-				}
-			}
-
-			err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
-			if err != nil {
-				fsTransfer <- fmt.Errorf("Failed creating instance on target: %w", err)
-				return
-			}
-
-			// Only delete entire instance on error if the pool volume creation has succeeded to avoid
-			// deleting an existing conflicting volume.
-			if !volTargetArgs.Refresh {
-				revert.Add(func() { _ = d.delete(true) })
-			}
-
-			// For containers, the fs map of the source is sent as part of the migration
-			// stream, then at the end we need to record that map as last_state so that
-			// LXD can shift on startup if needed.
-			err = d.resetContainerDiskIdmap(srcIdmap)
-			if err != nil {
-				fsTransfer <- err
-				return
-			}
-
-			fsTransfer <- nil
-		}()
-
+		// If we are doing a stateful live transfer or the CRIU type indicates we
+		// are doing a stateless transfer with a running instance then we should
+		// expect the source to send us a final rootfs sync.
 		if args.Live {
-			var err error
-			imagesDir, err = os.MkdirTemp("", "lxd_restore_")
+			sendFinalFsDelta = true
+		} else if criuType != nil && *criuType == migration.CRIUType_NONE {
+			sendFinalFsDelta = true
+		}
+
+		volTargetArgs := migration.VolumeTargetArgs{
+			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
+			Name:               d.Name(),
+			MigrationType:      respTypes[0],
+			Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:               sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
+			VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:         !args.Snapshots,
+		}
+
+		// At this point we have already figured out the parent container's root
+		// disk device so we can simply retrieve it from the expanded devices.
+		parentStoragePool := ""
+		parentExpandedDevices := d.ExpandedDevices()
+		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+		if parentLocalRootDiskDeviceKey != "" {
+			parentStoragePool = parentLocalRootDiskDevice["pool"]
+		}
+
+		if parentStoragePool == "" {
+			return fmt.Errorf("Instance's root device is missing the pool property")
+		}
+
+		// A zero length Snapshots slice indicates volume only migration in
+		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		if args.Snapshots {
+			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
+			for _, snap := range snapshots {
+				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+				snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
+				if err != nil {
+					return err
+				}
+
+				// Ensure that snapshot and parent container have the same
+				// storage pool in their local root disk device. If the root
+				// disk device for the snapshot comes from a profile on the
+				// new instance as well we don't need to do anything.
+				if snapArgs.Devices != nil {
+					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+					if snapLocalRootDiskDeviceKey != "" {
+						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+					}
+				}
+
+				// Create the snapshot instance.
+				_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
+				if err != nil {
+					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
+				}
+
+				revert.Add(cleanup)
+				defer snapInstOp.Done(err)
+			}
+		}
+
+		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
+		if err != nil {
+			return fmt.Errorf("Failed creating instance on target: %w", err)
+		}
+
+		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
+		// deleting an existing conflicting volume.
+		if !volTargetArgs.Refresh {
+			revert.Add(func() { _ = d.delete(true) })
+		}
+
+		// For containers, the fs map of the source is sent as part of the migration
+		// stream, then at the end we need to record that map as last_state so that
+		// LXD can shift on startup if needed.
+		err = d.resetContainerDiskIdmap(srcIdmap)
+		if err != nil {
+			return err
+		}
+
+		err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Start live state transfer routine (if required) and initialise a channel that is closed when the
+	// routine finishes. It is never closed if the routine is not started.
+	stateTransferDone := make(chan struct{})
+	if args.Live {
+		g.Go(func() error {
+			d.logger.Debug("Migrate receive state transfer started")
+			defer d.logger.Debug("Migrate receive state transfer finished")
+
+			defer close(stateTransferDone)
+
+			imagesDir, err := os.MkdirTemp("", "lxd_restore_")
 			if err != nil {
-				restore <- err
-				return
+				return err
 			}
 
 			defer func() { _ = os.RemoveAll(imagesDir) }()
@@ -5944,8 +5996,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// Transfer a CRIU pre-dump.
 					err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
 					if err != nil {
-						restore <- fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
-						return
+						return fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
 					}
 
 					d.logger.Debug("Done receiving pre-dump rsync")
@@ -5959,14 +6010,12 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					buf := make([]byte, 128)
 					n, err := args.StateConn.Read(buf)
 					if err != nil {
-						restore <- fmt.Errorf("Failed receiving pre-dump header: %w", err)
-						return
+						return fmt.Errorf("Failed receiving pre-dump header: %w", err)
 					}
 
 					err = proto.Unmarshal(buf[:n], sync)
 					if err != nil {
-						restore <- fmt.Errorf("Failed unmarshalling pre-dump header: %w (%v)", err, string(buf))
-						return
+						return fmt.Errorf("Failed unmarshalling pre-dump header: %w (%v)", err, string(buf))
 					}
 
 					d.logger.Debug("Done receiving pre-dump header")
@@ -5977,20 +6026,20 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			d.logger.Debug("About to receive final dump rsync")
 			err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
 			if err != nil {
-				restore <- fmt.Errorf("Failed receiving final dump rsync: %w", err)
-				return
+				return fmt.Errorf("Failed receiving final dump rsync: %w", err)
 			}
 
 			d.logger.Debug("Done receiving final dump rsync")
-		}
 
-		err := <-fsTransfer
-		if err != nil {
-			restore <- err
-			return
-		}
+			// Wait until filesystem transfer is done before starting final state sync and restore.
+			<-fsTransferDone
 
-		if args.Live {
+			// But only proceed if no errors have occurred thus far.
+			err = ctx.Err()
+			if err != nil {
+				return err
+			}
+
 			criuMigrationArgs := instance.CriuMigrationArgs{
 				Cmd:          liblxc.MIGRATE_RESTORE,
 				StateDir:     imagesDir,
@@ -6005,75 +6054,62 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			// here since we know that "final" is the folder for CRIU's final dump.
 			err = d.migrate(&criuMigrationArgs)
 			if err != nil {
-				restore <- err
-				return
+				return err
 			}
-		}
 
-		restore <- nil
-	}()
-
-	control := make(chan error)
-	go func() {
-		resp := migration.MigrationControl{}
-		err := args.ControlReceive(&resp)
-		if err != nil {
-			err = fmt.Errorf("Got error reading migration source: %w", err)
-		} else if !resp.GetSuccess() {
-			err = fmt.Errorf(resp.GetMessage())
-		}
-
-		control <- err
-	}()
-
-	var resultErr error
-	for i := 0; i < 2; i++ {
-		var err error
-
-		select {
-		case err = <-control:
-			// Send response to source to confirm receipt if first result and control not closed.
-			var wsCloseErr *websocket.CloseError
-			if i == 0 && !errors.As(err, &wsCloseErr) {
-				msg := migration.MigrationControl{
-					Success: proto.Bool(err == nil),
-					Message: proto.String(err.Error()),
-				}
-
-				sendErr := args.ControlSend(&msg)
-				if sendErr != nil {
-					d.logger.Warn("Failed sending control receipt to source", logger.Ctx{"err": sendErr})
-				}
-			}
-		case err = <-restore:
-			// Send restore response to source if first result.
-			if i == 0 {
-				msg := migration.MigrationControl{
-					Success: proto.Bool(err == nil),
-				}
-
-				if err != nil {
-					msg.Message = proto.String(err.Error())
-				}
-
-				d.logger.Debug("Sending migration completion response to source", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
-				sendErr := args.ControlSend(&msg)
-				if sendErr != nil {
-					d.logger.Warn("Failed sending control error to source", logger.Ctx{"err": sendErr})
-				}
-			}
-		}
-
-		// Handle first non-nil error to return.
-		if err != nil && i == 0 {
-			args.Disconnect() // Close everything down (causes receive go routines to end).
-
-			resultErr = err
-		}
+			return nil
+		})
 	}
 
-	revert.Success()
-	return resultErr
+	{
+		// Wait until the filesystem transfer and state transfer routines have finished.
+		<-fsTransferDone
+		if args.Live {
+			<-stateTransferDone
+		}
+
+		// If context is cancelled by this stage, then an error has occurred.
+		// Wait for all routines to finish and collect the first error that occurred.
+		if ctx.Err() != nil {
+			err := g.Wait()
+
+			// Send failure response to source.
+			msg := migration.MigrationControl{
+				Success: proto.Bool(err == nil),
+			}
+
+			if err != nil {
+				msg.Message = proto.String(err.Error())
+			}
+
+			d.logger.Debug("Sending migration failure response to source", logger.Ctx{"err": err})
+			sendErr := args.ControlSend(&msg)
+			if sendErr != nil {
+				d.logger.Warn("Failed sending migration failure to source", logger.Ctx{"err": sendErr})
+			}
+
+			return err
+		}
+
+		// Send success response to source to control as nothing has gone wrong so far.
+		msg := migration.MigrationControl{
+			Success: proto.Bool(true),
+		}
+
+		d.logger.Debug("Sending migration success response to source", logger.Ctx{"success": msg.GetSuccess()})
+		err := args.ControlSend(&msg)
+		if err != nil {
+			d.logger.Warn("Failed sending migration success to source", logger.Ctx{"err": err})
+			return fmt.Errorf("Failed sending migration success to source: %w", err)
+		}
+
+		// Wait for all routines to finish (in this case it will be the control monitor) but do
+		// not collect the error, as it will just be a disconnect error from the source.
+		_ = g.Wait()
+
+		revert.Success()
+		return nil
+	}
 }
 
 // Migrate migrates the instance to another node.
