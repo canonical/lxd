@@ -83,6 +83,7 @@ func (c *migrationFields) disconnect() {
 
 	c.controlLock.Lock()
 	if c.controlConn != nil {
+		_ = c.controlConn.SetWriteDeadline(time.Now().Add(time.Second * 30))
 		_ = c.controlConn.WriteMessage(websocket.CloseMessage, closeMsg)
 		_ = c.controlConn.Close()
 		c.controlConn = nil /* don't close twice */
