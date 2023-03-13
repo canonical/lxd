@@ -7077,6 +7077,44 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		features["cpu_hotplug"] = struct{}{}
 	}
 
+	// Check AMD SEV features (only for x86 architecture)
+	if hostArch == osarch.ARCH_64BIT_INTEL_X86 {
+		cmdline, err := os.ReadFile("/proc/cmdline")
+		if err != nil {
+			return nil, err
+		}
+
+		parts := strings.Split(string(cmdline), " ")
+
+		// Check if SME is enabled in the kernel command line.
+		if shared.StringInSlice("mem_encrypt=on", parts) {
+			features["sme"] = struct{}{}
+		}
+
+		// Check if SEV/SEV-ES are enabled
+		sev, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		} else if strings.TrimSpace(string(sev)) == "Y" {
+			// Host supports SEV, check if QEMU supports it as well.
+			capabilities, err := monitor.SEVCapabilities()
+			if err != nil {
+				logger.Debug("Failed querying SEV capability during VM feature check", logger.Ctx{"err": err})
+			} else {
+				features["sev"] = capabilities
+
+				// If SEV is enabled on host and supported by QEMU,
+				// check if the SEV-ES extension is enabled.
+				sevES, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev_es")
+				if err != nil {
+					logger.Debug("Failed querying SEV-ES capability during VM feature check", logger.Ctx{"err": err})
+				} else if strings.TrimSpace(string(sevES)) == "Y" {
+					features["sev-es"] = struct{}{}
+				}
+			}
+		}
+	}
+
 	return features, nil
 }
 
