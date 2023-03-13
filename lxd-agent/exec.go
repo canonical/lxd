@@ -167,7 +167,7 @@ func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
 		if fd == execWSControl {
-			fds["control"] = secret
+			fds[api.SecretNameControl] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
 		}
