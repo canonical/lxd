@@ -34,8 +34,8 @@ type migrationFields struct {
 	controlConn   *websocket.Conn
 	controlLock   sync.Mutex
 
-	criuSecret string
-	criuConn   *websocket.Conn
+	stateSecret string
+	stateConn   *websocket.Conn
 
 	fsSecret string
 	fsConn   *websocket.Conn
@@ -103,8 +103,8 @@ func (c *migrationFields) disconnect() {
 		_ = c.fsConn.Close()
 	}
 
-	if c.criuConn != nil {
-		_ = c.criuConn.Close()
+	if c.stateConn != nil {
+		_ = c.stateConn.Close()
 	}
 }
 
@@ -151,8 +151,8 @@ func (s *migrationSourceWs) Metadata() any {
 		"fs":      s.fsSecret,
 	}
 
-	if s.criuSecret != "" {
-		secrets["criu"] = s.criuSecret
+	if s.stateSecret != "" {
+		secrets["criu"] = s.stateSecret
 	}
 
 	return secrets
@@ -169,8 +169,8 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	switch secret {
 	case s.controlSecret:
 		conn = &s.controlConn
-	case s.criuSecret:
-		conn = &s.criuConn
+	case s.stateSecret:
+		conn = &s.stateConn
 	case s.fsSecret:
 		conn = &s.fsConn
 	default:
@@ -197,7 +197,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	*conn = c
 
 	// Check criteria for considering all channels to be connected.
-	if s.instance != nil && s.instance.Type() == instancetype.Container && s.live && s.criuConn == nil {
+	if s.instance != nil && s.instance.Type() == instancetype.Container && s.live && s.stateConn == nil {
 		return nil
 	}
 
@@ -250,7 +250,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		case "fs":
 			conn = &s.fsConn
 		case "criu":
-			conn = &s.criuConn
+			conn = &s.stateConn
 		default:
 			return fmt.Errorf("Unknown secret provided: %s", name)
 		}
@@ -333,8 +333,8 @@ func (s *migrationSink) Metadata() any {
 		"fs":      s.dest.fsSecret,
 	}
 
-	if s.dest.criuSecret != "" {
-		secrets["criu"] = s.dest.criuSecret
+	if s.dest.stateSecret != "" {
+		secrets["criu"] = s.dest.stateSecret
 	}
 
 	return secrets
@@ -352,8 +352,8 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	switch secret {
 	case s.dest.controlSecret:
 		conn = &s.dest.controlConn
-	case s.dest.criuSecret:
-		conn = &s.dest.criuConn
+	case s.dest.stateSecret:
+		conn = &s.dest.stateConn
 	case s.dest.fsSecret:
 		conn = &s.dest.fsConn
 	default:
@@ -370,7 +370,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	*conn = c
 
 	// Check criteria for considering all channels to be connected.
-	if s.src.instance != nil && s.src.instance.Type() == instancetype.Container && s.dest.live && s.dest.criuConn == nil {
+	if s.src.instance != nil && s.src.instance.Type() == instancetype.Container && s.dest.live && s.dest.stateConn == nil {
 		return nil
 	}
 
