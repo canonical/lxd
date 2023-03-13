@@ -5188,7 +5188,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the source instance
+	// If s.live is true or Criu is set to CRIUType_NONE rather than nil, it indicates that the source instance
 	// is running, and if we are doing a non-optimized transfer (i.e using rsync or raw block transfer) then we
 	// should do a two stage transfer to minimize downtime.
 	instanceRunning := args.Live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
