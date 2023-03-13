@@ -51,7 +51,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 				return nil, migration.ErrNoLiveMigrationSource
 			}
 
-			ret.criuSecret, err = shared.RandomCryptoString()
+			ret.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
 				return nil, err
 			}
@@ -82,8 +82,8 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
-			LiveConn:       &shared.WebsocketIO{Conn: s.criuConn},
-			DataConn:       &shared.WebsocketIO{Conn: s.fsConn},
+			StateConn:      &shared.WebsocketIO{Conn: s.stateConn},
+			FilesystemConn: &shared.WebsocketIO{Conn: s.fsConn},
 			Snapshots:      !s.instanceOnly,
 			Live:           s.live,
 			Disconnect: func() {
@@ -91,8 +91,8 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					_ = s.fsConn.Close()
 				}
 
-				if s.criuConn != nil {
-					_ = s.criuConn.Close()
+				if s.stateConn != nil {
+					_ = s.stateConn.Close()
 				}
 			},
 		},
@@ -157,7 +157,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 
 		sink.dest.live = args.Live
 		if sink.dest.live {
-			sink.dest.criuSecret, err = shared.RandomCryptoString()
+			sink.dest.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +173,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 			return nil, fmt.Errorf("Missing fs secret")
 		}
 
-		sink.src.criuSecret, ok = args.Secrets["criu"]
+		sink.src.stateSecret, ok = args.Secrets["criu"]
 		sink.src.live = ok || args.Live
 	}
 
@@ -228,7 +228,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		}
 
 		if c.src.live && c.src.instance.Type() == instancetype.Container {
-			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
+			c.src.stateConn, err = c.connectWithSecret(c.src.stateSecret)
 			if err != nil {
 				err = fmt.Errorf("Failed connecting CRIU sink socket: %w", err)
 				c.src.sendControl(err)
@@ -242,31 +242,31 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 
 	receiver := c.src.recv
 	sender := c.src.send
-	liveConn := c.src.criuConn
-	dataConn := c.src.fsConn
+	stateConn := c.src.stateConn
+	fsConn := c.src.fsConn
 
 	if c.push {
 		receiver = c.dest.recv
 		sender = c.dest.send
-		liveConn = c.dest.criuConn
-		dataConn = c.dest.fsConn
+		stateConn = c.dest.stateConn
+		fsConn = c.dest.fsConn
 	}
 
 	err = c.src.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    sender,
 			ControlReceive: receiver,
-			LiveConn:       &shared.WebsocketIO{Conn: liveConn},
-			DataConn:       &shared.WebsocketIO{Conn: dataConn},
+			StateConn:      &shared.WebsocketIO{Conn: stateConn},
+			FilesystemConn: &shared.WebsocketIO{Conn: fsConn},
 			Snapshots:      !c.dest.instanceOnly,
 			Live:           live,
 			Disconnect: func() {
-				if dataConn != nil {
-					_ = dataConn.Close()
+				if fsConn != nil {
+					_ = fsConn.Close()
 				}
 
-				if liveConn != nil {
-					_ = liveConn.Close()
+				if stateConn != nil {
+					_ = stateConn.Close()
 				}
 			},
 		},

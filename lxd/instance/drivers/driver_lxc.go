@@ -5200,7 +5200,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 	d.logger.Debug("Starting storage migration phase")
 
-	err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+	err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
 	if err != nil {
 		return err
 	}
@@ -5317,7 +5317,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 					loopArgs := preDumpLoopArgs{
-						liveConn:      args.LiveConn,
+						stateConn:     args.StateConn,
 						checkpointDir: checkpointDir,
 						bwlimit:       rsyncBwlimit,
 						preDumpDir:    preDumpDir,
@@ -5395,7 +5395,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
 		ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.LiveConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.StateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
 		if err != nil {
 			return err
 		}
@@ -5413,7 +5413,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		volSourceArgs.Snapshots = nil
 		volSourceArgs.Info.Config.VolumeSnapshots = nil
 
-		err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
@@ -5447,7 +5447,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 }
 
 type preDumpLoopArgs struct {
-	liveConn      io.ReadWriteCloser
+	stateConn     io.ReadWriteCloser
 	checkpointDir string
 	bwlimit       string
 	preDumpDir    string
@@ -5486,7 +5486,7 @@ func (d *lxc) migrateSendPreDumpLoop(args *preDumpLoopArgs) (bool, error) {
 
 	// Send the pre-dump.
 	ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), args.liveConn, nil, args.rsyncFeatures, args.bwlimit, d.state.OS.ExecPath)
+	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), args.stateConn, nil, args.rsyncFeatures, args.bwlimit, d.state.OS.ExecPath)
 	if err != nil {
 		return final, err
 	}
@@ -5547,7 +5547,7 @@ func (d *lxc) migrateSendPreDumpLoop(args *preDumpLoopArgs) (bool, error) {
 		return false, err
 	}
 
-	_, err = args.liveConn.Write(data)
+	_, err = args.stateConn.Write(data)
 	if err != nil {
 		return final, err
 	}
@@ -5853,7 +5853,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				}
 			}
 
-			err = pool.CreateInstanceFromMigration(d, args.DataConn, volTargetArgs, d.op)
+			err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
 			if err != nil {
 				fsTransfer <- fmt.Errorf("Failed creating instance on target: %w", err)
 				return
@@ -5896,7 +5896,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					d.logger.Debug("Waiting to receive pre-dump rsync")
 
 					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), args.LiveConn, nil, rsyncFeatures)
+					err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
 					if err != nil {
 						restore <- fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
 						return
@@ -5911,7 +5911,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// So define a small buffer sufficient to fit migration.MigrationSync and
 					// then read what we have into it.
 					buf := make([]byte, 128)
-					n, err := args.LiveConn.Read(buf)
+					n, err := args.StateConn.Read(buf)
 					if err != nil {
 						restore <- fmt.Errorf("Failed receiving pre-dump header: %w", err)
 						return
@@ -5929,7 +5929,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			// Final CRIU dump.
 			d.logger.Debug("About to receive final dump rsync")
-			err = rsync.Recv(shared.AddSlash(imagesDir), args.LiveConn, nil, rsyncFeatures)
+			err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
 			if err != nil {
 				restore <- fmt.Errorf("Failed receiving final dump rsync: %w", err)
 				return

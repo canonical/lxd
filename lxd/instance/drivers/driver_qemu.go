@@ -5587,7 +5587,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 
 	d.logger.Debug("Starting storage migration phase")
 
-	err = pool.MigrateInstance(d, args.DataConn, volSourceArgs, d.op)
+	err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
 	if err != nil {
 		return err
 	}
@@ -5818,7 +5818,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, args.DataConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			restore <- fmt.Errorf("Failed creating instance on target: %w", err)
 			return
