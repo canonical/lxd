@@ -66,6 +66,10 @@ func (c *migrationFields) send(m proto.Message) error {
 	c.controlLock.Lock()
 	defer c.controlLock.Unlock()
 
+	if c.controlConn == nil {
+		return fmt.Errorf("Control connection not initialized")
+	}
+
 	_ = c.controlConn.SetWriteDeadline(time.Now().Add(time.Second * 30))
 	err := migration.ProtoSend(c.controlConn, m)
 	if err != nil {
