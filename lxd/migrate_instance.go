@@ -34,12 +34,12 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
 	}
 
 	ret.fsSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for filesystem websocket: %w", err)
 	}
 
 	if stateful && inst.IsRunning() {
@@ -53,7 +53,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 
 			ret.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed creating migration source secret for state websocket: %w", err)
 			}
 		}
 	}
@@ -147,33 +147,33 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	if sink.push {
 		sink.dest.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
 		}
 
 		sink.dest.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
 		}
 
 		sink.dest.live = args.Live
 		if sink.dest.live {
 			sink.dest.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed creating migration sink secret for state websocket: %w", err)
 			}
 		}
 	} else {
-		sink.src.controlSecret, ok = args.Secrets["control"]
+		sink.src.controlSecret, ok = args.Secrets[api.SecretNameControl]
 		if !ok {
-			return nil, fmt.Errorf("Missing control secret")
+			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
 		}
 
-		sink.src.fsSecret, ok = args.Secrets["fs"]
+		sink.src.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
 		if !ok {
-			return nil, fmt.Errorf("Missing fs secret")
+			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
 		}
 
-		sink.src.stateSecret, ok = args.Secrets["criu"]
+		sink.src.stateSecret, ok = args.Secrets[api.SecretNameState]
 		sink.src.live = ok || args.Live
 	}
 
