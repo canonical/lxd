@@ -28,14 +28,12 @@ func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		logger.Errorf("Failed to create migration source secrect for control websocket")
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
 	}
 
 	ret.fsSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		logger.Errorf("Failed to create migration source secrect for filesystem websocket")
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
 	}
 
 	return &ret, nil
@@ -183,26 +181,22 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	if sink.push {
 		sink.dest.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			logger.Errorf("Failed to create migration sink secrect for control websocket")
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
 		}
 
 		sink.dest.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			logger.Errorf("Failed to create migration sink secrect for filesystem websocket")
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
 		}
 	} else {
-		sink.src.controlSecret, ok = args.Secrets["control"]
+		sink.src.controlSecret, ok = args.Secrets[api.SecretNameControl]
 		if !ok {
-			logger.Errorf("Missing migration sink secrect for control websocket")
-			return nil, fmt.Errorf("Missing control secret")
+			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
 		}
 
-		sink.src.fsSecret, ok = args.Secrets["fs"]
+		sink.src.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
 		if !ok {
-			logger.Errorf("Missing migration sink secrect for filesystem websocket")
-			return nil, fmt.Errorf("Missing fs secret")
+			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
 		}
 	}
 

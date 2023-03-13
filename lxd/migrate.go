@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/tcp"
@@ -147,12 +148,12 @@ type migrationSourceWs struct {
 
 func (s *migrationSourceWs) Metadata() any {
 	secrets := shared.Jmap{
-		"control": s.controlSecret,
-		"fs":      s.fsSecret,
+		api.SecretNameControl:    s.controlSecret,
+		api.SecretNameFilesystem: s.fsSecret,
 	}
 
 	if s.stateSecret != "" {
-		secrets["criu"] = s.stateSecret
+		secrets[api.SecretNameState] = s.stateSecret
 	}
 
 	return secrets
@@ -245,11 +246,11 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		var conn **websocket.Conn
 
 		switch name {
-		case "control":
+		case api.SecretNameControl:
 			conn = &s.controlConn
-		case "fs":
+		case api.SecretNameFilesystem:
 			conn = &s.fsConn
-		case "criu":
+		case api.SecretNameState:
 			conn = &s.stateConn
 		default:
 			return fmt.Errorf("Unknown secret provided: %s", name)
@@ -329,12 +330,12 @@ func (s *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 // Metadata returns metadata for the migration sink.
 func (s *migrationSink) Metadata() any {
 	secrets := shared.Jmap{
-		"control": s.dest.controlSecret,
-		"fs":      s.dest.fsSecret,
+		api.SecretNameControl:    s.dest.controlSecret,
+		api.SecretNameFilesystem: s.dest.fsSecret,
 	}
 
 	if s.dest.stateSecret != "" {
-		secrets["criu"] = s.dest.stateSecret
+		secrets[api.SecretNameState] = s.dest.stateSecret
 	}
 
 	return secrets
