@@ -5,18 +5,19 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
-	wsControl, err := op.GetWebsocket(opAPI.Metadata["control"].(string))
+	wsControl, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameControl].(string))
 	if err != nil {
 		return err
 	}
 
-	wsFs, err := op.GetWebsocket(opAPI.Metadata["fs"].(string))
+	wsFs, err := op.GetWebsocket(opAPI.Metadata[api.SecretNameFilesystem].(string))
 	if err != nil {
 		return err
 	}
