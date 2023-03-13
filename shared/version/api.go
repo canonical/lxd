@@ -341,6 +341,7 @@ var APIExtensions = []string{
 	"cpu_hotplug",
 	"storage_pool_source_wipe",
 	"zfs_block_mode",
+	"instance_generation_id",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
