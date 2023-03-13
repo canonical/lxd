@@ -419,6 +419,7 @@ Key                                         | Type      | Description
 `volatile.last_state.power`                 | string    | Instance state as of last host shutdown
 `volatile.vsock_id`                         | string    | Instance `vsock` ID used as of last start
 `volatile.uuid`                             | string    | Instance UUID (globally unique across all servers and projects)
+`volatile.uuid.generation`                             | string    | Instance generation UUID that will change whenever the instance's place in time moves backwards (globally unique across all servers and projects)
 `volatile.<name>.apply_quota`               | string    | Disk quota to be applied the next time the instance starts
 `volatile.<name>.ceph_rbd`                  | string    | RBD device path for Ceph disk devices
 `volatile.<name>.host_name`                 | string    | Network device name on the host
