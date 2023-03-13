@@ -1046,8 +1046,8 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		}
 
 		// Call the control handler with a connection to the control socket
-		if args.Control != nil && fds["control"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["control"])
+		if args.Control != nil && fds[api.SecretNameControl] != "" {
+			conn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 			if err != nil {
 				return nil, err
 			}
@@ -2209,11 +2209,11 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
-	if fds["control"] == "" {
+	if fds[api.SecretNameControl] == "" {
 		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds["control"])
+	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, err
 	}
@@ -2296,11 +2296,11 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 	}
 
 	// Call the control handler with a connection to the control socket.
-	if fds["control"] == "" {
+	if fds[api.SecretNameControl] == "" {
 		return nil, nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds["control"])
+	controlConn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2600,7 +2600,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 		}
 	}
 
-	if targetSecrets["control"] == "" {
+	if targetSecrets[api.SecretNameControl] == "" {
 		return fmt.Errorf("Migration target didn't setup the required \"control\" socket")
 	}
 
@@ -2614,17 +2614,17 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	proxies := map[string]*proxy{}
 
 	// Connect the control socket
-	sourceConn, err := source.GetOperationWebsocket(sourceOp.ID, sourceSecrets["control"])
+	sourceConn, err := source.GetOperationWebsocket(sourceOp.ID, sourceSecrets[api.SecretNameControl])
 	if err != nil {
 		return err
 	}
 
-	targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets["control"])
+	targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[api.SecretNameControl])
 	if err != nil {
 		return err
 	}
 
-	proxies["control"] = &proxy{
+	proxies[api.SecretNameControl] = &proxy{
 		done:       shared.WebsocketProxy(sourceConn, targetConn),
 		sourceConn: sourceConn,
 		targetConn: targetConn,
@@ -2632,7 +2632,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 
 	// Connect the data sockets
 	for name := range sourceSecrets {
-		if name == "control" {
+		if name == api.SecretNameControl {
 			continue
 		}
 
@@ -2657,13 +2657,13 @@ func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[stri
 	// Cleanup once everything is done
 	go func() {
 		// Wait for control socket
-		<-proxies["control"].done
-		_ = proxies["control"].sourceConn.Close()
-		_ = proxies["control"].targetConn.Close()
+		<-proxies[api.SecretNameControl].done
+		_ = proxies[api.SecretNameControl].sourceConn.Close()
+		_ = proxies[api.SecretNameControl].targetConn.Close()
 
 		// Then deal with the others
 		for name, proxy := range proxies {
-			if name == "control" {
+			if name == api.SecretNameControl {
 				continue
 			}
 
