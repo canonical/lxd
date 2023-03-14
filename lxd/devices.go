@@ -384,7 +384,7 @@ func deviceTaskBalance(s *state.State) {
 			cpulimit = effectiveCpus
 		}
 
-		if !c.IsRunning() {
+		if !c.IsRunning() && !c.IsStarting() {
 			continue
 		}
 
@@ -476,7 +476,7 @@ func deviceTaskBalance(s *state.State) {
 	// Set the new pinning
 	for ctn, set := range pinning {
 		// Confirm the container didn't just stop
-		if !ctn.IsRunning() {
+		if !ctn.IsRunning() && !ctn.IsStarting() {
 			continue
 		}
 
