@@ -384,7 +384,12 @@ func deviceTaskBalance(s *state.State) {
 			cpulimit = effectiveCpus
 		}
 
-		if !c.IsRunning() {
+		// Check that the container is running.
+		// We use InitPID here rather than IsRunning because this task is triggered during the container's
+		// onStart hook, which is during the time that the start lock is held, which causes IsRunning to
+		// return false (because the container hasn't fully started yet) but it is sufficiently started to
+		// have its cgroup CPU limits set.
+		if c.InitPID() <= 0 {
 			continue
 		}
 
@@ -476,7 +481,7 @@ func deviceTaskBalance(s *state.State) {
 	// Set the new pinning
 	for ctn, set := range pinning {
 		// Confirm the container didn't just stop
-		if !ctn.IsRunning() {
+		if ctn.InitPID() <= 0 {
 			continue
 		}
 
