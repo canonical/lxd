@@ -2881,9 +2881,9 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 				return nil, err
 			}
 
-			if regenerateFSUUID {
-				tmpVolFsType := mountVol.ConfigBlockFilesystem()
+			tmpVolFsType := mountVol.ConfigBlockFilesystem()
 
+			if regenerateFSUUID {
 				// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 				// regenerating the filesystem UUID.
 				if tmpVolFsType == "xfs" {
@@ -2896,6 +2896,17 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 					err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volPath)
 					if err != nil {
 						return nil, err
+					}
+				}
+			} else {
+				// ext4 will replay the journal if the filesystem is dirty.
+				// To prevent this kind of write access, we mount the ext4 filesystem
+				// with the ro,noload mount options.
+				// The noload option prevents the journal from being loaded on mounting.
+				if tmpVolFsType == "ext4" {
+					idx := strings.Index(mountOptions, "noload")
+					if idx < 0 {
+						mountOptions += ",noload"
 					}
 				}
 			}
