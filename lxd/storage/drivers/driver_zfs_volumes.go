@@ -2770,7 +2770,7 @@ func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountP
 			}
 
 			// Mount the snapshot directly (not possible through tools).
-			err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+			err = TryMount(snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
 			if err != nil {
 				return nil, err
 			}
