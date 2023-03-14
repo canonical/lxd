@@ -112,6 +112,16 @@ func (d *common) IsEphemeral() bool {
 	return d.ephemeral
 }
 
+// IsStarting returns if instance is starting up.
+func (d *common) IsStarting() bool {
+	op := operationlock.Get(d.Project().Name, d.Name())
+	if op != nil && op.Action() == operationlock.ActionStart {
+		return true
+	}
+
+	return false
+}
+
 // ExpandedConfig returns instance's expanded config.
 func (d *common) ExpandedConfig() map[string]string {
 	return d.expandedConfig

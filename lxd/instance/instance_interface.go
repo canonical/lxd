@@ -108,6 +108,7 @@ type Instance interface {
 	RenderFull(hostInterfaces []net.Interface) (*api.InstanceFull, any, error)
 	RenderState(hostInterfaces []net.Interface) (*api.InstanceState, error)
 	IsRunning() bool
+	IsStarting() bool
 	IsFrozen() bool
 	IsEphemeral() bool
 	IsSnapshot() bool
