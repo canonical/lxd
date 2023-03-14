@@ -5658,6 +5658,26 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 	}
 
+	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
+	// record because it may be associated to the wrong cluster member. Instead we ascertain the pool to load
+	// using the instance's root disk device.
+	if args.ClusterSameNameMove {
+		_, rootDiskDevice, err := d.getRootDiskDevice()
+		if err != nil {
+			return fmt.Errorf("Failed getting root disk: %w", err)
+		}
+
+		if rootDiskDevice["pool"] == "" {
+			return fmt.Errorf("The instance's root device is missing the pool property")
+		}
+
+		// Initialize the storage pool cache.
+		d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
+		if err != nil {
+			return fmt.Errorf("Failed loading storage pool: %w", err)
+		}
+	}
+
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return err
@@ -5914,30 +5934,35 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			volTargetArgs.Snapshots = make([]string, 0, len(snapshots))
 			for _, snap := range snapshots {
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-				snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
-				if err != nil {
-					return err
-				}
 
-				// Ensure that snapshot and parent container have the same
-				// storage pool in their local root disk device. If the root
-				// disk device for the snapshot comes from a profile on the
-				// new instance as well we don't need to do anything.
-				if snapArgs.Devices != nil {
-					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
-					if snapLocalRootDiskDeviceKey != "" {
-						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+				// Only create snapshot instance DB records if not doing a cluster same-name move.
+				// As otherwise the DB records will already exist.
+				if !args.ClusterSameNameMove {
+					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
+					if err != nil {
+						return err
 					}
-				}
 
-				// Create the snapshot instance.
-				_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
-				if err != nil {
-					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
-				}
+					// Ensure that snapshot and parent container have the same
+					// storage pool in their local root disk device. If the root
+					// disk device for the snapshot comes from a profile on the
+					// new instance as well we don't need to do anything.
+					if snapArgs.Devices != nil {
+						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						if snapLocalRootDiskDeviceKey != "" {
+							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+						}
+					}
 
-				revert.Add(cleanup)
-				defer snapInstOp.Done(err)
+					// Create the snapshot instance.
+					_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
+					if err != nil {
+						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
+					}
+
+					revert.Add(cleanup)
+					defer snapInstOp.Done(err)
+				}
 			}
 		}
 
@@ -5946,10 +5971,20 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
-		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
-		// deleting an existing conflicting volume.
+		// Only delete all instance volumes on error if the pool volume creation has succeeded to
+		// avoid deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh {
-			revert.Add(func() { _ = d.delete(true) })
+			revert.Add(func() {
+				snapshots, _ := d.Snapshots()
+				snapshotCount := len(snapshots)
+				for k := range snapshots {
+					// Delete the snapshots in reverse order.
+					k = snapshotCount - 1 - k
+					_ = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+				}
+
+				_ = pool.DeleteInstance(d, nil)
+			})
 		}
 
 		// For containers, the fs map of the source is sent as part of the migration
@@ -5960,9 +5995,11 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return err
 		}
 
-		err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
-		if err != nil {
-			return err
+		if !args.ClusterSameNameMove {
+			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
