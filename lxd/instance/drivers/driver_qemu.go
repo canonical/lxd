@@ -31,6 +31,7 @@ import (
 	"github.com/mdlayher/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v2"
@@ -5752,8 +5753,56 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	restore := make(chan error)
+	g, ctx := errgroup.WithContext(context.Background())
+
+	// Start control connection monitor.
+	g.Go(func() error {
+		d.logger.Debug("Migrate receive control monitor started")
+		defer d.logger.Debug("Migrate receive control monitor finished")
+
+		controlResult := make(chan error, 1) // Buffered to allow go routine to end if no readers.
+
+		// This will read the result message from the source side and detect disconnections.
+		go func() {
+			resp := migration.MigrationControl{}
+			err := args.ControlReceive(&resp)
+			if err != nil {
+				err = fmt.Errorf("Error reading migration control source: %w", err)
+			} else if !resp.GetSuccess() {
+				err = fmt.Errorf("Error from migration control source: %s", resp.GetMessage())
+			}
+
+			controlResult <- err
+		}()
+
+		// End as soon as we get control message/disconnection from the source side or a local error.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-controlResult:
+		}
+
+		return err
+	})
+
+	// Start error monitoring routine, this will detect when an error is returned from the other routines,
+	// and if that happens it will disconnect the migration connections which will trigger the other routines
+	// to finish.
 	go func() {
+		<-ctx.Done()
+		args.Disconnect()
+	}()
+
+	// Start filesystem transfer routine and initialise a channel that is closed when the routine finishes.
+	fsTransferDone := make(chan struct{})
+	g.Go(func() error {
+		defer close(fsTransferDone)
+
+		d.logger.Debug("Migrate receive transfer started")
+		defer d.logger.Debug("Migrate receive transfer finished")
+
+		var err error
+
 		snapshots := make([]*migration.Snapshot, 0)
 
 		// Legacy: we only sent the snapshot names, so we just copy the instances's config over,
@@ -5811,8 +5860,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		if parentStoragePool == "" {
-			restore <- fmt.Errorf("Instance's root device is missing the pool property")
-			return
+			return fmt.Errorf("Instance's root device is missing the pool property")
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
@@ -5823,8 +5871,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
 				snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
 				if err != nil {
-					restore <- err
-					return
+					return err
 				}
 
 				// Ensure that snapshot and parent instance have the same storage pool in
@@ -5841,8 +5888,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 				// Create the snapshot instance.
 				_, snapInstOp, cleanup, err := instance.CreateInternal(d.state, *snapArgs, true)
 				if err != nil {
-					restore <- fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
-					return
+					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 				}
 
 				revert.Add(cleanup)
@@ -5852,14 +5898,18 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
 		if err != nil {
-			restore <- fmt.Errorf("Failed creating instance on target: %w", err)
-			return
+			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
 		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
 		// deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh {
 			revert.Add(func() { _ = d.delete(true) })
+		}
+
+		err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+		if err != nil {
+			return err
 		}
 
 		if args.Live {
@@ -5869,81 +5919,59 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			err = d.start(true, args.InstanceOperation)
 			if err != nil {
-				restore <- err
-				return
+				return err
 			}
 		}
 
-		err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
+		return nil
+	})
+
+	{
+		// Wait until the filesystem transfer routine has finished.
+		<-fsTransferDone
+
+		// If context is cancelled by this stage, then an error has occurred.
+		// Wait for all routines to finish and collect the first error that occurred.
+		if ctx.Err() != nil {
+			err := g.Wait()
+
+			// Send failure response to source.
+			msg := migration.MigrationControl{
+				Success: proto.Bool(err == nil),
+			}
+
+			if err != nil {
+				msg.Message = proto.String(err.Error())
+			}
+
+			d.logger.Debug("Sending migration failure response to source", logger.Ctx{"err": err})
+			sendErr := args.ControlSend(&msg)
+			if sendErr != nil {
+				d.logger.Warn("Failed sending migration failure to source", logger.Ctx{"err": sendErr})
+			}
+
+			return err
+		}
+
+		// Send success response to source to control as nothing has gone wrong so far.
+		msg := migration.MigrationControl{
+			Success: proto.Bool(true),
+		}
+
+		d.logger.Debug("Sending migration success response to source", logger.Ctx{"success": msg.GetSuccess()})
+		err := args.ControlSend(&msg)
 		if err != nil {
-			restore <- err
-			return
+			d.logger.Warn("Failed sending migration success to source", logger.Ctx{"err": err})
+			return fmt.Errorf("Failed sending migration success to source: %w", err)
 		}
 
-		restore <- nil
-	}()
+		// Wait for all routines to finish (in this case it will be the control monitor) but do
+		// not collect the error, as it will just be a disconnect error from the source.
+		_ = g.Wait()
 
-	control := make(chan error)
-	go func() {
-		resp := migration.MigrationControl{}
-		err := args.ControlReceive(&resp)
-		if err != nil {
-			err = fmt.Errorf("Got error reading migration source: %w", err)
-		} else if !resp.GetSuccess() {
-			err = fmt.Errorf(resp.GetMessage())
-		}
-
-		control <- err
-	}()
-
-	var resultErr error
-	for i := 0; i < 2; i++ {
-		var err error
-
-		select {
-		case err = <-control:
-			// Send response to source to confirm receipt if first result and control not closed.
-			var wsCloseErr *websocket.CloseError
-			if i == 0 && !errors.As(err, &wsCloseErr) {
-				msg := migration.MigrationControl{
-					Success: proto.Bool(err == nil),
-					Message: proto.String(err.Error()),
-				}
-
-				sendErr := args.ControlSend(&msg)
-				if sendErr != nil {
-					d.logger.Warn("Failed sending control receipt to source", logger.Ctx{"err": sendErr})
-				}
-			}
-		case err = <-restore:
-			// Send restore response to source if first result.
-			if i == 0 {
-				msg := migration.MigrationControl{
-					Success: proto.Bool(err == nil),
-				}
-
-				if err != nil {
-					msg.Message = proto.String(err.Error())
-				}
-
-				d.logger.Debug("Sending migration completion response to source", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
-				sendErr := args.ControlSend(&msg)
-				if sendErr != nil {
-					d.logger.Warn("Failed sending control error to source", logger.Ctx{"err": sendErr})
-				}
-			}
-		}
-
-		// Handle first non-nil error to return.
-		if err != nil && i == 0 {
-			args.Disconnect() // Close everything down (causes receive go routines to end).
-
-			resultErr = err
-		}
+		revert.Success()
+		return nil
 	}
-
-	revert.Success()
-	return resultErr
 }
 
 // CGroupSet is not implemented for VMs.
