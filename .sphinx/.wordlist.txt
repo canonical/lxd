@@ -3,6 +3,7 @@ ABI
 ACL
 ACLs
 AIO
+AMD
 APIs
 AppArmor
 ARMv
@@ -48,6 +49,7 @@ dereferenced
 devtmpfs
 DHCP
 DHCPv
+Diffie
 DNS
 DNSSEC
 DoS
@@ -61,6 +63,7 @@ ECDSA
 EiB
 Eibit
 endian
+ES
 ESA
 ETag
 failover
@@ -80,6 +83,7 @@ GPUs
 Grafana
 HAProxy
 hardcoded
+Hellman
 Homebrew
 hotplug
 hotplugged
@@ -190,6 +194,7 @@ scalable
 scriptlet
 SDN
 Seccomp
+SEV
 SFTP
 SHA
 shiftfs
