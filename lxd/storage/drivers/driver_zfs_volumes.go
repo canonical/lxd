@@ -2176,6 +2176,23 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	if !volSrcArgs.AllowInconsistent && vol.contentType == ContentTypeFS && vol.IsBlockBacked() {
+		// When migrating using zfs volumes (not datasets), ensure that the filesystem is synced
+		// otherwise the source and target volumes may differ. Tests have shown that only calling
+		// os.SyncFS() doesn't suffice. A freeze and unfreeze is needed.
+		err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			unfreezeFS, err := d.filesystemFreeze(mountPath)
+			if err != nil {
+				return err
+			}
+
+			return unfreezeFS()
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// If volume is filesystem type, create a fast snapshot to ensure migration is consistent.
