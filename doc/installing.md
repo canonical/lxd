@@ -77,15 +77,19 @@ below (shown for example purposes) may not exactly match what your version of LX
 
 We recommend having at least 2GB of RAM to allow the build to complete.
 
-```bash
-make deps
-# Follow the instructions from `make deps` to export the required environment variables.
-# For example:
+```{terminal}
+:input: make deps
+
+...
+make[1]: Leaving directory '/root/go/deps/dqlite'
+# environment
+
+Please set the following in your environment (possibly ~/.bashrc)
 #  export CGO_CFLAGS="${CGO_CFLAGS} -I$(go env GOPATH)/deps/dqlite/include/ -I$(go env GOPATH)/deps/raft/include/"
 #  export CGO_LDFLAGS="${CGO_LDFLAGS} -L$(go env GOPATH)/deps/dqlite/.libs/ -L$(go env GOPATH)/deps/raft/.libs/"
 #  export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/deps/raft/.libs/:${LD_LIBRARY_PATH}"
 #  export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
-make
+:input: make
 ```
 
 ### From source: Install

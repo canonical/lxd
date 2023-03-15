@@ -23,7 +23,8 @@ extensions = [
     "custom-rst-roles",
     "sphinxcontrib.jquery",
     "sphinx_copybutton",
-    "sphinx.ext.intersphinx"
+    "sphinx.ext.intersphinx",
+    "terminal-output"
 ]
 
 myst_enable_extensions = [

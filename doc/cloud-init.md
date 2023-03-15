@@ -106,9 +106,16 @@ To check the `cloud-init` status, log on to the instance and enter the following
 
 If the result is `status: running`, `cloud-init` is still working. If the result is `status: done`, it has finished.
 
-Alternatively, use the following flag to be notified only when `cloud-init` is finished:
+Alternatively, use the `--wait` flag to be notified only when `cloud-init` is finished:
 
-    cloud-init status --wait
+```{terminal}
+:input: cloud-init status --wait
+:user: root
+:host: instance
+
+.....................................
+status: done
+```
 
 ## How to specify user or vendor data
 

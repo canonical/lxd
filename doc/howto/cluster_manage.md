@@ -7,7 +7,10 @@ discourse: 11330
 
 After your cluster is formed, use `lxc cluster list` to see a list of its members and their status:
 
-```
+```{terminal}
+:input: lxc cluster list
+:scroll:
+
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
 | NAME    |            URL             |      ROLES       | ARCHITECTURE | FAILURE DOMAIN | DESCRIPTION | STATE  |      MESSAGE      |
 +---------+----------------------------+------------------+--------------+----------------+-------------+--------+-------------------+
