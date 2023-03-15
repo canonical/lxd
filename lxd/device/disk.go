@@ -172,11 +172,16 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"ceph.user_name":    validate.IsAny,
 		"boot.priority":     validate.Optional(validate.IsUint32),
 		"path":              validate.IsAny,
+		"io.cache":          validate.Optional(validate.IsOneOf("none", "writeback", "unsafe")),
 	}
 
 	err := d.config.Validate(rules)
 	if err != nil {
 		return err
+	}
+
+	if instConf.Type() == instancetype.Container && d.config["io.cache"] != "" {
+		return fmt.Errorf("IO cache configuration cannot be applied to containers")
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
@@ -650,6 +655,11 @@ func (d *disk) detectVMPoolMountOpts() []string {
 
 	if d.pool.Driver().Info().IOUring {
 		opts = append(opts, DiskIOUring)
+	}
+
+	// Allow the user to override the caching mode.
+	if d.config["io.cache"] != "" {
+		opts = append(opts, fmt.Sprintf("cache=%s", d.config["io.cache"]))
 	}
 
 	return opts
