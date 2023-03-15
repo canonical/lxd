@@ -342,6 +342,7 @@ var APIExtensions = []string{
 	"storage_pool_source_wipe",
 	"zfs_block_mode",
 	"instance_generation_id",
+	"disk_io_cache",
 	"storage_pool_loop_resize",
 	"migration_vm_live",
 }

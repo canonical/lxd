@@ -2008,7 +2008,6 @@ This adds an expiry to remote add join tokens.
 It can be set in the `core.remote_token_expiry` configuration key, and default to no expiry.
 
 ## `cpu_hotplug`
-
 This adds CPU hotplugging for VMs.
 Hotplugging is disabled when using CPU pinning, because this would require hotplugging NUMA devices as well, which is not possible.
 
@@ -2032,6 +2031,9 @@ This adds the following new configuration options for ZFS storage pools:
 Adds support for instance generation ID. The VM or container generation ID will change whenever the instance's place in time moves backwards. As of now, the generation ID is only exposed through to VM type instances. This allows for the VM guest OS to reinitialize any state it needs to avoid duplicating potential state that has already occurred:
 
 * `volatile.uuid.generation`
+
+## `disk_io_cache`
+This introduces a new `io.cache` property to disk devices which can be used to override the VM caching behavior.
 
 ## `storage_pool_loop_resize`
 This allows growing loop file backed storage pools by changing the `size` setting of the pool.
