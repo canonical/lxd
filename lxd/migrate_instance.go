@@ -1,13 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"time"
-
-	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -100,28 +96,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	})
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
-
-		var wsCloseErr *websocket.CloseError
-		if !errors.As(err, &wsCloseErr) {
-			// Send error to other side if not closed.
-			msg := migration.MigrationControl{
-				Success: proto.Bool(err == nil),
-				Message: proto.String(err.Error()),
-			}
-
-			sendErr := s.send(&msg)
-			if sendErr != nil {
-				l.Error("Failed sending control error to target", logger.Ctx{"err": sendErr})
-			} else {
-				// Wait for confirmation of receipt from other side.
-				// This provides the ability for both sides to synchronise and ensures we don't close our
-				// connections too early, which can cause the other side to process disconnect errors
-				// before our control message, causing the true failure cause to be masked.
-				_ = s.controlConn.SetReadDeadline(time.Now().Add(time.Second * 5))
-				_, _, _ = s.controlConn.ReadMessage()
-			}
-		}
-
 		return fmt.Errorf("Failed migration on source: %w", err)
 	}
 
