@@ -79,6 +79,7 @@ Key                 | Type      | Default   | Required  | Description
 `boot.priority`     | integer   | -         | no        | Boot priority for VMs (higher value boots first)
 `ceph.cluster_name` | string    | `ceph`    | no        | The cluster name of the Ceph cluster (required for Ceph or CephFS sources)
 `ceph.user_name`    | string    | `admin`   | no        | The user name of the Ceph cluster (required for Ceph or CephFS sources)
+`io.cache`          | string    | `none`    | no        | Only for VMs: Override the caching mode for the device (`none`, `writeback` or `unsafe`)
 `limits.max`        | string    | -         | no        | I/O limit in byte/s or IOPS for both read and write (same as setting both `limits.read` and `limits.write`)
 `limits.read`       | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
 `limits.write`      | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see {ref}`instances-limit-units`) or in IOPS (must be suffixed with `iops`) - see also {ref}`storage-configure-IO`
