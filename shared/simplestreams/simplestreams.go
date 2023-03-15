@@ -138,6 +138,10 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(body) == 0 {
+		return nil, fmt.Errorf("No content in download from %q", uri)
+	}
+
 	// Attempt to store in cache
 	if s.cachePath != "" {
 		cacheName := filepath.Join(s.cachePath, fileName)
@@ -159,11 +163,13 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 		return nil, err
 	}
 
+	pathURL, _ := shared.JoinUrls(s.url, path)
+
 	// Parse the idnex
 	stream := Stream{}
 	err = json.Unmarshal(body, &stream)
 	if err != nil {
-		return nil, fmt.Errorf("Failed decoding stream JSON from %q: %w", path, err)
+		return nil, fmt.Errorf("Failed decoding stream JSON from %q: %w (%q)", pathURL, err, string(body))
 	}
 
 	s.cachedStream = &stream
