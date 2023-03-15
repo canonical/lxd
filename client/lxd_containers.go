@@ -651,8 +651,8 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 		}
 
 		// Call the control handler with a connection to the control socket
-		if args.Control != nil && fds["control"] != "" {
-			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["control"])
+		if args.Control != nil && fds[api.SecretNameControl] != "" {
+			conn, err := r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 			if err != nil {
 				return nil, err
 			}
@@ -1546,11 +1546,11 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 
 	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
-	if fds["control"] == "" {
+	if fds[api.SecretNameControl] == "" {
 		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds["control"])
+	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds[api.SecretNameControl])
 	if err != nil {
 		return nil, err
 	}

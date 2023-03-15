@@ -64,7 +64,7 @@ func (s *consoleWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
 		if fd == -1 {
-			fds["control"] = secret
+			fds[api.SecretNameControl] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
 		}

@@ -1,13 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os/exec"
 	"time"
-
-	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -34,12 +30,12 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
 	}
 
 	ret.fsSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed creating migration source secret for filesystem websocket: %w", err)
 	}
 
 	if stateful && inst.IsRunning() {
@@ -51,9 +47,9 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 				return nil, migration.ErrNoLiveMigrationSource
 			}
 
-			ret.criuSecret, err = shared.RandomCryptoString()
+			ret.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed creating migration source secret for state websocket: %w", err)
 			}
 		}
 	}
@@ -62,7 +58,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live})
 
 	l.Info("Waiting for migration channel connections on source")
 
@@ -82,44 +78,31 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
-			LiveConn:       &shared.WebsocketIO{Conn: s.criuConn},
-			DataConn:       &shared.WebsocketIO{Conn: s.fsConn},
+			StateConn:      &shared.WebsocketIO{Conn: s.stateConn},
+			FilesystemConn: &shared.WebsocketIO{Conn: s.fsConn},
 			Snapshots:      !s.instanceOnly,
 			Live:           s.live,
+			Disconnect: func() {
+				if s.fsConn != nil {
+					_ = s.fsConn.Close()
+				}
+
+				if s.stateConn != nil {
+					_ = s.stateConn.Close()
+				}
+			},
 		},
 		AllowInconsistent: s.allowInconsistent,
 	})
 	if err != nil {
 		l.Error("Failed migration on source", logger.Ctx{"err": err})
-
-		var wsCloseErr *websocket.CloseError
-		if !errors.As(err, &wsCloseErr) {
-			// Send error to other side if not closed.
-			msg := migration.MigrationControl{
-				Success: proto.Bool(err == nil),
-				Message: proto.String(err.Error()),
-			}
-
-			sendErr := s.send(&msg)
-			if sendErr != nil {
-				l.Error("Failed sending control error to target", logger.Ctx{"err": sendErr})
-			} else {
-				// Wait for confirmation of receipt from other side.
-				// This provides the ability for both sides to synchronise and ensures we don't close our
-				// connections too early, which can cause the other side to process disconnect errors
-				// before our control message, causing the true failure cause to be masked.
-				_ = s.controlConn.SetReadDeadline(time.Now().Add(time.Second * 5))
-				_, _, _ = s.controlConn.ReadMessage()
-			}
-		}
-
 		return fmt.Errorf("Failed migration on source: %w", err)
 	}
 
 	return nil
 }
 
-func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
@@ -138,33 +121,33 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	if sink.push {
 		sink.dest.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
 		}
 
 		sink.dest.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
 		}
 
 		sink.dest.live = args.Live
 		if sink.dest.live {
-			sink.dest.criuSecret, err = shared.RandomCryptoString()
+			sink.dest.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Failed creating migration sink secret for state websocket: %w", err)
 			}
 		}
 	} else {
-		sink.src.controlSecret, ok = args.Secrets["control"]
+		sink.src.controlSecret, ok = args.Secrets[api.SecretNameControl]
 		if !ok {
-			return nil, fmt.Errorf("Missing control secret")
+			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
 		}
 
-		sink.src.fsSecret, ok = args.Secrets["fs"]
+		sink.src.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
 		if !ok {
-			return nil, fmt.Errorf("Missing fs secret")
+			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
 		}
 
-		sink.src.criuSecret, ok = args.Secrets["criu"]
+		sink.src.stateSecret, ok = args.Secrets[api.SecretNameState]
 		sink.src.live = ok || args.Live
 	}
 
@@ -219,7 +202,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		}
 
 		if c.src.live && c.src.instance.Type() == instancetype.Container {
-			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
+			c.src.stateConn, err = c.connectWithSecret(c.src.stateSecret)
 			if err != nil {
 				err = fmt.Errorf("Failed connecting CRIU sink socket: %w", err)
 				c.src.sendControl(err)
@@ -233,24 +216,33 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 
 	receiver := c.src.recv
 	sender := c.src.send
-	liveConn := c.src.criuConn
-	dataConn := c.src.fsConn
+	stateConn := c.src.stateConn
+	fsConn := c.src.fsConn
 
 	if c.push {
 		receiver = c.dest.recv
 		sender = c.dest.send
-		liveConn = c.dest.criuConn
-		dataConn = c.dest.fsConn
+		stateConn = c.dest.stateConn
+		fsConn = c.dest.fsConn
 	}
 
 	err = c.src.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    sender,
 			ControlReceive: receiver,
-			LiveConn:       &shared.WebsocketIO{Conn: liveConn},
-			DataConn:       &shared.WebsocketIO{Conn: dataConn},
+			StateConn:      &shared.WebsocketIO{Conn: stateConn},
+			FilesystemConn: &shared.WebsocketIO{Conn: fsConn},
 			Snapshots:      !c.dest.instanceOnly,
 			Live:           live,
+			Disconnect: func() {
+				if fsConn != nil {
+					_ = fsConn.Close()
+				}
+
+				if stateConn != nil {
+					_ = stateConn.Close()
+				}
+			},
 		},
 		InstanceOperation: instOp,
 		Refresh:           c.refresh,
