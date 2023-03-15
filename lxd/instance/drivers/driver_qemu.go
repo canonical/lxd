@@ -3228,6 +3228,16 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		}
 	}
 
+	// Check if the user has overridden the cache mode.
+	for _, opt := range driveConf.Opts {
+		if !strings.HasPrefix(opt, "cache=") {
+			continue
+		}
+
+		cacheMode = strings.TrimPrefix(opt, "cache=")
+		break
+	}
+
 	// QMP uses two separate values for the cache.
 	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
 	noFlushCache := false // Don't ignore any flush requests for the device.
