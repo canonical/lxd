@@ -5575,37 +5575,72 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	if args.Live {
-		err = d.Stop(true)
-		if err != nil {
-			return fmt.Errorf("Failed statefully stopping instance: %w", err)
+	g, ctx := errgroup.WithContext(context.Background())
+
+	// Start control connection monitor.
+	g.Go(func() error {
+		d.logger.Debug("Migrate send control monitor started")
+		defer d.logger.Debug("Migrate send control monitor finished")
+
+		controlResult := make(chan error, 1) // Buffered to allow go routine to end if no readers.
+
+		// This will read the result message from the target side and detect disconnections.
+		go func() {
+			resp := migration.MigrationControl{}
+			err := args.ControlReceive(&resp)
+			if err != nil {
+				err = fmt.Errorf("Error reading migration control target: %w", err)
+			} else if !resp.GetSuccess() {
+				err = fmt.Errorf("Error from migration control target: %s", resp.GetMessage())
+			}
+
+			controlResult <- err
+		}()
+
+		// End as soon as we get control message/disconnection from the target side or a local error.
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case err = <-controlResult:
 		}
-	}
 
-	d.logger.Debug("Starting storage migration phase")
+		return err
+	})
 
-	err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
-	if err != nil {
+	// Start error monitoring routine, this will detect when an error is returned from the other routines,
+	// and if that happens it will disconnect the migration connections which will trigger the other routines
+	// to finish.
+	go func() {
+		<-ctx.Done()
+		args.Disconnect()
+	}()
+
+	g.Go(func() error {
+		d.logger.Debug("Migrate send transfer started")
+		defer d.logger.Debug("Migrate send transfer finished")
+
+		var err error
+
+		if args.Live {
+			err = d.Stop(true)
+			if err != nil {
+				return fmt.Errorf("Failed statefully stopping instance: %w", err)
+			}
+		}
+
+		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Wait for routines to finish and collect first error.
+	{
+		err := g.Wait()
 		return err
 	}
-
-	d.logger.Debug("Finished storage migration phase")
-
-	// Receive response from target.
-	d.logger.Debug("Waiting for migration completion response from target")
-	msg := migration.MigrationControl{}
-	err = args.ControlReceive(&msg)
-	if err != nil {
-		return fmt.Errorf("Failed receiving migration completion response: %w", err)
-	}
-
-	d.logger.Debug("Got migration completion response from target", logger.Ctx{"success": msg.GetSuccess(), "message": msg.GetMessage()})
-
-	if !msg.GetSuccess() {
-		return fmt.Errorf(msg.GetMessage())
-	}
-
-	return nil
 }
 
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
