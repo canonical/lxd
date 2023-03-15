@@ -72,7 +72,9 @@ If you get an error that the `linux64` architecture isn't supported, either upda
 The tool analyzes the LXC configuration and the configuration of the container (or containers) and migrates as much of the configuration as possible.
 You will see output similar to the following:
 
-```bash
+```{terminal}
+:input: sudo lxd.lxc-to-lxd --containers lxc1
+
 Parsing LXC configuration
 Checking for unsupported LXC configuration keys
 Checking for existing containers
