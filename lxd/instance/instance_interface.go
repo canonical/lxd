@@ -206,10 +206,11 @@ type Info struct {
 type MigrateArgs struct {
 	ControlSend    func(m proto.Message) error
 	ControlReceive func(m proto.Message) error
-	LiveConn       io.ReadWriteCloser
-	DataConn       io.ReadWriteCloser
+	StateConn      io.ReadWriteCloser
+	FilesystemConn io.ReadWriteCloser
 	Snapshots      bool
 	Live           bool
+	Disconnect     func()
 }
 
 // MigrateSendArgs represent arguments for instance migration send.

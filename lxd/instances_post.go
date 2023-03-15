@@ -281,7 +281,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 			return response.InternalError(err)
 		}
 
-		// Create the instance and storage DB records for main instance.
+		// Create the instance DB record for main instance.
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
@@ -323,7 +323,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 		push = true
 	}
 
-	migrationArgs := MigrationSinkArgs{
+	migrationArgs := migrationSinkArgs{
 		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
@@ -1167,7 +1167,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Address != s.ServerName {
+	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
 		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
@@ -1176,7 +1176,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		client = client.UseProject(targetProjectName)
 		client = client.UseTarget(targetMemberInfo.Name)
 
-		logger.Debug("Forward instance post request", logger.Ctx{"member": targetMemberInfo.Address})
+		logger.Debug("Forward instance post request", logger.Ctx{"local": s.ServerName, "target": targetMemberInfo.Name, "targetAddress": targetMemberInfo.Address})
 		op, err := client.CreateInstance(req)
 		if err != nil {
 			return response.SmartError(err)
