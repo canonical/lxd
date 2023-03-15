@@ -526,6 +526,57 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 		d.logger.Debug("Thin pool volume renamed", logger.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool": d.thinpoolName(), "new_thinpool": changedConfig["lvm.thinpool_name"]})
 	}
 
+	size, ok := changedConfig["size"]
+	if ok {
+		// Figure out loop path
+		loopPath := loopFilePath(d.name)
+
+		if d.config["source"] != loopPath {
+			return fmt.Errorf("Cannot resize non-loopback pools")
+		}
+
+		// Resize loop file
+		f, err := os.OpenFile(loopPath, os.O_RDWR, 0600)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = f.Close() }()
+
+		sizeBytes, _ := units.ParseByteSizeString(size)
+
+		err = f.Truncate(sizeBytes)
+		if err != nil {
+			return err
+		}
+
+		loopDevPath, err := loopDeviceSetup(loopPath)
+		if err != nil {
+			return err
+		}
+
+		err = loopDeviceSetCapacity(loopDevPath)
+		if err != nil {
+			return err
+		}
+
+		// Resize physical volume so that lvresize is able to resize as well.
+		_, err = shared.RunCommand("pvresize", "-y", loopDevPath)
+		if err != nil {
+			return err
+		}
+
+		if d.usesThinpool() {
+			lvPath := d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName())
+
+			// Use the remaining space in the volume group.
+			_, err = shared.RunCommand("lvresize", "-f", "-l", "+100%FREE", lvPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
