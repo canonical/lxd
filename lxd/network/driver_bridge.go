@@ -936,6 +936,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-rapid-commit")
 	}
 
+	// --no-negcache option is only supported on >2.47.
+	minVer, _ = version.NewDottedVersion("2.47")
+	if dnsmasqVersion.Compare(minVer) > 0 {
+		dnsmasqCmd = append(dnsmasqCmd, "--no-negcache")
+	}
+
 	if !daemon.Debug {
 		// --quiet options are only supported on >2.67.
 		minVer, _ := version.NewDottedVersion("2.67")
