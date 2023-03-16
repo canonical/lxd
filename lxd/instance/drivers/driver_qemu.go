@@ -3156,8 +3156,11 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 
 	var isBlockDev bool
 
-	// Handle local disk devices.
-	if !isRBDImage {
+	// Detect device caches and I/O modes.
+	if isRBDImage {
+		// For RBD, we want writeback to allow for the system-configured "rbd cache" to take effect if present.
+		cacheMode = "writeback"
+	} else {
 		srcDevPath := driveConf.DevPath // This should not be used for passing to QEMU, only for probing.
 
 		// Detect if existing file descriptor format is being supplied.
@@ -3223,6 +3226,16 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
+	}
+
+	// Check if the user has overridden the cache mode.
+	for _, opt := range driveConf.Opts {
+		if !strings.HasPrefix(opt, "cache=") {
+			continue
+		}
+
+		cacheMode = strings.TrimPrefix(opt, "cache=")
+		break
 	}
 
 	// QMP uses two separate values for the cache.
