@@ -2253,9 +2253,9 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	l.Debug("MigrateInstance started")
 	defer l.Debug("MigrateInstance finished")
 
-	// rsync+dd can't handle running source instances
-	if inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return fmt.Errorf("Rsync based migration doesn't support running virtual machines")
+	// rsync+dd can't handle running source VMs consistently.
+	if !args.AllowInconsistent && inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		return fmt.Errorf(`Cannot migrate running virtual machines consistently using negotiated transfer mechanism. Either stop the instance or use "allow inconsistent" mode`)
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
