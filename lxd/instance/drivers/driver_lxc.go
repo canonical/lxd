@@ -5236,8 +5236,8 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	restoreSuccess := make(chan bool, 1)
 	defer close(restoreSuccess)
 
+	// Don't defer close this one as its needed potentially after this function has ended.
 	dumpSuccess := make(chan error, 1)
-	defer close(dumpSuccess)
 
 	g.Go(func() error {
 		d.logger.Debug("Migrate send transfer started")
