@@ -652,7 +652,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 		// Setup migration on source.
 		sourceOp, err := source.MigrateInstance(instName, api.InstancePost{
 			Migration:         true,
-			Live:              stateful,
+			Live:              stateful && sourceInstRunning,
 			AllowInconsistent: allowInconsistent,
 		})
 		if err != nil {
@@ -676,7 +676,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 				Operation:   fmt.Sprintf("%s/%s/operations/%s", sourceInfo.URL, version.APIVersion, url.PathEscape(sourceOPAPI.ID)),
 				Websockets:  sourceSecrets,
 				Certificate: sourceInfo.Certificate,
-				Live:        stateful,
+				Live:        stateful && sourceInstRunning,
 			},
 		})
 		if err != nil {
