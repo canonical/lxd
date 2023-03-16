@@ -863,6 +863,9 @@ func (d *lvm) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	if snapVol.IsVMBlock() {
 		parentFSVol := parentVol.NewVMBlockFilesystemVolume()
 		fsVol := snapVol.NewVMBlockFilesystemVolume()
+
+		revert.Add(func() { _ = os.RemoveAll(fsVol.MountPath()) })
+
 		_, err = d.createLogicalVolumeSnapshot(d.config["lvm.vg_name"], parentFSVol, fsVol, true, d.usesThinpool())
 		if err != nil {
 			return fmt.Errorf("Error creating LVM logical volume snapshot: %w", err)

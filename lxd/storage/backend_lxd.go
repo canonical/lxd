@@ -2595,7 +2595,7 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 	return diskPath, nil
 }
 
-// CreateInstanceSnapshot creates a snaphot of an instance volume.
+// CreateInstanceSnapshot creates a snapshot of an instance volume.
 func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name(), "src": src.Name()})
 	l.Debug("CreateInstanceSnapshot started")
