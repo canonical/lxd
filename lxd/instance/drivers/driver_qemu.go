@@ -4228,12 +4228,14 @@ func (d *qemu) Stop(stateful bool) error {
 			return err
 		}
 
-		// Mark the instance as having state.
-		d.stateful = true
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
-		if err != nil {
-			op.Done(err)
-			return err
+		// Mark the instance as having a state file.
+		if d.migrationSendStateful == nil {
+			d.stateful = true
+			err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+			if err != nil {
+				op.Done(err)
+				return err
+			}
 		}
 	}
 
@@ -5757,6 +5759,17 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
+	// Offer QEMU to QEMU live state transfer state transfer feature if supported.
+	// If the request is for live migration, the source pool driver supports it, and is an internal cluster
+	// instance move on remote shared storage, then offer live QEMU to QEMU state transfer can proceed.
+	// Otherwise LXD will fallback to doing stateful stop, migrate, and then stateful start, which will still
+	// fulfil the "live" part of the request, albeit with longer pause of the instance during the process.
+	poolInfo := pool.Driver().Info()
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
+	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove {
+		offerHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
+	}
+
 	// Send offer to target.
 	d.logger.Debug("Sending migration offer to target")
 	err = args.ControlSend(offerHeader)
@@ -5807,6 +5820,16 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
+	// Detect whether the far side has chosen to use QEMU to QEMU live state transfer mode, and if so then
+	// wait for the connection to be established.
+	var stateConn io.ReadWriteCloser
+	if args.Live && respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_VM_QEMU {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Start control connection monitor.
@@ -5853,16 +5876,49 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 
 		var err error
 
-		if args.Live {
-			err = d.Stop(true)
+		// Start live state transfer using state connection if supported.
+		if stateConn != nil {
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
-				return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				return err
 			}
-		}
 
-		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
-		if err != nil {
-			return err
+			if args.Live {
+				// When performing intra-cluster same-name move, take steps to prevent corruption
+				// of volatile device config keys during start & stop of instance on source/target.
+				if args.ClusterMoveSourceName == d.name {
+					// Disable VolatileSet from persisting changes to the database.
+					// This is so the volatile changes written by the running receiving member
+					//  are not lost when the source instance is stopped.
+					d.volatileSetPersistDisable = true
+
+					// Store a reference to this instance (which has the old volatile settings)
+					// to allow the onStop hook to pick it up, which allows the devices being
+					// stopped to access their volatile settings stored when the instance
+					// originally started on this cluster member.
+					instanceRefSet(d)
+					defer instanceRefClear(d)
+				}
+
+				d.migrationSendStateful = stateConn
+				err = d.Stop(true)
+				if err != nil {
+					return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				}
+			}
+		} else {
+			// Perform stateful stop if live state transfer is not supported by target.
+			if args.Live {
+				err = d.Stop(true)
+				if err != nil {
+					return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				}
+			}
+
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -6001,6 +6057,20 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
+	// Negotiate support for QEMU to QEMU live state transfer.
+	// If the request is for live migration, the target pool driver supports it, is an internal cluster
+	// instance move on remote shared storage, and the source pool driver supports it, then respond that live
+	// QEMU to QEMU state transfer can proceed. Otherwise LXD will fallback to doing stateful stop, migrate,
+	// and then stateful start, which will still fulfil the "live" part of the request, albeit with longer
+	// pause of the instance during the process.
+	poolInfo := pool.Driver().Info()
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
+	var useStateConn bool
+	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove && offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_VM_QEMU {
+		respHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
+		useStateConn = true
+	}
+
 	// Send response to source.
 	d.logger.Debug("Sending migration response to source")
 	err = args.ControlSend(respHeader)
@@ -6009,6 +6079,15 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 
 	d.logger.Debug("Sent migration response to source")
+
+	// Establish state transfer connection if needed.
+	var stateConn io.ReadWriteCloser
+	if args.Live && useStateConn {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -6167,8 +6246,6 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
-		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
-
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh && !isRemoteClusterMove {
@@ -6193,8 +6270,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		if args.Live {
+			// Start live state transfer using state connection if supported.
+			if stateConn != nil {
+				d.migrationReceiveStateful = stateConn
+			}
+
 			// Although the instance technically isn't considered stateful, we set this to allow
-			// starting from the migrated state file.
+			// starting from the migrated state file or migration state connection.
 			d.stateful = true
 
 			err = d.start(true, args.InstanceOperation)
