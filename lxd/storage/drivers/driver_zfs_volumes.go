@@ -2176,6 +2176,23 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
+	if !volSrcArgs.AllowInconsistent && vol.contentType == ContentTypeFS && vol.IsBlockBacked() {
+		// When migrating using zfs volumes (not datasets), ensure that the filesystem is synced
+		// otherwise the source and target volumes may differ. Tests have shown that only calling
+		// os.SyncFS() doesn't suffice. A freeze and unfreeze is needed.
+		err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			unfreezeFS, err := d.filesystemFreeze(mountPath)
+			if err != nil {
+				return err
+			}
+
+			return unfreezeFS()
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		// If volume is filesystem type, create a fast snapshot to ensure migration is consistent.
@@ -2402,80 +2419,35 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, revert.Hook, error) {
 		return "", nil, err
 	}
 
-	dataset := d.dataset(vol, false)
-	srcSnapshot := fmt.Sprintf("%s@temp_ro-%s", dataset, uuid.New())
+	snapshotOnlyName := fmt.Sprintf("temp_ro-%s", uuid.New())
+
+	snapVol, err := vol.NewSnapshot(snapshotOnlyName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	snapshotDataset := fmt.Sprintf("%s@%s", d.dataset(vol, false), snapshotOnlyName)
 
 	// Create a temporary snapshot.
-	_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
+	_, err = shared.RunCommand("zfs", "snapshot", snapshotDataset)
 	if err != nil {
 		return "", nil, err
 	}
 
 	revert.Add(func() {
 		// Delete snapshot (or mark for deferred deletion if cannot be deleted currently).
-		_, err := shared.RunCommand("zfs", "destroy", "-d", srcSnapshot)
+		_, err := shared.RunCommand("zfs", "destroy", "-d", snapshotDataset)
 		if err != nil {
-			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": srcSnapshot, "err": err})
+			d.logger.Warn("Failed deleting read-only snapshot", logger.Ctx{"snapshot": snapshotDataset, "err": err})
 		}
 	})
 
-	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
-
-	if d.isBlockBacked(vol) {
-		// For block devices, we make them appear.
-		// Check if already active.
-		current, err := d.getDatasetProperty(dataset, "volmode")
-		if err != nil {
-			return "", nil, err
-		}
-
-		if current != "dev" {
-			// Activate.
-			err = d.setDatasetProperties(dataset, "volmode=dev", "snapdev=visible")
-			if err != nil {
-				return "", nil, err
-			}
-
-			defer func() { _ = d.setDatasetProperties(dataset, "volmode=none", "snapdev=hidden") }()
-
-			// Wait half a second to give udev a chance to kick in.
-			time.Sleep(500 * time.Millisecond)
-
-			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
-		}
-
-		volPath, err := d.getVolumeDiskPathFromDataset(srcSnapshot)
-		if err != nil {
-			return "", nil, err
-		}
-
-		mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(vol.ConfigBlockMountOptions(), ","))
-
-		err = TryMount(volPath, tmpDir, vol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
-		if err != nil {
-			return "", nil, err
-		}
-	} else {
-		// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
-		// already mounted by the time genericVFSBackupVolume tries to mount it below,
-		// thus preventing it from trying to unmount it at the end, as this is a custom snapshot,
-		// the normal mount and unmount logic will fail.
-		err = TryMount(srcSnapshot, tmpDir, "zfs", unix.MS_RDONLY, "")
-		if err != nil {
-			return "", nil, err
-		}
+	hook, err := d.mountVolumeSnapshot(snapVol, snapshotDataset, tmpDir, nil)
+	if err != nil {
+		return "", nil, err
 	}
 
-	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
-
-	revert.Add(func() {
-		_, err := forceUnmount(tmpDir)
-		if err != nil {
-			return
-		}
-
-		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
-	})
+	revert.Add(hook)
 
 	cleanup := revert.Clone().Fail
 	revert.Success()
@@ -2735,9 +2707,16 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 	unlock := snapVol.MountLock()
 	defer unlock()
 
-	mountPath := snapVol.MountPath()
-	snapshotDataset := d.dataset(snapVol, false)
+	_, err := d.mountVolumeSnapshot(snapVol, d.dataset(snapVol, false), snapVol.MountPath(), op)
+	if err != nil {
+		return err
+	}
 
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	return nil
+}
+
+func (d *zfs) mountVolumeSnapshot(snapVol Volume, snapshotDataset string, mountPath string, op *operations.Operation) (revert.Hook, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -2746,13 +2725,13 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if !filesystem.IsMountPoint(mountPath) {
 			err := snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Mount the snapshot directly (not possible through tools).
-			err = TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+			err = TryMount(snapshotDataset, mountPath, "zfs", unix.MS_RDONLY, "")
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
@@ -2765,7 +2744,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 		err := d.MountVolume(parentVol, op)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		revert.Add(func() { _, _ = d.UnmountVolume(parentVol, false, op) })
@@ -2775,25 +2754,25 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		// Check if parent already active.
 		parentVolMode, err := d.getDatasetProperty(parentDataset, "volmode")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Order is important here, the parent volmode=dev must be set before snapdev=visible otherwise
 		// it won't take effect.
 		if parentVolMode != "dev" {
-			return fmt.Errorf("Parent block volume needs to be mounted first")
+			return nil, fmt.Errorf("Parent block volume needs to be mounted first")
 		}
 
 		// Check if snapdev already set visible.
 		parentSnapdevMode, err := d.getDatasetProperty(parentDataset, "snapdev")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if parentSnapdevMode != "visible" {
 			err = d.setDatasetProperties(parentDataset, "snapdev=visible")
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			// Wait half a second to give udev a chance to kick in.
@@ -2805,13 +2784,13 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 		if snapVol.contentType != ContentTypeBlock && d.isBlockBacked(snapVol) && !filesystem.IsMountPoint(mountPath) {
 			err = snapVol.EnsureMountPath()
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			mountVol := snapVol
 			mountFlags, mountOptions := filesystem.ResolveMountOptions(strings.Split(mountVol.ConfigBlockMountOptions(), ","))
 
-			dataset := d.dataset(snapVol, false)
+			dataset := snapshotDataset
 
 			// Regenerate filesystem UUID if needed. This is because some filesystems do not allow mounting
 			// multiple volumes that share the same UUID. As snapshotting a volume will copy its UUID we need
@@ -2832,15 +2811,15 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 				// Clone snapshot.
 				_, err = shared.RunCommand("zfs", "clone", snapshotDataset, dataset)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// Delete on revert.
-				revert.Add(func() { _ = d.DeleteVolume(tmpVol, op) })
+				revert.Add(func() { _ = d.deleteDatasetRecursive(dataset) })
 
 				err := d.setDatasetProperties(dataset, "volmode=dev")
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				defer func() {
@@ -2858,12 +2837,12 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 
 			volPath, err := d.getVolumeDiskPathFromDataset(dataset)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			if regenerateFSUUID {
-				tmpVolFsType := mountVol.ConfigBlockFilesystem()
+			tmpVolFsType := mountVol.ConfigBlockFilesystem()
 
+			if regenerateFSUUID {
 				// When mounting XFS filesystems temporarily we can use the nouuid option rather than fully
 				// regenerating the filesystem UUID.
 				if tmpVolFsType == "xfs" {
@@ -2875,14 +2854,25 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 					d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": tmpVolFsType})
 					err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volPath)
 					if err != nil {
-						return err
+						return nil, err
+					}
+				}
+			} else {
+				// ext4 will replay the journal if the filesystem is dirty.
+				// To prevent this kind of write access, we mount the ext4 filesystem
+				// with the ro,noload mount options.
+				// The noload option prevents the journal from being loaded on mounting.
+				if tmpVolFsType == "ext4" {
+					idx := strings.Index(mountOptions, "noload")
+					if idx < 0 {
+						mountOptions += ",noload"
 					}
 				}
 			}
 
 			err = TryMount(volPath, mountPath, mountVol.ConfigBlockFilesystem(), mountFlags|unix.MS_RDONLY, mountOptions)
 			if err != nil {
-				return fmt.Errorf("Failed mounting volume snapshot: %w", err)
+				return nil, fmt.Errorf("Failed mounting volume snapshot: %w", err)
 			}
 		}
 
@@ -2891,14 +2881,25 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) erro
 			fsVol := snapVol.NewVMBlockFilesystemVolume()
 			err = d.MountVolumeSnapshot(fsVol, op)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+
+	revert.Add(func() {
+		_, err := forceUnmount(mountPath)
+		if err != nil {
+			return
+		}
+
+		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
+	})
+
+	cleanup := revert.Clone().Fail
 	revert.Success()
-	return nil
+	return cleanup, nil
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
@@ -3074,6 +3075,26 @@ func (d *zfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	_, err = shared.RunCommand("zfs", "rollback", d.dataset(snapVol, false))
 	if err != nil {
 		return err
+	}
+
+	if vol.contentType == ContentTypeFS && d.isBlockBacked(vol) && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
+		_, err = d.activateVolume(vol)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _, _ = d.deactivateVolume(vol) }()
+
+		volPath, err := d.GetVolumeDiskPath(vol)
+		if err != nil {
+			return err
+		}
+
+		d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volPath, "fs": vol.ConfigBlockFilesystem()})
+		err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VM images, restore the associated filesystem dataset too.
