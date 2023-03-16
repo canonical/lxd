@@ -13,6 +13,7 @@ Those keys can be set using the `lxc` tool with:
 lxc project set <project> <key> <value>
 ```
 
+(project-features)=
 ## Project features
 
 Key                                  | Type      | Condition             | Default                   | Description
