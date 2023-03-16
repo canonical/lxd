@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -23,9 +22,11 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var internalClusterInstanceMovedCmd = APIEndpoint{
@@ -559,7 +560,7 @@ func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName str
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instance.Instance, newInstName string, newMemberName string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
@@ -567,7 +568,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 	// since we'll want to preserve it in the copied container.
 	origVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
 
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		sourceAddress, err = tx.GetLocalNodeAddress(ctx)
@@ -575,12 +576,12 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return fmt.Errorf("Failed to get local member address: %w", err)
 		}
 
-		node, err := tx.GetNodeByName(ctx, newNode)
+		newMember, err := tx.GetNodeByName(ctx, newMemberName)
 		if err != nil {
 			return fmt.Errorf("Failed to get new member address: %w", err)
 		}
 
-		targetAddress = node.Address
+		targetAddress = newMember.Address
 
 		return nil
 	})
@@ -588,127 +589,177 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		return nil, err
 	}
 
+	sourcePool, err := storagePools.LoadByInstance(s, inst)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	volDBType, err := storagePools.VolumeTypeToDBType(volType)
+	if err != nil {
+		return nil, err
+	}
+
 	run := func(op *operations.Operation) error {
-		// Connect to the source host, i.e. ourselves (the node the instance is running on).
-		source, err := cluster.Connect(sourceAddress, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+		// Connect to the source host, i.e. ourselves (the member the instance is running on).
+		source, err := cluster.Connect(sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
 		}
 
-		source = source.UseProject(inst.Project().Name)
+		instName := inst.Name()
+		projectName := inst.Project().Name
 
-		// Connect to the destination host, i.e. the node to migrate the container to.
-		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+		if newInstName == "" {
+			newInstName = instName
+		}
+
+		// If we are retaining the same instance name whilst moving the instance between cluster members
+		// then we need to perform some special case handling, so detect and enable that here.
+		isClusterSameNameMove := newInstName == instName
+
+		source = source.UseProject(projectName)
+
+		// Connect to the destination member, i.e. the member to migrate the instance to.
+		// Use the notify argument to indicate to the destination that we are moving an instance whilst
+		// retaining its name.
+		dest, err := cluster.Connect(targetAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, isClusterSameNameMove)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
 
-		dest = dest.UseTarget(newNode).UseProject(inst.Project().Name)
+		dest = dest.UseTarget(newMemberName).UseProject(projectName)
 
-		destName := newName
-		isSameName := false
-
-		// If no new name was provided, the user wants to keep the same
-		// container name. In that case we need to generate a temporary
-		// name.
-		if destName == "" || destName == inst.Name() {
-			isSameName = true
-			destName, err = instance.MoveTemporaryName(inst)
-			if err != nil {
-				return err
-			}
-		}
-
-		// First make a copy on the new node of the container to be moved.
-		entry, _, err := source.GetInstance(inst.Name())
+		// Get source server connection information
+		sourceInfo, err := source.GetConnectionInfo()
 		if err != nil {
-			return fmt.Errorf("Failed getting instance %q state: %w", inst.Name(), err)
+			return err
 		}
 
-		startAgain := false
-		if entry.StatusCode != api.Stopped {
-			startAgain = true
-			req := api.InstanceStatePut{
-				Action:   "stop",
-				Stateful: stateful,
-				Timeout:  30,
-			}
-
-			op, err := source.UpdateInstanceState(inst.Name(), req, "")
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed stopping instance %q: %w", inst.Name(), err)
-			}
-
-			// Copy the stateful indicator to the new instance so that when it is started
-			// again it will use the state file when doing a stateful start.
-			entry.Stateful = stateful
+		// Get info about the source instance.
+		sourceInst, _, err := source.GetInstance(instName)
+		if err != nil {
+			return fmt.Errorf("Failed getting instance %q state: %w", instName, err)
 		}
 
-		args := lxd.InstanceCopyArgs{
-			Name:              destName,
-			Mode:              "pull",
+		sourceInstRunning := sourceInst.StatusCode != api.Error && sourceInst.StatusCode != api.Stopped
+
+		// Setup migration on source.
+		sourceOp, err := source.MigrateInstance(instName, api.InstancePost{
+			Migration:         true,
+			Live:              stateful && sourceInstRunning,
 			AllowInconsistent: allowInconsistent,
+		})
+		if err != nil {
+			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
 
-		copyOp, err := dest.CopyInstance(source, *entry, &args)
+		sourceOPAPI := sourceOp.Get()
+		sourceSecrets := map[string]string{}
+		for k, v := range sourceOPAPI.Metadata {
+			sourceSecrets[k] = v.(string)
+		}
+
+		// Request pull mode migration on destination.
+		destOp, err := dest.CreateInstance(api.InstancesPost{
+			Name:        newInstName,
+			InstancePut: sourceInst.Writable(),
+			Type:        api.InstanceType(sourceInst.Type),
+			Source: api.InstanceSource{
+				Type:        "migration",
+				Mode:        "pull",
+				Operation:   fmt.Sprintf("%s/%s/operations/%s", sourceInfo.URL, version.APIVersion, url.PathEscape(sourceOPAPI.ID)),
+				Websockets:  sourceSecrets,
+				Certificate: sourceInfo.Certificate,
+				Live:        stateful && sourceInstRunning,
+			},
+		})
 		if err != nil {
-			return fmt.Errorf("Failed to issue copy instance API request: %w", err)
+			return fmt.Errorf("Failed requesting instance create on destination: %w", err)
 		}
 
 		handler := func(newOp api.Operation) {
 			_ = op.UpdateMetadata(newOp.Metadata)
 		}
 
-		_, err = copyOp.AddHandler(handler)
+		_, err = destOp.AddHandler(handler)
 		if err != nil {
 			return err
 		}
 
-		err = copyOp.Wait()
+		err = destOp.Wait()
 		if err != nil {
-			return fmt.Errorf("Copy instance operation failed: %w", err)
+			return fmt.Errorf("Instance move to destination failed: %w", err)
 		}
 
-		// Delete the container on the original node.
-		deleteOp, err := source.DeleteInstance(inst.Name())
-		if err != nil {
-			return fmt.Errorf("Failed to issue delete instance API request: %w", err)
-		}
-
-		err = deleteOp.Wait()
-		if err != nil {
-			return fmt.Errorf("Delete instance operation failed: %w", err)
-		}
-
-		// If the destination name is not set, we have generated a random name for
-		// the new container, so we need to rename it.
-		if isSameName {
-			instancePost := api.InstancePost{
-				Name: inst.Name(),
+		// During a stateful migration we expect the migration process to have stopped the instance on the
+		// source. However if doing a stateless migration and the instance is running we must forcefully
+		// stop the instance on the source.
+		if !stateful && sourceInstRunning {
+			req := api.InstanceStatePut{
+				Action: "stop",
+				Force:  true,
 			}
 
-			op, err := dest.RenameInstance(destName, instancePost)
+			op, err := source.UpdateInstanceState(instName, req, "")
 			if err != nil {
-				return fmt.Errorf("Failed to issue rename instance API request: %w", err)
+				return fmt.Errorf("Failed issuing instance stop request: %w", err)
 			}
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf("Rename instance operation failed: %w", err)
+				return fmt.Errorf("Failed stopping instance %q: %w", instName, err)
 			}
-
-			destName = inst.Name()
 		}
 
-		// Restore the original value of "volatile.apply_template"
-		project := inst.Project().Name
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), project, destName)
+		// Delete the instance on source member.
+		if isClusterSameNameMove {
+			// If the instance is being moved as retaining its original name, then we cannot use the
+			// normal delete process, and instead we need to send a special internal request to the
+			// source member asking it to delete just the storage volume(s) for that instance.
+			url := api.NewURL().Project(inst.Project().Name).Path("internal", "cluster", "instance-moved", instName)
+			req := internalClusterInstanceMovedPostRequest{
+				Action: "delete",
+			}
+
+			resp, _, err := source.RawQuery("POST", url.String(), req, "")
+			if err != nil {
+				return fmt.Errorf("Failed issuing instance cleanup request to source member: %w", err)
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				return fmt.Errorf("Failed deleting instance on source member: %s", resp.Error)
+			}
+		} else {
+			// If the instance is being renamed as part of the move then we can just use the normal
+			// delete process to remove the instance from the source member.
+			op, err := source.DeleteInstance(instName)
+			if err != nil {
+				return fmt.Errorf("Failed issuing instance delete request: %w", err)
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return fmt.Errorf("Failed deleting instance %q: %w", instName, err)
+			}
+		}
+
+		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
+			// Update the instance's cluster member if the instance name hasn't changed.
+			if isClusterSameNameMove {
+				err = tx.UpdateInstanceNode(ctx, projectName, instName, newInstName, newMemberName, sourcePool.ID(), volDBType)
+				if err != nil {
+					return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMemberName, newInstName, err)
+				}
+			}
+
+			// Restore the original value of "volatile.apply_template".
+			id, err := dbCluster.GetInstanceID(ctx, tx.Tx(), projectName, newInstName)
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
 			}
@@ -735,20 +786,19 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return err
 		}
 
-		if startAgain {
+		if !stateful && sourceInstRunning {
 			req := api.InstanceStatePut{
-				Action:   "start",
-				Stateful: stateful,
+				Action: "start",
 			}
 
-			op, err := dest.UpdateInstanceState(destName, req, "")
+			op, err := dest.UpdateInstanceState(newInstName, req, "")
 			if err != nil {
 				return err
 			}
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
+				return fmt.Errorf("Failed starting instance %q: %w", newInstName, err)
 			}
 		}
 
@@ -851,7 +901,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 
 		// Re-link the database entries against the new node name.
 		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), newName, newNode, volDBType)
+			err := tx.UpdateInstanceNode(ctx, inst.Project().Name, inst.Name(), newName, newNode, pool.ID(), volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newName, inst.Name(), err)
 			}
@@ -890,8 +940,12 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			}
 		} else {
 			// Create the instance mount point.
+			req := internalClusterInstanceMovedPostRequest{
+				Action: "create",
+			}
+
 			url := api.NewURL().Project(inst.Project().Name).Path("internal", "cluster", "instance-moved", newName)
-			resp, _, err := target.RawQuery("POST", url.String(), nil, "")
+			resp, _, err := target.RawQuery("POST", url.String(), req, "")
 			if err != nil {
 				return fmt.Errorf("Failed creating mount point on target member: %w", err)
 			}
@@ -925,6 +979,10 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	return run, nil
 }
 
+type internalClusterInstanceMovedPostRequest struct {
+	Action string
+}
+
 // Notification that an instance was moved.
 //
 // At the moment it's used for ceph-based instances, where the target node needs
@@ -936,14 +994,55 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, instanceName)
+	req := internalClusterInstanceMovedPostRequest{}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading instance on target node: %w", err))
+		return response.BadRequest(err)
 	}
 
-	err = instancePostCreateInstanceMountPoint(d, inst)
+	s := d.State()
+	inst, err := instance.LoadByProjectAndName(s, projectName, instanceName)
 	if err != nil {
-		return response.SmartError(err)
+		return response.SmartError(fmt.Errorf("Failed loading instance: %w", err))
+	}
+
+	if req.Action == "delete" {
+		pool, err := storagePools.LoadByInstance(s, inst)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed loading instance storage pool on source member: %w", err))
+		}
+
+		if pool.Driver().Info().Remote {
+			return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Instance storage pool %q is not local", pool.Name()))
+		}
+
+		snapshots, err := inst.Snapshots()
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed getting instance snapshots: %w", err))
+		}
+
+		snapshotCount := len(snapshots)
+		for k := range snapshots {
+			// Delete the snapshots in reverse order.
+			k = snapshotCount - 1 - k
+
+			err = pool.DeleteInstanceSnapshot(snapshots[k], nil)
+			if err != nil {
+				return response.SmartError(fmt.Errorf("Failed delete instance snapshot %q: %w", snapshots[k].Name(), err))
+			}
+		}
+
+		err = pool.DeleteInstance(inst, nil)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed deleting instance on source member: %w", err))
+		}
+	} else if req.Action == "create" {
+		err = instancePostCreateInstanceMountPoint(d, inst)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed creating instance mount point on target member: %w", err))
+		}
 	}
 
 	return response.EmptySyncResponse
@@ -992,7 +1091,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return err
 	}
 
-	f, err := instancePostClusteringMigrate(d, r, inst, req.Name, targetNode, req.Live, req.AllowInconsistent)
+	f, err := instancePostClusteringMigrate(d.State(), r, inst, req.Name, targetNode, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}

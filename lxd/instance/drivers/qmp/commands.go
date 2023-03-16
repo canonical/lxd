@@ -299,7 +299,7 @@ func (m *Monitor) Migrate(uri string) error {
 		}
 
 		if resp.Return.Status == "failed" {
-			return fmt.Errorf("Migration call failed")
+			return fmt.Errorf("Migrate call failed")
 		}
 
 		if resp.Return.Status == "completed" {
@@ -336,7 +336,7 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 		}
 
 		if resp.Return.Status == "failed" {
-			return fmt.Errorf("Migration call failed")
+			return fmt.Errorf("Migrate incoming call failed")
 		}
 
 		if resp.Return.Status == "completed" {
