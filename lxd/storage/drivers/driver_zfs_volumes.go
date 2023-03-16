@@ -995,6 +995,9 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Handle zfs send/receive migration.
 	if len(volTargetArgs.Snapshots) > 0 {
 		// Create the parent directory.
@@ -1005,13 +1008,22 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 
 		// Transfer the snapshots.
 		for _, snapName := range volTargetArgs.Snapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			wrapper := migration.ProgressWriter(op, "fs_progress", fullSnapshotName)
-
-			err = d.receiveDataset(vol, conn, wrapper)
+			snapVol, err := vol.NewSnapshot(snapName)
 			if err != nil {
 				return err
 			}
+
+			wrapper := migration.ProgressWriter(op, "fs_progress", snapVol.Name())
+
+			err = d.receiveDataset(snapVol, conn, wrapper)
+			if err != nil {
+				_ = d.DeleteVolume(snapVol, op)
+				return fmt.Errorf("Failed receiving snapshot volume %q: %w", snapVol.Name(), err)
+			}
+
+			revert.Add(func() {
+				_ = d.DeleteVolumeSnapshot(snapVol, op)
+			})
 		}
 	}
 
@@ -1019,8 +1031,13 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
 	err = d.receiveDataset(vol, conn, wrapper)
 	if err != nil {
-		return err
+		_ = d.DeleteVolume(vol, op)
+		return fmt.Errorf("Failed receiving volume %q: %w", vol.Name(), err)
 	}
+
+	revert.Add(func() {
+		_ = d.DeleteVolume(vol, op)
+	})
 
 	// Strip internal snapshots.
 	entries, err := d.getDatasets(d.dataset(vol, false))
@@ -1119,6 +1136,7 @@ func (d *zfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWriteCl
 		}
 	}
 
+	revert.Success()
 	return nil
 }
 
