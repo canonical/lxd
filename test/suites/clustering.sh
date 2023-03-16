@@ -496,8 +496,9 @@ test_clustering_containers() {
   # node2 and a different container name than the original one. The
   # volatile.apply_template config key is preserved.
   apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
-  LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node1"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node2"
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ] || false
 
@@ -508,9 +509,21 @@ test_clustering_containers() {
   apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   [ "${apply_template1}" =  "${apply_template2}" ] || false
 
-  # Create backup and attempt to move container. Move should fail and container should remain on node3.
+  if command -v criu >/dev/null 2>&1; then
+    # If CRIU supported, then try doing a live move using same name,
+    # as CRIU doesn't work when moving to a different name.
+    LXD_DIR="${LXD_TWO_DIR}" lxc config set egg raw.lxc=lxc.console.path=none
+    LXD_DIR="${LXD_TWO_DIR}" lxc start egg
+    LXD_DIR="${LXD_TWO_DIR}" lxc exec egg -- umount /dev/.lxd-mounts
+    LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3 --stateless
+    LXD_DIR="${LXD_TWO_DIR}" lxc stop -f egg
+  fi
+
+  # Create backup and attempt to move container. Move should fail and container should remain on node1.
   LXD_DIR="${LXD_THREE_DIR}" lxc query -X POST --wait -d '{\"name\":\"foo\"}' /1.0/instances/egg/backups
-  ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node1 || false
+  ! LXD_DIR="${LXD_THREE_DIR}" lxc move egg --target node2 || false
   LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -q "Location: node3"
 
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
