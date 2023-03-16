@@ -33,7 +33,7 @@ func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 
 	ret.fsSecret, err = shared.RandomCryptoString()
 	if err != nil {
-		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
+		return nil, fmt.Errorf("Failed creating migration source secret for filesystem websocket: %w", err)
 	}
 
 	return &ret, nil
