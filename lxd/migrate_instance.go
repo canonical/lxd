@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -22,7 +24,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
-		allConnected: make(chan struct{}),
+		allConnected: cancel.New(context.Background()),
 	}
 
 	ret.instanceOnly = instanceOnly
@@ -64,8 +66,9 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	select {
 	case <-time.After(time.Second * 10):
+		s.allConnected.Cancel()
 		return fmt.Errorf("Timed out waiting for migration connections")
-	case <-s.allConnected:
+	case <-s.allConnected.Done():
 	}
 
 	l.Info("Migration channels connected on source")
@@ -104,16 +107,17 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
-		dest:    migrationFields{instanceOnly: args.InstanceOnly},
-		url:     args.URL,
-		dialer:  args.Dialer,
-		push:    args.Push,
-		refresh: args.Refresh,
+		src:                 migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
+		dest:                migrationFields{instanceOnly: args.InstanceOnly},
+		url:                 args.URL,
+		clusterSameNameMove: args.ClusterSameNameMove,
+		dialer:              args.Dialer,
+		push:                args.Push,
+		refresh:             args.Refresh,
 	}
 
 	if sink.push {
-		sink.allConnected = make(chan struct{})
+		sink.allConnected = cancel.New(context.Background())
 	}
 
 	var ok bool
@@ -169,7 +173,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		live = c.dest.live
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live, "clusterSameNameMove": c.clusterSameNameMove})
 
 	var err error
 
@@ -178,8 +182,9 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	if c.push {
 		select {
 		case <-time.After(time.Second * 10):
+			c.allConnected.Cancel()
 			return fmt.Errorf("Timed out waiting for migration connections")
-		case <-c.allConnected:
+		case <-c.allConnected.Done():
 		}
 	}
 
@@ -188,7 +193,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	} else {
 		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
 		if err != nil {
-			err = fmt.Errorf("Failed connecting control sink socket: %w", err)
+			err = fmt.Errorf("Failed connecting migration control sink socket: %w", err)
 			return err
 		}
 
@@ -196,7 +201,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 
 		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
 		if err != nil {
-			err = fmt.Errorf("Failed connecting filesystem sink socket: %w", err)
+			err = fmt.Errorf("Failed connecting migration filesystem sink socket: %w", err)
 			c.src.sendControl(err)
 			return err
 		}
@@ -204,7 +209,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		if c.src.live && c.src.instance.Type() == instancetype.Container {
 			c.src.stateConn, err = c.connectWithSecret(c.src.stateSecret)
 			if err != nil {
-				err = fmt.Errorf("Failed connecting CRIU sink socket: %w", err)
+				err = fmt.Errorf("Failed connecting migration state sink socket: %w", err)
 				c.src.sendControl(err)
 				return err
 			}
@@ -244,8 +249,9 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 				}
 			},
 		},
-		InstanceOperation: instOp,
-		Refresh:           c.refresh,
+		InstanceOperation:   instOp,
+		ClusterSameNameMove: c.clusterSameNameMove,
+		Refresh:             c.refresh,
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})

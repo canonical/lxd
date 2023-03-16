@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/tcp"
@@ -147,7 +148,7 @@ func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected chan struct{}
+	allConnected *cancel.Canceller
 }
 
 func (s *migrationSourceWs) Metadata() any {
@@ -170,19 +171,27 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	}
 
 	var conn **websocket.Conn
+	var connName string
 
 	switch secret {
 	case s.controlSecret:
 		conn = &s.controlConn
+		connName = api.SecretNameControl
 	case s.stateSecret:
 		conn = &s.stateConn
+		connName = api.SecretNameState
 	case s.fsSecret:
 		conn = &s.fsConn
+		connName = api.SecretNameFilesystem
 	default:
 		// If we didn't find the right secret, the user provided a bad
 		// one, which 403, not 404, since this operation actually
 		// exists.
 		return os.ErrPermission
+	}
+
+	if *conn != nil {
+		return api.StatusErrorf(http.StatusConflict, "Migration source %q connection already established", connName)
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
@@ -214,7 +223,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return nil
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
@@ -273,7 +282,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		*conn = wsConn
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
@@ -286,11 +295,12 @@ type migrationSink struct {
 	// fields are used since the client will connect to the sockets.
 	dest migrationFields
 
-	url          string
-	dialer       websocket.Dialer
-	allConnected chan struct{}
-	push         bool
-	refresh      bool
+	url                 string
+	dialer              websocket.Dialer
+	allConnected        *cancel.Canceller
+	push                bool
+	clusterSameNameMove bool
+	refresh             bool
 }
 
 // MigrationSinkArgs arguments to configure migration sink.
@@ -302,12 +312,13 @@ type migrationSinkArgs struct {
 	URL     string
 
 	// Instance specific fields
-	Instance     instance.Instance
-	InstanceOnly bool
-	Idmap        *idmap.IdmapSet
-	Live         bool
-	Refresh      bool
-	Snapshots    []*migration.Snapshot
+	Instance            instance.Instance
+	InstanceOnly        bool
+	Idmap               *idmap.IdmapSet
+	Live                bool
+	Refresh             bool
+	ClusterSameNameMove bool
+	Snapshots           []*migration.Snapshot
 
 	// Storage specific fields
 	VolumeOnly bool
@@ -353,18 +364,26 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	}
 
 	var conn **websocket.Conn
+	var connName string
 
 	switch secret {
 	case s.dest.controlSecret:
 		conn = &s.dest.controlConn
+		connName = api.SecretNameControl
 	case s.dest.stateSecret:
 		conn = &s.dest.stateConn
+		connName = api.SecretNameState
 	case s.dest.fsSecret:
 		conn = &s.dest.fsConn
+		connName = api.SecretNameFilesystem
 	default:
 		/* If we didn't find the right secret, the user provided a bad one,
 		 * which 403, not 404, since this operation actually exists */
 		return os.ErrPermission
+	}
+
+	if *conn != nil {
+		return api.StatusErrorf(http.StatusConflict, "Migration target %q connection already established", connName)
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
@@ -387,7 +406,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return nil
 	}
 
-	close(s.allConnected)
+	s.allConnected.Cancel()
 
 	return nil
 }
