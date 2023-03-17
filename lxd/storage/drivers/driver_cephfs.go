@@ -308,7 +308,7 @@ func (d *cephfs) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // MigrationTypes returns the supported migration types and options supported by the driver.
-func (d *cephfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
+func (d *cephfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var rsyncFeatures []string
 
 	// Do not pass compression argument to rsync if the associated
