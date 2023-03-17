@@ -1302,8 +1302,8 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 	}
 
-	// VM generation ID is only used on UEFI compatible architectures.
-	if d.architectureSupportsUEFI(d.architecture) {
+	// VM generation ID is only available on x86.
+	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		qemuCmd = append(qemuCmd, "-device", fmt.Sprintf("vmgenid,guid=%s", d.localConfig["volatile.uuid.generation"]))
 	}
 
