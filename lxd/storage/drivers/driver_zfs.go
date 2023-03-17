@@ -565,7 +565,7 @@ func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
-func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
+func (d *zfs) MigrationTypes(contentType ContentType, refresh bool, copySnapshots bool) []migration.Type {
 	var rsyncFeatures []string
 
 	// Do not pass compression argument to rsync if the associated
@@ -595,6 +595,15 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 			},
 			{
 				FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
+	if refresh && !copySnapshots {
+		return []migration.Type{
+			{
+				FSType:   migration.MigrationFSType_RSYNC,
 				Features: rsyncFeatures,
 			},
 		}
