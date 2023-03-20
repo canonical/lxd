@@ -453,6 +453,11 @@ int main() {
 	}
 	close(fd);
 
+	// Make sure that the ns path is still private
+	if (mount("none", "/var/snap/lxd/common/ns", NULL, MS_PRIVATE, NULL) < 0) {
+		return -1;
+	}
+
 	if (mount("/run/snapd/ns/lxd.mnt", "/var/snap/lxd/common/ns/mntns", NULL, MS_BIND, NULL) < 0) {
 		fprintf(stderr, "Failed to mount new mntns: %s\n", strerror(errno));
 		return -1;
