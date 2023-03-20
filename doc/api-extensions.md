@@ -2166,3 +2166,13 @@ Adds support for instance generation ID. The VM or container generation ID will 
 
 ## `disk_io_cache`
 This introduces a new `io.cache` property to disk devices which can be used to override the VM caching behavior.
+
+## `amd_sev`
+Adds support for AMD SEV (Secure Encrypted Virtualization) that can be used to encrypt the memory of a guest VM.
+
+This adds the following new configuration options for SEV encryption:
+
+* `security.sev` : (bool) is SEV enabled for this VM
+* `security.sev.policy.es` : (bool) is SEV-ES enabled for this VM
+* `security.sev.session.dh` : (string) guest owner's `base64`-encoded Diffie-Hellman key
+* `security.sev.session.data` : (string) guest owner's `base64`-encoded session blob
