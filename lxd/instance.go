@@ -419,35 +419,28 @@ func instanceLoadNodeProjectAll(ctx context.Context, s *state.State, project str
 func autoCreateInstanceSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
 	// Make the snapshots.
 	for _, inst := range instances {
-		ch := make(chan error)
-		go func(inst instance.Instance) {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 
-			snapshotName, err := instance.NextSnapshotName(d.State(), inst, "snap%d")
-			if err != nil {
-				l.Error("Error retrieving next snapshot name", logger.Ctx{"err": err})
-				ch <- nil
-				return
-			}
+		l := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 
-			expiry, err := shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
-			if err != nil {
-				l.Error("Error getting snapshots.expiry date")
-				ch <- nil
-				return
-			}
+		snapshotName, err := instance.NextSnapshotName(d.State(), inst, "snap%d")
+		if err != nil {
+			l.Error("Error retrieving next snapshot name", logger.Ctx{"err": err})
+			return err
+		}
 
-			err = inst.Snapshot(snapshotName, expiry, false)
-			if err != nil {
-				l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
-			}
+		expiry, err := shared.GetExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
+		if err != nil {
+			l.Error("Error getting snapshots.expiry date")
+			return err
+		}
 
-			ch <- nil
-		}(inst)
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ch:
+		err = inst.Snapshot(snapshotName, expiry, false)
+		if err != nil {
+			l.Error("Error creating snapshot", logger.Ctx{"snapshot": snapshotName, "err": err})
+			return err
 		}
 	}
 
