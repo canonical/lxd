@@ -1465,16 +1465,14 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 	snapshotName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
 	if filesystem.IsMountPoint(sourcePath) {
-		// This is costly but we need to ensure that all cached data has
-		// been committed to disk. If we don't then the rbd snapshot of
-		// the underlying filesystem can be inconsistent or - worst case
-		// - empty.
+		// Attempt to sync and freeze filesystem, but do not error if not able to freeze (as filesystem
+		// could still be busy), as we do not guarantee the consistency of a snapshot. This is costly but
+		// try to ensure that all cached data has been committed to disk. If we don't then the rbd snapshot
+		// of the underlying filesystem can be inconsistent or, in the worst case, empty.
 		unfreezeFS, err := d.filesystemFreeze(sourcePath)
-		if err != nil {
-			return err
+		if err == nil {
+			defer func() { _ = unfreezeFS() }()
 		}
-
-		defer func() { _ = unfreezeFS() }()
 	}
 
 	// Create the parent directory.
