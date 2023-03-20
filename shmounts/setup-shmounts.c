@@ -117,7 +117,7 @@ int setup_ns() {
 			return -1;
 		}
 
-		fd = open("/var/snap/lxd/common/ns/shmounts", O_CREAT | O_RDWR);
+		fd = open("/var/snap/lxd/common/ns/shmounts", O_CREAT | O_RDWR, 0600);
 		if (fd < 0) {
 			return -1;
 		}
@@ -446,7 +446,7 @@ int main() {
 	}
 
 	// Save our current mntns
-	fd = open("/var/snap/lxd/common/ns/mntns", O_CREAT | O_RDWR);
+	fd = open("/var/snap/lxd/common/ns/mntns", O_CREAT | O_RDWR, 0600);
 	if (fd < 0) {
 		fprintf(stderr, "Failed to create new mntns mountpoint: %s\n", strerror(errno));
 		return -1;
