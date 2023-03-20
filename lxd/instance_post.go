@@ -649,6 +649,27 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 
 		sourceInstRunning := sourceInst.StatusCode != api.Error && sourceInst.StatusCode != api.Stopped
 
+		// During a stateful migration we expect the migration process to stop the instance on the source
+		// once the migration is complete. However when doing a stateless migration and the instance is
+		// running we must forcefully stop the instance on the source before starting the migration copy
+		// so that it is as consistent as possible.
+		if !stateful && sourceInstRunning {
+			req := api.InstanceStatePut{
+				Action: "stop",
+				Force:  true,
+			}
+
+			op, err := source.UpdateInstanceState(instName, req, "")
+			if err != nil {
+				return fmt.Errorf("Failed issuing instance stop request: %w", err)
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return fmt.Errorf("Failed stopping instance %q: %w", instName, err)
+			}
+		}
+
 		// Setup migration on source.
 		sourceOp, err := source.MigrateInstance(instName, api.InstancePost{
 			Migration:         true,
@@ -695,26 +716,6 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 		err = destOp.Wait()
 		if err != nil {
 			return fmt.Errorf("Instance move to destination failed: %w", err)
-		}
-
-		// During a stateful migration we expect the migration process to have stopped the instance on the
-		// source. However if doing a stateless migration and the instance is running we must forcefully
-		// stop the instance on the source.
-		if !stateful && sourceInstRunning {
-			req := api.InstanceStatePut{
-				Action: "stop",
-				Force:  true,
-			}
-
-			op, err := source.UpdateInstanceState(instName, req, "")
-			if err != nil {
-				return fmt.Errorf("Failed issuing instance stop request: %w", err)
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed stopping instance %q: %w", instName, err)
-			}
 		}
 
 		// Delete the instance on source member.
