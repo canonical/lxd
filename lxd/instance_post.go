@@ -653,7 +653,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcInst inst
 			}
 		}
 
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent)
+		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, isClusterSameNameMove)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
