@@ -26,7 +26,6 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var internalClusterInstanceMovedCmd = APIEndpoint{
@@ -560,13 +559,13 @@ func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName str
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instance.Instance, newInstName string, newMemberName string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(s *state.State, r *http.Request, srcInst instance.Instance, newInstName string, newMemberName string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
 	// Save the original value of the "volatile.apply_template" config key,
 	// since we'll want to preserve it in the copied container.
-	origVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
+	origVolatileApplyTemplate := srcInst.LocalConfig()["volatile.apply_template"]
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
@@ -589,13 +588,13 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 		return nil, err
 	}
 
-	sourcePool, err := storagePools.LoadByInstance(s, inst)
+	sourcePool, err := storagePools.LoadByInstance(s, srcInst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	// Check we can convert the instance to the volume types needed.
-	volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
+	volType, err := storagePools.InstanceTypeToVolumeType(srcInst.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -606,98 +605,102 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 	}
 
 	run := func(op *operations.Operation) error {
-		// Connect to the source host, i.e. ourselves (the member the instance is running on).
-		source, err := cluster.Connect(sourceAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
-		if err != nil {
-			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
-		}
-
-		instName := inst.Name()
-		projectName := inst.Project().Name
+		srcInstName := srcInst.Name()
+		projectName := srcInst.Project().Name
 
 		if newInstName == "" {
-			newInstName = instName
+			newInstName = srcInstName
 		}
+
+		networkCert := s.Endpoints.NetworkCert()
 
 		// If we are retaining the same instance name whilst moving the instance between cluster members
 		// then we need to perform some special case handling, so detect and enable that here.
-		isClusterSameNameMove := newInstName == instName
-
-		source = source.UseProject(projectName)
+		isClusterSameNameMove := newInstName == srcInstName
 
 		// Connect to the destination member, i.e. the member to migrate the instance to.
 		// Use the notify argument to indicate to the destination that we are moving an instance whilst
 		// retaining its name.
-		dest, err := cluster.Connect(targetAddress, s.Endpoints.NetworkCert(), s.ServerCert(), r, isClusterSameNameMove)
+		dest, err := cluster.Connect(targetAddress, networkCert, s.ServerCert(), r, isClusterSameNameMove)
 		if err != nil {
 			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
 
 		dest = dest.UseTarget(newMemberName).UseProject(projectName)
 
-		// Get source server connection information
-		sourceInfo, err := source.GetConnectionInfo()
+		// Setup migration source.
+		srcRenderRes, _, err := srcInst.Render()
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting source instance info: %w", err)
 		}
 
-		// Get info about the source instance.
-		sourceInst, _, err := source.GetInstance(instName)
-		if err != nil {
-			return fmt.Errorf("Failed getting instance %q state: %w", instName, err)
+		srcInstInfo, ok := srcRenderRes.(*api.Instance)
+		if !ok {
+			return fmt.Errorf("Unexpected result from source instance render: %w", err)
 		}
 
-		sourceInstRunning := sourceInst.StatusCode != api.Error && sourceInst.StatusCode != api.Stopped
+		srcInstRunning := srcInst.IsRunning()
+		live := stateful && srcInstRunning
 
 		// During a stateful migration we expect the migration process to stop the instance on the source
 		// once the migration is complete. However when doing a stateless migration and the instance is
 		// running we must forcefully stop the instance on the source before starting the migration copy
 		// so that it is as consistent as possible.
-		if !stateful && sourceInstRunning {
-			req := api.InstanceStatePut{
-				Action: "stop",
-				Force:  true,
-			}
-
-			op, err := source.UpdateInstanceState(instName, req, "")
+		if !stateful && srcInstRunning {
+			err := srcInst.Stop(false)
 			if err != nil {
-				return fmt.Errorf("Failed issuing instance stop request: %w", err)
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed stopping instance %q: %w", instName, err)
+				return fmt.Errorf("Failed statelessly stopping instance %q: %w", srcInstName, err)
 			}
 		}
 
-		// Setup migration on source.
-		sourceOp, err := source.MigrateInstance(instName, api.InstancePost{
-			Migration:         true,
-			Live:              stateful && sourceInstRunning,
-			AllowInconsistent: allowInconsistent,
-		})
+		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
 
-		sourceOPAPI := sourceOp.Get()
-		sourceSecrets := map[string]string{}
-		for k, v := range sourceOPAPI.Metadata {
-			sourceSecrets[k] = v.(string)
+		resources := map[string][]string{}
+		resources["instances"] = []string{srcInstName}
+
+		run := func(op *operations.Operation) error {
+			return srcMigration.Do(s, op)
+		}
+
+		cancel := func(op *operations.Operation) error {
+			srcMigration.disconnect()
+			return nil
+		}
+
+		srcOp, err := operations.OperationCreate(s, projectName, operations.OperationClassWebsocket, operationtype.InstanceMigrate, resources, srcMigration.Metadata(), run, cancel, srcMigration.Connect, r)
+		if err != nil {
+			return err
+		}
+
+		err = srcOp.Start()
+		if err != nil {
+			return fmt.Errorf("Failed starting migration source operation: %w", err)
+		}
+
+		sourceSecrets := map[string]string{
+			api.SecretNameControl:    srcMigration.controlSecret,
+			api.SecretNameFilesystem: srcMigration.fsSecret,
+		}
+
+		if live {
+			sourceSecrets[api.SecretNameState] = srcMigration.stateSecret
 		}
 
 		// Request pull mode migration on destination.
 		destOp, err := dest.CreateInstance(api.InstancesPost{
 			Name:        newInstName,
-			InstancePut: sourceInst.Writable(),
-			Type:        api.InstanceType(sourceInst.Type),
+			InstancePut: srcInstInfo.Writable(),
+			Type:        api.InstanceType(srcInstInfo.Type),
 			Source: api.InstanceSource{
 				Type:        "migration",
 				Mode:        "pull",
-				Operation:   fmt.Sprintf("%s/%s/operations/%s", sourceInfo.URL, version.APIVersion, url.PathEscape(sourceOPAPI.ID)),
+				Operation:   fmt.Sprintf("https://%s%s", sourceAddress, srcOp.URL()),
 				Websockets:  sourceSecrets,
-				Certificate: sourceInfo.Certificate,
-				Live:        stateful && sourceInstRunning,
+				Certificate: string(networkCert.PublicKey()),
+				Live:        live,
 			},
 		})
 		if err != nil {
@@ -718,42 +721,53 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 			return fmt.Errorf("Instance move to destination failed: %w", err)
 		}
 
+		_, err = srcOp.Wait(context.Background())
+		if err != nil {
+			return fmt.Errorf("Instance move to destination failed on source: %w", err)
+		}
+
 		// Delete the instance on source member.
 		if isClusterSameNameMove {
 			// If the instance is being moved as retaining its original name, then we cannot use the
 			// normal delete process, and instead we need to send a special internal request to the
 			// source member asking it to delete just the storage volume(s) for that instance.
-			url := api.NewURL().Project(inst.Project().Name).Path("internal", "cluster", "instance-moved", instName)
-			req := internalClusterInstanceMovedPostRequest{
-				Action: "delete",
+			if sourcePool.Driver().Info().Remote {
+				return api.StatusErrorf(http.StatusBadRequest, "Instance storage pool %q is not local", sourcePool.Name())
 			}
 
-			resp, _, err := source.RawQuery("POST", url.String(), req, "")
+			snapshots, err := srcInst.Snapshots()
 			if err != nil {
-				return fmt.Errorf("Failed issuing instance cleanup request to source member: %w", err)
+				return fmt.Errorf("Failed getting instance snapshots: %w", err)
 			}
 
-			if resp.StatusCode != http.StatusOK {
-				return fmt.Errorf("Failed deleting instance on source member: %s", resp.Error)
+			snapshotCount := len(snapshots)
+			for k := range snapshots {
+				// Delete the snapshots in reverse order.
+				k = snapshotCount - 1 - k
+
+				err = sourcePool.DeleteInstanceSnapshot(snapshots[k], nil)
+				if err != nil {
+					return fmt.Errorf("Failed delete instance snapshot %q on source member: %w", snapshots[k].Name(), err)
+				}
+			}
+
+			err = sourcePool.DeleteInstance(srcInst, nil)
+			if err != nil {
+				return fmt.Errorf("Failed deleting instance on source member: %w", err)
 			}
 		} else {
 			// If the instance is being renamed as part of the move then we can just use the normal
 			// delete process to remove the instance from the source member.
-			op, err := source.DeleteInstance(instName)
+			err := srcInst.Delete(true)
 			if err != nil {
-				return fmt.Errorf("Failed issuing instance delete request: %w", err)
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return fmt.Errorf("Failed deleting instance %q: %w", instName, err)
+				return fmt.Errorf("Failed deleting instance %q: %w", srcInstName, err)
 			}
 		}
 
 		err = s.DB.Cluster.Transaction(context.Background(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Update the instance's cluster member if the instance name hasn't changed.
 			if isClusterSameNameMove {
-				err = tx.UpdateInstanceNode(ctx, projectName, instName, newInstName, newMemberName, sourcePool.ID(), volDBType)
+				err = tx.UpdateInstanceNode(ctx, projectName, srcInstName, newInstName, newMemberName, sourcePool.ID(), volDBType)
 				if err != nil {
 					return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newMemberName, newInstName, err)
 				}
@@ -787,7 +801,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, inst instanc
 			return err
 		}
 
-		if !stateful && sourceInstRunning {
+		if !stateful && srcInstRunning {
 			req := api.InstanceStatePut{
 				Action: "start",
 			}
