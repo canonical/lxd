@@ -81,6 +81,9 @@ type common struct {
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
 	storagePool storagePools.Pool
+
+	// volatileSetPersistDisable indicates whether the VolatileSet function should persist changes to the DB.
+	volatileSetPersistDisable bool
 }
 
 //
@@ -321,20 +324,22 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		}
 	}
 
-	// Update the database.
-	var err error
-	if d.snapshot {
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateInstanceSnapshotConfig(d.id, changes)
-		})
-	} else {
-		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-			return tx.UpdateInstanceConfig(d.id, changes)
-		})
-	}
+	// Update the database if required.
+	if !d.volatileSetPersistDisable {
+		var err error
+		if d.snapshot {
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateInstanceSnapshotConfig(d.id, changes)
+			})
+		} else {
+			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+				return tx.UpdateInstanceConfig(d.id, changes)
+			})
+		}
 
-	if err != nil {
-		return fmt.Errorf("Failed to set volatile config: %w", err)
+		if err != nil {
+			return fmt.Errorf("Failed to set volatile config: %w", err)
+		}
 	}
 
 	// Apply the change locally.
