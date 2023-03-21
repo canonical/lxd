@@ -12,6 +12,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/project"
 	"github.com/canonical/lxd/lxd/revert"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared"
@@ -35,6 +36,10 @@ type DriverStatus struct {
 // Supported instance drivers cache variables.
 var driverStatusesMu sync.Mutex
 var driverStatuses map[instancetype.Type]*DriverStatus
+
+// Temporary instance reference storage (for hooks).
+var instanceRefsMu sync.Mutex
+var instanceRefs map[string]instance.Instance
 
 func init() {
 	// Expose load to the instance package, to avoid circular imports.
@@ -180,4 +185,32 @@ func DriverStatuses() map[instancetype.Type]*DriverStatus {
 	}
 
 	return driverStatuses
+}
+
+// instanceRefGet retrieves an instance reference.
+func instanceRefGet(projectName string, instName string) instance.Instance {
+	instanceRefsMu.Lock()
+	defer instanceRefsMu.Unlock()
+
+	return instanceRefs[project.Instance(projectName, instName)]
+}
+
+// instanceRefSet stores a reference to an instance.
+func instanceRefSet(inst instance.Instance) {
+	instanceRefsMu.Lock()
+	defer instanceRefsMu.Unlock()
+
+	if instanceRefs == nil {
+		instanceRefs = make(map[string]instance.Instance)
+	}
+
+	instanceRefs[project.Instance(inst.Project().Name, inst.Name())] = inst
+}
+
+// instanceRefClear removes an instance reference.
+func instanceRefClear(inst instance.Instance) {
+	instanceRefsMu.Lock()
+	defer instanceRefsMu.Unlock()
+
+	delete(instanceRefs, project.Instance(inst.Project().Name, inst.Name()))
 }
