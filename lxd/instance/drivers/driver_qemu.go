@@ -1602,6 +1602,102 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	return nil
 }
 
+func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
+	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
+	}
+
+	qemuPath, _, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the QEMU features to check if AMD SEV is supported.
+	features, err := d.checkFeatures(d.architecture, qemuPath)
+	if err != nil {
+		return nil, err
+	}
+
+	_, smeFound := features["sme"]
+	sev, sevFound := features["sev"]
+	if !smeFound || !sevFound {
+		return nil, errors.New("AMD SEV is not supported by the host")
+	}
+
+	// Get the SEV guest `cbitpos` and `reducedPhysBits`.
+	sevCapabilities, ok := sev.(qmp.AMDSEVCapabilities)
+	if !ok {
+		return nil, errors.New(`Failed to get the guest "sev" capabilities`)
+	}
+
+	cbitpos := sevCapabilities.CBitPos
+	reducedPhysBits := sevCapabilities.ReducedPhysBits
+
+	// Write user's dh-cert and session-data to file descriptors.
+	var dhCertFD, sessionDataFD int
+	if d.expandedConfig["security.sev.session.dh"] != "" {
+		dhCert, err := os.CreateTemp("", "lxd_sev_dh_cert_")
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Remove(dhCert.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = dhCert.WriteString(d.expandedConfig["security.sev.session.dh"])
+		if err != nil {
+			return nil, err
+		}
+
+		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
+	}
+
+	if d.expandedConfig["security.sev.session.data"] != "" {
+		sessionData, err := os.CreateTemp("", "lxd_sev_session_data_")
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Remove(sessionData.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = sessionData.WriteString(d.expandedConfig["security.sev.session.data"])
+		if err != nil {
+			return nil, err
+		}
+
+		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
+	}
+
+	sevOpts := &qemuSevOpts{}
+	sevOpts.cbitpos = cbitpos
+	sevOpts.reducedPhysBits = reducedPhysBits
+	if dhCertFD > 0 && sessionDataFD > 0 {
+		sevOpts.dhCertFD = fmt.Sprintf("/proc/self/fd/%d", dhCertFD)
+		sevOpts.sessionDataFD = fmt.Sprintf("/proc/self/fd/%d", sessionDataFD)
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.sev.policy.es"]) {
+		_, sevES := features["sev-es"]
+		if sevES {
+			// This bit mask is used to specify a guest policy. '0x5' is for SEV-ES. The details of the available policies can be found in the link below (see chapter 3)
+			// https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf
+			sevOpts.policy = "0x5"
+		} else {
+			return nil, errors.New("AMD SEV-ES is not supported by the host")
+		}
+	} else {
+		// '0x1' is for a regular SEV policy.
+		sevOpts.policy = "0x1"
+	}
+
+	return sevOpts, nil
+}
+
 // getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
 // server.
 func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
@@ -2722,6 +2818,25 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	cfg = append(cfg, qemuDriveConfig(&driveConfig9pOpts)...)
+
+	// If user has requested AMD SEV, check if supported and add to QEMU config.
+	if shared.IsTrue(d.expandedConfig["security.sev"]) {
+		sevOpts, err := d.setupSEV(fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if sevOpts != nil {
+			for i := range cfg {
+				if cfg[i].name == "machine" {
+					cfg[i].entries = append(cfg[i].entries, cfgEntry{"memory-encryption", "sev0"})
+					break
+				}
+			}
+
+			cfg = append(cfg, qemuSEV(sevOpts)...)
+		}
+	}
 
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
