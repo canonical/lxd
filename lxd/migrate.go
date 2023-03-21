@@ -148,7 +148,8 @@ func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected *cancel.Canceller
+	allConnected        *cancel.Canceller
+	clusterSameNameMove bool
 }
 
 func (s *migrationSourceWs) Metadata() any {
