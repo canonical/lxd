@@ -84,10 +84,10 @@ func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXDWithContext(ctx context.Context, url string, args *ConnectionArgs) (InstanceServer, error) {
-	logger.Debug("Connecting to a remote LXD over HTTPS")
-
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
+
+	logger.Debug("Connecting to a remote LXD over HTTPS", logger.Ctx{"url": url})
 
 	return httpsLXD(ctx, url, args)
 }
