@@ -18,13 +18,14 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterSameNameMove bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
-		allConnected: cancel.New(context.Background()),
+		allConnected:        cancel.New(context.Background()),
+		clusterSameNameMove: clusterSameNameMove,
 	}
 
 	ret.instanceOnly = instanceOnly
@@ -60,7 +61,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterSameNameMove": s.clusterSameNameMove})
 
 	l.Info("Waiting for migration channel connections on source")
 
