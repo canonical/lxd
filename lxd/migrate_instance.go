@@ -95,6 +95,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					_ = s.stateConn.Close()
 				}
 			},
+			ClusterSameNameMove: s.clusterSameNameMove,
 		},
 		AllowInconsistent: s.allowInconsistent,
 	})
