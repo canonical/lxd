@@ -1299,11 +1299,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 	}
 
-	// VM generation ID is only available on x86.
-	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		qemuCmd = append(qemuCmd, "-device", fmt.Sprintf("vmgenid,guid=%s", d.localConfig["volatile.uuid.generation"]))
-	}
-
 	// SMBIOS only on x86_64 and aarch64.
 	if d.architectureSupportsUEFI(d.architecture) {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
@@ -2851,6 +2846,14 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				return "", nil, err
 			}
 		}
+
+		// VM generation ID is only available on x86.
+		if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
+			err = d.addVmgenDeviceConfig(&cfg, d.localConfig["volatile.uuid.generation"])
+			if err != nil {
+				return "", nil, err
+			}
+		}
 	}
 
 	// Allocate 4 PCI slots for hotplug devices.
@@ -3892,6 +3895,16 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 		path:    socketPath,
 	}
 	*cfg = append(*cfg, qemuTPM(&tpmOpts)...)
+
+	return nil
+}
+
+func (d *qemu) addVmgenDeviceConfig(cfg *[]cfgSection, guid string) error {
+	qemuVmgenOpts := qemuVmgenOpts{
+		driver: "vmgenid",
+		guid:   guid,
+	}
+	*cfg = append(*cfg, qemuVmgen(&qemuVmgenOpts)...)
 
 	return nil
 }
