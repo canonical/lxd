@@ -377,19 +377,23 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
+		var err error
 		var d *qemu // Redefine d as local variable inside callback to avoid keeping references around.
 
-		inst, err := instance.LoadByProjectAndName(state, instProject.Name, instanceName)
-		if err != nil {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": instanceName})
-			// If DB not available, try loading from backup file.
-			l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
-
-			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
-			inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
+		inst := instanceRefGet(instProject.Name, instanceName)
+		if inst == nil {
+			inst, err = instance.LoadByProjectAndName(state, instProject.Name, instanceName)
 			if err != nil {
-				l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
-				return
+				l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": instanceName})
+				// If DB not available, try loading from backup file.
+				l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
+
+				instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
+				inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
+				if err != nil {
+					l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
+					return
+				}
 			}
 		}
 
