@@ -249,10 +249,10 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 					_ = stateConn.Close()
 				}
 			},
+			ClusterSameNameMove: c.clusterSameNameMove,
 		},
-		InstanceOperation:   instOp,
-		ClusterSameNameMove: c.clusterSameNameMove,
-		Refresh:             c.refresh,
+		InstanceOperation: instOp,
+		Refresh:           c.refresh,
 	})
 	if err != nil {
 		l.Error("Failed migration on target", logger.Ctx{"err": err})
