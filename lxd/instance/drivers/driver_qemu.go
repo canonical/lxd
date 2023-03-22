@@ -3169,7 +3169,8 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
 	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
 	minVer, _ := version.NewDottedVersion("5.13.0")
-	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && shared.StringInSlice("io_uring", info.Features) && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
+	_, ioUring := info.Features["io_uring"]
+	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
 		aioMode = "io_uring"
 	}
 
@@ -6895,7 +6896,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
 		Name:     "qemu",
-		Features: []string{},
+		Features: make(map[string]any),
 		Type:     instancetype.VM,
 		Error:    fmt.Errorf("Unknown error"),
 	}
@@ -6956,7 +6957,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
+func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -7042,7 +7043,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 
 	defer monitor.Disconnect()
 
-	var features []string
+	features := make(map[string]any)
 
 	blockDevPath, err := os.CreateTemp("", "")
 	if err != nil {
@@ -7063,7 +7064,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	if err != nil {
 		logger.Debug("Failed adding block device during VM feature check", logger.Ctx{"err": err})
 	} else {
-		features = append(features, "io_uring")
+		features["io_uring"] = struct{}{}
 	}
 
 	// Check CPU hotplug feature.
@@ -7071,7 +7072,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	if err != nil {
 		logger.Debug("Failed querying hotpluggable CPUs during VM feature check", logger.Ctx{"err": err})
 	} else {
-		features = append(features, "cpu_hotplug")
+		features["cpu_hotplug"] = struct{}{}
 	}
 
 	return features, nil
@@ -7353,5 +7354,6 @@ func (d *qemu) architectureSupportsCPUHotplug() bool {
 	drivers := DriverStatuses()
 	info := drivers[d.Type()].Info
 
-	return shared.StringInSlice("cpu_hotplug", info.Features)
+	_, found := info.Features["cpu_hotplug"]
+	return found
 }
