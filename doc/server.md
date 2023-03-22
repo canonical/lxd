@@ -136,7 +136,7 @@ The following server options configure server-specific settings for {ref}`instan
 (server-options)=
 Key                                 | Type      | Scope     | Default                                          | Description
 :--                                 | :---      | :----     | :------                                          | :----------
-`backups.compression_algorithm`     | string    | global    | `gzip`                                           | Compression algorithm to use for new images (`bzip2`, `gzip`, `lzma`, `xz` or `none`)
+`backups.compression_algorithm`     | string    | global    | `gzip`                                           | Compression algorithm to use for backups (`bzip2`, `gzip`, `lzma`, `xz` or `none`)
 `instances.nic.host_name`           | string    | global    | `random`                                         | If set to `random`, use the random host interface name as the host name; if set to `mac`, generate a host name in the form `lxd<mac_address>` (MAC without leading two digits)
 `instances.placement.scriptlet`     | string    | global    | -                                                | Stores the {ref}`clustering-instance-placement-scriptlet` for custom automatic instance placement logic
 `maas.api.key`                      | string    | global    | -                                                | API key to manage MAAS
