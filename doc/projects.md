@@ -11,5 +11,6 @@ relatedlinks: https://ubuntu.com/tutorials/introduction-to-lxd-projects
 explanation/projects
 Create and configure projects <howto/projects_create>
 Work with different projects <howto/projects_work>
+Confine projects to users <howto/projects_confine>
 reference/projects
 ```
