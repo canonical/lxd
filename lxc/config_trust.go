@@ -139,7 +139,14 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	cert := api.CertificatesPost{}
 
-	if len(args) == 0 {
+	// Check if remote is the first argument
+	// to detect method of adding trusted client
+	useToken := false
+	if len(args) == 0 || (len(args) == 1 && resource.name == "") {
+		useToken = true
+	}
+
+	if useToken {
 		// Use token
 		cert.Token = true
 
