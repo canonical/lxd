@@ -517,6 +517,23 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	if volTargetArgs.ClusterMoveSourceName != "" {
+		err := vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
@@ -1308,34 +1325,8 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, op *operations.Operat
 
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	// If data is set, this request is coming from the clustering code.
-	// In this case, we only need to unmap and rename the rbd image to the specified storage volume name.
-	if volSrcArgs.Data != nil {
-		data, ok := volSrcArgs.Data.(string)
-		if ok {
-			err := d.rbdUnmapVolume(vol, true)
-			if err != nil {
-				return err
-			}
-
-			// Rename volume.
-			if vol.name != data {
-				err = d.rbdRenameVolume(vol, data)
-				if err != nil {
-					return err
-				}
-			}
-
-			if vol.IsVMBlock() {
-				fsVol := vol.NewVMBlockFilesystemVolume()
-				err = d.MigrateVolume(fsVol, conn, volSrcArgs, op)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		}
+	if volSrcArgs.ClusterMove {
+		return nil // When performing a cluster member move don't do anything on the source member.
 	}
 
 	// Handle simple rsync and block_and_rsync through generic.
