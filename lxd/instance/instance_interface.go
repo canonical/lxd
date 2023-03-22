@@ -204,13 +204,14 @@ type Info struct {
 
 // MigrateArgs represent arguments for instance migration send and receive.
 type MigrateArgs struct {
-	ControlSend    func(m proto.Message) error
-	ControlReceive func(m proto.Message) error
-	StateConn      io.ReadWriteCloser
-	FilesystemConn io.ReadWriteCloser
-	Snapshots      bool
-	Live           bool
-	Disconnect     func()
+	ControlSend         func(m proto.Message) error
+	ControlReceive      func(m proto.Message) error
+	StateConn           io.ReadWriteCloser
+	FilesystemConn      io.ReadWriteCloser
+	Snapshots           bool
+	Live                bool
+	Disconnect          func()
+	ClusterSameNameMove bool
 }
 
 // MigrateSendArgs represent arguments for instance migration send.
@@ -224,7 +225,6 @@ type MigrateSendArgs struct {
 type MigrateReceiveArgs struct {
 	MigrateArgs
 
-	InstanceOperation   *operationlock.InstanceOperation
-	Refresh             bool
-	ClusterSameNameMove bool
+	InstanceOperation *operationlock.InstanceOperation
+	Refresh           bool
 }
