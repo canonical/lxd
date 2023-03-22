@@ -139,6 +139,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 
 func lxdSetupUser(uid uint32) error {
 	projectName := fmt.Sprintf("user-%d", uid)
+	networkName := fmt.Sprintf("lxdbr-%d", uid)
 	userPath := filepath.Join("users", fmt.Sprintf("%d", uid))
 
 	// User account.
@@ -202,6 +203,7 @@ func lxdSetupUser(uid uint32) error {
 					"restricted.devices.gpu":        "allow",
 					"restricted.idmap.uid":          pw[2],
 					"restricted.idmap.gid":          pw[3],
+					"restricted.networks.access":    networkName,
 				},
 			},
 		})
@@ -234,6 +236,18 @@ func lxdSetupUser(uid uint32) error {
 
 	revert.Add(func() { _ = client.DeleteCertificate(shared.CertFingerprint(x509Cert)) })
 
+	// Create user-specific bridge.
+	network := api.NetworksPost{}
+	network.Config = map[string]string{}
+	network.Type = "bridge"
+	network.Name = networkName
+	network.Description = fmt.Sprintf("Network for user restricted project user-%s", projectName)
+
+	err = client.CreateNetwork(network)
+	if err != nil {
+		return fmt.Errorf("Failed to create network: %w", err)
+	}
+
 	// Setup default profile.
 	err = client.UseProject(projectName).UpdateProfile("default", api.ProfilePut{
 		Description: "Default LXD profile",
@@ -249,7 +263,7 @@ func lxdSetupUser(uid uint32) error {
 			"eth0": {
 				"type":    "nic",
 				"name":    "eth0",
-				"network": "lxdbr0",
+				"network": networkName,
 			},
 		},
 	}, "")
