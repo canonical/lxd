@@ -2846,13 +2846,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				return "", nil, err
 			}
 		}
+	}
 
-		// VM generation ID is only available on x86.
-		if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-			err = d.addVmgenDeviceConfig(&cfg, d.localConfig["volatile.uuid.generation"])
-			if err != nil {
-				return "", nil, err
-			}
+	// VM generation ID is only available on x86.
+	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
+		err = d.addVmgenDeviceConfig(&cfg, d.localConfig["volatile.uuid.generation"])
+		if err != nil {
+			return "", nil, err
 		}
 	}
 
