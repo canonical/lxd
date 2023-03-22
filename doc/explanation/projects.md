@@ -79,3 +79,5 @@ Multi-user LXD daemon
   When a user that is a member of this group starts using LXD, LXD automatically creates a confined project for this user.
 
   If you're not using the snap, you can still use this feature if your distribution supports it.
+
+See {ref}`projects-confine` for instructions on how to enable and configure the different authentication methods.
