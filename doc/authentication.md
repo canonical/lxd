@@ -178,7 +178,7 @@ The meaning of the roles when applied to a project is as follows:
 ```{important}
 In an unrestricted project, only the `auditor` and the `user` roles are suitable for users that you wouldn't trust with root access to the host.
 
-In a {ref}`restricted project <projects-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
+In a {ref}`restricted project <project-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
 ```
 
 To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.
