@@ -395,7 +395,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			d.logger.Debug("Instance agent started")
 			err := d.advertiseVsockAddress()
 			if err != nil {
-				d.logger.Error("Failed to advertise vsock address", logger.Ctx{"err": err})
+				d.logger.Warn("Failed to advertise vsock address to instance agent", logger.Ctx{"err": err})
 				return
 			}
 		} else if event == "SHUTDOWN" {
