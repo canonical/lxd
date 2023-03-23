@@ -392,6 +392,15 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return err
 	}
 
+	// Set TCP timeout options.
+	remoteTCP, _ := tcp.ExtractConn(c.UnderlyingConn())
+	if remoteTCP != nil {
+		err = tcp.SetTimeouts(remoteTCP, 0)
+		if err != nil {
+			logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+		}
+	}
+
 	*conn = c
 
 	// Check criteria for considering all channels to be connected.
