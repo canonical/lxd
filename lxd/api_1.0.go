@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/auth/candid"
+	"github.com/lxc/lxd/lxd/auth/oidc"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
 	"github.com/lxc/lxd/lxd/config"
@@ -209,6 +210,11 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	rbacURL, _, _, _, _, _, _ := s.GlobalConfig.RBACServer()
 	if candidURL != "" || rbacURL != "" {
 		authMethods = append(authMethods, "candid")
+	}
+
+	oidcIssuer, oidcClientID, _ := s.GlobalConfig.OIDCServer()
+	if oidcIssuer != "" && oidcClientID != "" {
+		authMethods = append(authMethods, "oidc")
 	}
 
 	srv := api.ServerUntrusted{
@@ -719,6 +725,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	lokiChanged := false
 	acmeDomainChanged := false
 	acmeCAURLChanged := false
+	oidcChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -792,6 +799,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			acmeCAURLChanged = true
 		case "acme.domain":
 			acmeDomainChanged = true
+		case "oidc.issuer", "oidc.client.id", "oidc.audience":
+			oidcChanged = true
 		}
 	}
 
@@ -954,6 +963,21 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		err := scriptletLoad.InstancePlacementSet(value)
 		if err != nil {
 			return fmt.Errorf("Failed saving instance placement scriptlet: %w", err)
+		}
+	}
+
+	if oidcChanged {
+		oidcIssuer, oidcClientID, oidcAudience := clusterConfig.OIDCServer()
+
+		if oidcIssuer == "" || oidcClientID == "" {
+			d.oidcVerifier = nil
+		} else {
+			var err error
+
+			d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
+			if err != nil {
+				return fmt.Errorf("Failed setting up OpenID Connect: %w", err)
+			}
 		}
 	}
 
