@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/acme"
 	"github.com/lxc/lxd/lxd/auth/candid"
+	"github.com/lxc/lxd/lxd/auth/oidc"
 	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
@@ -106,6 +107,7 @@ type Daemon struct {
 	proxy func(req *http.Request) (*url.URL, error)
 
 	candidVerifier *candid.Verifier
+	oidcVerifier   *oidc.Verifier
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
@@ -323,7 +325,14 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
-	if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
+	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
+		userName, err := d.oidcVerifier.Auth(d.shutdownCtx, r)
+		if err != nil {
+			return false, "", "", err
+		}
+
+		return true, userName, "oidc", nil
+	} else if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
 		info, err := d.candidVerifier.Auth(r)
 		if err != nil {
 			return false, "", "", err
@@ -550,6 +559,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			d.candidVerifier.WriteRequest(r, w, derr)
 			return
 		} else {
+			if d.oidcVerifier != nil {
+				_ = d.oidcVerifier.WriteHeaders(w)
+			}
+
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
 			_ = response.Forbidden(nil).Render(w)
 			return
@@ -1277,6 +1290,7 @@ func (d *Daemon) init() error {
 	rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = d.globalConfig.RBACServer()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
+	oidcIssuer, oidcClientID, oidcAudience := d.globalConfig.OIDCServer()
 
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1302,6 +1316,14 @@ func (d *Daemon) init() error {
 	// Setup Candid authentication.
 	if candidAPIURL != "" {
 		d.candidVerifier, err = candid.NewVerifier(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup OIDC authentication.
+	if oidcIssuer != "" && oidcClientID != "" {
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
 		if err != nil {
 			return err
 		}
