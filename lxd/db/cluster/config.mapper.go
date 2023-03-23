@@ -158,7 +158,7 @@ func CreateConfig(ctx context.Context, tx *sql.Tx, parent string, object Config)
 	}
 
 	queryStr := fmt.Sprintf(configCreateLocal, fillParent...)
-	_, err := tx.Exec(queryStr, object.ReferenceID, object.Key, object.Value)
+	_, err := tx.ExecContext(ctx, queryStr, object.ReferenceID, object.Key, object.Value)
 	if err != nil {
 		return fmt.Errorf("Insert failed for \"%s_config\" table: %w", parent, err)
 	}
@@ -202,7 +202,7 @@ func DeleteConfig(ctx context.Context, tx *sql.Tx, parent string, referenceID in
 	}
 
 	queryStr := fmt.Sprintf(configDeleteLocal, fillParent...)
-	result, err := tx.Exec(queryStr, referenceID)
+	result, err := tx.ExecContext(ctx, queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_config\" failed: %w", parent, err)
 	}
