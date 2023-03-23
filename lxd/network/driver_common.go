@@ -998,7 +998,7 @@ func (n *common) forwardBGPSetupPrefixes() error {
 // the specified uplinkNetworkName.
 func (n *common) getExternalSubnetInUse(ctx context.Context, tx *db.ClusterTx, uplinkNetworkName string, memberSpecific bool) ([]externalSubnetUsage, error) {
 	var err error
-	var projectNetworksForwardsOnUplink, projectNetworksLoadBalancersOnUplink map[string]map[string][]string
+	var projectNetworksForwardsOnUplink map[string]map[string][]string
 
 	// Get all network forward listen addresses for all networks (of any type) connected to our uplink.
 	projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(ctx, uplinkNetworkName, memberSpecific)
@@ -1006,13 +1006,7 @@ func (n *common) getExternalSubnetInUse(ctx context.Context, tx *db.ClusterTx, u
 		return nil, fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 	}
 
-	// Get all network load balancer listen addresses for all networks (of any type) connected to our uplink.
-	projectNetworksLoadBalancersOnUplink, err = tx.GetProjectNetworkLoadBalancerListenAddressesByUplink(ctx, uplinkNetworkName, memberSpecific)
-	if err != nil {
-		return nil, fmt.Errorf("Failed loading network forward listen addresses: %w", err)
-	}
-
-	externalSubnets := make([]externalSubnetUsage, 0, len(projectNetworksForwardsOnUplink)+len(projectNetworksLoadBalancersOnUplink))
+	externalSubnets := make([]externalSubnetUsage, 0, len(projectNetworksForwardsOnUplink))
 
 	// Add forward listen addresses to this list.
 	for projectName, networks := range projectNetworksForwardsOnUplink {
@@ -1032,29 +1026,6 @@ func (n *common) getExternalSubnetInUse(ctx context.Context, tx *db.ClusterTx, u
 					networkProject: projectName,
 					networkName:    networkName,
 					usageType:      subnetUsageNetworkForward,
-				})
-			}
-		}
-	}
-
-	// Add load balancer listen addresses to this list.
-	for projectName, networks := range projectNetworksLoadBalancersOnUplink {
-		for networkName, listenAddresses := range networks {
-			for _, listenAddress := range listenAddresses {
-				// Convert listen address to subnet.
-				listenAddressNet, err := ParseIPToNet(listenAddress)
-				if err != nil {
-					return nil, fmt.Errorf("Invalid existing load balancer listen address %q", listenAddress)
-				}
-
-				// Create an externalSubnetUsage for the listen address by using the network ID
-				// of the listen address to retrieve the already loaded network name from the
-				// projectNetworks map.
-				externalSubnets = append(externalSubnets, externalSubnetUsage{
-					subnet:         *listenAddressNet,
-					networkProject: projectName,
-					networkName:    networkName,
-					usageType:      subnetUsageNetworkLoadBalancer,
 				})
 			}
 		}
