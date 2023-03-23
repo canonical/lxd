@@ -375,10 +375,14 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 type WebsocketIO struct {
 	Conn   *websocket.Conn
 	reader io.Reader
-	mu     sync.Mutex
+	mur    sync.Mutex
+	muw    sync.Mutex
 }
 
 func (w *WebsocketIO) Read(p []byte) (n int, err error) {
+	w.mur.Lock()
+	defer w.mur.Unlock()
+
 	// Get new message if no active one.
 	if w.reader == nil {
 		var mt int
@@ -411,8 +415,9 @@ func (w *WebsocketIO) Read(p []byte) (n int, err error) {
 }
 
 func (w *WebsocketIO) Write(p []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.muw.Lock()
+	defer w.muw.Unlock()
+
 	wr, err := w.Conn.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		return -1, err
@@ -428,8 +433,8 @@ func (w *WebsocketIO) Write(p []byte) (n int, err error) {
 
 // Close sends a control message indicating the stream is finished, but it does not actually close the socket.
 func (w *WebsocketIO) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.muw.Lock()
+	defer w.muw.Unlock()
 	// Target expects to get a control message indicating stream is finished.
 	return w.Conn.WriteMessage(websocket.TextMessage, []byte{})
 }
