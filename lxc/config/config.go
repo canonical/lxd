@@ -1,11 +1,15 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/juju/persistent-cookiejar"
+	"github.com/zitadel/oidc/v2/pkg/oidc"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // Config holds settings to be used by a client or daemon.
@@ -35,6 +39,9 @@ type Config struct {
 
 	// Cookie jars
 	cookieJars map[string]*cookiejar.Jar
+
+	// OIDC tokens
+	oidcTokens map[string]*oidc.Tokens[*oidc.IDTokenClaims]
 }
 
 // GlobalConfigPath returns a joined path of the global configuration directory and passed arguments.
@@ -72,10 +79,30 @@ func (c *Config) ServerCertPath(remote string) string {
 	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
 }
 
+// OIDCTokenPath returns the path for the remote's OIDC tokens.
+func (c *Config) OIDCTokenPath(remote string) string {
+	return c.ConfigPath("oidctokens", fmt.Sprintf("%s.json", remote))
+}
+
 // SaveCookies saves cookies to file.
 func (c *Config) SaveCookies() {
 	for _, jar := range c.cookieJars {
 		_ = jar.Save()
+	}
+}
+
+// SaveOIDCTokens saves OIDC tokens to disk.
+func (c *Config) SaveOIDCTokens() {
+	tokenParentPath := c.ConfigPath("oidctokens")
+
+	if !shared.PathExists(tokenParentPath) {
+		_ = os.MkdirAll(tokenParentPath, 0755)
+	}
+
+	for remote, tokens := range c.oidcTokens {
+		tokenPath := c.OIDCTokenPath(remote)
+		data, _ := json.Marshal(tokens)
+		_ = os.WriteFile(tokenPath, data, 0600)
 	}
 }
 
