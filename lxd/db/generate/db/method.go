@@ -699,10 +699,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
-			buf.L("_, err := tx.Exec(queryStr, %s)", createParams)
+			buf.L("_, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
-			buf.L("result, err := tx.Exec(queryStr, %s)", createParams)
+			buf.L("result, err := tx.ExecContext(ctx, queryStr, %s)", createParams)
 			m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
 			m.ifErrNotNil(buf, true, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
@@ -1114,7 +1114,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("}")
 		buf.N()
 		buf.L("queryStr := fmt.Sprintf(%s, fillParent...)", stmtLocal)
-		buf.L("result, err := tx.Exec(queryStr, referenceID)")
+		buf.L("result, err := tx.ExecContext(ctx, queryStr, referenceID)")
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
