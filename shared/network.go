@@ -414,21 +414,16 @@ func (w *WebsocketIO) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (w *WebsocketIO) Write(p []byte) (n int, err error) {
+func (w *WebsocketIO) Write(p []byte) (int, error) {
 	w.muw.Lock()
 	defer w.muw.Unlock()
 
-	wr, err := w.Conn.NextWriter(websocket.BinaryMessage)
+	err := w.Conn.WriteMessage(websocket.BinaryMessage, p)
 	if err != nil {
 		return -1, err
 	}
 
-	n, err = wr.Write(p)
-	if err != nil {
-		return -1, err
-	}
-
-	return n, wr.Close()
+	return len(p), nil
 }
 
 // Close sends a control message indicating the stream is finished, but it does not actually close the socket.
