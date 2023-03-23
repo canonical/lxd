@@ -180,7 +180,7 @@ func CreateDevices(ctx context.Context, tx *sql.Tx, parent string, objects map[s
 
 	queryStr := fmt.Sprintf(deviceCreateLocal, fillParent...)
 	for _, object := range objects {
-		result, err := tx.Exec(queryStr, object.ReferenceID, object.Name, object.Type)
+		result, err := tx.ExecContext(ctx, queryStr, object.ReferenceID, object.Name, object.Type)
 		if err != nil {
 			return fmt.Errorf("Insert failed for \"%s_devices\" table: %w", parent, err)
 		}
@@ -241,7 +241,7 @@ func DeleteDevices(ctx context.Context, tx *sql.Tx, parent string, referenceID i
 	}
 
 	queryStr := fmt.Sprintf(deviceDeleteLocal, fillParent...)
-	result, err := tx.Exec(queryStr, referenceID)
+	result, err := tx.ExecContext(ctx, queryStr, referenceID)
 	if err != nil {
 		return fmt.Errorf("Delete entry for \"%s_device\" failed: %w", parent, err)
 	}
