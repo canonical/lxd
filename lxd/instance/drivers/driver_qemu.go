@@ -1221,6 +1221,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]*os.File, 0)
 
+	// Ensure passed files are closed after start has returned (either because qemu has started or on error).
+	defer func() {
+		for _, file := range fdFiles {
+			_ = file.Close()
+		}
+	}()
+
 	confFile, monHooks, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
@@ -1406,11 +1413,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	p.SetApparmor(apparmor.InstanceProfileName(d))
-
-	// Ensure passed files are closed after qemu has started.
-	for _, file := range fdFiles {
-		defer func(file *os.File) { _ = file.Close() }(file)
-	}
 
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
 	// setup, so that the backup file contains the volatile keys used for this instance start, so that they can
@@ -1598,6 +1600,102 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	op.Done(nil)
 	return nil
+}
+
+func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
+	if d.architecture != osarch.ARCH_64BIT_INTEL_X86 {
+		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
+	}
+
+	qemuPath, _, err := d.qemuArchConfig(d.architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the QEMU features to check if AMD SEV is supported.
+	features, err := d.checkFeatures(d.architecture, qemuPath)
+	if err != nil {
+		return nil, err
+	}
+
+	_, smeFound := features["sme"]
+	sev, sevFound := features["sev"]
+	if !smeFound || !sevFound {
+		return nil, errors.New("AMD SEV is not supported by the host")
+	}
+
+	// Get the SEV guest `cbitpos` and `reducedPhysBits`.
+	sevCapabilities, ok := sev.(qmp.AMDSEVCapabilities)
+	if !ok {
+		return nil, errors.New(`Failed to get the guest "sev" capabilities`)
+	}
+
+	cbitpos := sevCapabilities.CBitPos
+	reducedPhysBits := sevCapabilities.ReducedPhysBits
+
+	// Write user's dh-cert and session-data to file descriptors.
+	var dhCertFD, sessionDataFD int
+	if d.expandedConfig["security.sev.session.dh"] != "" {
+		dhCert, err := os.CreateTemp("", "lxd_sev_dh_cert_")
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Remove(dhCert.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = dhCert.WriteString(d.expandedConfig["security.sev.session.dh"])
+		if err != nil {
+			return nil, err
+		}
+
+		dhCertFD = d.addFileDescriptor(fdFiles, dhCert)
+	}
+
+	if d.expandedConfig["security.sev.session.data"] != "" {
+		sessionData, err := os.CreateTemp("", "lxd_sev_session_data_")
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.Remove(sessionData.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = sessionData.WriteString(d.expandedConfig["security.sev.session.data"])
+		if err != nil {
+			return nil, err
+		}
+
+		sessionDataFD = d.addFileDescriptor(fdFiles, sessionData)
+	}
+
+	sevOpts := &qemuSevOpts{}
+	sevOpts.cbitpos = cbitpos
+	sevOpts.reducedPhysBits = reducedPhysBits
+	if dhCertFD > 0 && sessionDataFD > 0 {
+		sevOpts.dhCertFD = fmt.Sprintf("/proc/self/fd/%d", dhCertFD)
+		sevOpts.sessionDataFD = fmt.Sprintf("/proc/self/fd/%d", sessionDataFD)
+	}
+
+	if shared.IsTrue(d.expandedConfig["security.sev.policy.es"]) {
+		_, sevES := features["sev-es"]
+		if sevES {
+			// This bit mask is used to specify a guest policy. '0x5' is for SEV-ES. The details of the available policies can be found in the link below (see chapter 3)
+			// https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf
+			sevOpts.policy = "0x5"
+		} else {
+			return nil, errors.New("AMD SEV-ES is not supported by the host")
+		}
+	} else {
+		// '0x1' is for a regular SEV policy.
+		sevOpts.policy = "0x1"
+	}
+
+	return sevOpts, nil
 }
 
 // getAgentConnectionInfo returns the connection info the lxd-agent needs to connect to the LXD
@@ -2721,6 +2819,25 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	cfg = append(cfg, qemuDriveConfig(&driveConfig9pOpts)...)
 
+	// If user has requested AMD SEV, check if supported and add to QEMU config.
+	if shared.IsTrue(d.expandedConfig["security.sev"]) {
+		sevOpts, err := d.setupSEV(fdFiles)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if sevOpts != nil {
+			for i := range cfg {
+				if cfg[i].name == "machine" {
+					cfg[i].entries = append(cfg[i].entries, cfgEntry{"memory-encryption", "sev0"})
+					break
+				}
+			}
+
+			cfg = append(cfg, qemuSEV(sevOpts)...)
+		}
+	}
+
 	// If virtiofsd is running for the config directory then export the config drive via virtio-fs.
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
@@ -3169,7 +3286,8 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
 	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
 	minVer, _ := version.NewDottedVersion("5.13.0")
-	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && shared.StringInSlice("io_uring", info.Features) && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
+	_, ioUring := info.Features["io_uring"]
+	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
 		aioMode = "io_uring"
 	}
 
@@ -6895,7 +7013,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
 		Name:     "qemu",
-		Features: []string{},
+		Features: make(map[string]any),
 		Type:     instancetype.VM,
 		Error:    fmt.Errorf("Unknown error"),
 	}
@@ -6956,7 +7074,7 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
-func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
+func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, error) {
 	monitorPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
@@ -6970,6 +7088,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 		"-nographic",
 		"-nodefaults",
 		"-no-user-config",
+		"-accel", "kvm", // SEV (if enabled) only works with KVM acceleration. But overall, we want to use KVM acceleration for better performance.
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
 		"-machine", qemuMachineType(hostArch),
@@ -7042,7 +7161,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 
 	defer monitor.Disconnect()
 
-	var features []string
+	features := make(map[string]any)
 
 	blockDevPath, err := os.CreateTemp("", "")
 	if err != nil {
@@ -7063,7 +7182,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	if err != nil {
 		logger.Debug("Failed adding block device during VM feature check", logger.Ctx{"err": err})
 	} else {
-		features = append(features, "io_uring")
+		features["io_uring"] = struct{}{}
 	}
 
 	// Check CPU hotplug feature.
@@ -7071,7 +7190,45 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) ([]string, error) {
 	if err != nil {
 		logger.Debug("Failed querying hotpluggable CPUs during VM feature check", logger.Ctx{"err": err})
 	} else {
-		features = append(features, "cpu_hotplug")
+		features["cpu_hotplug"] = struct{}{}
+	}
+
+	// Check AMD SEV features (only for x86 architecture)
+	if hostArch == osarch.ARCH_64BIT_INTEL_X86 {
+		cmdline, err := os.ReadFile("/proc/cmdline")
+		if err != nil {
+			return nil, err
+		}
+
+		parts := strings.Split(string(cmdline), " ")
+
+		// Check if SME is enabled in the kernel command line.
+		if shared.StringInSlice("mem_encrypt=on", parts) {
+			features["sme"] = struct{}{}
+		}
+
+		// Check if SEV/SEV-ES are enabled
+		sev, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		} else if strings.TrimSpace(string(sev)) == "Y" {
+			// Host supports SEV, check if QEMU supports it as well.
+			capabilities, err := monitor.SEVCapabilities()
+			if err != nil {
+				logger.Debug("Failed querying SEV capability during VM feature check", logger.Ctx{"err": err})
+			} else {
+				features["sev"] = capabilities
+
+				// If SEV is enabled on host and supported by QEMU,
+				// check if the SEV-ES extension is enabled.
+				sevES, err := os.ReadFile("/sys/module/kvm_amd/parameters/sev_es")
+				if err != nil {
+					logger.Debug("Failed querying SEV-ES capability during VM feature check", logger.Ctx{"err": err})
+				} else if strings.TrimSpace(string(sevES)) == "Y" {
+					features["sev-es"] = struct{}{}
+				}
+			}
+		}
 	}
 
 	return features, nil
@@ -7353,5 +7510,6 @@ func (d *qemu) architectureSupportsCPUHotplug() bool {
 	drivers := DriverStatuses()
 	info := drivers[d.Type()].Info
 
-	return shared.StringInSlice("cpu_hotplug", info.Features)
+	_, found := info.Features["cpu_hotplug"]
+	return found
 }

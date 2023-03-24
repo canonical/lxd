@@ -363,6 +363,7 @@ var APIExtensions = []string{
 	"zfs_block_mode",
 	"instance_generation_id",
 	"disk_io_cache",
+	"amd_sev",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

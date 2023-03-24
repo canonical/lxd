@@ -690,3 +690,27 @@ func (m *Monitor) AddSecret(id string, secret string) error {
 
 	return nil
 }
+
+// AMDSEVCapabilities represents the SEV capabilities of QEMU.
+type AMDSEVCapabilities struct {
+	PDH             string `json:"pdh"`               // Platform Diffie-Hellman key (base64-encoded)
+	CertChain       string `json:"cert-chain"`        // PDH certificate chain (base64-encoded)
+	CPU0Id          string `json:"cpu0-id"`           // Unique ID of CPU0 (base64-encoded)
+	CBitPos         int    `json:"cbitpos"`           // C-bit location in page table entry
+	ReducedPhysBits int    `json:"reduced-phys-bits"` // Number of physical address bit reduction when SEV is enabled
+}
+
+// SEVCapabilities is used to get the SEV capabilities, and is supported on AMD X86 platforms only.
+func (m *Monitor) SEVCapabilities() (AMDSEVCapabilities, error) {
+	// Prepare the response
+	var resp struct {
+		Return AMDSEVCapabilities `json:"return"`
+	}
+
+	err := m.run("query-sev-capabilities", nil, &resp)
+	if err != nil {
+		return AMDSEVCapabilities{}, fmt.Errorf("Failed querying SEV capability for QEMU: %w", err)
+	}
+
+	return resp.Return, nil
+}
