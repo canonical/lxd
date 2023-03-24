@@ -5661,7 +5661,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
 	// record because it may be associated to the wrong cluster member. Instead we ascertain the pool to load
 	// using the instance's root disk device.
-	if args.ClusterSameNameMove {
+	if args.ClusterMoveSourceName == d.name {
 		_, rootDiskDevice, err := d.getRootDiskDevice()
 		if err != nil {
 			return fmt.Errorf("Failed getting root disk: %w", err)
@@ -5937,7 +5937,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 				// Only create snapshot instance DB records if not doing a cluster same-name move.
 				// As otherwise the DB records will already exist.
-				if !args.ClusterSameNameMove {
+				if args.ClusterMoveSourceName != d.name {
 					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
 					if err != nil {
 						return err
@@ -5995,7 +5995,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return err
 		}
 
-		if !args.ClusterSameNameMove {
+		if args.ClusterMoveSourceName != d.name {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
 				return err
