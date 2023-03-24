@@ -1777,57 +1777,61 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// detecting if the instance DB record exists or not. If we get here then something has gone wrong.
 	if args.Refresh && !volExists {
 		return fmt.Errorf("Cannot refresh volume, doesn't exist on migration target storage")
-	} else if !args.Refresh && volExists {
-		return fmt.Errorf("Cannot create volume, already exists on migration target storage")
 	}
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	if !args.Refresh {
-		// Validate config and create database entry for new storage volume if not refreshing.
-		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true, true)
-		if err != nil {
-			return err
-		}
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && b.driver.Info().Remote
 
-		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
+	if !args.Refresh {
+		if volExists {
+			if !isRemoteClusterMove {
+				return fmt.Errorf("Cannot create volume, already exists on migration target storage")
+			}
+		} else {
+			// Validate config and create database entry for new storage volume if not refreshing.
+			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+			err = VolumeDBCreate(b, inst.Project().Name, inst.Name(), volumeDescription, volType, false, volumeConfig, time.Time{}, contentType, true, true)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, inst.Name(), volType) })
+		}
 	}
 
-	for _, snapName := range args.Snapshots {
-		// Validate config and create database entry for new storage volume.
-		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
-		newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
+	if !isRemoteClusterMove {
+		for i, snapName := range args.Snapshots {
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
+			snapConfig := volumeConfig           // Use parent volume config by default.
+			snapDescription := volumeDescription // Use parent volume description by default.
+			snapExpiryDate := time.Time{}
 
-		snapConfig := volumeConfig           // Use parent volume config by default.
-		snapDescription := volumeDescription // Use parent volume description by default.
-		snapExpiryDate := time.Time{}
+			// If the source snapshot config is available, use that.
+			if srcInfo != nil && srcInfo.Config != nil {
+				if len(srcInfo.Config.VolumeSnapshots) >= i-1 && srcInfo.Config.VolumeSnapshots[i] != nil && srcInfo.Config.VolumeSnapshots[i].Name == snapName {
+					// Check if snapshot volume config is available then use it.
+					snapDescription = srcInfo.Config.VolumeSnapshots[i].Description
+					snapConfig = srcInfo.Config.VolumeSnapshots[i].Config
 
-		// If the source snapshot config is available, use that.
-		if srcInfo != nil && srcInfo.Config != nil {
-			for _, srcSnap := range srcInfo.Config.VolumeSnapshots {
-				if srcSnap.Name != snapName {
-					continue
-				}
-
-				snapConfig = srcSnap.Config
-				snapDescription = srcSnap.Description
-
-				if srcSnap.ExpiresAt != nil {
-					snapExpiryDate = *srcSnap.ExpiresAt
+					if srcInfo.Config.VolumeSnapshots[i].ExpiresAt != nil {
+						snapExpiryDate = *srcInfo.Config.VolumeSnapshots[i].ExpiresAt
+					}
 				}
 
 				break
 			}
-		}
 
-		err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapExpiryDate, contentType, true, true)
-		if err != nil {
-			return err
-		}
+			// Validate config and create database entry for new storage volume.
+			// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+			err = VolumeDBCreate(b, inst.Project().Name, newSnapshotName, snapDescription, volType, true, snapConfig, snapExpiryDate, contentType, true, true)
+			if err != nil {
+				return err
+			}
 
-		revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, newSnapshotName, volType) })
+			revert.Add(func() { _ = VolumeDBDelete(b, inst.Project().Name, newSnapshotName, volType) })
+		}
 	}
 
 	// Generate the effective root device volume for instance.
@@ -1854,7 +1858,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	var preFiller drivers.VolumeFiller
 
-	if !args.Refresh {
+	if !args.Refresh && !isRemoteClusterMove {
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -1900,7 +1904,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		return err
 	}
 
-	revert.Add(func() { _ = b.DeleteInstance(inst, op) })
+	if !isRemoteClusterMove {
+		revert.Add(func() { _ = b.DeleteInstance(inst, op) })
+	}
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name(), vol.MountPath())
 	if err != nil {
