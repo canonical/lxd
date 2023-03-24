@@ -63,7 +63,7 @@ If set to `random`, use the random host interface name as the host name; if set 
 :type: string
 :scope: global
 
-Stores the {ref}`clustering-instance-placement-scriptlet` for custom automatic instance placement logic
+Stores the `clustering-instance-placement-scriptlet` for custom automatic instance placement logic
 ```
 
 ```{config:option} maas.api.key
