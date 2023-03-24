@@ -148,6 +148,8 @@ NICs
 NUMA
 NVRAM
 OData
+OIDC
+OpenID
 OpenMetrics
 OpenSSL
 OSD
