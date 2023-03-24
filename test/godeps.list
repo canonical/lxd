@@ -13,5 +13,9 @@ github.com/lxc/lxd/shared/simplestreams
 github.com/lxc/lxd/shared/tcp
 github.com/lxc/lxd/shared/units
 github.com/pkg/sftp
+github.com/zitadel/oidc/v2/pkg/client/rp
+github.com/zitadel/oidc/v2/pkg/http
+github.com/zitadel/oidc/v2/pkg/oidc
+golang.org/x/oauth2
 gopkg.in/juju/environschema.v1/form
 gopkg.in/yaml.v2
