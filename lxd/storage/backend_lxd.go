@@ -1800,7 +1800,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		return fmt.Errorf("Volume exists in database but not on storage")
 	}
 
-	// Consistenct check for refresh mode.
+	// Consistency check for refresh mode.
 	// We expect that the args.Refresh setting will have already been set to false by the caller as part of
 	// detecting if the instance DB record exists or not. If we get here then something has gone wrong.
 	if args.Refresh && !volExists {
