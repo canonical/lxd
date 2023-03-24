@@ -59,22 +59,24 @@ type VolumeSourceArgs struct {
 	Refresh            bool
 	Info               *Info
 	VolumeOnly         bool
+	ClusterMove        bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
 type VolumeTargetArgs struct {
-	IndexHeaderVersion uint32
-	Name               string
-	Description        string
-	Config             map[string]string // Only used for custom volume migration.
-	Snapshots          []string
-	MigrationType      Type
-	TrackProgress      bool
-	Refresh            bool
-	Live               bool
-	VolumeSize         int64
-	ContentType        string
-	VolumeOnly         bool
+	IndexHeaderVersion    uint32
+	Name                  string
+	Description           string
+	Config                map[string]string // Only used for custom volume migration.
+	Snapshots             []string
+	MigrationType         Type
+	TrackProgress         bool
+	Refresh               bool
+	Live                  bool
+	VolumeSize            int64
+	ContentType           string
+	VolumeOnly            bool
+	ClusterMoveSourceName string
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument
