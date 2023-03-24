@@ -94,7 +94,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				if remoteTCP != nil {
 					err = tcp.SetTimeouts(remoteTCP, 0)
 					if err != nil {
-						logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+						logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 					}
 				}
 
