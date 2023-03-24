@@ -83,6 +83,14 @@ Key                                 | Type      | Scope     | Default           
 `rbac.api.key`                      | string    | global    | -                                                | Public key of the RBAC server (required for HTTP-only servers)
 `rbac.api.url`                      | string    | global    | -                                                | URL of the external RBAC server
 
+(server-options-oidc)=
+## OpenID Connect configuration
+Key                                 | Type      | Scope     | Default                                          | Description
+:--                                 | :---      | :----     | :------                                          | :----------
+`oidc.client.id`                    | string    | global    | -                                                | OpenID Connect client ID
+`oidc.issuer`                       | string    | global    | -                                                | OpenID Connect Discovery URL for the provider
+`oidc.audience`                     | string    | global    | -                                                | Expected audience value for the application (required by some providers)
+
 (server-options-cluster)=
 ## Cluster configuration
 
