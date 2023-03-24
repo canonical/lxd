@@ -1221,6 +1221,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]*os.File, 0)
 
+	// Ensure passed files are closed after start has returned (either because qemu has started or on error).
+	defer func() {
+		for _, file := range fdFiles {
+			_ = file.Close()
+		}
+	}()
+
 	confFile, monHooks, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
@@ -1406,11 +1413,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	p.SetApparmor(apparmor.InstanceProfileName(d))
-
-	// Ensure passed files are closed after qemu has started.
-	for _, file := range fdFiles {
-		defer func(file *os.File) { _ = file.Close() }(file)
-	}
 
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
 	// setup, so that the backup file contains the volatile keys used for this instance start, so that they can
