@@ -5906,14 +5906,15 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		volTargetArgs := migration.VolumeTargetArgs{
-			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
-			Name:               d.Name(),
-			MigrationType:      respTypes[0],
-			Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
-			TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
-			Live:               sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
-			VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
-			VolumeOnly:         !args.Snapshots,
+			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
+			Name:                  d.Name(),
+			MigrationType:         respTypes[0],
+			Refresh:               args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:         true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:                  sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
+			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:            !args.Snapshots,
+			ClusterMoveSourceName: args.ClusterMoveSourceName,
 		}
 
 		// At this point we have already figured out the parent container's root
