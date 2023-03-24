@@ -5723,6 +5723,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		AllowInconsistent:  args.AllowInconsistent,
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
+		ClusterMove:        args.ClusterMoveSourceName != "",
 	}
 
 	// Only send the snapshots that the target requests when refreshing.
