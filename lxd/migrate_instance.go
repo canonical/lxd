@@ -18,14 +18,14 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterSameNameMove bool) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
-		allConnected:        cancel.New(context.Background()),
-		clusterSameNameMove: clusterSameNameMove,
+		allConnected:          cancel.New(context.Background()),
+		clusterMoveSourceName: clusterMoveSourceName,
 	}
 
 	ret.instanceOnly = instanceOnly
@@ -61,7 +61,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterSameNameMove": s.clusterSameNameMove})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName})
 
 	l.Info("Waiting for migration channel connections on source")
 
@@ -95,7 +95,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					_ = s.stateConn.Close()
 				}
 			},
-			ClusterSameNameMove: s.clusterSameNameMove,
+			ClusterMoveSourceName: s.clusterMoveSourceName,
 		},
 		AllowInconsistent: s.allowInconsistent,
 	})
@@ -109,13 +109,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:                 migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
-		dest:                migrationFields{instanceOnly: args.InstanceOnly},
-		url:                 args.URL,
-		clusterSameNameMove: args.ClusterSameNameMove,
-		dialer:              args.Dialer,
-		push:                args.Push,
-		refresh:             args.Refresh,
+		src:                   migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
+		dest:                  migrationFields{instanceOnly: args.InstanceOnly},
+		url:                   args.URL,
+		clusterMoveSourceName: args.ClusterMoveSourceName,
+		dialer:                args.Dialer,
+		push:                  args.Push,
+		refresh:               args.Refresh,
 	}
 
 	if sink.push {
@@ -175,7 +175,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		live = c.dest.live
 	}
 
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live, "clusterSameNameMove": c.clusterSameNameMove})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live, "clusterMoveSourceName": c.clusterMoveSourceName})
 
 	var err error
 
@@ -250,7 +250,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 					_ = stateConn.Close()
 				}
 			},
-			ClusterSameNameMove: c.clusterSameNameMove,
+			ClusterMoveSourceName: c.clusterMoveSourceName,
 		},
 		InstanceOperation: instOp,
 		Refresh:           c.refresh,
