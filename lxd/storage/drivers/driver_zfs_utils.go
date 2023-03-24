@@ -292,6 +292,8 @@ func (d *zfs) initialDatasets() []string {
 }
 
 func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.VolumeSourceArgs, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
+	defer func() { _ = conn.Close() }()
+
 	// Assemble zfs send command.
 	args := []string{"send"}
 	if shared.StringInSlice("compress", volSrcArgs.MigrationType.Features) {
@@ -306,34 +308,21 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	args = append(args, dataset)
 	cmd := exec.Command("zfs", args...)
 
-	// Prepare stdout/stderr.
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
 
 	// Setup progress tracker.
-	stdoutPipe := stdout
+	var stdout io.WriteCloser = conn
 	if tracker != nil {
-		stdoutPipe = &ioprogress.ProgressReader{
-			ReadCloser: stdout,
-			Tracker:    tracker,
+		stdout = &ioprogress.ProgressWriter{
+			WriteCloser: conn,
+			Tracker:     tracker,
 		}
 	}
 
-	// Forward any output on stdout.
-	chStdoutPipe := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(conn, stdoutPipe)
-		chStdoutPipe <- err
-		_ = conn.Close()
-		_ = stderr.Close()
-	}()
+	cmd.Stdout = stdout
 
 	// Run the command.
 	err = cmd.Start()
@@ -345,20 +334,9 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
-	errs := []error{}
-	chStdoutPipeErr := <-chStdoutPipe
-
 	err = cmd.Wait()
 	if err != nil {
-		errs = append(errs, err)
-
-		if chStdoutPipeErr != nil {
-			errs = append(errs, chStdoutPipeErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("zfs send failed: %v (%s)", errs, string(output))
+		return fmt.Errorf("zfs send failed: %w (%s)", err, string(output))
 	}
 
 	return nil

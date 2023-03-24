@@ -1106,6 +1106,8 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 //	rbd export-diff pool1/container_a@snapshot_snap1 --from-snap snapshot_snap0 - | rbd import-diff - pool2/container_a
 //	rbd export-diff pool1/container_a --from-snap snapshot_snap1 - | rbd import-diff - pool2/container_a
 func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, tracker *ioprogress.ProgressTracker) error {
+	defer func() { _ = conn.Close() }()
+
 	args := []string{
 		"export-diff",
 		"--id", d.config["ceph.user.name"],
@@ -1122,32 +1124,21 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 
 	cmd := exec.Command("rbd", args...)
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
 
 	// Setup progress tracker.
-	stdoutPipe := stdout
+	var stdout io.WriteCloser = conn
 	if tracker != nil {
-		stdoutPipe = &ioprogress.ProgressReader{
-			ReadCloser: stdout,
-			Tracker:    tracker,
+		stdout = &ioprogress.ProgressWriter{
+			WriteCloser: conn,
+			Tracker:     tracker,
 		}
 	}
 
-	// Forward any output on stdout.
-	chStdoutPipe := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(conn, stdoutPipe)
-		chStdoutPipe <- err
-		_ = conn.Close()
-	}()
+	cmd.Stdout = stdout
 
 	err = cmd.Start()
 	if err != nil {
@@ -1157,20 +1148,9 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
-	errs := []error{}
-	chStdoutPipeErr := <-chStdoutPipe
-
 	err = cmd.Wait()
 	if err != nil {
-		errs = append(errs, err)
-
-		if chStdoutPipeErr != nil {
-			errs = append(errs, chStdoutPipeErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("ceph export-diff failed: %v (%s)", errs, string(output))
+		return fmt.Errorf("ceph export-diff failed: %w (%s)", err, string(output))
 	}
 
 	return nil

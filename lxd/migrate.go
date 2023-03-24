@@ -205,7 +205,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	if remoteTCP != nil {
 		err = tcp.SetTimeouts(remoteTCP, 0)
 		if err != nil {
-			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+			logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 
@@ -390,6 +390,15 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
+	}
+
+	// Set TCP timeout options.
+	remoteTCP, _ := tcp.ExtractConn(c.UnderlyingConn())
+	if remoteTCP != nil {
+		err = tcp.SetTimeouts(remoteTCP, 0)
+		if err != nil {
+			logger.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+		}
 	}
 
 	*conn = c

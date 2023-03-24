@@ -1054,11 +1054,11 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 
 	remoteTCP, err := tcp.ExtractConn(conn)
 	if err != nil {
-		l.Error("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
+		l.Warn("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
 	} else {
 		err := tcp.SetTimeouts(remoteTCP, time.Second*30)
 		if err != nil {
-			l.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+			l.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1147,11 +1147,11 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 
 	remoteTCP, err := tcp.ExtractConn(remote)
 	if err != nil {
-		l.Error("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
+		l.Warn("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
 	} else {
 		err := tcp.SetTimeouts(remoteTCP, time.Second*30)
 		if err != nil {
-			l.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+			l.Warn("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 

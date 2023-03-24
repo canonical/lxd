@@ -276,6 +276,8 @@ func (d *btrfs) getQGroup(path string) (string, int64, error) {
 }
 
 func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker) error {
+	defer func() { _ = conn.Close() }()
+
 	// Assemble btrfs send command.
 	args := []string{"send"}
 	if parent != "" {
@@ -285,34 +287,21 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 	args = append(args, path)
 	cmd := exec.Command("btrfs", args...)
 
-	// Prepare stdout/stderr.
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
 
 	// Setup progress tracker.
-	stdoutPipe := stdout
+	var stdout io.WriteCloser = conn
 	if tracker != nil {
-		stdoutPipe = &ioprogress.ProgressReader{
-			ReadCloser: stdout,
-			Tracker:    tracker,
+		stdout = &ioprogress.ProgressWriter{
+			WriteCloser: conn,
+			Tracker:     tracker,
 		}
 	}
 
-	// Forward any output on stdout.
-	chStdoutPipe := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(conn, stdoutPipe)
-		chStdoutPipe <- err
-		_ = conn.Close()
-		_ = cmd.Process.Kill() // This closes stderr.
-	}()
+	cmd.Stdout = stdout
 
 	// Run the command.
 	err = cmd.Start()
@@ -326,21 +315,9 @@ func (d *btrfs) sendSubvolume(path string, parent string, conn io.ReadWriteClose
 		logger.Errorf("Problem reading btrfs send stderr: %s", err)
 	}
 
-	// Handle errors.
-	errs := []error{}
-	chStdoutPipeErr := <-chStdoutPipe
-
 	err = cmd.Wait()
 	if err != nil {
-		errs = append(errs, err)
-
-		if chStdoutPipeErr != nil {
-			errs = append(errs, chStdoutPipeErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("Btrfs send failed: %v (%s)", errs, string(output))
+		return fmt.Errorf("Btrfs send failed: %w (%s)", err, string(output))
 	}
 
 	return nil
