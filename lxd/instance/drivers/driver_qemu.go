@@ -1782,9 +1782,9 @@ func (d *qemu) setupNvram() error {
 
 	defer func() { _ = d.unmount() }()
 
-	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
+	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS_4M.fd")
 	if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
+		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS_4M.ms.fd")
 	}
 
 	missingEFIFirmwareErr := fmt.Errorf("Required EFI firmware settings file missing %q", srcOvmfFile)
@@ -1802,6 +1802,7 @@ func (d *qemu) setupNvram() error {
 		return missingEFIFirmwareErr
 	}
 
+	_ = os.Remove(d.legacy2MBNvramPath())
 	_ = os.Remove(d.nvramPath())
 	err = shared.FileCopy(srcOvmfFile, d.nvramPath())
 	if err != nil {
@@ -2196,8 +2197,29 @@ func (d *qemu) monitorPath() string {
 	return filepath.Join(d.LogPath(), "qemu.monitor")
 }
 
-func (d *qemu) nvramPath() string {
+func (d *qemu) legacy2MBNvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
+}
+
+func (d *qemu) nvram4MBPath() string {
+	return filepath.Join(d.Path(), "qemu.4MB.nvram")
+}
+
+func (d *qemu) nvramPath() string {
+	path := d.nvram4MBPath()
+	legacy2MBPath := d.legacy2MBNvramPath() 
+	if shared.PathExists(legacy2MBPath) {
+		path = legacy2MBPath
+	}
+	return path
+}
+
+func (d *qemu) FirmwarePath() string {
+	fvCode := "OVMF_CODE_4M.fd"
+	if shared.PathExists(d.legacy2MBNvramPath()) {
+		fvCode = "OVMF_CODE.fd"
+	}
+	return filepath.Join(d.ovmfPath(), fvCode)
 }
 
 func (d *qemu) consolePath() string {
@@ -2690,7 +2712,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		}
 
 		driveFirmwareOpts := qemuDriveFirmwareOpts{
-			roPath:    filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			roPath:    d.FirmwarePath(),
 			nvramPath: fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		}
 
@@ -7095,7 +7117,7 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
-		qemuArgs = append(qemuArgs, "-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"))
+		qemuArgs = append(qemuArgs, "-drive", fmt.Sprintf("if=pflash,format=raw,unit=0,file=%s,readonly=on", d.FirmwarePath()))
 	}
 
 	var stderr bytes.Buffer
