@@ -94,11 +94,11 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 			// Image processing function
 			addImage := func(meta *ProductVersionItem, root *ProductVersionItem) error {
-				// Look for deltas (only on squashfs)
+				// Look for deltas
 				deltas := []ProductVersionItem{}
-				if root != nil && root.FileType == "squashfs" {
+				if root != nil && shared.StringInSlice(root.FileType, []string{"squashfs", "disk-kvm.img"}) {
 					for _, item := range version.Items {
-						if item.FileType == "squashfs.vcdiff" {
+						if item.FileType == fmt.Sprintf("%s.vcdiff", root.FileType) {
 							deltas = append(deltas, item)
 						}
 					}
