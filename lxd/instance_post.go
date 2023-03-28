@@ -27,12 +27,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-var internalClusterInstanceMovedCmd = APIEndpoint{
-	Path: "cluster/instance-moved/{name}",
-
-	Post: APIEndpointAction{Handler: internalClusterInstanceMovedPost},
-}
-
 // swagger:operation POST /1.0/instances/{name} instances instance_post
 //
 //	Rename or move/migrate an instance
@@ -875,62 +869,6 @@ func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcP
 	}
 
 	return run, nil
-}
-
-type internalClusterInstanceMovedPostRequest struct {
-	Action string
-}
-
-// Notification that an instance was moved.
-//
-// At the moment it's used for ceph-based instances, where the target node needs
-// to create the appropriate mount points.
-func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Response {
-	projectName := projectParam(r)
-	instanceName, err := url.PathUnescape(mux.Vars(r)["name"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	req := internalClusterInstanceMovedPostRequest{}
-
-	// Parse the request.
-	err = json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	s := d.State()
-	inst, err := instance.LoadByProjectAndName(s, projectName, instanceName)
-	if err != nil {
-		return response.SmartError(fmt.Errorf("Failed loading instance: %w", err))
-	}
-
-	if req.Action == "create" {
-		err = instancePostCreateInstanceMountPoint(d, inst)
-		if err != nil {
-			return response.SmartError(fmt.Errorf("Failed creating instance mount point on target member: %w", err))
-		}
-	} else {
-		return response.BadRequest(fmt.Errorf("Unrecognized action"))
-	}
-
-	return response.EmptySyncResponse
-}
-
-// Used after to create the appropriate mounts point after an instance has been moved.
-func instancePostCreateInstanceMountPoint(d *Daemon, inst instance.Instance) error {
-	pool, err := storagePools.LoadByInstance(d.State(), inst)
-	if err != nil {
-		return fmt.Errorf("Failed loading pool of instance on target node: %w", err)
-	}
-
-	err = pool.ImportInstance(inst, nil, nil)
-	if err != nil {
-		return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
-	}
-
-	return nil
 }
 
 func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
