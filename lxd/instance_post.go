@@ -204,6 +204,12 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if resp != nil {
 			return resp
 		}
+	} else if sourceNodeOffline {
+		// If a target was specified, forward the request to the relevant node.
+		resp := forwardedResponseIfTargetIsRemote(s, r)
+		if resp != nil {
+			return resp
+		}
 	}
 
 	body, err := io.ReadAll(r.Body)
