@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -2334,6 +2335,80 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	err = b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// CleanupInstancePaths removes any remaining mount paths and symlinks for the instance and its snapshots.
+func (b *lxdBackend) CleanupInstancePaths(inst instance.Instance, op *operations.Operation) error {
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
+	l.Debug("CleanupInstancePaths started")
+	defer l.Debug("CleanupInstancePaths finished")
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance must not be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Instance(inst.Project().Name, inst.Name())
+	contentType := InstanceContentType(inst)
+
+	// There's no need to pass config as it's not needed when deleting a volume.
+	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+
+	// Remove empty snapshot mount paths.
+	snapshotDir := drivers.GetVolumeSnapshotDir(b.Name(), vol.Type(), vol.Name())
+
+	ents, err := os.ReadDir(snapshotDir)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("Failed listing instance snapshots directory %q: %w", snapshotDir, err)
+	}
+
+	for _, ent := range ents {
+		filePath := filepath.Join(snapshotDir, ent.Name())
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			return err
+		}
+
+		if !fileInfo.IsDir() {
+			continue
+		}
+
+		// Remove empty snapshot mount path.
+		err = os.Remove(filePath)
+		if err != nil {
+			return fmt.Errorf("Failed removing instance snapshot mount path %q: %w", filePath, err)
+		}
+	}
+
+	err = os.Remove(snapshotDir)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("Failed removing instance snapshots directory %q: %w", snapshotDir, err)
+	}
+
+	// Remove empty mount path.
+	err = os.Remove(vol.MountPath())
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("Failed removing instance mount path %q: %w", vol.MountPath(), err)
+	}
+
+	// Remove symlinks.
+	err = b.removeInstanceSymlink(inst.Type(), inst.Project().Name, inst.Name())
+	if err != nil {
+		return fmt.Errorf("Failed removing instance symlink: %w", err)
+	}
+
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project().Name, inst.Name())
+	if err != nil {
+		return fmt.Errorf("Failed removing instance snapshots symlink: %w", err)
 	}
 
 	return nil
