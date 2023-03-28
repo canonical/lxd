@@ -4031,11 +4031,10 @@ func (d *qemu) addTPMDeviceConfig(cfg *[]cfgSection, tpmConfig []deviceConfig.Ru
 }
 
 func (d *qemu) addVmgenDeviceConfig(cfg *[]cfgSection, guid string) error {
-	qemuVmgenOpts := qemuVmgenOpts{
-		driver: "vmgenid",
-		guid:   guid,
+	vmgenIDOpts := qemuVmgenIDOpts{
+		guid: guid,
 	}
-	*cfg = append(*cfg, qemuVmgen(&qemuVmgenOpts)...)
+	*cfg = append(*cfg, qemuVmgen(&vmgenIDOpts)...)
 
 	return nil
 }
