@@ -148,8 +148,8 @@ func (c *migrationFields) controlChannel() <-chan *migration.ControlResponse {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected        *cancel.Canceller
-	clusterSameNameMove bool
+	allConnected          *cancel.Canceller
+	clusterMoveSourceName string
 }
 
 func (s *migrationSourceWs) Metadata() any {
@@ -296,12 +296,12 @@ type migrationSink struct {
 	// fields are used since the client will connect to the sockets.
 	dest migrationFields
 
-	url                 string
-	dialer              websocket.Dialer
-	allConnected        *cancel.Canceller
-	push                bool
-	clusterSameNameMove bool
-	refresh             bool
+	url                   string
+	dialer                websocket.Dialer
+	allConnected          *cancel.Canceller
+	push                  bool
+	clusterMoveSourceName string
+	refresh               bool
 }
 
 // MigrationSinkArgs arguments to configure migration sink.
@@ -313,13 +313,13 @@ type migrationSinkArgs struct {
 	URL     string
 
 	// Instance specific fields
-	Instance            instance.Instance
-	InstanceOnly        bool
-	Idmap               *idmap.IdmapSet
-	Live                bool
-	Refresh             bool
-	ClusterSameNameMove bool
-	Snapshots           []*migration.Snapshot
+	Instance              instance.Instance
+	InstanceOnly          bool
+	Idmap                 *idmap.IdmapSet
+	Live                  bool
+	Refresh               bool
+	ClusterMoveSourceName string
+	Snapshots             []*migration.Snapshot
 
 	// Storage specific fields
 	VolumeOnly bool

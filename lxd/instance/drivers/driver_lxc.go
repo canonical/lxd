@@ -5170,6 +5170,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		AllowInconsistent:  args.AllowInconsistent,
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
+		ClusterMove:        args.ClusterMoveSourceName != "",
 	}
 
 	// Only send the snapshots that the target requests when refreshing.
@@ -5661,7 +5662,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
 	// record because it may be associated to the wrong cluster member. Instead we ascertain the pool to load
 	// using the instance's root disk device.
-	if args.ClusterSameNameMove {
+	if args.ClusterMoveSourceName == d.name {
 		_, rootDiskDevice, err := d.getRootDiskDevice()
 		if err != nil {
 			return fmt.Errorf("Failed getting root disk: %w", err)
@@ -5905,14 +5906,15 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		volTargetArgs := migration.VolumeTargetArgs{
-			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
-			Name:               d.Name(),
-			MigrationType:      respTypes[0],
-			Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
-			TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
-			Live:               sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
-			VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
-			VolumeOnly:         !args.Snapshots,
+			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
+			Name:                  d.Name(),
+			MigrationType:         respTypes[0],
+			Refresh:               args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:         true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:                  sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
+			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:            !args.Snapshots,
+			ClusterMoveSourceName: args.ClusterMoveSourceName,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -5937,7 +5939,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 				// Only create snapshot instance DB records if not doing a cluster same-name move.
 				// As otherwise the DB records will already exist.
-				if !args.ClusterSameNameMove {
+				if args.ClusterMoveSourceName != d.name {
 					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
 					if err != nil {
 						return err
@@ -5971,9 +5973,11 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
+		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
+
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
-		if !volTargetArgs.Refresh {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)
@@ -5995,7 +5999,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return err
 		}
 
-		if !args.ClusterSameNameMove {
+		if args.ClusterMoveSourceName != d.name {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
 				return err
