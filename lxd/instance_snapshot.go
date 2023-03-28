@@ -663,7 +663,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 			}
 		}
 
-		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, false)
+		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
