@@ -449,7 +449,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		d.globalConfigMu.Unlock()
 
 		// Run any update triggers.
-		err = doApi10UpdateTriggers(d, nil, changed, nil, config)
+		err = doApi10UpdateTriggers(d, nil, changed, d.localConfig, config)
 		if err != nil {
 			return response.SmartError(err)
 		}
