@@ -1228,16 +1228,16 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 	}()
 
-	confFile, monHooks, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
+	// Snapshot if needed.
+	err = d.startupSnapshot(d)
 	if err != nil {
 		op.Done(err)
 		return err
 	}
 
-	// Snapshot if needed.
-	err = d.startupSnapshot(d)
+	// Get CPU information.
+	cpuInfo, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
 	if err != nil {
-		op.Done(err)
 		return err
 	}
 
@@ -1253,8 +1253,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		}
 
 		// x86_64 requires the use of topoext when SMT is used.
-		_, _, nrThreads, _, _, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
-		if err == nil && nrThreads > 1 {
+		if cpuInfo.threads > 1 {
 			cpuExtensions = append(cpuExtensions, "topoext")
 		}
 	}
@@ -1262,6 +1261,13 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	cpuType := "host"
 	if len(cpuExtensions) > 0 {
 		cpuType += "," + strings.Join(cpuExtensions, ",")
+	}
+
+	// Generate the QEMU configuration.
+	confFile, monHooks, err := d.generateQemuConfigFile(cpuInfo, mountInfo, qemuBus, devConfs, &fdFiles)
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	// Start QEMU.
@@ -1473,43 +1479,32 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}
 
 	// Apply CPU pinning.
-	cpuLimit, ok := d.expandedConfig["limits.cpu"]
-	if ok && cpuLimit != "" {
-		limit, err := strconv.Atoi(cpuLimit)
-		if err == nil {
-			if d.architectureSupportsCPUHotplug() && limit > 1 {
-				err := d.setCPUs(limit)
-				if err != nil {
-					err = fmt.Errorf("Failed to add CPUs: %w", err)
-					op.Done(err)
-					return err
-				}
+	if cpuInfo.vcpus == nil {
+		if d.architectureSupportsCPUHotplug() && cpuInfo.cores > 1 {
+			err := d.setCPUs(cpuInfo.cores)
+			if err != nil {
+				err = fmt.Errorf("Failed to add CPUs: %w", err)
+				op.Done(err)
+				return err
 			}
-		} else {
-			// Expand to a set of CPU identifiers and get the pinning map.
-			_, _, _, pins, _, err := d.cpuTopology(cpuLimit)
+		}
+	} else {
+		// Confirm nothing weird is going on.
+		if len(cpuInfo.vcpus) != len(pids) {
+			err = fmt.Errorf("QEMU has less vCPUs than configured")
+			op.Done(err)
+			return err
+		}
+
+		for i, pid := range pids {
+			set := unix.CPUSet{}
+			set.Set(int(cpuInfo.vcpus[uint64(i)]))
+
+			// Apply the pin.
+			err := unix.SchedSetaffinity(pid, &set)
 			if err != nil {
 				op.Done(err)
 				return err
-			}
-
-			// Confirm nothing weird is going on.
-			if len(pins) != len(pids) {
-				err = fmt.Errorf("QEMU has less vCPUs than configured")
-				op.Done(err)
-				return err
-			}
-
-			for i, pid := range pids {
-				set := unix.CPUSet{}
-				set.Set(int(pins[uint64(i)]))
-
-				// Apply the pin.
-				err := unix.SchedSetaffinity(pid, &set)
-				if err != nil {
-					op.Done(err)
-					return err
-				}
 			}
 		}
 	}
@@ -2659,12 +2654,12 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
+func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var monHooks []monitorHook
 
 	cfg := qemuBase(&qemuBaseOpts{d.Architecture()})
 
-	err := d.addCPUMemoryConfig(&cfg)
+	err := d.addCPUMemoryConfig(&cfg, cpuInfo)
 	if err != nil {
 		return "", nil, err
 	}
@@ -3003,7 +2998,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written.
-func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
+func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error {
 	drivers := DriverStatuses()
 	info := drivers[instancetype.VM].Info
 	if info.Name == "" {
@@ -3019,12 +3014,6 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 		qemuMemObjectFormat = "indexed"
 	}
 
-	// Default to a single core.
-	cpus := d.expandedConfig["limits.cpu"]
-	if cpus == "" {
-		cpus = "1"
-	}
-
 	cpuOpts := qemuCPUOpts{
 		architecture:        d.architectureName,
 		qemuMemObjectFormat: qemuMemObjectFormat,
@@ -3032,29 +3021,22 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 
 	cpuPinning := false
 
-	cpuCount, err := strconv.Atoi(cpus)
 	hostNodes := []uint64{}
-	if err == nil {
+	if cpuInfo.vcpus == nil {
 		// If not pinning, default to exposing cores.
 		// Only one CPU will be added here, as the others will be hotplugged during start.
 		if d.architectureSupportsCPUHotplug() {
 			cpuOpts.cpuCount = 1
 			cpuOpts.cpuCores = 1
 		} else {
-			cpuOpts.cpuCount = cpuCount
-			cpuOpts.cpuCores = cpuCount
+			cpuOpts.cpuCount = cpuInfo.cores
+			cpuOpts.cpuCores = cpuInfo.cores
 		}
 
 		cpuOpts.cpuSockets = 1
 		cpuOpts.cpuThreads = 1
 		hostNodes = []uint64{0}
 	} else {
-		// Expand to a set of CPU identifiers and get the pinning map.
-		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := d.cpuTopology(cpus)
-		if err != nil {
-			return err
-		}
-
 		cpuPinning = true
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
@@ -3062,9 +3044,9 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 		vcpuCore := map[uint64]uint64{}
 		vcpuThread := map[uint64]uint64{}
 		vcpu := uint64(0)
-		for i := 0; i < nrSockets; i++ {
-			for j := 0; j < nrCores; j++ {
-				for k := 0; k < nrThreads; k++ {
+		for i := 0; i < cpuInfo.sockets; i++ {
+			for j := 0; j < cpuInfo.cores; j++ {
+				for k := 0; k < cpuInfo.threads; k++ {
 					vcpuSocket[vcpu] = uint64(i)
 					vcpuCore[vcpu] = uint64(j)
 					vcpuThread[vcpu] = uint64(k)
@@ -3077,7 +3059,7 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 		numa := []qemuNumaEntry{}
 		numaIDs := []uint64{}
 		numaNode := uint64(0)
-		for hostNode, entry := range numaNodes {
+		for hostNode, entry := range cpuInfo.nodes {
 			hostNodes = append(hostNodes, hostNode)
 
 			numaIDs = append(numaIDs, numaNode)
@@ -3094,10 +3076,10 @@ func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection) error {
 		}
 
 		// Prepare context.
-		cpuOpts.cpuCount = len(vcpus)
-		cpuOpts.cpuSockets = nrSockets
-		cpuOpts.cpuCores = nrCores
-		cpuOpts.cpuThreads = nrThreads
+		cpuOpts.cpuCount = len(cpuInfo.vcpus)
+		cpuOpts.cpuSockets = cpuInfo.sockets
+		cpuOpts.cpuCores = cpuInfo.cores
+		cpuOpts.cpuThreads = cpuInfo.threads
 		cpuOpts.cpuNumaNodes = numaIDs
 		cpuOpts.cpuNumaMapping = numa
 		cpuOpts.cpuNumaHostNodes = hostNodes
@@ -6864,19 +6846,44 @@ func (d *qemu) UpdateBackupFile() error {
 	return pool.UpdateInstanceBackupFile(d, nil)
 }
 
-// cpuTopology takes a user cpu range and returns the number of sockets, cores and threads to configure
-// as well as a map of vcpu to threadid for pinning and a map of numa nodes to vcpus for NUMA layout.
-func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[uint64][]uint64, error) {
+type cpuTopology struct {
+	sockets int
+	cores   int
+	threads int
+	vcpus   map[uint64]uint64
+	nodes   map[uint64][]uint64
+}
+
+// cpuTopology takes the CPU limit and computes the QEMU CPU topology.
+func (d *qemu) cpuTopology(limit string) (*cpuTopology, error) {
+	topology := &cpuTopology{}
+
+	// Set default to 1 vCPU.
+	if limit == "" {
+		limit = "1"
+	}
+
+	// Check if pinned or floating.
+	nrLimit, err := strconv.Atoi(limit)
+	if err == nil {
+		// We're not dealing with a pinned setup.
+		topology.sockets = 1
+		topology.cores = nrLimit
+		topology.threads = 1
+
+		return topology, nil
+	}
+
 	// Get CPU topology.
 	cpus, err := resources.GetCPU()
 	if err != nil {
-		return -1, -1, -1, nil, nil, err
+		return nil, err
 	}
 
 	// Expand the pins.
 	pins, err := resources.ParseCpuset(limit)
 	if err != nil {
-		return -1, -1, -1, nil, nil, err
+		return nil, err
 	}
 
 	// Match tracking.
@@ -6932,7 +6939,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 
 	// Confirm we're getting the expected number of CPUs.
 	if len(pins) != len(vcpus) {
-		return -1, -1, -1, nil, nil, fmt.Errorf("Unavailable CPUs requested: %s", limit)
+		return nil, fmt.Errorf("Unavailable CPUs requested: %s", limit)
 	}
 
 	// Validate the topology.
@@ -6982,7 +6989,14 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 		nrThreads = 1
 	}
 
-	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
+	// Prepare struct.
+	topology.sockets = nrSockets
+	topology.cores = nrCores
+	topology.threads = nrThreads
+	topology.vcpus = vcpus
+	topology.nodes = numaNodes
+
+	return topology, nil
 }
 
 func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) error {
