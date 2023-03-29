@@ -51,7 +51,7 @@ func (c *HTTPRequestCanceller) Cancel() error {
 }
 
 // CancelableDownload performs an http request and allows for it to be canceled at any time.
-func CancelableDownload(c *HTTPRequestCanceller, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
+func CancelableDownload(c *HTTPRequestCanceller, do func(req *http.Request) (*http.Response, error), req *http.Request) (*http.Response, chan bool, error) {
 	chDone := make(chan bool)
 	ctx, cancel := context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
@@ -71,7 +71,7 @@ func CancelableDownload(c *HTTPRequestCanceller, client *http.Client, req *http.
 		}
 	}()
 
-	resp, err := client.Do(req)
+	resp, err := do(req)
 	if err != nil {
 		close(chDone)
 		return nil, nil, err
