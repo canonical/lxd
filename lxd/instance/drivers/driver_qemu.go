@@ -5721,6 +5721,15 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
+	// Wait for migration connections.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn := args.FilesystemConn(connectionsCtx)
+	if filesystemConn == nil {
+		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Start control connection monitor.
@@ -5774,7 +5783,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 			}
 		}
 
-		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
