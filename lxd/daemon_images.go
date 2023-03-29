@@ -428,7 +428,7 @@ func ImageDownload(r *http.Request, s *state.State, op *operations.Operation, ar
 		req.Header.Set("User-Agent", version.UserAgent)
 
 		// Make the request
-		raw, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
+		raw, doneCh, err := cancel.CancelableDownload(canceler, httpClient.Do, req)
 		if err != nil {
 			return nil, err
 		}
