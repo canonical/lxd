@@ -109,8 +109,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:                   migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
-		dest:                  migrationFields{instanceOnly: args.InstanceOnly},
+		migrationFields: migrationFields{
+			instance:     args.Instance,
+			instanceOnly: args.InstanceOnly,
+		},
 		url:                   args.URL,
 		clusterMoveSourceName: args.ClusterMoveSourceName,
 		dialer:                args.Dialer,
@@ -125,43 +127,43 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	var ok bool
 	var err error
 	if sink.push {
-		sink.dest.controlSecret, err = shared.RandomCryptoString()
+		sink.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
 		}
 
-		sink.dest.fsSecret, err = shared.RandomCryptoString()
+		sink.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
 		}
 
-		sink.dest.live = args.Live
-		if sink.dest.live {
-			sink.dest.stateSecret, err = shared.RandomCryptoString()
+		sink.live = args.Live
+		if sink.live {
+			sink.stateSecret, err = shared.RandomCryptoString()
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating migration sink secret for state websocket: %w", err)
 			}
 		}
 	} else {
-		sink.src.controlSecret, ok = args.Secrets[api.SecretNameControl]
+		sink.controlSecret, ok = args.Secrets[api.SecretNameControl]
 		if !ok {
 			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
 		}
 
-		sink.src.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
+		sink.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
 		if !ok {
 			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
 		}
 
-		sink.src.stateSecret, ok = args.Secrets[api.SecretNameState]
-		sink.src.live = ok || args.Live
+		sink.stateSecret, ok = args.Secrets[api.SecretNameState]
+		sink.live = ok || args.Live
 	}
 
-	if sink.src.instance.Type() == instancetype.Container {
+	if sink.instance.Type() == instancetype.Container {
 		_, err = exec.LookPath("criu")
-		if sink.push && sink.dest.live && err != nil {
+		if sink.push && sink.live && err != nil {
 			return nil, migration.ErrNoLiveMigrationTarget
-		} else if sink.src.live && err != nil {
+		} else if sink.live && err != nil {
 			return nil, migration.ErrNoLiveMigrationTarget
 		}
 	}
@@ -170,12 +172,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOperation) error {
-	live := c.src.live
-	if c.push {
-		live = c.dest.live
-	}
-
-	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.src.instance.Project().Name, "instance": c.src.instance.Name(), "live": live, "clusterMoveSourceName": c.clusterMoveSourceName})
+	l := logger.AddContext(logger.Log, logger.Ctx{"push": c.push, "project": c.instance.Project().Name, "instance": c.instance.Name(), "live": c.live, "clusterMoveSourceName": c.clusterMoveSourceName})
 
 	var err error
 
@@ -191,28 +188,28 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	}
 
 	if c.push {
-		defer c.dest.disconnect()
+		defer c.disconnect()
 	} else {
-		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
+		c.controlConn, err = c.connectWithSecret(c.controlSecret)
 		if err != nil {
 			err = fmt.Errorf("Failed connecting migration control sink socket: %w", err)
 			return err
 		}
 
-		defer c.src.disconnect()
+		defer c.disconnect()
 
-		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
+		c.fsConn, err = c.connectWithSecret(c.fsSecret)
 		if err != nil {
 			err = fmt.Errorf("Failed connecting migration filesystem sink socket: %w", err)
-			c.src.sendControl(err)
+			c.sendControl(err)
 			return err
 		}
 
-		if c.src.live && c.src.instance.Type() == instancetype.Container {
-			c.src.stateConn, err = c.connectWithSecret(c.src.stateSecret)
+		if c.live && c.instance.Type() == instancetype.Container {
+			c.stateConn, err = c.connectWithSecret(c.stateSecret)
 			if err != nil {
 				err = fmt.Errorf("Failed connecting migration state sink socket: %w", err)
-				c.src.sendControl(err)
+				c.sendControl(err)
 				return err
 			}
 		}
@@ -221,33 +218,21 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	l.Info("Migration channels connected on target")
 	defer l.Info("Migration channels disconnected on target")
 
-	receiver := c.src.recv
-	sender := c.src.send
-	stateConn := c.src.stateConn
-	fsConn := c.src.fsConn
-
-	if c.push {
-		receiver = c.dest.recv
-		sender = c.dest.send
-		stateConn = c.dest.stateConn
-		fsConn = c.dest.fsConn
-	}
-
-	err = c.src.instance.MigrateReceive(instance.MigrateReceiveArgs{
+	err = c.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
-			ControlSend:    sender,
-			ControlReceive: receiver,
-			StateConn:      &shared.WebsocketIO{Conn: stateConn},
-			FilesystemConn: &shared.WebsocketIO{Conn: fsConn},
-			Snapshots:      !c.dest.instanceOnly,
-			Live:           live,
+			ControlSend:    c.send,
+			ControlReceive: c.recv,
+			StateConn:      &shared.WebsocketIO{Conn: c.stateConn},
+			FilesystemConn: &shared.WebsocketIO{Conn: c.fsConn},
+			Snapshots:      !c.instanceOnly,
+			Live:           c.live,
 			Disconnect: func() {
-				if fsConn != nil {
-					_ = fsConn.Close()
+				if c.fsConn != nil {
+					_ = c.fsConn.Close()
 				}
 
-				if stateConn != nil {
-					_ = stateConn.Close()
+				if c.stateConn != nil {
+					_ = c.stateConn.Close()
 				}
 			},
 			ClusterMoveSourceName: c.clusterMoveSourceName,
