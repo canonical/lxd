@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"crypto/x509"
 	"io"
 	"net"
@@ -206,8 +207,8 @@ type Info struct {
 type MigrateArgs struct {
 	ControlSend           func(m proto.Message) error
 	ControlReceive        func(m proto.Message) error
-	StateConn             io.ReadWriteCloser
-	FilesystemConn        io.ReadWriteCloser
+	StateConn             func(ctx context.Context) io.ReadWriteCloser
+	FilesystemConn        func(ctx context.Context) io.ReadWriteCloser
 	Snapshots             bool
 	Live                  bool
 	Disconnect            func()
