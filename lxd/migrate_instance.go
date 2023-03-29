@@ -161,9 +161,7 @@ func newMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 
 	if sink.instance.Type() == instancetype.Container {
 		_, err = exec.LookPath("criu")
-		if sink.push && sink.live && err != nil {
-			return nil, migration.ErrNoLiveMigrationTarget
-		} else if sink.live && err != nil {
+		if sink.live && err != nil {
 			return nil, migration.ErrNoLiveMigrationTarget
 		}
 	}
