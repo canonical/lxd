@@ -364,7 +364,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 	run := func(op *operations.Operation) error {
 		defer runRevert.Fail()
 
-		sink.src.instance.SetOperation(op)
+		sink.instance.SetOperation(op)
 
 		// And finally run the migration.
 		err = sink.Do(d.State(), instOp)
