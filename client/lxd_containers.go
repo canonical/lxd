@@ -1758,7 +1758,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	}
 
 	// Start the request
-	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.DoHTTP, request)
 	if err != nil {
 		return nil, err
 	}
