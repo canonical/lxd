@@ -139,7 +139,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		// Setup the HTTP client
 		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
 		if err == nil {
-			resp, err := lxdDownloadImage(fingerprint, unixURI, r.httpUserAgent, devlxdHTTP, req)
+			resp, err := lxdDownloadImage(fingerprint, unixURI, r.httpUserAgent, devlxdHTTP.Do, req)
 			if err == nil {
 				return resp, nil
 			}
@@ -162,10 +162,10 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	httpTransport.ResponseHeaderTimeout = 30 * time.Second
 	httpClient.Transport = httpTransport
 
-	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, &httpClient, req)
+	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, r.DoHTTP, req)
 }
 
-func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *http.Client, req ImageFileRequest) (*ImageFileResponse, error) {
+func lxdDownloadImage(fingerprint string, uri string, userAgent string, do func(*http.Request) (*http.Response, error), req ImageFileRequest) (*ImageFileResponse, error) {
 	// Prepare the response
 	resp := ImageFileResponse{}
 
@@ -180,7 +180,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 	}
 
 	// Start the request
-	response, doneCh, err := cancel.CancelableDownload(req.Canceler, client.Do, request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, do, request)
 	if err != nil {
 		return nil, err
 	}
