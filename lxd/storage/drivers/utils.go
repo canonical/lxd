@@ -838,6 +838,12 @@ func loopDeviceAutoDetach(loopDevPath string) error {
 	return err
 }
 
+// loopDeviceSetCapacity forces the loop driver to reread the size of the file associated with the specified loop device.
+func loopDeviceSetCapacity(loopDevPath string) error {
+	_, err := shared.RunCommand("losetup", "--set-capacity", loopDevPath)
+	return err
+}
+
 // wipeBlockHeaders will wipe the first 4MB of a block device.
 func wipeBlockHeaders(path string) error {
 	// Open /dev/zero.
