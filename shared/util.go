@@ -1120,7 +1120,7 @@ func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent st
 	}
 
 	// Perform the request
-	r, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
+	r, doneCh, err := cancel.CancelableDownload(canceler, httpClient.Do, req)
 	if err != nil {
 		return -1, err
 	}
