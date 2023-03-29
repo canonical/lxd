@@ -862,17 +862,16 @@ func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 	}}
 }
 
-type qemuVmgenOpts struct {
-	driver string
-	guid   string
+type qemuVmgenIDOpts struct {
+	guid string
 }
 
-func qemuVmgen(opts *qemuVmgenOpts) []cfgSection {
+func qemuVmgen(opts *qemuVmgenIDOpts) []cfgSection {
 	return []cfgSection{{
-		name:    `device "genid0"`,
+		name:    `device "vmgenid0"`,
 		comment: "VM Generation ID",
 		entries: []cfgEntry{
-			{key: "driver", value: opts.driver},
+			{key: "driver", value: "vmgenid"},
 			{key: "guid", value: opts.guid},
 		},
 	}}
