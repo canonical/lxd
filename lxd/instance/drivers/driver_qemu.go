@@ -5796,6 +5796,15 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	d.logger.Debug("Sent migration response to source")
 
+	// Wait for migration connections.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn := args.FilesystemConn(connectionsCtx)
+	if filesystemConn == nil {
+		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5948,7 +5957,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
