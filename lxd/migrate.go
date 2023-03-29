@@ -341,12 +341,12 @@ func (s *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 // Metadata returns metadata for the migration sink.
 func (s *migrationSink) Metadata() any {
 	secrets := shared.Jmap{
-		api.SecretNameControl:    s.dest.controlSecret,
-		api.SecretNameFilesystem: s.dest.fsSecret,
+		api.SecretNameControl:    s.controlSecret,
+		api.SecretNameFilesystem: s.fsSecret,
 	}
 
-	if s.dest.stateSecret != "" {
-		secrets[api.SecretNameState] = s.dest.stateSecret
+	if s.stateSecret != "" {
+		secrets[api.SecretNameState] = s.stateSecret
 	}
 
 	return secrets
@@ -363,14 +363,14 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	var connName string
 
 	switch secret {
-	case s.dest.controlSecret:
-		conn = &s.dest.controlConn
+	case s.controlSecret:
+		conn = &s.controlConn
 		connName = api.SecretNameControl
-	case s.dest.stateSecret:
-		conn = &s.dest.stateConn
+	case s.stateSecret:
+		conn = &s.stateConn
 		connName = api.SecretNameState
-	case s.dest.fsSecret:
-		conn = &s.dest.fsConn
+	case s.fsSecret:
+		conn = &s.fsConn
 		connName = api.SecretNameFilesystem
 	default:
 		/* If we didn't find the right secret, the user provided a bad one,
@@ -399,15 +399,15 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 	*conn = c
 
 	// Check criteria for considering all channels to be connected.
-	if s.src.instance != nil && s.src.instance.Type() == instancetype.Container && s.dest.live && s.dest.stateConn == nil {
+	if s.instance != nil && s.instance.Type() == instancetype.Container && s.live && s.stateConn == nil {
 		return nil
 	}
 
-	if s.dest.controlConn == nil {
+	if s.controlConn == nil {
 		return nil
 	}
 
-	if s.dest.fsConn == nil {
+	if s.fsConn == nil {
 		return nil
 	}
 

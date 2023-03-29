@@ -167,8 +167,9 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:     migrationFields{volumeOnly: args.VolumeOnly},
-		dest:    migrationFields{volumeOnly: args.VolumeOnly},
+		migrationFields: migrationFields{
+			volumeOnly: args.VolumeOnly,
+		},
 		url:     args.URL,
 		dialer:  args.Dialer,
 		push:    args.Push,
@@ -182,22 +183,22 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 	var ok bool
 	var err error
 	if sink.push {
-		sink.dest.controlSecret, err = shared.RandomCryptoString()
+		sink.controlSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
 		}
 
-		sink.dest.fsSecret, err = shared.RandomCryptoString()
+		sink.fsSecret, err = shared.RandomCryptoString()
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
 		}
 	} else {
-		sink.src.controlSecret, ok = args.Secrets[api.SecretNameControl]
+		sink.controlSecret, ok = args.Secrets[api.SecretNameControl]
 		if !ok {
 			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
 		}
 
-		sink.src.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
+		sink.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
 		if !ok {
 			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
 		}
@@ -221,50 +222,30 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		logger.Info("Migration channels connected")
 	}
 
-	disconnector := c.src.disconnect
 	if c.push {
-		disconnector = c.dest.disconnect
-	}
-
-	if c.push {
-		defer disconnector()
+		defer c.disconnect()
 	} else {
-		c.src.controlConn, err = c.connectWithSecret(c.src.controlSecret)
+		c.controlConn, err = c.connectWithSecret(c.controlSecret)
 		if err != nil {
 			err = fmt.Errorf("Failed connecting migration control sink socket: %w", err)
 			return err
 		}
 
-		defer c.src.disconnect()
+		defer c.disconnect()
 
-		c.src.fsConn, err = c.connectWithSecret(c.src.fsSecret)
+		c.fsConn, err = c.connectWithSecret(c.fsSecret)
 		if err != nil {
 			err = fmt.Errorf("Failed connecting migration filesystem sink socket: %w", err)
-			c.src.sendControl(err)
+			c.sendControl(err)
 			return err
 		}
 	}
 
-	receiver := c.src.recv
-	if c.push {
-		receiver = c.dest.recv
-	}
-
-	sender := c.src.send
-	if c.push {
-		sender = c.dest.send
-	}
-
-	controller := c.src.sendControl
-	if c.push {
-		controller = c.dest.sendControl
-	}
-
 	offerHeader := &migration.MigrationHeader{}
-	err = receiver(offerHeader)
+	err = c.recv(offerHeader)
 	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration header")
-		controller(err)
+		c.sendControl(err)
 		return err
 	}
 
@@ -293,7 +274,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
-	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh, !c.src.volumeOnly))
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh, !c.volumeOnly))
 	if err != nil {
 		return err
 	}
@@ -355,7 +336,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		// Get existing snapshots on the local target.
 		targetSnapshots, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, req.Name, storageDrivers.VolumeTypeCustom)
 		if err != nil {
-			controller(err)
+			c.sendControl(err)
 			return err
 		}
 
@@ -376,7 +357,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		for _, deleteTargetSnapshotIndex := range deleteTargetSnapshotIndexes {
 			err := pool.DeleteCustomVolumeSnapshot(projectName, targetSnapshots[deleteTargetSnapshotIndex].Name, op)
 			if err != nil {
-				controller(err)
+				c.sendControl(err)
 				return err
 			}
 		}
@@ -395,10 +376,10 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
-	err = sender(respHeader)
+	err = c.send(respHeader)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")
-		controller(err)
+		c.sendControl(err)
 		return err
 	}
 
@@ -412,24 +393,17 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		fsTransfer := make(chan error)
 
 		go func() {
-			var fsConn *websocket.Conn
-			if c.push {
-				fsConn = c.dest.fsConn
-			} else {
-				fsConn = c.src.fsConn
-			}
-
 			// Get rsync options from sender, these are passed into mySink function
 			// as part of MigrationSinkArgs below.
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 			args := migrationSinkArgs{
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     respHeader.Snapshots,
-				VolumeOnly:    c.src.volumeOnly,
+				VolumeOnly:    c.volumeOnly,
 				Refresh:       c.refresh,
 			}
 
-			err = myTarget(fsConn, op, args)
+			err = myTarget(c.fsConn, op, args)
 			if err != nil {
 				fsTransfer <- err
 				return
@@ -447,34 +421,27 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		restore <- nil
 	}(c)
 
-	var source <-chan *migration.ControlResponse
-	if c.push {
-		source = c.dest.controlChannel()
-	} else {
-		source = c.src.controlChannel()
-	}
-
 	for {
 		select {
 		case err = <-restore:
 			if err != nil {
-				disconnector()
+				c.disconnect()
 				return err
 			}
 
-			controller(nil)
+			c.sendControl(nil)
 			logger.Debug("Migration sink finished receiving storage volume")
 
 			return nil
-		case msg := <-source:
+		case msg := <-c.controlChannel():
 			if msg.Err != nil {
-				disconnector()
+				c.disconnect()
 
 				return fmt.Errorf("Got error reading migration source: %w", msg.Err)
 			}
 
 			if !*msg.Success {
-				disconnector()
+				c.disconnect()
 
 				return fmt.Errorf(*msg.Message)
 			}
