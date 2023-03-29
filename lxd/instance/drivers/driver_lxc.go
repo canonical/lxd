@@ -5197,6 +5197,23 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		volSourceArgs.MultiSync = true
 	}
 
+	// Wait for migration connections.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn := args.FilesystemConn(connectionsCtx)
+	if filesystemConn == nil {
+		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn = args.StateConn(connectionsCtx)
+		if stateConn == nil {
+			return fmt.Errorf("Timed out waiting for migration state connection")
+		}
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Start control connection monitor.
@@ -5251,7 +5268,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 		d.logger.Debug("Starting storage migration phase")
 
-		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
@@ -5366,7 +5383,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 						dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 						loopArgs := preDumpLoopArgs{
-							stateConn:     args.StateConn,
+							stateConn:     stateConn,
 							checkpointDir: checkpointDir,
 							bwlimit:       rsyncBwlimit,
 							preDumpDir:    preDumpDir,
@@ -5446,7 +5463,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// parallel. In the future when we're using p.haul's protocol, it will make sense
 			// to do these in parallel.
 			ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.StateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
+			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), stateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
 			if err != nil {
 				return err
 			}
@@ -5464,7 +5481,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			volSourceArgs.Snapshots = nil
 			volSourceArgs.Info.Config.VolumeSnapshots = nil
 
-			err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
