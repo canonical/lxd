@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"time"
 
@@ -77,13 +78,29 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
 
+	stateConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+		if s.stateConn == nil {
+			return nil
+		}
+
+		return &shared.WebsocketIO{Conn: s.stateConn}
+	}
+
+	filesystemConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+		if s.fsConn == nil {
+			return nil
+		}
+
+		return &shared.WebsocketIO{Conn: s.fsConn}
+	}
+
 	s.instance.SetOperation(migrateOp)
 	err := s.instance.MigrateSend(instance.MigrateSendArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
-			StateConn:      &shared.WebsocketIO{Conn: s.stateConn},
-			FilesystemConn: &shared.WebsocketIO{Conn: s.fsConn},
+			StateConn:      stateConnFunc,
+			FilesystemConn: filesystemConnFunc,
 			Snapshots:      !s.instanceOnly,
 			Live:           s.live,
 			Disconnect: func() {
@@ -216,12 +233,28 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	l.Info("Migration channels connected on target")
 	defer l.Info("Migration channels disconnected on target")
 
+	stateConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+		if c.stateConn == nil {
+			return nil
+		}
+
+		return &shared.WebsocketIO{Conn: c.stateConn}
+	}
+
+	filesystemConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+		if c.fsConn == nil {
+			return nil
+		}
+
+		return &shared.WebsocketIO{Conn: c.fsConn}
+	}
+
 	err = c.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    c.send,
 			ControlReceive: c.recv,
-			StateConn:      &shared.WebsocketIO{Conn: c.stateConn},
-			FilesystemConn: &shared.WebsocketIO{Conn: c.fsConn},
+			StateConn:      stateConnFunc,
+			FilesystemConn: filesystemConnFunc,
 			Snapshots:      !c.instanceOnly,
 			Live:           c.live,
 			Disconnect: func() {
