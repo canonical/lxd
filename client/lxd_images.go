@@ -180,7 +180,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 	}
 
 	// Start the request
-	response, doneCh, err := cancel.CancelableDownload(req.Canceler, client, request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, client.Do, request)
 	if err != nil {
 		return nil, err
 	}

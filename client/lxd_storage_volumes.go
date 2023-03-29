@@ -883,7 +883,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	}
 
 	// Start the request
-	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.DoHTTP, request)
 	if err != nil {
 		return nil, err
 	}
