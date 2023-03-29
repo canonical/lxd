@@ -289,12 +289,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 }
 
 type migrationSink struct {
-	// We are pulling the entity from src in pull mode.
-	src migrationFields
-	// The entity is pushed from src to dest in push mode. Note that
-	// websocket connections are not set in push mode. Only the secret
-	// fields are used since the client will connect to the sockets.
-	dest migrationFields
+	migrationFields
 
 	url                   string
 	dialer                websocket.Dialer
