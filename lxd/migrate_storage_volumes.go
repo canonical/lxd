@@ -206,36 +206,31 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 			volumeOnly: args.VolumeOnly,
 		},
 		url:     args.URL,
-		dialer:  args.Dialer,
 		push:    args.Push,
 		refresh: args.Refresh,
 	}
 
-	if sink.push {
-		sink.allConnected = cancel.New(context.Background())
-	}
+	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
+	sink.conns = make(map[string]*migrationConn, len(secretNames))
+	for _, connName := range secretNames {
+		if !sink.push {
+			if args.Secrets[connName] == "" {
+				return nil, fmt.Errorf("Expected %q connection secret missing from migration sink target request", connName)
+			}
 
-	var ok bool
-	var err error
-	if sink.push {
-		sink.controlSecret, err = shared.RandomCryptoString()
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating migration sink secret for control websocket: %w", err)
-		}
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(args.URL, "https://")))
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing websocket URL for migration sink %q connection: %w", connName, err)
+			}
 
-		sink.fsSecret, err = shared.RandomCryptoString()
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating migration sink secret for filesystem websocket: %w", err)
-		}
-	} else {
-		sink.controlSecret, ok = args.Secrets[api.SecretNameControl]
-		if !ok {
-			return nil, fmt.Errorf("Missing migration sink secret for control websocket")
-		}
+			sink.conns[connName] = newMigrationConn(args.Secrets[connName], args.Dialer, u)
+		} else {
+			secret, err := shared.RandomCryptoString()
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating migration sink secret for %q connection: %w", connName, err)
+			}
 
-		sink.fsSecret, ok = args.Secrets[api.SecretNameFilesystem]
-		if !ok {
-			return nil, fmt.Errorf("Missing migration sink secret for filesystem websocket")
+			sink.conns[connName] = newMigrationConn(secret, nil, nil)
 		}
 	}
 
@@ -243,41 +238,30 @@ func newStorageMigrationSink(args *migrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
-	var err error
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "pool": poolName, "volume": req.Name, "push": c.push})
 
-	if c.push {
-		logger.Info("Waiting for migration channel connections")
-		select {
-		case <-time.After(time.Second * 10):
-			c.allConnected.Cancel()
-			return fmt.Errorf("Timed out waiting for connections")
-		case <-c.allConnected.Done():
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
+	l.Info("Waiting for migration connections on target")
+
+	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
+		_, err := c.conns[connName].WebSocket(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for migration %q connection on target: %w", connName, err)
 		}
-
-		logger.Info("Migration channels connected")
 	}
 
+	l.Info("Migration channels connected on target")
+
+	defer l.Info("Migration channels disconnected on target")
+
 	if c.push {
 		defer c.disconnect()
-	} else {
-		c.controlConn, err = c.connectWithSecret(c.controlSecret)
-		if err != nil {
-			err = fmt.Errorf("Failed connecting migration control sink socket: %w", err)
-			return err
-		}
-
-		defer c.disconnect()
-
-		c.fsConn, err = c.connectWithSecret(c.fsSecret)
-		if err != nil {
-			err = fmt.Errorf("Failed connecting migration filesystem sink socket: %w", err)
-			c.sendControl(err)
-			return err
-		}
 	}
 
 	offerHeader := &migration.MigrationHeader{}
-	err = c.recv(offerHeader)
+	err := c.recv(offerHeader)
 	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration header")
 		c.sendControl(err)
@@ -285,7 +269,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	}
 
 	// The function that will be executed to receive the sender's migration data.
-	var myTarget func(conn *websocket.Conn, op *operations.Operation, args migrationSinkArgs) error
+	var myTarget func(conn *shared.WebsocketIO, op *operations.Operation, args migrationSinkArgs) error
 
 	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
@@ -332,7 +316,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 	// with the new storage layer.
-	myTarget = func(conn *websocket.Conn, op *operations.Operation, args migrationSinkArgs) error {
+	myTarget = func(conn *shared.WebsocketIO, op *operations.Operation, args migrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
 			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
 			Name:               req.Name,
@@ -354,7 +338,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			}
 		}
 
-		return pool.CreateCustomVolumeFromMigration(projectName, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		return pool.CreateCustomVolumeFromMigration(projectName, conn, volTargetArgs, op)
 	}
 
 	if c.refresh {
@@ -438,7 +422,13 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 				Refresh:       c.refresh,
 			}
 
-			err = myTarget(c.fsConn, op, args)
+			fsConn, err := c.conns[api.SecretNameFilesystem].WebsocketIO(context.TODO())
+			if err != nil {
+				fsTransfer <- err
+				return
+			}
+
+			err = myTarget(fsConn, op, args)
 			if err != nil {
 				fsTransfer <- err
 				return
@@ -487,11 +477,6 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			logger.Warn("Unknown message from migration source", logger.Ctx{"message": *msg.Message})
 		}
 	}
-}
-
-func (s *migrationSourceWs) ConnectStorageTarget(target api.StorageVolumePostTarget) error {
-	logger.Debugf("Storage migration source is connecting")
-	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
 func volumeSnapshotToProtobuf(vol *api.StorageVolumeSnapshot) *migration.Snapshot {
