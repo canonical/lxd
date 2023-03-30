@@ -873,7 +873,7 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 	// to avoid this function relying on the legacy storage layer.
 	migrationArgs := migrationSinkArgs{
 		URL: req.Source.Operation,
-		Dialer: websocket.Dialer{
+		Dialer: &websocket.Dialer{
 			TLSClientConfig:  config,
 			NetDialContext:   shared.RFC3493Dialer,
 			HandshakeTimeout: time.Second * 5,
