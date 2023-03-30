@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
@@ -314,36 +311,21 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 
 	revert.Add(func() { instOp.Done(err) })
 
-	var cert *x509.Certificate
-	if req.Source.Certificate != "" {
-		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
-		if certBlock == nil {
-			return response.InternalError(fmt.Errorf("Invalid certificate"))
-		}
-
-		cert, err = x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return response.InternalError(err)
-		}
-	}
-
-	config, err := shared.GetTLSConfig("", "", "", cert)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
 	push := false
+	var dialer *websocket.Dialer
+
 	if req.Source.Mode == "push" {
 		push = true
+	} else {
+		dialer, err = setupWebsocketDialer(req.Source.Certificate)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed setting up websocket dialer for migration sink connections: %w", err))
+		}
 	}
 
 	migrationArgs := migrationSinkArgs{
-		URL: req.Source.Operation,
-		Dialer: websocket.Dialer{
-			TLSClientConfig:  config,
-			NetDialContext:   shared.RFC3493Dialer,
-			HandshakeTimeout: time.Second * 5,
-		},
+		URL:                   req.Source.Operation,
+		Dialer:                dialer,
 		Instance:              inst,
 		Secrets:               req.Source.Websockets,
 		Push:                  push,
