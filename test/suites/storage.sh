@@ -899,6 +899,66 @@ test_storage() {
   lxc storage delete "${storage_pool}"
   lxc image show testimage
 
+  # Test storage pool resize
+  if [ "${lxd_backend}" = "btrfs" ] || [ "${lxd_backend}" = "lvm" ] || [ "${lxd_backend}" = "zfs" ]; then
+    # shellcheck disable=SC1009
+    pool_name="lxdtest-$(basename "${LXD_DIR}")-pool1"
+
+    lxc storage create "${pool_name}" "${lxd_backend}" size=1GiB
+
+    lxc launch testimage c1 -s "${pool_name}"
+
+    expected_size=1073741824
+    # +/- 5% of the expected size
+    expected_size_min=1020054732
+    expected_size_max=1127428916
+
+    # Check pool file size
+    [ "$(stat --format="%s" "${LXD_DIR}/disks/${pool_name}.img")" = "${expected_size}" ]
+
+    if [ "${lxd_backend}" = "btrfs" ]; then
+      actual_size="$(btrfs filesystem show --raw "${LXD_DIR}/disks/${pool_name}.img" | awk '/devid/{print $4}')"
+    elif [ "${lxd_backend}" = "lvm" ]; then
+      actual_size="$(lvs --noheadings --nosuffix --units b --options='lv_size' "lxdtest-$(basename "${LXD_DIR}")/LXDThinPool")"
+    elif [ "${lxd_backend}" = "zfs" ]; then
+      actual_size="$(zpool list -Hp "${pool_name}" | awk '{print $2}')"
+    fi
+
+    # Check that pool size is within the expected range
+    [ "${actual_size}" -ge "${expected_size_min}" ] || [ "${actual_size}" -le "${expected_size_max}" ]
+
+    # Grow pool
+    lxc storage set "${pool_name}" size=2GiB
+
+    expected_size=2147483648
+    # +/- 5% of the expected size
+    expected_size_min=2040109465
+    expected_size_max=2254857831
+
+    # Check pool file size
+    [ "$(stat --format="%s" "${LXD_DIR}/disks/${pool_name}.img")" = "${expected_size}" ]
+
+    if [ "${lxd_backend}" = "btrfs" ]; then
+      actual_size="$(btrfs filesystem show --raw "${LXD_DIR}/disks/${pool_name}.img" | awk '/devid/{print $4}')"
+    elif [ "${lxd_backend}" = "lvm" ]; then
+      actual_size="$(lvs --noheadings --nosuffix --units b --options='lv_size' "lxdtest-$(basename "${LXD_DIR}")/LXDThinPool")"
+    elif [ "${lxd_backend}" = "zfs" ]; then
+      actual_size="$(zpool list -Hp "${pool_name}" | awk '{print $2}')"
+    fi
+
+    # Check that pool size is within the expected range
+    [ "${actual_size}" -ge "${expected_size_min}" ] || [ "${actual_size}" -le "${expected_size_max}" ]
+
+    # Shrinking the pool should fail
+    ! lxc storage set "${pool_name}" size=1GiB || false
+
+    # Ensure the pool is still usable after resizing by launching an instance
+    lxc launch testimage c2 -s "${pool_name}"
+
+    lxc rm -f c1 c2
+    lxc storage rm "${pool_name}"
+  fi
+
   # shellcheck disable=SC2031,2269
   LXD_DIR="${LXD_DIR}"
   kill_lxd "${LXD_STORAGE_DIR}"
