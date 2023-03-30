@@ -5197,6 +5197,23 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		volSourceArgs.MultiSync = true
 	}
 
+	// Wait for migration connections.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn := args.FilesystemConn(connectionsCtx)
+	if filesystemConn == nil {
+		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn = args.StateConn(connectionsCtx)
+		if stateConn == nil {
+			return fmt.Errorf("Timed out waiting for migration state connection")
+		}
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Start control connection monitor.
@@ -5251,7 +5268,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 		d.logger.Debug("Starting storage migration phase")
 
-		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
@@ -5366,7 +5383,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 						dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 						loopArgs := preDumpLoopArgs{
-							stateConn:     args.StateConn,
+							stateConn:     stateConn,
 							checkpointDir: checkpointDir,
 							bwlimit:       rsyncBwlimit,
 							preDumpDir:    preDumpDir,
@@ -5446,7 +5463,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// parallel. In the future when we're using p.haul's protocol, it will make sense
 			// to do these in parallel.
 			ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.StateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
+			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), stateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
 			if err != nil {
 				return err
 			}
@@ -5464,7 +5481,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			volSourceArgs.Snapshots = nil
 			volSourceArgs.Info.Config.VolumeSnapshots = nil
 
-			err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
@@ -5800,6 +5817,23 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 	}
 
+	// Wait for migration connections.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn := args.FilesystemConn(connectionsCtx)
+	if filesystemConn == nil {
+		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn = args.StateConn(connectionsCtx)
+		if stateConn == nil {
+			return fmt.Errorf("Timed out waiting for migration state connection")
+		}
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -5968,7 +6002,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
@@ -6035,7 +6069,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					d.logger.Debug("Waiting to receive pre-dump rsync")
 
 					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
+					err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
 					if err != nil {
 						return fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
 					}
@@ -6049,7 +6083,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// So define a small buffer sufficient to fit migration.MigrationSync and
 					// then read what we have into it.
 					buf := make([]byte, 128)
-					n, err := args.StateConn.Read(buf)
+					n, err := stateConn.Read(buf)
 					if err != nil {
 						return fmt.Errorf("Failed receiving pre-dump header: %w", err)
 					}
@@ -6065,7 +6099,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			// Final CRIU dump.
 			d.logger.Debug("About to receive final dump rsync")
-			err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
+			err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
 			if err != nil {
 				return fmt.Errorf("Failed receiving final dump rsync: %w", err)
 			}

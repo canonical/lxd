@@ -498,7 +498,8 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 }
 
 var WebsocketUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin:      func(r *http.Request) bool { return true },
+	HandshakeTimeout: time.Second * 5,
 }
 
 // AllocatePort asks the kernel for a free open port that is ready to use.
