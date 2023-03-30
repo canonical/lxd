@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/instance"
@@ -15,46 +17,64 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool, allowInconsistent bool, clusterMoveSourceName string, pushTarget *api.InstancePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{
 			instance:          inst,
 			allowInconsistent: allowInconsistent,
 		},
-		allConnected:          cancel.New(context.Background()),
 		clusterMoveSourceName: clusterMoveSourceName,
+	}
+
+	if pushTarget != nil {
+		ret.pushCertificate = pushTarget.Certificate
+		ret.pushOperationURL = pushTarget.Operation
+		ret.pushSecrets = pushTarget.Websockets
 	}
 
 	ret.instanceOnly = instanceOnly
 
-	var err error
-	ret.controlSecret, err = shared.RandomCryptoString()
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
-	}
-
-	ret.fsSecret, err = shared.RandomCryptoString()
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating migration source secret for filesystem websocket: %w", err)
-	}
-
+	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
 	if stateful && inst.IsRunning() {
-		ret.live = true
-
 		if inst.Type() == instancetype.Container {
 			_, err := exec.LookPath("criu")
 			if err != nil {
 				return nil, migration.ErrNoLiveMigrationSource
 			}
+		}
 
-			ret.stateSecret, err = shared.RandomCryptoString()
-			if err != nil {
-				return nil, fmt.Errorf("Failed creating migration source secret for state websocket: %w", err)
+		ret.live = true
+		secretNames = append(secretNames, api.SecretNameState)
+	}
+
+	ret.conns = make(map[string]*migrationConn, len(secretNames))
+	for _, connName := range secretNames {
+		if ret.pushOperationURL != "" {
+			if ret.pushSecrets[connName] == "" {
+				return nil, fmt.Errorf("Expected %q connection secret missing from migration source target request", connName)
 			}
+
+			dialer, err := setupWebsocketDialer(ret.pushCertificate)
+			if err != nil {
+				return nil, fmt.Errorf("Failed setting up websocket dialer for migration source %q connection: %w", connName, err)
+			}
+
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(ret.pushOperationURL, "https://")))
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing websocket URL for migration source %q connection: %w", connName, err)
+			}
+
+			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u)
+		} else {
+			secret, err := shared.RandomCryptoString()
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating migration source secret for %q connection: %w", connName, err)
+			}
+
+			ret.conns[connName] = newMigrationConn(secret, nil, nil)
 		}
 	}
 
@@ -64,13 +84,16 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName})
 
-	l.Info("Waiting for migration channel connections on source")
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
 
-	select {
-	case <-time.After(time.Second * 10):
-		s.allConnected.Cancel()
-		return fmt.Errorf("Timed out waiting for migration connections")
-	case <-s.allConnected.Done():
+	l.Info("Waiting for migration connections on source")
+
+	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
+		_, err := s.conns[connName].WebSocket(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for migration %q connection on source: %w", connName, err)
+		}
 	}
 
 	l.Info("Migration channels connected on source")
@@ -79,19 +102,35 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	defer s.disconnect()
 
 	stateConnFunc := func(ctx context.Context) io.ReadWriteCloser {
-		if s.stateConn == nil {
-			return nil
+		conn := s.conns[api.SecretNameState]
+		if conn != nil {
+			wsConn, err := conn.WebsocketIO(ctx)
+			if err != nil {
+				l.Error("Failed getting migration source websocket", logger.Ctx{"connName": api.SecretNameState, "err": err})
+
+				return nil
+			}
+
+			return wsConn
 		}
 
-		return &shared.WebsocketIO{Conn: s.stateConn}
+		return nil
 	}
 
 	filesystemConnFunc := func(ctx context.Context) io.ReadWriteCloser {
-		if s.fsConn == nil {
-			return nil
+		conn := s.conns[api.SecretNameFilesystem]
+		if conn != nil {
+			wsConn, err := conn.WebsocketIO(ctx)
+			if err != nil {
+				l.Error("Failed getting migration source websocket", logger.Ctx{"connName": api.SecretNameFilesystem, "err": err})
+
+				return nil
+			}
+
+			return wsConn
 		}
 
-		return &shared.WebsocketIO{Conn: s.fsConn}
+		return nil
 	}
 
 	s.instance.SetOperation(migrateOp)
@@ -104,12 +143,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			Snapshots:      !s.instanceOnly,
 			Live:           s.live,
 			Disconnect: func() {
-				if s.fsConn != nil {
-					_ = s.fsConn.Close()
-				}
-
-				if s.stateConn != nil {
-					_ = s.stateConn.Close()
+				for connName, conn := range s.conns {
+					if connName != api.SecretNameControl {
+						conn.Close()
+					}
 				}
 			},
 			ClusterMoveSourceName: s.clusterMoveSourceName,
