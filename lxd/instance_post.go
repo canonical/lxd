@@ -645,7 +645,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return fmt.Errorf("Unexpected result from source instance render: %w", err)
 		}
 
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName)
+		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
@@ -669,13 +669,9 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return fmt.Errorf("Failed starting migration source operation: %w", err)
 		}
 
-		sourceSecrets := map[string]string{
-			api.SecretNameControl:    srcMigration.controlSecret,
-			api.SecretNameFilesystem: srcMigration.fsSecret,
-		}
-
-		if live {
-			sourceSecrets[api.SecretNameState] = srcMigration.stateSecret
+		sourceSecrets := make(map[string]string, len(srcMigration.conns))
+		for connName, conn := range srcMigration.conns {
+			sourceSecrets[connName] = conn.Secret()
 		}
 
 		// Request pull mode migration on destination.
