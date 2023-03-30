@@ -319,7 +319,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "")
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "", req.Target)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -341,12 +341,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Target != nil {
-			// Push mode
-			err := ws.ConnectContainerTarget(*req.Target)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
+			// Push mode.
 			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
@@ -650,7 +645,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return fmt.Errorf("Unexpected result from source instance render: %w", err)
 		}
 
-		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName)
+		srcMigration, err := newMigrationSource(srcInst, live, false, allowInconsistent, srcInstName, nil)
 		if err != nil {
 			return fmt.Errorf("Failed setting up instance migration on source: %w", err)
 		}
@@ -674,13 +669,9 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 			return fmt.Errorf("Failed starting migration source operation: %w", err)
 		}
 
-		sourceSecrets := map[string]string{
-			api.SecretNameControl:    srcMigration.controlSecret,
-			api.SecretNameFilesystem: srcMigration.fsSecret,
-		}
-
-		if live {
-			sourceSecrets[api.SecretNameState] = srcMigration.stateSecret
+		sourceSecrets := make(map[string]string, len(srcMigration.conns))
+		for connName, conn := range srcMigration.conns {
+			sourceSecrets[connName] = conn.Secret()
 		}
 
 		// Request pull mode migration on destination.
