@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -15,43 +16,72 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
+func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePostTarget) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{
 		migrationFields: migrationFields{},
-		allConnected:    cancel.New(context.Background()),
+	}
+
+	if pushTarget != nil {
+		ret.pushCertificate = pushTarget.Certificate
+		ret.pushOperationURL = pushTarget.Operation
+		ret.pushSecrets = pushTarget.Websockets
 	}
 
 	ret.volumeOnly = volumeOnly
 
-	var err error
-	ret.controlSecret, err = shared.RandomCryptoString()
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating migration source secret for control websocket: %w", err)
-	}
+	secretNames := []string{api.SecretNameControl, api.SecretNameFilesystem}
+	ret.conns = make(map[string]*migrationConn, len(secretNames))
+	for _, connName := range secretNames {
+		if ret.pushOperationURL != "" {
+			if ret.pushSecrets[connName] == "" {
+				return nil, fmt.Errorf("Expected %q connection secret missing from migration source target request", connName)
+			}
 
-	ret.fsSecret, err = shared.RandomCryptoString()
-	if err != nil {
-		return nil, fmt.Errorf("Failed creating migration source secret for filesystem websocket: %w", err)
+			dialer, err := setupWebsocketDialer(ret.pushCertificate)
+			if err != nil {
+				return nil, fmt.Errorf("Failed setting up websocket dialer for migration source %q connection: %w", connName, err)
+			}
+
+			u, err := url.Parse(fmt.Sprintf("wss://%s/websocket", strings.TrimPrefix(ret.pushOperationURL, "https://")))
+			if err != nil {
+				return nil, fmt.Errorf("Failed parsing websocket URL for migration source %q connection: %w", connName, err)
+			}
+
+			ret.conns[connName] = newMigrationConn(ret.pushSecrets[connName], dialer, u)
+		} else {
+			secret, err := shared.RandomCryptoString()
+			if err != nil {
+				return nil, fmt.Errorf("Failed creating migration source secret for %q connection: %w", connName, err)
+			}
+
+			ret.conns[connName] = newMigrationConn(secret, nil, nil)
+		}
 	}
 
 	return &ret, nil
 }
 
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
-	logger.Info("Waiting for migration channel connections")
-	select {
-	case <-time.After(time.Second * 10):
-		s.allConnected.Cancel()
-		return fmt.Errorf("Timed out waiting for connections")
-	case <-s.allConnected.Done():
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "pool": poolName, "volume": volName})
+
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
+	l.Info("Waiting for migration connections on source")
+
+	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
+		_, err := s.conns[connName].WebSocket(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed waiting for migration %q connection on source: %w", connName, err)
+		}
 	}
 
-	logger.Info("Migration channels connected")
+	l.Info("Migration channels connected on source")
 
+	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
 
 	var poolMigrationTypes []migration.Type
@@ -143,7 +173,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		}
 	}
 
-	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	fsConn, err := s.conns[api.SecretNameFilesystem].WebsocketIO(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	err = pool.MigrateCustomVolume(projectName, fsConn, volSourceArgs, migrateOp)
 	if err != nil {
 		s.sendControl(err)
 		return err
