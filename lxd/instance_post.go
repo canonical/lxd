@@ -319,7 +319,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "")
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly, req.AllowInconsistent, "", req.Target)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -341,12 +341,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if req.Target != nil {
-			// Push mode
-			err := ws.ConnectContainerTarget(*req.Target)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
+			// Push mode.
 			op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, operationtype.InstanceMigrate, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
