@@ -935,7 +935,8 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 			// It is important that the snapshot not be mounted here as mounting a snapshot can trigger a very
 			// expensive filesystem UUID regeneration, so we rely on the driver implementation to get the info
 			// we are requesting as cheaply as possible.
-			apiRes.Size, _ = pool.GetInstanceUsage(snapInst)
+			volumeState, _ := pool.GetInstanceUsage(snapInst)
+			apiRes.Size = volumeState.Size
 		}
 
 		return nil

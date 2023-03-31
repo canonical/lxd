@@ -2481,19 +2481,19 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
-func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
+func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeState, error) {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("GetInstanceUsage started")
 	defer l.Debug("GetInstanceUsage finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
@@ -4965,15 +4965,15 @@ func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, e
 }
 
 // GetCustomVolumeUsage returns the disk space used by the custom volume.
-func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, error) {
+func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeState, error) {
 	err := b.isStatusReady()
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	// Get the volume name on storage.

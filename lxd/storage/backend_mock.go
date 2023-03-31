@@ -184,8 +184,8 @@ func (b *mockBackend) BackupInstance(inst instance.Instance, tarWriter *instance
 	return nil
 }
 
-func (b *mockBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
-	return 0, nil
+func (b *mockBackend) GetInstanceUsage(inst instance.Instance) (*VolumeState, error) {
+	return nil, nil
 }
 
 func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error {
@@ -304,8 +304,8 @@ func (b *mockBackend) GetCustomVolumeDisk(projectName string, volName string) (s
 	return "", nil
 }
 
-func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (int64, error) {
-	return 0, nil
+func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (*VolumeState, error) {
+	return nil, nil
 }
 
 func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) error {
