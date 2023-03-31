@@ -5503,8 +5503,6 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		return err
 	}
 
-	var poolMigrationTypes []migration.Type
-
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance: %w", err)
@@ -5514,7 +5512,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
+	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
 	}
