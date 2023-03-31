@@ -17,6 +17,7 @@ type Info struct {
 	DirectIO              bool         // Whether the driver supports direct I/O.
 	IOUring               bool         // Whether the driver supports io_uring.
 	MountedRoot           bool         // Whether the pool directory itself is a mount.
+	LiveMigrationQEMU     bool         // Whether the driver supports QEMU live migration.
 }
 
 // VolumeFiller provides a struct for filling a volume.
