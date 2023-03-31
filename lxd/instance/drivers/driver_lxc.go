@@ -5201,16 +5201,16 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
 	}
 
 	var stateConn io.ReadWriteCloser
 	if args.Live {
-		stateConn = args.StateConn(connectionsCtx)
-		if stateConn == nil {
-			return fmt.Errorf("Timed out waiting for migration state connection")
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -5821,16 +5821,16 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
 	}
 
 	var stateConn io.ReadWriteCloser
 	if args.Live {
-		stateConn = args.StateConn(connectionsCtx)
-		if stateConn == nil {
-			return fmt.Errorf("Timed out waiting for migration state connection")
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
 		}
 	}
 
