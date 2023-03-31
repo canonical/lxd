@@ -1,5 +1,7 @@
 package api
 
+import "github.com/lxc/lxd/lxd/storage"
+
 // InstanceStatePut represents the modifiable fields of a LXD instance's state.
 //
 // swagger:model
@@ -66,7 +68,7 @@ type InstanceState struct {
 type InstanceStateDisk struct {
 	// Disk usage in bytes
 	// Example: 502239232
-	Usage int64 `json:"usage" yaml:"usage"`
+	Usage storage.VolumeState `json:"usage" yaml:"usage"`
 }
 
 // InstanceStateCPU represents the cpu information section of a LXD instance's state.
