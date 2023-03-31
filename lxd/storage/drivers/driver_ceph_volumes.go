@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -854,8 +856,14 @@ func (d *ceph) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *ceph) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	isSnap := vol.IsSnapshot()
+
+	// TODO check for byte conversion
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	// If mounted, use the filesystem stats for pretty accurate usage information.
 	if !isSnap && vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
@@ -863,16 +871,19 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 
 		err := unix.Statfs(vol.MountPath(), &stat)
 		if err != nil {
-			return -1, err
+			return nil, err
 		}
 
-		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+		return &storage.VolumeState{
+			Size: volumeSize,
+			Used: int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize),
+		}, nil
 	}
 
 	// Running rbd du can be resource intensive, so users may want to miss disk usage
 	// data for stopped instances instead of dealing with the performance hit
 	if shared.IsFalse(d.config["ceph.rbd.du"]) {
-		return -1, fmt.Errorf("Cannot get disk usage of unmounted volume when ceph.rbd.du is false")
+		return nil, fmt.Errorf("Cannot get disk usage of unmounted volume when ceph.rbd.du is false")
 	}
 
 	// If not mounted (or not mountable), query the usage from ceph directly.
@@ -905,7 +916,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		d.getRBDVolumeName(vol, "", false, false),
 	)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	var usedSize int64
@@ -913,7 +924,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 
 	err = json.Unmarshal([]byte(jsonInfo), &result)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	_, snapName, _ := api.GetParentAndSnapshotName(vol.Name())
@@ -935,7 +946,10 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		}
 	}
 
-	return usedSize, nil
+	return &storage.VolumeState{
+		Size: volumeSize,
+		Used: usedSize,
+	}, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.

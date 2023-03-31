@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"net/url"
 	"os/exec"
@@ -352,8 +353,8 @@ func (d *common) UpdateVolume(vol Volume, changedConfig map[string]string) error
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.
-func (d *common) GetVolumeUsage(vol Volume) (int64, error) {
-	return -1, ErrNotSupported
+func (d *common) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
+	return nil, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.

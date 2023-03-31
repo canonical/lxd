@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"os"
 	"os/exec"
@@ -1481,9 +1482,15 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *zfs) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	// Determine what key to use.
 	key := "used"
+
+	// TODO check for byte conversion
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	// If volume isn't snapshot then we can take into account the zfs.use_refquota setting.
 	// Snapshots should also use the "used" ZFS property because the snapshot usage size represents the CoW
@@ -1498,26 +1505,32 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 			var stat unix.Statfs_t
 			err := unix.Statfs(vol.MountPath(), &stat)
 			if err != nil {
-				return -1, err
+				return nil, err
 			}
 
-			return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+			return &storage.VolumeState{
+				Size: volumeSize,
+				Used: int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize),
+			}, nil
 		}
 	}
 
 	// Get the current value.
 	value, err := d.getDatasetProperty(d.dataset(vol, false), key)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	// Convert to int.
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	return valueInt, nil
+	return &storage.VolumeState{
+		Size: volumeSize,
+		Used: valueInt,
+	}, nil
 }
 
 // SetVolumeQuota sets the quota/reservation on the volume.

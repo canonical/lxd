@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"os"
 	"path/filepath"
@@ -298,23 +299,32 @@ func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error
 }
 
 // GetVolumeUsage returns the disk space usage of a volume.
-func (d *cephfs) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *cephfs) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	// Snapshot usage not supported for CephFS.
 	if vol.IsSnapshot() {
-		return -1, ErrNotSupported
+		return nil, ErrNotSupported
+	}
+
+	// TODO check for byte conversion
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
 	}
 
 	out, err := shared.RunCommand("getfattr", "-n", "ceph.quota.max_bytes", "--only-values", GetVolumeMountPath(d.name, vol.volType, vol.name))
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	size, err := strconv.ParseInt(out, 10, 64)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	return size, nil
+	return &storage.VolumeState{
+		Size: volumeSize,
+		Used: size,
+	}, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.

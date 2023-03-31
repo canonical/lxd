@@ -7037,7 +7037,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		var usage int64
+		var usage *storagePools.VolumeState
 
 		if dev.Config["path"] == "/" {
 			pool, err := storagePools.LoadByInstance(d.state, d)
@@ -7073,7 +7073,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
+		disk[dev.Name] = api.InstanceStateDisk{Usage: *usage}
 	}
 
 	return disk

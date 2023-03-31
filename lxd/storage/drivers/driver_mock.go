@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -128,8 +129,8 @@ func (d *mock) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *mock) GetVolumeUsage(vol Volume) (int64, error) {
-	return 0, nil
+func (d *mock) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
+	return nil, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.

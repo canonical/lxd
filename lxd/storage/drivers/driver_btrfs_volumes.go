@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -949,18 +951,29 @@ func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error 
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *btrfs) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	// Attempt to get the qgroup information.
 	_, usage, err := d.getQGroup(vol.MountPath())
 	if err != nil {
 		if err == errBtrfsNoQuota {
-			return -1, ErrNotSupported
+			return nil, ErrNotSupported
 		}
 
-		return -1, err
+		return nil, err
 	}
 
-	return usage, nil
+	// TODO check for byte conversion
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	var volumeState = &storage.VolumeState{
+		Size: volumeSize,
+		Used: usage,
+	}
+
+	return volumeState, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.

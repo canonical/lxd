@@ -3,10 +3,12 @@ package drivers
 import (
 	"bufio"
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"math"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -341,10 +343,16 @@ func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume (this is not currently supported).
-func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *lvm) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	// Snapshot usage not supported for LVM.
 	if vol.IsSnapshot() {
-		return -1, ErrNotSupported
+		return nil, ErrNotSupported
+	}
+
+	// TODO check for byte conversion
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
 	}
 
 	// For non-snapshot filesystem volumes, we only return usage when the volume is mounted.
@@ -355,23 +363,29 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 		var stat unix.Statfs_t
 		err := unix.Statfs(vol.MountPath(), &stat)
 		if err != nil {
-			return -1, err
+			return nil, err
 		}
 
-		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+		return &storage.VolumeState{
+			Size: volumeSize,
+			Used: int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize),
+		}, nil
 	} else if vol.contentType == ContentTypeBlock && d.usesThinpool() {
 		// For non-snapshot thin pool block volumes we can calculate an approximate usage using the space
 		// allocated to the volume from the thin pool.
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		_, usedSize, err := d.thinPoolVolumeUsage(volDevPath)
 		if err != nil {
-			return -1, err
+			return nil, err
 		}
 
-		return int64(usedSize), nil
+		return &storage.VolumeState{
+			Size: volumeSize,
+			Used: int64(usedSize),
+		}, nil
 	}
 
-	return -1, ErrNotSupported
+	return nil, ErrNotSupported
 }
 
 // SetVolumeQuota applies a size limit on volume.

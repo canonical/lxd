@@ -3,9 +3,11 @@ package drivers
 import (
 	"errors"
 	"fmt"
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
@@ -262,22 +264,22 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
-func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
+func (d *dir) GetVolumeUsage(vol Volume) (*storage.VolumeState, error) {
 	// Snapshot usage not supported for Dir.
 	if vol.IsSnapshot() {
-		return -1, ErrNotSupported
+		return nil, ErrNotSupported
 	}
 
 	volPath := vol.MountPath()
 	ok, err := quota.Supported(volPath)
 	if err != nil || !ok {
-		return -1, ErrNotSupported
+		return nil, ErrNotSupported
 	}
 
 	// Get the volume ID for the volume to access quota.
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	projectID := d.quotaProjectID(volID)
@@ -285,10 +287,18 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 	// Get project quota used.
 	size, err := quota.GetProjectUsage(volPath, projectID)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	return size, nil
+	volumeSize, err := strconv.ParseInt(vol.ConfigSize(), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &storage.VolumeState{
+		Size: volumeSize,
+		Used: size,
+	}, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.

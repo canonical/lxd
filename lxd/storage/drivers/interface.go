@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"github.com/lxc/lxd/lxd/storage"
 	"io"
 	"net/url"
 
@@ -69,7 +70,7 @@ type Driver interface {
 	DeleteVolume(vol Volume, op *operations.Operation) error
 	RenameVolume(vol Volume, newName string, op *operations.Operation) error
 	UpdateVolume(vol Volume, changedConfig map[string]string) error
-	GetVolumeUsage(vol Volume) (int64, error)
+	GetVolumeUsage(vol Volume) (*storage.VolumeState, error)
 	SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error
 	GetVolumeDiskPath(vol Volume) (string, error)
 	ListVolumes() ([]Volume, error)
