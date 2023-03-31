@@ -87,16 +87,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
 	defer cancel()
 
-	l.Info("Waiting for migration connections on source")
+	l.Info("Waiting for migration control connection on source")
 
-	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
-		_, err := s.conns[connName].WebSocket(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed waiting for migration %q connection on source: %w", connName, err)
-		}
+	_, err := s.conns[api.SecretNameControl].WebSocket(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed waiting for migration control connection on source: %w", err)
 	}
 
-	l.Info("Migration channels connected on source")
+	l.Info("Migration control connection established on source")
 
 	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
@@ -130,7 +128,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 
 	s.instance.SetOperation(migrateOp)
-	err := s.instance.MigrateSend(instance.MigrateSendArgs{
+	err = s.instance.MigrateSend(instance.MigrateSendArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
@@ -214,16 +212,14 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
 	defer cancel()
 
-	l.Info("Waiting for migration connections on target")
+	l.Info("Waiting for migration control connection on target")
 
-	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
-		_, err := c.conns[connName].WebSocket(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed waiting for migration %q connection on target: %w", connName, err)
-		}
+	_, err := c.conns[api.SecretNameControl].WebSocket(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed waiting for migration control connection on target: %w", err)
 	}
 
-	l.Info("Migration channels connected on target")
+	l.Info("Migration control connection established on target")
 
 	defer l.Info("Migration channels disconnected on target")
 
@@ -259,7 +255,7 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		return wsConn, nil
 	}
 
-	err := c.instance.MigrateReceive(instance.MigrateReceiveArgs{
+	err = c.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    c.send,
 			ControlReceive: c.recv,
