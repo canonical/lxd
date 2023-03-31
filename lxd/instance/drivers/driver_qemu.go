@@ -5622,6 +5622,15 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
@@ -5721,15 +5730,6 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn, err := args.FilesystemConn(connectionsCtx)
-	if err != nil {
-		return err
-	}
-
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Start control connection monitor.
@@ -5802,10 +5802,19 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
 	// Receive offer from source.
 	d.logger.Debug("Waiting for migration offer from source")
 	offerHeader := &migration.MigrationHeader{}
-	err := args.ControlReceive(offerHeader)
+	err = args.ControlReceive(offerHeader)
 	if err != nil {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
 	}
@@ -5923,15 +5932,6 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 
 	d.logger.Debug("Sent migration response to source")
-
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn, err := args.FilesystemConn(connectionsCtx)
-	if err != nil {
-		return err
-	}
 
 	revert := revert.New()
 	defer revert.Fail()
