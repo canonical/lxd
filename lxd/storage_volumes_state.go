@@ -113,7 +113,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Fetch the current usage.
-	var used int64
+	var used *storagePools.VolumeState
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Custom volumes.
 		used, err = pool.GetCustomVolumeUsage(projectName, volumeName)
@@ -147,8 +147,8 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	state.Usage = &api.StorageVolumeStateUsage{}
 
 	// Only fill 'used' field if receiving a valid value.
-	if used >= 0 {
-		state.Usage.Used = uint64(used)
+	if used != nil {
+		state.Usage.Used = uint64(used.Used)
 	}
 
 	var dbVolume *db.StorageVolume
