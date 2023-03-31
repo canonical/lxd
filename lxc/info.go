@@ -501,8 +501,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		diskInfo := ""
 		if inst.State.Disk != nil {
 			for entry, disk := range inst.State.Disk {
-				if disk.Usage != 0 {
-					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
+				if disk.Usage.Used != 0 {
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage.Used, 2))
 				}
 			}
 		}

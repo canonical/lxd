@@ -851,8 +851,8 @@ func (c *cmdList) cpuUsageSecondsColumnData(cInfo api.InstanceFull) string {
 func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 	rootDisk, _, _ := shared.GetRootDiskDevice(cInfo.ExpandedDevices)
 
-	if cInfo.State != nil && cInfo.State.Disk != nil && cInfo.State.Disk[rootDisk].Usage > 0 {
-		return units.GetByteSizeStringIEC(cInfo.State.Disk[rootDisk].Usage, 2)
+	if cInfo.State != nil && cInfo.State.Disk != nil && cInfo.State.Disk[rootDisk].Usage.Used > 0 {
+		return units.GetByteSizeStringIEC(cInfo.State.Disk[rootDisk].Usage.Used, 2)
 	}
 
 	return ""
