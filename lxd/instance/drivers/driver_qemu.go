@@ -5597,9 +5597,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
 	}
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -5800,9 +5800,9 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
 	}
 
 	revert := revert.New()
