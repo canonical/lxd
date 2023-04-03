@@ -82,59 +82,53 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project().Name, "instance": s.instance.Name(), "live": s.live, "clusterMoveSourceName": s.clusterMoveSourceName, "push": s.pushOperationURL != ""})
 
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
 	defer cancel()
 
-	l.Info("Waiting for migration connections on source")
+	l.Info("Waiting for migration control connection on source")
 
-	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
-		_, err := s.conns[connName].WebSocket(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed waiting for migration %q connection on source: %w", connName, err)
-		}
+	_, err := s.conns[api.SecretNameControl].WebSocket(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed waiting for migration control connection on source: %w", err)
 	}
 
-	l.Info("Migration channels connected on source")
+	l.Info("Migration control connection established on source")
 
 	defer l.Info("Migration channels disconnected on source")
 	defer s.disconnect()
 
-	stateConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+	stateConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := s.conns[api.SecretNameState]
-		if conn != nil {
-			wsConn, err := conn.WebsocketIO(ctx)
-			if err != nil {
-				l.Error("Failed getting migration source websocket", logger.Ctx{"connName": api.SecretNameState, "err": err})
-
-				return nil
-			}
-
-			return wsConn
+		if conn == nil {
+			return nil, fmt.Errorf("Migration source control connection not initialized")
 		}
 
-		return nil
+		wsConn, err := conn.WebsocketIO(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting migration source control connection: %w", err)
+		}
+
+		return wsConn, nil
 	}
 
-	filesystemConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+	filesystemConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := s.conns[api.SecretNameFilesystem]
-		if conn != nil {
-			wsConn, err := conn.WebsocketIO(ctx)
-			if err != nil {
-				l.Error("Failed getting migration source websocket", logger.Ctx{"connName": api.SecretNameFilesystem, "err": err})
-
-				return nil
-			}
-
-			return wsConn
+		if conn == nil {
+			return nil, fmt.Errorf("Migration source filesystem connection not initialized")
 		}
 
-		return nil
+		wsConn, err := conn.WebsocketIO(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting migration source filesystem connection: %w", err)
+		}
+
+		return wsConn, nil
 	}
 
 	s.instance.SetOperation(migrateOp)
-	err := s.instance.MigrateSend(instance.MigrateSendArgs{
+	err = s.instance.MigrateSend(instance.MigrateSendArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    s.send,
 			ControlReceive: s.recv,
@@ -218,16 +212,14 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
 	defer cancel()
 
-	l.Info("Waiting for migration connections on target")
+	l.Info("Waiting for migration control connection on target")
 
-	for _, connName := range []string{api.SecretNameControl, api.SecretNameFilesystem} {
-		_, err := c.conns[connName].WebSocket(ctx)
-		if err != nil {
-			return fmt.Errorf("Failed waiting for migration %q connection on target: %w", connName, err)
-		}
+	_, err := c.conns[api.SecretNameControl].WebSocket(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed waiting for migration control connection on target: %w", err)
 	}
 
-	l.Info("Migration channels connected on target")
+	l.Info("Migration control connection established on target")
 
 	defer l.Info("Migration channels disconnected on target")
 
@@ -235,39 +227,35 @@ func (c *migrationSink) Do(state *state.State, instOp *operationlock.InstanceOpe
 		defer c.disconnect()
 	}
 
-	stateConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+	stateConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := c.conns[api.SecretNameState]
-		if conn != nil {
-			wsConn, err := conn.WebsocketIO(ctx)
-			if err != nil {
-				l.Error("Failed getting migration sink websocket", logger.Ctx{"connName": api.SecretNameState, "err": err})
-
-				return nil
-			}
-
-			return wsConn
+		if conn == nil {
+			return nil, fmt.Errorf("Migration target control connection not initialized")
 		}
 
-		return nil
+		wsConn, err := conn.WebsocketIO(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting migration target control connection: %w", err)
+		}
+
+		return wsConn, nil
 	}
 
-	filesystemConnFunc := func(ctx context.Context) io.ReadWriteCloser {
+	filesystemConnFunc := func(ctx context.Context) (io.ReadWriteCloser, error) {
 		conn := c.conns[api.SecretNameFilesystem]
-		if conn != nil {
-			wsConn, err := conn.WebsocketIO(ctx)
-			if err != nil {
-				l.Error("Failed getting migration sink websocket", logger.Ctx{"connName": api.SecretNameFilesystem, "err": err})
-
-				return nil
-			}
-
-			return wsConn
+		if conn == nil {
+			return nil, fmt.Errorf("Migration target filesystem connection not initialized")
 		}
 
-		return nil
+		wsConn, err := conn.WebsocketIO(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting migration target filesystem connection: %w", err)
+		}
+
+		return wsConn, nil
 	}
 
-	err := c.instance.MigrateReceive(instance.MigrateReceiveArgs{
+	err = c.instance.MigrateReceive(instance.MigrateReceiveArgs{
 		MigrateArgs: instance.MigrateArgs{
 			ControlSend:    c.send,
 			ControlReceive: c.recv,
