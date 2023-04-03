@@ -12,8 +12,12 @@ import (
 
 // Transaction executes the given function within a database transaction with a 10s context timeout.
 func Transaction(ctx context.Context, db *sql.DB, f func(context.Context, *sql.Tx) error) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
+	_, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Second*10)
+		defer cancel()
+	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
