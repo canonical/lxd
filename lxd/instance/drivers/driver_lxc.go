@@ -5065,6 +5065,23 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
+
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance: %w", err)
@@ -5195,23 +5212,6 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	if instanceRunning && nonOptimizedMigration {
 		// Indicate this info to the storage driver so that it can alter its behaviour if needed.
 		volSourceArgs.MultiSync = true
-	}
-
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
-	}
-
-	var stateConn io.ReadWriteCloser
-	if args.Live {
-		stateConn = args.StateConn(connectionsCtx)
-		if stateConn == nil {
-			return fmt.Errorf("Timed out waiting for migration state connection")
-		}
 	}
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -5659,10 +5659,27 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Receive offer from source.
 	d.logger.Debug("Waiting for migration offer from source")
 	offerHeader := &migration.MigrationHeader{}
-	err := args.ControlReceive(offerHeader)
+	err = args.ControlReceive(offerHeader)
 	if err != nil {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
 	}
@@ -5815,23 +5832,6 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
-	}
-
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
-	}
-
-	var stateConn io.ReadWriteCloser
-	if args.Live {
-		stateConn = args.StateConn(connectionsCtx)
-		if stateConn == nil {
-			return fmt.Errorf("Timed out waiting for migration state connection")
-		}
 	}
 
 	revert := revert.New()

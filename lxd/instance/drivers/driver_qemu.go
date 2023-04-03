@@ -319,6 +319,10 @@ type qemu struct {
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
 	architectureName string
+
+	// Stateful migration streams.
+	migrationSendStateful    io.WriteCloser
+	migrationReceiveStateful io.ReadCloser
 }
 
 // getAgentClient returns the current agent client handle.
@@ -373,19 +377,23 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
 
+		var err error
 		var d *qemu // Redefine d as local variable inside callback to avoid keeping references around.
 
-		inst, err := instance.LoadByProjectAndName(state, instProject.Name, instanceName)
-		if err != nil {
-			l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": instanceName})
-			// If DB not available, try loading from backup file.
-			l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
-
-			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
-			inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
+		inst := instanceRefGet(instProject.Name, instanceName)
+		if inst == nil {
+			inst, err = instance.LoadByProjectAndName(state, instProject.Name, instanceName)
 			if err != nil {
-				l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
-				return
+				l := logger.AddContext(logger.Log, logger.Ctx{"project": instProject.Name, "instance": instanceName})
+				// If DB not available, try loading from backup file.
+				l.Warn("Failed loading instance from database to handle monitor event, trying backup file", logger.Ctx{"err": err})
+
+				instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(instProject.Name, instanceName))
+				inst, err = instance.LoadFromBackup(state, instProject.Name, instancePath, false)
+				if err != nil {
+					l.Error("Failed loading instance to handle monitor event", logger.Ctx{"err": err})
+					return
+				}
 			}
 		}
 
@@ -795,35 +803,9 @@ func (d *qemu) killQemuProcess(pid int) error {
 	return nil
 }
 
-// restoreState restores the saved state of the VM.
-func (d *qemu) restoreState(monitor *qmp.Monitor) error {
-	stateFile, err := os.Open(d.StatePath())
-	if err != nil {
-		return err
-	}
-
-	uncompressedState, err := gzip.NewReader(stateFile)
-	if err != nil {
-		_ = stateFile.Close()
-		return err
-	}
-
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		_ = uncompressedState.Close()
-		_ = stateFile.Close()
-		return err
-	}
-
-	go func() {
-		_, _ = io.Copy(pipeWrite, uncompressedState)
-		_ = uncompressedState.Close()
-		_ = stateFile.Close()
-		_ = pipeWrite.Close()
-		_ = pipeRead.Close()
-	}()
-
-	err = monitor.SendFile("migration", pipeRead)
+// restoreState restores the VM state from a file handle.
+func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
+	err := monitor.SendFile("migration", f)
 	if err != nil {
 		return err
 	}
@@ -836,54 +818,151 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 	return nil
 }
 
-// saveState dumps the current VM state to disk.
+// restoreState restores VM state from state file or from migration source if d.migrationReceiveStateful set.
+func (d *qemu) restoreState(monitor *qmp.Monitor) error {
+	if d.migrationReceiveStateful != nil {
+		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": "migration"})
+		defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": "migration"})
+
+		// Receive checkpoint from QEMU process on source.
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(pipeWrite, d.migrationReceiveStateful) }()
+
+		err = d.restoreStateHandle(monitor, pipeRead)
+		if err != nil {
+			return fmt.Errorf("Failed restoring checkpoint from source: %w", err)
+		}
+	} else {
+		statePath := d.StatePath()
+		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": statePath})
+		defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": statePath})
+
+		stateFile, err := os.Open(statePath)
+		if err != nil {
+			return fmt.Errorf("Failed opening state file %q: %w", statePath, err)
+		}
+
+		defer func() { _ = stateFile.Close() }()
+
+		uncompressedState, err := gzip.NewReader(stateFile)
+		if err != nil {
+			return fmt.Errorf("Failed opening state gzip reader: %w", err)
+		}
+
+		defer func() { _ = uncompressedState.Close() }()
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(pipeWrite, uncompressedState) }()
+
+		err = d.restoreStateHandle(monitor, pipeRead)
+		if err != nil {
+			return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+// saveStateHandle dumps the current VM state to a file handle.
 // Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
-func (d *qemu) saveState(monitor *qmp.Monitor) error {
-	_ = os.Remove(d.StatePath())
-
-	// Prepare the state file.
-	stateFile, err := os.Create(d.StatePath())
-	if err != nil {
-		return err
-	}
-
-	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-	if err != nil {
-		_ = stateFile.Close()
-		return err
-	}
-
-	pipeRead, pipeWrite, err := os.Pipe()
-	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
-		return err
-	}
-
-	defer func() { _ = pipeRead.Close() }()
-	defer func() { _ = pipeWrite.Close() }()
-
-	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
-
+func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	// Send the target file to qemu.
-	err = monitor.SendFile("migration", pipeWrite)
+	err := monitor.SendFile("migration", f)
 	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
 		return err
 	}
 
 	// Issue the migration command.
 	err = monitor.Migrate("fd:migration")
 	if err != nil {
-		_ = compressedState.Close()
-		_ = stateFile.Close()
 		return err
 	}
 
-	// Close the file to avoid unmount delays.
-	_ = compressedState.Close()
-	_ = stateFile.Close()
+	return nil
+}
+
+// saveState dumps the current VM state to state file or to migration target if d.migrationSendStateful set.
+// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+func (d *qemu) saveState(monitor *qmp.Monitor) error {
+	if d.migrationSendStateful != nil {
+		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": "migration"})
+		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": "migration"})
+
+		// Send checkpoint to QEMU process on target.
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(d.migrationSendStateful, pipeRead) }()
+
+		err = d.saveStateHandle(monitor, pipeWrite)
+		if err != nil {
+			return fmt.Errorf("Failed transferring state to target: %w", err)
+		}
+	} else {
+		statePath := d.StatePath()
+		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
+		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
+
+		// Save the checkpoint to state file.
+		_ = os.Remove(statePath)
+
+		// Prepare the state file.
+		stateFile, err := os.Create(statePath)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = stateFile.Close() }()
+
+		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = compressedState.Close() }()
+
+		pipeRead, pipeWrite, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
+		}()
+
+		go func() { _, _ = io.Copy(compressedState, pipeRead) }()
+
+		err = d.saveStateHandle(monitor, pipeWrite)
+		if err != nil {
+			return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
+		}
+	}
 
 	return nil
 }
@@ -1543,7 +1622,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 
 	// Restore the state.
 	if stateful {
-		err := d.restoreState(monitor)
+		err = d.restoreState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -4149,12 +4228,14 @@ func (d *qemu) Stop(stateful bool) error {
 			return err
 		}
 
-		// Mark the instance as having state.
-		d.stateful = true
-		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
-		if err != nil {
-			op.Done(err)
-			return err
+		// Mark the instance as having a state file.
+		if d.migrationSendStateful == nil {
+			d.stateful = true
+			err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+			if err != nil {
+				op.Done(err)
+				return err
+			}
 		}
 	}
 
@@ -5622,7 +5703,14 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
-	var poolMigrationTypes []migration.Type
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
 
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
@@ -5633,7 +5721,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	// to false here. The migration source/sender doesn't need to care whether
 	// or not it's doing a refresh as the migration sink/receiver will know
 	// this, and adjust the migration types accordingly.
-	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
+	poolMigrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(d), false, args.Snapshots)
 	if len(poolMigrationTypes) == 0 {
 		return fmt.Errorf("No source migration types available")
 	}
@@ -5669,6 +5757,17 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 			offerHeader.SnapshotNames = append(offerHeader.SnapshotNames, srcConfig.Snapshots[i].Name)
 			offerHeader.Snapshots = append(offerHeader.Snapshots, instance.SnapshotToProtobuf(srcConfig.Snapshots[i]))
 		}
+	}
+
+	// Offer QEMU to QEMU live state transfer state transfer feature if supported.
+	// If the request is for live migration, the source pool driver supports it, and is an internal cluster
+	// instance move on remote shared storage, then offer live QEMU to QEMU state transfer can proceed.
+	// Otherwise LXD will fallback to doing stateful stop, migrate, and then stateful start, which will still
+	// fulfil the "live" part of the request, albeit with longer pause of the instance during the process.
+	poolInfo := pool.Driver().Info()
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
+	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove {
+		offerHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
 	}
 
 	// Send offer to target.
@@ -5721,13 +5820,14 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	// Detect whether the far side has chosen to use QEMU to QEMU live state transfer mode, and if so then
+	// wait for the connection to be established.
+	var stateConn io.ReadWriteCloser
+	if args.Live && respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_VM_QEMU {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
 	}
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -5776,16 +5876,49 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 
 		var err error
 
-		if args.Live {
-			err = d.Stop(true)
+		// Start live state transfer using state connection if supported.
+		if stateConn != nil {
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
-				return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				return err
 			}
-		}
 
-		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
-		if err != nil {
-			return err
+			if args.Live {
+				// When performing intra-cluster same-name move, take steps to prevent corruption
+				// of volatile device config keys during start & stop of instance on source/target.
+				if args.ClusterMoveSourceName == d.name {
+					// Disable VolatileSet from persisting changes to the database.
+					// This is so the volatile changes written by the running receiving member
+					//  are not lost when the source instance is stopped.
+					d.volatileSetPersistDisable = true
+
+					// Store a reference to this instance (which has the old volatile settings)
+					// to allow the onStop hook to pick it up, which allows the devices being
+					// stopped to access their volatile settings stored when the instance
+					// originally started on this cluster member.
+					instanceRefSet(d)
+					defer instanceRefClear(d)
+				}
+
+				d.migrationSendStateful = stateConn
+				err = d.Stop(true)
+				if err != nil {
+					return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				}
+			}
+		} else {
+			// Perform stateful stop if live state transfer is not supported by target.
+			if args.Live {
+				err = d.Stop(true)
+				if err != nil {
+					return fmt.Errorf("Failed statefully stopping instance: %w", err)
+				}
+			}
+
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -5802,10 +5935,19 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
 	// Receive offer from source.
 	d.logger.Debug("Waiting for migration offer from source")
 	offerHeader := &migration.MigrationHeader{}
-	err := args.ControlReceive(offerHeader)
+	err = args.ControlReceive(offerHeader)
 	if err != nil {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
 	}
@@ -5915,6 +6057,20 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
+	// Negotiate support for QEMU to QEMU live state transfer.
+	// If the request is for live migration, the target pool driver supports it, is an internal cluster
+	// instance move on remote shared storage, and the source pool driver supports it, then respond that live
+	// QEMU to QEMU state transfer can proceed. Otherwise LXD will fallback to doing stateful stop, migrate,
+	// and then stateful start, which will still fulfil the "live" part of the request, albeit with longer
+	// pause of the instance during the process.
+	poolInfo := pool.Driver().Info()
+	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
+	var useStateConn bool
+	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove && offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_VM_QEMU {
+		respHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
+		useStateConn = true
+	}
+
 	// Send response to source.
 	d.logger.Debug("Sending migration response to source")
 	err = args.ControlSend(respHeader)
@@ -5924,13 +6080,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 	d.logger.Debug("Sent migration response to source")
 
-	// Wait for migration connections.
-	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	filesystemConn := args.FilesystemConn(connectionsCtx)
-	if filesystemConn == nil {
-		return fmt.Errorf("Timed out waiting for migration filesystem connection")
+	// Establish state transfer connection if needed.
+	var stateConn io.ReadWriteCloser
+	if args.Live && useStateConn {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert := revert.New()
@@ -6090,8 +6246,6 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
-		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
-
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
 		if !volTargetArgs.Refresh && !isRemoteClusterMove {
@@ -6116,8 +6270,13 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		if args.Live {
+			// Start live state transfer using state connection if supported.
+			if stateConn != nil {
+				d.migrationReceiveStateful = stateConn
+			}
+
 			// Although the instance technically isn't considered stateful, we set this to allow
-			// starting from the migrated state file.
+			// starting from the migrated state file or migration state connection.
 			d.stateful = true
 
 			err = d.start(true, args.InstanceOperation)

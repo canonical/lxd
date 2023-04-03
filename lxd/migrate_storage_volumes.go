@@ -65,7 +65,7 @@ func newStorageMigrationSource(volumeOnly bool, pushTarget *api.StorageVolumePos
 }
 
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
-	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "pool": poolName, "volume": volName})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "pool": poolName, "volume": volName, "push": s.pushOperationURL != ""})
 
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
 	defer cancel()

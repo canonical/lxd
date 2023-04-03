@@ -207,8 +207,8 @@ type Info struct {
 type MigrateArgs struct {
 	ControlSend           func(m proto.Message) error
 	ControlReceive        func(m proto.Message) error
-	StateConn             func(ctx context.Context) io.ReadWriteCloser
-	FilesystemConn        func(ctx context.Context) io.ReadWriteCloser
+	StateConn             func(ctx context.Context) (io.ReadWriteCloser, error)
+	FilesystemConn        func(ctx context.Context) (io.ReadWriteCloser, error)
 	Snapshots             bool
 	Live                  bool
 	Disconnect            func()
