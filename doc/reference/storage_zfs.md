@@ -101,7 +101,7 @@ The following configuration options are available for storage pools that use the
 
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-`size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported)
+`size`                        | string                        | auto (20% of free disk space, >= 5 GiB and <= 30 GiB) | Size of the storage pool when creating loop-based pools (in bytes, suffixes supported, can be increased to grow storage pool)
 `source`                      | string                        | -                                       | Path to an existing block device, loop file or ZFS dataset/pool
 `source.wipe`                 | bool                          | `false`                                 | Wipe the block device specified in `source` prior to creating the storage pool
 `zfs.clone_copy`              | string                        | `true`                                  | Whether to use ZFS lightweight clones rather than full {spellexception}`dataset` copies (Boolean), or `rebase` to copy based on the initial image
