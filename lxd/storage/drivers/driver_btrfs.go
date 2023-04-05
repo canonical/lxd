@@ -304,23 +304,63 @@ func (d *btrfs) Validate(config map[string]string) error {
 func (d *btrfs) Update(changedConfig map[string]string) error {
 	// We only care about btrfs.mount_options.
 	val, ok := changedConfig["btrfs.mount_options"]
-	if !ok {
-		return nil
+	if ok {
+		// Custom mount options don't work inside containers
+		if d.state.OS.RunningInUserNS {
+			return nil
+		}
+
+		// Trigger a re-mount.
+		d.config["btrfs.mount_options"] = val
+		mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
+		mntFlags |= unix.MS_REMOUNT
+
+		err := TryMount("", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Custom mount options don't work inside containers
-	if d.state.OS.RunningInUserNS {
-		return nil
-	}
+	size, ok := changedConfig["size"]
+	if ok {
+		// Figure out loop path
+		loopPath := loopFilePath(d.name)
 
-	// Trigger a re-mount.
-	d.config["btrfs.mount_options"] = val
-	mntFlags, mntOptions := filesystem.ResolveMountOptions(strings.Split(d.getMountOptions(), ","))
-	mntFlags |= unix.MS_REMOUNT
+		if d.config["source"] != loopPath {
+			return fmt.Errorf("Cannot resize non-loopback pools")
+		}
 
-	err := TryMount("", GetPoolMountPath(d.name), "none", mntFlags, mntOptions)
-	if err != nil {
-		return err
+		// Resize loop file
+		f, err := os.OpenFile(loopPath, os.O_RDWR, 0600)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = f.Close() }()
+
+		sizeBytes, _ := units.ParseByteSizeString(size)
+
+		err = f.Truncate(sizeBytes)
+		if err != nil {
+			return err
+		}
+
+		loopDevPath, err := loopDeviceSetup(loopPath)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = loopDeviceAutoDetach(loopDevPath) }()
+
+		err = loopDeviceSetCapacity(loopDevPath)
+		if err != nil {
+			return err
+		}
+
+		_, err = shared.RunCommand("btrfs", "filesystem", "resize", "max", GetPoolMountPath(d.name))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
