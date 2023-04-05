@@ -364,6 +364,7 @@ var APIExtensions = []string{
 	"instance_generation_id",
 	"disk_io_cache",
 	"amd_sev",
+	"storage_pool_loop_resize",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
