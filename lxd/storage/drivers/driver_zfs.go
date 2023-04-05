@@ -426,6 +426,36 @@ func (d *zfs) Update(changedConfig map[string]string) error {
 		return fmt.Errorf("zfs.pool_name cannot be modified")
 	}
 
+	size, ok := changedConfig["size"]
+	if ok {
+		// Figure out loop path
+		loopPath := loopFilePath(d.name)
+
+		if d.config["source"] != loopPath {
+			return fmt.Errorf("Cannot resize non-loopback pools")
+		}
+
+		// Resize loop file
+		f, err := os.OpenFile(loopPath, os.O_RDWR, 0600)
+		if err != nil {
+			return err
+		}
+
+		defer func() { _ = f.Close() }()
+
+		sizeBytes, _ := units.ParseByteSizeString(size)
+
+		err = f.Truncate(sizeBytes)
+		if err != nil {
+			return err
+		}
+
+		_, err = shared.RunCommand("zpool", "online", "-e", d.name, loopPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -47,6 +47,7 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 )
 
 var unavailablePools = make(map[string]struct{})
@@ -277,6 +278,17 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 	_, sourceChanged := changedConfig["source"]
 	if sourceChanged && b.LocalStatus() != api.StoragePoolStatusPending {
 		return fmt.Errorf("Pool source cannot be changed when not in pending state")
+	}
+
+	// Prevent shrinking the storage pool.
+	newSize, sizeChanged := changedConfig["size"]
+	if sizeChanged {
+		oldSizeBytes, _ := units.ParseByteSizeString(b.db.Config["size"])
+		newSizeBytes, _ := units.ParseByteSizeString(newSize)
+
+		if newSizeBytes < oldSizeBytes {
+			return fmt.Errorf("Pool cannot be shrunk")
+		}
 	}
 
 	// Apply changes to local member if both global pool and node are not pending and non-user config changed.
