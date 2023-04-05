@@ -2176,3 +2176,6 @@ This adds the following new configuration options for SEV encryption:
 * `security.sev.policy.es` : (bool) is SEV-ES enabled for this VM
 * `security.sev.session.dh` : (string) guest owner's `base64`-encoded Diffie-Hellman key
 * `security.sev.session.data` : (string) guest owner's `base64`-encoded session blob
+
+## `storage_pool_loop_resize`
+This allows growing loop file backed storage pools by changing the `size` setting of the pool.
