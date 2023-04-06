@@ -321,7 +321,6 @@ type qemu struct {
 	architectureName string
 
 	// Stateful migration streams.
-	migrationSendStateful    io.WriteCloser
 	migrationReceiveStateful io.ReadCloser
 }
 
@@ -4210,14 +4209,11 @@ func (d *qemu) Stop(stateful bool) error {
 			return err
 		}
 
-		// Mark the instance as having a state file.
-		if d.migrationSendStateful == nil {
-			d.stateful = true
-			err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
+		d.stateful = true
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+		if err != nil {
+			op.Done(err)
+			return err
 		}
 	}
 
@@ -5860,33 +5856,61 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 
 		// Start live state transfer using state connection if supported.
 		if stateConn != nil {
+			// When performing intra-cluster same-name move, take steps to prevent corruption
+			// of volatile device config keys during start & stop of instance on source/target.
+			if args.ClusterMoveSourceName == d.name {
+				// Disable VolatileSet from persisting changes to the database.
+				// This is so the volatile changes written by the running receiving member
+				//  are not lost when the source instance is stopped.
+				d.volatileSetPersistDisable = true
+
+				// Store a reference to this instance (which has the old volatile settings)
+				// to allow the onStop hook to pick it up, which allows the devices being
+				// stopped to access their volatile settings stored when the instance
+				// originally started on this cluster member.
+				instanceRefSet(d)
+				defer instanceRefClear(d)
+			}
+
 			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
 
-			if args.Live {
-				// When performing intra-cluster same-name move, take steps to prevent corruption
-				// of volatile device config keys during start & stop of instance on source/target.
-				if args.ClusterMoveSourceName == d.name {
-					// Disable VolatileSet from persisting changes to the database.
-					// This is so the volatile changes written by the running receiving member
-					//  are not lost when the source instance is stopped.
-					d.volatileSetPersistDisable = true
+			// Send checkpoint to QEMU process on target.
+			pipeRead, pipeWrite, err := os.Pipe()
+			if err != nil {
+				return err
+			}
 
-					// Store a reference to this instance (which has the old volatile settings)
-					// to allow the onStop hook to pick it up, which allows the devices being
-					// stopped to access their volatile settings stored when the instance
-					// originally started on this cluster member.
-					instanceRefSet(d)
-					defer instanceRefClear(d)
-				}
+			defer func() {
+				_ = pipeRead.Close()
+				_ = pipeWrite.Close()
+			}()
 
-				d.migrationSendStateful = stateConn
-				err = d.Stop(true)
-				if err != nil {
-					return fmt.Errorf("Failed statefully stopping instance: %w", err)
-				}
+			go func() { _, _ = io.Copy(stateConn, pipeRead) }()
+
+			monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+			if err != nil {
+				return err
+			}
+
+			d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": "migration"})
+			err = d.saveStateHandle(monitor, pipeWrite)
+			if err != nil {
+				return fmt.Errorf("Failed transferring state to target: %w", err)
+			}
+
+			err = monitor.MigrateWait("completed")
+			if err != nil {
+				return fmt.Errorf("Failed waiting for state transfer to reach completed stage: %w", err)
+			}
+
+			d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": "migration"})
+
+			err = d.Stop(false)
+			if err != nil {
+				return fmt.Errorf("Failed stopping instance: %w", err)
 			}
 		} else {
 			// Perform stateful stop if live state transfer is not supported by target.
