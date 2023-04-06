@@ -2343,6 +2343,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	// Freeze the instance if not already frozen/stopped when the underlying driver doesn't support cheap
 	// snapshots and allowInconsistent is not enabled.
 	if !inst.IsSnapshot() && b.driver.Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+		b.logger.Info("Freezing instance for consistent migration transfer")
 		err = inst.Freeze()
 		if err != nil {
 			return err
