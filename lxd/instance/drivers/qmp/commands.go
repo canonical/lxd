@@ -440,6 +440,11 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 	revert := revert.New()
 	defer revert.Fail()
 
+	nodeName, ok := blockDev["node-name"].(string)
+	if !ok {
+		return fmt.Errorf("Device node name must be a string")
+	}
+
 	if blockDev != nil {
 		err := m.run("blockdev-add", blockDev, nil)
 		if err != nil {
@@ -447,11 +452,7 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 		}
 
 		revert.Add(func() {
-			blockDevDel := map[string]any{
-				"node-name": blockDev["devName"],
-			}
-
-			_ = m.run("blockdev-del", blockDevDel, nil)
+			_ = m.RemoveBlockDevice(nodeName)
 		})
 	}
 
