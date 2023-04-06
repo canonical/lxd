@@ -321,8 +321,6 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 
 	// Wait until it completes or fails.
 	for {
-		time.Sleep(1 * time.Second)
-
 		// Preapre the response.
 		var resp struct {
 			Return struct {
@@ -340,11 +338,11 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 		}
 
 		if resp.Return.Status == "completed" {
-			break
+			return nil
 		}
-	}
 
-	return nil
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // Powerdown tells the VM to gracefully shutdown.
