@@ -472,7 +472,6 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 			"node-name": blockDevName,
 		}
 
-		// Retry a few times in case the blockdev is in use.
 		err := m.run("blockdev-del", blockDevName, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "is in use") {
