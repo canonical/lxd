@@ -3,6 +3,7 @@ package qmp
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -250,6 +251,33 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 	return nil
 }
 
+// MigrateSetCapabilities sets the capabilities used during migration.
+func (m *Monitor) MigrateSetCapabilities(caps map[string]bool) error {
+	var args struct {
+		Capabilities []struct {
+			Capability string `json:"capability"`
+			State      bool   `json:"state"`
+		} `json:"capabilities"`
+	}
+
+	for capName, state := range caps {
+		args.Capabilities = append(args.Capabilities, struct {
+			Capability string `json:"capability"`
+			State      bool   `json:"state"`
+		}{
+			Capability: capName,
+			State:      state,
+		})
+	}
+
+	err := m.run("migrate-set-capabilities", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Migrate starts a migration stream.
 func (m *Monitor) Migrate(uri string) error {
 	// Query the status.
@@ -290,6 +318,22 @@ func (m *Monitor) MigrateWait(state string) error {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// MigrateContinue continues a migration stream.
+func (m *Monitor) MigrateContinue(fromState string) error {
+	var args struct {
+		State string `json:"state"`
+	}
+
+	args.State = fromState
+
+	err := m.run("migrate-continue", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // MigrateIncoming starts the receiver of a migration stream.
@@ -683,4 +727,233 @@ func (m *Monitor) SEVCapabilities() (AMDSEVCapabilities, error) {
 	}
 
 	return resp.Return, nil
+}
+
+// NBDServerStart starts internal NBD server and returns a connection to it.
+func (m *Monitor) NBDServerStart() (net.Conn, error) {
+	var args struct {
+		Addr struct {
+			Data struct {
+				Path     string `json:"path"`
+				Abstract bool   `json:"abstract"`
+			} `json:"data"`
+			Type string `json:"type"`
+		} `json:"addr"`
+		MaxConnections int `json:"max-connections"`
+	}
+
+	// Create abstract unix listener.
+	listener, err := net.Listen("unix", "")
+	if err != nil {
+		return nil, fmt.Errorf("Failed creating unix listener: %w", err)
+	}
+
+	// Get the random address, and then close the listener, and pass the address for use with nbd-server-start.
+	listenAddress := listener.Addr().String()
+	_ = listener.Close()
+
+	args.Addr.Type = "unix"
+	args.Addr.Data.Path = strings.TrimPrefix(listenAddress, "@")
+	args.Addr.Data.Abstract = true
+	args.MaxConnections = 1
+
+	err = m.run("nbd-server-start", args, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect to the NBD server and return the connection.
+	conn, err := net.Dial("unix", listenAddress)
+	if err != nil {
+		return nil, fmt.Errorf("Failed connecting to NBD server: %w", err)
+	}
+
+	return conn, nil
+}
+
+// NBDServerStop stops the internal NBD server.
+func (m *Monitor) NBDServerStop() error {
+	err := m.run("nbd-server-stop", nil, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// NBDBlockExportAdd exports a writable device via the NBD server.
+func (m *Monitor) NBDBlockExportAdd(deviceNodeName string) error {
+	var args struct {
+		ID       string `json:"id"`
+		Type     string `json:"type"`
+		NodeName string `json:"node-name"`
+		Writable bool   `json:"writable"`
+	}
+
+	args.ID = deviceNodeName
+	args.Type = "nbd"
+	args.NodeName = deviceNodeName
+	args.Writable = true
+
+	err := m.run("block-export-add", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockDevSnapshot creates a snapshot of a device using the specified snapshot device.
+func (m *Monitor) BlockDevSnapshot(deviceNodeName string, snapshotNodeName string) error {
+	var args struct {
+		Node    string `json:"node"`
+		Overlay string `json:"overlay"`
+	}
+
+	args.Node = deviceNodeName
+	args.Overlay = snapshotNodeName
+
+	err := m.run("blockdev-snapshot", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// blockJobWaitReady waits until the specified jobID is ready, errored or missing.
+// Returns nil if the job is ready, otherwise an error.
+func (m *Monitor) blockJobWaitReady(jobID string) error {
+	for {
+		var resp struct {
+			Return []struct {
+				Device string `json:"device"`
+				Ready  bool   `json:"ready"`
+				Error  string `json:"error"`
+			} `json:"return"`
+		}
+
+		err := m.run("query-block-jobs", nil, &resp)
+		if err != nil {
+			return err
+		}
+
+		found := false
+		for _, job := range resp.Return {
+			if job.Device != jobID {
+				continue
+			}
+
+			if job.Error != "" {
+				return fmt.Errorf("Failed block job: %s", job.Error)
+			}
+
+			if job.Ready {
+				return nil
+			}
+
+			found = true
+		}
+
+		if !found {
+			return fmt.Errorf("Specified block job not found")
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// BlockCommit merges a snapshot device back into its parent device.
+func (m *Monitor) BlockCommit(deviceNodeName string) error {
+	var args struct {
+		Device string `json:"device"`
+		JobID  string `json:"job-id"`
+	}
+
+	args.Device = deviceNodeName
+	args.JobID = args.Device
+
+	err := m.run("block-commit", args, nil)
+	if err != nil {
+		return err
+	}
+
+	err = m.blockJobWaitReady(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	err = m.BlockJobComplete(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockDevMirror mirrors the top device to the target device.
+func (m *Monitor) BlockDevMirror(deviceNodeName string, targetNodeName string) error {
+	var args struct {
+		Device   string `json:"device"`
+		Target   string `json:"target"`
+		Sync     string `json:"sync"`
+		JobID    string `json:"job-id"`
+		CopyMode string `json:"copy-mode"`
+	}
+
+	args.Device = deviceNodeName
+	args.Target = targetNodeName
+	args.JobID = deviceNodeName
+
+	// Only synchronise the top level device (usually a snapshot).
+	args.Sync = "top"
+
+	// When data is written to the source, write it (synchronously) to the target as well.
+	// In addition, data is copied in background just like in background mode.
+	// This ensures that the source and target converge at the cost of I/O performance during sync.
+	args.CopyMode = "write-blocking"
+
+	err := m.run("blockdev-mirror", args, nil)
+	if err != nil {
+		return err
+	}
+
+	err = m.blockJobWaitReady(args.JobID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockJobCancel cancels an ongoing block job.
+func (m *Monitor) BlockJobCancel(deviceNodeName string) error {
+	var args struct {
+		Device string `json:"device"`
+	}
+
+	args.Device = deviceNodeName
+
+	err := m.run("block-job-cancel", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockJobComplete completes a block job that is in reader state.
+func (m *Monitor) BlockJobComplete(deviceNodeName string) error {
+	var args struct {
+		Device string `json:"device"`
+	}
+
+	args.Device = deviceNodeName
+
+	err := m.run("block-job-complete", args, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
