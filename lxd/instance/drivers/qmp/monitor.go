@@ -162,7 +162,6 @@ func (m *Monitor) run(cmd string, args any, resp any) error {
 	}
 
 	out, err := m.qmp.Run(request)
-
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()

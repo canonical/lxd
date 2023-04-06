@@ -61,11 +61,6 @@ type HotpluggableCPU struct {
 
 // QueryCPUs returns a list of CPUs.
 func (m *Monitor) QueryCPUs() ([]CPU, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return nil, ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []CPU `json:"return"`
@@ -81,11 +76,6 @@ func (m *Monitor) QueryCPUs() ([]CPU, error) {
 
 // QueryHotpluggableCPUs returns a list of hotpluggable CPUs.
 func (m *Monitor) QueryHotpluggableCPUs() ([]HotpluggableCPU, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return nil, ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []HotpluggableCPU `json:"return"`
@@ -119,7 +109,7 @@ func (m *Monitor) Status() (string, error) {
 
 // SendFile adds a new file descriptor to the QMP fd table associated to name.
 func (m *Monitor) SendFile(name string, file *os.File) error {
-	// Check if disconnected
+	// Check if disconnected.
 	if m.disconnected {
 		return ErrMonitorDisconnect
 	}
@@ -156,35 +146,14 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 
 // CloseFile closes an existing file descriptor in the QMP fd table associated to name.
 func (m *Monitor) CloseFile(name string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	var req struct {
-		Execute   string `json:"execute"`
-		Arguments struct {
-			FDName string `json:"fdname"`
-		} `json:"arguments"`
+		FDName string `json:"fdname"`
 	}
 
-	req.Execute = "closefd"
-	req.Arguments.FDName = name
+	req.FDName = name
 
-	reqJSON, err := json.Marshal(req)
+	err := m.run("closefd", req, nil)
 	if err != nil {
-		return err
-	}
-
-	// Query the status.
-	_, err = m.qmp.Run(reqJSON)
-	if err != nil {
-		// Confirm the daemon didn't die.
-		errPing := m.ping()
-		if errPing != nil {
-			return errPing
-		}
-
 		return err
 	}
 
@@ -192,50 +161,58 @@ func (m *Monitor) CloseFile(name string) error {
 }
 
 // SendFileWithFDSet adds a new file descriptor to an FD set.
-func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (AddFdInfo, error) {
+func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (*AddFdInfo, error) {
+	// Check if disconnected.
+	if m.disconnected {
+		return nil, ErrMonitorDisconnect
+	}
+
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			Opaque string `json:"opaque"`
+		} `json:"arguments"`
+	}
+
+	permissions := "rdwr"
+	if readonly {
+		permissions = "rdonly"
+	}
+
+	req.Execute = "add-fd"
+	req.Arguments.Opaque = fmt.Sprintf("%s:%s", permissions, name)
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err := m.qmp.RunWithFile(reqJSON, file)
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return nil, errPing
+		}
+
+		return nil, err
+	}
+
 	// Prepare the response.
 	var resp struct {
 		Return AddFdInfo `json:"return"`
 	}
 
-	// Check if disconnected
-	if m.disconnected {
-		return resp.Return, ErrMonitorDisconnect
-	}
-
-	permissions := "rdwr"
-
-	if readonly {
-		permissions = "rdonly"
-	}
-
-	// Query the status.
-	ret, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'add-fd', 'arguments': {'opaque': '%s:%s'}}", permissions, name)), file)
-	if err != nil {
-		// Confirm the daemon didn't die.
-		errPing := m.ping()
-		if errPing != nil {
-			return resp.Return, errPing
-		}
-
-		return resp.Return, err
-	}
-
 	err = json.Unmarshal(ret, &resp)
 	if err != nil {
-		return resp.Return, err
+		return nil, err
 	}
 
-	return resp.Return, nil
+	return &resp.Return, nil
 }
 
 // RemoveFDFromFDSet removes an FD with the given name from an FD set.
 func (m *Monitor) RemoveFDFromFDSet(name string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []FdsetInfo `json:"return"`
@@ -282,10 +259,15 @@ func (m *Monitor) Migrate(uri string) error {
 		return err
 	}
 
+	return nil
+}
+
+// MigrateWait waits until migration job reaches the specified status.
+// Returns nil if the migraton job reaches the specified status or an error if the migration job is in the failed
+// status.
+func (m *Monitor) MigrateWait(state string) error {
 	// Wait until it completes or fails.
 	for {
-		time.Sleep(1 * time.Second)
-
 		// Prepare the response.
 		var resp struct {
 			Return struct {
@@ -302,12 +284,12 @@ func (m *Monitor) Migrate(uri string) error {
 			return fmt.Errorf("Migrate call failed")
 		}
 
-		if resp.Return.Status == "completed" {
-			break
+		if resp.Return.Status == state {
+			return nil
 		}
-	}
 
-	return nil
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // MigrateIncoming starts the receiver of a migration stream.
@@ -321,8 +303,6 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 
 	// Wait until it completes or fails.
 	for {
-		time.Sleep(1 * time.Second)
-
 		// Preapre the response.
 		var resp struct {
 			Return struct {
@@ -340,11 +320,11 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 		}
 
 		if resp.Return.Status == "completed" {
-			break
+			return nil
 		}
-	}
 
-	return nil
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // Powerdown tells the VM to gracefully shutdown.
@@ -437,6 +417,11 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 	revert := revert.New()
 	defer revert.Fail()
 
+	nodeName, ok := blockDev["node-name"].(string)
+	if !ok {
+		return fmt.Errorf("Device node name must be a string")
+	}
+
 	if blockDev != nil {
 		err := m.run("blockdev-add", blockDev, nil)
 		if err != nil {
@@ -444,11 +429,7 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]stri
 		}
 
 		revert.Add(func() {
-			blockDevDel := map[string]any{
-				"node-name": blockDev["devName"],
-			}
-
-			_ = m.run("blockdev-del", blockDevDel, nil)
+			_ = m.RemoveBlockDevice(nodeName)
 		})
 	}
 
@@ -468,7 +449,6 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 			"node-name": blockDevName,
 		}
 
-		// Retry a few times in case the blockdev is in use.
 		err := m.run("blockdev-del", blockDevName, nil)
 		if err != nil {
 			if strings.Contains(err.Error(), "is in use") {
@@ -488,11 +468,6 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 
 // AddDevice adds a new device.
 func (m *Monitor) AddDevice(device map[string]string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	if device != nil {
 		err := m.run("device_add", device, nil)
 		if err != nil {
@@ -505,11 +480,6 @@ func (m *Monitor) AddDevice(device map[string]string) error {
 
 // RemoveDevice removes a device.
 func (m *Monitor) RemoveDevice(deviceID string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	if deviceID != "" {
 		deviceID := map[string]string{
 			"id": deviceID,
