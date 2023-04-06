@@ -61,11 +61,6 @@ type HotpluggableCPU struct {
 
 // QueryCPUs returns a list of CPUs.
 func (m *Monitor) QueryCPUs() ([]CPU, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return nil, ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []CPU `json:"return"`
@@ -81,11 +76,6 @@ func (m *Monitor) QueryCPUs() ([]CPU, error) {
 
 // QueryHotpluggableCPUs returns a list of hotpluggable CPUs.
 func (m *Monitor) QueryHotpluggableCPUs() ([]HotpluggableCPU, error) {
-	// Check if disconnected
-	if m.disconnected {
-		return nil, ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []HotpluggableCPU `json:"return"`
@@ -231,11 +221,6 @@ func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (
 
 // RemoveFDFromFDSet removes an FD with the given name from an FD set.
 func (m *Monitor) RemoveFDFromFDSet(name string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	// Prepare the response.
 	var resp struct {
 		Return []FdsetInfo `json:"return"`
@@ -491,11 +476,6 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 
 // AddDevice adds a new device.
 func (m *Monitor) AddDevice(device map[string]string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	if device != nil {
 		err := m.run("device_add", device, nil)
 		if err != nil {
@@ -508,11 +488,6 @@ func (m *Monitor) AddDevice(device map[string]string) error {
 
 // RemoveDevice removes a device.
 func (m *Monitor) RemoveDevice(deviceID string) error {
-	// Check if disconnected
-	if m.disconnected {
-		return ErrMonitorDisconnect
-	}
-
 	if deviceID != "" {
 		deviceID := map[string]string{
 			"id": deviceID,
