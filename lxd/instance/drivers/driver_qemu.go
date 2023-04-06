@@ -899,69 +899,51 @@ func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	return nil
 }
 
-// saveState dumps the current VM state to state file or to migration target if d.migrationSendStateful set.
+// saveState dumps the current VM state to the state file.
 // Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
 func (d *qemu) saveState(monitor *qmp.Monitor) error {
-	if d.migrationSendStateful != nil {
-		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": "migration"})
-		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": "migration"})
+	statePath := d.StatePath()
+	d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
+	defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
 
-		// Send checkpoint to QEMU process on target.
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			return err
-		}
+	// Save the checkpoint to state file.
+	_ = os.Remove(statePath)
 
-		defer func() {
-			_ = pipeRead.Close()
-			_ = pipeWrite.Close()
-		}()
+	// Prepare the state file.
+	stateFile, err := os.Create(statePath)
+	if err != nil {
+		return err
+	}
 
-		go func() { _, _ = io.Copy(d.migrationSendStateful, pipeRead) }()
+	defer func() { _ = stateFile.Close() }()
 
-		err = d.saveStateHandle(monitor, pipeWrite)
-		if err != nil {
-			return fmt.Errorf("Failed transferring state to target: %w", err)
-		}
-	} else {
-		statePath := d.StatePath()
-		d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": statePath})
-		defer d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": statePath})
+	compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
 
-		// Save the checkpoint to state file.
-		_ = os.Remove(statePath)
+	defer func() { _ = compressedState.Close() }()
 
-		// Prepare the state file.
-		stateFile, err := os.Create(statePath)
-		if err != nil {
-			return err
-		}
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		return err
+	}
 
-		defer func() { _ = stateFile.Close() }()
+	defer func() {
+		_ = pipeRead.Close()
+		_ = pipeWrite.Close()
+	}()
 
-		compressedState, err := gzip.NewWriterLevel(stateFile, gzip.BestSpeed)
-		if err != nil {
-			return err
-		}
+	go func() { _, _ = io.Copy(compressedState, pipeRead) }()
 
-		defer func() { _ = compressedState.Close() }()
+	err = d.saveStateHandle(monitor, pipeWrite)
+	if err != nil {
+		return fmt.Errorf("Failed initializing state save to %q: %w", stateFile.Name(), err)
+	}
 
-		pipeRead, pipeWrite, err := os.Pipe()
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			_ = pipeRead.Close()
-			_ = pipeWrite.Close()
-		}()
-
-		go func() { _, _ = io.Copy(compressedState, pipeRead) }()
-
-		err = d.saveStateHandle(monitor, pipeWrite)
-		if err != nil {
-			return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
-		}
+	err = monitor.MigrateWait("completed")
+	if err != nil {
+		return fmt.Errorf("Failed saving state to %q: %w", stateFile.Name(), err)
 	}
 
 	return nil
