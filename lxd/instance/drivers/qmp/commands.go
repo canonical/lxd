@@ -161,41 +161,54 @@ func (m *Monitor) CloseFile(name string) error {
 }
 
 // SendFileWithFDSet adds a new file descriptor to an FD set.
-func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (AddFdInfo, error) {
+func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (*AddFdInfo, error) {
+	// Check if disconnected.
+	if m.disconnected {
+		return nil, ErrMonitorDisconnect
+	}
+
+	var req struct {
+		Execute   string `json:"execute"`
+		Arguments struct {
+			Opaque string `json:"opaque"`
+		} `json:"arguments"`
+	}
+
+	permissions := "rdwr"
+	if readonly {
+		permissions = "rdonly"
+	}
+
+	req.Execute = "add-fd"
+	req.Arguments.Opaque = fmt.Sprintf("%s:%s", permissions, name)
+
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err := m.qmp.RunWithFile(reqJSON, file)
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return nil, errPing
+		}
+
+		return nil, err
+	}
+
 	// Prepare the response.
 	var resp struct {
 		Return AddFdInfo `json:"return"`
 	}
 
-	// Check if disconnected
-	if m.disconnected {
-		return resp.Return, ErrMonitorDisconnect
-	}
-
-	permissions := "rdwr"
-
-	if readonly {
-		permissions = "rdonly"
-	}
-
-	// Query the status.
-	ret, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'add-fd', 'arguments': {'opaque': '%s:%s'}}", permissions, name)), file)
-	if err != nil {
-		// Confirm the daemon didn't die.
-		errPing := m.ping()
-		if errPing != nil {
-			return resp.Return, errPing
-		}
-
-		return resp.Return, err
-	}
-
 	err = json.Unmarshal(ret, &resp)
 	if err != nil {
-		return resp.Return, err
+		return nil, err
 	}
 
-	return resp.Return, nil
+	return &resp.Return, nil
 }
 
 // RemoveFDFromFDSet removes an FD with the given name from an FD set.
