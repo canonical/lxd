@@ -282,10 +282,15 @@ func (m *Monitor) Migrate(uri string) error {
 		return err
 	}
 
+	return nil
+}
+
+// MigrateWait waits until migration job reaches the specified status.
+// Returns nil if the migraton job reaches the specified status or an error if the migration job is in the failed
+// status.
+func (m *Monitor) MigrateWait(state string) error {
 	// Wait until it completes or fails.
 	for {
-		time.Sleep(1 * time.Second)
-
 		// Prepare the response.
 		var resp struct {
 			Return struct {
@@ -302,12 +307,12 @@ func (m *Monitor) Migrate(uri string) error {
 			return fmt.Errorf("Migrate call failed")
 		}
 
-		if resp.Return.Status == "completed" {
-			break
+		if resp.Return.Status == state {
+			return nil
 		}
-	}
 
-	return nil
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // MigrateIncoming starts the receiver of a migration stream.
