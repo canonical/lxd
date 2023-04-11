@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-02-20 15:33-0500\n"
+"POT-Creation-Date: 2023-04-11 10:19-0400\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Marathi <https://hosted.weblate.org/projects/linux-containers/"
@@ -63,7 +63,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config_trust.go:239
+#: lxc/config_trust.go:246
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -253,7 +253,7 @@ msgid ""
 "###  user.foo: bah\n"
 msgstr ""
 
-#: lxc/network.go:593
+#: lxc/network.go:598
 msgid ""
 "### This is a YAML representation of the network.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -734,7 +734,7 @@ msgstr ""
 msgid "Bad device override syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/network.go:325 lxc/network_acl.go:369 lxc/network_forward.go:285
+#: lxc/network.go:330 lxc/network_acl.go:369 lxc/network_forward.go:285
 #: lxc/network_load_balancer.go:287 lxc/network_peer.go:281
 #: lxc/network_zone.go:312 lxc/network_zone.go:871 lxc/storage_bucket.go:137
 #, c-format
@@ -752,7 +752,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr ""
 
-#: lxc/network.go:838
+#: lxc/network.go:843
 msgid "Bond:"
 msgstr ""
 
@@ -765,15 +765,15 @@ msgstr ""
 msgid "Brand: %v"
 msgstr ""
 
-#: lxc/network.go:851
+#: lxc/network.go:856
 msgid "Bridge:"
 msgstr ""
 
-#: lxc/info.go:568 lxc/network.go:830
+#: lxc/info.go:568 lxc/network.go:835
 msgid "Bytes received"
 msgstr ""
 
-#: lxc/info.go:569 lxc/network.go:831
+#: lxc/info.go:569 lxc/network.go:836
 msgid "Bytes sent"
 msgstr ""
 
@@ -781,7 +781,7 @@ msgstr ""
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:404
+#: lxc/config_trust.go:411
 msgid "COMMON NAME"
 msgstr ""
 
@@ -907,7 +907,7 @@ msgstr ""
 msgid "Cannot set key: %s"
 msgstr ""
 
-#: lxc/config_trust.go:184
+#: lxc/config_trust.go:191
 msgid "Cannot use metrics type certificate when using a token"
 msgstr ""
 
@@ -921,7 +921,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr ""
 
-#: lxc/config_trust.go:624
+#: lxc/config_trust.go:631
 #, c-format
 msgid "Certificate add token for %s deleted"
 msgstr ""
@@ -937,11 +937,11 @@ msgstr ""
 msgid "Certificate fingerprint: %s"
 msgstr ""
 
-#: lxc/network.go:872
+#: lxc/network.go:877
 msgid "Chassis"
 msgstr ""
 
-#: lxc/config_trust.go:208
+#: lxc/config_trust.go:215
 #, c-format
 msgid "Client %s certificate add token:"
 msgstr ""
@@ -992,9 +992,9 @@ msgstr ""
 
 #: lxc/cluster.go:767 lxc/config.go:98 lxc/config.go:376 lxc/config.go:479
 #: lxc/config.go:626 lxc/config.go:745 lxc/copy.go:61 lxc/info.go:46
-#: lxc/init.go:56 lxc/move.go:66 lxc/network.go:292 lxc/network.go:713
-#: lxc/network.go:771 lxc/network.go:1111 lxc/network.go:1178
-#: lxc/network.go:1240 lxc/network_forward.go:171 lxc/network_forward.go:235
+#: lxc/init.go:56 lxc/move.go:66 lxc/network.go:297 lxc/network.go:718
+#: lxc/network.go:776 lxc/network.go:1116 lxc/network.go:1183
+#: lxc/network.go:1245 lxc/network_forward.go:171 lxc/network_forward.go:235
 #: lxc/network_forward.go:390 lxc/network_forward.go:491
 #: lxc/network_forward.go:633 lxc/network_forward.go:710
 #: lxc/network_forward.go:776 lxc/network_load_balancer.go:173
@@ -1062,8 +1062,8 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:732 lxc/cluster_group.go:327 lxc/config.go:263
-#: lxc/config.go:338 lxc/config_metadata.go:147 lxc/config_trust.go:308
-#: lxc/image.go:457 lxc/network.go:678 lxc/network_acl.go:582
+#: lxc/config.go:338 lxc/config_metadata.go:147 lxc/config_trust.go:315
+#: lxc/image.go:457 lxc/network.go:683 lxc/network_acl.go:582
 #: lxc/network_forward.go:597 lxc/network_load_balancer.go:600
 #: lxc/network_peer.go:573 lxc/network_zone.go:513 lxc/network_zone.go:1067
 #: lxc/profile.go:508 lxc/project.go:312 lxc/storage.go:311
@@ -1346,7 +1346,7 @@ msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/cluster.go:189 lxc/cluster_group.go:423 lxc/image.go:1059
-#: lxc/image_alias.go:238 lxc/list.go:558 lxc/network.go:964
+#: lxc/image_alias.go:238 lxc/list.go:558 lxc/network.go:969
 #: lxc/network_acl.go:149 lxc/network_forward.go:146
 #: lxc/network_load_balancer.go:149 lxc/network_peer.go:141
 #: lxc/network_zone.go:140 lxc/network_zone.go:704 lxc/operation.go:164
@@ -1368,7 +1368,7 @@ msgstr ""
 msgid "DRM:"
 msgstr ""
 
-#: lxc/network.go:855
+#: lxc/network.go:860
 msgid "Default VLAN ID"
 msgstr ""
 
@@ -1436,7 +1436,7 @@ msgstr ""
 msgid "Delete network zones"
 msgstr ""
 
-#: lxc/network.go:363 lxc/network.go:364
+#: lxc/network.go:368 lxc/network.go:369
 msgid "Delete networks"
 msgstr ""
 
@@ -1484,9 +1484,9 @@ msgstr ""
 #: lxc/config_template.go:28 lxc/config_template.go:68
 #: lxc/config_template.go:111 lxc/config_template.go:153
 #: lxc/config_template.go:241 lxc/config_template.go:301 lxc/config_trust.go:35
-#: lxc/config_trust.go:88 lxc/config_trust.go:230 lxc/config_trust.go:344
-#: lxc/config_trust.go:426 lxc/config_trust.go:528 lxc/config_trust.go:574
-#: lxc/config_trust.go:645 lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31
+#: lxc/config_trust.go:88 lxc/config_trust.go:237 lxc/config_trust.go:351
+#: lxc/config_trust.go:433 lxc/config_trust.go:535 lxc/config_trust.go:581
+#: lxc/config_trust.go:652 lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31
 #: lxc/exec.go:41 lxc/export.go:32 lxc/file.go:79 lxc/file.go:119
 #: lxc/file.go:168 lxc/file.go:238 lxc/file.go:460 lxc/file.go:968
 #: lxc/image.go:38 lxc/image.go:146 lxc/image.go:313 lxc/image.go:364
@@ -1497,10 +1497,10 @@ msgstr ""
 #: lxc/import.go:29 lxc/info.go:34 lxc/init.go:41 lxc/launch.go:25
 #: lxc/list.go:50 lxc/main.go:79 lxc/manpage.go:22 lxc/monitor.go:33
 #: lxc/move.go:37 lxc/network.go:33 lxc/network.go:132 lxc/network.go:217
-#: lxc/network.go:290 lxc/network.go:364 lxc/network.go:414 lxc/network.go:499
-#: lxc/network.go:584 lxc/network.go:710 lxc/network.go:768 lxc/network.go:891
-#: lxc/network.go:984 lxc/network.go:1055 lxc/network.go:1105
-#: lxc/network.go:1175 lxc/network.go:1237 lxc/network_acl.go:30
+#: lxc/network.go:290 lxc/network.go:369 lxc/network.go:419 lxc/network.go:504
+#: lxc/network.go:589 lxc/network.go:715 lxc/network.go:773 lxc/network.go:896
+#: lxc/network.go:989 lxc/network.go:1060 lxc/network.go:1110
+#: lxc/network.go:1180 lxc/network.go:1242 lxc/network_acl.go:30
 #: lxc/network_acl.go:95 lxc/network_acl.go:166 lxc/network_acl.go:219
 #: lxc/network_acl.go:265 lxc/network_acl.go:314 lxc/network_acl.go:397
 #: lxc/network_acl.go:457 lxc/network_acl.go:484 lxc/network_acl.go:615
@@ -1574,11 +1574,11 @@ msgstr ""
 msgid "Destination cluster member name"
 msgstr ""
 
-#: lxc/network.go:413 lxc/network.go:414
+#: lxc/network.go:418 lxc/network.go:419
 msgid "Detach network interfaces from instances"
 msgstr ""
 
-#: lxc/network.go:498 lxc/network.go:499
+#: lxc/network.go:503 lxc/network.go:504
 msgid "Detach network interfaces from profiles"
 msgstr ""
 
@@ -1689,7 +1689,7 @@ msgstr ""
 msgid "Don't show progress information"
 msgstr ""
 
-#: lxc/network.go:842
+#: lxc/network.go:847
 msgid "Down delay"
 msgstr ""
 
@@ -1706,11 +1706,11 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/cluster.go:923 lxc/config_trust.go:510
+#: lxc/cluster.go:923 lxc/config_trust.go:517
 msgid "EXPIRES AT"
 msgstr ""
 
-#: lxc/config_trust.go:407
+#: lxc/config_trust.go:414
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -1752,7 +1752,7 @@ msgstr ""
 msgid "Edit network ACL configurations as YAML"
 msgstr ""
 
-#: lxc/network.go:583 lxc/network.go:584
+#: lxc/network.go:588 lxc/network.go:589
 msgid "Edit network configurations as YAML"
 msgstr ""
 
@@ -1800,7 +1800,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:229 lxc/config_trust.go:230
+#: lxc/config_trust.go:236 lxc/config_trust.go:237
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
@@ -1937,7 +1937,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:405 lxc/image.go:1056 lxc/image.go:1057
+#: lxc/config_trust.go:412 lxc/image.go:1056 lxc/image.go:1057
 #: lxc/image_alias.go:236
 msgid "FINGERPRINT"
 msgstr ""
@@ -1976,7 +1976,7 @@ msgstr ""
 msgid "Failed connecting to instance SFTP: %w"
 msgstr ""
 
-#: lxc/config_trust.go:204
+#: lxc/config_trust.go:211
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -2083,7 +2083,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:922 lxc/network_acl.go:125 lxc/network_zone.go:116
+#: lxc/network.go:927 lxc/network_acl.go:125 lxc/network_zone.go:116
 #: lxc/operation.go:134
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -2146,9 +2146,9 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:125 lxc/cluster.go:838
-#: lxc/cluster_group.go:370 lxc/config_template.go:243 lxc/config_trust.go:346
-#: lxc/config_trust.go:428 lxc/image.go:1046 lxc/image_alias.go:158
-#: lxc/list.go:134 lxc/network.go:895 lxc/network.go:986 lxc/network_acl.go:98
+#: lxc/cluster_group.go:370 lxc/config_template.go:243 lxc/config_trust.go:353
+#: lxc/config_trust.go:435 lxc/image.go:1046 lxc/image_alias.go:158
+#: lxc/list.go:134 lxc/network.go:900 lxc/network.go:991 lxc/network_acl.go:98
 #: lxc/network_forward.go:90 lxc/network_load_balancer.go:94
 #: lxc/network_peer.go:85 lxc/network_zone.go:89 lxc/network_zone.go:654
 #: lxc/operation.go:107 lxc/profile.go:593 lxc/project.go:396
@@ -2166,7 +2166,7 @@ msgstr ""
 msgid "Format (man|md|rest|yaml)"
 msgstr ""
 
-#: lxc/network.go:854
+#: lxc/network.go:859
 msgid "Forward delay"
 msgstr ""
 
@@ -2218,7 +2218,7 @@ msgstr ""
 msgid "Get image properties"
 msgstr ""
 
-#: lxc/network.go:767 lxc/network.go:768
+#: lxc/network.go:772 lxc/network.go:773
 msgid "Get runtime information on networks"
 msgstr ""
 
@@ -2238,7 +2238,7 @@ msgstr ""
 msgid "Get values for network ACL configuration keys"
 msgstr ""
 
-#: lxc/network.go:709 lxc/network.go:710
+#: lxc/network.go:714 lxc/network.go:715
 msgid "Get values for network configuration keys"
 msgstr ""
 
@@ -2291,7 +2291,7 @@ msgstr ""
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/network.go:1031
+#: lxc/network.go:1036
 msgid "HOSTNAME"
 msgstr ""
 
@@ -2323,7 +2323,7 @@ msgstr ""
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr ""
 
-#: lxc/network.go:852 lxc/operation.go:162
+#: lxc/network.go:857 lxc/operation.go:162
 msgid "ID"
 msgstr ""
 
@@ -2341,7 +2341,7 @@ msgstr ""
 msgid "IMAGES"
 msgstr ""
 
-#: lxc/network.go:1033
+#: lxc/network.go:1038
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -2349,19 +2349,19 @@ msgstr ""
 msgid "IP addresses"
 msgstr ""
 
-#: lxc/network.go:821
+#: lxc/network.go:826
 msgid "IP addresses:"
 msgstr ""
 
-#: lxc/list.go:553 lxc/network.go:962
+#: lxc/list.go:553 lxc/network.go:967
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:554 lxc/network.go:963
+#: lxc/list.go:554 lxc/network.go:968
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:406
+#: lxc/config_trust.go:413
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -2519,7 +2519,7 @@ msgstr ""
 msgid "Invalid argument %q"
 msgstr ""
 
-#: lxc/config_trust.go:385
+#: lxc/config_trust.go:392
 msgid "Invalid certificate"
 msgstr ""
 
@@ -2641,7 +2641,7 @@ msgstr ""
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:599 lxc/network.go:1038 lxc/network_forward.go:152
+#: lxc/list.go:599 lxc/network.go:1043 lxc/network_forward.go:152
 #: lxc/network_load_balancer.go:154 lxc/operation.go:169
 #: lxc/storage_bucket.go:500 lxc/storage_volume.go:1470 lxc/warning.go:221
 msgid "LOCATION"
@@ -2684,7 +2684,7 @@ msgstr ""
 msgid "Link speed: %dMbit/s (%s duplex)"
 msgstr ""
 
-#: lxc/network.go:983 lxc/network.go:984
+#: lxc/network.go:988 lxc/network.go:989
 msgid "List DHCP leases"
 msgstr ""
 
@@ -2692,7 +2692,7 @@ msgstr ""
 msgid "List aliases"
 msgstr ""
 
-#: lxc/config_trust.go:425 lxc/config_trust.go:426
+#: lxc/config_trust.go:432 lxc/config_trust.go:433
 msgid "List all active certificate add tokens"
 msgstr ""
 
@@ -2744,7 +2744,7 @@ msgstr ""
 msgid "List available network zoneS"
 msgstr ""
 
-#: lxc/network.go:890 lxc/network.go:891
+#: lxc/network.go:895 lxc/network.go:896
 msgid "List available networks"
 msgstr ""
 
@@ -2940,7 +2940,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:343 lxc/config_trust.go:344
+#: lxc/config_trust.go:350 lxc/config_trust.go:351
 msgid "List trusted clients"
 msgstr ""
 
@@ -2988,15 +2988,15 @@ msgstr ""
 msgid "Log:"
 msgstr ""
 
-#: lxc/network.go:864
+#: lxc/network.go:869
 msgid "Lower device"
 msgstr ""
 
-#: lxc/network.go:845
+#: lxc/network.go:850
 msgid "Lower devices"
 msgstr ""
 
-#: lxc/network.go:1032
+#: lxc/network.go:1037
 msgid "MAC ADDRESS"
 msgstr ""
 
@@ -3004,7 +3004,7 @@ msgstr ""
 msgid "MAC address"
 msgstr ""
 
-#: lxc/network.go:813
+#: lxc/network.go:818
 #, c-format
 msgid "MAC address: %s"
 msgstr ""
@@ -3014,7 +3014,7 @@ msgstr ""
 msgid "MAD: %s (%s)"
 msgstr ""
 
-#: lxc/network.go:961
+#: lxc/network.go:966
 msgid "MANAGED"
 msgstr ""
 
@@ -3035,11 +3035,11 @@ msgstr ""
 msgid "MESSAGE"
 msgstr ""
 
-#: lxc/network.go:843
+#: lxc/network.go:848
 msgid "MII Frequency"
 msgstr ""
 
-#: lxc/network.go:844
+#: lxc/network.go:849
 msgid "MII state"
 msgstr ""
 
@@ -3047,7 +3047,7 @@ msgstr ""
 msgid "MTU"
 msgstr ""
 
-#: lxc/network.go:814
+#: lxc/network.go:819
 #, c-format
 msgid "MTU: %d"
 msgstr ""
@@ -3207,8 +3207,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -3297,7 +3297,7 @@ msgstr ""
 msgid "Missing bucket name"
 msgstr ""
 
-#: lxc/config_trust.go:262 lxc/config_trust.go:670
+#: lxc/config_trust.go:269 lxc/config_trust.go:677
 msgid "Missing certificate fingerprint"
 msgstr ""
 
@@ -3349,10 +3349,10 @@ msgstr ""
 msgid "Missing network ACL name"
 msgstr ""
 
-#: lxc/network.go:156 lxc/network.go:241 lxc/network.go:388 lxc/network.go:438
-#: lxc/network.go:523 lxc/network.go:628 lxc/network.go:736 lxc/network.go:794
-#: lxc/network.go:1009 lxc/network.go:1079 lxc/network.go:1134
-#: lxc/network.go:1201 lxc/network_forward.go:116 lxc/network_forward.go:192
+#: lxc/network.go:156 lxc/network.go:241 lxc/network.go:393 lxc/network.go:443
+#: lxc/network.go:528 lxc/network.go:633 lxc/network.go:741 lxc/network.go:799
+#: lxc/network.go:1014 lxc/network.go:1084 lxc/network.go:1139
+#: lxc/network.go:1206 lxc/network_forward.go:116 lxc/network_forward.go:192
 #: lxc/network_forward.go:256 lxc/network_forward.go:351
 #: lxc/network_forward.go:411 lxc/network_forward.go:535
 #: lxc/network_forward.go:654 lxc/network_forward.go:731
@@ -3433,7 +3433,7 @@ msgstr ""
 msgid "Missing target network"
 msgstr ""
 
-#: lxc/network.go:839
+#: lxc/network.go:844
 msgid "Mode"
 msgstr ""
 
@@ -3458,7 +3458,7 @@ msgid ""
 "By default the monitor will listen to all message types."
 msgstr ""
 
-#: lxc/network.go:458 lxc/network.go:543 lxc/storage_volume.go:723
+#: lxc/network.go:463 lxc/network.go:548 lxc/storage_volume.go:723
 #: lxc/storage_volume.go:804
 msgid "More than one device matches, specify the device name"
 msgstr ""
@@ -3525,8 +3525,8 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:184 lxc/cluster.go:921 lxc/cluster_group.go:422
-#: lxc/config_trust.go:403 lxc/config_trust.go:508 lxc/list.go:566
-#: lxc/network.go:959 lxc/network_acl.go:148 lxc/network_peer.go:140
+#: lxc/config_trust.go:410 lxc/config_trust.go:515 lxc/list.go:566
+#: lxc/network.go:964 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
 #: lxc/project.go:482 lxc/remote.go:726 lxc/storage.go:611
 #: lxc/storage_bucket.go:495 lxc/storage_bucket.go:790
@@ -3550,7 +3550,7 @@ msgstr ""
 msgid "NICs:"
 msgstr ""
 
-#: lxc/network.go:936 lxc/operation.go:146 lxc/project.go:440
+#: lxc/network.go:941 lxc/operation.go:146 lxc/project.go:440
 #: lxc/project.go:445 lxc/project.go:450 lxc/project.go:455 lxc/project.go:460
 #: lxc/project.go:465 lxc/remote.go:682 lxc/remote.go:687 lxc/remote.go:692
 msgid "NO"
@@ -3583,7 +3583,7 @@ msgstr ""
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
-#: lxc/info.go:463 lxc/network.go:812 lxc/storage_volume.go:1213
+#: lxc/info.go:463 lxc/network.go:817 lxc/storage_volume.go:1213
 #, c-format
 msgid "Name: %s"
 msgstr ""
@@ -3593,22 +3593,22 @@ msgstr ""
 msgid "Name: %v"
 msgstr ""
 
-#: lxc/network.go:346
+#: lxc/network.go:351
 #, c-format
 msgid "Network %s created"
 msgstr ""
 
-#: lxc/network.go:398
+#: lxc/network.go:403
 #, c-format
 msgid "Network %s deleted"
 msgstr ""
 
-#: lxc/network.go:344
+#: lxc/network.go:349
 #, c-format
 msgid "Network %s pending on member %s"
 msgstr ""
 
-#: lxc/network.go:1089
+#: lxc/network.go:1094
 #, c-format
 msgid "Network %s renamed to %s"
 msgstr ""
@@ -3683,11 +3683,11 @@ msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
 msgstr ""
 
-#: lxc/network.go:293
+#: lxc/network.go:298
 msgid "Network type"
 msgstr ""
 
-#: lxc/info.go:586 lxc/network.go:829
+#: lxc/info.go:586 lxc/network.go:834
 msgid "Network usage:"
 msgstr ""
 
@@ -3713,7 +3713,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
-#: lxc/config_trust.go:631
+#: lxc/config_trust.go:638
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -3723,7 +3723,7 @@ msgstr ""
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/network.go:467 lxc/network.go:552
+#: lxc/network.go:472 lxc/network.go:557
 msgid "No device found for this network"
 msgstr ""
 
@@ -3765,7 +3765,7 @@ msgstr ""
 msgid "Not a snapshot name"
 msgstr ""
 
-#: lxc/network.go:871
+#: lxc/network.go:876
 msgid "OVN:"
 msgstr ""
 
@@ -3793,7 +3793,7 @@ msgstr ""
 msgid "Only instance or custom volumes are supported"
 msgstr ""
 
-#: lxc/network.go:654 lxc/network.go:1149
+#: lxc/network.go:659 lxc/network.go:1154
 msgid "Only managed networks can be modified"
 msgstr ""
 
@@ -3856,11 +3856,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:570 lxc/network.go:832
+#: lxc/info.go:570 lxc/network.go:837
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:571 lxc/network.go:833
+#: lxc/info.go:571 lxc/network.go:838
 msgid "Packets sent"
 msgstr ""
 
@@ -3885,7 +3885,7 @@ msgstr ""
 msgid "Please provide an alternate server address (empty to abort):"
 msgstr ""
 
-#: lxc/config_trust.go:149
+#: lxc/config_trust.go:156
 msgid "Please provide client name: "
 msgstr ""
 
@@ -3912,7 +3912,7 @@ msgstr ""
 
 #: lxc/cluster.go:733 lxc/cluster_group.go:328 lxc/config.go:264
 #: lxc/config.go:339 lxc/config_metadata.go:148 lxc/config_template.go:207
-#: lxc/config_trust.go:309 lxc/image.go:458 lxc/network.go:679
+#: lxc/config_trust.go:316 lxc/image.go:458 lxc/network.go:684
 #: lxc/network_acl.go:583 lxc/network_forward.go:598
 #: lxc/network_load_balancer.go:601 lxc/network_peer.go:574
 #: lxc/network_zone.go:514 lxc/network_zone.go:1068 lxc/profile.go:509
@@ -4234,7 +4234,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr ""
 
-#: lxc/config_trust.go:527 lxc/config_trust.go:528
+#: lxc/config_trust.go:534 lxc/config_trust.go:535
 msgid "Remove trusted client"
 msgstr ""
 
@@ -4259,7 +4259,7 @@ msgstr ""
 msgid "Rename network ACLs"
 msgstr ""
 
-#: lxc/network.go:1054 lxc/network.go:1055
+#: lxc/network.go:1059 lxc/network.go:1060
 msgid "Rename networks"
 msgstr ""
 
@@ -4353,7 +4353,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:573 lxc/config_trust.go:574
+#: lxc/config_trust.go:580 lxc/config_trust.go:581
 msgid "Revoke certificate add token"
 msgstr ""
 
@@ -4399,7 +4399,7 @@ msgstr ""
 msgid "SSH client disconnected %q"
 msgstr ""
 
-#: lxc/cluster.go:190 lxc/list.go:571 lxc/network.go:966
+#: lxc/cluster.go:190 lxc/list.go:571 lxc/network.go:971
 #: lxc/network_peer.go:143 lxc/storage.go:621
 msgid "STATE"
 msgstr ""
@@ -4424,7 +4424,7 @@ msgstr ""
 msgid "STORAGE VOLUMES"
 msgstr ""
 
-#: lxc/network.go:853
+#: lxc/network.go:858
 msgid "STP"
 msgstr ""
 
@@ -4522,11 +4522,11 @@ msgid ""
 "    lxc network set [<remote>:]<ACL> <key> <value>"
 msgstr ""
 
-#: lxc/network.go:1104
+#: lxc/network.go:1109
 msgid "Set network configuration keys"
 msgstr ""
 
-#: lxc/network.go:1105
+#: lxc/network.go:1110
 msgid ""
 "Set network configuration keys\n"
 "\n"
@@ -4740,7 +4740,7 @@ msgstr ""
 msgid "Show network ACL log"
 msgstr ""
 
-#: lxc/network.go:1174 lxc/network.go:1175
+#: lxc/network.go:1179 lxc/network.go:1180
 msgid "Show network configurations"
 msgstr ""
 
@@ -4820,7 +4820,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:644 lxc/config_trust.go:645
+#: lxc/config_trust.go:651 lxc/config_trust.go:652
 msgid "Show trust configurations"
 msgstr ""
 
@@ -4889,7 +4889,7 @@ msgstr ""
 msgid "State"
 msgstr ""
 
-#: lxc/network.go:815
+#: lxc/network.go:820
 #, c-format
 msgid "State: %s"
 msgstr ""
@@ -5016,12 +5016,12 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:922 lxc/config_trust.go:509
+#: lxc/cluster.go:922 lxc/config_trust.go:516
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:402 lxc/image.go:1063 lxc/image_alias.go:237
-#: lxc/list.go:572 lxc/network.go:960 lxc/network.go:1034 lxc/operation.go:163
+#: lxc/config_trust.go:409 lxc/image.go:1063 lxc/image_alias.go:237
+#: lxc/list.go:572 lxc/network.go:965 lxc/network.go:1039 lxc/operation.go:163
 #: lxc/storage_volume.go:1461 lxc/warning.go:216
 msgid "TYPE"
 msgstr ""
@@ -5119,12 +5119,12 @@ msgstr ""
 msgid "The source LXD server is not clustered"
 msgstr ""
 
-#: lxc/network.go:472 lxc/network.go:557 lxc/storage_volume.go:737
+#: lxc/network.go:477 lxc/network.go:562 lxc/storage_volume.go:737
 #: lxc/storage_volume.go:818
 msgid "The specified device doesn't exist"
 msgstr ""
 
-#: lxc/network.go:476 lxc/network.go:561
+#: lxc/network.go:481 lxc/network.go:566
 msgid "The specified device doesn't match the network"
 msgstr ""
 
@@ -5183,7 +5183,7 @@ msgid ""
 msgstr ""
 
 #: lxc/config.go:288 lxc/config.go:428 lxc/config.go:578 lxc/config.go:664
-#: lxc/copy.go:129 lxc/info.go:337 lxc/network.go:800 lxc/storage.go:435
+#: lxc/copy.go:129 lxc/info.go:337 lxc/network.go:805 lxc/storage.go:435
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -5232,7 +5232,7 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr ""
 
-#: lxc/network.go:840
+#: lxc/network.go:845
 msgid "Transmit policy"
 msgstr ""
 
@@ -5255,7 +5255,7 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
-#: lxc/image.go:947 lxc/info.go:274 lxc/info.go:474 lxc/network.go:816
+#: lxc/image.go:947 lxc/info.go:274 lxc/info.go:474 lxc/network.go:821
 #: lxc/storage_volume.go:1222
 #, c-format
 msgid "Type: %s"
@@ -5282,7 +5282,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:965 lxc/network_acl.go:150 lxc/network_zone.go:141
+#: lxc/network.go:970 lxc/network_acl.go:150 lxc/network_zone.go:141
 #: lxc/profile.go:635 lxc/project.go:490 lxc/storage.go:620
 #: lxc/storage_volume.go:1465
 msgid "USED BY"
@@ -5366,7 +5366,7 @@ msgstr ""
 msgid "Unset network ACL configuration keys"
 msgstr ""
 
-#: lxc/network.go:1236 lxc/network.go:1237
+#: lxc/network.go:1241 lxc/network.go:1242
 msgid "Unset network configuration keys"
 msgstr ""
 
@@ -5427,7 +5427,7 @@ msgstr ""
 msgid "Unsupported instance type: %s"
 msgstr ""
 
-#: lxc/network.go:841
+#: lxc/network.go:846
 msgid "Up delay"
 msgstr ""
 
@@ -5446,7 +5446,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/network.go:857
+#: lxc/network.go:862
 msgid "Upper devices"
 msgstr ""
 
@@ -5487,15 +5487,15 @@ msgstr ""
 msgid "VFs: %d"
 msgstr ""
 
-#: lxc/network.go:865
+#: lxc/network.go:870
 msgid "VLAN ID"
 msgstr ""
 
-#: lxc/network.go:856
+#: lxc/network.go:861
 msgid "VLAN filtering"
 msgstr ""
 
-#: lxc/network.go:863
+#: lxc/network.go:868
 msgid "VLAN:"
 msgstr ""
 
@@ -5541,7 +5541,7 @@ msgstr ""
 msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
-#: lxc/network.go:938 lxc/operation.go:148 lxc/project.go:442
+#: lxc/network.go:943 lxc/operation.go:148 lxc/project.go:442
 #: lxc/project.go:447 lxc/project.go:452 lxc/project.go:457 lxc/project.go:462
 #: lxc/project.go:467 lxc/remote.go:684 lxc/remote.go:689 lxc/remote.go:694
 msgid "YES"
@@ -5572,8 +5572,8 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr ""
 
 #: lxc/cluster.go:120 lxc/cluster.go:835 lxc/cluster_group.go:365
-#: lxc/config_trust.go:341 lxc/config_trust.go:424 lxc/monitor.go:31
-#: lxc/network.go:888 lxc/network_acl.go:92 lxc/network_zone.go:83
+#: lxc/config_trust.go:348 lxc/config_trust.go:431 lxc/monitor.go:31
+#: lxc/network.go:893 lxc/network_acl.go:92 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:586 lxc/project.go:391
 #: lxc/storage.go:556 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
@@ -5587,7 +5587,7 @@ msgstr ""
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
 
-#: lxc/cluster.go:564 lxc/config_trust.go:572
+#: lxc/cluster.go:564 lxc/config_trust.go:579
 msgid "[<remote>:] <name>"
 msgstr ""
 
@@ -5664,7 +5664,7 @@ msgstr ""
 msgid "[<remote>:]<cluster member>"
 msgstr ""
 
-#: lxc/config_trust.go:228 lxc/config_trust.go:525 lxc/config_trust.go:643
+#: lxc/config_trust.go:235 lxc/config_trust.go:532 lxc/config_trust.go:650
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
@@ -5822,13 +5822,13 @@ msgstr ""
 msgid "[<remote>:]<member> <role[,role...]>"
 msgstr ""
 
-#: lxc/network.go:361 lxc/network.go:582 lxc/network.go:766 lxc/network.go:982
-#: lxc/network.go:1173 lxc/network_forward.go:84
+#: lxc/network.go:366 lxc/network.go:587 lxc/network.go:771 lxc/network.go:987
+#: lxc/network.go:1178 lxc/network_forward.go:84
 #: lxc/network_load_balancer.go:88 lxc/network_peer.go:79
 msgid "[<remote>:]<network>"
 msgstr ""
 
-#: lxc/network.go:412
+#: lxc/network.go:417
 msgid "[<remote>:]<network> <instance> [<device name>]"
 msgstr ""
 
@@ -5836,11 +5836,11 @@ msgstr ""
 msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
 msgstr ""
 
-#: lxc/network.go:708 lxc/network.go:1235
+#: lxc/network.go:713 lxc/network.go:1240
 msgid "[<remote>:]<network> <key>"
 msgstr ""
 
-#: lxc/network.go:1103
+#: lxc/network.go:1108
 msgid "[<remote>:]<network> <key>=<value>..."
 msgstr ""
 
@@ -5889,7 +5889,7 @@ msgstr ""
 msgid "[<remote>:]<network> <listen_address> [key=value...]"
 msgstr ""
 
-#: lxc/network.go:1052
+#: lxc/network.go:1057
 msgid "[<remote>:]<network> <new-name>"
 msgstr ""
 
@@ -5915,7 +5915,7 @@ msgstr ""
 msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
 msgstr ""
 
-#: lxc/network.go:497
+#: lxc/network.go:502
 msgid "[<remote>:]<network> <profile> [<device name>]"
 msgstr ""
 
@@ -6343,6 +6343,15 @@ msgid ""
 "    Rename a snapshot."
 msgstr ""
 
+#: lxc/network.go:291
+msgid ""
+"lxc network create foo\n"
+"    Create a new network called foo\n"
+"\n"
+"lxc network create bar network=baz --type ovn\n"
+"    Create a new OVN network called bar using baz as its uplink network"
+msgstr ""
+
 #: lxc/operation.go:187
 msgid ""
 "lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a\n"
@@ -6456,8 +6465,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
