@@ -115,6 +115,8 @@ endif
 .PHONY: doc-setup
 doc-setup:
 	@echo "Setting up documentation build environment"
+	cd .sphinx/lxddoc && go build -o $(GOPATH)/bin/lxddoc
+	lxddoc -t doc/ ./shared
 	python3 -m venv .sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
 	mkdir -p .sphinx/deps/ .sphinx/themes/
