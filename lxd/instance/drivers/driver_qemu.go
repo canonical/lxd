@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -96,6 +97,9 @@ const qemuNetDevIDPrefix = "lxd_"
 
 // qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
 const qemuBlockDevIDPrefix = "lxd_"
+
+// qemuMigrationNBDExportName is the name of the disk device export by the migration NBD server.
+const qemuMigrationNBDExportName = "lxd_root"
 
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 // 4 are reserved, and the other 4 can be used for any USB device.
@@ -321,7 +325,7 @@ type qemu struct {
 	architectureName string
 
 	// Stateful migration streams.
-	migrationReceiveStateful io.ReadCloser
+	migrationReceiveStateful map[string]io.ReadWriteCloser
 }
 
 // getAgentClient returns the current agent client handle.
@@ -820,26 +824,64 @@ func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
 // restoreState restores VM state from state file or from migration source if d.migrationReceiveStateful set.
 func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 	if d.migrationReceiveStateful != nil {
-		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": "migration"})
-		defer d.logger.Debug("Stateful checkpoint restore finished", logger.Ctx{"source": "migration"})
+		stateConn := d.migrationReceiveStateful[api.SecretNameState]
+		if stateConn == nil {
+			return fmt.Errorf("Migration state connection is not initialized")
+		}
+
+		// Perform non-shared storage transfer if requested.
+		filesystemConn := d.migrationReceiveStateful[api.SecretNameFilesystem]
+		if filesystemConn != nil {
+			nbdConn, err := monitor.NBDServerStart()
+			if err != nil {
+				return fmt.Errorf("Failed starting NBD server: %w", err)
+			}
+
+			d.logger.Debug("Migration NBD server started")
+
+			defer func() {
+				_ = nbdConn.Close()
+				_ = monitor.NBDServerStop()
+			}()
+
+			err = monitor.NBDBlockExportAdd(qemuMigrationNBDExportName)
+			if err != nil {
+				return fmt.Errorf("Failed adding root disk to NBD server: %w", err)
+			}
+
+			go func() {
+				d.logger.Debug("Migration storage NBD export starting")
+
+				go func() { _, _ = io.Copy(filesystemConn, nbdConn) }()
+
+				_, _ = io.Copy(nbdConn, filesystemConn)
+				_ = nbdConn.Close()
+
+				d.logger.Debug("Migration storage NBD export finished")
+			}()
+
+			defer func() { _ = filesystemConn.Close() }()
+		}
 
 		// Receive checkpoint from QEMU process on source.
+		d.logger.Debug("Stateful migration checkpoint receive starting")
 		pipeRead, pipeWrite, err := os.Pipe()
 		if err != nil {
 			return err
 		}
 
-		defer func() {
-			_ = pipeRead.Close()
+		go func() {
+			_, _ = io.Copy(pipeWrite, stateConn)
 			_ = pipeWrite.Close()
+			_ = pipeRead.Close()
 		}()
-
-		go func() { _, _ = io.Copy(pipeWrite, d.migrationReceiveStateful) }()
 
 		err = d.restoreStateHandle(monitor, pipeRead)
 		if err != nil {
 			return fmt.Errorf("Failed restoring checkpoint from source: %w", err)
 		}
+
+		d.logger.Debug("Stateful migration checkpoint receive finished")
 	} else {
 		statePath := d.StatePath()
 		d.logger.Debug("Stateful checkpoint restore starting", logger.Ctx{"source": statePath})
@@ -881,7 +923,8 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 }
 
 // saveStateHandle dumps the current VM state to a file handle.
-// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+// Once started, the VM is in a paused state and it's up to the caller to wait for the transfer to complete and
+// resume or kill the VM guest.
 func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	// Send the target file to qemu.
 	err := monitor.SendFile("migration", f)
@@ -1613,6 +1656,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
+		err = fmt.Errorf("Failed starting VM: %w", err)
 		op.Done(err)
 		return err
 	}
@@ -4145,9 +4189,9 @@ func (d *qemu) Stop(stateful bool) error {
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
 
 	// Must be run prior to creating the operation lock.
-	// Allow stop to proceed if statusCode is Error as we may need to forcefully kill the QEMU process.
+	// Allow to proceed if statusCode is Error or Frozen as we may need to forcefully kill the QEMU process.
 	statusCode := d.statusCode()
-	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error {
+	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error && statusCode != api.Frozen {
 		return ErrInstanceIsStopped
 	}
 
@@ -5681,6 +5725,11 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Check for stateful support.
+	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful migration requires migration.stateful to be set to true")
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -5737,14 +5786,11 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 		}
 	}
 
-	// Offer QEMU to QEMU live state transfer state transfer feature if supported.
-	// If the request is for live migration, the source pool driver supports it, and is an internal cluster
-	// instance move on remote shared storage, then offer live QEMU to QEMU state transfer can proceed.
+	// Offer QEMU to QEMU live state transfer state transfer feature.
+	// If the request is for live migration, then offer that live QEMU to QEMU state transfer can proceed.
 	// Otherwise LXD will fallback to doing stateful stop, migrate, and then stateful start, which will still
 	// fulfil the "live" part of the request, albeit with longer pause of the instance during the process.
-	poolInfo := pool.Driver().Info()
-	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
-	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove {
+	if args.Live {
 		offerHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
 	}
 
@@ -5872,45 +5918,9 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 				defer instanceRefClear(d)
 			}
 
-			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+			err = d.migrateSendLive(pool, args.ClusterMoveSourceName, blockSize, filesystemConn, stateConn, volSourceArgs)
 			if err != nil {
 				return err
-			}
-
-			// Send checkpoint to QEMU process on target.
-			pipeRead, pipeWrite, err := os.Pipe()
-			if err != nil {
-				return err
-			}
-
-			defer func() {
-				_ = pipeRead.Close()
-				_ = pipeWrite.Close()
-			}()
-
-			go func() { _, _ = io.Copy(stateConn, pipeRead) }()
-
-			monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
-			if err != nil {
-				return err
-			}
-
-			d.logger.Debug("Stateful checkpoint starting", logger.Ctx{"target": "migration"})
-			err = d.saveStateHandle(monitor, pipeWrite)
-			if err != nil {
-				return fmt.Errorf("Failed transferring state to target: %w", err)
-			}
-
-			err = monitor.MigrateWait("completed")
-			if err != nil {
-				return fmt.Errorf("Failed waiting for state transfer to reach completed stage: %w", err)
-			}
-
-			d.logger.Debug("Stateful checkpoint finished", logger.Ctx{"target": "migration"})
-
-			err = d.Stop(false)
-			if err != nil {
-				return fmt.Errorf("Failed stopping instance: %w", err)
 			}
 		} else {
 			// Perform stateful stop if live state transfer is not supported by target.
@@ -5933,8 +5943,307 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	// Wait for routines to finish and collect first error.
 	{
 		err := g.Wait()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
+
+// migrateSendLive performs live migration send process.
+func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName string, rootDiskSize int64, filesystemConn io.ReadWriteCloser, stateConn io.ReadWriteCloser, volSourceArgs *migration.VolumeSourceArgs) error {
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
 		return err
 	}
+
+	rootDiskName := "lxd_root"                  // Name of source disk device to sync from
+	nbdTargetDiskName := "lxd_root_nbd"         // Name of NBD disk device added to local VM to sync to.
+	rootSnapshotDiskName := "lxd_root_snapshot" // Name of snapshot disk device to use.
+
+	// If we are performing an intra-cluster member move on a Ceph storage pool then we can treat this as
+	// shared storage and avoid needing to sync the root disk.
+	sharedStorage := clusterMoveSourceName != "" && pool.Driver().Info().Remote
+
+	revert := revert.New()
+
+	// Non-shared storage snapshot setup.
+	if !sharedStorage {
+		// Setup migration capabilities.
+		capabilities := map[string]bool{
+			// Automatically throttle down the guest to speed up convergence of RAM migration.
+			"auto-converge": true,
+
+			// Allow the migration to be paused after the source qemu releases the block devices but
+			// before the serialisation of the device state, to avoid a race condition between
+			// migration and blockdev-mirror. This requires that the migration be continued after it
+			// has reached the "pre-switchover" status.
+			"pause-before-switchover": true,
+
+			// During storage migration encode blocks of zeroes efficiently.
+			"zero-blocks": true,
+		}
+
+		err = monitor.MigrateSetCapabilities(capabilities)
+		if err != nil {
+			return fmt.Errorf("Failed setting migration capabilities: %w", err)
+		}
+
+		// Create snapshot of the root disk.
+		// We use the VM's config volume for this so that the maximum size of the snapshot can be limited
+		// by setting the root disk's `size.state` property.
+		snapshotFile := filepath.Join(d.Path(), "migration_snapshot.qcow2")
+
+		// Ensure there are no existing migration snapshot files.
+		err = os.Remove(snapshotFile)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+
+		// Create qcow2 disk image with the maximum size set to the instance's root disk size for use as
+		// a CoW target for the migration snapshot. This will be used during migration to store writes in
+		// the guest whilst the storage driver is transferring the root disk and snapshots to the taget.
+		_, err = shared.RunCommand("qemu-img", "create", "-f", "qcow2", snapshotFile, fmt.Sprintf("%d", rootDiskSize))
+		if err != nil {
+			return fmt.Errorf("Failed opening file image for migration storage snapshot %q: %w", snapshotFile, err)
+		}
+
+		defer func() { _ = os.Remove(snapshotFile) }()
+
+		// Pass the snapshot file to the running QEMU process.
+		f, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
+		if err != nil {
+			return fmt.Errorf("Failed opening file descriptor for migration storage snapshot %q: %w", snapshotFile, err)
+		}
+
+		defer func() { _ = f.Close() }()
+
+		// Remove the snapshot file as we don't want to sync this to the target.
+		err = os.Remove(snapshotFile)
+		if err != nil {
+			return err
+		}
+
+		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, f, false)
+		if err != nil {
+			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", f.Name(), err)
+		}
+
+		defer func() { _ = monitor.RemoveFDFromFDSet(rootSnapshotDiskName) }()
+
+		// Add the snapshot file as a block device (not visible to the guest OS).
+		err = monitor.AddBlockDevice(map[string]any{
+			"driver":    "qcow2",
+			"node-name": rootSnapshotDiskName,
+			"read-only": false,
+			"file": map[string]any{
+				"driver":   "file",
+				"filename": fmt.Sprintf("/dev/fdset/%d", info.ID),
+			},
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding migration storage snapshot block device: %w", err)
+		}
+
+		defer func() {
+			_ = monitor.RemoveBlockDevice(rootSnapshotDiskName)
+		}()
+
+		// Take a snapshot of the root disk and redirect writes to the snapshot disk.
+		err = monitor.BlockDevSnapshot(rootDiskName, rootSnapshotDiskName)
+		if err != nil {
+			return fmt.Errorf("Failed taking temporary migration storage snapshot: %w", err)
+		}
+
+		revert.Add(func() {
+			// Resume guest (this is needed as it will prevent merging the snapshot if paused).
+			err = monitor.Start()
+			if err != nil {
+				d.logger.Warn("Failed resuming instance", logger.Ctx{"err": err})
+			}
+
+			// Try and merge snapshot back to the source disk on failure so we don't lose writes.
+			err = monitor.BlockCommit(rootSnapshotDiskName)
+			if err != nil {
+				d.logger.Error("Failed merging migration storage snapshot", logger.Ctx{"err": err})
+			}
+		})
+
+		defer revert.Fail() // Run the revert fail before the earlier defers.
+
+		d.logger.Debug("Setup temporary migration storage snapshot")
+	}
+
+	// Perform storage transfer while instance is still running.
+	// For shared storage the storage driver will likely not do much here, but we still call it anyway for the
+	// sense checks it performs.
+	// We enable AllowInconsistent mode as this allows for transferring the VM storage whilst it is running
+	// and the snapshot we took earlier is designed to provide consistency anyway.
+	volSourceArgs.AllowInconsistent = true
+	err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
+	if err != nil {
+		return err
+	}
+
+	// Non-shared storage snapshot transfer.
+	if !sharedStorage {
+		listener, err := net.Listen("unix", "")
+		if err != nil {
+			return fmt.Errorf("Failed creating NBD unix listener: %w", err)
+		}
+
+		defer func() { _ = listener.Close() }()
+
+		go func() {
+			d.logger.Debug("NBD listener waiting for accept")
+			nbdConn, err := listener.Accept()
+			if err != nil {
+				d.logger.Error("Failed accepting connection to NBD client unix listener", logger.Ctx{"err": err})
+				return
+			}
+
+			defer func() { _ = nbdConn.Close() }()
+
+			d.logger.Debug("NBD connection on source started")
+			go func() { _, _ = io.Copy(filesystemConn, nbdConn) }()
+
+			_, _ = io.Copy(nbdConn, filesystemConn)
+			d.logger.Debug("NBD connection on source finished")
+		}()
+
+		// Connect to NBD migration target and add it the source instance as a disk device.
+		d.logger.Debug("Connecting to migration NBD storage target")
+		err = monitor.AddBlockDevice(map[string]any{
+			"node-name": nbdTargetDiskName,
+			"driver":    "raw",
+			"file": map[string]any{
+				"driver": "nbd",
+				"export": qemuMigrationNBDExportName,
+				"server": map[string]any{
+					"type":     "unix",
+					"abstract": true,
+					"path":     strings.TrimPrefix(listener.Addr().String(), "@"),
+				},
+			},
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding NBD device: %w", err)
+		}
+
+		revert.Add(func() {
+			err := monitor.RemoveBlockDevice(nbdTargetDiskName)
+			if err != nil {
+				d.logger.Warn("Failed removing NBD storage target device", logger.Ctx{"err": err})
+			}
+		})
+
+		d.logger.Debug("Connected to migration NBD storage target")
+
+		// Begin transferring any writes that occurred during the storage migration by transferring the
+		// contents of the (top) migration snapshot to the target disk to bring them into sync.
+		// Once this has completed the guest OS will be paused.
+		d.logger.Debug("Migration storage snapshot transfer started")
+		err = monitor.BlockDevMirror(rootSnapshotDiskName, nbdTargetDiskName)
+		if err != nil {
+			return fmt.Errorf("Failed transferring migration storage snapshot: %w", err)
+		}
+
+		d.logger.Debug("Migration storage snapshot transfer finished")
+	}
+
+	d.logger.Debug("Stateful migration checkpoint send starting")
+
+	// Send checkpoint to QEMU process on target. This will pause the guest OS (if not already paused).
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = pipeRead.Close()
+		_ = pipeWrite.Close()
+	}()
+
+	go func() { _, _ = io.Copy(stateConn, pipeRead) }()
+
+	err = d.saveStateHandle(monitor, pipeWrite)
+	if err != nil {
+		return fmt.Errorf("Failed starting state transfer to target: %w", err)
+	}
+
+	// Non-shared storage snapshot transfer finalization.
+	if !sharedStorage {
+		// Wait until state transfer has reached pre-switchover state (the guest OS will remain paused).
+		err = monitor.MigrateWait("pre-switchover")
+		if err != nil {
+			return fmt.Errorf("Failed waiting for state transfer to reach pre-switchover stage: %w", err)
+		}
+
+		d.logger.Debug("Stateful migration checkpoint reached pre-switchover phase")
+
+		// Complete the migration snapshot sync process (the guest OS will remain paused).
+		d.logger.Debug("Migration storage snapshot transfer commit started")
+		err = monitor.BlockJobCancel(rootSnapshotDiskName)
+		if err != nil {
+			return fmt.Errorf("Failed cancelling block job: %w", err)
+		}
+
+		d.logger.Debug("Migration storage snapshot transfer commit finished")
+
+		// Finalise the migration state transfer (the guest OS will remain paused).
+		err = monitor.MigrateContinue("pre-switchover")
+		if err != nil {
+			return fmt.Errorf("Failed continuing state transfer: %w", err)
+		}
+
+		d.logger.Debug("Stateful migration checkpoint send continuing")
+	}
+
+	// Wait until the migration state transfer has completed (the guest OS will remain paused).
+	err = monitor.MigrateWait("completed")
+	if err != nil {
+		return fmt.Errorf("Failed waiting for state transfer to reach completed stage: %w", err)
+	}
+
+	d.logger.Debug("Stateful migration checkpoint send finished")
+
+	if clusterMoveSourceName != "" {
+		// If doing an intra-cluster member move then we will be deleting the instance on the source,
+		// so lets just stop it after migration is completed.
+		err = d.Stop(false)
+		if err != nil {
+			return fmt.Errorf("Failed stopping instance: %w", err)
+		}
+	} else {
+		// Remove the NBD client disk.
+		err := monitor.RemoveBlockDevice(nbdTargetDiskName)
+		if err != nil {
+			d.logger.Warn("Failed removing NBD storage target device", logger.Ctx{"err": err})
+		}
+
+		d.logger.Debug("Removed NBD storage target device")
+
+		// Resume guest.
+		err = monitor.Start()
+		if err != nil {
+			return fmt.Errorf("Failed resuming instance: %w", err)
+		}
+
+		d.logger.Debug("Resumed instance")
+
+		// Merge snapshot back to the source disk so we don't lose the writes.
+		d.logger.Debug("Merge migration storage snapshot on source started")
+		err = monitor.BlockCommit(rootSnapshotDiskName)
+		if err != nil {
+			return fmt.Errorf("Failed merging migration storage snapshot: %w", err)
+		}
+
+		d.logger.Debug("Merge migration storage snapshot on source finished")
+	}
+
+	revert.Success()
+	return nil
 }
 
 func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
@@ -6064,15 +6373,12 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	}
 
 	// Negotiate support for QEMU to QEMU live state transfer.
-	// If the request is for live migration, the target pool driver supports it, is an internal cluster
-	// instance move on remote shared storage, and the source pool driver supports it, then respond that live
-	// QEMU to QEMU state transfer can proceed. Otherwise LXD will fallback to doing stateful stop, migrate,
-	// and then stateful start, which will still fulfil the "live" part of the request, albeit with longer
-	// pause of the instance during the process.
+	// If the request is for live migration, then respond that live QEMU to QEMU state transfer can proceed.
+	// Otherwise LXD will fallback to doing stateful stop, migrate, and then stateful start, which will still
+	// fulfil the "live" part of the request, albeit with longer pause of the instance during the process.
 	poolInfo := pool.Driver().Info()
-	isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
 	var useStateConn bool
-	if args.Live && poolInfo.LiveMigrationQEMU && isRemoteClusterMove && offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_VM_QEMU {
+	if args.Live && offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_VM_QEMU {
 		respHeader.Criu = migration.CRIUType_VM_QEMU.Enum()
 		useStateConn = true
 	}
@@ -6254,6 +6560,7 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
+		isRemoteClusterMove := args.ClusterMoveSourceName != "" && poolInfo.Remote
 		if !volTargetArgs.Refresh && !isRemoteClusterMove {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
@@ -6278,7 +6585,15 @@ func (d *qemu) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		if args.Live {
 			// Start live state transfer using state connection if supported.
 			if stateConn != nil {
-				d.migrationReceiveStateful = stateConn
+				d.migrationReceiveStateful = map[string]io.ReadWriteCloser{
+					api.SecretNameState: stateConn,
+				}
+
+				// Populate the filesystem connection handle if doing non-shared storage migration.
+				sharedStorage := args.ClusterMoveSourceName != "" && poolInfo.Remote
+				if !sharedStorage {
+					d.migrationReceiveStateful[api.SecretNameFilesystem] = filesystemConn
+				}
 			}
 
 			// Although the instance technically isn't considered stateful, we set this to allow
@@ -6949,11 +7264,9 @@ func (d *qemu) statusCode() api.StatusCode {
 		}
 
 		return api.Running
-	} else if status == "paused" {
+	} else if status == "paused" || status == "postmigrate" {
 		return api.Frozen
-	} else if status == "internal-error" {
-		return api.Error
-	} else if status == "io-error" {
+	} else if status == "internal-error" || status == "io-error" {
 		return api.Error
 	}
 
