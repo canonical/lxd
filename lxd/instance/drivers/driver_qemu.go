@@ -1610,6 +1610,7 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
+		err = fmt.Errorf("Failed starting VM: %w", err)
 		op.Done(err)
 		return err
 	}
