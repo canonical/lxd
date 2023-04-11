@@ -76,20 +76,32 @@ var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 
 // InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines).
 var InstanceConfigKeysAny = map[string]func(value string) error{
-	"boot.autostart":             validate.Optional(validate.IsBool),
-	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
-	"boot.autostart.priority":    validate.Optional(validate.IsInt64),
-	"boot.stop.priority":         validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfig.boot.autostart)
+	"boot.autostart": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfig.boot.autostart.delay)
+	"boot.autostart.delay": validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfig.boot.autostart.priority)
+	"boot.autostart.priority": validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfig.boot.stop.priority)
+	"boot.stop.priority": validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfig.boot.host_shutdown_timeout)
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
 
+	// :lxddoc(InstanceConfig.cloud-init.network-config)
 	"cloud-init.network-config": validate.Optional(validate.IsYAML),
-	"cloud-init.user-data":      validate.Optional(validate.IsCloudInitUserData),
-	"cloud-init.vendor-data":    validate.Optional(validate.IsCloudInitUserData),
+	// :lxddoc(InstanceConfig.cloud-init.user-data)
+	"cloud-init.user-data": validate.Optional(validate.IsCloudInitUserData),
+	// :lxddoc(InstanceConfig.cloud-init.vendor-data)
+	"cloud-init.vendor-data": validate.Optional(validate.IsCloudInitUserData),
 
+	// :lxddoc(InstanceConfig.cluster.evacuate)
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
-	"limits.cpu":           validate.Optional(validate.IsValidCPUSet),
+	// :lxddoc(InstanceConfig.limits.cpu)
+	"limits.cpu": validate.Optional(validate.IsValidCPUSet),
+	// :lxddoc(InstanceConfig.limits.disk.priority)
 	"limits.disk.priority": validate.Optional(validate.IsPriority),
+	// :lxddoc(InstanceConfig.limits.memory)
 	"limits.memory": func(value string) error {
 		if value == "" {
 			return nil
@@ -119,17 +131,25 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 
 		return nil
 	},
+	// :lxddoc(InstanceConfig.limits.network.priority)
 	"limits.network.priority": validate.Optional(validate.IsPriority),
 
 	// Caller is responsible for full validation of any raw.* value.
+	// :lxddoc(InstanceConfig.raw.apparmor)
 	"raw.apparmor": validate.IsAny,
 
-	"security.devlxd":            validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfig.security.devlxd)
+	"security.devlxd": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfig.security.protection.delete)
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
-	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup", "@never"})),
+	// :lxddoc(InstanceConfig.snapshots.schedule)
+	"snapshots.schedule": validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup", "@never"})),
+	// :lxddoc(InstanceConfig.snapshots.schedule.stopped)
 	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
-	"snapshots.pattern":          validate.IsAny,
+	// :lxddoc(InstanceConfig.snapshots.pattern)
+	"snapshots.pattern": validate.IsAny,
+	// :lxddoc(InstanceConfig.snapshots.expiry)
 	"snapshots.expiry": func(value string) error {
 		// Validate expression
 		_, err := GetExpiry(time.Time{}, value)
@@ -137,27 +157,43 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	},
 
 	// Volatile keys.
-	"volatile.apply_template":         validate.IsAny,
-	"volatile.base_image":             validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.apply_template)
+	"volatile.apply_template": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.base_image)
+	"volatile.base_image": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.cloud-init.instance-id)
 	"volatile.cloud-init.instance-id": validate.Optional(validate.IsUUID),
-	"volatile.evacuate.origin":        validate.IsAny,
-	"volatile.last_state.idmap":       validate.IsAny,
-	"volatile.last_state.power":       validate.IsAny,
-	"volatile.last_state.ready":       validate.IsBool,
-	"volatile.idmap.base":             validate.IsAny,
-	"volatile.idmap.current":          validate.IsAny,
-	"volatile.idmap.next":             validate.IsAny,
-	"volatile.apply_quota":            validate.IsAny,
-	"volatile.uuid":                   validate.Optional(validate.IsUUID),
-	"volatile.vsock_id":               validate.Optional(validate.IsInt64),
-	"volatile.uuid.generation":        validate.Optional(validate.IsUUID),
+	// :lxddoc(InstanceConfig.volatile.evacuate.origin)
+	"volatile.evacuate.origin": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.last_state.idmap)
+	"volatile.last_state.idmap": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.last_state.power)
+	"volatile.last_state.power": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.last_state.ready)
+	"volatile.last_state.ready": validate.IsBool,
+	// :lxddoc(InstanceConfig.volatile.idmap.base)
+	"volatile.idmap.base": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.idmap.current)
+	"volatile.idmap.current": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.idmap.next)
+	"volatile.idmap.next": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.apply_quota)
+	"volatile.apply_quota": validate.IsAny,
+	// :lxddoc(InstanceConfig.volatile.uuid)
+	"volatile.uuid": validate.Optional(validate.IsUUID),
+	// :lxddoc(InstanceConfig.volatile.vsock_id)
+	"volatile.vsock_id": validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfig.volatile.uuid.generation)
+	"volatile.uuid.generation": validate.Optional(validate.IsUUID),
 
 	// Caller is responsible for full validation of any raw.* value.
+	// :lxddoc(InstanceConfig.raw.idmap)
 	"raw.idmap": validate.IsAny,
 }
 
 // InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only).
 var InstanceConfigKeysContainer = map[string]func(value string) error{
+	// :lxddoc(InstanceConfigContainer.limits.cpu.allowance)
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
 			return nil
@@ -191,81 +227,137 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority":   validate.Optional(validate.IsPriority),
+	// :lxddoc(InstanceConfigContainer.limits.cpu.priority)
+	"limits.cpu.priority": validate.Optional(validate.IsPriority),
+	// :lxddoc(InstanceConfigContainer.limits.hugepages.64KB)
 	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
-	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
-	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
+	// :lxddoc(InstanceConfigContainer.limits.hugepages.1MB)
+	"limits.hugepages.1MB": validate.Optional(validate.IsSize),
+	// :lxddoc(InstanceConfigContainer.limits.hugepages.2MB)
+	"limits.hugepages.2MB": validate.Optional(validate.IsSize),
+	// :lxddoc(InstanceConfigContainer.limits.hugepages.1GB)
+	"limits.hugepages.1GB": validate.Optional(validate.IsSize),
+	// :lxddoc(InstanceConfigContainer.limits.memory.enforce)
 	"limits.memory.enforce": validate.Optional(validate.IsOneOf("soft", "hard")),
 
-	"limits.memory.swap":          validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.limits.memory.swap)
+	"limits.memory.swap": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.limits.memory.swap.priority)
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.processes":            validate.Optional(validate.IsInt64),
+	// :lxddoc(InstanceConfigContainer.limits.processes)
+	"limits.processes": validate.Optional(validate.IsInt64),
 
+	// :lxddoc(InstanceConfigContainer.linux.kernel_modules)
 	"linux.kernel_modules": validate.IsAny,
 
-	"migration.incremental.memory":            validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.migration.incremental.memory)
+	"migration.incremental.memory": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.migration.incremental.memory.iterations)
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
-	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
+	// :lxddoc(InstanceConfigContainer.migration.incremental.memory.goal)
+	"migration.incremental.memory.goal": validate.Optional(validate.IsUint32),
 
-	"nvidia.runtime":             validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.nvidia.runtime)
+	"nvidia.runtime": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.nvidia.driver.capabilities)
 	"nvidia.driver.capabilities": validate.IsAny,
-	"nvidia.require.cuda":        validate.IsAny,
-	"nvidia.require.driver":      validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.nvidia.require.cuda)
+	"nvidia.require.cuda": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.nvidia.require.driver)
+	"nvidia.require.driver": validate.IsAny,
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.lxc":     validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.raw.lxc)
+	"raw.lxc": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.raw.seccomp)
 	"raw.seccomp": validate.IsAny,
 
+	// :lxddoc(InstanceConfigContainer.security.devlxd.images)
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
-	"security.idmap.base":     validate.Optional(validate.IsUint32),
+	// :lxddoc(InstanceConfigContainer.security.idmap.base)
+	"security.idmap.base": validate.Optional(validate.IsUint32),
+	// :lxddoc(InstanceConfigContainer.security.idmap.isolated)
 	"security.idmap.isolated": validate.Optional(validate.IsBool),
-	"security.idmap.size":     validate.Optional(validate.IsUint32),
+	// :lxddoc(InstanceConfigContainer.security.idmap.size)
+	"security.idmap.size": validate.Optional(validate.IsUint32),
 
-	"security.nesting":          validate.Optional(validate.IsBool),
-	"security.privileged":       validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.nesting)
+	"security.nesting": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.privileged)
+	"security.privileged": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.protection.shift)
 	"security.protection.shift": validate.Optional(validate.IsBool),
 
-	"security.syscalls.allow":                        validate.IsAny,
-	"security.syscalls.blacklist_default":            validate.Optional(validate.IsBool),
-	"security.syscalls.blacklist_compat":             validate.Optional(validate.IsBool),
-	"security.syscalls.blacklist":                    validate.IsAny,
-	"security.syscalls.deny_default":                 validate.Optional(validate.IsBool),
-	"security.syscalls.deny_compat":                  validate.Optional(validate.IsBool),
-	"security.syscalls.deny":                         validate.IsAny,
-	"security.syscalls.intercept.bpf":                validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.bpf.devices":        validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.mknod":              validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.mount":              validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.mount.allowed":      validate.IsAny,
-	"security.syscalls.intercept.mount.fuse":         validate.IsAny,
-	"security.syscalls.intercept.mount.shift":        validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.allow)
+	"security.syscalls.allow": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.blacklist_default)
+	"security.syscalls.blacklist_default": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.blacklist_compat)
+	"security.syscalls.blacklist_compat": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.blacklist)
+	"security.syscalls.blacklist": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.deny_default)
+	"security.syscalls.deny_default": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.deny_compat)
+	"security.syscalls.deny_compat": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.deny)
+	"security.syscalls.deny": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.bpf)
+	"security.syscalls.intercept.bpf": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.bpf.devices)
+	"security.syscalls.intercept.bpf.devices": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.mknod)
+	"security.syscalls.intercept.mknod": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.mount)
+	"security.syscalls.intercept.mount": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.mount.allowed)
+	"security.syscalls.intercept.mount.allowed": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.mount.fuse)
+	"security.syscalls.intercept.mount.fuse": validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.mount.shift)
+	"security.syscalls.intercept.mount.shift": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.sched_setscheduler)
 	"security.syscalls.intercept.sched_setscheduler": validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.setxattr":           validate.Optional(validate.IsBool),
-	"security.syscalls.intercept.sysinfo":            validate.Optional(validate.IsBool),
-	"security.syscalls.whitelist":                    validate.IsAny,
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.setxattr)
+	"security.syscalls.intercept.setxattr": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.intercept.sysinfo)
+	"security.syscalls.intercept.sysinfo": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigContainer.security.syscalls.whitelist)
+	"security.syscalls.whitelist": validate.IsAny,
 }
 
 // InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only).
 var InstanceConfigKeysVM = map[string]func(value string) error{
+	// :lxddoc(InstanceConfigVM.limits.memory.hugepages)
 	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
+	// :lxddoc(InstanceConfigVM.migration.stateful)
 	"migration.stateful": validate.Optional(validate.IsBool),
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.qemu":      validate.IsAny,
+	// :lxddoc(InstanceConfigVM.raw.qemu)
+	"raw.qemu": validate.IsAny,
+	// :lxddoc(InstanceConfigVM.raw.qemu.conf)
 	"raw.qemu.conf": validate.IsAny,
 
-	"security.agent.metrics":    validate.Optional(validate.IsBool),
-	"security.secureboot":       validate.Optional(validate.IsBool),
-	"security.sev":              validate.Optional(validate.IsBool),
-	"security.sev.policy.es":    validate.Optional(validate.IsBool),
-	"security.sev.session.dh":   validate.Optional(validate.IsAny),
+	// :lxddoc(InstanceConfigVM.security.agent.metrics)
+	"security.agent.metrics": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigVM.security.secureboot)
+	"security.secureboot": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigVM.security.sev)
+	"security.sev": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigVM.security.sev.policy.es)
+	"security.sev.policy.es": validate.Optional(validate.IsBool),
+	// :lxddoc(InstanceConfigVM.security.sev.session.dh)
+	"security.sev.session.dh": validate.Optional(validate.IsAny),
+	// :lxddoc(InstanceConfigVM.security.sev.session.data)
 	"security.sev.session.data": validate.Optional(validate.IsAny),
 
+	// :lxddoc(InstanceConfigVM.agent.nic_config)
 	"agent.nic_config": validate.Optional(validate.IsBool),
 
+	// :lxddoc(InstanceConfigVM.volatile.apply_nvram)
 	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 }
 
