@@ -881,7 +881,8 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 }
 
 // saveStateHandle dumps the current VM state to a file handle.
-// Once dumped, the VM is in a paused state and it's up to the caller to resume or kill it.
+// Once started, the VM is in a paused state and it's up to the caller to wait for the transfer to complete and
+// resume or kill the VM guest.
 func (d *qemu) saveStateHandle(monitor *qmp.Monitor, f *os.File) error {
 	// Send the target file to qemu.
 	err := monitor.SendFile("migration", f)
