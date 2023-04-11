@@ -288,6 +288,11 @@ func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<network> [key=value...]"))
 	cmd.Short = i18n.G("Create new networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create new networks`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc network create foo
+    Create a new network called foo
+
+lxc network create bar network=baz --type ovn
+    Create a new OVN network called bar using baz as its uplink network`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVarP(&c.network.flagType, "type", "t", "", i18n.G("Network type")+"``")
