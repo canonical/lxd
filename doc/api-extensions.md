@@ -2032,3 +2032,7 @@ This adds the following new configuration options for ZFS storage pools:
 Adds support for instance generation ID. The VM or container generation ID will change whenever the instance's place in time moves backwards. As of now, the generation ID is only exposed through to VM type instances. This allows for the VM guest OS to reinitialize any state it needs to avoid duplicating potential state that has already occurred:
 
 * `volatile.uuid.generation`
+
+## `migration_vm_live`
+This adds support for performing VM QEMU to QEMU live migration for both shared storage (clustered Ceph) and
+non-shared storage pools.
