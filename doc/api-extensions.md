@@ -2179,3 +2179,9 @@ This adds the following new configuration options for SEV encryption:
 
 ## `storage_pool_loop_resize`
 This allows growing loop file backed storage pools by changing the `size` setting of the pool.
+
+## `migration_vm_live`
+This adds support for performing VM QEMU to QEMU live migration for both shared storage (clustered Ceph) and
+non-shared storage pools.
+
+This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
