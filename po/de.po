@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-04-11 10:19-0400\n"
+"POT-Creation-Date: 2023-04-11 10:51-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -900,7 +900,7 @@ msgstr "Architektur: %s\n"
 msgid "Architecture: %v"
 msgstr "Architektur: %s\n"
 
-#: lxc/cluster.go:1179
+#: lxc/cluster.go:1184
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -1268,7 +1268,7 @@ msgstr "Profil %s wurde auf %s angewandt\n"
 msgid "Cluster group %s renamed to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/cluster.go:997
+#: lxc/cluster.go:1002
 #, c-format
 msgid "Cluster join token for %s:%s deleted"
 msgstr ""
@@ -1283,11 +1283,11 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/cluster.go:767 lxc/config.go:98 lxc/config.go:376 lxc/config.go:479
-#: lxc/config.go:626 lxc/config.go:745 lxc/copy.go:61 lxc/info.go:46
-#: lxc/init.go:56 lxc/move.go:66 lxc/network.go:297 lxc/network.go:718
-#: lxc/network.go:776 lxc/network.go:1116 lxc/network.go:1183
-#: lxc/network.go:1245 lxc/network_forward.go:171 lxc/network_forward.go:235
+#: lxc/config.go:98 lxc/config.go:376 lxc/config.go:479 lxc/config.go:626
+#: lxc/config.go:745 lxc/copy.go:61 lxc/info.go:46 lxc/init.go:56
+#: lxc/move.go:66 lxc/network.go:297 lxc/network.go:718 lxc/network.go:776
+#: lxc/network.go:1116 lxc/network.go:1183 lxc/network.go:1245
+#: lxc/network_forward.go:171 lxc/network_forward.go:235
 #: lxc/network_forward.go:390 lxc/network_forward.go:491
 #: lxc/network_forward.go:633 lxc/network_forward.go:710
 #: lxc/network_forward.go:776 lxc/network_load_balancer.go:173
@@ -1311,6 +1311,14 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 #: lxc/storage_volume.go:2030 lxc/storage_volume.go:2102
 #: lxc/storage_volume.go:2244
 msgid "Cluster member name"
+msgstr ""
+
+#: lxc/cluster.go:767
+msgid "Cluster member name (alternative to passing it as an argument)"
+msgstr ""
+
+#: lxc/cluster.go:791
+msgid "Cluster member name was provided as both a flag and as an argument"
 msgstr ""
 
 #: lxc/cluster.go:637
@@ -1489,27 +1497,27 @@ msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
-#: lxc/cluster.go:1061
+#: lxc/cluster.go:1066
 #, fuzzy, c-format
 msgid "Could not find certificate file path: %s"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:1065
+#: lxc/cluster.go:1070
 #, c-format
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/cluster.go:1070
+#: lxc/cluster.go:1075
 #, fuzzy, c-format
 msgid "Could not read certificate file: %s with error: %v"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:1075
+#: lxc/cluster.go:1080
 #, fuzzy, c-format
 msgid "Could not read certificate key file: %s with error: %v"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:1092
+#: lxc/cluster.go:1097
 #, c-format
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
@@ -1799,8 +1807,8 @@ msgstr ""
 #: lxc/alias.go:199 lxc/cluster.go:30 lxc/cluster.go:123 lxc/cluster.go:207
 #: lxc/cluster.go:256 lxc/cluster.go:305 lxc/cluster.go:352 lxc/cluster.go:404
 #: lxc/cluster.go:433 lxc/cluster.go:483 lxc/cluster.go:566 lxc/cluster.go:651
-#: lxc/cluster.go:766 lxc/cluster.go:837 lxc/cluster.go:939 lxc/cluster.go:1018
-#: lxc/cluster.go:1125 lxc/cluster.go:1146 lxc/cluster_group.go:30
+#: lxc/cluster.go:766 lxc/cluster.go:842 lxc/cluster.go:944 lxc/cluster.go:1023
+#: lxc/cluster.go:1130 lxc/cluster.go:1151 lxc/cluster_group.go:30
 #: lxc/cluster_group.go:79 lxc/cluster_group.go:150 lxc/cluster_group.go:205
 #: lxc/cluster_group.go:255 lxc/cluster_group.go:368 lxc/cluster_group.go:440
 #: lxc/cluster_group.go:511 lxc/cluster_group.go:557 lxc/cluster_role.go:22
@@ -2050,7 +2058,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/cluster.go:923 lxc/config_trust.go:517
+#: lxc/cluster.go:928 lxc/config_trust.go:517
 #, fuzzy
 msgid "EXPIRES AT"
 msgstr "ABLAUFDATUM"
@@ -2205,7 +2213,7 @@ msgstr "Flüchtiger Container"
 msgid "Error updating template file: %s"
 msgstr "Fehler beim hinzufügen des Alias %s\n"
 
-#: lxc/cluster.go:1124 lxc/cluster.go:1125
+#: lxc/cluster.go:1129 lxc/cluster.go:1130
 #, fuzzy
 msgid "Evacuate cluster member"
 msgstr ""
@@ -2214,7 +2222,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:1204
+#: lxc/cluster.go:1209
 #, fuzzy, c-format
 msgid "Evacuating cluster member: %s"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -2469,11 +2477,11 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "Fingerabdruck: %s\n"
 
-#: lxc/cluster.go:1127
+#: lxc/cluster.go:1132
 msgid "Force a particular evacuation action"
 msgstr ""
 
-#: lxc/cluster.go:1154
+#: lxc/cluster.go:1159
 msgid "Force evacuation without user confirmation"
 msgstr ""
 
@@ -2522,7 +2530,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:105 lxc/cluster.go:125 lxc/cluster.go:838
+#: lxc/alias.go:105 lxc/cluster.go:125 lxc/cluster.go:843
 #: lxc/cluster_group.go:370 lxc/config_template.go:243 lxc/config_trust.go:353
 #: lxc/config_trust.go:435 lxc/image.go:1046 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:900 lxc/network.go:991 lxc/network_acl.go:98
@@ -3060,7 +3068,7 @@ msgstr ""
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
-#: lxc/cluster.go:159 lxc/cluster.go:872 lxc/cluster.go:966 lxc/cluster.go:1057
+#: lxc/cluster.go:159 lxc/cluster.go:877 lxc/cluster.go:971 lxc/cluster.go:1062
 #: lxc/cluster_group.go:404
 msgid "LXD server isn't part of a cluster"
 msgstr ""
@@ -3103,7 +3111,7 @@ msgstr "Aliasse:\n"
 msgid "List all active certificate add tokens"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:836 lxc/cluster.go:837
+#: lxc/cluster.go:841 lxc/cluster.go:842
 #, fuzzy
 msgid "List all active cluster member join tokens"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -3713,7 +3721,7 @@ msgstr "Profil %s wurde auf %s angewandt\n"
 msgid "Member %q does not have role %q"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/cluster.go:817
+#: lxc/cluster.go:822
 #, fuzzy, c-format
 msgid "Member %s join token:"
 msgstr "Profil %s wurde auf %s angewandt\n"
@@ -3780,7 +3788,7 @@ msgstr "Fingerabdruck des Zertifikats: % x\n"
 msgid "Missing cluster group name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:684 lxc/cluster.go:1175 lxc/cluster_group.go:110
+#: lxc/cluster.go:684 lxc/cluster.go:1180 lxc/cluster_group.go:110
 #: lxc/cluster_group.go:464 lxc/cluster_role.go:70 lxc/cluster_role.go:124
 #, fuzzy
 msgid "Missing cluster member name"
@@ -4018,7 +4026,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:184 lxc/cluster.go:921 lxc/cluster_group.go:422
+#: lxc/cluster.go:184 lxc/cluster.go:926 lxc/cluster_group.go:422
 #: lxc/config_trust.go:410 lxc/config_trust.go:515 lxc/list.go:566
 #: lxc/network.go:964 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:139 lxc/network_zone.go:703 lxc/profile.go:633
@@ -4215,7 +4223,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/cluster.go:1004
+#: lxc/cluster.go:1009
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
@@ -4391,7 +4399,7 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Please provide client name: "
 msgstr ""
 
-#: lxc/cluster.go:791
+#: lxc/cluster.go:796
 #, fuzzy
 msgid "Please provide cluster member name: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -4848,7 +4856,7 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/cluster.go:1145 lxc/cluster.go:1146
+#: lxc/cluster.go:1150 lxc/cluster.go:1151
 #, fuzzy
 msgid "Restore cluster member"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -4870,7 +4878,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/cluster.go:1202
+#: lxc/cluster.go:1207
 #, fuzzy, c-format
 msgid "Restoring cluster member: %s"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -4894,7 +4902,7 @@ msgstr ""
 msgid "Revoke certificate add token"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:938
+#: lxc/cluster.go:943
 #, fuzzy
 msgid "Revoke cluster member join token"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -5564,7 +5572,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Store the instance state"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/cluster.go:1097
+#: lxc/cluster.go:1102
 #, c-format
 msgid "Successfully updated cluster certificates for remote %s"
 msgstr ""
@@ -5599,7 +5607,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:922 lxc/config_trust.go:516
+#: lxc/cluster.go:927 lxc/config_trust.go:516
 msgid "TOKEN"
 msgstr ""
 
@@ -6043,12 +6051,12 @@ msgstr ""
 msgid "Up delay"
 msgstr ""
 
-#: lxc/cluster.go:1017
+#: lxc/cluster.go:1022
 #, fuzzy
 msgid "Update cluster certificate"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/cluster.go:1019
+#: lxc/cluster.go:1024
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
@@ -6205,7 +6213,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:120 lxc/cluster.go:835 lxc/cluster_group.go:365
+#: lxc/cluster.go:120 lxc/cluster.go:840 lxc/cluster_group.go:365
 #: lxc/config_trust.go:348 lxc/config_trust.go:431 lxc/monitor.go:31
 #: lxc/network.go:893 lxc/network_acl.go:92 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:586 lxc/project.go:391
@@ -6225,7 +6233,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:1015
+#: lxc/cluster.go:1020
 #, fuzzy
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
@@ -6671,8 +6679,8 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:205 lxc/cluster.go:254 lxc/cluster.go:480 lxc/cluster.go:937
-#: lxc/cluster.go:1123 lxc/cluster.go:1144
+#: lxc/cluster.go:205 lxc/cluster.go:254 lxc/cluster.go:480 lxc/cluster.go:942
+#: lxc/cluster.go:1128 lxc/cluster.go:1149
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr ""
@@ -7346,7 +7354,7 @@ msgstr ""
 
 #: lxc/cluster.go:764
 #, fuzzy
-msgid "[[<remote>:]<member>]"
+msgid "[[<remote>:]<name>]"
 msgstr ""
 "Löscht einen Container oder Container Sicherungspunkt.\n"
 "\n"
@@ -7739,6 +7747,14 @@ msgstr ""
 #: lxc/image.go:1116
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "[[<remote>:]<member>]"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #, fuzzy
 #~ msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
