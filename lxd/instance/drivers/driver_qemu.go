@@ -6950,11 +6950,9 @@ func (d *qemu) statusCode() api.StatusCode {
 		}
 
 		return api.Running
-	} else if status == "paused" {
+	} else if status == "paused" || status == "postmigrate" {
 		return api.Frozen
-	} else if status == "internal-error" {
-		return api.Error
-	} else if status == "io-error" {
+	} else if status == "internal-error" || status == "io-error" {
 		return api.Error
 	}
 
