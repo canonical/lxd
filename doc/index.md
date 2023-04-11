@@ -56,6 +56,7 @@ instances
 images
 storage
 networks
+projects
 clustering
 operation
 restapi_landing
