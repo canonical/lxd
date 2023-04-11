@@ -5683,6 +5683,11 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Check for stateful support.
+	if args.Live && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		return fmt.Errorf("Stateful migration requires migration.stateful to be set to true")
+	}
+
 	// Wait for essential migration connections before negotiation.
 	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
