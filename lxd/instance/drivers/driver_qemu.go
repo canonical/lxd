@@ -4146,9 +4146,9 @@ func (d *qemu) Stop(stateful bool) error {
 	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
 
 	// Must be run prior to creating the operation lock.
-	// Allow stop to proceed if statusCode is Error as we may need to forcefully kill the QEMU process.
+	// Allow to proceed if statusCode is Error or Frozen as we may need to forcefully kill the QEMU process.
 	statusCode := d.statusCode()
-	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error {
+	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error && statusCode != api.Frozen {
 		return ErrInstanceIsStopped
 	}
 
