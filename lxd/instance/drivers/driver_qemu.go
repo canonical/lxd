@@ -807,13 +807,13 @@ func (d *qemu) killQemuProcess(pid int) error {
 }
 
 // restoreState restores the VM state from a file handle.
-func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
+func (d *qemu) restoreStateHandle(ctx context.Context, monitor *qmp.Monitor, f *os.File) error {
 	err := monitor.SendFile("migration", f)
 	if err != nil {
 		return err
 	}
 
-	err = monitor.MigrateIncoming("fd:migration")
+	err = monitor.MigrateIncoming(ctx, "fd:migration")
 	if err != nil {
 		return err
 	}
@@ -823,6 +823,9 @@ func (d *qemu) restoreStateHandle(monitor *qmp.Monitor, f *os.File) error {
 
 // restoreState restores VM state from state file or from migration source if d.migrationReceiveStateful set.
 func (d *qemu) restoreState(monitor *qmp.Monitor) error {
+	stateCtx, stateCtxDone := context.WithCancel(context.Background())
+	defer stateCtxDone()
+
 	if d.migrationReceiveStateful != nil {
 		stateConn := d.migrationReceiveStateful[api.SecretNameState]
 		if stateConn == nil {
@@ -870,13 +873,17 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 			return err
 		}
 
-		go func() {
-			_, _ = io.Copy(pipeWrite, stateConn)
-			_ = pipeWrite.Close()
+		defer func() {
 			_ = pipeRead.Close()
+			_ = pipeWrite.Close()
 		}()
 
-		err = d.restoreStateHandle(monitor, pipeRead)
+		go func() {
+			_, _ = io.Copy(pipeWrite, stateConn)
+			stateCtxDone()
+		}()
+
+		err = d.restoreStateHandle(stateCtx, monitor, pipeRead)
 		if err != nil {
 			return fmt.Errorf("Failed restoring checkpoint from source: %w", err)
 		}
@@ -911,9 +918,12 @@ func (d *qemu) restoreState(monitor *qmp.Monitor) error {
 			_ = pipeWrite.Close()
 		}()
 
-		go func() { _, _ = io.Copy(pipeWrite, uncompressedState) }()
+		go func() {
+			_, _ = io.Copy(pipeWrite, uncompressedState)
+			stateCtxDone()
+		}()
 
-		err = d.restoreStateHandle(monitor, pipeRead)
+		err = d.restoreStateHandle(stateCtx, monitor, pipeRead)
 		if err != nil {
 			return fmt.Errorf("Failed restoring state from %q: %w", stateFile.Name(), err)
 		}
@@ -6132,6 +6142,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		}
 
 		revert.Add(func() {
+			time.Sleep(time.Second) // Wait for it to be released.
 			err := monitor.RemoveBlockDevice(nbdTargetDiskName)
 			if err != nil {
 				d.logger.Warn("Failed removing NBD storage target device", logger.Ctx{"err": err})
@@ -6148,6 +6159,13 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		if err != nil {
 			return fmt.Errorf("Failed transferring migration storage snapshot: %w", err)
 		}
+
+		revert.Add(func() {
+			err = monitor.BlockJobCancel(rootSnapshotDiskName)
+			if err != nil {
+				d.logger.Error("Failed cancelling block job", logger.Ctx{"err": err})
+			}
+		})
 
 		d.logger.Debug("Migration storage snapshot transfer finished")
 	}
