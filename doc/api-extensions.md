@@ -2185,3 +2185,9 @@ This adds support for performing VM QEMU to QEMU live migration for both shared 
 non-shared storage pools.
 
 This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
+
+## `ovn_nic_nesting`
+This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same instance.
+This allows for an OVN logical switch port to be tunneled inside another OVN NIC using VLAN tagging.
+
+This feature is configured by specifying the parent NIC name using the `nested` property and the VLAN ID to use for tunneling with the `vlan` property.

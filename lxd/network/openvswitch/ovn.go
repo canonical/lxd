@@ -113,6 +113,8 @@ type OVNSwitchPortOpts struct {
 	IPs          []net.IP           // Optional, if empty IPs will be set to dynamic.
 	DHCPv4OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv4 enabled on port.
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
+	Parent       OVNSwitchPort      // Optional, if set a nested port is created.
+	VLAN         uint16             // Optional, use with Parent to request a specific VLAN for nested port.
 }
 
 // OVNACLRule represents an ACL rule that can be added to a logical switch or port group.
@@ -1102,6 +1104,11 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 
 	// Set switch port options if supplied.
 	if opts != nil {
+		// Created nested VLAN port if requested.
+		if opts.Parent != "" {
+			args = append(args, string(opts.Parent), fmt.Sprintf("%d", opts.VLAN))
+		}
+
 		ipStr := make([]string, 0, len(opts.IPs))
 		for _, ip := range opts.IPs {
 			ipStr = append(ipStr, ip.String())
