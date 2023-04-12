@@ -294,7 +294,8 @@ func (d *nicOVN) checkAddressConflict() error {
 		}
 
 		// Check there isn't another instance with the same DNS name connected to managed network.
-		if d.network != nil && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+		sameLogicalInstanceNestedNIC := sameLogicalInstance && (d.config["nested"] != "" || nicConfig["nested"] != "")
+		if d.network != nil && !sameLogicalInstanceNestedNIC && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
 			if sameLogicalInstance {
 				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q conflict between %q and %q because both are connected to same network", strings.ToLower(inst.Name), d.name, nicName)
 			}
