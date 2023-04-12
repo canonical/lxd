@@ -2043,30 +2043,6 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 	refCount := vol.MountRefCountDecrement()
 
-	// The returned boolean indicates whether the volume could be unmounted successfully.
-	deactivate := func() (bool, error) {
-		current, err := d.getDatasetProperty(dataset, "volmode")
-		if err != nil {
-			return false, err
-		}
-
-		if current == "dev" {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
-
-			_, err = d.deactivateVolume(vol)
-			if err != nil {
-				return false, err
-			}
-
-			return true, nil
-		}
-
-		return false, nil
-	}
-
 	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		if refCount > 0 {
 			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
@@ -2080,22 +2056,21 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		}
 
 		blockBacked := d.isBlockBacked(vol)
-
 		if blockBacked {
 			d.logger.Debug("Unmounted ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 		} else {
 			d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 		}
 
-		ourUnmount = true
-
-		// If vol is a zvol, also deactivate it.
-		if d.isBlockBacked(vol) && !keepBlockDev {
-			ourUnmount, err = deactivate()
+		if blockBacked && !keepBlockDev {
+			// For block devices, we make them disappear if active.
+			_, err = d.deactivateVolume(vol)
 			if err != nil {
 				return false, err
 			}
 		}
+
+		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, also unmount the filesystem dataset.
 		if vol.IsVMBlock() {
@@ -2106,9 +2081,14 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			}
 		}
 
-		// For block devices, we make them disappear if active.
 		if !keepBlockDev {
-			ourUnmount, err = deactivate()
+			if refCount > 0 {
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+				return false, ErrInUse
+			}
+
+			// For block devices, we make them disappear if active.
+			ourUnmount, err = d.deactivateVolume(vol)
 			if err != nil {
 				return false, err
 			}
