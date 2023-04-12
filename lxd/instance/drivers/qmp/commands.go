@@ -1,6 +1,7 @@
 package qmp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -337,7 +338,7 @@ func (m *Monitor) MigrateContinue(fromState string) error {
 }
 
 // MigrateIncoming starts the receiver of a migration stream.
-func (m *Monitor) MigrateIncoming(uri string) error {
+func (m *Monitor) MigrateIncoming(ctx context.Context, uri string) error {
 	// Query the status.
 	args := map[string]string{"uri": uri}
 	err := m.run("migrate-incoming", args, nil)
@@ -365,6 +366,14 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 
 		if resp.Return.Status == "completed" {
 			return nil
+		}
+
+		// Check context is cancelled last after checking job status.
+		// This way if the context is cancelled when the migration stream is ended this gives a chance to
+		// check for job success/failure before checking if the context has been cancelled.
+		err = ctx.Err()
+		if err != nil {
+			return err
 		}
 
 		time.Sleep(1 * time.Second)
