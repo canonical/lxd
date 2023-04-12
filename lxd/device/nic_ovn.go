@@ -242,12 +242,17 @@ func (d *nicOVN) checkAddressConflict() error {
 	return network.UsedByInstanceDevices(d.state, d.network.Project(), d.network.Name(), d.network.Type(), func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
-		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
+		sameLogicalInstance := instance.IsSameLogicalInstance(d.inst, &inst)
+		if sameLogicalInstance && d.Name() == nicName {
 			return nil
 		}
 
 		// Check there isn't another instance with the same DNS name connected to managed network.
 		if d.network != nil && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+			if sameLogicalInstance {
+				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q conflict between %q and %q because both are connected to same network", strings.ToLower(inst.Name), d.name, nicName)
+			}
+
 			return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
 		}
 
