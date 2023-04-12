@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mdlayher/netx/eui64"
@@ -91,6 +92,8 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"security.acls.default.ingress.logged",
 		"security.acls.default.egress.logged",
 		"acceleration",
+		"nested",
+		"vlan",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
@@ -177,9 +180,52 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	// Apply network level config options to device config before validation.
 	d.config["mtu"] = netConfig["bridge.mtu"]
 
-	// Check there isn't another NIC with any of the same addresses specified on the same network.
-	// Can only validate this when the instance is supplied (and not doing profile validation).
+	// Check VLAN ID is valid.
+	if d.config["vlan"] != "" {
+		nestedVLAN, err := strconv.ParseUint(d.config["vlan"], 10, 16)
+		if err != nil {
+			return fmt.Errorf("Invalid VLAN ID %q: %w", d.config["vlan"], err)
+		}
+
+		if nestedVLAN < 1 || nestedVLAN > 4095 {
+			return fmt.Errorf("Invalid VLAN ID %q: Must be between 1 and 4095 inclusive", d.config["vlan"])
+		}
+	}
+
+	// Perform checks that require instance (those not appropriate to do during profile validation).
 	if d.inst != nil {
+		// Check nested VLAN combination settings are valid. Requires instance for validation as settings
+		// may come from a combination of profile and instance configs.
+		if d.config["nested"] != "" {
+			if d.config["vlan"] == "" {
+				return fmt.Errorf("VLAN must be specified with a nested NIC")
+			}
+
+			// Check the NIC that this NIC is neted under exists on this instance and shares same
+			// parent network.
+			var nestedParentNIC string
+			for devName, devConfig := range instConf.ExpandedDevices() {
+				if devName != d.config["nested"] || devConfig["type"] != "nic" {
+					continue
+				}
+
+				if devConfig["network"] != d.config["network"] {
+					return fmt.Errorf("The nested parent NIC must be connected to same network as this NIC")
+				}
+
+				nestedParentNIC = devName
+				break
+			}
+
+			if nestedParentNIC == "" {
+				return fmt.Errorf("Instance does not have a NIC called %q for nesting under", d.config["nested"])
+			}
+		} else if d.config["vlan"] != "" {
+			return fmt.Errorf("Specifying a VLAN requires that this NIC be nested")
+		}
+
+		// Check there isn't another NIC with any of the same addresses specified on the same network.
+		// Can only validate this when the instance is supplied (and not doing profile validation).
 		err := d.checkAddressConflict()
 		if err != nil {
 			return err
