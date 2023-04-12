@@ -347,7 +347,7 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 
 	// Wait until it completes or fails.
 	for {
-		// Preapre the response.
+		// Prepare the response.
 		var resp struct {
 			Return struct {
 				Status string `json:"status"`
