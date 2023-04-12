@@ -169,7 +169,6 @@ redirects = {
     "howto/storage_configure_volume/index": "../storage_volumes/index.html#configure-storage-volume-settings",
     "howto/storage_view_volumes/index": "../storage_volumes/index.html#view-storage-volumes",
     "howto/storage_resize_volume/index": "../storage_volumes/index.html#resize-a-storage-volume",
-    "production-setup/index": "../explanation/performance_tuning/index.html",
     "containers/index": "../explanation/instances",
     "virtual-machines/index": "../explanation/instances",
     "preseed/index": "../howto/initialize/index.html#initialize-preseed",

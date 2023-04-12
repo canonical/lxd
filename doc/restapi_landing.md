@@ -12,5 +12,4 @@ api
 Main API extensions <api-extensions>
 Instance API documentation <dev-lxd>
 Events API documentation <events>
-Metrics API documentation <metrics>
 ```
