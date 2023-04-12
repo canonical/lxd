@@ -147,6 +147,7 @@ type OVNRouterRoute struct {
 	Prefix  net.IPNet
 	NextHop net.IP
 	Port    OVNRouterPort
+	Discard bool
 }
 
 // OVNRouterPolicy represents a router policy.
@@ -383,7 +384,13 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, mayExist bool, routes 
 			args = append(args, "--may-exist")
 		}
 
-		args = append(args, "lr-route-add", string(routerName), route.Prefix.String(), route.NextHop.String())
+		args = append(args, "lr-route-add", string(routerName), route.Prefix.String())
+
+		if route.Discard {
+			args = append(args, "discard")
+		} else {
+			args = append(args, route.NextHop.String())
+		}
 
 		if route.Port != "" {
 			args = append(args, string(route.Port))
