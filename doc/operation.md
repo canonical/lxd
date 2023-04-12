@@ -5,8 +5,6 @@
 
 server
 remotes
-explanation/performance_tuning
-Backups <backup>
 migration
 architectures
 ```
