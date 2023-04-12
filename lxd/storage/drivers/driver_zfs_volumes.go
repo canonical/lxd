@@ -175,6 +175,11 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			opts = []string{"volmode=none"}
 		}
 
+		// Avoid double caching in the ARC cache and in the guest OS filesystem cache.
+		if vol.volType == VolumeTypeVM {
+			opts = append(opts, "primarycache=metadata", "secondarycache=metadata")
+		}
+
 		loopPath := loopFilePath(d.name)
 		if d.config["source"] == loopPath {
 			// Create the volume dataset with sync disabled (to avoid kernel lockups when using a disk based pool).
