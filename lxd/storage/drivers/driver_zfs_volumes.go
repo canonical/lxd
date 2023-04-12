@@ -1898,8 +1898,8 @@ func (d *zfs) activateVolume(vol Volume) (bool, error) {
 
 // deactivateVolume deactivates a ZFS volume if activate. Returns true if deactivated, false if not.
 func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
-	if !vol.IsBlockBacked() {
-		return false, nil // Nothing to do for non-block backed volumes.
+	if vol.contentType != ContentTypeBlock && !vol.IsBlockBacked() {
+		return false, nil // Nothing to do for non-block and non-block backed volumes.
 	}
 
 	dataset := d.dataset(vol, false)
