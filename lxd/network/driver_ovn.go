@@ -3399,6 +3399,18 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	instancePortName := n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceName)
 
+	var nestedPortParentName openvswitch.OVNSwitchPort
+	var nestedPortVLAN uint16
+	if opts.DeviceConfig["nested"] != "" {
+		nestedPortParentName = n.getInstanceDevicePortName(opts.InstanceUUID, opts.DeviceConfig["nested"])
+		nestedPortVLANInt64, err := strconv.ParseUint(opts.DeviceConfig["vlan"], 10, 16)
+		if err != nil {
+			return "", fmt.Errorf("Invalid VLAN ID %q: %w", opts.DeviceConfig["vlan"], err)
+		}
+
+		nestedPortVLAN = uint16(nestedPortVLANInt64)
+	}
+
 	// Add port with mayExist set to true, so that if instance port exists, we don't fail and continue below
 	// to configure the port as needed. This is required in case the OVN northbound database was unavailable
 	// when the instance NIC was stopped and was unable to remove the port on last stop, which would otherwise
@@ -3408,6 +3420,8 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		DHCPv6OptsID: dhcpv6ID,
 		MAC:          mac,
 		IPs:          staticIPs,
+		Parent:       nestedPortParentName,
+		VLAN:         nestedPortVLAN,
 	}, true)
 	if err != nil {
 		return "", err
