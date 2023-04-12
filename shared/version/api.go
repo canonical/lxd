@@ -366,6 +366,7 @@ var APIExtensions = []string{
 	"amd_sev",
 	"storage_pool_loop_resize",
 	"migration_vm_live",
+	"ovn_nic_nesting",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
