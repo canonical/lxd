@@ -6014,6 +6014,7 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		}
 
 		revert.Add(func() {
+			time.Sleep(time.Second) // Wait for it to be released.
 			err := monitor.RemoveBlockDevice(nbdTargetDiskName)
 			if err != nil {
 				d.logger.Warn("Failed removing NBD storage target device", logger.Ctx{"err": err})
@@ -6030,6 +6031,13 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		if err != nil {
 			return fmt.Errorf("Failed transferring migration storage snapshot: %w", err)
 		}
+
+		revert.Add(func() {
+			err = monitor.BlockJobCancel(rootSnapshotDiskName)
+			if err != nil {
+				d.logger.Error("Failed cancelling block job", logger.Ctx{"err": err})
+			}
+		})
 
 		d.logger.Debug("Migration storage snapshot transfer finished")
 	}
