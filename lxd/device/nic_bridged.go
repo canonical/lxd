@@ -384,7 +384,8 @@ func (d *nicBridged) checkAddressConflict() error {
 	return network.UsedByInstanceDevices(d.state, project.Default, networkName, "bridge", func(inst db.InstanceArgs, nicName string, nicConfig map[string]string) error {
 		// Skip our own device. This avoids triggering duplicate device errors during
 		// updates or when making temporary copies of our instance during migrations.
-		if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == nicName {
+		sameLogicalInstance := instance.IsSameLogicalInstance(d.inst, &inst)
+		if sameLogicalInstance && d.Name() == nicName {
 			return nil
 		}
 
@@ -399,6 +400,10 @@ func (d *nicBridged) checkAddressConflict() error {
 		// Check there isn't another instance with the same DNS name connected to a managed network
 		// that has DNS enabled and is connected to the same untagged VLAN.
 		if d.network != nil && d.network.Config()["dns.mode"] != "none" && nicCheckDNSNameConflict(d.inst.Name(), inst.Name) {
+			if sameLogicalInstance {
+				return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q conflict between %q and %q because both are connected to same network", strings.ToLower(inst.Name), d.name, nicName)
+			}
+
 			return api.StatusErrorf(http.StatusConflict, "Instance DNS name %q already used on network", strings.ToLower(inst.Name))
 		}
 
