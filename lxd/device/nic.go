@@ -46,6 +46,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		"queue.tx.length":                      validate.Optional(validate.IsUint32),
 		"ipv4.routes.external":                 validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		"ipv6.routes.external":                 validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
+		"nested":                               validate.IsAny,
 		"security.acls":                        validate.IsAny,
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
