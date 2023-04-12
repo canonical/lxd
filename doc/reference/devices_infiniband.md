@@ -1,6 +1,10 @@
 (devices-infiniband)=
 # Type: `infiniband`
 
+```{youtube} https://www.youtube.com/watch?v=SDewhlRSOuM
+:title: LXD InfiniBand devices - YouTube
+```
+
 ```{note}
 The `infiniband` device type is supported for both containers and VMs.
 It supports hotplugging only for containers, not for VMs.
