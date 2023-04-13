@@ -747,16 +747,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 
 	if d.inst.Type() == instancetype.Container {
 		// Bind VF device onto the host so that the settings will take effect.
-		// This will remove the VF interface temporarily, and it will re-appear shortly after.
-		err = pcidev.DeviceProbe(vfPCIDev)
-		if err != nil {
-			return vfPCIDev, 0, err
-		}
-
-		// Wait for VF driver to be reloaded. Unfortunately the time between sending the bind event
-		// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
-		// otherwise next steps of applying settings to interface will fail.
-		err = network.InterfaceBindWait(volatile["host_name"])
+		err = networkPCIBindWaitInterface(vfPCIDev, volatile["host_name"])
 		if err != nil {
 			return vfPCIDev, 0, err
 		}
@@ -857,16 +848,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 	}
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = pcidev.DeviceProbe(vfPCIDev)
-	if err != nil {
-		return err
-	}
-
-	// Wait for VF driver to be reloaded, this will remove the VF interface from the instance
-	// and it will re-appear on the host. Unfortunately the time between sending the bind event
-	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
-	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.
-	err = network.InterfaceBindWait(volatile["host_name"])
+	err = networkPCIBindWaitInterface(vfPCIDev, volatile["host_name"])
 	if err != nil {
 		return err
 	}
@@ -879,6 +861,25 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 
 	revert.Success()
 	return nil
+}
+
+// networkPCIBindWaitInterface repeatedly requests the pciDev is probed to be bound to the override driver and
+// checks whether the expected network interface has appeared as the result of the device driver being bound.
+func networkPCIBindWaitInterface(pciDev pcidev.Device, ifName string) error {
+	var err error
+
+	// Keep requesting the device driver be probed in case it was not ready previously or the expected
+	// interface has not appeared yet. The device can be probed multiple times safely.
+	for i := 0; i < 10; i++ {
+		err = pcidev.DeviceProbe(pciDev)
+		if err == nil && network.InterfaceExists(ifName) {
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Failed to bind interface %q: %w", ifName, err)
 }
 
 // networkSRIOVSetupContainerVFNIC configures the VF NIC interface ready for moving into container.
