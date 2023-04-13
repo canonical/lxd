@@ -657,13 +657,13 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	// Record properties of VF device.
 	err = networkSnapshotPhysicalNIC(volatile["host_name"], volatile)
 	if err != nil {
-		return vfPCIDev, 0, err
+		return vfPCIDev, 0, fmt.Errorf("Failed recording NIC %q settings: %w", volatile["host_name"], err)
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
 	vfPCIDev, err = network.SRIOVGetVFDevicePCISlot(vfParent, volatile["last_state.vf.id"])
 	if err != nil {
-		return vfPCIDev, 0, err
+		return vfPCIDev, 0, fmt.Errorf("Failed getting PCI slot for VF %q: %w", volatile["last_state.vf.id"], err)
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
@@ -679,7 +679,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 		link := &ip.Link{Name: vfParent}
 		err := link.SetVfVlan(volatile["last_state.vf.id"], d.config["vlan"])
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed setting VLAN for VF %q: %w", volatile["last_state.vf.id"], err)
 		}
 	}
 
@@ -701,13 +701,13 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 		link := &ip.Link{Name: vfParent}
 		err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed setting MAC for VF %q: %w", volatile["last_state.vf.id"], err)
 		}
 
 		// Now that MAC is set on VF, we can enable spoof checking.
 		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "on")
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed enabling spoof check for VF %q: %w", volatile["last_state.vf.id"], err)
 		}
 	} else {
 		// Try to reset VF to ensure no previous MAC restriction exists, as some devices require this
@@ -716,14 +716,14 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 		link := &ip.Link{Name: vfParent}
 		err = link.SetVfAddress(volatile["last_state.vf.id"], "00:00:00:00:00:00")
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed clearing MAC for VF %q: %w", volatile["last_state.vf.id"], err)
 		}
 
 		if useSpoofCheck {
 			// Ensure spoof checking is disabled if not enabled in instance (only for real VF).
 			err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "off")
 			if err != nil {
-				return vfPCIDev, 0, err
+				return vfPCIDev, 0, fmt.Errorf("Failed disabling spoof check for VF %q: %w", volatile["last_state.vf.id"], err)
 			}
 		}
 
@@ -737,7 +737,7 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 
 			err = link.SetVfAddress(volatile["last_state.vf.id"], mac)
 			if err != nil {
-				return vfPCIDev, 0, err
+				return vfPCIDev, 0, fmt.Errorf("Failed setting MAC for VF %q: %w", volatile["last_state.vf.id"], err)
 			}
 		}
 	}
@@ -763,13 +763,13 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	} else if d.inst.Type() == instancetype.VM {
 		pciIOMMUGroup, err = pcidev.DeviceIOMMUGroup(vfPCIDev.SlotName)
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed getting IOMMU group for VF device %q: %w", vfPCIDev.SlotName, err)
 		}
 
 		// Register VF device with vfio-pci driver so it can be passed to VM.
 		err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
 		if err != nil {
-			return vfPCIDev, 0, err
+			return vfPCIDev, 0, fmt.Errorf("Failed overriding driver for VF device %q: %w", vfPCIDev.SlotName, err)
 		}
 
 		// Record original driver used by VF device for restore.
