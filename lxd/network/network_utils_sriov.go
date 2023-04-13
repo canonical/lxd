@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -299,6 +300,38 @@ func SRIOVSwitchdevEnabled(deviceName string) bool {
 	return false
 }
 
+// SRIOVFindRepresentorPort finds the associated representor port name for a switchdev VF ID.
+func SRIOVFindRepresentorPort(nicEntries []fs.DirEntry, pfSwitchID string, vfID int) string {
+	for _, nic := range nicEntries {
+		nicSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
+		if err != nil {
+			continue // Skip non-physical interfaces.
+		}
+
+		if string(nicSwitchID) != pfSwitchID {
+			continue // Skip interfaces not connected to PF's switchdev.
+		}
+
+		// Check if this representor port matches the PF and VF by parsing phys_port_name.
+		physPortName, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_port_name"))
+		if err != nil {
+			continue // Skip interfaces with no physical port name.
+		}
+
+		var pfID, nicVFID int
+		_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &pfID, &nicVFID)
+		if err != nil {
+			continue // Skip non-VF interfaces.
+		}
+
+		if nicVFID == vfID {
+			return nic.Name() // We have a match.
+		}
+	}
+
+	return ""
+}
+
 // SRIOVFindFreeVFAndRepresentor tries to find a free SR-IOV virtual function of a PF connected to an OVS bridge.
 // To do this it first looks at the ports on the OVS bridge specified and identifies which ones are PF ports in
 // switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
@@ -307,37 +340,6 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 	nics, err := os.ReadDir(sysClassNet)
 	if err != nil {
 		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
-	}
-
-	findRepresentorPort := func(pfSwitchID string, vfID int) string {
-		for _, nic := range nics {
-			nicSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
-			if err != nil {
-				continue // Skip non-physical interfaces.
-			}
-
-			if string(nicSwitchID) != pfSwitchID {
-				continue // Skip interfaces not connected to PF's switchdev.
-			}
-
-			// Check if this representor port matches the PF and VF by parsing phys_port_name.
-			physPortName, err := os.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_port_name"))
-			if err != nil {
-				continue // Skip interfaes with no physical port name.
-			}
-
-			var pfID, nicVFID int
-			_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &pfID, &nicVFID)
-			if err != nil {
-				continue // Skip non-VF interfaces.
-			}
-
-			if nicVFID == vfID {
-				return nic.Name() // We have a match.
-			}
-		}
-
-		return ""
 	}
 
 	ovs := openvswitch.NewOVS()
@@ -379,7 +381,7 @@ func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (st
 
 		// Track down the representor port. The number of representor ports depends on the number of enabled VFs.
 		// All representor ports have the same phys_switch_id as the PF.
-		representorPort := findRepresentorPort(string(physSwitchID), vfID)
+		representorPort := SRIOVFindRepresentorPort(nics, string(physSwitchID), vfID)
 		if representorPort != "" {
 			return port, representorPort, vfName, vfID, nil
 		}
