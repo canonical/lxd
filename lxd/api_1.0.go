@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/canonical/lxd/client"
+	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/cluster"
 	clusterConfig "github.com/canonical/lxd/lxd/cluster/config"
 	"github.com/canonical/lxd/lxd/config"
@@ -846,8 +847,10 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if candidChanged {
+		var err error
+
 		apiURL, apiKey, expiry, domains := clusterConfig.CandidServer()
-		err := d.setupExternalAuthentication(apiURL, apiKey, expiry, domains)
+		d.candidVerifier, err = candid.NewVerifier(apiURL, apiKey, expiry, domains)
 		if err != nil {
 			return err
 		}
@@ -858,11 +861,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 		// Since RBAC seems to have been set up already, we need to disable it temporarily
 		if d.rbac != nil {
-			err := d.setupExternalAuthentication("", "", 0, "")
-			if err != nil {
-				return err
-			}
-
+			d.candidVerifier = nil
 			d.rbac.StopStatusCheck()
 			d.rbac = nil
 		}
