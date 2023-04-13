@@ -423,7 +423,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			vfPCIDev, pciIOMMUGroup, err = networkSRIOVSetupVF(d.deviceCommon, vfParent, vfDev, vfID, false, saveData)
 			if err != nil {
 				network.SRIOVVirtualFunctionMutex.Unlock()
-				return nil, err
+				return nil, fmt.Errorf("Failed setting up VF: %w", err)
 			}
 
 			network.SRIOVVirtualFunctionMutex.Unlock()
@@ -432,7 +432,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			if d.inst.Type() == instancetype.Container {
 				err := networkSRIOVSetupContainerVFNIC(saveData["host_name"], d.config)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Failed setting up container VF NIC: %w", err)
 				}
 			}
 
