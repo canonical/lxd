@@ -475,7 +475,10 @@ func DqliteLatestSegment() (string, error) {
 
 	sort.Strings(fileNames)
 
-	r, _ := regexp.Compile("^[0-9]*-[0-9]*$")
+	r, err := regexp.Compile(`^[0-9]+-[0-9]+$`)
+	if err != nil {
+		return "none", err
+	}
 
 	for i := range fileNames {
 		fileName := fileNames[len(fileNames)-1-i]
