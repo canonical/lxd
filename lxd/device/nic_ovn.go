@@ -426,6 +426,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				return nil, fmt.Errorf("Failed setting up VF: %w", err)
 			}
 
+			revert.Add(func() {
+				_ = networkSRIOVRestoreVF(d.deviceCommon, false, saveData)
+			})
+
 			network.SRIOVVirtualFunctionMutex.Unlock()
 
 			// Setup the guest network interface.
