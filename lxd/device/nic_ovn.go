@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -648,35 +649,71 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
+func (d *nicOVN) findRepresentorPort(volatile map[string]string) (string, error) {
+	sysClassNet := "/sys/class/net"
+	physSwitchID, err := os.ReadFile(filepath.Join(sysClassNet, volatile["last_state.vf.parent"], "phys_switch_id"))
+	if err != nil {
+		return "", fmt.Errorf("Failed finding physical parent switch ID to release representor port: %w", err)
+	}
+
+	nics, err := os.ReadDir(sysClassNet)
+	if err != nil {
+		return "", fmt.Errorf("Failed reading NICs directory %q: %w", sysClassNet, err)
+	}
+
+	vfID, err := strconv.Atoi(volatile["last_state.vf.id"])
+	if err != nil {
+		return "", fmt.Errorf("Failed parsing last VF ID %q: %w", volatile["last_state.vf.id"], err)
+	}
+
+	// Track down the representor port to remove it from the integration bridge.
+	representorPort := network.SRIOVFindRepresentorPort(nics, string(physSwitchID), vfID)
+	if representorPort == "" {
+		return "", fmt.Errorf("Failed finding representor")
+	}
+
+	return representorPort, nil
+}
+
 // Stop is run when the device is removed from the instance.
 func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
+	v := d.volatileGet()
+
 	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
 	// If we cannot get this, don't fail, as InstanceDevicePortStop will then try and generate the likely
 	// port name using the same regime it does for new ports. This part is only here in order to allow
 	// instance ports generated under an older regime to be cleaned up properly.
-	networkVethFillFromVolatile(d.config, d.volatileGet())
+	networkVethFillFromVolatile(d.config, v)
 	ovs := openvswitch.NewOVS()
 	ovsExternalOVNPort, err := ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
 	if err != nil {
 		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", logger.Ctx{"interface": d.config["host_name"]})
 	}
 
-	// If there is a host_name specified, then try and remove it from the OVS integration bridge.
+	integrationBridgeNICName := d.config["host_name"]
+	if d.config["acceleration"] == "sriov" {
+		integrationBridgeNICName, err = d.findRepresentorPort(v)
+		if err != nil {
+			d.logger.Error("Failed finding representor port to detach from OVS integration bridge", logger.Ctx{"err": err})
+		}
+	}
+
+	// If there is integrationBridgeNICName specified, then try and remove it from the OVS integration bridge.
 	// Do this early on during the stop process to prevent any future error from leaving the OVS port present
 	// as if the instance is being migrated, this can cause port conflicts in OVN if the instance comes up on
 	// another LXD host later.
-	if d.config["host_name"] != "" {
+	if integrationBridgeNICName != "" {
 		integrationBridge := d.state.GlobalConfig.NetworkOVNIntegrationBridge()
 
 		// Detach host-side end of veth pair from OVS integration bridge.
-		err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
+		err = ovs.BridgePortDelete(integrationBridge, integrationBridgeNICName)
 		if err != nil {
 			// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
-			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
+			d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": integrationBridgeNICName, "bridge": integrationBridge, "err": err})
 		}
 	}
 
