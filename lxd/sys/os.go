@@ -208,7 +208,7 @@ func (s *OS) Init() ([]cluster.Warning, error) {
 
 	s.Uname = uname
 
-	kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
+	kernelVersion, err := version.Parse(uname.Release)
 	if err == nil {
 		s.KernelVersion = *kernelVersion
 	}
