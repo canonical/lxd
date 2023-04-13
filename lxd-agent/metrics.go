@@ -20,7 +20,7 @@ import (
 
 // These mountpoints are excluded as they are irrelevant for metrics.
 // /var/lib/docker/* subdirectories are excluded for this reason: https://github.com/prometheus/node_exporter/pull/1003
-var defMountPointsExcluded = regexp.MustCompile("^/(dev|proc|sys|var/lib/docker/.+)($|/)")
+var defMountPointsExcluded = regexp.MustCompile(`^/(?:dev|proc|sys|var/lib/docker/.+)(?:$|/)`)
 var defFSTypesExcluded = []string{
 	"autofs", "binfmt_misc", "bpf", "cgroup", "cgroup2", "configfs", "debugfs", "devpts", "devtmpfs", "fusectl", "hugetlbfs", "iso9660", "mqueue", "nsfs", "overlay", "proc", "procfs", "pstore", "rpc_pipefs", "securityfs", "selinuxfs", "squashfs", "sysfs", "tracefs"}
 
