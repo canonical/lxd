@@ -343,7 +343,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Setup the host network interface (if not nested).
-	var peerName string
+	var peerName, integrationBridgeNICName string
 	var mtu uint32
 	var vfPCIDev pcidev.Device
 	var pciIOMMUGroup uint64
@@ -396,8 +396,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				}
 			}
 
+			integrationBridgeNICName = vfRepresentor
 			peerName = vfDev
-			saveData["host_name"] = vfRepresentor
 		} else {
 			// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 			if d.inst.Type() == instancetype.Container {
@@ -408,6 +408,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
+				integrationBridgeNICName = saveData["host_name"]
 				peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
 				if err != nil {
 					return nil, err
@@ -420,6 +421,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					}
 				}
 
+				integrationBridgeNICName = saveData["host_name"]
 				peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
 				mtu, err = networkCreateTap(saveData["host_name"], d.config)
 				if err != nil {
@@ -455,8 +457,8 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	})
 
 	// Associated host side interface to OVN logical switch port (if not nested).
-	if saveData["host_name"] != "" {
-		cleanup, err := d.setupHostNIC(saveData["host_name"], logicalPortName, uplink)
+	if integrationBridgeNICName != "" {
+		cleanup, err := d.setupHostNIC(integrationBridgeNICName, logicalPortName, uplink)
 		if err != nil {
 			return nil, err
 		}
@@ -713,29 +715,27 @@ func (d *nicOVN) postStop() error {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
-		if d.config["acceleration"] == "sriov" {
-			// Restoring host-side interface.
-			network.SRIOVVirtualFunctionMutex.Lock()
-			err := networkSRIOVRestoreVF(d.deviceCommon, false, v)
-			if err != nil {
-				network.SRIOVVirtualFunctionMutex.Unlock()
-				return err
-			}
-
+	if d.config["acceleration"] == "sriov" {
+		// Restoring host-side interface.
+		network.SRIOVVirtualFunctionMutex.Lock()
+		err := networkSRIOVRestoreVF(d.deviceCommon, false, v)
+		if err != nil {
 			network.SRIOVVirtualFunctionMutex.Unlock()
+			return err
+		}
 
-			link := &ip.Link{Name: d.config["host_name"]}
-			err = link.SetDown()
-			if err != nil {
-				return fmt.Errorf("Failed to bring down the host interface %s: %w", d.config["host_name"], err)
-			}
-		} else {
-			// Removing host-side end of veth pair will delete the peer end too.
-			err := network.InterfaceRemove(d.config["host_name"])
-			if err != nil {
-				return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
-			}
+		network.SRIOVVirtualFunctionMutex.Unlock()
+
+		link := &ip.Link{Name: d.config["host_name"]}
+		err = link.SetDown()
+		if err != nil {
+			return fmt.Errorf("Failed to bring down the host interface %s: %w", d.config["host_name"], err)
+		}
+	} else if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
+		// Removing host-side end of veth pair will delete the peer end too.
+		err := network.InterfaceRemove(d.config["host_name"])
+		if err != nil {
+			return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
 		}
 	}
 
