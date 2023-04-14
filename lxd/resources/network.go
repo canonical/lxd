@@ -24,6 +24,33 @@ var netProtocols = map[uint64]string{
 }
 
 func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsname, card *api.ResourcesNetworkCard) error {
+	// VDPA
+	vDPAMatches, err := filepath.Glob(filepath.Join(devicePath, "vdpa*"))
+	if err != nil {
+		return fmt.Errorf("Malformed VDPA device name search pattern: %w", err)
+	}
+
+	if len(vDPAMatches) > 0 {
+		vdpa := api.ResourcesNetworkCardVDPA{}
+
+		splittedPath := strings.Split(vDPAMatches[0], "/")
+		vdpa.Name = splittedPath[len(splittedPath)-1]
+		vDPADevMatches, err := filepath.Glob(filepath.Join(vDPAMatches[0], "vhost-vdpa-*"))
+		if err != nil {
+			return fmt.Errorf("Malformed VDPA device name search pattern: %w", err)
+		}
+
+		if len(vDPADevMatches) > 0 {
+			splittedPath = strings.Split(vDPADevMatches[0], "/")
+			vdpa.Device = splittedPath[len(splittedPath)-1]
+		} else {
+			return fmt.Errorf("Failed to find VDPA device at device path %q", vDPAMatches[0])
+		}
+
+		// Add the VDPA data to the card
+		card.VDPA = &vdpa
+	}
+
 	// SRIOV
 	if sysfsExists(filepath.Join(devicePath, "sriov_numvfs")) {
 		sriov := api.ResourcesNetworkCardSRIOV{}
