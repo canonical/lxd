@@ -211,6 +211,8 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name and MTU used.
 func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint32, error) {
+	var err error
+
 	veth := &ip.Veth{
 		Link: ip.Link{
 			Name: hostName,
@@ -248,6 +250,30 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 		}
 
 		veth.Peer.Address = hwaddr
+	}
+
+	// Set TX queue length on both ends.
+	if m["queue.tx.length"] != "" {
+		nicTXqlen, err := strconv.ParseUint(m["queue.tx.length"], 10, 32)
+		if err != nil {
+			return "", 0, fmt.Errorf("Invalid txqueuelen specified: %w", err)
+		}
+
+		veth.TXQueueLength = uint32(nicTXqlen)
+	} else if m["parent"] != "" {
+		veth.TXQueueLength, err = network.GetTXQueueLength(m["parent"])
+		if err != nil {
+			return "", 0, fmt.Errorf("Failed to get the parent txqueuelen: %w", err)
+		}
+	}
+
+	veth.Peer.TXQueueLength = veth.TXQueueLength
+
+	// Add and configure the interface in one operation to reduce the number of executions and to avoid
+	// systemd-udevd from applying the default MACAddressPolicy=persistent policy.
+	err = veth.Add()
+	if err != nil {
+		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, veth.Peer.Name, err)
 	}
 
 	return veth.Peer.Name, veth.MTU, nil
