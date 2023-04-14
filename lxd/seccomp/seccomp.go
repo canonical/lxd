@@ -1118,8 +1118,16 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 		return -1, -1, -1, -1, err
 	}
 
-	reUID := regexp.MustCompile(`^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
-	reGID := regexp.MustCompile(`^Gid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
+	reUID, err := regexp.Compile(`^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
+	if err != nil {
+		return -1, -1, -1, -1, err
+	}
+
+	reGID, err := regexp.Compile(`^Gid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
+	if err != nil {
+		return -1, -1, -1, -1, err
+	}
+
 	var UID int64 = -1
 	var GID int64 = -1
 	var fsUID int64 = -1
@@ -1202,7 +1210,11 @@ func FindTGID(procFd int) (int, error) {
 		return -1, err
 	}
 
-	reTGID := regexp.MustCompile(`^Tgid:\s+([0-9]+)`)
+	reTGID, err := regexp.Compile(`^Tgid:\s+([0-9]+)`)
+	if err != nil {
+		return -1, err
+	}
+
 	for _, line := range strings.Split(string(status), "\n") {
 		m := reTGID.FindStringSubmatch(line)
 		if len(m) > 1 {
