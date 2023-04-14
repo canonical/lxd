@@ -2191,3 +2191,13 @@ This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same 
 This allows for an OVN logical switch port to be tunneled inside another OVN NIC using VLAN tagging.
 
 This feature is configured by specifying the parent NIC name using the `nested` property and the VLAN ID to use for tunneling with the `vlan` property.
+
+## `oidc`
+
+This adds support for OpenID Connect (OIDC) authentication.
+
+This adds the following new configuration keys:
+
+* `oidc.issuer`
+* `oidc.client.id`
+* `oidc.audience`

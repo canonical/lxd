@@ -99,7 +99,7 @@ Basic authentication can be used when combined with the "simplestreams" protocol
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
-	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or candid)")+"``")
+	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls, candid, or oidc)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
 	cmd.Flags().StringVar(&c.flagDomain, "domain", "", i18n.G("Candid domain to use")+"``")
 	cmd.Flags().StringVar(&c.flagProject, "project", "", i18n.G("Project to use for the remote")+"``")
@@ -508,11 +508,17 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// If not specified, default authentication to Candid
+	// If not specified, the preferred order of authentication is 1) OIDC 2) Candid 3) TLS.
 	if c.flagAuthType == "" {
-		if !srv.Public && shared.StringInSlice("candid", srv.AuthMethods) {
+		if !srv.Public && shared.StringInSlice("oidc", srv.AuthMethods) {
+			c.flagAuthType = "oidc"
+		} else if !srv.Public && shared.StringInSlice("candid", srv.AuthMethods) {
 			c.flagAuthType = "candid"
+		} else {
+			c.flagAuthType = "tls"
+		}
 
+		if shared.StringInSlice(c.flagAuthType, []string{"oidc", "candid"}) {
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -531,8 +537,6 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		} else {
-			c.flagAuthType = "tls"
-
 			// Update the remote configuration
 			remote := conf.Remotes[server]
 			remote.AuthType = c.flagAuthType
@@ -857,6 +861,7 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 
 	_ = os.Remove(conf.ServerCertPath(args[0]))
 	_ = os.Remove(conf.CookiesPath(args[0]))
+	_ = os.Remove(conf.OIDCTokenPath(args[0]))
 
 	return conf.SaveConfig(c.global.confPath)
 }
