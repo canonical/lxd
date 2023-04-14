@@ -757,10 +757,18 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 			return vfPCIDev, 0, fmt.Errorf("Failed getting IOMMU group for VF device %q: %w", vfPCIDev.SlotName, err)
 		}
 
-		// Register VF device with vfio-pci driver so it can be passed to VM.
-		err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
-		if err != nil {
-			return vfPCIDev, 0, fmt.Errorf("Failed overriding driver for VF device %q: %w", vfPCIDev.SlotName, err)
+		if d.config["acceleration"] != "vdpa" {
+			// Register VF device with vfio-pci driver so it can be passed to VM.
+			err = pcidev.DeviceDriverOverride(vfPCIDev, "vfio-pci")
+			if err != nil {
+				return vfPCIDev, 0, fmt.Errorf("Failed overriding driver for VF device %q: %w", vfPCIDev.SlotName, err)
+			}
+		} else {
+			// Bind VF device onto the host so that the settings will take effect.
+			err = networkPCIBindWaitInterface(vfPCIDev, volatile["host_name"])
+			if err != nil {
+				return vfPCIDev, 0, err
+			}
 		}
 
 		// Record original driver used by VF device for restore.

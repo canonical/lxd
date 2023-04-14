@@ -369,6 +369,7 @@ var APIExtensions = []string{
 	"ovn_nic_nesting",
 	"oidc",
 	"network_ovn_l3only",
+	"ovn_nic_acceleration_vdpa",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -3668,7 +3668,7 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 	reverter := revert.New()
 	defer reverter.Fail()
 
-	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, mtu, name string
+	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, vDPADevName, vhostVDPAPath, maxVQP, mtu, name string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
 			devName = nicItem.Value
@@ -3680,6 +3680,12 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			pciSlotName = nicItem.Value
 		} else if nicItem.Key == "pciIOMMUGroup" {
 			pciIOMMUGroup = nicItem.Value
+		} else if nicItem.Key == "vDPADevName" {
+			vDPADevName = nicItem.Value
+		} else if nicItem.Key == "vhostVDPAPath" {
+			vhostVDPAPath = nicItem.Value
+		} else if nicItem.Key == "maxVQP" {
+			maxVQP = nicItem.Value
 		} else if nicItem.Key == "mtu" {
 			mtu = nicItem.Value
 		} else if nicItem.Key == "name" {
@@ -3853,6 +3859,57 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
 
+			return nil
+		}
+	} else if shared.PathExists(vhostVDPAPath) {
+		monHook = func(m *qmp.Monitor) error {
+			reverter := revert.New()
+			defer reverter.Fail()
+
+			vdpaDevFile, err := os.OpenFile(vhostVDPAPath, os.O_RDWR, 0)
+			if err != nil {
+				return fmt.Errorf("Error opening vDPA device file %q: %w", vdpaDevFile.Name(), err)
+			}
+
+			defer func() { _ = vdpaDevFile.Close() }() // Close file after device has been added.
+
+			vDPADevFDName := fmt.Sprintf("%s.0", vdpaDevFile.Name())
+			err = m.SendFile(vDPADevFDName, vdpaDevFile)
+			if err != nil {
+				return fmt.Errorf("Failed to send %q file descriptor: %w", vDPADevFDName, err)
+			}
+
+			reverter.Add(func() { _ = m.CloseFile(vDPADevFDName) })
+
+			queues, err := strconv.Atoi(maxVQP)
+			if err != nil {
+				return fmt.Errorf("Failed to convert maxVQP (%q) to int: %w", maxVQP, err)
+			}
+
+			qemuNetDev := map[string]any{
+				"id":      fmt.Sprintf("vhost-%s", vDPADevName),
+				"type":    "vhost-vdpa",
+				"vhostfd": vDPADevFDName,
+				"queues":  queues,
+			}
+
+			if shared.StringInSlice(busName, []string{"pcie", "pci"}) {
+				qemuDev["driver"] = "virtio-net-pci"
+			} else if busName == "ccw" {
+				qemuDev["driver"] = "virtio-net-ccw"
+			}
+
+			qemuDev["netdev"] = qemuNetDev["id"].(string)
+			qemuDev["page-per-vq"] = "on"
+			qemuDev["iommu_platform"] = "on"
+			qemuDev["disable-legacy"] = "on"
+
+			err = m.AddNIC(qemuNetDev, qemuDev)
+			if err != nil {
+				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
+			}
+
+			reverter.Success()
 			return nil
 		}
 	} else if pciSlotName != "" {
