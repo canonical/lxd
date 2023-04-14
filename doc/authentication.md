@@ -160,7 +160,7 @@ For instructions on how to set up Candid-based authentication, see the [Candid a
 ```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
 ```
 
-LXD supports integrating with the Canonical RBAC service.
+LXD supports integrating with the Canonical RBAC service, which is included in the [Ubuntu Pro](https://ubuntu.com/pro) subscription.
 Combined with Candid-based authentication, {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
 
 In such a setup, authentication happens through Candid, while the RBAC service maintains roles to user/group relationships.
