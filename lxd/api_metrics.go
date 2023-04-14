@@ -17,6 +17,7 @@ import (
 	"github.com/canonical/lxd/lxd/locking"
 	"github.com/canonical/lxd/lxd/metrics"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/shared"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -256,13 +257,25 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		metricsCache = map[string]metricsCacheEntry{}
 	}
 
+	updatedProjects := []string{}
 	for project, entries := range newMetrics {
 		metricsCache[project] = metricsCacheEntry{
 			expiry:  time.Now().Add(cacheDuration),
 			metrics: entries,
 		}
 
+		updatedProjects = append(updatedProjects, project)
 		metricSet.Merge(entries)
+	}
+
+	for _, project := range projectsToFetch {
+		if shared.StringInSlice(*project.Project, updatedProjects) {
+			continue
+		}
+
+		metricsCache[*project.Project] = metricsCacheEntry{
+			expiry: time.Now().Add(cacheDuration),
+		}
 	}
 
 	metricsCacheLock.Unlock()
