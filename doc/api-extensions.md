@@ -2201,3 +2201,14 @@ This adds the following new configuration keys:
 * `oidc.issuer`
 * `oidc.client.id`
 * `oidc.audience`
+
+## `network_ovn_l3only`
+This adds the ability to set an `ovn` network into "layer 3 only" mode.
+This mode can be enabled at IPv4 or IPv6 level using `ipv4.l3only` and `ipv6.l3only` configuration options respectively.
+
+With this mode enabled the following changes are made to the network:
+
+* The virtual router's internal port address will be configured with a single host netmask (e.g. /32 for IPv4 or /128 for IPv6).
+* Static routes for active instance NIC addresses will be added to the virtual router.
+* A discard route for the entire internal subnet will be added to the virtual router to prevent packets destined for inactive addresses from escaping to the uplink network.
+* The DHCPv4 server will be configured to indicate that a netmask of 255.255.255.255 be used for instance configuration.

@@ -368,6 +368,7 @@ var APIExtensions = []string{
 	"migration_vm_live",
 	"ovn_nic_nesting",
 	"oidc",
+	"network_ovn_l3only",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
