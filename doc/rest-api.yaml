@@ -7216,6 +7216,30 @@ paths:
                   name: X-LXD-fingerprint
                   schema:
                     type: string
+                - description: Descriptive properties
+                  in: header
+                  name: X-LXD-properties
+                  schema:
+                    additionalProperties:
+                        type: string
+                    type: object
+                - description: Whether the image is available to unauthenticated users
+                  in: header
+                  name: X-LXD-public
+                  schema:
+                    type: boolean
+                - description: Original filename of the image
+                  in: header
+                  name: X-LXD-filename
+                  schema:
+                    type: string
+                - description: List of profiles to use
+                  in: header
+                  name: X-LXD-profiles
+                  schema:
+                    items:
+                        type: string
+                    type: array
             produces:
                 - application/json
             responses:
