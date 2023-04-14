@@ -210,13 +210,21 @@ SR-IOV hardware acceleration
       ip link set enp9s0f0np0 up
       ```
 
+VDPA hardware acceleration
+: To use `acceleration=vdpa`, you must have a compatible VDPA physical NIC.
+  The setup is the same as for SR-IOV hardware acceleration, except that you must also enable the `vhost_vdpa` module and check that you have some available VDPA management devices :
+
+  ```
+  modprobe vhost_vdpa && vdpa mgmtdev show
+  ```
+
 #### Device options
 
 NIC devices of type `ovn` have the following device options:
 
 Key                                   | Type    | Default           | Managed | Description
 :--                                   | :--     | :--               | :--     | :--
-`acceleration`                        | string  | `none`            | no      | Enable hardware offloading (either `none` or `sriov`, see {ref}`devices-nic-hw-acceleration`)
+`acceleration`                        | string  | `none`            | no      | Enable hardware offloading (either `none`, `sriov` or `vdpa`, see {ref}`devices-nic-hw-acceleration`)
 `boot.priority`                       | integer | -                 | no      | Boot priority for VMs (higher value boots first)
 `host_name`                           | string  | randomly assigned | no      | The name of the interface inside the host
 `hwaddr`                              | string  | randomly assigned | no      | The MAC address of the new interface
