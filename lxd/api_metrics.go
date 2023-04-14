@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -170,6 +171,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	defer unlock()
 
+	// Setup a new response.
+	metricSet = metrics.NewMetricSet(nil)
+
 	// Check if any of the missing data has been filled in since acquiring the lock.
 	// As its possible another request was already populating the cache when we tried to take the lock.
 	projectsToFetch = invalidProjectFilters(projectNames)
@@ -256,13 +260,25 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		metricsCache = map[string]metricsCacheEntry{}
 	}
 
+	updatedProjects := []string{}
 	for project, entries := range newMetrics {
 		metricsCache[project] = metricsCacheEntry{
 			expiry:  time.Now().Add(cacheDuration),
 			metrics: entries,
 		}
 
+		updatedProjects = append(updatedProjects, project)
 		metricSet.Merge(entries)
+	}
+
+	for _, project := range projectsToFetch {
+		if shared.StringInSlice(*project.Project, updatedProjects) {
+			continue
+		}
+
+		metricsCache[*project.Project] = metricsCacheEntry{
+			expiry: time.Now().Add(cacheDuration),
+		}
 	}
 
 	metricsCacheLock.Unlock()
