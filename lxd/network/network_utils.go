@@ -1291,6 +1291,19 @@ func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
 	return listenAddressNet, err
 }
 
+// IPToNet converts an IP to a single host IPNet.
+func IPToNet(ip net.IP) net.IPNet {
+	len := 32
+	if ip.To4() == nil {
+		len = 128
+	}
+
+	return net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(len, len),
+	}
+}
+
 // NICUsesNetwork returns true if the nicDev's "network" or "parent" property matches one of the networks names.
 func NICUsesNetwork(nicDev map[string]string, networks ...*api.Network) bool {
 	for _, network := range networks {
