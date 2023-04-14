@@ -447,7 +447,11 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			return nil, err
 		}
 
-		re := regexp.MustCompile(`^PPid:\s+([0-9]+)`)
+		re, err := regexp.Compile(`^PPid:\s+([0-9]+)$`)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, line := range strings.Split(string(status), "\n") {
 			m := re.FindStringSubmatch(line)
 			if len(m) > 1 {
