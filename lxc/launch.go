@@ -30,8 +30,11 @@ func (c *cmdLaunch) Command() *cobra.Command {
 lxc launch ubuntu:22.04 u1 < config.yaml
     Create and start a container with configuration from config.yaml
 
-lxc launch ubuntu:22.04 v1 --vm
-    Create and start a virtual machine`))
+lxc launch ubuntu:22.04 u2 -t aws:t1.micro
+    Create and start a container using the same size as an AWS t1.micro (1 vCPU, 627MB of RAM)
+
+lxc launch ubuntu:22.04 v1 --vm -c limits.cpu=4 -c limits.memory=4GiB
+    Create and start a virtual machine with 4 vCPUs and 4GiB of RAM`))
 	cmd.Hidden = false
 
 	cmd.RunE = c.Run
