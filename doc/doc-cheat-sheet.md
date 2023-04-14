@@ -47,12 +47,16 @@ Adhere to the following conventions:
 
 * - Input
   - Output
+* - `` {guilabel}`UI element` ``
+  - {guilabel}`UI element`
+* - `` `code` ``
+  - `code`
+* - `` {command}`command` ``
+  - {command}`command`
 * - `*Italic*`
   - *Italic*
 * - `**Bold**`
   - **Bold**
-* - `` `code` ``
-  - `code`
 
 ```
 
@@ -656,3 +660,124 @@ You can define glossary terms in any file. Ideally, all terms should be collecte
 * - ``{term}`example term` ``
   - {term}`example term`
 `````
+
+## More useful markup
+
+`````{list-table}
+   :header-rows: 1
+
+* - Input
+  - Output
+* - ````
+
+    ```{versionadded} X.Y
+    ```
+
+    ````
+
+  - ```{versionadded} X.Y
+    ```
+
+* - `` {abbr}`API (Application Programming Interface)` ``
+  - {abbr}`API (Application Programming Interface)`
+
+`````
+
+## Custom extensions
+
+The documentation uses some custom extensions.
+
+### Related links
+
+You can add links to related websites to the sidebar by adding the following field at the top of the page:
+
+    relatedlinks: https://github.com/canonical/lxd-sphinx-extensions, [RTFM](https://www.google.com)
+
+To override the title, use Markdown syntax. Note that spaces are ignored; if you need spaces in the title, replace them with `&#32;`, and include the value in quotes if Sphinx complains about the metadata value because it starts with `[`.
+
+To add a link to a Discourse topic, add the following field at the top of the page (where `12345` is the ID of the Discourse topic):
+
+    discourse: 12345
+
+### YouTube links
+
+To add a link to a YouTube video, use the following directive:
+
+`````{list-table}
+   :header-rows: 1
+
+* - Input
+  - Output
+* - ````
+
+    ```{youtube} https://www.youtube.com/watch?v=iMLiK1fX4I0
+    :title: Demo
+    ```
+
+    ````
+
+  - ```{youtube} https://www.youtube.com/watch?v=iMLiK1fX4I0
+    :title: Demo
+    ```
+
+`````
+
+The video title is extracted automatically and displayed when hovering over the link.
+To override the title, add the `:title:` option.
+
+### Spelling exceptions
+
+If you need to use a word that does not comply to the spelling conventions, but is correct in a certain context, you can exempt it from the spelling checker by surrounding it with `{spellexception}`.
+
+```{list-table}
+   :header-rows: 1
+
+* - Input
+  - Output
+* - `` {spellexception}`PurposelyWrong` ``
+  - {spellexception}`PurposelyWrong`
+
+```
+
+### Terminal output
+
+To show a terminal view with commands and output, use the following directive:
+
+`````{list-table}
+   :header-rows: 1
+
+* - Input
+  - Output
+* - ````
+
+    ```{terminal}
+    :input: command number one
+    :user: root
+    :host: vm
+
+    output line one
+    output line two
+    :input: another command
+    more output
+    ```
+
+    ````
+
+  - ```{terminal}
+    :input: command number one
+    :user: root
+    :host: vm
+
+    output line one
+    output line two
+    :input: another command
+    more output
+    ```
+
+`````
+
+Input is specified as the `:input:` option (or prefixed with `:input:` as part of the main content of the directive).
+Output is the main content of the directive.
+
+To override the prompt (`user@host:~$` by default), specify the `:user:` and/or `:host:` options.
+To make the terminal scroll horizontally instead of wrapping long lines, add `:scroll:`.
