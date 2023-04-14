@@ -170,6 +170,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	defer unlock()
 
+	// Setup a new response.
+	metricSet = metrics.NewMetricSet(nil)
+
 	// Check if any of the missing data has been filled in since acquiring the lock.
 	// As its possible another request was already populating the cache when we tried to take the lock.
 	projectsToFetch = invalidProjectFilters(projectNames)
