@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,6 +83,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	s := d.State()
 
 	projectName := queryParam(r, "project")
+	compress := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
 
 	// Forward if requested.
 	resp := forwardedResponseIfTargetIsRemote(s, r)
@@ -152,7 +154,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
-		return response.SyncResponsePlain(true, metricSet.String())
+		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
 	cacheDuration := time.Duration(8) * time.Second
@@ -177,7 +179,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	// If all valid, return immediately.
 	if len(projectsToFetch) == 0 {
-		return response.SyncResponsePlain(true, metricSet.String())
+		return response.SyncResponsePlain(true, compress, metricSet.String())
 	}
 
 	// Gather information about host interfaces once.
@@ -280,5 +282,5 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	metricsCacheLock.Unlock()
 
-	return response.SyncResponsePlain(true, metricSet.String())
+	return response.SyncResponsePlain(true, compress, metricSet.String())
 }
