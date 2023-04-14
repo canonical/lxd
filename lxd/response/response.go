@@ -2,6 +2,7 @@ package response
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -103,6 +104,7 @@ type syncResponse struct {
 	code      int
 	headers   map[string]string
 	plaintext bool
+	compress  bool
 }
 
 // EmptySyncResponse represents an empty syncResponse.
@@ -136,8 +138,8 @@ func SyncResponseHeaders(success bool, metadata any, headers map[string]string) 
 }
 
 // SyncResponsePlain return a new syncResponse with plaintext.
-func SyncResponsePlain(success bool, metadata string) Response {
-	return &syncResponse{success: success, metadata: metadata, plaintext: true}
+func SyncResponsePlain(success bool, compress bool, metadata string) Response {
+	return &syncResponse{success: success, metadata: metadata, plaintext: true, compress: compress}
 }
 
 func (r *syncResponse) Render(w http.ResponseWriter) error {
@@ -175,6 +177,11 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		w.Header().Set("Content-Type", "text/plain")
 	}
 
+	// Handle compression.
+	if r.compress {
+		w.Header().Set("Content-Encoding", "gzip")
+	}
+
 	// Write header and status code.
 	if code == 0 {
 		code = http.StatusOK
@@ -185,9 +192,19 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	// Handle plain text responses.
 	if r.plaintext {
 		if r.metadata != nil {
-			_, err := w.Write([]byte(r.metadata.(string)))
-			if err != nil {
-				return err
+			if r.compress {
+				comp := gzip.NewWriter(w)
+				defer comp.Close()
+
+				_, err := comp.Write([]byte(r.metadata.(string)))
+				if err != nil {
+					return err
+				}
+			} else {
+				_, err := w.Write([]byte(r.metadata.(string)))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
