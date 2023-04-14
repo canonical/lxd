@@ -98,6 +98,7 @@ type OVNDHCPv4Opts struct {
 	DomainName         string
 	LeaseTime          time.Duration
 	MTU                uint32
+	Netmask            string
 }
 
 // OVNDHCPv6Opts IPv6 DHCP option set that can be created (and then applied to a switch port by resulting ID).
@@ -146,6 +147,7 @@ type OVNRouterRoute struct {
 	Prefix  net.IPNet
 	NextHop net.IP
 	Port    OVNRouterPort
+	Discard bool
 }
 
 // OVNRouterPolicy represents a router policy.
@@ -382,7 +384,13 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, mayExist bool, routes 
 			args = append(args, "--may-exist")
 		}
 
-		args = append(args, "lr-route-add", string(routerName), route.Prefix.String(), route.NextHop.String())
+		args = append(args, "lr-route-add", string(routerName), route.Prefix.String())
+
+		if route.Discard {
+			args = append(args, "discard")
+		} else {
+			args = append(args, route.NextHop.String())
+		}
 
 		if route.Port != "" {
 			args = append(args, string(route.Port))
@@ -858,6 +866,10 @@ func (o *OVN) LogicalSwitchDHCPv4OptionsSet(switchName OVNSwitch, uuid OVNDHCPOp
 
 	if opts.MTU > 0 {
 		args = append(args, fmt.Sprintf("mtu=%d", opts.MTU))
+	}
+
+	if opts.Netmask != "" {
+		args = append(args, fmt.Sprintf("netmask=%s", opts.Netmask))
 	}
 
 	_, err = o.nbctl(args...)

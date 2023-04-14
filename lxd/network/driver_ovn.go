@@ -319,6 +319,8 @@ func (n *ovn) Validate(config map[string]string) error {
 		"ipv4.nat.address":                     validate.Optional(validate.IsNetworkAddressV4),
 		"ipv6.nat":                             validate.Optional(validate.IsBool),
 		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
+		"ipv4.l3only":                          validate.Optional(validate.IsBool),
+		"ipv6.l3only":                          validate.Optional(validate.IsBool),
 		"dns.domain":                           validate.IsAny,
 		"dns.search":                           validate.IsAny,
 		"dns.zone.forward":                     validate.IsAny,
@@ -586,6 +588,12 @@ func (n *ovn) Validate(config map[string]string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Check that ipv6.l3only mode is used with ipvp.dhcp.stateful.
+	// As otherwise the router advertisements will configure an address using the subnet's mask.
+	if shared.IsTrue(config["ipv6.l3only"]) && shared.IsTrueOrEmpty(config["ipv6.dhcp"]) && shared.IsFalseOrEmpty(config["ipv6.dhcp.stateful"]) {
+		return fmt.Errorf("The ipv6.dhcp.stateful setting must be enabled when using ipv6.l3only mode with ipv6.dhcp enabled")
 	}
 
 	return nil
@@ -2055,16 +2063,41 @@ func (n *ovn) setup(update bool) error {
 			}
 		}
 
-		// Add or remove default routes as config dictates.
+		// Clear default routes (if existing) and re-apply based on current config.
 		defaultIPv4Route := net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
 		defaultIPv6Route := net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+		deleteRoutes := []net.IPNet{defaultIPv4Route, defaultIPv6Route}
+		defaultRoutes := make([]openvswitch.OVNRouterRoute, 0, 2)
 
-		err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route, defaultIPv6Route)
-		if err != nil {
-			return fmt.Errorf("Failed removing default routes: %w", err)
+		if routerIntPortIPv4Net != nil {
+			// If l3only mode is enabled then each instance IPv4 will get its own /32 route added when
+			// the instance NIC starts. However to stop packets toward unknown IPs within the internal
+			// subnet escaping onto the uplink network we add a less specific discard route for the
+			// whole internal subnet.
+			if shared.IsTrue(n.config["ipv4.l3only"]) {
+				defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+					Prefix:  *routerIntPortIPv4Net,
+					Discard: true,
+				})
+			} else {
+				deleteRoutes = append(deleteRoutes, *routerIntPortIPv4Net)
+			}
 		}
 
-		defaultRoutes := make([]openvswitch.OVNRouterRoute, 0, 2)
+		if routerIntPortIPv6Net != nil {
+			// If l3only mode is enabled then each instance IPv6 will get its own /128 route added when
+			// the instance NIC starts. However to stop packets toward unknown IPs within the internal
+			// subnet escaping onto the uplink network we add a less specific discard route for the
+			// whole internal subnet.
+			if shared.IsTrue(n.config["ipv6.l3only"]) {
+				defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+					Prefix:  *routerIntPortIPv6Net,
+					Discard: true,
+				})
+			} else {
+				deleteRoutes = append(deleteRoutes, *routerIntPortIPv6Net)
+			}
+		}
 
 		if uplinkNet.routerExtGwIPv4 != nil {
 			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
@@ -2082,6 +2115,13 @@ func (n *ovn) setup(update bool) error {
 			})
 		}
 
+		if len(deleteRoutes) > 0 {
+			err = client.LogicalRouterRouteDelete(n.getRouterName(), deleteRoutes...)
+			if err != nil {
+				return fmt.Errorf("Failed removing default routes: %w", err)
+			}
+		}
+
 		if len(defaultRoutes) > 0 {
 			err = client.LogicalRouterRouteAdd(n.getRouterName(), update, defaultRoutes...)
 			if err != nil {
@@ -2095,20 +2135,32 @@ func (n *ovn) setup(update bool) error {
 	intSubnets := []net.IPNet{}
 
 	if routerIntPortIPv4Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
+		intRouterIPNet := &net.IPNet{
 			IP:   routerIntPortIPv4,
 			Mask: routerIntPortIPv4Net.Mask,
-		})
+		}
 
+		// In l3only mode the router's internal IP has a /32 mask instead of the internal subnet's mask.
+		if shared.IsTrue(n.config["ipv4.l3only"]) {
+			intRouterIPNet.Mask = net.CIDRMask(32, 32)
+		}
+
+		intRouterIPs = append(intRouterIPs, intRouterIPNet)
 		intSubnets = append(intSubnets, *routerIntPortIPv4Net)
 	}
 
 	if routerIntPortIPv6Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
+		intRouterIPNet := &net.IPNet{
 			IP:   routerIntPortIPv6,
 			Mask: routerIntPortIPv6Net.Mask,
-		})
+		}
 
+		// In l3only mode the router's internal IP has a /128 mask instead of the internal subnet's mask.
+		if shared.IsTrue(n.config["ipv6.l3only"]) {
+			intRouterIPNet.Mask = net.CIDRMask(128, 128)
+		}
+
+		intRouterIPs = append(intRouterIPs, intRouterIPNet)
 		intSubnets = append(intSubnets, *routerIntPortIPv6Net)
 	}
 
@@ -2212,6 +2264,12 @@ func (n *ovn) setup(update bool) error {
 
 	// Create DHCPv4 options for internal switch.
 	if dhcpV4Subnet != nil {
+		// In l3only mode we configure the DHCPv4 server to request the instances use a /32 subnet mask.
+		var dhcpV4Netmask string
+		if shared.IsTrue(n.config["ipv4.l3only"]) {
+			dhcpV4Netmask = "255.255.255.255"
+		}
+
 		err = client.LogicalSwitchDHCPv4OptionsSet(n.getIntSwitchName(), dhcpv4UUID, dhcpV4Subnet, &openvswitch.OVNDHCPv4Opts{
 			ServerID:           routerIntPortIPv4,
 			ServerMAC:          routerMAC,
@@ -2220,6 +2278,7 @@ func (n *ovn) setup(update bool) error {
 			DomainName:         n.getDomainName(),
 			LeaseTime:          time.Duration(time.Hour * 1),
 			MTU:                bridgeMTU,
+			Netmask:            dhcpV4Netmask,
 		})
 		if err != nil {
 			return fmt.Errorf("Failed adding DHCPv4 settings for internal switch: %w", err)
@@ -3525,6 +3584,17 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 
 	var routes []openvswitch.OVNRouterRoute
 
+	// In l3only mode we add the instance port's IPs as static routes to the router.
+	if shared.IsTrue(n.config["ipv4.l3only"]) && dnsIPv4 != nil {
+		ipNet := IPToNet(dnsIPv4)
+		internalRoutes = append(internalRoutes, &ipNet)
+	}
+
+	if shared.IsTrue(n.config["ipv6.l3only"]) && dnsIPv6 != nil {
+		ipNet := IPToNet(dnsIPv6)
+		internalRoutes = append(internalRoutes, &ipNet)
+	}
+
 	// Add each internal route (using the IPs set for DNS as target).
 	for _, internalRoute := range internalRoutes {
 		targetIP := dnsIPv4
@@ -3845,11 +3915,17 @@ func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPor
 		return err
 	}
 
-	removeRoutes := []net.IPNet{}
-	removeNATIPs := []net.IP{}
+	var removeRoutes []net.IPNet
+	var removeNATIPs []net.IP
 
-	// Delete any associated external IP DNAT rules for the DNS IPs.
 	if len(dnsIPs) > 0 {
+		// When using l3only mode the instance port's IPs are added as static routes to the router.
+		// So try and remove these in case l3only is (or was) being used.
+		for _, dnsIP := range dnsIPs {
+			removeRoutes = append(removeRoutes, IPToNet(dnsIP))
+		}
+
+		// Delete any associated external IP DNAT rules for the DNS IPs.
 		removeNATIPs = append(removeNATIPs, dnsIPs...)
 	}
 
