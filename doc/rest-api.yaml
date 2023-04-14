@@ -4370,6 +4370,8 @@ definitions:
                 example: "2:7"
                 type: string
                 x-go-name: USBAddress
+            vdpa:
+                $ref: '#/definitions/ResourcesNetworkCardVDPA'
             vendor:
                 description: Name of the vendor
                 example: Aquantia Corp.
@@ -4518,6 +4520,19 @@ definitions:
                     $ref: '#/definitions/ResourcesNetworkCard'
                 type: array
                 x-go-name: VFs
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    ResourcesNetworkCardVDPA:
+        description: ResourceNetworkCardVDPA represents the VDPA configuration of the network card
+        properties:
+            device:
+                description: Device identifier of the VDPA device
+                type: string
+                x-go-name: Device
+            name:
+                description: Name of the VDPA device
+                type: string
+                x-go-name: Name
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
     ResourcesPCI:
