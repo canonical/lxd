@@ -2212,3 +2212,7 @@ With this mode enabled the following changes are made to the network:
 * Static routes for active instance NIC addresses will be added to the virtual router.
 * A discard route for the entire internal subnet will be added to the virtual router to prevent packets destined for inactive addresses from escaping to the uplink network.
 * The DHCPv4 server will be configured to indicate that a netmask of 255.255.255.255 be used for instance configuration.
+
+## `ovn_nic_acceleration_vdpa`
+
+This updates the `ovn_nic_acceleration` API extension. The `acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).
