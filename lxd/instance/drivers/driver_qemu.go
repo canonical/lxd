@@ -7619,10 +7619,17 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 		"-nographic",
 		"-nodefaults",
 		"-no-user-config",
-		"-accel", "kvm", // SEV (if enabled) only works with KVM acceleration. But overall, we want to use KVM acceleration for better performance.
 		"-chardev", fmt.Sprintf("socket,id=monitor,path=%s,server=on,wait=off", monitorPath.Name()),
 		"-mon", "chardev=monitor,mode=control",
 		"-machine", qemuMachineType(hostArch),
+	}
+
+	if hostArch == osarch.ARCH_64BIT_INTEL_X86 {
+		// On Intel, use KVM acceleration as it's needed for SEV detection.
+		// This also happens to be less resource intensive but can't
+		// trivially be performed on all architectures without extra care about the
+		// machine type.
+		qemuArgs = append(qemuArgs, "-accel", "kvm")
 	}
 
 	if d.architectureSupportsUEFI(hostArch) {
