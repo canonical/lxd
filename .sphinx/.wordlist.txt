@@ -264,6 +264,7 @@ userspace
 UUID
 vCPU
 vCPUs
+VDPA
 VFs
 VFS
 VirtIO
