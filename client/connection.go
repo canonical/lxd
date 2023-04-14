@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/gorilla/websocket"
+	"github.com/zitadel/oidc/v2/pkg/oidc"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -56,6 +57,9 @@ type ConnectionArgs struct {
 
 	// Cookie jar
 	CookieJar http.CookieJar
+
+	// OpenID Connect tokens
+	OIDCTokens *oidc.Tokens[*oidc.IDTokenClaims]
 
 	// Skip automatic GetServer request upon connection
 	SkipGetServer bool
@@ -328,7 +332,7 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 		eventListeners:     make(map[string][]*EventListener),
 	}
 
-	if args.AuthType == "candid" {
+	if shared.StringInSlice(args.AuthType, []string{"candid", "oidc"}) {
 		server.RequireAuthenticated(true)
 	}
 
@@ -345,6 +349,8 @@ func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (Ins
 	server.http = httpClient
 	if args.AuthType == "candid" {
 		server.setupBakeryClient()
+	} else if args.AuthType == "oidc" {
+		server.setupOIDCClient(args.OIDCTokens)
 	}
 
 	// Test the connection and seed the server information

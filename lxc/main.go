@@ -416,8 +416,9 @@ Or for a virtual machine: lxc launch ubuntu:22.04 --vm`)+"\n")
 func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 	// Macaroon teardown
 	if c.conf != nil && shared.PathExists(c.confPath) {
-		// Save cookies on exit
+		// Save cookies and OIDC tokens on exit
 		c.conf.SaveCookies()
+		c.conf.SaveOIDCTokens()
 	}
 
 	return nil
