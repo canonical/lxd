@@ -455,6 +455,7 @@ int main() {
 
 	// Make sure that the ns path is still private
 	if (mount("none", "/var/snap/lxd/common/ns", NULL, MS_PRIVATE, NULL) < 0) {
+		fprintf(stderr, "Failed to mark mount as private: %s\n", strerror(errno));
 		return -1;
 	}
 
