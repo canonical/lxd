@@ -28,9 +28,11 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .varPath }}/networks/{{ .networkName }}/forkdns.servers/servers.conf r,
 
   # Needed for lxd fork commands
+  @{PROC}/@{pid}/cpuset r,
   {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
   {{ .rootPath }}/{etc,lib,usr/lib}/os-release r,
+  {{ .rootPath }}/run/systemd/resolve/stub-resolv.conf r,
 
   # Things that we definitely don't need
   deny @{PROC}/@{pid}/cgroup r,
