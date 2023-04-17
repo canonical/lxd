@@ -20,7 +20,7 @@ import (
 
 // These mountpoints are excluded as they are irrelevant for metrics.
 // /var/lib/docker/* subdirectories are excluded for this reason: https://github.com/prometheus/node_exporter/pull/1003
-var defMountPointsExcluded = regexp.MustCompile("^/(dev|proc|sys|var/lib/docker/.+)($|/)")
+var defMountPointsExcluded = regexp.MustCompile(`^/(?:dev|proc|sys|var/lib/docker/.+)(?:$|/)`)
 var defFSTypesExcluded = []string{
 	"autofs", "binfmt_misc", "bpf", "cgroup", "cgroup2", "configfs", "debugfs", "devpts", "devtmpfs", "fusectl", "hugetlbfs", "iso9660", "mqueue", "nsfs", "overlay", "proc", "procfs", "pstore", "rpc_pipefs", "securityfs", "selinuxfs", "squashfs", "sysfs", "tracefs"}
 
@@ -164,7 +164,6 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 		return 0, fmt.Errorf("Failed to read dir %q: %w", "/proc", err)
 	}
 
-	re := regexp.MustCompile(`^[[:digit:]]+$`)
 	pidCount := uint64(0)
 
 	for _, entry := range entries {
@@ -173,12 +172,15 @@ func getTotalProcesses(d *Daemon) (uint64, error) {
 			continue
 		}
 
+		name := entry.Name()
+
 		// Skip all non-PID directories
-		if !re.MatchString(entry.Name()) {
+		_, err := strconv.ParseUint(name, 10, 64)
+		if err != nil {
 			continue
 		}
 
-		cmdlinePath := filepath.Join("/proc", entry.Name(), "cmdline")
+		cmdlinePath := filepath.Join("/proc", name, "cmdline")
 
 		cmdline, err := os.ReadFile(cmdlinePath)
 		if err != nil {

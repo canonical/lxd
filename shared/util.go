@@ -1244,7 +1244,11 @@ func GetExpiry(refDate time.Time, s string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 
-	re := regexp.MustCompile(`^(\d+)(S|M|H|d|w|m|y)$`)
+	re, err := regexp.Compile(`^(\d+)(S|M|H|d|w|m|y)$`)
+	if err != nil {
+		return time.Time{}, err
+	}
+
 	expiry := map[string]int{
 		"S": 0,
 		"M": 0,

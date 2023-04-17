@@ -217,12 +217,8 @@ func IsSize(value string) error {
 
 // IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
 func IsDeviceID(value string) error {
-	regexHexLc, err := regexp.Compile("^[0-9a-f]+$")
-	if err != nil {
-		return err
-	}
-
-	if len(value) != 4 || !regexHexLc.MatchString(value) {
+	match, _ := regexp.MatchString(`^[0-9a-f]{4}$`, value)
+	if !match {
 		return fmt.Errorf("Invalid value, must be four lower case hex characters")
 	}
 
@@ -241,7 +237,7 @@ func IsInterfaceName(value string) error {
 	}
 
 	// Validate the character set.
-	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]+$", value)
+	match, _ := regexp.MatchString(`^[-_a-zA-Z0-9.]+$`, value)
 	if !match {
 		return fmt.Errorf("Network interface contains invalid characters")
 	}
@@ -542,12 +538,8 @@ func IsUUID(value string) error {
 
 // IsPCIAddress validates whether a value is a PCI address.
 func IsPCIAddress(value string) error {
-	regexHex, err := regexp.Compile(`^([0-9a-fA-F]{4}?:)?[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]$`)
-	if err != nil {
-		return err
-	}
-
-	if !regexHex.MatchString(value) {
+	match, _ := regexp.MatchString(`^(?:[0-9a-fA-F]{4}:)?[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]$`, value)
+	if !match {
 		return fmt.Errorf("Invalid PCI address")
 	}
 
@@ -821,7 +813,7 @@ func IsYAML(value string) error {
 // IsValidCPUSet checks value is a valid CPU set.
 func IsValidCPUSet(value string) error {
 	// Validate the CPU set syntax.
-	match, _ := regexp.MatchString("^([0-9]+([,-][0-9]+)?)(,[0-9]+([,-][0-9]+)*)?$", value)
+	match, _ := regexp.MatchString(`^(?:[0-9]+(?:[,-][0-9]+)?)(?:,[0-9]+(?:[,-][0-9]+)*)?$`, value)
 	if !match {
 		return fmt.Errorf("Invalid CPU limit syntax")
 	}
