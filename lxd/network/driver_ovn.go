@@ -3481,6 +3481,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		IPs:          staticIPs,
 		Parent:       nestedPortParentName,
 		VLAN:         nestedPortVLAN,
+		Location:     n.state.ServerName,
 	}, true)
 	if err != nil {
 		return "", err
@@ -3885,16 +3886,26 @@ func (n *ovn) InstanceDevicePortStop(ovsExternalOVNPort openvswitch.OVNSwitchPor
 		source = "internal"
 	}
 
+	client, err := openvswitch.NewOVN(n.state)
+	if err != nil {
+		return fmt.Errorf("Failed to get OVN client: %w", err)
+	}
+
+	portLocation, err := client.LogicalSwitchPortLocationGet(instancePortName)
+	if err != nil {
+		return fmt.Errorf("Failed getting instance switch port options: %w", err)
+	}
+
+	// Don't delete logical switch port if already active on another chassis (i.e during live cluster move).
+	if portLocation != "" && portLocation != n.state.ServerName {
+		return nil
+	}
+
 	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName, "source": source})
 
 	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
 		return fmt.Errorf("Failed parsing NIC device routes: %w", err)
-	}
-
-	client, err := openvswitch.NewOVN(n.state)
-	if err != nil {
-		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
 	// Load uplink network config.

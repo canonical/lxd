@@ -71,6 +71,7 @@ const ovnExtIDLXDSwitch = "lxd_switch"
 const ovnExtIDLXDSwitchPort = "lxd_switch_port"
 const ovnExtIDLXDProjectID = "lxd_project_id"
 const ovnExtIDLXDPortGroup = "lxd_port_group"
+const ovnExtIDLXDLocation = "lxd_location"
 
 // OVNIPv6RAOpts IPv6 router advertisements options that can be applied to a router.
 type OVNIPv6RAOpts struct {
@@ -116,6 +117,7 @@ type OVNSwitchPortOpts struct {
 	DHCPv6OptsID OVNDHCPOptionsUUID // Optional, if empty, no DHCPv6 enabled on port.
 	Parent       OVNSwitchPort      // Optional, if set a nested port is created.
 	VLAN         uint16             // Optional, use with Parent to request a specific VLAN for nested port.
+	Location     string             // Optional, use to indicate the name of the LXD server this port is bound to.
 }
 
 // OVNACLRule represents an ACL rule that can be added to a logical switch or port group.
@@ -1144,6 +1146,10 @@ func (o *OVN) LogicalSwitchPortAdd(switchName OVNSwitch, portName OVNSwitchPort,
 		if opts.DHCPv6OptsID != "" {
 			args = append(args, "--", "lsp-set-dhcpv6-options", string(portName), string(opts.DHCPv6OptsID))
 		}
+
+		if opts.Location != "" {
+			args = append(args, "--", "set", "logical_switch_port", string(portName), fmt.Sprintf("external_ids:%s=%s", ovnExtIDLXDLocation, opts.Location))
+		}
 	}
 
 	_, err := o.nbctl(args...)
@@ -1184,6 +1190,32 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 	}
 
 	return dynamicIPs, nil
+}
+
+// LogicalSwitchPortLocationGet returns the last set location of a logical switch port.
+func (o *OVN) LogicalSwitchPortLocationGet(portName OVNSwitchPort) (string, error) {
+	location, err := o.nbctl("--if-exists", "get", "logical_switch_port", string(portName), fmt.Sprintf("external-ids:%s", ovnExtIDLXDLocation))
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(location), nil
+}
+
+// LogicalSwitchPortOptionsSet sets the options for a logical switch port.
+func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[string]string) error {
+	args := []string{"lsp-set-options", string(portName)}
+
+	for key, value := range options {
+		args = append(args, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LogicalSwitchPortSetDNS sets up the switch port DNS records for the DNS name.
