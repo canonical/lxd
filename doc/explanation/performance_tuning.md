@@ -3,7 +3,7 @@ relatedlinks: https://www.youtube.com/watch?v=QyXOOE_4cm0
 ---
 
 (performance-tuning)=
-# Performance tuning
+# About performance tuning
 
 When you are ready to move your LXD setup to production, you should take some time to optimize the performance of your system.
 There are different aspects that impact performance.
@@ -50,12 +50,3 @@ If you have a lot of local activity between instances or between the LXD host an
 You can do this by increasing the transmit and receive queue lengths.
 
 See {ref}`network-increase-bandwidth` for instructions.
-
-```{toctree}
-:maxdepth: 1
-:hidden:
-
-Benchmark performance <../howto/benchmark_performance>
-Increase bandwidth <../howto/network_increase_bandwidth>
-Server settings <../reference/server_settings>
-```

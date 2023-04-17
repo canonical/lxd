@@ -3,6 +3,7 @@ ABI
 ACL
 ACLs
 AIO
+allocator
 AMD
 APIs
 AppArmor
@@ -113,6 +114,7 @@ KiB
 kibi
 Kibit
 lookups
+LRU
 LTS
 LV
 LVM
@@ -255,6 +257,7 @@ UI
 UID
 UIDs
 unconfigured
+unevictable
 unmanaged
 unmount
 unmounting
