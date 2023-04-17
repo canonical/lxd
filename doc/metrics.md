@@ -4,7 +4,7 @@ relatedlinks: https://grafana.com/grafana/dashboards/15726
 ---
 
 (metrics)=
-# Metrics
+# How to monitor metrics
 
 ```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY
 ```
@@ -13,65 +13,119 @@ relatedlinks: https://grafana.com/grafana/dashboards/15726
 LXD collects metrics for all running instances as well as some internal metrics.
 These metrics cover the CPU, memory, network, disk and process usage.
 They are meant to be consumed by Prometheus, and you can use Grafana to display the metrics as graphs.
+See {ref}`provided-metrics` for lists of available metrics.
 <!-- Include end metrics intro -->
 
-In cluster environments, LXD will only return the values for instances running on the server being accessed. It's expected that each cluster member will be scraped separately.
+In a cluster environment, LXD returns only the values for instances running on the server that is being accessed.
+Therefore, you must scrape each cluster member separately.
 
 The instance metrics are updated when calling the `/1.0/metrics` endpoint.
-They are cached for 8s to handle multiple scrapers. Fetching metrics is a relatively expensive operation for LXD to perform so consider scraping at a higher than default interval
-if the impact is too high.
+To handle multiple scrapers, they are cached for 8 seconds.
+Fetching metrics is a relatively expensive operation for LXD to perform, so if the impact is too high, consider scraping at a higher than default interval.
 
-## Create metrics certificate
+## Query the raw data
 
-The `/1.0/metrics` endpoint is a special one as it also accepts a `metrics` type certificate.
-This kind of certificate is meant for metrics only, and won't work for interaction with instances or any other LXD entities.
+To view the raw data that LXD collects, use the `lxc query` command to query the `/1.0/metrics` endpoint:
 
-Here's how to create a new certificate (this is not specific to metrics):
+```{terminal}
+:input: lxc query /1.0/metrics
 
-```bash
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout metrics.key -nodes -out metrics.crt -days 3650 -subj "/CN=metrics.local"
+# HELP lxd_cpu_seconds_total The total number of CPU time used in seconds.
+# TYPE lxd_cpu_seconds_total counter
+lxd_cpu_seconds_total{cpu="0",mode="system",name="u1",project="default",type="container"} 60.304517
+lxd_cpu_seconds_total{cpu="0",mode="user",name="u1",project="default",type="container"} 145.647502
+lxd_cpu_seconds_total{cpu="0",mode="iowait",name="vm",project="default",type="virtual-machine"} 4614.78
+lxd_cpu_seconds_total{cpu="0",mode="irq",name="vm",project="default",type="virtual-machine"} 0
+lxd_cpu_seconds_total{cpu="0",mode="idle",name="vm",project="default",type="virtual-machine"} 412762
+lxd_cpu_seconds_total{cpu="0",mode="nice",name="vm",project="default",type="virtual-machine"} 35.06
+lxd_cpu_seconds_total{cpu="0",mode="softirq",name="vm",project="default",type="virtual-machine"} 2.41
+lxd_cpu_seconds_total{cpu="0",mode="steal",name="vm",project="default",type="virtual-machine"} 9.84
+lxd_cpu_seconds_total{cpu="0",mode="system",name="vm",project="default",type="virtual-machine"} 340.84
+lxd_cpu_seconds_total{cpu="0",mode="user",name="vm",project="default",type="virtual-machine"} 261.25
+# HELP lxd_cpu_effective_total The total number of effective CPUs.
+# TYPE lxd_cpu_effective_total gauge
+lxd_cpu_effective_total{name="u1",project="default",type="container"} 4
+lxd_cpu_effective_total{name="vm",project="default",type="virtual-machine"} 0
+# HELP lxd_disk_read_bytes_total The total number of bytes read.
+# TYPE lxd_disk_read_bytes_total counter
+lxd_disk_read_bytes_total{device="loop5",name="u1",project="default",type="container"} 2048
+lxd_disk_read_bytes_total{device="loop3",name="vm",project="default",type="virtual-machine"} 353280
+...
 ```
 
-*Note*: OpenSSL version 1.1.0+ is required for the above command to generate a proper certificate.
+## Set up Prometheus
 
-Now, this certificate needs to be added to the list of trusted clients:
+To gather and store the raw metrics, you should set up [Prometheus](https://prometheus.io/).
+You can then configure it to scrape the metrics through the metrics API endpoint.
 
-```bash
-lxc config trust add metrics.crt --type=metrics
+### Expose the metrics endpoint
+
+To expose the `/1.0/metrics` API endpoint, you must set the address on which it should be available.
+
+To do so, you can set either the [`core.metrics_address`](server-options-core) server configuration option or the [`core.https_address`](server-options-core) server configuration option.
+The `core.metrics_address` option is intended for metrics only, while the `core.https_address` option exposes the full API.
+So if you want to use a different address for the metrics API than for the full API, or if you want to expose only the metrics endpoint but not the full API, you should set the `core.metrics_address` option.
+
+For example, to expose the full API on the `8443` port, enter the following command:
+
+    lxc config set core.https_address ":8443"
+
+To expose only the metrics API endpoint on the `8444` port, enter the following command:
+
+    lxc config set core.metrics_address ":8444"
+
+To expose only the metrics API endpoint on a specific IP address and port, enter a command similar to the following:
+
+    lxc config set core.metrics_address "192.0.2.101:8444"
+
+### Add a metrics certificate to LXD
+
+Authentication for the `/1.0/metrics` API endpoint is done through a metrics certificate.
+A metrics certificate (type `metrics`) is different from a client certificate (type `client`) in that it is meant for metrics only and doesn't work for interaction with instances or any other LXD entities.
+
+To create a certificate, enter the following command:
+
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout metrics.key -nodes -out metrics.crt -days 3650 -subj "/CN=metrics.local"
+
+```{note}
+The command requires OpenSSL version 1.1.0 or later.
 ```
 
-## Add target to Prometheus
+Then add this certificate to the list of trusted clients, specifying the type as `metrics`:
 
-In order for Prometheus to scrape from LXD, it has to be added to the targets.
+    lxc config trust add metrics.crt --type=metrics
 
-First, one needs to ensure that `core.https_address` is set so LXD can be reached over the network.
-This can be done by running:
+### Make the metrics certificate available for Prometheus
 
-```bash
-lxc config set core.https_address ":8443"
-```
+If you run Prometheus on a different machine than your LXD server, you must copy the required certificates to the Prometheus machine:
 
-Alternatively, one can use `core.metrics_address` which is intended for metrics only.
+- The metrics certificate (`metrics.crt`) and key (`metrics.key`) that you created
+- The LXD server certificate (`server.crt`) located in `/var/snap/lxd/common/lxd/` (if you are using the snap) or `/var/lib/lxd/` (otherwise)
 
-Second, the newly created certificate and key, as well as the LXD server certificate need to be accessible to Prometheus.
-For this, these three files can be copied to `/etc/prometheus/tls`:
+Copy these files into a `tls` directory that is accessible to Prometheus, for example, `/var/snap/prometheus/common/tls` (if you are using the snap) or `/etc/prometheus/tls` (otherwise).
+See the following example commands:
 
 ```bash
-# Create new tls directory
-mkdir /etc/prometheus/tls
+# Create tls directory
+mkdir /var/snap/prometheus/common/tls
 
 # Copy newly created certificate and key to tls directory
-cp metrics.crt metrics.key /etc/prometheus/tls
+cp metrics.crt metrics.key /var/snap/prometheus/common/tls/
 
 # Copy LXD server certificate to tls directory
-cp /var/snap/lxd/common/lxd/server.crt /etc/prometheus/tls
-
-# Make sure Prometheus can read these files (usually, Prometheus is run as user "prometheus")
-chown -R prometheus:prometheus /etc/prometheus/tls
+cp /var/snap/lxd/common/lxd/server.crt /var/snap/prometheus/common/tls/
 ```
 
-Lastly, LXD has to be added as target.
-For this, `/etc/prometheus/prometheus.yaml` needs to be edited.
+If you are not using the snap, you must also make sure that Prometheus can read these files (usually, Prometheus is run as user `prometheus`):
+
+    chown -R prometheus:prometheus /etc/prometheus/tls
+
+### Configure Prometheus to scrape from LXD
+
+Finally, you must add LXD as a target to the Prometheus configuration.
+
+To do so, edit `/var/snap/prometheus/current/prometheus.yml` (if you are using the snap) or `/etc/prometheus/prometheus.yaml` (otherwise) and add a job for LXD.
+
 Here's what the configuration needs to look like:
 
 ```yaml
@@ -90,10 +144,14 @@ scrape_configs:
       server_name: 'foo'
 ```
 
-In the above example, `/etc/prometheus/tls/server.crt` looks like:
+````{note}
+The `server_name` must be specified if the LXD server certificate does not contain the same host name as used in the `targets` list.
+To verify this, open `server.crt` and check the Subject Alternative Name (SAN) section.
+
+For example, assume that `server.crt` has the following content:
 
 ```{terminal}
-:input: openssl x509 -noout -text -in /etc/prometheus/tls/server.crt
+:input: openssl x509 -noout -text -in /var/snap/prometheus/common/tls/server.crt
 
 ...
             X509v3 Subject Alternative Name:
@@ -101,9 +159,10 @@ In the above example, `/etc/prometheus/tls/server.crt` looks like:
 ...
 ```
 
-Since the Subject Alternative Name (SAN) list doesn't include the host name provided in the `targets` list, it is required to override the name used for comparison using the `server_name` directive.
+Since the Subject Alternative Name (SAN) list doesn't include the host name provided in the `targets` list (`foo.example.com`), you must override the name used for comparison using the `server_name` directive.
+````
 
-Here is an example of a `prometheus.yaml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
+Here is an example of a `prometheus.yml` configuration where multiple jobs are used to scrape the metrics of multiple LXD servers:
 
 ```yaml
 scrape_configs:
@@ -170,76 +229,64 @@ scrape_configs:
       server_name: 'saturn'
 ```
 
-## Provided instance metrics
+After editing the configuration, restart Prometheus (for example, `snap restart prometheus`) to start scraping.
 
-The following instance metrics are provided:
+## Set up a Grafana dashboard
 
-* `lxd_cpu_effective_total`
-* `lxd_cpu_seconds_total{cpu="<cpu>", mode="<mode>"}`
-* `lxd_disk_read_bytes_total{device="<dev>"}`
-* `lxd_disk_reads_completed_total{device="<dev>"}`
-* `lxd_disk_written_bytes_total{device="<dev>"}`
-* `lxd_disk_writes_completed_total{device="<dev>"}`
-* `lxd_filesystem_avail_bytes{device="<dev>",fstype="<type>"}`
-* `lxd_filesystem_free_bytes{device="<dev>",fstype="<type>"}`
-* `lxd_filesystem_size_bytes{device="<dev>",fstype="<type>"}`
-* `lxd_memory_Active_anon_bytes`
-* `lxd_memory_Active_bytes`
-* `lxd_memory_Active_file_bytes`
-* `lxd_memory_Cached_bytes`
-* `lxd_memory_Dirty_bytes`
-* `lxd_memory_HugepagesFree_bytes`
-* `lxd_memory_HugepagesTotal_bytes`
-* `lxd_memory_Inactive_anon_bytes`
-* `lxd_memory_Inactive_bytes`
-* `lxd_memory_Inactive_file_bytes`
-* `lxd_memory_Mapped_bytes`
-* `lxd_memory_MemAvailable_bytes`
-* `lxd_memory_MemFree_bytes`
-* `lxd_memory_MemTotal_bytes`
-* `lxd_memory_OOM_kills_total`
-* `lxd_memory_RSS_bytes`
-* `lxd_memory_Shmem_bytes`
-* `lxd_memory_Swap_bytes`
-* `lxd_memory_Unevictable_bytes`
-* `lxd_memory_Writeback_bytes`
-* `lxd_network_receive_bytes_total{device="<dev>"}`
-* `lxd_network_receive_drop_total{device="<dev>"}`
-* `lxd_network_receive_errs_total{device="<dev>"}`
-* `lxd_network_receive_packets_total{device="<dev>"}`
-* `lxd_network_transmit_bytes_total{device="<dev>"}`
-* `lxd_network_transmit_drop_total{device="<dev>"}`
-* `lxd_network_transmit_errs_total{device="<dev>"}`
-* `lxd_network_transmit_packets_total{device="<dev>"}`
-* `lxd_procs_total`
+To visualize the metrics data, set up [Grafana](https://grafana.com/).
+LXD provides a [Grafana dashboard](https://grafana.com/grafana/dashboards/15726-lxd/) that is configured to display the LXD metrics scraped by Prometheus.
 
-## Provided internal metrics
+```{note}
+The dashboard requires Grafana 8.4 or later.
+```
 
-The following internal metrics are provided:
+See the Grafana documentation for instructions on installing and signing in:
 
-* `lxd_go_alloc_bytes_total`
-* `lxd_go_alloc_bytes`
-* `lxd_go_buck_hash_sys_bytes`
-* `lxd_go_frees_total`
-* `lxd_go_gc_sys_bytes`
-* `lxd_go_goroutines`
-* `lxd_go_heap_alloc_bytes`
-* `lxd_go_heap_idle_bytes`
-* `lxd_go_heap_inuse_bytes`
-* `lxd_go_heap_objects`
-* `lxd_go_heap_released_bytes`
-* `lxd_go_heap_sys_bytes`
-* `lxd_go_lookups_total`
-* `lxd_go_mallocs_total`
-* `lxd_go_mcache_inuse_bytes`
-* `lxd_go_mcache_sys_bytes`
-* `lxd_go_mspan_inuse_bytes`
-* `lxd_go_mspan_sys_bytes`
-* `lxd_go_next_gc_bytes`
-* `lxd_go_other_sys_bytes`
-* `lxd_go_stack_inuse_bytes`
-* `lxd_go_stack_sys_bytes`
-* `lxd_go_sys_bytes`
-* `lxd_operations_total`
-* `lxd_uptime_seconds`
-* `lxd_warnings_total`
+- [Install Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/installation/)
+- [Sign in to Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/sign-in-to-grafana/)
+
+Complete the following steps to import the [LXD dashboard](https://grafana.com/grafana/dashboards/15726-lxd/):
+
+1. Configure Prometheus as the data source:
+
+   1. Go to {guilabel}`Configuration` > {guilabel}`Data sources`.
+   1. Click {guilabel}`Add data source`.
+
+      ![Add data source in Grafana](images/grafana_add_datasource.png)
+
+   1. Select {guilabel}`Prometheus`.
+
+      ![Select Prometheus as the data source](images/grafana_select_prometheus.png)
+
+   1. In the {guilabel}`URL` field, enter `http://localhost:9090/`.
+
+      ![Enter Prometheus URL](images/grafana_configure_datasource.png)
+
+   1. Keep the default configuration for the other fields and click {guilabel}`Save & test`.
+
+1. Import the LXD dashboard:
+
+   1. Go to {guilabel}`Dashboards` > {guilabel}`Browse`.
+   1. Click {guilabel}`New` and select {guilabel}`Import`.
+
+      ![Import a dashboard in Grafana](images/grafana_dashboard_import.png)
+
+   1. In the {guilabel}`Import via grafana.com` field, enter the dashboard ID `15726`.
+
+      ![Enter the LXD dashboard ID](images/grafana_dashboard_id.png)
+
+   1. Click {guilabel}`Load`.
+   1. In the {guilabel}`LXD` drop-down menu, select the Prometheus data source that you configured.
+
+      ![Select the Prometheus data source](images/grafana_dashboard_select_datasource.png)
+
+   1. Click {guilabel}`Import`.
+
+You should now see the LXD dashboard.
+You can select the project and filter by instances.
+
+![Resource overview in the LXD Grafana dashboard](images/grafana_resources.png)
+
+At the bottom of the page, you can see data for each instance.
+
+![Instance data in the LXD Grafana dashboard](images/grafana_instances.png)
