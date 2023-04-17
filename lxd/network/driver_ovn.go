@@ -3383,6 +3383,7 @@ func (n *ovn) InstanceDevicePortStart(opts *OVNInstanceNICSetupOpts, securityACL
 		IPs:          staticIPs,
 		Parent:       nestedPortParentName,
 		VLAN:         nestedPortVLAN,
+		Location:     n.state.ServerName,
 	}, true)
 	if err != nil {
 		return "", err
