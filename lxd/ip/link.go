@@ -247,11 +247,18 @@ func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
 		defer func() { _ = cmd.Wait() }()
 
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
-		reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+		reVlan, err := regexp.Compile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+		if err != nil {
+			return vf, err
+		}
 
 		// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
 		// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
-		reNoVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+		reNoVlan, err := regexp.Compile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+		if err != nil {
+			return vf, err
+		}
+
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			// First try and find VF and read its properties with VLAN activated.
