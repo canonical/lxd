@@ -568,13 +568,36 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		revert.Add(cleanup)
 	}
 
+	runConf := deviceConfig.RunConfig{}
+
+	// Get local chassis ID for chassis group.
+	ovs := openvswitch.NewOVS()
+	chassisID, err := ovs.ChassisID()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting OVS Chassis ID: %w", err)
+	}
+
+	ovnClient, err := openvswitch.NewOVN(d.state)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get OVN client: %w", err)
+	}
+
+	// Add post start hook for setting logical switch port chassis once instance has been started.
+	runConf.PostHooks = append(runConf.PostHooks, func() error {
+		err := ovnClient.LogicalSwitchPortOptionsSet(logicalPortName, map[string]string{"requested-chassis": chassisID})
+		if err != nil {
+			return fmt.Errorf("Failed setting logical switch port chassis ID: %w", err)
+		}
+
+		return nil
+	})
+
+	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
+
 	err = d.volatileSet(saveData)
 	if err != nil {
 		return nil, err
 	}
-
-	runConf := deviceConfig.RunConfig{}
-	runConf.PostHooks = []func() error{d.postStart}
 
 	// Return instance network interface configuration (if not nested).
 	if saveData["host_name"] != "" {
