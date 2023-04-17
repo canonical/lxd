@@ -5974,7 +5974,7 @@ func (d *qemu) MigrateSend(args instance.MigrateSendArgs) error {
 			if args.ClusterMoveSourceName == d.name {
 				// Disable VolatileSet from persisting changes to the database.
 				// This is so the volatile changes written by the running receiving member
-				//  are not lost when the source instance is stopped.
+				// are not lost when the source instance is stopped.
 				d.volatileSetPersistDisable = true
 
 				// Store a reference to this instance (which has the old volatile settings)
