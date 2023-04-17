@@ -6079,12 +6079,12 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 		defer func() { _ = os.Remove(snapshotFile) }()
 
 		// Pass the snapshot file to the running QEMU process.
-		f, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
+		snapFile, err := os.OpenFile(snapshotFile, unix.O_RDWR, 0)
 		if err != nil {
 			return fmt.Errorf("Failed opening file descriptor for migration storage snapshot %q: %w", snapshotFile, err)
 		}
 
-		defer func() { _ = f.Close() }()
+		defer func() { _ = snapFile.Close() }()
 
 		// Remove the snapshot file as we don't want to sync this to the target.
 		err = os.Remove(snapshotFile)
@@ -6092,12 +6092,14 @@ func (d *qemu) migrateSendLive(pool storagePools.Pool, clusterMoveSourceName str
 			return err
 		}
 
-		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, f, false)
+		info, err := monitor.SendFileWithFDSet(rootSnapshotDiskName, snapFile, false)
 		if err != nil {
-			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", f.Name(), err)
+			return fmt.Errorf("Failed sending file descriptor of %q for migration storage snapshot: %w", snapFile.Name(), err)
 		}
 
 		defer func() { _ = monitor.RemoveFDFromFDSet(rootSnapshotDiskName) }()
+
+		_ = snapFile.Close() // Don't prevent clean unmount when instance is stopped.
 
 		// Add the snapshot file as a block device (not visible to the guest OS).
 		err = monitor.AddBlockDevice(map[string]any{
