@@ -1202,6 +1202,22 @@ func (o *OVN) LogicalSwitchPortLocationGet(portName OVNSwitchPort) (string, erro
 	return strings.TrimSpace(location), nil
 }
 
+// LogicalSwitchPortOptionsSet sets the options for a logical switch port.
+func (o *OVN) LogicalSwitchPortOptionsSet(portName OVNSwitchPort, options map[string]string) error {
+	args := []string{"lsp-set-options", string(portName)}
+
+	for key, value := range options {
+		args = append(args, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // LogicalSwitchPortSetDNS sets up the switch port DNS records for the DNS name.
 // Returns the DNS record UUID, IPv4 and IPv6 addresses used for DNS records.
 func (o *OVN) LogicalSwitchPortSetDNS(switchName OVNSwitch, portName OVNSwitchPort, dnsName string, dnsIPv4 net.IP, dnsIPv6 net.IP) (OVNDNSUUID, error) {
