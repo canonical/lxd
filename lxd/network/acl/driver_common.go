@@ -97,7 +97,7 @@ func (d *common) ID() int64 {
 	return d.id
 }
 
-// Name returns the project.
+// Project returns the project name.
 func (d *common) Project() string {
 	return d.projectName
 }

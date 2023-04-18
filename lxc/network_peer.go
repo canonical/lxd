@@ -532,7 +532,7 @@ func (c *cmdNetworkPeerEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc network peer show` command to passed in here, but only take the contents
+		// Allow output of `lxc network peer show` command to be passed in here, but only take the contents
 		// of the NetworkPeerPut fields when updating. The other fields are silently discarded.
 		newData := api.NetworkPeer{}
 		err = yaml.UnmarshalStrict(contents, &newData)
