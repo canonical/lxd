@@ -582,6 +582,181 @@ definitions:
                 x-go-name: ServerName
         type: object
         x-go-package: github.com/lxc/lxd/shared/api
+    Deployment:
+        description: Deployment represents a LXD deployment
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Deployment configuration map (refer to doc/deployments.md)
+                example:
+                    user.mykey: foo
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the deployment
+                example: My new app and its required services
+                type: string
+                x-go-name: Description
+            name:
+                description: The name for the deployment
+                example: myapp
+                type: string
+                x-go-name: Name
+            used_by:
+                description: List of URLs of objects using this deployment
+                example:
+                    - /1.0/instances/c1
+                    - /1.0/instances/c2
+                items:
+                    type: string
+                readOnly: true
+                type: array
+                x-go-name: UsedBy
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentInstanceSet:
+        description: DeploymentInstanceSet represents the fields of a deployment instance set template
+        properties:
+            description:
+                description: Description of the instance set
+                example: Web servers
+                type: string
+                x-go-name: Description
+            instance_template:
+                $ref: '#/definitions/InstancesPost'
+            name:
+                description: The name for the deployment instance set
+                example: myapp
+                type: string
+                x-go-name: Name
+            scaling_current:
+                description: Current size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingCurrent
+            scaling_maximum:
+                description: Maximum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMaximum
+            scaling_minimum:
+                description: Minimum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMinimum
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentInstanceSetPost:
+        description: DeploymentInstanceSetPost represents the fields required to rename a LXD deployment instance set
+        properties:
+            name:
+                description: The name for the deployment instance set
+                example: myapp
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentInstanceSetPut:
+        description: DeploymentInstanceSetPut represents the modifiable fields of a deployment instance set template
+        properties:
+            description:
+                description: Description of the instance set
+                example: Web servers
+                type: string
+                x-go-name: Description
+            instance_template:
+                $ref: '#/definitions/InstancesPost'
+            scaling_maximum:
+                description: Maximum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMaximum
+            scaling_minimum:
+                description: Minimum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMinimum
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentInstanceSetsPost:
+        description: DeploymentInstanceSetsPost represents the fields required to create a LXD deployment instance set
+        properties:
+            description:
+                description: Description of the instance set
+                example: Web servers
+                type: string
+                x-go-name: Description
+            instance_template:
+                $ref: '#/definitions/InstancesPost'
+            name:
+                description: The name for the deployment instance set
+                example: myapp
+                type: string
+                x-go-name: Name
+            scaling_maximum:
+                description: Maximum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMaximum
+            scaling_minimum:
+                description: Minimum allowed size of instance set
+                format: int64
+                type: integer
+                x-go-name: ScalingMinimum
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentPost:
+        description: DeploymentPost represents the fields required to rename a LXD deployment
+        properties:
+            name:
+                description: The name for the deployment
+                example: myapp
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentPut:
+        description: DeploymentPut represents the modifiable fields of a LXD deployment
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Deployment configuration map (refer to doc/deployments.md)
+                example:
+                    user.mykey: foo
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the deployment
+                example: My new app and its required services
+                type: string
+                x-go-name: Description
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
+    DeploymentsPost:
+        description: DeploymentsPost represents the fields of a new LXD deployment
+        properties:
+            config:
+                additionalProperties:
+                    type: string
+                description: Deployment configuration map (refer to doc/deployments.md)
+                example:
+                    user.mykey: foo
+                type: object
+                x-go-name: Config
+            description:
+                description: Description of the deployment
+                example: My new app and its required services
+                type: string
+                x-go-name: Description
+            name:
+                description: The name for the deployment
+                example: myapp
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/lxc/lxd/shared/api
     Event:
         description: Event represents an event entry (over websocket)
         properties:
@@ -7160,6 +7335,468 @@ paths:
             summary: Get the cluster members
             tags:
                 - cluster
+    /1.0/deployments:
+        get:
+            description: Returns a list of deployments (URLs).
+            operationId: deployments_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of endpoints
+                                example: |-
+                                    [
+                                      "/1.0/deployments/foo",
+                                      "/1.0/deployments/bar"
+                                    ]
+                                items:
+                                    type: string
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the deployments
+            tags:
+                - deployments
+        post:
+            consumes:
+                - application/json
+            description: Creates a new deployment.
+            operationId: deployments_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Deployment
+                  in: body
+                  name: deployment
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentsPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Add a deployment
+            tags:
+                - deployments
+    /1.0/deployments/{deploymentName}/instance-sets/{instSetName}:
+        delete:
+            description: Removes the deployment instance set.
+            operationId: deployment_instance_set_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the deployment instance set
+            tags:
+                - deployments
+        get:
+            description: Gets a specific deployment instance set.
+            operationId: deployment_instance_set_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Deployment instance set
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/DeploymentInstanceSet'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the deployment instance set
+            tags:
+                - deployments
+        post:
+            consumes:
+                - application/json
+            description: Renames an existing deployment instance set.
+            operationId: deployments_instance_set_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Deployment instance set rename request
+                  in: body
+                  name: Deployment
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentInstanceSetPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename the deployment instance set
+            tags:
+                - deployments
+        put:
+            consumes:
+                - application/json
+            description: Updates the deployment instance set.
+            operationId: deployment_instance_set_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Cluster member name
+                  example: lxd01
+                  in: query
+                  name: target
+                  type: string
+                - description: Deployment instance set configuration
+                  in: body
+                  name: Deployment instance set
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentInstanceSetPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the deployment instance set
+            tags:
+                - deployments
+    /1.0/deployments/{deploymentName}/instance-sets/{instSetName}?recursion=1:
+        get:
+            description: Returns a list of deployment instance sets (structs).
+            operationId: deployments_instance_sets_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: API endpoints
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of deployment instance sets
+                                items:
+                                    $ref: '#/definitions/DeploymentInstanceSet'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the deployment instance sets
+            tags:
+                - deployments
+    /1.0/deployments/{name}:
+        delete:
+            description: Removes the deloyment.
+            operationId: deployments_delete
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Delete the deployment
+            tags:
+                - deployments
+        get:
+            description: Gets a specific deployment.
+            operationId: deployments_get
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Deployment
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                $ref: '#/definitions/Deployment'
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the deployment
+            tags:
+                - deployments
+        patch:
+            consumes:
+                - application/json
+            description: Updates a subset of the deployment configuration.
+            operationId: deployments_patch
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Deployment configuration
+                  in: body
+                  name: deployment
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Partially update the deployment
+            tags:
+                - deployments
+        post:
+            consumes:
+                - application/json
+            description: Renames an existing deployment.
+            operationId: deployments_post
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Deployment rename request
+                  in: body
+                  name: Deployment
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentPost'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Rename the deployment
+            tags:
+                - deployments
+        put:
+            consumes:
+                - application/json
+            description: Updates the entire deployment configuration.
+            operationId: deployments_put
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+                - description: Deployment configuration
+                  in: body
+                  name: deployment
+                  required: true
+                  schema:
+                    $ref: '#/definitions/DeploymentPut'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    $ref: '#/responses/EmptySyncResponse'
+                "400":
+                    $ref: '#/responses/BadRequest'
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "412":
+                    $ref: '#/responses/PreconditionFailed'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Update the deployment
+            tags:
+                - deployments
+    /1.0/deployments?recursion=1:
+        get:
+            description: Returns a list of deployments (structs).
+            operationId: deployments_get_recursion1
+            parameters:
+                - description: Project name
+                  example: default
+                  in: query
+                  name: project
+                  type: string
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: Deployments
+                    schema:
+                        description: Sync response
+                        properties:
+                            metadata:
+                                description: List of deployments
+                                items:
+                                    $ref: '#/definitions/Deployment'
+                                type: array
+                            status:
+                                description: Status description
+                                example: Success
+                                type: string
+                            status_code:
+                                description: Status code
+                                example: 200
+                                type: integer
+                            type:
+                                description: Response type
+                                example: sync
+                                type: string
+                        type: object
+                "403":
+                    $ref: '#/responses/Forbidden'
+                "500":
+                    $ref: '#/responses/InternalServerError'
+            summary: Get the deployments
+            tags:
+                - deployments
     /1.0/events:
         get:
             description: Connects to the event API using websocket.
