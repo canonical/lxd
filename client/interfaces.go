@@ -92,6 +92,15 @@ type InstanceServer interface {
 	DeleteCertificate(fingerprint string) (err error)
 	CreateCertificateToken(certificate api.CertificatesPost) (op Operation, err error)
 
+	// Deployment functions ("deployments" API extension)
+	GetDeploymentNames() (names []string, err error)
+	GetDeployments() (deployments []api.Deployment, err error)
+	GetDeployment(deploymentName string) (deployment *api.Deployment, ETag string, err error)
+	CreateDeployment(deployment api.DeploymentsPost) (err error)
+	UpdateDeployment(deploymentName string, deployment api.DeploymentPut, ETag string) (err error)
+	RenameDeployment(deploymentName string, deployment api.DeploymentPost) (err error)
+	DeleteDeployment(deploymentName string) (err error)
+
 	// Container functions
 	//
 	// Deprecated: Those functions are deprecated and won't be updated anymore.
