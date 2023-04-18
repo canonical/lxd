@@ -45,7 +45,6 @@ Property         | Type       | Required | Description
 `name`           | string     | yes      | Name of the network peering on the local network
 `description`    | string     | no       | Description of the network peering
 `config`         | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
-`ports`          | port list  | no       | Network forward port list
 `target_project` | string     | yes      | Which project the target network exists in (required at create time)
 `target_network` | string     | yes      | Which network to create a peering with (required at create time)
 `status`         | string     | --       | Status indicating if pending or created (mutual peering exists with the target network)
