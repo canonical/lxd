@@ -472,7 +472,7 @@ func (c *cmdNetworkZoneEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc network zone show` command to passed in here, but only take the contents
+		// Allow output of `lxc network zone show` command to be passed in here, but only take the contents
 		// of the NetworkZonePut fields when updating the Zone. The other fields are silently discarded.
 		newdata := api.NetworkZone{}
 		err = yaml.UnmarshalStrict(contents, &newdata)
@@ -1026,7 +1026,7 @@ func (c *cmdNetworkZoneRecordEdit) Run(cmd *cobra.Command, args []string) error 
 			return err
 		}
 
-		// Allow output of `lxc network zone show` command to passed in here, but only take the contents
+		// Allow output of `lxc network zone show` command to be passed in here, but only take the contents
 		// of the NetworkZonePut fields when updating the Zone. The other fields are silently discarded.
 		newdata := api.NetworkZoneRecord{}
 		err = yaml.UnmarshalStrict(contents, &newdata)

@@ -555,7 +555,7 @@ func (c *cmdNetworkLoadBalancerEdit) Run(cmd *cobra.Command, args []string) erro
 			return err
 		}
 
-		// Allow output of `lxc network load-balancer show` command to passed in here, but only take the
+		// Allow output of `lxc network load-balancer show` command to be passed in here, but only take the
 		// contents of the NetworkLoadBalancerPut fields when updating.
 		// The other fields are silently discarded.
 		newData := api.NetworkLoadBalancer{}
