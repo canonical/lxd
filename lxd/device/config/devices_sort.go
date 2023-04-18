@@ -47,7 +47,7 @@ func (devices DevicesSortable) Less(i, j int) bool {
 	}
 
 	// Start non-nested NIC devices before nested NIC devices.
-	if a.Config["type"] == "nic" && b.Config["type"] == "nic" {
+	if a.Config["type"] == "nic" && b.Config["type"] == "nic" && (a.Config["nested"] != "" || b.Config["nested"] != "") {
 		if a.Config["nested"] == "" {
 			return true
 		} else if b.Config["nested"] == "" {
