@@ -2229,4 +2229,9 @@ The configuration key takes an integer, and can be disabled by setting it to 0 (
 When the offline cluster member is evacuated, only remote-backed instances will be migrated. Local instances will be ignored as there is no way of migrating them once the cluster member is offline.
 
 ## `instances_state_total`
+
 This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
+
+## `deployments`
+
+This adds the concept of a "deployment" which provides primitives for scaling sets of instances that make up complex application workloads.
