@@ -128,6 +128,10 @@ For help with any of those, simply call them with --help.`))
 	deleteCmd := cmdDelete{global: &globalCmd}
 	app.AddCommand(deleteCmd.Command())
 
+	// deployment sub-command
+	deploymentCmd := cmdDeployment{global: &globalCmd}
+	app.AddCommand(deploymentCmd.Command())
+
 	// exec sub-command
 	execCmd := cmdExec{global: &globalCmd}
 	app.AddCommand(execCmd.Command())
