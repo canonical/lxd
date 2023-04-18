@@ -780,15 +780,20 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 
 	v := d.volatileGet()
 
+	var err error
+
 	// Try and retrieve the last associated OVN switch port for the instance interface in the local OVS DB.
 	// If we cannot get this, don't fail, as InstanceDevicePortStop will then try and generate the likely
 	// port name using the same regime it does for new ports. This part is only here in order to allow
 	// instance ports generated under an older regime to be cleaned up properly.
 	networkVethFillFromVolatile(d.config, v)
 	ovs := openvswitch.NewOVS()
-	ovsExternalOVNPort, err := ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
-	if err != nil {
-		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", logger.Ctx{"interface": d.config["host_name"]})
+	var ovsExternalOVNPort openvswitch.OVNSwitchPort
+	if d.config["nested"] == "" {
+		ovsExternalOVNPort, err = ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
+		if err != nil {
+			d.logger.Warn("Could not find OVN Switch port associated to OVS interface", logger.Ctx{"interface": d.config["host_name"]})
+		}
 	}
 
 	integrationBridgeNICName := d.config["host_name"]
