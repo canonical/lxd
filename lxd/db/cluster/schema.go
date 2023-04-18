@@ -34,6 +34,51 @@ CREATE TABLE config (
     value TEXT,
     UNIQUE (key)
 );
+CREATE TABLE "deployments" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	project_id INTEGER NOT NULL,
+	UNIQUE (project_id, name)
+);
+CREATE TABLE "deployments_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (deployment_id, key),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployments_instance_sets" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	scaling_minimum INTEGER NOT NULL,
+	scaling_maximum INTEGER NOT NULL,
+	instance_template TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployments_instance_sets_instances" (
+	deployment_instance_set_id INTEGER NOT NULL,
+	instance_id INTEGER NOT NULL,
+	PRIMARY KEY (deployment_instance_set_id,
+    instance_id),
+	UNIQUE (instance_id),
+	FOREIGN KEY (deployment_instance_set_id) REFERENCES "deployments_instance_sets" (id) ON DELETE CASCADE
+);
+CREATE TABLE "deployments_keys" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	access_key TEXT NOT NULL,
+	role TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	UNIQUE (access_key),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
 CREATE TABLE "images" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint TEXT NOT NULL,
@@ -621,5 +666,5 @@ CREATE TABLE "warnings" (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (69, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (70, strftime("%s"))
 `

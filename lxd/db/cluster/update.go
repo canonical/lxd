@@ -106,6 +106,66 @@ var updates = map[int]schema.Update{
 	67: updateFromV66,
 	68: updateFromV67,
 	69: updateFromV68,
+	70: updateFromV69,
+}
+
+// updateFromV69 creates the deployments tables.
+func updateFromV69(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "deployments" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	project_id INTEGER NOT NULL,
+	UNIQUE (project_id, name)
+);
+
+CREATE TABLE "deployments_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	UNIQUE (deployment_id, key),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "deployments_instance_sets" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	scaling_minimum INTEGER NOT NULL,
+	scaling_maximum INTEGER NOT NULL,
+	instance_template TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "deployments_instance_sets_instances" (
+	deployment_instance_set_id INTEGER NOT NULL,
+	instance_id INTEGER NOT NULL,
+	PRIMARY KEY (deployment_instance_set_id, instance_id),
+	UNIQUE (instance_id),
+	FOREIGN KEY (deployment_instance_set_id) REFERENCES "deployments_instance_sets" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "deployments_keys" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	deployment_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	access_key TEXT NOT NULL,
+	role TEXT NOT NULL,
+	UNIQUE (deployment_id, name),
+	UNIQUE (access_key),
+	FOREIGN KEY (deployment_id) REFERENCES "deployments" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating deployments tables: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV68 fixes unique index for record name to make it zone specific.
