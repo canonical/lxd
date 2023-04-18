@@ -297,7 +297,7 @@ func (c *cmdStorageBucketEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc storage bucket show` command to passed in here, but only take the
+		// Allow output of `lxc storage bucket show` command to be passed in here, but only take the
 		// contents of the StorageBucketPut fields when updating.
 		// The other fields are silently discarded.
 		newdata := api.StorageBucketPut{}
@@ -1009,7 +1009,7 @@ func (c *cmdStorageBucketKeyEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc storage bucket key show` command to passed in here, but only take the
+		// Allow output of `lxc storage bucket key show` command to be passed in here, but only take the
 		// contents of the StorageBucketPut fields when updating.
 		// The other fields are silently discarded.
 		newdata := api.StorageBucketKeyPut{}

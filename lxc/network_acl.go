@@ -541,7 +541,7 @@ func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc network acl show` command to passed in here, but only take the contents
+		// Allow output of `lxc network acl show` command to be passed in here, but only take the contents
 		// of the NetworkACLPut fields when updating the ACL. The other fields are silently discarded.
 		newdata := api.NetworkACL{}
 		err = yaml.UnmarshalStrict(contents, &newdata)
