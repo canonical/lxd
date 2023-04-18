@@ -65,6 +65,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/linux"
@@ -1900,7 +1901,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Wait for any file operations to complete.
 	// This is to avoid having an active mount by forkfile and so all file operations
 	// from this point will use the container's namespace rather than a chroot.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	// Mount instance root volume.
 	_, err = d.mount()
@@ -2905,7 +2906,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
-		d.stopForkfile()
+		d.stopForkfile(false)
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -3398,7 +3399,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 	}
 
 	// Wait for any file operations to complete to have a more consistent snapshot.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	return d.snapshotCommon(d, name, expiry, stateful)
 }
@@ -3471,7 +3472,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.LoadByInstance(d.state, d)
@@ -3657,7 +3658,7 @@ func (d *lxc) delete(force bool) error {
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and delete it.
 	if !d.IsSnapshot() {
-		d.stopForkfile()
+		d.stopForkfile(false)
 	}
 
 	// Delete any persistent warnings for instance.
@@ -6567,6 +6568,27 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 	return -1, nil
 }
 
+type sftpProcess struct {
+	runningForkfile string
+	conn            net.Conn
+	cancel          *cancel.Canceller
+}
+
+var sftpMu sync.Mutex
+var sftpProcesses = make(map[string]*sftpProcess)
+
+// stop triggers the cancel function of the sftp process.
+func (p *sftpProcess) stop() error {
+	err := p.cancel.Err()
+	if err != nil {
+		return err
+	}
+
+	p.cancel.Cancel()
+
+	return nil
+}
+
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
@@ -6627,8 +6649,24 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		_ = os.Remove(forkfilePath)
 	})
 
-	// Spawn forkfile in a Go routine.
+	// Check if there is an existing SFTP process for this running forkfile.
+	sftpMu.Lock()
+	p, found := sftpProcesses[d.forkfileRunningLockName()]
+	if found {
+		return p.conn, nil
+	}
+
+	sftpMu.Unlock()
+
+	// Spawn a new SFTP process.
+	sftpProc := &sftpProcess{
+		runningForkfile: d.forkfileRunningLockName(),
+		cancel:          cancel.New(context.Background()),
+	}
+
+	// Launch SFTP process in background.
 	chReady := make(chan error)
+	chFinished := make(chan error)
 	go func() {
 		// Lock to avoid concurrent running forkfile.
 		runUnlock := locking.Lock(context.TODO(), d.forkfileRunningLockName())
@@ -6749,12 +6787,31 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// Indicate the process was spawned without error.
 		close(chReady)
 
-		// Wait for completion.
-		err = forkfile.Wait()
-		if err != nil {
-			d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
-			return
+		go func() {
+			// Wait for completion.
+			chFinished <- forkfile.Wait()
+		}()
+
+		select {
+		case err := <-chFinished:
+			if err != nil {
+				d.logger.Error("SFTP server stopped with error", logger.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			}
+
+			d.logger.Debug("SFTP server stopped gracefully")
+		case <-sftpProc.cancel.Done():
+			err := forkfile.Process.Signal(syscall.SIGTERM)
+			if err != nil {
+				d.logger.Error("Failed to kill the SFTP server running forkfile", logger.Ctx{"err": err})
+			}
+
+			d.logger.Debug("SFTP server has been killed")
 		}
+
+		// Delete process entry once the process has stopped or failed to start.
+		sftpMu.Lock()
+		delete(sftpProcesses, d.forkfileRunningLockName())
+		sftpMu.Unlock()
 	}()
 
 	// Wait for forkfile to have been spawned.
@@ -6768,6 +6825,12 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Update to the processes map.
+	sftpProc.conn = forkfileConn
+	sftpMu.Lock()
+	sftpProcesses[d.forkfileRunningLockName()] = sftpProc
+	sftpMu.Unlock()
 
 	// All done.
 	revert.Success()
@@ -6799,24 +6862,43 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 }
 
 // stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
-func (d *lxc) stopForkfile() {
-	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
-	// that forkfile isn't running and holding the lock) and then releasing it.
-	defer func() { locking.Lock(context.TODO(), d.forkfileRunningLockName())() }()
+func (d *lxc) stopForkfile(force bool) {
+	// First, check if there is a SFTP process relying on this running forkfile
+	// and if so, stop it.
+	sftpMu.Lock()
+	defer sftpMu.Unlock()
+	p, found := sftpProcesses[d.forkfileRunningLockName()]
+	if !found {
+		// If no SFTP process has been found, make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
+		// that forkfile isn't running and holding the lock) and then releasing it.
+		defer func() { locking.Lock(context.TODO(), d.forkfileRunningLockName())() }()
 
-	// Try to send SIGINT to forkfile to speed up shutdown.
-	content, err := os.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
-	if err != nil {
+		// Try to send SIGINT to forkfile to speed up shutdown.
+		content, err := os.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
+		if err != nil {
+			return
+		}
+
+		pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+		if err != nil {
+			return
+		}
+
+		d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
+		if force {
+			_ = unix.Kill(int(pid), unix.SIGTERM)
+		} else {
+			_ = unix.Kill(int(pid), unix.SIGINT)
+		}
+
 		return
 	}
 
-	pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	err := p.stop()
 	if err != nil {
+		d.logger.Error("Trying to stop SFTP process but failed", logger.Ctx{"err": err})
 		return
 	}
-
-	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
-	_ = unix.Kill(int(pid), unix.SIGINT)
 }
 
 // Console attaches to the instance console.
@@ -7930,7 +8012,7 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	revert.Add(func() { op.Done(err) })
 
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	revert.Success()
 	return op, err
