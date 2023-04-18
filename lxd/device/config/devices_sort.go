@@ -46,6 +46,15 @@ func (devices DevicesSortable) Less(i, j int) bool {
 		return a.Config["type"] > b.Config["type"]
 	}
 
+	// Start non-nested NIC devices before nested NIC devices.
+	if a.Config["type"] == "nic" && b.Config["type"] == "nic" && (a.Config["nested"] != "" || b.Config["nested"] != "") {
+		if a.Config["nested"] == "" {
+			return true
+		} else if b.Config["nested"] == "" {
+			return false
+		}
+	}
+
 	// Start disk devices in path order.
 	if a.Config["type"] == "disk" && b.Config["type"] == "disk" {
 		if a.Config["path"] != b.Config["path"] {
