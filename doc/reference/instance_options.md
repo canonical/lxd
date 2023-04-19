@@ -363,6 +363,10 @@ Key                                             | Type      | Default           
 `security.protection.shift`                     | bool      | `false`           | yes           | container                 | Prevents the instance's file system from being UID/GID shifted on startup
 `security.agent.metrics`                        | bool      | `true`            | no            | virtual machine           | Controls whether the `lxd-agent` is queried for state information and metrics
 `security.secureboot`                           | bool      | `true`            | no            | virtual machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
+`security.sev`                                  | bool      | `false`           | no            | virtual machine           | Controls whether AMD SEV (Secure Encrypted Virtualization) is enabled for this VM
+`security.sev.policy.es`                        | bool      | `false`           | no            | virtual machine           | Controls whether AMD SEV-ES (SEV Encrypted State) is enabled for this VM
+`security.sev.session.dh`                       | string    | `true`            | no            | virtual machine           | The guest owner's `base64`-encoded Diffie-Hellman key
+`security.sev.session.data`                     | string    | `true`            | no            | virtual machine           | The guest owner's `base64`-encoded session blob
 `security.syscalls.allow`                       | string    | -                 | no            | container                 | A `\n`-separated list of syscalls to allow (mutually exclusive with `security.syscalls.deny*`)
 `security.syscalls.deny`                        | string    | -                 | no            | container                 | A `\n`-separated list of syscalls to deny
 `security.syscalls.deny_compat`                 | bool      | `false`           | no            | container                 | On `x86_64`, controls whether to block `compat_*` syscalls (no-op on other architectures)
@@ -428,6 +432,7 @@ Key                                         | Type      | Description
 `volatile.<name>.last_state.created`        | string    | Whether the network device physical device was created (`true` or `false`)
 `volatile.<name>.last_state.mtu`            | string    | Network device original MTU used when moving a physical device into an instance
 `volatile.<name>.last_state.hwaddr`         | string    | Network device original MAC used when moving a physical device into an instance
+`volatile.<name>.last_state.vdpa.name`      | string    | VDPA device name used when moving a VDPA device file descriptor into an instance
 `volatile.<name>.last_state.vf.id`          | string    | SR-IOV virtual function ID used when moving a VF into an instance
 `volatile.<name>.last_state.vf.hwaddr`      | string    | SR-IOV virtual function original MAC used when moving a VF into an instance
 `volatile.<name>.last_state.vf.vlan`        | string    | SR-IOV virtual function original VLAN used when moving a VF into an instance

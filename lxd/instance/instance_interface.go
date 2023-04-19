@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"crypto/x509"
 	"io"
 	"net"
@@ -199,19 +200,19 @@ type Info struct {
 	Version  string            // Version number of a loaded instance driver
 	Error    error             // Whether there is an operational impediment.
 	Type     instancetype.Type // Instance type that the driver provides support for.
-	Features []string          // List of supported features.
+	Features map[string]any    // Map of supported features.
 }
 
 // MigrateArgs represent arguments for instance migration send and receive.
 type MigrateArgs struct {
-	ControlSend         func(m proto.Message) error
-	ControlReceive      func(m proto.Message) error
-	StateConn           io.ReadWriteCloser
-	FilesystemConn      io.ReadWriteCloser
-	Snapshots           bool
-	Live                bool
-	Disconnect          func()
-	ClusterSameNameMove bool
+	ControlSend           func(m proto.Message) error
+	ControlReceive        func(m proto.Message) error
+	StateConn             func(ctx context.Context) (io.ReadWriteCloser, error)
+	FilesystemConn        func(ctx context.Context) (io.ReadWriteCloser, error)
+	Snapshots             bool
+	Live                  bool
+	Disconnect            func()
+	ClusterMoveSourceName string // Will be empty if not a cluster move, othwise indicates the source instance.
 }
 
 // MigrateSendArgs represent arguments for instance migration send.

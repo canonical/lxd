@@ -243,6 +243,11 @@ func (c *Config) RemoteTokenExpiry() string {
 	return c.m.GetString("core.remote_token_expiry")
 }
 
+// OIDCServer returns all the OpenID Connect settings needed to connect to a server.
+func (c *Config) OIDCServer() (string, string, string) {
+	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -328,6 +333,9 @@ var ConfigSchema = config.Schema{
 	"loki.types":                     {Validator: validate.Optional(validate.IsListOf(validate.IsOneOf("lifecycle", "logging"))), Default: "lifecycle,logging"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
+	"oidc.client.id":                 {},
+	"oidc.issuer":                    {},
+	"oidc.audience":                  {},
 	"rbac.agent.url":                 {},
 	"rbac.agent.username":            {},
 	"rbac.agent.private_key":         {},

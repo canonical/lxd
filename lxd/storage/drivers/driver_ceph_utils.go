@@ -873,7 +873,11 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// Looks for volumes like:
 	// pool/zombie_image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_ext4.block@readonly
 	// pool/image_9e90b7b9ccdd7a671a987fadcf07ab92363be57e7f056d18d42af452cdaf95bb_xfs
-	reImage := regexp.MustCompile(`^((?:zombie_)?image)_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.?(block)?@?([-\w]+)?$`)
+	reImage, err := regexp.Compile(`^((?:zombie_)?image)_([A-Za-z0-9]+)_([A-Za-z0-9]+)\.?(block)?@?([-\w]+)?$`)
+	if err != nil {
+		return vol, "", err
+	}
+
 	imageRes := reImage.FindStringSubmatch(slider)
 	if imageRes != nil {
 		vol.volType = VolumeType(imageRes[1])
@@ -895,7 +899,11 @@ func (d *ceph) parseParent(parent string) (Volume, string, error) {
 	// Match normal instance volumes.
 	// Looks for volumes like:
 	// pool/container_bar@zombie_snapshot_ce77e971-6c1b-45c0-b193-dba9ec5e7d82
-	reInst := regexp.MustCompile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
+	reInst, err := regexp.Compile(`^((?:zombie_)?[a-z-]+)_([\w-]+)\.?(block)?@?([-\w]+)?$`)
+	if err != nil {
+		return vol, "", err
+	}
+
 	instRes := reInst.FindStringSubmatch(slider)
 	if instRes != nil {
 		vol.volType = VolumeType(instRes[1])
@@ -1106,6 +1114,8 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 //	rbd export-diff pool1/container_a@snapshot_snap1 --from-snap snapshot_snap0 - | rbd import-diff - pool2/container_a
 //	rbd export-diff pool1/container_a --from-snap snapshot_snap1 - | rbd import-diff - pool2/container_a
 func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, tracker *ioprogress.ProgressTracker) error {
+	defer func() { _ = conn.Close() }()
+
 	args := []string{
 		"export-diff",
 		"--id", d.config["ceph.user.name"],
@@ -1122,32 +1132,21 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 
 	cmd := exec.Command("rbd", args...)
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
 
 	// Setup progress tracker.
-	stdoutPipe := stdout
+	var stdout io.WriteCloser = conn
 	if tracker != nil {
-		stdoutPipe = &ioprogress.ProgressReader{
-			ReadCloser: stdout,
-			Tracker:    tracker,
+		stdout = &ioprogress.ProgressWriter{
+			WriteCloser: conn,
+			Tracker:     tracker,
 		}
 	}
 
-	// Forward any output on stdout.
-	chStdoutPipe := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(conn, stdoutPipe)
-		chStdoutPipe <- err
-		_ = conn.Close()
-	}()
+	cmd.Stdout = stdout
 
 	err = cmd.Start()
 	if err != nil {
@@ -1157,20 +1156,9 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 	output, _ := io.ReadAll(stderr)
 
 	// Handle errors.
-	errs := []error{}
-	chStdoutPipeErr := <-chStdoutPipe
-
 	err = cmd.Wait()
 	if err != nil {
-		errs = append(errs, err)
-
-		if chStdoutPipeErr != nil {
-			errs = append(errs, chStdoutPipeErr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("ceph export-diff failed: %v (%s)", errs, string(output))
+		return fmt.Errorf("ceph export-diff failed: %w (%s)", err, string(output))
 	}
 
 	return nil

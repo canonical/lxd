@@ -1900,7 +1900,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	// Wait for any file operations to complete.
 	// This is to avoid having an active mount by forkfile and so all file operations
 	// from this point will use the container's namespace rather than a chroot.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	// Mount instance root volume.
 	_, err = d.mount()
@@ -2563,6 +2563,9 @@ func (d *lxc) Stop(stateful bool) error {
 		d.logger.Info("Stopping instance", ctxMap)
 	}
 
+	// Forcefully stop any forkfile process if running.
+	d.stopForkfile(true)
+
 	// Release liblxc container once done.
 	defer func() {
 		d.release()
@@ -2905,7 +2908,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Wait for any file operations to complete.
 		// This is to required so we can actually unmount the container.
-		d.stopForkfile()
+		d.stopForkfile(false)
 
 		// Clean up devices.
 		d.cleanupDevices(false, "")
@@ -3398,7 +3401,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 	}
 
 	// Wait for any file operations to complete to have a more consistent snapshot.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	return d.snapshotCommon(d, name, expiry, stateful)
 }
@@ -3471,7 +3474,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and restore its rootfs.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
 	pool, err := storagePools.LoadByInstance(d.state, d)
@@ -3657,7 +3660,7 @@ func (d *lxc) delete(force bool) error {
 	// Wait for any file operations to complete.
 	// This is required so we can actually unmount the container and delete it.
 	if !d.IsSnapshot() {
-		d.stopForkfile()
+		d.stopForkfile(false)
 	}
 
 	// Delete any persistent warnings for instance.
@@ -5065,6 +5068,23 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 	d.logger.Info("Migration send starting")
 	defer d.logger.Info("Migration send stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
+
 	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance: %w", err)
@@ -5170,6 +5190,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 		AllowInconsistent:  args.AllowInconsistent,
 		VolumeOnly:         !args.Snapshots,
 		Info:               &migration.Info{Config: srcConfig},
+		ClusterMove:        args.ClusterMoveSourceName != "",
 	}
 
 	// Only send the snapshots that the target requests when refreshing.
@@ -5250,7 +5271,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 		d.logger.Debug("Starting storage migration phase")
 
-		err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+		err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 		if err != nil {
 			return err
 		}
@@ -5365,7 +5386,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 
 						dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 						loopArgs := preDumpLoopArgs{
-							stateConn:     args.StateConn,
+							stateConn:     stateConn,
 							checkpointDir: checkpointDir,
 							bwlimit:       rsyncBwlimit,
 							preDumpDir:    preDumpDir,
@@ -5445,7 +5466,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			// parallel. In the future when we're using p.haul's protocol, it will make sense
 			// to do these in parallel.
 			ctName, _, _ := api.GetParentAndSnapshotName(d.Name())
-			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), args.StateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
+			err = rsync.Send(ctName, shared.AddSlash(checkpointDir), stateConn, nil, rsyncFeatures, rsyncBwlimit, d.state.OS.ExecPath)
 			if err != nil {
 				return err
 			}
@@ -5463,7 +5484,7 @@ func (d *lxc) MigrateSend(args instance.MigrateSendArgs) error {
 			volSourceArgs.Snapshots = nil
 			volSourceArgs.Info.Config.VolumeSnapshots = nil
 
-			err = pool.MigrateInstance(d, args.FilesystemConn, volSourceArgs, d.op)
+			err = pool.MigrateInstance(d, filesystemConn, volSourceArgs, d.op)
 			if err != nil {
 				return err
 			}
@@ -5641,10 +5662,27 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	d.logger.Info("Migration receive starting")
 	defer d.logger.Info("Migration receive stopped")
 
+	// Wait for essential migration connections before negotiation.
+	connectionsCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	filesystemConn, err := args.FilesystemConn(connectionsCtx)
+	if err != nil {
+		return err
+	}
+
+	var stateConn io.ReadWriteCloser
+	if args.Live {
+		stateConn, err = args.StateConn(connectionsCtx)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Receive offer from source.
 	d.logger.Debug("Waiting for migration offer from source")
 	offerHeader := &migration.MigrationHeader{}
-	err := args.ControlReceive(offerHeader)
+	err = args.ControlReceive(offerHeader)
 	if err != nil {
 		return fmt.Errorf("Failed receiving migration offer from source: %w", err)
 	}
@@ -5661,7 +5699,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 	// When doing a cluster same-name move we cannot load the storage pool using the instance's volume DB
 	// record because it may be associated to the wrong cluster member. Instead we ascertain the pool to load
 	// using the instance's root disk device.
-	if args.ClusterSameNameMove {
+	if args.ClusterMoveSourceName == d.name {
 		_, rootDiskDevice, err := d.getRootDiskDevice()
 		if err != nil {
 			return fmt.Errorf("Failed getting root disk: %w", err)
@@ -5905,14 +5943,15 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 		}
 
 		volTargetArgs := migration.VolumeTargetArgs{
-			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
-			Name:               d.Name(),
-			MigrationType:      respTypes[0],
-			Refresh:            args.Refresh,                // Indicate to receiver volume should exist.
-			TrackProgress:      true,                        // Use a progress tracker on receiver to get in-cluster progress information.
-			Live:               sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
-			VolumeSize:         offerHeader.GetVolumeSize(), // Block size setting override.
-			VolumeOnly:         !args.Snapshots,
+			IndexHeaderVersion:    respHeader.GetIndexHeaderVersion(),
+			Name:                  d.Name(),
+			MigrationType:         respTypes[0],
+			Refresh:               args.Refresh,                // Indicate to receiver volume should exist.
+			TrackProgress:         true,                        // Use a progress tracker on receiver to get in-cluster progress information.
+			Live:                  sendFinalFsDelta,            // Indicates we will get a final rootfs sync.
+			VolumeSize:            offerHeader.GetVolumeSize(), // Block size setting override.
+			VolumeOnly:            !args.Snapshots,
+			ClusterMoveSourceName: args.ClusterMoveSourceName,
 		}
 
 		// At this point we have already figured out the parent container's root
@@ -5937,7 +5976,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 				// Only create snapshot instance DB records if not doing a cluster same-name move.
 				// As otherwise the DB records will already exist.
-				if !args.ClusterSameNameMove {
+				if args.ClusterMoveSourceName != d.name {
 					snapArgs, err := instance.SnapshotProtobufToInstanceArgs(d.state, d, snap)
 					if err != nil {
 						return err
@@ -5966,14 +6005,16 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(d, args.FilesystemConn, volTargetArgs, d.op)
+		err = pool.CreateInstanceFromMigration(d, filesystemConn, volTargetArgs, d.op)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance on target: %w", err)
 		}
 
+		isRemoteClusterMove := args.ClusterMoveSourceName != "" && pool.Driver().Info().Remote
+
 		// Only delete all instance volumes on error if the pool volume creation has succeeded to
 		// avoid deleting an existing conflicting volume.
-		if !volTargetArgs.Refresh {
+		if !volTargetArgs.Refresh && !isRemoteClusterMove {
 			revert.Add(func() {
 				snapshots, _ := d.Snapshots()
 				snapshotCount := len(snapshots)
@@ -5995,7 +6036,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 			return err
 		}
 
-		if !args.ClusterSameNameMove {
+		if args.ClusterMoveSourceName != d.name {
 			err = d.DeferTemplateApply(instance.TemplateTriggerCopy)
 			if err != nil {
 				return err
@@ -6031,7 +6072,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					d.logger.Debug("Waiting to receive pre-dump rsync")
 
 					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
+					err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
 					if err != nil {
 						return fmt.Errorf("Failed receiving pre-dump rsync: %w", err)
 					}
@@ -6045,7 +6086,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 					// So define a small buffer sufficient to fit migration.MigrationSync and
 					// then read what we have into it.
 					buf := make([]byte, 128)
-					n, err := args.StateConn.Read(buf)
+					n, err := stateConn.Read(buf)
 					if err != nil {
 						return fmt.Errorf("Failed receiving pre-dump header: %w", err)
 					}
@@ -6061,7 +6102,7 @@ func (d *lxc) MigrateReceive(args instance.MigrateReceiveArgs) error {
 
 			// Final CRIU dump.
 			d.logger.Debug("About to receive final dump rsync")
-			err = rsync.Recv(shared.AddSlash(imagesDir), args.StateConn, nil, rsyncFeatures)
+			err = rsync.Recv(shared.AddSlash(imagesDir), stateConn, nil, rsyncFeatures)
 			if err != nil {
 				return fmt.Errorf("Failed receiving final dump rsync: %w", err)
 			}
@@ -6760,13 +6801,12 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 	return client, nil
 }
 
-// stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
-func (d *lxc) stopForkfile() {
+// stopForkFile attempts to send SIGTERM (if force is true) or SIGINT to forkfile then waits for it to exit.
+func (d *lxc) stopForkfile(force bool) {
 	// Make sure that when the function exits, no forkfile is running by acquiring the lock (which indicates
 	// that forkfile isn't running and holding the lock) and then releasing it.
 	defer func() { locking.Lock(context.TODO(), d.forkfileRunningLockName())() }()
 
-	// Try to send SIGINT to forkfile to speed up shutdown.
 	content, err := os.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
 	if err != nil {
 		return
@@ -6777,8 +6817,15 @@ func (d *lxc) stopForkfile() {
 		return
 	}
 
-	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid})
-	_ = unix.Kill(int(pid), unix.SIGINT)
+	d.logger.Debug("Stopping forkfile", logger.Ctx{"pid": pid, "force": force})
+
+	if force {
+		// Forcefully kill the running process.
+		_ = unix.Kill(int(pid), unix.SIGTERM)
+	} else {
+		// Try to send SIGINT to forkfile to indicate it should not accept any new connection.
+		_ = unix.Kill(int(pid), unix.SIGINT)
+	}
 }
 
 // Console attaches to the instance console.
@@ -7892,7 +7939,7 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 	revert.Add(func() { op.Done(err) })
 
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
-	d.stopForkfile()
+	d.stopForkfile(false)
 
 	revert.Success()
 	return op, err

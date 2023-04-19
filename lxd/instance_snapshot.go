@@ -663,7 +663,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 			}
 		}
 
-		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, false)
+		ws, err := newMigrationSource(snapInst, reqNew.Live, true, false, "", req.Target)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -680,12 +680,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 		}
 
 		if req.Target != nil {
-			// Push mode
-			err := ws.ConnectContainerTarget(*req.Target)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
+			// Push mode.
 			op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassTask, operationtype.SnapshotTransfer, resources, nil, run, nil, nil, r)
 			if err != nil {
 				return response.InternalError(err)
@@ -694,7 +689,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 			return operations.OperationResponse(op)
 		}
 
-		// Pull mode
+		// Pull mode.
 		op, err := operations.OperationCreate(d.State(), snapInst.Project().Name, operations.OperationClassWebsocket, operationtype.SnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect, r)
 		if err != nil {
 			return response.InternalError(err)

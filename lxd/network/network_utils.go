@@ -1189,19 +1189,6 @@ func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNe
 	return subnets, nil
 }
 
-// InterfaceBindWait waits for network interface to appear after being bound to a driver.
-func InterfaceBindWait(ifName string) error {
-	for i := 0; i < 10; i++ {
-		if InterfaceExists(ifName) {
-			return nil
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	return fmt.Errorf("Bind of interface %q took too long", ifName)
-}
-
 // IPRangesOverlap checks whether two ip ranges have ip addresses in common.
 func IPRangesOverlap(r1, r2 *shared.IPRange) bool {
 	if r1.End == nil {
@@ -1302,6 +1289,19 @@ func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
 	listenAddressNet.IP = listenAddress // Add IP back into parsed subnet.
 
 	return listenAddressNet, err
+}
+
+// IPToNet converts an IP to a single host IPNet.
+func IPToNet(ip net.IP) net.IPNet {
+	len := 32
+	if ip.To4() == nil {
+		len = 128
+	}
+
+	return net.IPNet{
+		IP:   ip,
+		Mask: net.CIDRMask(len, len),
+	}
 }
 
 // NICUsesNetwork returns true if the nicDev's "network" or "parent" property matches one of the networks names.

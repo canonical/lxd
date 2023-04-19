@@ -23,6 +23,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /dev/kvm                                  rw,
   /dev/net/tun                              rw,
   /dev/ptmx                                 rw,
+  /dev/sev                                  rw,
   /dev/vfio/**                              rw,
   /dev/vhost-net                            rw,
   /dev/vhost-vsock                          rw,
@@ -35,6 +36,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   /sys/class/                               r,
   /sys/devices/**                           r,
   /sys/module/vhost/**                      r,
+  /tmp/lxd_sev_*                            r,
   /{,usr/}bin/qemu*                         mrix,
   {{ .ovmfPath }}/OVMF_CODE.fd              kr,
   /usr/share/qemu/**                        kr,
@@ -45,6 +47,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .rootPath }}/etc/passwd                r,
   {{ .rootPath }}/etc/group                 r,
   @{PROC}/version                           r,
+
+  # Used by qemu for live migration NBD server and client
+  unix (bind, listen, accept, send, receive, connect) type=stream,
 
   # Used by qemu when inside a container
 {{- if .userns }}

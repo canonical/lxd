@@ -210,29 +210,39 @@ SR-IOV hardware acceleration
       ip link set enp9s0f0np0 up
       ```
 
+VDPA hardware acceleration
+: To use `acceleration=vdpa`, you must have a compatible VDPA physical NIC.
+  The setup is the same as for SR-IOV hardware acceleration, except that you must also enable the `vhost_vdpa` module and check that you have some available VDPA management devices :
+
+  ```
+  modprobe vhost_vdpa && vdpa mgmtdev show
+  ```
+
 #### Device options
 
 NIC devices of type `ovn` have the following device options:
 
-Key                                  | Type    | Default           | Managed | Description
-:--                                  | :--     | :--               | :--     | :--
-`acceleration`                       | string  | `none`            | no      | Enable hardware offloading (either `none` or `sriov`, see {ref}`devices-nic-hw-acceleration`)
-`boot.priority`                      | integer | -                 | no      | Boot priority for VMs (higher value boots first)
-`host_name`                          | string  | randomly assigned | no      | The name of the interface inside the host
-`hwaddr`                             | string  | randomly assigned | no      | The MAC address of the new interface
-`ipv4.address`                       | string  | -                 | no      | An IPv4 address to assign to the instance through DHCP
-`ipv4.routes`                        | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC
-`ipv4.routes.external`               | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network
-`ipv6.address`                       | string  | -                 | no      | An IPv6 address to assign to the instance through DHCP
-`ipv6.routes`                        | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC
-`ipv6.routes.external`               | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network
-`name`                               | string  | kernel assigned   | no      | The name of the interface inside the instance
-`network`                            | string  | -                 | yes     | The managed network to link the device to (required)
-`security.acls`                      | string  | -                 | no      | Comma-separated list of network ACLs to apply
-`security.acls.default.egress.action` | string | `reject`          | no      | Action to use for egress traffic that doesn't match any ACL rule
-`security.acls.default.egress.logged` | bool   | `false`           | no      | Whether to log egress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.action`| string | `reject`          | no      | Action to use for ingress traffic that doesn't match any ACL rule
-`security.acls.default.ingress.logged`| bool   | `false`           | no      | Whether to log ingress traffic that doesn't match any ACL rule
+Key                                   | Type    | Default           | Managed | Description
+:--                                   | :--     | :--               | :--     | :--
+`acceleration`                        | string  | `none`            | no      | Enable hardware offloading (either `none`, `sriov` or `vdpa`, see {ref}`devices-nic-hw-acceleration`)
+`boot.priority`                       | integer | -                 | no      | Boot priority for VMs (higher value boots first)
+`host_name`                           | string  | randomly assigned | no      | The name of the interface inside the host
+`hwaddr`                              | string  | randomly assigned | no      | The MAC address of the new interface
+`ipv4.address`                        | string  | -                 | no      | An IPv4 address to assign to the instance through DHCP
+`ipv4.routes`                         | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC
+`ipv4.routes.external`                | string  | -                 | no      | Comma-delimited list of IPv4 static routes to route to the NIC and publish on uplink network
+`ipv6.address`                        | string  | -                 | no      | An IPv6 address to assign to the instance through DHCP
+`ipv6.routes`                         | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC
+`ipv6.routes.external`                | string  | -                 | no      | Comma-delimited list of IPv6 static routes to route to the NIC and publish on uplink network
+`name`                                | string  | kernel assigned   | no      | The name of the interface inside the instance
+`nested`                              | string  | -                 | no      | The parent NIC name to nest this NIC under (see also `vlan`)
+`network`                             | string  | -                 | yes     | The managed network to link the device to (required)
+`security.acls`                       | string  | -                 | no      | Comma-separated list of network ACLs to apply
+`security.acls.default.egress.action` | string  | `reject`          | no      | Action to use for egress traffic that doesn't match any ACL rule
+`security.acls.default.egress.logged` | bool    | `false`           | no      | Whether to log egress traffic that doesn't match any ACL rule
+`security.acls.default.ingress.action`| string  | `reject`          | no      | Action to use for ingress traffic that doesn't match any ACL rule
+`security.acls.default.ingress.logged`| bool    | `false`           | no      | Whether to log ingress traffic that doesn't match any ACL rule
+`vlan`                                | integer | -                 | no      | The VLAN ID to use when nesting (see also `nested`)
 
 (nic-physical)=
 ### `nictype`: `physical`

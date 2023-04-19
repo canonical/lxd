@@ -2166,3 +2166,53 @@ Adds support for instance generation ID. The VM or container generation ID will 
 
 ## `disk_io_cache`
 This introduces a new `io.cache` property to disk devices which can be used to override the VM caching behavior.
+
+## `amd_sev`
+Adds support for AMD SEV (Secure Encrypted Virtualization) that can be used to encrypt the memory of a guest VM.
+
+This adds the following new configuration options for SEV encryption:
+
+* `security.sev` : (bool) is SEV enabled for this VM
+* `security.sev.policy.es` : (bool) is SEV-ES enabled for this VM
+* `security.sev.session.dh` : (string) guest owner's `base64`-encoded Diffie-Hellman key
+* `security.sev.session.data` : (string) guest owner's `base64`-encoded session blob
+
+## `storage_pool_loop_resize`
+This allows growing loop file backed storage pools by changing the `size` setting of the pool.
+
+## `migration_vm_live`
+This adds support for performing VM QEMU to QEMU live migration for both shared storage (clustered Ceph) and
+non-shared storage pools.
+
+This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` `protobuf` field.
+
+## `ovn_nic_nesting`
+This adds support for nesting an `ovn` NIC inside another `ovn` NIC on the same instance.
+This allows for an OVN logical switch port to be tunneled inside another OVN NIC using VLAN tagging.
+
+This feature is configured by specifying the parent NIC name using the `nested` property and the VLAN ID to use for tunneling with the `vlan` property.
+
+## `oidc`
+
+This adds support for OpenID Connect (OIDC) authentication.
+
+This adds the following new configuration keys:
+
+* `oidc.issuer`
+* `oidc.client.id`
+* `oidc.audience`
+
+## `network_ovn_l3only`
+This adds the ability to set an `ovn` network into "layer 3 only" mode.
+This mode can be enabled at IPv4 or IPv6 level using `ipv4.l3only` and `ipv6.l3only` configuration options respectively.
+
+With this mode enabled the following changes are made to the network:
+
+* The virtual router's internal port address will be configured with a single host netmask (e.g. /32 for IPv4 or /128 for IPv6).
+* Static routes for active instance NIC addresses will be added to the virtual router.
+* A discard route for the entire internal subnet will be added to the virtual router to prevent packets destined for inactive addresses from escaping to the uplink network.
+* The DHCPv4 server will be configured to indicate that a netmask of 255.255.255.255 be used for instance configuration.
+
+## `ovn_nic_acceleration_vdpa`
+
+This updates the `ovn_nic_acceleration` API extension. The `acceleration` configuration key for OVN NICs can now takes the value `vdpa` to support Virtual Data Path Acceleration (VDPA).

@@ -30,7 +30,11 @@ On the next connection, a new certificate is generated.
 
 ### Communication protocol
 
-The supported protocol must be TLS 1.2 or better.
+The supported protocol must be TLS 1.3 or better.
+
+It's possible to force LXD to accept TLS 1.2 by setting the `LXD_INSECURE_TLS` environment variable on both client and server.
+However this isn't a supported setup and should only ever be used when forced to use an outdated corporate proxy.
+
 All communications must use perfect forward secrecy, and ciphers must be limited to strong elliptic curve ones (such as ECDHE-RSA or ECDHE-ECDSA).
 
 Any generated key should be at least 4096 bit RSA, preferably 384 bit ECDSA.
@@ -156,7 +160,7 @@ For instructions on how to set up Candid-based authentication, see the [Candid a
 ```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
 ```
 
-LXD supports integrating with the Canonical RBAC service.
+LXD supports integrating with the Canonical RBAC service, which is included in the [Ubuntu Pro](https://ubuntu.com/pro) subscription.
 Combined with Candid-based authentication, {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
 
 In such a setup, authentication happens through Candid, while the RBAC service maintains roles to user/group relationships.
@@ -174,7 +178,7 @@ The meaning of the roles when applied to a project is as follows:
 ```{important}
 In an unrestricted project, only the `auditor` and the `user` roles are suitable for users that you wouldn't trust with root access to the host.
 
-In a {ref}`restricted project <projects-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
+In a {ref}`restricted project <project-restrictions>`, the `operator` role is safe to use as well if configured appropriately.
 ```
 
 To enable RBAC for your LXD server, set the [`rbac.*`](server-options-candid-rbac) server configuration options, which are a superset of the `candid.*` ones and allow for LXD to integrate with the RBAC service.

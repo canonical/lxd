@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery/form"
 	"github.com/juju/persistent-cookiejar"
+	"github.com/zitadel/oidc/v2/pkg/oidc"
 	schemaform "gopkg.in/juju/environschema.v1/form"
 
 	"github.com/lxc/lxd/client"
@@ -93,7 +95,7 @@ func (c *Config) GetInstanceServer(name string) (lxd.InstanceServer, error) {
 	}
 
 	// HTTPs
-	if remote.AuthType != "candid" && (args.TLSClientCert == "" || args.TLSClientKey == "") {
+	if !shared.StringInSlice(remote.AuthType, []string{"candid", "oidc"}) && (args.TLSClientCert == "" || args.TLSClientKey == "") {
 		return nil, fmt.Errorf("Missing TLS client certificate and key")
 	}
 
@@ -243,6 +245,34 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		}
 
 		args.CookieJar = c.cookieJars[name]
+	} else if args.AuthType == "oidc" {
+		if c.oidcTokens == nil {
+			c.oidcTokens = map[string]*oidc.Tokens[*oidc.IDTokenClaims]{}
+		}
+
+		tokenPath := c.OIDCTokenPath(name)
+
+		if c.oidcTokens[name] == nil {
+			if shared.PathExists(tokenPath) {
+				content, err := os.ReadFile(tokenPath)
+				if err != nil {
+					return nil, err
+				}
+
+				var tokens oidc.Tokens[*oidc.IDTokenClaims]
+
+				err = json.Unmarshal(content, &tokens)
+				if err != nil {
+					return nil, err
+				}
+
+				c.oidcTokens[name] = &tokens
+			} else {
+				c.oidcTokens[name] = &oidc.Tokens[*oidc.IDTokenClaims]{}
+			}
+		}
+
+		args.OIDCTokens = c.oidcTokens[name]
 	}
 
 	// Stop here if no TLS involved
@@ -261,7 +291,7 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	}
 
 	// Stop here if no client certificate involved
-	if remote.Protocol == "simplestreams" || remote.AuthType == "candid" {
+	if remote.Protocol == "simplestreams" || shared.StringInSlice(remote.AuthType, []string{"candid", "oidc"}) {
 		return &args, nil
 	}
 

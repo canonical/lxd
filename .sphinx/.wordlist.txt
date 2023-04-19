@@ -3,6 +3,8 @@ ABI
 ACL
 ACLs
 AIO
+allocator
+AMD
 APIs
 AppArmor
 ARMv
@@ -48,6 +50,7 @@ dereferenced
 devtmpfs
 DHCP
 DHCPv
+Diffie
 DNS
 DNSSEC
 DoS
@@ -61,6 +64,7 @@ ECDSA
 EiB
 Eibit
 endian
+ES
 ESA
 ETag
 failover
@@ -80,6 +84,7 @@ GPUs
 Grafana
 HAProxy
 hardcoded
+Hellman
 Homebrew
 hotplug
 hotplugged
@@ -109,6 +114,7 @@ KiB
 kibi
 Kibit
 lookups
+LRU
 LTS
 LV
 LVM
@@ -144,6 +150,8 @@ NICs
 NUMA
 NVRAM
 OData
+OIDC
+OpenID
 OpenMetrics
 OpenSSL
 OSD
@@ -190,6 +198,7 @@ scalable
 scriptlet
 SDN
 Seccomp
+SEV
 SFTP
 SHA
 shiftfs
@@ -248,6 +257,7 @@ UI
 UID
 UIDs
 unconfigured
+unevictable
 unmanaged
 unmount
 unmounting
@@ -257,6 +267,7 @@ userspace
 UUID
 vCPU
 vCPUs
+VDPA
 VFs
 VFS
 VirtIO

@@ -297,6 +297,33 @@ func qemuRNG(opts *qemuDevOpts) []cfgSection {
 	}}
 }
 
+type qemuSevOpts struct {
+	cbitpos         int
+	reducedPhysBits int
+	policy          string
+	dhCertFD        string
+	sessionDataFD   string
+}
+
+func qemuSEV(opts *qemuSevOpts) []cfgSection {
+	entries := []cfgEntry{
+		{key: "qom-type", value: "sev-guest"},
+		{key: "cbitpos", value: fmt.Sprintf("%d", opts.cbitpos)},
+		{key: "reduced-phys-bits", value: fmt.Sprintf("%d", opts.reducedPhysBits)},
+		{key: "policy", value: opts.policy},
+	}
+
+	if opts.dhCertFD != "" && opts.sessionDataFD != "" {
+		entries = append(entries, cfgEntry{key: "dh-cert-file", value: opts.dhCertFD}, cfgEntry{key: "session-file", value: opts.sessionDataFD})
+	}
+
+	return []cfgSection{{
+		name:    `object "sev0"`,
+		comment: "Secure Encrypted Virtualization",
+		entries: entries,
+	}}
+}
+
 type qemuVsockOpts struct {
 	dev     qemuDevOpts
 	vsockID int
@@ -835,17 +862,16 @@ func qemuTPM(opts *qemuTPMOpts) []cfgSection {
 	}}
 }
 
-type qemuVmgenOpts struct {
-	driver string
-	guid   string
+type qemuVmgenIDOpts struct {
+	guid string
 }
 
-func qemuVmgen(opts *qemuVmgenOpts) []cfgSection {
+func qemuVmgen(opts *qemuVmgenIDOpts) []cfgSection {
 	return []cfgSection{{
-		name:    `device "genid0"`,
+		name:    `device "vmgenid0"`,
 		comment: "VM Generation ID",
 		entries: []cfgEntry{
-			{key: "driver", value: opts.driver},
+			{key: "driver", value: "vmgenid"},
 			{key: "guid", value: opts.guid},
 		},
 	}}

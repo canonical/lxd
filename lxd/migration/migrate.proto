@@ -16,6 +16,7 @@ enum CRIUType {
 	CRIU_RSYNC	= 0;
 	PHAUL		= 1;
 	NONE		= 2;
+	VM_QEMU		= 3;
 }
 
 message IDMapType {

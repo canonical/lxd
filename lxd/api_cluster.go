@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/acme"
+	"github.com/lxc/lxd/lxd/auth/candid"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -748,7 +749,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		if candidAPIURL != "" {
-			err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+			d.candidVerifier, err = candid.NewVerifier(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
 			if err != nil {
 				return err
 			}
@@ -3170,7 +3171,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Res
 				Live: live,
 			}
 
-			err = migrateInstance(d, r, inst, targetMemberInfo.Name, false, req, op)
+			err = migrateInstance(d, r, inst, targetMemberInfo.Name, req, op)
 			if err != nil {
 				return fmt.Errorf("Failed to migrate instance %q in project %q: %w", inst.Name(), instProject.Name, err)
 			}

@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
@@ -257,17 +254,24 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 	var instOp *operationlock.InstanceOperation
 	var cleanup revert.Hook
 
-	isClusterSameNameMove := r != nil && isClusterNotification(r)
+	// Decide if this is an internal cluster move request.
+	var clusterMoveSourceName string
+	if r != nil && isClusterNotification(r) {
+		if req.Source.Source == "" {
+			return response.BadRequest(fmt.Errorf("Source instance name must be provided for cluster member move"))
+		}
 
-	// Early check for refresh.
-	if req.Source.Refresh || isClusterSameNameMove {
-		// Check if the instance exists.
+		clusterMoveSourceName = req.Source.Source
+	}
+
+	// Early check for refresh and cluster same name move to check instance exists.
+	if req.Source.Refresh || (clusterMoveSourceName != "" && clusterMoveSourceName == req.Name) {
 		inst, err = instance.LoadByProjectAndName(d.State(), projectName, req.Name)
 		if err != nil {
 			if response.IsNotFoundError(err) {
-				if isClusterSameNameMove {
-					// Cluster move doesn't allowed renaming as part of migration so fail here.
-					return response.SmartError(err)
+				if clusterMoveSourceName != "" {
+					// Cluster move doesn't allow renaming as part of migration so fail here.
+					return response.SmartError(fmt.Errorf("Cluster move doesn't allow renaming"))
 				}
 
 				req.Source.Refresh = false
@@ -282,7 +286,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
-	if !req.Source.Refresh && !isClusterSameNameMove {
+	if inst == nil {
 		_, err := storagePools.LoadByName(d.State(), storagePool)
 		if err != nil {
 			return response.InternalError(err)
@@ -307,43 +311,28 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 
 	revert.Add(func() { instOp.Done(err) })
 
-	var cert *x509.Certificate
-	if req.Source.Certificate != "" {
-		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
-		if certBlock == nil {
-			return response.InternalError(fmt.Errorf("Invalid certificate"))
-		}
-
-		cert, err = x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return response.InternalError(err)
-		}
-	}
-
-	config, err := shared.GetTLSConfig("", "", "", cert)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
 	push := false
+	var dialer *websocket.Dialer
+
 	if req.Source.Mode == "push" {
 		push = true
+	} else {
+		dialer, err = setupWebsocketDialer(req.Source.Certificate)
+		if err != nil {
+			return response.SmartError(fmt.Errorf("Failed setting up websocket dialer for migration sink connections: %w", err))
+		}
 	}
 
 	migrationArgs := migrationSinkArgs{
-		URL: req.Source.Operation,
-		Dialer: websocket.Dialer{
-			TLSClientConfig:  config,
-			NetDialContext:   shared.RFC3493Dialer,
-			HandshakeTimeout: time.Second * 5,
-		},
-		Instance:            inst,
-		Secrets:             req.Source.Websockets,
-		Push:                push,
-		Live:                req.Source.Live,
-		InstanceOnly:        instanceOnly,
-		ClusterSameNameMove: isClusterSameNameMove,
-		Refresh:             req.Source.Refresh,
+		URL:                   req.Source.Operation,
+		Dialer:                dialer,
+		Instance:              inst,
+		Secrets:               req.Source.Websockets,
+		Push:                  push,
+		Live:                  req.Source.Live,
+		InstanceOnly:          instanceOnly,
+		ClusterMoveSourceName: clusterMoveSourceName,
+		Refresh:               req.Source.Refresh,
 	}
 
 	sink, err := newMigrationSink(&migrationArgs)
@@ -357,7 +346,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, profile
 	run := func(op *operations.Operation) error {
 		defer runRevert.Fail()
 
-		sink.src.instance.SetOperation(op)
+		sink.instance.SetOperation(op)
 
 		// And finally run the migration.
 		err = sink.Do(d.State(), instOp)
@@ -1176,7 +1165,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
-		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}

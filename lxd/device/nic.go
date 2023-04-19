@@ -14,7 +14,7 @@ import (
 func nicValidationRules(requiredFields []string, optionalFields []string, instConf instance.ConfigReader) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
-		"acceleration":                         validate.Optional(validate.IsOneOf("none", "sriov")),
+		"acceleration":                         validate.Optional(validate.IsOneOf("none", "sriov", "vdpa")),
 		"name":                                 validate.Optional(validate.IsInterfaceName, func(_ string) error { return nicCheckNamesUnique(instConf) }),
 		"parent":                               validate.IsAny,
 		"network":                              validate.IsAny,
@@ -46,6 +46,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string, instCo
 		"queue.tx.length":                      validate.Optional(validate.IsUint32),
 		"ipv4.routes.external":                 validate.Optional(validate.IsListOf(validate.IsNetworkV4)),
 		"ipv6.routes.external":                 validate.Optional(validate.IsListOf(validate.IsNetworkV6)),
+		"nested":                               validate.IsAny,
 		"security.acls":                        validate.IsAny,
 		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),

@@ -363,6 +363,13 @@ var APIExtensions = []string{
 	"zfs_block_mode",
 	"instance_generation_id",
 	"disk_io_cache",
+	"amd_sev",
+	"storage_pool_loop_resize",
+	"migration_vm_live",
+	"ovn_nic_nesting",
+	"oidc",
+	"network_ovn_l3only",
+	"ovn_nic_acceleration_vdpa",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

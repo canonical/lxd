@@ -553,8 +553,8 @@ func (c *cmdNetworkForwardEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Allow output of `lxc network forward show` command to passed in here, but only take the contents
-		// of the NetworkForwardPut fields when updating. The other fields are silently discarded.
+		// Allow output of `lxc network forward show` command to be passed in here, but only take the
+		// contents of the NetworkForwardPut fields when updating. The other fields are silently discarded.
 		newData := api.NetworkForward{}
 		err = yaml.UnmarshalStrict(contents, &newData)
 		if err != nil {

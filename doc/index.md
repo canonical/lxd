@@ -56,7 +56,9 @@ instances
 images
 storage
 networks
+projects
 clustering
+production-setup
 operation
 restapi_landing
 internals

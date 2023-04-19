@@ -17,18 +17,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/canonical/candid/candidclient"
 	dqliteClient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery/checkers"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery/identchecker"
-	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/gorilla/mux"
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/acme"
+	"github.com/lxc/lxd/lxd/auth/candid"
+	"github.com/lxc/lxd/lxd/auth/oidc"
 	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterConfig "github.com/lxc/lxd/lxd/cluster/config"
@@ -108,7 +106,8 @@ type Daemon struct {
 
 	proxy func(req *http.Request) (*url.URL, error)
 
-	externalAuth *externalAuth
+	candidVerifier *candid.Verifier
+	oidcVerifier   *oidc.Verifier
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
@@ -147,50 +146,12 @@ type Daemon struct {
 	http01Provider acme.HTTP01Provider
 }
 
-type externalAuth struct {
-	endpoint string
-	expiry   int64
-	bakery   *identchecker.Bakery
-}
-
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
 	Group              string        // Group name the local unix socket should be chown'ed to
 	Trace              []string      // List of sub-systems to trace
 	RaftLatency        float64       // Coarse grain measure of the cluster latency
 	DqliteSetupTimeout time.Duration // How long to wait for the cluster database to be up
-}
-
-// IdentityClientWrapper is a wrapper around an IdentityClient.
-type IdentityClientWrapper struct {
-	client       identchecker.IdentityClient
-	ValidDomains []string
-}
-
-func (m *IdentityClientWrapper) IdentityFromContext(ctx context.Context) (identchecker.Identity, []checkers.Caveat, error) {
-	return m.client.IdentityFromContext(ctx)
-}
-
-func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared map[string]string) (identchecker.Identity, error) {
-	// Extract the domain from the username
-	fields := strings.SplitN(declared["username"], "@", 2)
-
-	// Only validate domain if we have a list of valid domains
-	if len(m.ValidDomains) > 0 {
-		// If no domain was provided by candid, reject the request
-		if len(fields) < 2 {
-			logger.Warnf("Failed candid client authentication: no domain provided")
-			return nil, fmt.Errorf("Missing domain in candid reply")
-		}
-
-		// Check that it was a valid domain
-		if !shared.StringInSlice(fields[1], m.ValidDomains) {
-			logger.Warnf("Failed candid client authentication: untrusted domain \"%s\"", fields[1])
-			return nil, fmt.Errorf("Untrusted candid domain")
-		}
-	}
-
-	return m.client.DeclaredIdentity(ctx, declared)
 }
 
 // newDaemon returns a new Daemon object with the given configuration.
@@ -364,19 +325,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
-	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
-		// Validate external authentication.
-		ctx := httpbakery.ContextWithRequest(context.TODO(), r)
-		authChecker := d.externalAuth.bakery.Checker.Auth(httpbakery.RequestMacaroons(r)...)
-
-		ops := []bakery.Op{{
-			Entity: r.URL.Path,
-			Action: r.Method,
-		}}
-
-		info, err := authChecker.Allow(ctx, ops...)
+	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
+		userName, err := d.oidcVerifier.Auth(d.shutdownCtx, r)
 		if err != nil {
-			// Bad macaroon.
+			return false, "", "", err
+		}
+
+		return true, userName, "oidc", nil
+	} else if d.candidVerifier != nil && d.candidVerifier.IsRequest(r) {
+		info, err := d.candidVerifier.Auth(r)
+		if err != nil {
 			return false, "", "", err
 		}
 
@@ -411,30 +369,6 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 
 	// Reject unauthorized.
 	return false, "", "", nil
-}
-
-func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError, expiry int64) {
-	ctx := httpbakery.ContextWithRequest(context.TODO(), r)
-	caveats := append(derr.Caveats,
-		checkers.TimeBeforeCaveat(time.Now().Add(time.Duration(expiry)*time.Second)))
-
-	// Mint an appropriate macaroon and send it back to the client.
-	m, err := b.Oven.NewMacaroon(
-		ctx, httpbakery.RequestVersion(r), caveats, derr.Ops...)
-	if err != nil {
-		resp := response.ErrorResponse(http.StatusInternalServerError, err.Error())
-		_ = resp.Render(w)
-		return
-	}
-
-	herr := httpbakery.NewDischargeRequiredError(
-		httpbakery.DischargeRequiredErrorParams{
-			Macaroon:      m,
-			OriginalError: derr,
-			Request:       r,
-		})
-	herr.(*httpbakery.Error).Info.CookieNameSuffix = "auth"
-	httpbakery.WriteError(ctx, w, herr)
 }
 
 // State creates a new State instance linked to our internal db and os.
@@ -586,7 +520,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 				}
 
 				// If no external authentication configured, we're done now.
-				if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+				if d.candidVerifier == nil || d.rbac == nil || r.RemoteAddr == "@" {
 					return ua, nil
 				}
 
@@ -622,9 +556,13 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
-			writeMacaroonsRequiredResponse(d.externalAuth.bakery, r, w, derr, d.externalAuth.expiry)
+			d.candidVerifier.WriteRequest(r, w, derr)
 			return
 		} else {
+			if d.oidcVerifier != nil {
+				_ = d.oidcVerifier.WriteHeaders(w)
+			}
+
 			logger.Warn("Rejecting request from untrusted client", logger.Ctx{"ip": r.RemoteAddr})
 			_ = response.Forbidden(nil).Render(w)
 			return
@@ -1352,6 +1290,7 @@ func (d *Daemon) init() error {
 	rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = d.globalConfig.RBACServer()
 	d.gateway.HeartbeatOfflineThreshold = d.globalConfig.OfflineThreshold()
 	lokiURL, lokiUsername, lokiPassword, lokiCACert, lokiLabels, lokiLoglevel, lokiTypes := d.globalConfig.LokiServer()
+	oidcIssuer, oidcClientID, oidcAudience := d.globalConfig.OIDCServer()
 
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
@@ -1376,7 +1315,15 @@ func (d *Daemon) init() error {
 
 	// Setup Candid authentication.
 	if candidAPIURL != "" {
-		err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+		d.candidVerifier, err = candid.NewVerifier(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup OIDC authentication.
+	if oidcIssuer != "" && oidcClientID != "" {
+		d.oidcVerifier, err = oidc.NewVerifier(oidcIssuer, oidcClientID, oidcAudience)
 		if err != nil {
 			return err
 		}
@@ -1586,11 +1533,8 @@ func (d *Daemon) init() error {
 		// Remove expired container backups (hourly)
 		d.tasks.Add(pruneExpiredContainerBackupsTask(d))
 
-		// Take snapshot of instances (minutely check of configurable cron expression)
-		d.tasks.Add(autoCreateInstanceSnapshotsTask(d))
-
-		// Remove expired instance snapshots (minutely)
-		d.tasks.Add(pruneExpiredInstanceSnapshotsTask(d))
+		// Take snapshot of instances and remove expired ones (minutely check of configurable cron expression)
+		d.tasks.Add(autoCreateAndPruneExpiredInstanceSnapshotsTask(d))
 
 		// Remove expired custom volume snapshots (minutely)
 		d.tasks.Add(pruneExpireCustomVolumeSnapshotsTask(d))
@@ -1835,89 +1779,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	return err
 }
 
-// Setup external authentication.
-func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey string, expiry int64, domains string) error {
-	// Parse the list of domains
-	authDomains := []string{}
-	for _, domain := range strings.Split(domains, ",") {
-		if domain == "" {
-			continue
-		}
-
-		authDomains = append(authDomains, strings.TrimSpace(domain))
-	}
-
-	// Allow disable external authentication
-	if authEndpoint == "" {
-		d.externalAuth = nil
-		return nil
-	}
-
-	// Setup the candid client
-	idmClient, err := candidclient.New(candidclient.NewParams{
-		BaseURL: authEndpoint,
-	})
-	if err != nil {
-		return err
-	}
-
-	idmClientWrapper := &IdentityClientWrapper{
-		client:       idmClient,
-		ValidDomains: authDomains,
-	}
-
-	// Generate an internal private key
-	key, err := bakery.GenerateKey()
-	if err != nil {
-		return err
-	}
-
-	pkCache := bakery.NewThirdPartyStore()
-	pkLocator := httpbakery.NewThirdPartyLocator(nil, pkCache)
-	if authPubkey != "" {
-		// Parse the public key
-		pkKey := bakery.Key{}
-		err := pkKey.UnmarshalText([]byte(authPubkey))
-		if err != nil {
-			return err
-		}
-
-		// Add the key information
-		pkCache.AddInfo(authEndpoint, bakery.ThirdPartyInfo{
-			PublicKey: bakery.PublicKey{Key: pkKey},
-			Version:   3,
-		})
-
-		// Allow http URLs if we have a public key set
-		if strings.HasPrefix(authEndpoint, "http://") {
-			pkLocator.AllowInsecure()
-		}
-	}
-
-	// Setup the bakery
-	bakery := identchecker.NewBakery(identchecker.BakeryParams{
-		Key:            key,
-		Location:       authEndpoint,
-		Locator:        pkLocator,
-		Checker:        httpbakery.NewChecker(),
-		IdentityClient: idmClientWrapper,
-		Authorizer: identchecker.ACLAuthorizer{
-			GetACL: func(ctx context.Context, op bakery.Op) ([]string, bool, error) {
-				return []string{identchecker.Everyone}, false, nil
-			},
-		},
-	})
-
-	// Store our settings
-	d.externalAuth = &externalAuth{
-		endpoint: authEndpoint,
-		expiry:   expiry,
-		bakery:   bakery,
-	}
-
-	return nil
-}
-
 // Setup RBAC.
 func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
 	if d.rbac != nil || rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
@@ -1960,7 +1821,7 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	d.rbac = server
 
 	// Enable candid authentication
-	err = d.setupExternalAuthentication(fmt.Sprintf("%s/auth", rbacURL), rbacKey, rbacExpiry, "")
+	d.candidVerifier, err = candid.NewVerifier(fmt.Sprintf("%s/auth", rbacURL), rbacKey, rbacExpiry, "")
 	if err != nil {
 		return err
 	}
