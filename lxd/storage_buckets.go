@@ -1027,7 +1027,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseETag(true, bucketKey, bucketKey.Etag())
+	return response.SyncResponseETag(true, bucketKey.StorageBucketKey, bucketKey.Etag())
 }
 
 // swagger:operation PUT /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_put
