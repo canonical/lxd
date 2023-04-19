@@ -109,7 +109,9 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 
 		// If not JSON decoding error then fail immediately.
 		if !errors.As(err, &jsonSyntaxError) && !errors.As(err, &jsonUnmarshalTypeError) {
-			return err
+			if (err.Error() != "EOF") {
+				return err
+			}
 		}
 
 		// If JSON decoding error then try a plain request.
