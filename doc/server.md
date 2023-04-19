@@ -98,6 +98,7 @@ The following server options control {ref}`clustering`:
 
 Key                                 | Type      | Scope     | Default                                          | Description
 :--                                 | :---      | :----     | :------                                          | :----------
+`cluster.healing_threshold`         | integer   | global    | `0`                                              | Number of seconds after which an offline cluster member is to be evacuated (set to `0` to disable)
 `cluster.https_address`             | string    | local     | -                                                | Address to use for clustering traffic
 `cluster.images_minimal_replica`    | integer   | global    | `3`                                              | Minimal number of cluster members with a copy of a particular image (set to `1` for no replication or to `-1` for all members)
 `cluster.join_token_expiry`         | string    | global    | `3H`                                             | Time after which a cluster join token expires
