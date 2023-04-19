@@ -743,19 +743,15 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	memberSpecific := false // Get buckets for all cluster members.
 
-	var bucket *db.StorageBucket
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	var dbBucket *db.StorageBucket
 	var dbBucketKeys []*db.StorageBucketKey
-
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(ctx, bucket.ID)
+		dbBucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage bucket: %w", err)
+		}
+
+		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(ctx, dbBucket.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage bucket keys: %w", err)
 		}
@@ -777,7 +773,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	bucketKeyURLs := make([]string, 0, len(dbBucketKeys))
 	for _, dbBucketKey := range dbBucketKeys {
-		bucketKeyURLs = append(bucketKeyURLs, api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "buckets", bucketName, "keys", dbBucketKey.Name).String())
+		bucketKeyURLs = append(bucketKeyURLs, dbBucketKey.URL(version.APIVersion, poolName, bucketProjectName, bucketName).String())
 	}
 
 	return response.SyncResponse(true, bucketKeyURLs)
@@ -1031,7 +1027,7 @@ func storagePoolBucketKeyGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseETag(true, bucketKey, bucketKey.Etag())
+	return response.SyncResponseETag(true, bucketKey.StorageBucketKey, bucketKey.Etag())
 }
 
 // swagger:operation PUT /1.0/storage-pools/{name}/buckets/{bucketName}/keys/{keyName} storage storage_pool_bucket_key_put
