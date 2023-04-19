@@ -5461,30 +5461,11 @@ func (b *lxdBackend) GenerateInstanceBackupConfig(inst instance.Instance, snapsh
 		Volume: &volume.StorageVolume,
 	}
 
-	// Set profiles
-	err = b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
-		projectName := inst.Project().Name
-		filter := cluster.ProfileFilter{
-			Project: &projectName,
-		}
-
-		profiles, err := cluster.GetProfiles(ctx, tx.Tx(), filter)
-		if err != nil {
-			return err
-		}
-
-		config.Profiles = make([]*api.Profile, len(profiles))
-		for i, profile := range profiles {
-			config.Profiles[i], err = profile.ToAPI(ctx, tx.Tx())
-			if err != nil {
-				return err
-			}
-		}
-
-		return err
-	})
-	if err != nil {
-		return nil, err
+	// Add profiles from instance.
+	instProfiles := inst.Profiles()
+	config.Profiles = make([]*api.Profile, len(instProfiles))
+	for i := range instProfiles {
+		config.Profiles[i] = &instProfiles[i]
 	}
 
 	// Only populate Container field for non-snapshot instances.
