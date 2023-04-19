@@ -38,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/scriptlet"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -4368,4 +4369,102 @@ func evacuateClusterSelectTarget(ctx context.Context, s *state.State, gateway *c
 	}
 
 	return targetMemberInfo, nil
+}
+
+func autoHealClusterTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		leader, err := d.gateway.LeaderAddress()
+		if err != nil {
+			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
+				return // No error if not clustered.
+			}
+
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
+			return
+		}
+
+		if d.State().LocalConfig.ClusterAddress() != leader {
+			logger.Debug("Skipping heal cluster task since we're not leader")
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return autoHealCluster(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.ClusterHeal, nil, nil, opRun, nil, nil, nil)
+		if err != nil {
+			logger.Error("Failed starting heal cluster operation", logger.Ctx{"err": err})
+			return
+		}
+
+		err = op.Start()
+		if err != nil {
+			logger.Error("Failed healing cluster instances", logger.Ctx{"err": err})
+			return
+		}
+
+		_, _ = op.Wait(ctx)
+	}
+
+	return f, task.Every(time.Minute)
+}
+
+func autoHealCluster(ctx context.Context, d *Daemon) error {
+	s := d.State()
+	healingThreshold := s.GlobalConfig.ClusterHealingThreshold()
+
+	// Skip healing if it's disabled.
+	if healingThreshold == 0 {
+		return nil
+	}
+
+	var members []db.NodeInfo
+	var err error
+
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		members, err = tx.GetNodes(ctx)
+		if err != nil {
+			return fmt.Errorf("Failed getting cluster members: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed healing cluster instances: %w", err)
+	}
+
+	var offlineMembers []db.NodeInfo
+
+	for _, member := range members {
+		// Ignore members which have been evacuated, and those which haven't exceeded the healing threshold.
+		if member.State == db.ClusterMemberStateEvacuated || !member.IsOffline(healingThreshold) {
+			continue
+		}
+
+		offlineMembers = append(offlineMembers, member)
+	}
+
+	// Skip healing if there are no members to evacuate.
+	if len(offlineMembers) == 0 {
+		return nil
+	}
+
+	logger.Info("Healing cluster instances")
+
+	dest, err := cluster.Connect(s.LocalConfig.ClusterAddress(), d.endpoints.NetworkCert(), d.serverCert(), nil, true)
+	if err != nil {
+		return err
+	}
+
+	for _, member := range offlineMembers {
+		_, _, err = dest.RawQuery("POST", fmt.Sprintf("/internal/cluster/heal/%s", member.Name), nil, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Info("Done healing cluster instances")
+
+	return nil
 }
