@@ -1049,6 +1049,9 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	return d.start(stateful, nil)
 }
 
@@ -1339,10 +1342,20 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}()
 
 	// Snapshot if needed.
-	err = d.startupSnapshot(d)
+	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
+		err = fmt.Errorf("Failed getting startup snapshot info: %w", err)
 		op.Done(err)
 		return err
+	}
+
+	if snapName != "" && expiry != nil {
+		err := d.snapshot(snapName, *expiry, false)
+		if err != nil {
+			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Get CPU information.
@@ -4207,8 +4220,8 @@ func (d *qemu) IsPrivileged() bool {
 	return false
 }
 
-// Snapshot takes a new snapshot.
-func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+// snapshot creates a snapshot of the instance.
+func (d *qemu) snapshot(name string, expiry time.Time, stateful bool) error {
 	var err error
 	var monitor *qmp.Monitor
 
@@ -4258,6 +4271,14 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 	}
 
 	return nil
+}
+
+// Snapshot takes a new snapshot.
+func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
+	return d.snapshot(name, expiry, stateful)
 }
 
 // Restore restores an instance snapshot.
@@ -4382,6 +4403,9 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 // Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
 func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	oldName := d.Name()
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
@@ -4546,6 +4570,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
@@ -5195,6 +5222,9 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
 	if err != nil {
