@@ -773,7 +773,7 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	bucketKeyURLs := make([]string, 0, len(dbBucketKeys))
 	for _, dbBucketKey := range dbBucketKeys {
-		bucketKeyURLs = append(bucketKeyURLs, api.NewURL().Path(version.APIVersion, "storage-pools", poolName, "buckets", bucketName, "keys", dbBucketKey.Name).String())
+		bucketKeyURLs = append(bucketKeyURLs, dbBucketKey.URL(version.APIVersion, poolName, bucketProjectName, bucketName).String())
 	}
 
 	return response.SyncResponse(true, bucketKeyURLs)
