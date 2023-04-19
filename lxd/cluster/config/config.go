@@ -248,6 +248,26 @@ func (c *Config) OIDCServer() (string, string, string) {
 	return c.m.GetString("oidc.issuer"), c.m.GetString("oidc.client.id"), c.m.GetString("oidc.audience")
 }
 
+// ClusterHealingThreshold returns the configured healing threshold, i.e. the
+// number of seconds after which an offline node will be evacuated automatically. If the config key
+// is set but its value is lower than cluster.offline_threshold it returns
+// the value of cluster.offline_threshold instead. If this feature is disabled, it returns 0.
+func (c *Config) ClusterHealingThreshold() time.Duration {
+	n := c.m.GetInt64("cluster.healing_threshold")
+	if n == 0 {
+		return 0
+	}
+
+	healingThreshold := time.Duration(n) * time.Second
+	offlineThreshold := c.OfflineThreshold()
+
+	if healingThreshold < offlineThreshold {
+		return offlineThreshold
+	}
+
+	return healingThreshold
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]any {
@@ -296,6 +316,7 @@ var ConfigSchema = config.Schema{
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
+	"cluster.healing_threshold":      {Type: config.Int64, Default: "0"},
 	"cluster.join_token_expiry":      {Type: config.String, Default: "3H", Validator: expiryValidator},
 	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
 	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
