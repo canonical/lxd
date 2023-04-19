@@ -115,13 +115,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	 * rsync thinks we are syncing to a remote host (in this case, the
 	 * other end of the lxd websocket), and so the path specified on the
 	 * --server instance of rsync takes precedence.
-	 *
-	 * Additionally, we use sh -c instead of just calling nc directly
-	 * because rsync passes a whole bunch of arguments to the wrapper
-	 * command (i.e. the command to run on --server). However, we're
-	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s %s\"", execPath, auds, name)
+	rsyncCmd := fmt.Sprintf("%s netcat %s %s --", execPath, auds, name)
 
 	args := []string{
 		"-ar",
