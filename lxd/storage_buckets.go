@@ -743,19 +743,15 @@ func storagePoolBucketKeysGet(d *Daemon, r *http.Request) response.Response {
 
 	memberSpecific := false // Get buckets for all cluster members.
 
-	var bucket *db.StorageBucket
-	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		bucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
+	var dbBucket *db.StorageBucket
 	var dbBucketKeys []*db.StorageBucketKey
-
 	err = d.State().DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(ctx, bucket.ID)
+		dbBucket, err = tx.GetStoragePoolBucket(ctx, pool.ID(), bucketProjectName, memberSpecific, bucketName)
+		if err != nil {
+			return fmt.Errorf("Failed loading storage bucket: %w", err)
+		}
+
+		dbBucketKeys, err = tx.GetStoragePoolBucketKeys(ctx, dbBucket.ID)
 		if err != nil {
 			return fmt.Errorf("Failed loading storage bucket keys: %w", err)
 		}
