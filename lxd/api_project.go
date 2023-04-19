@@ -233,9 +233,15 @@ func projectUsedBy(ctx context.Context, tx *db.ClusterTx, project *cluster.Proje
 		return nil, err
 	}
 
+	deployments, err := tx.GetDeploymentsURIs(ctx, project.ID, project.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	usedBy = append(usedBy, volumes...)
 	usedBy = append(usedBy, networks...)
 	usedBy = append(usedBy, acls...)
+	usedBy = append(usedBy, deployments...)
 
 	return usedBy, nil
 }
@@ -1060,6 +1066,15 @@ func projectIsEmpty(ctx context.Context, project *cluster.Project, tx *db.Cluste
 	}
 
 	if len(acls) > 0 {
+		return false, nil
+	}
+
+	deployments, err := tx.GetDeploymentsURIs(ctx, project.ID, project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(deployments) > 0 {
 		return false, nil
 	}
 
