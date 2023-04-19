@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/cluster"
 	"github.com/canonical/lxd/lxd/daemon"
 	"github.com/canonical/lxd/lxd/db"
@@ -41,6 +43,7 @@ import (
 	devmonitor "github.com/canonical/lxd/lxd/fsmonitor"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/request"
+	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/ucred"
 
 	// Import instance/drivers without name so init() runs.
@@ -744,6 +747,11 @@ func (d *Daemon) init() error {
 	err = d.os.Init()
 	if err != nil {
 		return err
+	}
+
+	// Setup AppArmor wrapper.
+	rsync.RunWrapper = func(cmd *exec.Cmd, source string, destination string) (func(), error) {
+		return apparmor.RsyncWrapper(d.os, cmd, source, destination)
 	}
 
 	// Bump some kernel limits to avoid issues
