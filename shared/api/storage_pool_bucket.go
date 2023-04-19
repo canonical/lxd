@@ -137,6 +137,11 @@ type StorageBucketKey struct {
 	Name string `json:"name" yaml:"name"`
 }
 
+// URL for the deployment instance set.
+func (b *StorageBucketKey) URL(apiVersion string, poolName string, projectName string, bucketName string) *URL {
+	return NewURL().Path(apiVersion, "storage-pools", poolName, "buckets", bucketName, "keys", b.Name).Project(projectName)
+}
+
 // Etag returns the values used for etag generation.
 func (b *StorageBucketKey) Etag() []any {
 	return []any{b.Name, b.Description, b.Role, b.AccessKey, b.SecretKey}
