@@ -37,6 +37,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/scriptlet"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -147,6 +148,12 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 	Path: "cluster/raft-node/{address}",
 
 	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete},
+}
+
+var internalClusterHealCmd = APIEndpoint{
+	Path: "cluster/heal/{name}",
+
+	Post: APIEndpointAction{Handler: internalClusterHeal},
 }
 
 // swagger:operation GET /1.0/cluster cluster cluster_get
@@ -3007,6 +3014,57 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
+}
+
+func internalClusterHeal(d *Daemon, r *http.Request) response.Response {
+	migrateFunc := func(s *state.State, r *http.Request, inst instance.Instance, targetMemberInfo *db.NodeInfo, live bool, startInstance bool, metadata map[string]any, op *operations.Operation) error {
+		// This returns an error if the instance's storage pool is local.
+		// Since we only care about remote backed instances, this can be ignored and return nil instead.
+		poolName, err := inst.StoragePool()
+		if err != nil {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
+				return nil // We only care about remote backed instances.
+			}
+
+			return err
+		}
+
+		pool, err := storagePools.LoadByName(s, poolName)
+		if err != nil {
+			return err
+		}
+
+		// Nothing to do as the instance's pool is not CEPH.
+		if !pool.Driver().Info().Remote {
+			return nil
+		}
+
+		// Migrate the instance.
+		req := api.InstancePost{
+			Migration: true,
+		}
+
+		dest, err := cluster.Connect(targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), nil, true)
+		if err != nil {
+			return err
+		}
+
+		dest = dest.UseTarget(targetMemberInfo.Name)
+
+		migrateOp, err := dest.MigrateInstance(inst.Name(), req)
+		if err != nil {
+			return err
+		}
+
+		err = migrateOp.Wait()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return evacuateClusterMember(d, r, "migrate", nil, migrateFunc)
 }
 
 func evacuateClusterSetState(d *Daemon, name string, state int) error {
