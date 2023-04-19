@@ -420,7 +420,7 @@ func (c *Cluster) DeleteStoragePoolBucket(ctx context.Context, poolID int64, buc
 	})
 }
 
-// StorageBucketKeyFilter used for filtering storage bucket keys with GetStorageBucketKeys().
+// StorageBucketKeyFilter used for filtering storage bucket keys with GetStoragePoolBucketKeys().
 type StorageBucketKeyFilter struct {
 	Name *string
 }
