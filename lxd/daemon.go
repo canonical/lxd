@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	liblxc "github.com/lxc/go-lxc"
 	"golang.org/x/sys/unix"
 
+	"github.com/canonical/lxd/lxd/apparmor"
 	"github.com/canonical/lxd/lxd/auth/candid"
 	"github.com/canonical/lxd/lxd/bgp"
 	"github.com/canonical/lxd/lxd/cluster"
@@ -46,6 +48,7 @@ import (
 	"github.com/canonical/lxd/lxd/rbac"
 	"github.com/canonical/lxd/lxd/request"
 	"github.com/canonical/lxd/lxd/response"
+	"github.com/canonical/lxd/lxd/rsync"
 	"github.com/canonical/lxd/lxd/seccomp"
 	"github.com/canonical/lxd/lxd/state"
 	storagePools "github.com/canonical/lxd/lxd/storage"
@@ -738,6 +741,11 @@ func (d *Daemon) init() error {
 	dbWarnings, err = d.os.Init()
 	if err != nil {
 		return err
+	}
+
+	// Setup AppArmor wrapper.
+	rsync.RunWrapper = func(cmd *exec.Cmd, source string, destination string) (func(), error) {
+		return apparmor.RsyncWrapper(d.os, cmd, source, destination)
 	}
 
 	// Bump some kernel limits to avoid issues
