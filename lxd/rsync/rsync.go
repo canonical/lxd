@@ -1,6 +1,7 @@
 package rsync
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,6 +21,50 @@ import (
 
 // Debug controls additional debugging in rsync output.
 var Debug bool
+
+// RunWrapper is an optional function that's used to wrap rsync, useful for confinement like AppArmor.
+var RunWrapper func(cmd *exec.Cmd, source string, destination string) (func(), error)
+
+// rsync is a wrapper for the rsync command which will respect RunWrapper.
+func rsync(args ...string) (string, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("rsync call expects a minimum of two arguments (source and destination)")
+	}
+
+	// Setup the command.
+	cmd := exec.Command("rsync", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		source := args[len(args)-2]
+		destination := args[len(args)-1]
+
+		cleanup, err := RunWrapper(cmd, source, destination)
+		if err != nil {
+			return "", err
+		}
+
+		defer cleanup()
+	}
+
+	// Run the command.
+	err := cmd.Run()
+	if err != nil {
+		err := shared.RunError{
+			Msg:    fmt.Sprintf("Failed to run: rsync %s: %s", strings.Join(args, " "), strings.TrimSpace(stderr.String())),
+			Stdout: stdout.String(),
+			Stderr: stderr.String(),
+			Err:    err,
+		}
+		return stdout.String(), err
+	}
+
+	return stdout.String(), nil
+}
 
 // LocalCopy copies a directory using rsync (with the --devices option).
 func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArgs ...string) (string, error) {
@@ -63,7 +108,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool, rsyncArg
 		shared.AddSlash(source),
 		dest)
 
-	msg, err := shared.RunCommand("rsync", args...)
+	msg, err := rsync(args...)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
@@ -147,6 +192,16 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 		rsyncCmd}...)
 
 	cmd := exec.Command("rsync", args...)
+
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		cleanup, err := RunWrapper(cmd, path, "")
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		defer cleanup()
+	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -277,6 +332,16 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	args = append(args, []string{".", path}...)
 
 	cmd := exec.Command("rsync", args...)
+
+	// Call the wrapper if defined.
+	if RunWrapper != nil {
+		cleanup, err := RunWrapper(cmd, "", path)
+		if err != nil {
+			return err
+		}
+
+		defer cleanup()
+	}
 
 	// Forward from rsync to source.
 	stdout, err := cmd.StdoutPipe()
