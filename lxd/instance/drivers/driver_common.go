@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -711,29 +712,29 @@ func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
 	return nil
 }
 
-// startupSnapshot triggers a snapshot if configured.
-func (d *common) startupSnapshot(inst instance.Instance) error {
+// getStartupSnapNameAndExpiry returns the name and expiry for a snapshot to be taken at startup.
+func (d *common) getStartupSnapNameAndExpiry(inst instance.Instance) (string, *time.Time, error) {
 	schedule := strings.ToLower(d.expandedConfig["snapshots.schedule"])
 	if schedule == "" {
-		return nil
+		return "", nil, nil
 	}
 
 	triggers := strings.Split(schedule, ", ")
 	if !shared.StringInSlice("@startup", triggers) {
-		return nil
+		return "", nil, nil
 	}
 
 	expiry, err := shared.GetExpiry(time.Now(), d.expandedConfig["snapshots.expiry"])
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	name, err := instance.NextSnapshotName(d.state, inst, "snap%d")
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
-	return inst.Snapshot(name, expiry, false)
+	return name, &expiry, nil
 }
 
 // Internal MAAS handling.
@@ -1470,4 +1471,10 @@ func (d *common) devicesRemove(inst instance.Instance) {
 			}
 		}
 	}
+}
+
+// updateBackupFileLock acquires the update backup file lock that protects concurrent access to actions that will call UpdateBackupFile() as part of their operation.
+func (d *common) updateBackupFileLock(ctx context.Context) locking.UnlockFunc {
+	parentName, _, _ := api.GetParentAndSnapshotName(d.Name())
+	return locking.Lock(ctx, fmt.Sprintf("instance_updatebackupfile_%s_%s", d.Project().Name, parentName))
 }
