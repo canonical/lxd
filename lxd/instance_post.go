@@ -300,7 +300,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(d, r, inst, targetNode, req, op)
+				return migrateInstance(s, r, inst, targetNode, req, op)
 			}
 
 			resources := map[string][]string{}
@@ -798,7 +798,7 @@ func instancePostClusteringMigrate(s *state.State, r *http.Request, srcPool stor
 
 // instancePostClusteringMigrateWithCeph handles moving a ceph instance from a source member that is offline.
 // This function must be run on the target cluster member to move the instance to.
-func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, srcMember db.NodeInfo, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcPool storagePools.Pool, srcInst instance.Instance, newInstName string, newMember db.NodeInfo, stateful bool) (func(op *operations.Operation) error, error) {
 	// Sense checks to avoid unexpected behaviour.
 	if srcPool.Driver().Info().Name != "ceph" {
 		return nil, fmt.Errorf("Source instance's storage pool is not of type ceph")
@@ -862,7 +862,7 @@ func instancePostClusteringMigrateWithCeph(s *state.State, r *http.Request, srcP
 	return run, nil
 }
 
-func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
+func migrateInstance(s *state.State, r *http.Request, inst instance.Instance, targetNode string, req api.InstancePost, op *operations.Operation) error {
 	// If target isn't the same as the instance's location.
 	if targetNode == inst.Location() {
 		return fmt.Errorf("Target must be different than instance's current location")
@@ -873,7 +873,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 
 	// If the source member is online then get its address so we can connect to it and see if the
 	// instance is running later.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		srcMember, err = tx.GetNodeByName(ctx, inst.Location())
 		if err != nil {
 			return fmt.Errorf("Failed getting current cluster member of instance %q", inst.Name())
@@ -890,8 +890,6 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return err
 	}
 
-	s := d.State()
-
 	// Check if we are migrating a ceph-based instance.
 	srcPool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
@@ -900,7 +898,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 
 	// Only use instancePostClusteringMigrateWithCeph when source member is offline.
 	if srcMember.IsOffline(s.GlobalConfig.OfflineThreshold()) && srcPool.Driver().Info().Name == "ceph" {
-		f, err := instancePostClusteringMigrateWithCeph(s, r, srcPool, inst, req.Name, srcMember, newMember, req.Live)
+		f, err := instancePostClusteringMigrateWithCeph(s, r, srcPool, inst, req.Name, newMember, req.Live)
 		if err != nil {
 			return err
 		}
