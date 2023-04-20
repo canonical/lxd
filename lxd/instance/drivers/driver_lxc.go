@@ -7046,7 +7046,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		var usage int64
+		var usage *storagePools.VolumeUsage
 
 		if dev.Config["path"] == "/" {
 			pool, err := storagePools.LoadByInstance(d.state, d)
@@ -7082,7 +7082,13 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
+		state := api.InstanceStateDisk{}
+		if usage != nil {
+			state.Usage = usage.Used
+			state.Total = usage.Total
+		}
+
+		disk[dev.Name] = state
 	}
 
 	return disk
@@ -7111,6 +7117,12 @@ func (d *lxc) memoryState() api.InstanceStateMemory {
 		if err == nil {
 			memory.UsagePeak = value
 		}
+	}
+
+	// Memory total in bytes
+	value, err = cg.GetEffectiveMemoryLimit()
+	if err == nil {
+		memory.Total = value
 	}
 
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
