@@ -106,7 +106,6 @@ func (n *common) init(state *state.State, id int64, projectName string, netInfo 
 	n.nodes = netNodes
 }
 
-
 // FillConfig fills requested config with any default values, by default this is a no-op.
 func (n *common) FillConfig(config map[string]string) error {
 	return nil
@@ -279,11 +278,10 @@ func (n *common) Required() bool {
 	if !present {
 		return true
 	}
-
 	val, err := strconv.ParseBool(required)
 	if err != nil {
 		return true
-	}	
+	}
 	return val
 }
 
