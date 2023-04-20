@@ -400,7 +400,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	}
 
 	// Check IPv4 OVN ranges.
-	if config["ipv4.ovn.ranges"] != "" {
+	if config["ipv4.ovn.ranges"] != "" && shared.IsTrueOrEmpty(config["ipv4.dhcp"]) {
 		dhcpSubnet := n.DHCPv4Subnet()
 		allowedNets := []*net.IPNet{}
 
@@ -432,7 +432,7 @@ func (n *bridge) Validate(config map[string]string) error {
 	}
 
 	// Check IPv6 OVN ranges.
-	if config["ipv6.ovn.ranges"] != "" {
+	if config["ipv6.ovn.ranges"] != "" && shared.IsTrueOrEmpty(config["ipv6.dhcp"]) {
 		dhcpSubnet := n.DHCPv6Subnet()
 		allowedNets := []*net.IPNet{}
 
