@@ -278,10 +278,12 @@ func (n *common) Required() bool {
 	if !present {
 		return true
 	}
+
 	val, err := strconv.ParseBool(required)
 	if err != nil {
 		return true
 	}
+
 	return val
 }
 
