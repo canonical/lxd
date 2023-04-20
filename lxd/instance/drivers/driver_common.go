@@ -74,7 +74,7 @@ type common struct {
 	node            string
 	profiles        []api.Profile
 	project         api.Project
-	snapshot        bool
+	isSnapshot      bool
 	stateful        bool
 
 	// Cached handles.
@@ -127,7 +127,7 @@ func (d *common) ExpandedDevices() deviceConfig.Devices {
 
 // ExpiryDate returns when this snapshot expires.
 func (d *common) ExpiryDate() time.Time {
-	if d.snapshot {
+	if d.isSnapshot {
 		return d.expiryDate
 	}
 
@@ -187,7 +187,7 @@ func (d *common) Project() api.Project {
 
 // IsSnapshot returns whether instance is snapshot or not.
 func (d *common) IsSnapshot() bool {
-	return d.snapshot
+	return d.isSnapshot
 }
 
 // IsStateful returns whether instance is stateful or not.
@@ -248,7 +248,7 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	if d.snapshot {
+	if d.isSnapshot {
 		return []instance.Instance{}, nil
 	}
 
@@ -327,7 +327,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 	// Update the database if required.
 	if !d.volatileSetPersistDisable {
 		var err error
-		if d.snapshot {
+		if d.isSnapshot {
 			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateInstanceSnapshotConfig(d.id, changes)
 			})
@@ -380,7 +380,7 @@ func (d *common) LogPath() string {
 
 // Path returns the instance's path.
 func (d *common) Path() string {
-	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.snapshot)
+	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.isSnapshot)
 }
 
 // RootfsPath returns the instance's rootfs path.

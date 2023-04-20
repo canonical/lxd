@@ -146,7 +146,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -204,7 +204,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -294,13 +294,13 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		revert.Add(cleanup)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Created instance snapshot", logger.Ctx{"ephemeral": d.ephemeral})
 	} else {
 		d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
@@ -4719,7 +4719,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renamed instance", ctxMap)
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
@@ -5166,7 +5166,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if userRequested {
-		if d.snapshot {
+		if d.isSnapshot {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
 		} else {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
@@ -5402,7 +5402,7 @@ func (d *qemu) delete(force bool) error {
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleting instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleting instance", ctxMap)
@@ -5498,13 +5498,13 @@ func (d *qemu) delete(force bool) error {
 		}
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleted instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleted instance", ctxMap)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
