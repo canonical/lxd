@@ -7159,7 +7159,11 @@ func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 	}
 
 	disk := map[string]api.InstanceStateDisk{}
-	disk[rootDiskName] = api.InstanceStateDisk{Usage: usage}
+	disk[rootDiskName] = api.InstanceStateDisk{
+		Usage: usage.Used,
+		Total: usage.Total,
+	}
+
 	return disk, nil
 }
 
