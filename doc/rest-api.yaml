@@ -2105,6 +2105,12 @@ definitions:
         x-go-package: github.com/lxc/lxd/shared/api
     InstanceStateDisk:
         properties:
+            total:
+                description: Total size in bytes
+                example: 502239232
+                format: int64
+                type: integer
+                x-go-name: Total
             usage:
                 description: Disk usage in bytes
                 example: 502239232
@@ -2128,6 +2134,12 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: SwapUsagePeak
+            total:
+                description: Total memory size in bytes
+                example: 12297557
+                format: int64
+                type: integer
+                x-go-name: Total
             usage:
                 description: Memory usage in bytes
                 example: 73248768

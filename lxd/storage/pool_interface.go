@@ -18,6 +18,12 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 )
 
+// VolumeUsage contains the used and total size of a volume.
+type VolumeUsage struct {
+	Used  int64
+	Total int64
+}
+
 // MountInfo represents info about the result of a mount operation.
 type MountInfo struct {
 	DiskPath string // The location of the block disk (if supported).
@@ -74,7 +80,7 @@ type Pool interface {
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
 	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
 
-	GetInstanceUsage(inst instance.Instance) (int64, error)
+	GetInstanceUsage(inst instance.Instance) (*VolumeUsage, error)
 	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error
 
 	MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
@@ -111,7 +117,7 @@ type Pool interface {
 	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
 	GetCustomVolumeDisk(projectName string, volName string) (string, error)
-	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
+	GetCustomVolumeUsage(projectName string, volName string) (*VolumeUsage, error)
 	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 	ImportCustomVolume(projectName string, poolVol *backupConfig.Config, op *operations.Operation) error

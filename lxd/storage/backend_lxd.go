@@ -2494,28 +2494,55 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
-func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
+func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (*VolumeUsage, error) {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project().Name, "instance": inst.Name()})
 	l.Debug("GetInstanceUsage started")
 	defer l.Debug("GetInstanceUsage finished")
 
 	err := b.isStatusReady()
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	contentType := InstanceContentType(inst)
+	val := VolumeUsage{}
 
 	// There's no need to pass config as it's not needed when retrieving the volume usage.
 	volStorageName := project.Instance(inst.Project().Name, inst.Name())
 	vol := b.GetVolume(volType, contentType, volStorageName, nil)
 
-	return b.driver.GetVolumeUsage(vol)
+	// Get the usage.
+	size, err := b.driver.GetVolumeUsage(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	val.Used = size
+
+	// Get the total size.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, err
+	}
+
+	sizeStr, ok := rootDiskConf["size"]
+	if ok {
+		total, err := units.ParseByteSizeString(sizeStr)
+		if err != nil {
+			return nil, err
+		}
+
+		if total >= 0 {
+			val.Total = total
+		}
+	}
+
+	return &val, nil
 }
 
 // SetInstanceQuota sets the quota on the instance's root volume.
@@ -4978,16 +5005,18 @@ func (b *lxdBackend) GetCustomVolumeDisk(projectName, volName string) (string, e
 }
 
 // GetCustomVolumeUsage returns the disk space used by the custom volume.
-func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, error) {
+func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (*VolumeUsage, error) {
 	err := b.isStatusReady()
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	volume, err := VolumeDBGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
+
+	val := VolumeUsage{}
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
@@ -4995,7 +5024,28 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 	// There's no need to pass config as it's not needed when getting the volume usage.
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), volStorageName, nil)
 
-	return b.driver.GetVolumeUsage(vol)
+	// Get the usage.
+	size, err := b.driver.GetVolumeUsage(vol)
+	if err != nil {
+		return nil, err
+	}
+
+	val.Used = size
+
+	// Get the total size.
+	sizeStr, ok := vol.Config()["size"]
+	if ok {
+		total, err := units.ParseByteSizeString(sizeStr)
+		if err != nil {
+			return nil, err
+		}
+
+		if total >= 0 {
+			val.Total = total
+		}
+	}
+
+	return &val, nil
 }
 
 // MountCustomVolume mounts a custom volume.
