@@ -39,6 +39,7 @@ type Network interface {
 	Locations() []string
 	IsUsed() (bool, error)
 	IsManaged() bool
+	Required() bool
 	DHCPv4Subnet() *net.IPNet
 	DHCPv6Subnet() *net.IPNet
 	DHCPv4Ranges() []shared.IPRange

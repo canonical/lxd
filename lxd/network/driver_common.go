@@ -89,6 +89,7 @@ type common struct {
 	status      string
 	managed     bool
 	nodes       map[int64]db.NetworkNode
+	required    bool
 }
 
 // init initialise internal variables.
@@ -104,7 +105,9 @@ func (n *common) init(state *state.State, id int64, projectName string, netInfo 
 	n.status = netInfo.Status
 	n.managed = netInfo.Managed
 	n.nodes = netNodes
+	n.required = true
 }
+
 
 // FillConfig fills requested config with any default values, by default this is a no-op.
 func (n *common) FillConfig(config map[string]string) error {
@@ -271,6 +274,10 @@ func (n *common) Config() map[string]string {
 
 func (n *common) IsManaged() bool {
 	return n.managed
+}
+
+func (n *common) Required() bool {
+	return n.required
 }
 
 // Config returns the common network driver info.
