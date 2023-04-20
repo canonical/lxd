@@ -103,6 +103,7 @@ func memoryState() api.InstanceStateMemory {
 	}
 
 	memory.Usage = int64(stats.MemTotalBytes) - int64(stats.MemFreeBytes)
+	memory.Total = int64(stats.MemTotalBytes)
 
 	// Memory peak in bytes
 	value, err := os.ReadFile("/sys/fs/cgroup/memory/memory.max_usage_in_bytes")
