@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -74,7 +75,7 @@ type common struct {
 	node            string
 	profiles        []api.Profile
 	project         api.Project
-	snapshot        bool
+	isSnapshot      bool
 	stateful        bool
 
 	// Cached handles.
@@ -127,7 +128,7 @@ func (d *common) ExpandedDevices() deviceConfig.Devices {
 
 // ExpiryDate returns when this snapshot expires.
 func (d *common) ExpiryDate() time.Time {
-	if d.snapshot {
+	if d.isSnapshot {
 		return d.expiryDate
 	}
 
@@ -187,7 +188,7 @@ func (d *common) Project() api.Project {
 
 // IsSnapshot returns whether instance is snapshot or not.
 func (d *common) IsSnapshot() bool {
-	return d.snapshot
+	return d.isSnapshot
 }
 
 // IsStateful returns whether instance is stateful or not.
@@ -248,7 +249,7 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	if d.snapshot {
+	if d.isSnapshot {
 		return []instance.Instance{}, nil
 	}
 
@@ -327,7 +328,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 	// Update the database if required.
 	if !d.volatileSetPersistDisable {
 		var err error
-		if d.snapshot {
+		if d.isSnapshot {
 			err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.UpdateInstanceSnapshotConfig(d.id, changes)
 			})
@@ -380,7 +381,7 @@ func (d *common) LogPath() string {
 
 // Path returns the instance's path.
 func (d *common) Path() string {
-	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.snapshot)
+	return storagePools.InstancePath(d.dbType, d.project.Name, d.name, d.isSnapshot)
 }
 
 // RootfsPath returns the instance's rootfs path.
@@ -711,29 +712,29 @@ func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
 	return nil
 }
 
-// startupSnapshot triggers a snapshot if configured.
-func (d *common) startupSnapshot(inst instance.Instance) error {
+// getStartupSnapNameAndExpiry returns the name and expiry for a snapshot to be taken at startup.
+func (d *common) getStartupSnapNameAndExpiry(inst instance.Instance) (string, *time.Time, error) {
 	schedule := strings.ToLower(d.expandedConfig["snapshots.schedule"])
 	if schedule == "" {
-		return nil
+		return "", nil, nil
 	}
 
 	triggers := strings.Split(schedule, ", ")
 	if !shared.StringInSlice("@startup", triggers) {
-		return nil
+		return "", nil, nil
 	}
 
 	expiry, err := shared.GetExpiry(time.Now(), d.expandedConfig["snapshots.expiry"])
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	name, err := instance.NextSnapshotName(d.state, inst, "snap%d")
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
-	return inst.Snapshot(name, expiry, false)
+	return name, &expiry, nil
 }
 
 // Internal MAAS handling.
@@ -1470,4 +1471,10 @@ func (d *common) devicesRemove(inst instance.Instance) {
 			}
 		}
 	}
+}
+
+// updateBackupFileLock acquires the update backup file lock that protects concurrent access to actions that will call UpdateBackupFile() as part of their operation.
+func (d *common) updateBackupFileLock(ctx context.Context) locking.UnlockFunc {
+	parentName, _, _ := api.GetParentAndSnapshotName(d.Name())
+	return locking.Lock(ctx, fmt.Sprintf("instance_updatebackupfile_%s_%s", d.Project().Name, parentName))
 }
