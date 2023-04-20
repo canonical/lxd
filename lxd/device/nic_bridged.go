@@ -480,8 +480,7 @@ func (d *nicBridged) PreStartCheck() error {
 	}
 
 	// If managed network is not available, don't try and start instance.
-	//if d.network.Required() && d.network.LocalStatus() == api.NetworkStatusUnavailable {
-	if d.network.Required() {
+	if d.network.Required() && d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 
