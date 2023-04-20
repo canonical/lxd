@@ -89,7 +89,6 @@ type common struct {
 	status      string
 	managed     bool
 	nodes       map[int64]db.NetworkNode
-	required    bool
 }
 
 // init initialise internal variables.
@@ -105,7 +104,6 @@ func (n *common) init(state *state.State, id int64, projectName string, netInfo 
 	n.status = netInfo.Status
 	n.managed = netInfo.Managed
 	n.nodes = netNodes
-	n.required = true
 }
 
 
@@ -277,7 +275,16 @@ func (n *common) IsManaged() bool {
 }
 
 func (n *common) Required() bool {
-	return n.required
+	required, present := n.config["user.required"]
+	if !present {
+		return true
+	}
+
+	val, err := strconv.ParseBool(required)
+	if err != nil {
+		return true
+	}	
+	return val
 }
 
 // Config returns the common network driver info.
