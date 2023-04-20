@@ -180,7 +180,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -317,13 +317,13 @@ func lxcCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.In
 		revert.Add(cleanup)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Created instance snapshot", logger.Ctx{"ephemeral": d.ephemeral})
 	} else {
 		d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
@@ -389,7 +389,7 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -2247,9 +2247,16 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	_ = unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
 
 	// Snapshot if needed.
-	err = d.startupSnapshot(d)
+	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("Failed getting startup snapshot info: %w", err)
+	}
+
+	if snapName != "" && expiry != nil {
+		err := d.snapshot(snapName, *expiry, false)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed taking startup snapshot: %w", err)
+		}
 	}
 
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
@@ -2291,6 +2298,9 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
@@ -3325,8 +3335,8 @@ func (d *lxc) RenderState(hostInterfaces []net.Interface) (*api.InstanceState, e
 	return d.renderState(d.statusCode(), hostInterfaces)
 }
 
-// Snapshot takes a new snapshot.
-func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+// snapshot creates a snapshot of the instance.
+func (d *lxc) snapshot(name string, expiry time.Time, stateful bool) error {
 	// Deal with state.
 	if stateful {
 		// Quick checks.
@@ -3404,6 +3414,14 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 	d.stopForkfile(false)
 
 	return d.snapshotCommon(d, name, expiry, stateful)
+}
+
+// Snapshot takes a new snapshot.
+func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
+	return d.snapshot(name, expiry, stateful)
 }
 
 // Restore restores a snapshot.
@@ -3645,7 +3663,7 @@ func (d *lxc) delete(force bool) error {
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleting instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleting instance", ctxMap)
@@ -3747,13 +3765,13 @@ func (d *lxc) delete(force bool) error {
 		}
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleted instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleted instance", ctxMap)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
@@ -3764,6 +3782,9 @@ func (d *lxc) delete(force bool) error {
 
 // Rename renames the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
 func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	oldName := d.Name()
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
@@ -3920,7 +3941,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	d.logger.Info("Renamed instance", ctxMap)
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
@@ -3953,6 +3974,9 @@ func (d *lxc) CGroupSet(key string, value string) error {
 
 // Update applies updated config.
 func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
@@ -4722,7 +4746,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	undoChanges = false
 
 	if userRequested {
-		if d.snapshot {
+		if d.isSnapshot {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
 		} else {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))

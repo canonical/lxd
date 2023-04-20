@@ -146,7 +146,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -204,7 +204,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 			node:         args.Node,
 			profiles:     args.Profiles,
 			project:      p,
-			snapshot:     args.Snapshot,
+			isSnapshot:   args.Snapshot,
 			stateful:     args.Stateful,
 		},
 	}
@@ -294,13 +294,13 @@ func qemuCreate(s *state.State, args db.InstanceArgs, p api.Project) (instance.I
 		revert.Add(cleanup)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Created instance snapshot", logger.Ctx{"ephemeral": d.ephemeral})
 	} else {
 		d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotCreated.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceCreated.Event(d, map[string]any{
@@ -1052,6 +1052,9 @@ func (d *qemu) validateStartup(stateful bool, statusCode api.StatusCode) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	return d.start(stateful, nil)
 }
 
@@ -1342,10 +1345,20 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 	}()
 
 	// Snapshot if needed.
-	err = d.startupSnapshot(d)
+	snapName, expiry, err := d.getStartupSnapNameAndExpiry(d)
 	if err != nil {
+		err = fmt.Errorf("Failed getting startup snapshot info: %w", err)
 		op.Done(err)
 		return err
+	}
+
+	if snapName != "" && expiry != nil {
+		err := d.snapshot(snapName, *expiry, false)
+		if err != nil {
+			err = fmt.Errorf("Failed taking startup snapshot: %w", err)
+			op.Done(err)
+			return err
+		}
 	}
 
 	// Get CPU information.
@@ -4392,8 +4405,8 @@ func (d *qemu) IsPrivileged() bool {
 	return false
 }
 
-// Snapshot takes a new snapshot.
-func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+// snapshot creates a snapshot of the instance.
+func (d *qemu) snapshot(name string, expiry time.Time, stateful bool) error {
 	var err error
 	var monitor *qmp.Monitor
 
@@ -4443,6 +4456,14 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 	}
 
 	return nil
+}
+
+// Snapshot takes a new snapshot.
+func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
+	return d.snapshot(name, expiry, stateful)
 }
 
 // Restore restores an instance snapshot.
@@ -4567,6 +4588,9 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 // Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
 func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	oldName := d.Name()
 	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
@@ -4719,7 +4743,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renamed instance", ctxMap)
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
@@ -4731,6 +4755,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
@@ -5166,7 +5193,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if userRequested {
-		if d.snapshot {
+		if d.isSnapshot {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
 		} else {
 			d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceUpdated.Event(d, nil))
@@ -5380,6 +5407,9 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
 	if err != nil {
@@ -5402,7 +5432,7 @@ func (d *qemu) delete(force bool) error {
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleting instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleting instance", ctxMap)
@@ -5498,13 +5528,13 @@ func (d *qemu) delete(force bool) error {
 		}
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.logger.Info("Deleted instance snapshot", ctxMap)
 	} else {
 		d.logger.Info("Deleted instance", ctxMap)
 	}
 
-	if d.snapshot {
+	if d.isSnapshot {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
 	} else {
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceDeleted.Event(d, nil))
