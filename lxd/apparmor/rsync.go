@@ -20,12 +20,13 @@ var rsyncProfileTpl = template.Must(template.New("rsyncProfile").Parse(`#include
 profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
+  capability chown,
   capability dac_override,
   capability dac_read_search,
-  capability mknod,
-  capability chown,
-  capability fsetid,
   capability fowner,
+  capability fsetid,
+  capability mknod,
+  capability setfcap,
 
   unix (connect, send, receive) type=stream,
 
@@ -44,8 +45,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{- if .dstPath }}
-  {{ .dstPath }}/** rw,
-  {{ .dstPath }}/ rw,
+  {{ .dstPath }}/** rwkl,
+  {{ .dstPath }}/ rwkl,
 {{- end }}
 
 {{- if .snap }}
