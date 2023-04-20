@@ -7113,6 +7113,12 @@ func (d *lxc) memoryState() api.InstanceStateMemory {
 		}
 	}
 
+	// Memory total in bytes
+	value, err = cg.GetEffectiveMemoryLimit()
+	if err == nil {
+		memory.Total = value
+	}
+
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		// Swap in bytes
 		if memory.Usage > 0 {
