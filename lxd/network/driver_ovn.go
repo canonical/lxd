@@ -335,6 +335,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		// Volatile keys populated automatically as needed.
 		ovnVolatileUplinkIPv4: validate.Optional(validate.IsNetworkAddressV4),
 		ovnVolatileUplinkIPv6: validate.Optional(validate.IsNetworkAddressV6),
+		"required":                             validate.Optional(validate.IsBool),
 	}
 
 	err := n.validate(config, rules)

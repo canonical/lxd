@@ -275,6 +275,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
 		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
+		"required":                             validate.Optional(validate.IsBool),
 	}
 
 	// Add dynamic validation rules.

@@ -29,6 +29,7 @@ func (n *sriov) Validate(config map[string]string) error {
 		"vlan":             validate.Optional(validate.IsNetworkVLAN),
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
+		"required":         validate.Optional(validate.IsBool),
 	}
 
 	err := n.validate(config, rules)

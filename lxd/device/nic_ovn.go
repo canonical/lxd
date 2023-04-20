@@ -95,6 +95,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		"acceleration",
 		"nested",
 		"vlan",
+		"required",
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
@@ -344,8 +345,19 @@ func (d *nicOVN) PreStartCheck() error {
 		return nil
 	}
 
+	required := true
+	var err error
+	val, present := d.config["required"]
+	if present {
+		required, err = strconv.ParseBool(val)
+		if err != nil {
+			required = true
+		}
+
+	}
+
 	// If managed network is not available, don't try and start instance.
-	if d.network.LocalStatus() == api.NetworkStatusUnavailable {
+	if required && d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 

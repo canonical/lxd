@@ -53,6 +53,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 		"gvrp",
+		"required",
 	}
 
 	// Check that if network proeperty is set that conflicting keys are not present.
@@ -88,7 +89,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		d.config["parent"] = netConfig["parent"]
 
 		// Copy certain keys verbatim from the network's settings.
-		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp"}
+		inheritKeys := []string{"mtu", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "gvrp", "required"}
 		for _, inheritKey := range inheritKeys {
 			_, found := netConfig[inheritKey]
 			if found {
@@ -115,8 +116,19 @@ func (d *nicMACVLAN) PreStartCheck() error {
 		return nil
 	}
 
+	required := true
+	var err error
+	val, present := d.config["required"]
+	if present {
+		required, err = strconv.ParseBool(val)
+		if err != nil {
+			required = true
+		}
+
+	}
+
 	// If managed network is not available, don't try and start instance.
-	if d.network.LocalStatus() == api.NetworkStatusUnavailable {
+	if required && d.network.LocalStatus() == api.NetworkStatusUnavailable {
 		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 

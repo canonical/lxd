@@ -30,6 +30,7 @@ func (n *macvlan) Validate(config map[string]string) error {
 		"gvrp":             validate.Optional(validate.IsBool),
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
+		"required":         validate.Optional(validate.IsBool),
 	}
 
 	err := n.validate(config, rules)
