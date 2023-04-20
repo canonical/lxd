@@ -44,8 +44,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{- if .dstPath }}
-  {{ .dstPath }}/** rw,
-  {{ .dstPath }}/ rw,
+  {{ .dstPath }}/** rwkl,
+  {{ .dstPath }}/ rwkl,
 {{- end }}
 
 {{- if .snap }}
