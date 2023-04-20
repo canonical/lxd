@@ -2046,3 +2046,6 @@ This also adds the `CRIUType_VM_QEMU` value of `3` for the migration `CRIUType` 
 
 ## `auth_user`
 Add current user details to the main API endpoint.
+
+## `instances_state_total`
+This extension adds a new `total` field to `InstanceStateDisk` and `InstanceStateMemory`, both part of the instance's state API.
