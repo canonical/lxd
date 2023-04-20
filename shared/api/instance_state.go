@@ -67,6 +67,12 @@ type InstanceStateDisk struct {
 	// Disk usage in bytes
 	// Example: 502239232
 	Usage int64 `json:"usage" yaml:"usage"`
+
+	// Total size in bytes
+	// Example: 502239232
+	//
+	// API extension: instances_state_total
+	Total int64 `json:"total" yaml:"total"`
 }
 
 // InstanceStateCPU represents the cpu information section of a LXD instance's state.
@@ -93,6 +99,12 @@ type InstanceStateMemory struct {
 	// Peak memory usage in bytes
 	// Example: 73785344
 	UsagePeak int64 `json:"usage_peak" yaml:"usage_peak"`
+
+	// Total memory size in bytes
+	// Example: 12297557
+	//
+	// API extension: instances_state_total
+	Total int64 `json:"total" yaml:"total"`
 
 	// SWAP usage in bytes
 	// Example: 12297557
