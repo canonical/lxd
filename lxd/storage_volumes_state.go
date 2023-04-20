@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,7 +15,6 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/units"
 )
 
 var storagePoolVolumeTypeStateCmd = APIEndpoint{
@@ -113,10 +111,10 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Fetch the current usage.
-	var used int64
+	var usage *storagePools.VolumeUsage
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Custom volumes.
-		used, err = pool.GetCustomVolumeUsage(projectName, volumeName)
+		usage, err = pool.GetCustomVolumeUsage(projectName, volumeName)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -136,7 +134,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 
-		used, err = pool.GetInstanceUsage(inst)
+		usage, err = pool.GetInstanceUsage(inst)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -147,26 +145,13 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	state.Usage = &api.StorageVolumeStateUsage{}
 
 	// Only fill 'used' field if receiving a valid value.
-	if used >= 0 {
-		state.Usage.Used = uint64(used)
+	if usage.Used >= 0 {
+		state.Usage.Used = uint64(usage.Used)
 	}
 
-	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
-		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, volumeType, volumeName, true)
-		return err
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	total, err := units.ParseByteSizeString(dbVolume.Config["size"])
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if total >= 0 {
-		state.Usage.Total = total
+	// Only fill 'total' field if receiving a valid value.
+	if usage.Total >= 0 {
+		state.Usage.Total = usage.Total
 	}
 
 	return response.SyncResponse(true, state)
