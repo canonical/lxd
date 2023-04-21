@@ -7973,21 +7973,15 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 		return nil, fmt.Errorf("Instance is running")
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
 	// Prevent concurrent operations the instance.
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionCreate, false, false)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { op.Done(err) })
-
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
 	d.stopForkfile(false)
 
-	revert.Success()
 	return op, err
 }
 
