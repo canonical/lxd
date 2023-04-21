@@ -3126,17 +3126,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written.
 func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error {
-	drivers := DriverStatuses()
-	info := drivers[instancetype.VM].Info
-	if info.Name == "" {
-		return fmt.Errorf("Unable to ascertain QEMU version")
-	}
-
 	// Figure out what memory object layout we're going to use.
 	// Before v6.0 or if version unknown, we use the "repeated" format, otherwise we use "indexed" format.
 	qemuMemObjectFormat := "repeated"
 	qemuVer6, _ := version.NewDottedVersion("6.0")
-	qemuVer, _ := version.NewDottedVersion(info.Version)
+	qemuVer, _ := d.version()
 	if qemuVer != nil && qemuVer.Compare(qemuVer6) >= 0 {
 		qemuMemObjectFormat = "indexed"
 	}
