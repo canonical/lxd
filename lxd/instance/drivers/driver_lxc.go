@@ -3702,9 +3702,11 @@ func (d *lxc) delete(force bool) error {
 			}
 		} else {
 			// Remove all snapshots.
-			err := instance.DeleteSnapshots(d)
+			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
+				return snapInst.(*lxc).delete(true) // Internal delete function that doesn't lock.
+			})
 			if err != nil {
-				return fmt.Errorf("Failed deleting instance snapshots; %w", err)
+				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
 			}
 
 			// Remove the storage volume and database records.
