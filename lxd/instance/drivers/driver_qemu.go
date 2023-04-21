@@ -7872,6 +7872,17 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	return features, nil
 }
 
+// version returns the QEMU version.
+func (d *qemu) version() (*version.DottedVersion, error) {
+	info := DriverStatuses()[instancetype.VM].Info
+	qemuVer, err := version.NewDottedVersion(info.Version)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing QEMU version: %w", err)
+	}
+
+	return qemuVer, nil
+}
+
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
