@@ -3841,10 +3841,19 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			qemuNetDev := map[string]any{
 				"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 				"type":       "tap",
-				"vhost":      true,
+				"vhost":      false, // This is selectively enabled based on QEMU version later.
 				"script":     "no",
 				"downscript": "no",
 				"ifname":     nicName,
+			}
+
+			// vhost-net network accelerator is causing asserts since QEMU 7.2.
+			// Until previous behaviour is restored or we figure out how to pass the veth device using
+			// file descriptors we will just disable the vhost-net accelerator.
+			qemuVer, _ := d.version()
+			vhostMaxVer, _ := version.NewDottedVersion("7.2")
+			if qemuVer != nil && qemuVer.Compare(vhostMaxVer) < 0 {
+				qemuNetDev["vhost"] = true
 			}
 
 			queueCount := configureQueues(len(cpus))
