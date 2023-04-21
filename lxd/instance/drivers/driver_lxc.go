@@ -3638,6 +3638,9 @@ func (d *lxc) cleanup() {
 
 // Delete deletes the instance.
 func (d *lxc) Delete(force bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
 	if err != nil {
