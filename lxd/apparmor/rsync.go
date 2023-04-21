@@ -50,6 +50,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 {{- end }}
 
 {{- if .snap }}
+  /snap/lxd/*/bin/rsync mrix,
+
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so* mr,
 {{- end }}
