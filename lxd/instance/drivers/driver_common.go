@@ -1478,3 +1478,24 @@ func (d *common) updateBackupFileLock(ctx context.Context) locking.UnlockFunc {
 	parentName, _, _ := api.GetParentAndSnapshotName(d.Name())
 	return locking.Lock(ctx, fmt.Sprintf("instance_updatebackupfile_%s_%s", d.Project().Name, parentName))
 }
+
+// deleteSnapshots calls the deleteFunc on each of the instance's snapshots in reverse order.
+func (d *common) deleteSnapshots(deleteFunc func(snapInst instance.Instance) error) error {
+	snapInsts, err := d.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	snapInstsCount := len(snapInsts)
+
+	for k := range snapInsts {
+		// Delete the snapshots in reverse order.
+		k = snapInstsCount - 1 - k
+		err = deleteFunc(snapInsts[k])
+		if err != nil {
+			return fmt.Errorf("Failed deleting snapshot %q: %w", snapInsts[k].Name(), err)
+		}
+	}
+
+	return nil
+}
