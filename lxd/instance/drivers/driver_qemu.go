@@ -3374,11 +3374,9 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	isRBDImage := strings.HasPrefix(driveConf.DevPath, device.RBDFormatPrefix)
 
 	// Check supported features.
-	drivers := DriverStatuses()
-	info := drivers[d.Type()].Info
-
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
 	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
+	info := DriverStatuses()[instancetype.VM].Info
 	minVer, _ := version.NewDottedVersion("5.13.0")
 	_, ioUring := info.Features["io_uring"]
 	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
@@ -8150,9 +8148,7 @@ func (d *qemu) setCPUs(count int) error {
 
 func (d *qemu) architectureSupportsCPUHotplug() bool {
 	// Check supported features.
-	drivers := DriverStatuses()
-	info := drivers[d.Type()].Info
-
+	info := DriverStatuses()[instancetype.VM].Info
 	_, found := info.Features["cpu_hotplug"]
 	return found
 }
