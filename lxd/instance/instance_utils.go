@@ -458,27 +458,6 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 	return inst, nil
 }
 
-// DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
-func DeleteSnapshots(inst Instance) error {
-	snapInsts, err := inst.Snapshots()
-	if err != nil {
-		return err
-	}
-
-	snapInstsCount := len(snapInsts)
-
-	for k := range snapInsts {
-		// Delete the snapshots in reverse order.
-		k = snapInstsCount - 1 - k
-		err = snapInsts[k].Delete(true)
-		if err != nil {
-			return fmt.Errorf("Failed deleting snapshot %q, %w", snapInsts[k].Name(), err)
-		}
-	}
-
-	return nil
-}
-
 // DeviceNextInterfaceHWAddr generates a random MAC address.
 func DeviceNextInterfaceHWAddr() (string, error) {
 	// Generate a new random MAC address using the usual prefix
