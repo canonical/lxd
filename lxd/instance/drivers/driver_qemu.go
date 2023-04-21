@@ -1729,19 +1729,10 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
 	}
 
-	qemuPath, _, err := d.qemuArchConfig(d.architecture)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the QEMU features to check if AMD SEV is supported.
-	features, err := d.checkFeatures(d.architecture, qemuPath)
-	if err != nil {
-		return nil, err
-	}
-
-	_, smeFound := features["sme"]
-	sev, sevFound := features["sev"]
+	info := DriverStatuses()[instancetype.VM].Info
+	_, smeFound := info.Features["sme"]
+	sev, sevFound := info.Features["sev"]
 	if !smeFound || !sevFound {
 		return nil, errors.New("AMD SEV is not supported by the host")
 	}
@@ -1804,7 +1795,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	}
 
 	if shared.IsTrue(d.expandedConfig["security.sev.policy.es"]) {
-		_, sevES := features["sev-es"]
+		_, sevES := info.Features["sev-es"]
 		if sevES {
 			// This bit mask is used to specify a guest policy. '0x5' is for SEV-ES. The details of the available policies can be found in the link below (see chapter 3)
 			// https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf
@@ -3126,17 +3117,11 @@ func (d *qemu) generateQemuConfigFile(cpuInfo *cpuTopology, mountInfo *storagePo
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written.
 func (d *qemu) addCPUMemoryConfig(cfg *[]cfgSection, cpuInfo *cpuTopology) error {
-	drivers := DriverStatuses()
-	info := drivers[instancetype.VM].Info
-	if info.Name == "" {
-		return fmt.Errorf("Unable to ascertain QEMU version")
-	}
-
 	// Figure out what memory object layout we're going to use.
 	// Before v6.0 or if version unknown, we use the "repeated" format, otherwise we use "indexed" format.
 	qemuMemObjectFormat := "repeated"
 	qemuVer6, _ := version.NewDottedVersion("6.0")
-	qemuVer, _ := version.NewDottedVersion(info.Version)
+	qemuVer, _ := d.version()
 	if qemuVer != nil && qemuVer.Compare(qemuVer6) >= 0 {
 		qemuMemObjectFormat = "indexed"
 	}
@@ -3389,11 +3374,9 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	isRBDImage := strings.HasPrefix(driveConf.DevPath, device.RBDFormatPrefix)
 
 	// Check supported features.
-	drivers := DriverStatuses()
-	info := drivers[d.Type()].Info
-
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
 	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
+	info := DriverStatuses()[instancetype.VM].Info
 	minVer, _ := version.NewDottedVersion("5.13.0")
 	_, ioUring := info.Features["io_uring"]
 	if shared.StringInSlice(device.DiskIOUring, driveConf.Opts) && ioUring && d.state.OS.KernelVersion.Compare(minVer) >= 0 {
@@ -3847,10 +3830,19 @@ func (d *qemu) addNetDevConfig(busName string, qemuDev map[string]string, bootIn
 			qemuNetDev := map[string]any{
 				"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 				"type":       "tap",
-				"vhost":      true,
+				"vhost":      false, // This is selectively enabled based on QEMU version later.
 				"script":     "no",
 				"downscript": "no",
 				"ifname":     nicName,
+			}
+
+			// vhost-net network accelerator is causing asserts since QEMU 7.2.
+			// Until previous behaviour is restored or we figure out how to pass the veth device using
+			// file descriptors we will just disable the vhost-net accelerator.
+			qemuVer, _ := d.version()
+			vhostMaxVer, _ := version.NewDottedVersion("7.2")
+			if qemuVer != nil && qemuVer.Compare(vhostMaxVer) < 0 {
+				qemuNetDev["vhost"] = true
 			}
 
 			queueCount := configureQueues(len(cpus))
@@ -7872,6 +7864,17 @@ func (d *qemu) checkFeatures(hostArch int, qemuPath string) (map[string]any, err
 	return features, nil
 }
 
+// version returns the QEMU version.
+func (d *qemu) version() (*version.DottedVersion, error) {
+	info := DriverStatuses()[instancetype.VM].Info
+	qemuVer, err := version.NewDottedVersion(info.Version)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing QEMU version: %w", err)
+	}
+
+	return qemuVer, nil
+}
+
 func (d *qemu) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error) {
 	if !d.IsRunning() {
 		return nil, ErrInstanceIsStopped
@@ -8145,9 +8148,7 @@ func (d *qemu) setCPUs(count int) error {
 
 func (d *qemu) architectureSupportsCPUHotplug() bool {
 	// Check supported features.
-	drivers := DriverStatuses()
-	info := drivers[d.Type()].Info
-
+	info := DriverStatuses()[instancetype.VM].Info
 	_, found := info.Features["cpu_hotplug"]
 	return found
 }
