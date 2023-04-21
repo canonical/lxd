@@ -3641,6 +3641,9 @@ func (d *lxc) cleanup() {
 
 // Delete deletes the instance.
 func (d *lxc) Delete(force bool) error {
+	unlock := d.updateBackupFileLock(context.Background())
+	defer unlock()
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project().Name, d.Name(), operationlock.ActionDelete, nil, false, false)
 	if err != nil {
@@ -3653,7 +3656,29 @@ func (d *lxc) Delete(force bool) error {
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
-	return d.delete(force)
+	err = d.delete(force)
+	if err != nil {
+		return err
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if d.IsSnapshot() {
+		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid parent: %w", err)
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete deletes the instance without creating an operation lock.
@@ -3699,9 +3724,11 @@ func (d *lxc) delete(force bool) error {
 			}
 		} else {
 			// Remove all snapshots.
-			err := instance.DeleteSnapshots(d)
+			err := d.deleteSnapshots(func(snapInst instance.Instance) error {
+				return snapInst.(*lxc).delete(true) // Internal delete function that doesn't lock.
+			})
 			if err != nil {
-				return fmt.Errorf("Failed deleting instance snapshots; %w", err)
+				return fmt.Errorf("Failed deleting instance snapshots: %w", err)
 			}
 
 			// Remove the storage volume and database records.
@@ -3746,23 +3773,6 @@ func (d *lxc) delete(force bool) error {
 	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"err": err})
 		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
 	}
 
 	if d.isSnapshot {
@@ -7963,21 +7973,15 @@ func (d *lxc) LockExclusive() (*operationlock.InstanceOperation, error) {
 		return nil, fmt.Errorf("Instance is running")
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
 	// Prevent concurrent operations the instance.
 	op, err := operationlock.Create(d.Project().Name, d.Name(), operationlock.ActionCreate, false, false)
 	if err != nil {
 		return nil, err
 	}
 
-	revert.Add(func() { op.Done(err) })
-
 	// Stop forkfile as otherwise it will hold the root volume open preventing unmount.
 	d.stopForkfile(false)
 
-	revert.Success()
 	return op, err
 }
 
