@@ -1729,19 +1729,10 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 		return nil, errors.New("AMD SEV support is only available on x86_64 systems")
 	}
 
-	qemuPath, _, err := d.qemuArchConfig(d.architecture)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the QEMU features to check if AMD SEV is supported.
-	features, err := d.checkFeatures(d.architecture, qemuPath)
-	if err != nil {
-		return nil, err
-	}
-
-	_, smeFound := features["sme"]
-	sev, sevFound := features["sev"]
+	info := DriverStatuses()[instancetype.VM].Info
+	_, smeFound := info.Features["sme"]
+	sev, sevFound := info.Features["sev"]
 	if !smeFound || !sevFound {
 		return nil, errors.New("AMD SEV is not supported by the host")
 	}
@@ -1804,7 +1795,7 @@ func (d *qemu) setupSEV(fdFiles *[]*os.File) (*qemuSevOpts, error) {
 	}
 
 	if shared.IsTrue(d.expandedConfig["security.sev.policy.es"]) {
-		_, sevES := features["sev-es"]
+		_, sevES := info.Features["sev-es"]
 		if sevES {
 			// This bit mask is used to specify a guest policy. '0x5' is for SEV-ES. The details of the available policies can be found in the link below (see chapter 3)
 			// https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf
