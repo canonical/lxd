@@ -5422,7 +5422,29 @@ func (d *qemu) Delete(force bool) error {
 		return api.StatusErrorf(http.StatusBadRequest, "Instance is running")
 	}
 
-	return d.delete(force)
+	err = d.delete(force)
+	if err != nil {
+		return err
+	}
+
+	// If dealing with a snapshot, refresh the backup file on the parent.
+	if d.IsSnapshot() {
+		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
+		if err != nil {
+			return fmt.Errorf("Invalid parent: %w", err)
+		}
+
+		// Update the backup file.
+		err = parent.UpdateBackupFile()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete the instance without creating an operation lock.
@@ -5511,23 +5533,6 @@ func (d *qemu) delete(force bool) error {
 	if err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project().Name})
 		return err
-	}
-
-	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() {
-		parentName, _, _ := api.GetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		parent, err := instance.LoadByProjectAndName(d.state, d.project.Name, parentName)
-		if err != nil {
-			return fmt.Errorf("Invalid parent: %w", err)
-		}
-
-		// Update the backup file.
-		err = parent.UpdateBackupFile()
-		if err != nil {
-			return err
-		}
 	}
 
 	if d.isSnapshot {
