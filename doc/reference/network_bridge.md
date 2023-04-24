@@ -80,25 +80,25 @@ Key                                  | Type      | Condition             | Defau
 `fan.overlay_subnet`                 | string    | fan mode              | `240.0.0.0/8`             | Subnet to use as the overlay for the FAN (CIDR)
 `fan.type`                           | string    | fan mode              | `vxlan`                   | Tunneling type for the FAN: `vxlan` or `ipip`
 `fan.underlay_subnet`                | string    | fan mode              | `auto` (on create only)   | Subnet to use as the underlay for the FAN (use `auto` to use default gateway subnet) (CIDR)
-`ipv4.address`                       | string    | standard mode         | `auto` (on create only)   | IPv4 address for the bridge (use `none` to turn off IPv4 or `auto` to generate a new random unused subnet) (CIDR)
+`ipv4.address`                       | string    | standard mode         | - (initial value on creation: `auto`) | IPv4 address for the bridge (use `none` to turn off IPv4 or `auto` to generate a new random unused subnet) (CIDR)
 `ipv4.dhcp`                          | bool      | IPv4 address          | `true`                    | Whether to allocate addresses using DHCP
 `ipv4.dhcp.expiry`                   | string    | IPv4 DHCP             | `1h`                      | When to expire DHCP leases
 `ipv4.dhcp.gateway`                  | string    | IPv4 DHCP             | IPv4 address              | Address of the gateway for the subnet
 `ipv4.dhcp.ranges`                   | string    | IPv4 DHCP             | all addresses             | Comma-separated list of IP ranges to use for DHCP (FIRST-LAST format)
 `ipv4.firewall`                      | bool      | IPv4 address          | `true`                    | Whether to generate filtering firewall rules for this network
-`ipv4.nat`                           | bool      | IPv4 address          | `false`                   | Whether to NAT (if unset when creating the network, set to `true` for regular bridges when `ipv4.address` is generated and always for fan bridges)
+`ipv4.nat`                           | bool      | IPv4 address          | `false` (initial value on creation if `ipv4.address` is set to `auto`: `true`) | Whether to NAT
 `ipv4.nat.address`                   | string    | IPv4 address          | -                         | The source address used for outbound traffic from the bridge
 `ipv4.nat.order`                     | string    | IPv4 address          | `before`                  | Whether to add the required NAT rules before or after any pre-existing rules
 `ipv4.ovn.ranges`                    | string    | -                     | -                         | Comma-separated list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
 `ipv4.routes`                        | string    | IPv4 address          | -                         | Comma-separated list of additional IPv4 CIDR subnets to route to the bridge
 `ipv4.routing`                       | bool      | IPv4 address          | `true`                    | Whether to route traffic in and out of the bridge
-`ipv6.address`                       | string    | standard mode         | `auto` (on create only)   | IPv6 address for the bridge (use `none` to turn off IPv6 or `auto` to generate a new random unused subnet) (CIDR)
+`ipv6.address`                       | string    | standard mode         | - (initial value on creation: `auto`) | IPv6 address for the bridge (use `none` to turn off IPv6 or `auto` to generate a new random unused subnet) (CIDR)
 `ipv6.dhcp`                          | bool      | IPv6 address          | `true`                    | Whether to provide additional network configuration over DHCP
 `ipv6.dhcp.expiry`                   | string    | IPv6 DHCP             | `1h`                      | When to expire DHCP leases
 `ipv6.dhcp.ranges`                   | string    | IPv6 stateful DHCP    | all addresses             | Comma-separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
 `ipv6.dhcp.stateful`                 | bool      | IPv6 DHCP             | `false`                   | Whether to allocate addresses using DHCP
 `ipv6.firewall`                      | bool      | IPv6 address          | `true`                    | Whether to generate filtering firewall rules for this network
-`ipv6.nat`                           | bool      | IPv6 address          | `false`                   | Whether to NAT (if unset when creating the network, set to `true` when `ipv6.address` is generated)
+`ipv6.nat`                           | bool      | IPv6 address          | `false` (initial value on creation if `ipv6.address` is set to `auto`: `true`) | Whether to NAT
 `ipv6.nat.address`                   | string    | IPv6 address          | -                         | The source address used for outbound traffic from the bridge
 `ipv6.nat.order`                     | string    | IPv6 address          | `before`                  | Whether to add the required NAT rules before or after any pre-existing rules
 `ipv6.ovn.ranges`                    | string    | -                     | -                         | Comma-separated list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
