@@ -51,6 +51,7 @@ jobs:
             libtool \
             libudev-dev \
             libuv1-dev \
+            libdbus-1-dev \
             lxc \
             make \
             pkg-config \
@@ -78,6 +79,7 @@ jobs:
 
       - name: Run static analysis
         run: |
+          make
           make static-analysis
 
   client:
