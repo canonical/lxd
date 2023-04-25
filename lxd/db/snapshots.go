@@ -63,7 +63,7 @@ func (c *ClusterTx) GetLocalExpiredInstanceSnapshots(ctx context.Context) ([]clu
 			return nil
 		}
 
-		if time.Now().Unix()-expiry.Time.Unix() < 0 {
+		if time.Now().Before(expiry.Time) {
 			return nil
 		}
 
