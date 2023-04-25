@@ -5,6 +5,9 @@ discourse: 8355
 (devices-proxy)=
 # Type: `proxy`
 
+```{youtube} https://www.youtube.com/watch?v=IbAKwRBW8V0
+```
+
 ```{note}
 The `proxy` device type is supported for both containers (NAT and non-NAT modes) and VMs (NAT mode only).
 It supports hotplugging for both containers and VMs.
@@ -12,6 +15,9 @@ It supports hotplugging for both containers and VMs.
 
 Proxy devices allow forwarding network connections between host and instance.
 This method makes it possible to forward traffic hitting one of the host's addresses to an address inside the instance, or to do the reverse and have an address in the instance connect through the host.
+
+In {ref}`devices-proxy-nat-mode`, a proxy device can be used for TCP and UDP proxying.
+In non-NAT mode, you can also proxy traffic between Unix sockets (which can be useful to, for example, forward graphical GUI or audio traffic from the container to the host system) or even across protocols (for example, you can have a TCP listener on the host system and forward its traffic to a Unix socket inside a container).
 
 The supported connection types are:
 
@@ -29,10 +35,13 @@ To add a `proxy` device, use the following command:
 
     lxc config device add <instance_name> <device_name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance_name>
 
+(devices-proxy-nat-mode)=
 ## NAT mode
 
 The proxy device also supports a NAT mode (`nat=true`), where packets are forwarded using NAT rather than being proxied through a separate connection.
 This mode has the benefit that the client address is maintained without the need for the target destination to support the HAProxy PROXY protocol (which is the only way to pass the client address through when using the proxy device in non-NAT mode).
+
+However, NAT mode is supported only if the host that the instance is running on is the gateway (which is the case if you're using `lxdbr0`, for example).
 
 In NAT mode, the supported connection types are:
 
