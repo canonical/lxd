@@ -1,3 +1,7 @@
+---
+discourse: 16635
+---
+
 (move-instances)=
 # How to move existing LXD instances between servers
 
