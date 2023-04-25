@@ -222,4 +222,5 @@ If you need more storage, you can increase the size of your storage pool by chan
 
     lxc storage set <pool_name> size=<new_size>
 
-This will only work for loop file backed storage pools which are managed by LXD.
+This will only work for loop-backed storage pools that are managed by LXD.
+You can only grow the pool (increase its size), not shrink it.
