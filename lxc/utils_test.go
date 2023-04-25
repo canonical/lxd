@@ -40,6 +40,34 @@ func (s *utilsTestSuite) Test_stringList_empty_strings() {
 	s.Equal([][]string{{"foo", "baz"}, {"", "bar"}}, data)
 }
 
+func (s *utilsTestSuite) TestIsAliasesSubsetTrue() {
+	a1 := []api.ImageAlias{
+		{Name: "foo"},
+	}
+
+	a2 := []api.ImageAlias{
+		{Name: "foo"},
+		{Name: "bar"},
+		{Name: "baz"},
+	}
+
+	s.Exactly(IsAliasesSubset(a1, a2), true)
+}
+
+func (s *utilsTestSuite) TestIsAliasesSubsetFalse() {
+	a1 := []api.ImageAlias{
+		{Name: "foo"},
+		{Name: "bar"},
+	}
+
+	a2 := []api.ImageAlias{
+		{Name: "foo"},
+		{Name: "baz"},
+	}
+
+	s.Exactly(IsAliasesSubset(a1, a2), false)
+}
+
 func (s *utilsTestSuite) TestGetExistingAliases() {
 	images := []api.ImageAliasesEntry{
 		{Name: "foo"},
