@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-04-13 23:31-0400\n"
+"POT-Creation-Date: 2023-04-25 18:53+0200\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -851,6 +851,11 @@ msgstr ""
 msgid "Alias name missing"
 msgstr ""
 
+#: lxc/publish.go:237
+#, fuzzy, c-format
+msgid "Aliases already exists: %s"
+msgstr "El dispostivo ya existe: %s"
+
 #: lxc/image.go:975
 msgid "Aliases:"
 msgstr "Aliases:"
@@ -989,7 +994,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:180
 #: lxc/storage.go:131 lxc/storage_volume.go:569
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1099,7 +1104,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "No se puede jalar un directorio sin - recursivo"
 
-#: lxc/utils.go:170 lxc/utils.go:190
+#: lxc/utils.go:213 lxc/utils.go:233
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "No se peude leer desde stdin: %s"
@@ -1301,7 +1306,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
@@ -1812,7 +1817,7 @@ msgstr ""
 #: lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94
 #: lxc/project.go:159 lxc/project.go:222 lxc/project.go:344 lxc/project.go:394
 #: lxc/project.go:507 lxc/project.go:562 lxc/project.go:622 lxc/project.go:651
-#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:32 lxc/query.go:34
+#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:33 lxc/query.go:34
 #: lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:629 lxc/remote.go:665
 #: lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880 lxc/remote.go:918
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
@@ -2128,6 +2133,11 @@ msgstr ""
 msgid "Ephemeral instance"
 msgstr ""
 
+#: lxc/publish.go:234
+#, c-format
+msgid "Error retrieving aliases: %w"
+msgstr ""
+
 #: lxc/config_template.go:206
 #, c-format
 msgid "Error updating template file: %s"
@@ -2247,12 +2257,12 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:227
+#: lxc/utils.go:270
 #, fuzzy, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "Nombre del Miembro del Cluster"
 
-#: lxc/utils.go:219
+#: lxc/utils.go:262
 #, fuzzy, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Nombre del Miembro del Cluster"
@@ -2326,7 +2336,7 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:145
+#: lxc/utils.go:188
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Acepta certificado"
@@ -2356,7 +2366,7 @@ msgstr "Acepta certificado"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "Perfil para aplicar al nuevo contenedor"
 
-#: lxc/utils.go:134
+#: lxc/utils.go:177
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Acepta certificado"
@@ -2668,6 +2678,10 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
+#: lxc/publish.go:42
+msgid "If the image alias already exists, delete and create a new one"
+msgstr ""
+
 #: lxc/snapshot.go:40 lxc/storage_volume.go:1936
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
@@ -2702,7 +2716,7 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Image expiration date (format: rfc3339)"
 msgstr ""
 
@@ -2792,7 +2806,7 @@ msgstr ""
 msgid "Instance disconnected for client %q"
 msgstr ""
 
-#: lxc/publish.go:78
+#: lxc/publish.go:80
 #, fuzzy
 msgid "Instance name is mandatory"
 msgstr "Nombre del contenedor es obligatorio"
@@ -2806,7 +2820,7 @@ msgstr "Nombre del contenedor es: %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
-#: lxc/publish.go:293
+#: lxc/publish.go:324
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Contenedor publicado con huella digital: %s"
@@ -2859,7 +2873,7 @@ msgstr "Nombre del contenedor es: %s"
 msgid "Invalid instance path: %q"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/utils.go:184
+#: lxc/utils.go:227
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "Nombre del contenedor es: %s"
@@ -3375,7 +3389,7 @@ msgstr ""
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:36
+#: lxc/publish.go:37
 msgid "Make the image public"
 msgstr ""
 
@@ -3536,8 +3550,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -4047,7 +4061,7 @@ msgstr "Perfil %s creado"
 msgid "Network zone record %s deleted"
 msgstr "Perfil %s eliminado"
 
-#: lxc/publish.go:37
+#: lxc/publish.go:38
 msgid "New alias to define at target"
 msgstr ""
 
@@ -4395,11 +4409,11 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Público: %s"
 
-#: lxc/publish.go:31 lxc/publish.go:32
+#: lxc/publish.go:32 lxc/publish.go:33
 msgid "Publish instances as images"
 msgstr ""
 
-#: lxc/publish.go:237
+#: lxc/publish.go:268
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -5288,11 +5302,11 @@ msgstr ""
 msgid "Stop instances"
 msgstr ""
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:140
+#: lxc/publish.go:142
 msgid "Stopping instance failed!"
 msgstr ""
 
@@ -5465,7 +5479,7 @@ msgstr ""
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:109
+#: lxc/publish.go:111
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -5511,7 +5525,7 @@ msgstr ""
 msgid "The specified device doesn't match the network"
 msgstr ""
 
-#: lxc/publish.go:82
+#: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -6233,7 +6247,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/publish.go:30
+#: lxc/publish.go:31
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -7001,8 +7015,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-04-13 23:31-0400\n"
+"POT-Creation-Date: 2023-04-25 18:53+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -877,6 +877,11 @@ msgstr "le serveur distant %s n'existe pas"
 msgid "Alias name missing"
 msgstr ""
 
+#: lxc/publish.go:237
+#, fuzzy, c-format
+msgid "Aliases already exists: %s"
+msgstr "le serveur distant %s existe déjà"
+
 #: lxc/image.go:975
 msgid "Aliases:"
 msgstr "Alias :"
@@ -1022,7 +1027,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:180
 #: lxc/storage.go:131 lxc/storage_volume.go:569
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1133,7 +1138,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
-#: lxc/utils.go:170 lxc/utils.go:190
+#: lxc/utils.go:213 lxc/utils.go:233
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Impossible de lire depuis stdin : %s"
@@ -1343,7 +1348,7 @@ msgstr ""
 "commandes ci-dessous.\n"
 "Pour de l'aide avec l'une des commandes, simplement les utiliser avec --help."
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 #, fuzzy
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
@@ -1899,7 +1904,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94
 #: lxc/project.go:159 lxc/project.go:222 lxc/project.go:344 lxc/project.go:394
 #: lxc/project.go:507 lxc/project.go:562 lxc/project.go:622 lxc/project.go:651
-#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:32 lxc/query.go:34
+#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:33 lxc/query.go:34
 #: lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:629 lxc/remote.go:665
 #: lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880 lxc/remote.go:918
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
@@ -2229,6 +2234,11 @@ msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 msgid "Ephemeral instance"
 msgstr "Conteneur éphémère"
 
+#: lxc/publish.go:234
+#, fuzzy, c-format
+msgid "Error retrieving aliases: %w"
+msgstr "Récupération de l'image : %s"
+
 #: lxc/config_template.go:206
 #, c-format
 msgid "Error updating template file: %s"
@@ -2368,12 +2378,12 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/utils.go:227
+#: lxc/utils.go:270
 #, fuzzy, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/utils.go:219
+#: lxc/utils.go:262
 #, fuzzy, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2448,7 +2458,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create %q: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/utils.go:145
+#: lxc/utils.go:188
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2478,7 +2488,7 @@ msgstr "Échec lors de la génération de 'lxc.1': %v"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/utils.go:134
+#: lxc/utils.go:177
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2801,6 +2811,10 @@ msgstr "IPv6"
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
+#: lxc/publish.go:42
+msgid "If the image alias already exists, delete and create a new one"
+msgstr ""
+
 #: lxc/snapshot.go:40 lxc/storage_volume.go:1936
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
@@ -2839,7 +2853,7 @@ msgstr ""
 msgid "Image copied successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Image expiration date (format: rfc3339)"
 msgstr ""
 
@@ -2935,7 +2949,7 @@ msgstr "Mot de passe de l'administrateur distant"
 msgid "Instance disconnected for client %q"
 msgstr ""
 
-#: lxc/publish.go:78
+#: lxc/publish.go:80
 #, fuzzy
 msgid "Instance name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
@@ -2949,7 +2963,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
-#: lxc/publish.go:293
+#: lxc/publish.go:324
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -3002,7 +3016,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Invalid instance path: %q"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/utils.go:184
+#: lxc/utils.go:227
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "Clé de configuration invalide"
@@ -3585,7 +3599,7 @@ msgstr ""
 msgid "Make image public"
 msgstr "Rendre l'image publique"
 
-#: lxc/publish.go:36
+#: lxc/publish.go:37
 msgid "Make the image public"
 msgstr "Rendre l'image publique"
 
@@ -3763,8 +3777,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:33 lxc/remote.go:34
@@ -4291,7 +4305,7 @@ msgstr "Le réseau %s a été créé"
 msgid "Network zone record %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/publish.go:37
+#: lxc/publish.go:38
 msgid "New alias to define at target"
 msgstr "Nouvel alias à définir sur la cible"
 
@@ -4659,12 +4673,12 @@ msgstr "Serveur d'images public"
 msgid "Public: %s"
 msgstr "Public : %s"
 
-#: lxc/publish.go:31 lxc/publish.go:32
+#: lxc/publish.go:32 lxc/publish.go:33
 #, fuzzy
 msgid "Publish instances as images"
 msgstr "Création du conteneur"
 
-#: lxc/publish.go:237
+#: lxc/publish.go:268
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -5623,12 +5637,12 @@ msgstr "État : %s"
 msgid "Stop instances"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 #, fuzzy
 msgid "Stop the instance if currently running"
 msgstr "Arrêter le conteneur s'il est en cours d'exécution"
 
-#: lxc/publish.go:140
+#: lxc/publish.go:142
 #, fuzzy
 msgid "Stopping instance failed!"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -5809,7 +5823,7 @@ msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 "Le conteneur est en cours d'exécution, l'arrêter d'abord ou ajouter --force."
 
-#: lxc/publish.go:109
+#: lxc/publish.go:111
 #, fuzzy
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
@@ -5861,7 +5875,7 @@ msgstr "Le périphérique indiqué n'existe pas"
 msgid "The specified device doesn't match the network"
 msgstr "le périphérique indiqué ne correspond pas au réseau"
 
-#: lxc/publish.go:82
+#: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr "Il n'existe pas d'\"image\".  Vouliez-vous un alias ?"
 
@@ -6845,7 +6859,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/publish.go:30
+#: lxc/publish.go:31
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr ""
@@ -7954,8 +7968,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:453
