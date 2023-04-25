@@ -53,16 +53,16 @@ Key                                  | Type      | Condition             | Defau
 `dns.zone.forward`                   | string    | -                     | -                         | Comma-separated list of DNS zone names for forward DNS records
 `dns.zone.reverse.ipv4`              | string    | -                     | -                         | DNS zone name for IPv4 reverse DNS records
 `dns.zone.reverse.ipv6`              | string    | -                     | -                         | DNS zone name for IPv6 reverse DNS records
-`ipv4.address`                       | string    | standard mode         | `auto` (on create only)   | IPv4 address for the bridge (use `none` to turn off IPv4 or `auto` to generate a new random unused subnet) (CIDR)
+`ipv4.address`                       | string    | standard mode         | - (initial value on creation: `auto`) | IPv4 address for the bridge (use `none` to turn off IPv4 or `auto` to generate a new random unused subnet) (CIDR)
 `ipv4.dhcp`                          | bool      | IPv4 address          | `true`                    | Whether to allocate addresses using DHCP
 `ipv4.l3only`                        | bool      | IPv4 address          | `false`                   | Whether to enable layer 3 only mode.
-`ipv4.nat`                           | bool      | IPv4 address          | `false`                   | Whether to NAT (defaults to `true` if unset and a random `ipv4.address` is generated)
+`ipv4.nat`                           | bool      | IPv4 address          | `false` (initial value on creation if `ipv4.address` is set to `auto`: `true`) | Whether to NAT
 `ipv4.nat.address`                   | string    | IPv4 address          | -                         | The source address used for outbound traffic from the network (requires uplink `ovn.ingress_mode=routed`)
-`ipv6.address`                       | string    | standard mode         | `auto` (on create only)   | IPv6 address for the bridge (use `none` to turn off IPv6 or `auto` to generate a new random unused subnet) (CIDR)
+`ipv6.address`                       | string    | standard mode         | - (initial value on creation: `auto`) | IPv6 address for the bridge (use `none` to turn off IPv6 or `auto` to generate a new random unused subnet) (CIDR)
 `ipv6.dhcp`                          | bool      | IPv6 address          | `true`                    | Whether to provide additional network configuration over DHCP
 `ipv6.dhcp.stateful`                 | bool      | IPv6 DHCP             | `false`                   | Whether to allocate addresses using DHCP
 `ipv6.l3only`                        | bool      | IPv6 DHCP stateful    | `false`                   | Whether to enable layer 3 only mode.
-`ipv6.nat`                           | bool      | IPv6 address          | `false`                   | Whether to NAT (defaults to `true` if unset and a random `ipv6.address` is generated)
+`ipv6.nat`                           | bool      | IPv6 address          | `false` (initial value on creation if `ipv6.address` is set to `auto`: `true`) | Whether to NAT
 `ipv6.nat.address`                   | string    | IPv6 address          | -                         | The source address used for outbound traffic from the network (requires uplink `ovn.ingress_mode=routed`)
 `security.acls`                      | string    | -                     | -                         | Comma-separated list of Network ACLs to apply to NICs connected to this network
 `security.acls.default.egress.action`| string    | `security.acls`       | `reject`                  | Action to use for egress traffic that doesn't match any ACL rule
