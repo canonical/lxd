@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2023-04-13 23:31-0400\n"
+"POT-Creation-Date: 2023-04-25 18:53+0200\n"
 "PO-Revision-Date: 2023-03-10 15:14+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -851,6 +851,11 @@ msgstr "エイリアス %s は存在しません"
 msgid "Alias name missing"
 msgstr "エイリアスを指定してください"
 
+#: lxc/publish.go:237
+#, fuzzy, c-format
+msgid "Aliases already exists: %s"
+msgstr "エイリアス %s は既に存在します"
+
 #: lxc/image.go:975
 msgid "Aliases:"
 msgstr "エイリアス:"
@@ -994,7 +999,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:215 lxc/project.go:129 lxc/publish.go:180
 #: lxc/storage.go:131 lxc/storage_volume.go:569
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -1103,7 +1108,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:170 lxc/utils.go:190
+#: lxc/utils.go:213 lxc/utils.go:233
 #, c-format
 msgid "Can't read from stdin: %w"
 msgstr "標準入力から読み込めません: %w"
@@ -1313,7 +1318,7 @@ msgstr ""
 "LXD の機能のすべてが、以下の色々なコマンドから操作できます。\n"
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr "圧縮アルゴリズムを指定します: (圧縮しない場合は `none`)"
 
@@ -1827,7 +1832,7 @@ msgstr "警告を削除します"
 #: lxc/profile.go:835 lxc/profile.go:889 lxc/project.go:30 lxc/project.go:94
 #: lxc/project.go:159 lxc/project.go:222 lxc/project.go:344 lxc/project.go:394
 #: lxc/project.go:507 lxc/project.go:562 lxc/project.go:622 lxc/project.go:651
-#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:32 lxc/query.go:34
+#: lxc/project.go:704 lxc/project.go:763 lxc/publish.go:33 lxc/query.go:34
 #: lxc/remote.go:34 lxc/remote.go:89 lxc/remote.go:629 lxc/remote.go:665
 #: lxc/remote.go:753 lxc/remote.go:825 lxc/remote.go:880 lxc/remote.go:918
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34
@@ -2151,6 +2156,11 @@ msgstr "環境変数を設定します (例: HOME=/home/foo)"
 msgid "Ephemeral instance"
 msgstr "Ephemeral インスタンス"
 
+#: lxc/publish.go:234
+#, fuzzy, c-format
+msgid "Error retrieving aliases: %w"
+msgstr "イメージの取得中: %s"
+
 #: lxc/config_template.go:206
 #, c-format
 msgid "Error updating template file: %s"
@@ -2281,12 +2291,12 @@ msgstr "クライアント %q との SSH ハンドシェイクに失敗しまし
 msgid "Failed accepting channel client %q: %v"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
 
-#: lxc/utils.go:227
+#: lxc/utils.go:270
 #, c-format
 msgid "Failed checking instance exists \"%s:%s\": %w"
 msgstr "インスタンスの存在確認に失敗しました \"%s:%s\": %w"
 
-#: lxc/utils.go:219
+#: lxc/utils.go:262
 #, c-format
 msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
 msgstr "インスタンスのスナップショットの存在確認に失敗しました \"%s:%s\": %w"
@@ -2360,7 +2370,7 @@ msgstr "クラスタメンバへの接続に失敗しました: %w"
 msgid "Failed to create %q: %w"
 msgstr "%q の作成に失敗しました: %w"
 
-#: lxc/utils.go:145
+#: lxc/utils.go:188
 #, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "エイリアス %s の作成に失敗しました: %w"
@@ -2389,7 +2399,7 @@ msgstr "コネクションのリッスンに失敗しました: %w"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "コピー先のインスタンス '%s' のリフレッシュに失敗しました: %v"
 
-#: lxc/utils.go:134
+#: lxc/utils.go:177
 #, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました: %w"
@@ -2705,6 +2715,13 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
+#: lxc/publish.go:42
+#, fuzzy
+msgid "If the image alias already exists, delete and create a new one"
+msgstr ""
+"存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
+"いスナップショットを作成します"
+
 #: lxc/snapshot.go:40 lxc/storage_volume.go:1936
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
@@ -2741,7 +2758,7 @@ msgstr "イメージは更新済みです。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Image expiration date (format: rfc3339)"
 msgstr "イメージの失効日（フォーマット: rfc3339）"
 
@@ -2836,7 +2853,7 @@ msgstr "インスタンスが切断されました"
 msgid "Instance disconnected for client %q"
 msgstr "クライアント %q に対するインスタンスが切断されました"
 
-#: lxc/publish.go:78
+#: lxc/publish.go:80
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
@@ -2849,7 +2866,7 @@ msgstr "インスタンス名: %s"
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr "SSH SFTP リスナーモードではインスタンスのパスを使用できません"
 
-#: lxc/publish.go:293
+#: lxc/publish.go:324
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "インスタンスは以下のフィンガープリントで publish されます: %s"
@@ -2903,7 +2920,7 @@ msgstr "不正なインスタンス名: %s"
 msgid "Invalid instance path: %q"
 msgstr "不正なインスタンスのパス: %q"
 
-#: lxc/utils.go:184
+#: lxc/utils.go:227
 #, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "不適切な キー=値 の設定: %s"
@@ -3552,7 +3569,7 @@ msgstr "MTU: %d"
 msgid "Make image public"
 msgstr "イメージを public にする"
 
-#: lxc/publish.go:36
+#: lxc/publish.go:37
 msgid "Make the image public"
 msgstr "イメージを public にする"
 
@@ -3716,8 +3733,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -4234,7 +4251,7 @@ msgstr "ネットワークゾーンレコード %s を作成しました"
 msgid "Network zone record %s deleted"
 msgstr "ネットワークゾーンレコード %s を削除しました"
 
-#: lxc/publish.go:37
+#: lxc/publish.go:38
 msgid "New alias to define at target"
 msgstr "新しいエイリアスを定義する"
 
@@ -4580,11 +4597,11 @@ msgstr "Public なイメージサーバとして設定します"
 msgid "Public: %s"
 msgstr "パブリック: %s"
 
-#: lxc/publish.go:31 lxc/publish.go:32
+#: lxc/publish.go:32 lxc/publish.go:33
 msgid "Publish instances as images"
 msgstr "インスタンスをイメージとして出力します"
 
-#: lxc/publish.go:237
+#: lxc/publish.go:268
 #, c-format
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
@@ -5508,11 +5525,11 @@ msgstr "状態: %s"
 msgid "Stop instances"
 msgstr "インスタンスを停止します"
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Stop the instance if currently running"
 msgstr "実行中の場合、インスタンスを停止します"
 
-#: lxc/publish.go:140
+#: lxc/publish.go:142
 msgid "Stopping instance failed!"
 msgstr "インスタンスの停止に失敗しました！"
 
@@ -5683,7 +5700,7 @@ msgstr "direction 引数は次のいずれかでなければなりません: ing
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
-#: lxc/publish.go:109
+#: lxc/publish.go:111
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -5734,7 +5751,7 @@ msgstr "指定したデバイスが存在しません"
 msgid "The specified device doesn't match the network"
 msgstr "指定したデバイスはネットワークとマッチしません"
 
-#: lxc/publish.go:82
+#: lxc/publish.go:84
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 "publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
@@ -6420,7 +6437,7 @@ msgstr "[<remote>:]<instance>[/<path>] [<target path>]"
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 msgstr "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 
-#: lxc/publish.go:30
+#: lxc/publish.go:31
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
@@ -7260,8 +7277,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -8977,8 +8994,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
