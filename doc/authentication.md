@@ -12,6 +12,7 @@ To be able to access the remote API, clients must authenticate with the LXD serv
 The following authentication methods are supported:
 
 - {ref}`authentication-tls-certs`
+- {ref}`authentication-openid`
 - {ref}`authentication-candid`
 - {ref}`authentication-rbac`
 
@@ -134,6 +135,23 @@ If the server certificate isn't signed by the CA, the connection will simply go 
 If the server certificate is valid and signed by the CA, then the connection continues without prompting the user for the certificate.
 
 Note that the generated certificates are not automatically trusted. You must still add them to the server in one of the ways described in {ref}`authentication-trusted-clients`.
+
+(authentication-openid)=
+## OpenID Connect authentication
+
+LXD supports using [OpenID Connect](https://openid.net/connect/) to authenticate users through an {abbr}`OIDC (OpenID Connect)` Identity Provider.
+
+```{note}
+OpenID Connect authentication is currently under development.
+Starting with LXD 5.13, authentication through OpenID Connect is supported, but there is no user role handling in place so far.
+Any user that authenticates through the configured OIDC Identity Provider gets full access to LXD.
+```
+
+To configure LXD to use OIDC authentication, set the [`oidc.*`](server-options-oidc) server configuration options.
+
+To add a remote pointing to a LXD server configured with OIDC authentication, run `lxc remote add <remote_name> <remote_address>`.
+You are then prompted to authenticate through your web browser, where you must confirm the device code that LXD uses.
+The LXD client then retrieves and stores the access and refresh tokens and provides those to LXD for all interactions.
 
 (authentication-candid)=
 ## Candid-based authentication
