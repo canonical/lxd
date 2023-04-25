@@ -549,29 +549,27 @@ func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 			instances = append(instances, inst)
 		}
 
-		if len(instances) == 0 {
-			return
+		if len(instances) > 0 {
+			opRun := func(op *operations.Operation) error {
+				return autoCreateInstanceSnapshots(ctx, d, instances)
+			}
+
+			op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
+			if err != nil {
+				logger.Error("Failed to start create snapshot operation", logger.Ctx{"err": err})
+				return
+			}
+
+			logger.Info("Creating scheduled instance snapshots")
+
+			err = op.Start()
+			if err != nil {
+				logger.Error("Failed creating scheduled instance snapshots", logger.Ctx{"err": err})
+			}
+
+			_, _ = op.Wait(ctx)
+			logger.Info("Done creating scheduled instance snapshots")
 		}
-
-		opRun := func(op *operations.Operation) error {
-			return autoCreateInstanceSnapshots(ctx, d, instances)
-		}
-
-		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.SnapshotCreate, nil, nil, opRun, nil, nil, nil)
-		if err != nil {
-			logger.Error("Failed to start create snapshot operation", logger.Ctx{"err": err})
-			return
-		}
-
-		logger.Info("Creating scheduled instance snapshots")
-
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed creating scheduled instance snapshots", logger.Ctx{"err": err})
-		}
-
-		_, _ = op.Wait(ctx)
-		logger.Info("Done creating scheduled instance snapshots")
 
 		// Once the new instance snapshots have been created, prune the expired ones.
 		var expiredSnapshotInstances []instance.Instance
@@ -644,30 +642,27 @@ func autoCreateAndPruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.
 			return
 		}
 
-		// Skip if no expired snapshots.
-		if len(expiredSnapshotInstances) == 0 {
-			return
+		if len(expiredSnapshotInstances) > 0 {
+			opRun := func(op *operations.Operation) error {
+				return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshotInstances)
+			}
+
+			op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
+			if err != nil {
+				logger.Error("Failed to start expired instance snapshots operation", logger.Ctx{"err": err})
+				return
+			}
+
+			logger.Info("Pruning expired instance snapshots")
+
+			err = op.Start()
+			if err != nil {
+				logger.Error("Failed to remove expired instance snapshots", logger.Ctx{"err": err})
+			}
+
+			_, _ = op.Wait(ctx)
+			logger.Info("Done pruning expired instance snapshots")
 		}
-
-		opRun = func(op *operations.Operation) error {
-			return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshotInstances)
-		}
-
-		op, err = operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.SnapshotsExpire, nil, nil, opRun, nil, nil, nil)
-		if err != nil {
-			logger.Error("Failed to start expired instance snapshots operation", logger.Ctx{"err": err})
-			return
-		}
-
-		logger.Info("Pruning expired instance snapshots")
-
-		err = op.Start()
-		if err != nil {
-			logger.Error("Failed to remove expired instance snapshots", logger.Ctx{"err": err})
-		}
-
-		_, _ = op.Wait(ctx)
-		logger.Info("Done pruning expired instance snapshots")
 	}
 
 	first := true
