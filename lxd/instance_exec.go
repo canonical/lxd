@@ -29,9 +29,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/tcp"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 const execWSControl = -1
@@ -407,17 +407,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			var readDone, writeDone chan bool
-
+			var readDone, writeDone chan struct{}
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
-				// need special signal handling provided by netutils.WebsocketExecMirror.
-				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], waitAttachedChildIsDead.Done(), int(ptys[0].Fd()))
+				// need to use the same PTY handle for both read and write.
+				readDone, writeDone = ws.Mirror(context.Background(), conn, ptys[0])
 			} else {
-				// For VMs we are just relaying the websockets between client and lxd-agent, so no
-				// need for the special signal handling provided by netutils.WebsocketExecMirror.
-				readDone = shared.WebsocketSendStream(conn, ptys[execWSStdout], -1)
-				writeDone = shared.WebsocketRecvStream(ttys[execWSStdin], conn)
+				readDone = ws.MirrorRead(context.Background(), conn, ptys[execWSStdout])
+				writeDone = ws.MirrorWrite(context.Background(), conn, ttys[execWSStdin])
 			}
 
 			<-readDone
@@ -459,10 +456,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if i == execWSStdin {
-					<-shared.WebsocketRecvStream(ttys[i], conn)
+					<-ws.MirrorWrite(context.Background(), conn, ttys[i])
 					_ = ttys[i].Close()
 				} else {
-					<-shared.WebsocketSendStream(conn, ptys[i], -1)
+					<-ws.MirrorRead(context.Background(), conn, ptys[i])
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
