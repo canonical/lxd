@@ -24,7 +24,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/netutils"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 const execWSControl = -1
@@ -469,7 +469,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			readDone, writeDone := ws.Mirror(context.Background(), conn, ptys[0])
 
 			<-readDone
 			<-writeDone
@@ -487,14 +487,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
-					<-shared.WebsocketRecvStream(ttys[i], conn)
+					<-ws.MirrorWrite(context.Background(), conn, ttys[i])
 					_ = ttys[i].Close()
 				} else {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
-					<-shared.WebsocketSendStream(conn, ptys[i], -1)
+					<-ws.MirrorRead(context.Background(), conn, ptys[i])
 					_ = ptys[i].Close()
 					wgEOF.Done()
 				}
