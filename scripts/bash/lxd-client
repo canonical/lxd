@@ -87,6 +87,7 @@ _have lxc && {
       images.compression_algorithm images.remote_cache_expiry \
       maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
       network.ovn.integration_bridge network.ovn.northbound_connection \
+      oidc.client.id oidc.issuer oidc.audience \
       rbac.agent.url rbac.agent.username rbac.agent.public_key \
       rbac.agent.private_key rbac.api.expiry rbac.api.key rbac.api.url \
       storage.backups_volume storage.images_volume"
