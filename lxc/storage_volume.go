@@ -374,6 +374,10 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("No storage pool for source volume specified"))
 	}
 
+	if c.storage.flagTarget != "" {
+		srcServer = srcServer.UseTarget(c.storage.flagTarget)
+	}
+
 	// Check if requested storage volume exists.
 	srcVolParentName, srcVolSnapName, srcIsSnapshot := api.GetParentAndSnapshotName(srcVolName)
 	srcVol, _, err := srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolParentName)
