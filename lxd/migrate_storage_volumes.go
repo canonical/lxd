@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -269,7 +270,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	}
 
 	// The function that will be executed to receive the sender's migration data.
-	var myTarget func(conn *shared.WebsocketIO, op *operations.Operation, args migrationSinkArgs) error
+	var myTarget func(conn io.ReadWriteCloser, op *operations.Operation, args migrationSinkArgs) error
 
 	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
@@ -316,7 +317,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 
 	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 	// with the new storage layer.
-	myTarget = func(conn *shared.WebsocketIO, op *operations.Operation, args migrationSinkArgs) error {
+	myTarget = func(conn io.ReadWriteCloser, op *operations.Operation, args migrationSinkArgs) error {
 		volTargetArgs := migration.VolumeTargetArgs{
 			IndexHeaderVersion: respHeader.GetIndexHeaderVersion(),
 			Name:               req.Name,
