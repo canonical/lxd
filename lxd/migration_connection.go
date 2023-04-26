@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/tcp"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // setupWebsocketDialer uses a certificate to parse and configure a websocket.Dialer.
@@ -150,14 +152,14 @@ func (c *migrationConn) WebSocket(ctx context.Context) (*websocket.Conn, error) 
 	}
 }
 
-// WebsocketIO calles WebSocket and returns the connection wrapped in a shared.WebsocketIO.
-func (c *migrationConn) WebsocketIO(ctx context.Context) (*shared.WebsocketIO, error) {
+// WebsocketIO calls WebSocket and returns it wrapped for io.ReadWriteCloser compatibility.
+func (c *migrationConn) WebsocketIO(ctx context.Context) (io.ReadWriteCloser, error) {
 	wsConn, err := c.WebSocket(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &shared.WebsocketIO{Conn: wsConn}, nil
+	return ws.NewWrapper(wsConn), nil
 }
 
 // Close closes the connection (if established) and marks it as disconnected so that it cannot be used again.
