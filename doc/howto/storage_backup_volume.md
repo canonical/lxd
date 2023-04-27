@@ -107,10 +107,10 @@ Use the following command to export a custom storage volume to a compressed file
 
     lxc storage volume export <pool_name> <volume_name> [<file_path>]
 
-If you do not specify a file path, the export file is saved as `backup.tar.gz` in the working directory.
+If you do not specify a file path, the export file is saved as `<instance name>.<extension>` in the working directory (for example, `my-container.tar.gz`).
 
 ```{warning}
-If the output file (`backup.tar.gz` or the specified file path) already exists, the command overwrites the existing file without warning.
+If the output file (`<instance name>.<extension>`, `<instance name>.backup`, or the specified file path) already exists, the command overwrites the existing file without warning.
 ```
 
 You can add any of the following flags to the command:
