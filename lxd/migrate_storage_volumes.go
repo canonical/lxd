@@ -191,9 +191,9 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	if !*msg.Success {
+	if !msg.GetSuccess() {
 		logger.Errorf("Failed to send storage volume")
-		return fmt.Errorf(*msg.Message)
+		return fmt.Errorf(msg.GetMessage())
 	}
 
 	logger.Debugf("Migration source finished transferring storage volume")
@@ -465,16 +465,16 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 				return fmt.Errorf("Got error reading migration source: %w", msg.Err)
 			}
 
-			if !*msg.Success {
+			if !msg.GetSuccess() {
 				c.disconnect()
 
-				return fmt.Errorf(*msg.Message)
+				return fmt.Errorf(msg.GetMessage())
 			}
 
 			// The source can only tell us it failed (e.g. if
 			// checkpointing failed). We have to tell the source
 			// whether or not the restore was successful.
-			logger.Warn("Unknown message from migration source", logger.Ctx{"message": *msg.Message})
+			logger.Warn("Unknown message from migration source", logger.Ctx{"message": msg.GetMessage()})
 		}
 	}
 }

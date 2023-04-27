@@ -132,8 +132,8 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		return err
 	}
 
-	if !*msg.Success {
-		return fmt.Errorf(*msg.Message)
+	if !msg.GetSuccess() {
+		return fmt.Errorf(msg.GetMessage())
 	}
 
 	return nil
