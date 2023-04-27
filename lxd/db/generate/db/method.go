@@ -1038,7 +1038,13 @@ func (m *Method) update(buf *file.Buffer) error {
 		params := make([]string, len(fields))
 
 		for i, field := range fields {
-			params[i] = fmt.Sprintf("object.%s", field.Name)
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
+				m.ifErrNotNil(buf, true, "err")
+				params[i] = fmt.Sprintf("marshaled%s", field.Name)
+			} else {
+				params[i] = fmt.Sprintf("object.%s", field.Name)
+			}
 		}
 
 		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
