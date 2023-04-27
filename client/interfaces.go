@@ -352,7 +352,7 @@ type InstanceServer interface {
 
 	// Storage volume functions ("storage" API extension)
 	GetStoragePoolVolumeNames(pool string) (names []string, err error)
-	GetStoragePoolVolumeNamesAllProjects(pool string) (names []string, err error)
+	GetStoragePoolVolumeNamesAllProjects(pool string) (names map[string][]string, err error)
 	GetStoragePoolVolumes(pool string) (volumes []api.StorageVolume, err error)
 	GetStoragePoolVolumesAllProjects(pool string) (volumes []api.StorageVolume, err error)
 	GetStoragePoolVolumesWithFilter(pool string, filters []string) (volumes []api.StorageVolume, err error)
