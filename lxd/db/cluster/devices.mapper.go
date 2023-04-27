@@ -55,7 +55,7 @@ func getDevices(ctx context.Context, stmt *sql.Stmt, parent string, args ...any)
 	return objects, nil
 }
 
-// getDevices can be used to run handwritten query strings to return a slice of objects.
+// getDevicesRaw can be used to run handwritten query strings to return a slice of objects.
 func getDevicesRaw(ctx context.Context, tx *sql.Tx, sql string, parent string, args ...any) ([]Device, error) {
 	objects := make([]Device, 0)
 
