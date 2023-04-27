@@ -98,10 +98,6 @@ func Create(projectName string, instanceName string, action Action, createReusua
 
 	go func(op *InstanceOperation) {
 		timeout := TimeoutDefault
-		if action == ActionCreate {
-			timeout = -1
-		}
-
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 
