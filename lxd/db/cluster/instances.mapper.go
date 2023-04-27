@@ -225,7 +225,7 @@ func getInstances(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Instance,
 	return objects, nil
 }
 
-// getInstances can be used to run handwritten query strings to return a slice of objects.
+// getInstancesRaw can be used to run handwritten query strings to return a slice of objects.
 func getInstancesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Instance, error) {
 	objects := make([]Instance, 0)
 

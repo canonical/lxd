@@ -123,7 +123,7 @@ func getWarnings(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Warning, e
 	return objects, nil
 }
 
-// getWarnings can be used to run handwritten query strings to return a slice of objects.
+// getWarningsRaw can be used to run handwritten query strings to return a slice of objects.
 func getWarningsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Warning, error) {
 	objects := make([]Warning, 0)
 

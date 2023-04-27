@@ -77,7 +77,7 @@ func getNodeClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]N
 	return objects, nil
 }
 
-// getNodeClusterGroups can be used to run handwritten query strings to return a slice of objects.
+// getNodeClusterGroupsRaw can be used to run handwritten query strings to return a slice of objects.
 func getNodeClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]NodeClusterGroup, error) {
 	objects := make([]NodeClusterGroup, 0)
 
