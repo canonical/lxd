@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -34,7 +35,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 }
 
 // GetStoragePoolVolumeNamesAllProjects returns the names of all volumes in a pool for all projects.
-func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) ([]string, error) {
+func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) (map[string][]string, error) {
 	err := r.CheckExtension("storage")
 	if err != nil {
 		return nil, err
@@ -53,8 +54,27 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNamesAllProjects(pool string) ([]strin
 		return nil, err
 	}
 
-	// Parse it.
-	return urlsToResourceNames(u.String(), urls...)
+	names := make(map[string][]string)
+	for _, urlString := range urls {
+		resourceURL, err := url.Parse(urlString)
+		if err != nil {
+			return nil, fmt.Errorf("Could not parse unexpected URL %q: %w", urlString, err)
+		}
+
+		project := resourceURL.Query().Get("project")
+		if project == "" {
+			project = "default"
+		}
+
+		_, after, found := strings.Cut(resourceURL.Path, fmt.Sprintf("%s/", u.URL.Path))
+		if !found {
+			return nil, fmt.Errorf("Unexpected URL path %q", resourceURL)
+		}
+
+		names[project] = append(names[project], after)
+	}
+
+	return names, nil
 }
 
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool.
