@@ -1547,7 +1547,7 @@ func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error 
 	buf.N()
 
 	// Create a function supporting raw queries.
-	buf.L("// get%s can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
+	buf.L("// get%sRaw can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
 	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
 		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
 	} else {
