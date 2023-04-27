@@ -607,7 +607,15 @@ func (m *Method) id(buf *file.Buffer) error {
 	}
 
 	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "ID")))
-	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParams(nk))
+
+	for _, field := range nk {
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+			m.ifErrNotNil(buf, true, "-1", "err")
+		}
+	}
+
+	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParamsMarshal(nk))
 	buf.L("var id int64")
 	buf.L("err = row.Scan(&id)")
 	buf.L("if errors.Is(err, sql.ErrNoRows) {")
