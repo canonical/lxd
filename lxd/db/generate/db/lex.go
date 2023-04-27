@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/lxc/lxd/shared"
 )
 
 // Return the table name for the given database entity.
@@ -82,24 +83,52 @@ func activeCriteria(filter []string, ignoredFilter []string) string {
 // Return the code for a "dest" function, to be passed as parameter to
 // query.SelectObjects in order to scan a single row.
 func destFunc(slice string, typ string, fields []*Field) string {
+	var builder strings.Builder
+	writeLine := func(line string) { builder.WriteString(fmt.Sprintf("%s\n", line)) }
+
+	writeLine(`func(scan func(dest ...any) error) error {`)
+
 	varName := lex.Minuscule(string(typ[0]))
+	writeLine(fmt.Sprintf("%s := %s{}", varName, typ))
+
+	checkErr := func() {
+		writeLine("if err != nil {\nreturn err\n}")
+		writeLine("")
+	}
+
+	unmarshal := func(declVarName string, field *Field) {
+		writeLine(fmt.Sprintf("err = query.Unmarshal(%s, &%s.%s)", declVarName, varName, field.Name))
+		checkErr()
+	}
+
 	args := make([]string, 0, len(fields))
+	declVars := make(map[string]*Field, len(fields))
 	for _, field := range fields {
-		arg := fmt.Sprintf("&%s.%s", varName, field.Name)
+		var arg string
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			declVarName := fmt.Sprintf("%sStr", lex.Minuscule(field.Name))
+			declVars[declVarName] = field
+			arg = fmt.Sprintf("&%s", declVarName)
+		} else {
+			arg = fmt.Sprintf("&%s.%s", varName, field.Name)
+		}
+
 		args = append(args, arg)
 	}
 
-	f := fmt.Sprintf(`func(scan func(dest ...any) error) error {
-                      %s := %s{}
-                      err := scan(%s)
-                      if err != nil {
-                        return err
-                      }
+	for declVar := range declVars {
+		writeLine(fmt.Sprintf("var %s string", declVar))
+	}
 
-                      %s = append(%s, %s)
+	writeLine(fmt.Sprintf("err := scan(%s)", strings.Join(args, ", ")))
+	checkErr()
+	for declVar, field := range declVars {
+		unmarshal(declVar, field)
+	}
 
-                      return nil
-                    }
-`, varName, typ, strings.Join(args, ", "), slice, slice, varName)
-	return f
+	writeLine(fmt.Sprintf("%s = append(%s, %s)\n", slice, slice, varName))
+	writeLine("return nil")
+	writeLine("}")
+
+	return builder.String()
 }
