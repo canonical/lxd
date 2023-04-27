@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
 	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/lxc/lxd/shared"
 )
 
 // Method generates a code snippet for a particular database query method.
@@ -263,7 +264,15 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 			var args string
 			for _, name := range filter {
-				args += fmt.Sprintf("filter.%s,", name)
+				for _, field := range mapping.Fields {
+					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
+						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
+						m.ifErrNotNil(buf, true, "nil", "err")
+						args += fmt.Sprintf("marshaledFilter%s,", name)
+					} else if name == field.Name {
+						args += fmt.Sprintf("filter.%s,", name)
+					}
+				}
 			}
 
 			buf.L("args = append(args, []any{%s}...)", args)
