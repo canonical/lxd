@@ -921,7 +921,15 @@ func (m *Method) rename(buf *file.Buffer) error {
 	}
 
 	m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "rename")))
-	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
+
+	for _, field := range nk {
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+			m.ifErrNotNil(buf, true, "err")
+		}
+	}
+
+	buf.L("result, err := stmt.Exec(to, %s)", mapping.FieldParamsMarshal(nk))
 	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
 	buf.L("n, err := result.RowsAffected()")
 	m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
