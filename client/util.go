@@ -210,12 +210,12 @@ func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, erro
 			return nil, fmt.Errorf("Failed parsing URL %q: %w", urlRaw, err)
 		}
 
-		fields := strings.Split(u.Path, fmt.Sprintf("%s/", matchPathPrefix))
-		if len(fields) != 2 {
+		_, after, found := strings.Cut(u.Path, fmt.Sprintf("%s/", matchPathPrefix))
+		if !found {
 			return nil, fmt.Errorf("Unexpected URL path %q", u)
 		}
 
-		resourceNames = append(resourceNames, fields[len(fields)-1])
+		resourceNames = append(resourceNames, after)
 	}
 
 	return resourceNames, nil
