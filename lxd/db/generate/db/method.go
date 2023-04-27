@@ -761,7 +761,13 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		buf.L("// Populate the statement arguments. ")
 		for i, field := range fields {
-			buf.L("args[%d] = object.%s", i, field.Name)
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
+				m.ifErrNotNil(buf, true, "-1", "err")
+				buf.L("args[%d] = marshaled%s", i, field.Name)
+			} else {
+				buf.L("args[%d] = object.%s", i, field.Name)
+			}
 		}
 
 		buf.N()
