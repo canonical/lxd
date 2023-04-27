@@ -65,8 +65,8 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 		return err
 	}
 
-	if !*msg.Success {
-		return fmt.Errorf(*msg.Message)
+	if !msg.GetSuccess() {
+		return fmt.Errorf(msg.GetMessage())
 	}
 
 	return nil
