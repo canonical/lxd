@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -123,7 +123,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 {
 		targetName = args[1]
 	} else {
-		targetName = "backup.tar.gz"
+		targetName = name + ".backup"
 	}
 
 	var target *os.File
@@ -156,6 +156,24 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		_ = os.Remove(targetName)
 		progress.Done("")
 		return fmt.Errorf("Fetch instance backup file: %w", err)
+	}
+
+	// Detect backup file type and rename file accordingly
+	if len(args) <= 1 {
+		_, err := target.Seek(0, 0)
+		if err != nil {
+			return err
+		}
+
+		_, ext, _, err := shared.DetectCompressionFile(target)
+		if err != nil {
+			return err
+		}
+
+		err = os.Rename(shared.HostPathFollow(targetName), name+ext)
+		if err != nil {
+			return fmt.Errorf("Failed to rename export file: %w", err)
+		}
 	}
 
 	err = target.Close()
