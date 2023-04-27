@@ -1166,8 +1166,15 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		}
 
+		for _, field := range activeFilters {
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+				m.ifErrNotNil(buf, true, "err")
+			}
+		}
+
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...)))
-		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
+		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParamsMarshal(activeFilters))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
