@@ -826,7 +826,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol, vol.config["size"], false, op)
+	// Pass allowUnsafeResize as true because if the resize fails we will delete the volume anyway so don't
+	// have to worry about it being left in an inconsistent state.
+	err = d.SetVolumeQuota(vol, vol.config["size"], true, op)
 	if err != nil {
 		return err
 	}
