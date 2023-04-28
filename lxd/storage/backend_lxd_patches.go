@@ -15,7 +15,8 @@ import (
 )
 
 var lxdEarlyPatches = map[string]func(b *lxdBackend) error{
-	"storage_missing_snapshot_records": patchMissingSnapshotRecords,
+	"storage_missing_snapshot_records":    patchMissingSnapshotRecords,
+	"storage_delete_old_snapshot_records": patchCleanStorageVolumes,
 }
 
 var lxdLatePatches = map[string]func(b *lxdBackend) error{}
@@ -118,6 +119,36 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 
 		return nil
 	}, filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// patchCleanStorageVolumes deletes the remaining snapshot records in storage_volumes
+// (a previous patch would have already moved them into storage_volume_snapshots).
+func patchCleanStorageVolumes(b *lxdBackend) error {
+	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		nodeID := tx.GetNodeID()
+		_, err := tx.Tx().Exec(`
+DELETE FROM storage_volumes WHERE id IN (
+	SELECT id FROM storage_volumes
+	JOIN (
+		/* Create a two column intermediary table containing the container name and its snapshot name */
+		SELECT sv.name inst_name, svs.name snap_name FROM storage_volumes AS sv
+		JOIN storage_volumes_snapshots AS svs ON sv.id = svs.storage_volume_id AND node_id=? AND type=?
+	) j1 ON name=FORMAT("%s/%s", j1.inst_name, j1.snap_name)
+	/* Only keep the records with a matching 'name' pattern, 'node_id' and 'type' */
+);
+`, nodeID, db.StoragePoolVolumeTypeContainer)
+		if err != nil {
+			return fmt.Errorf("Failed to delete remaining instance snapshot records in the `storage_volumes` table: %w", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
