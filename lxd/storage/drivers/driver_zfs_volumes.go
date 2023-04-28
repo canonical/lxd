@@ -694,20 +694,43 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// Configure the pipes.
 		receiver.Stdin, _ = sender.StdoutPipe()
 		receiver.Stdout = os.Stdout
-		receiver.Stderr = os.Stderr
+
+		var recvStderr bytes.Buffer
+		receiver.Stderr = &recvStderr
 
 		// Run the transfer.
 		err := receiver.Start()
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed starting ZFS receive: %w", err)
 		}
 
-		err = sender.Run()
+		var sendStderr bytes.Buffer
+		sender.Stderr = &sendStderr
+		err = sender.Start()
 		if err != nil {
-			return err
+			_ = receiver.Process.Kill()
+			return fmt.Errorf("Failed starting ZFS send: %w", err)
 		}
+
+		senderErr := make(chan error)
+		go func() {
+			err = sender.Wait()
+			if err != nil {
+				_ = receiver.Process.Kill()
+				senderErr <- fmt.Errorf("Failed ZFS send: %w (%s)", err, sendStderr.String())
+				return
+			}
+
+			senderErr <- nil
+		}()
 
 		err = receiver.Wait()
+		if err != nil {
+			_ = receiver.Process.Kill()
+			return fmt.Errorf("Failed ZFS receive: %w (%s)", err, recvStderr.String())
+		}
+
+		err = <-senderErr
 		if err != nil {
 			return err
 		}
