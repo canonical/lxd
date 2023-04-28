@@ -630,6 +630,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		_ = unfreezeFS()
 	}
 
+	// Delete the volume created on failure.
+	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
+
 	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
 	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 		snapName := strings.SplitN(srcSnapshot, "@", 2)[1]
@@ -754,9 +757,6 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if err != nil {
 			return err
 		}
-
-		// Delete on revert.
-		revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 	}
 
 	// Apply the properties.
