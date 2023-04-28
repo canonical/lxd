@@ -85,7 +85,7 @@ func getClusterGroups(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Clust
 	return objects, nil
 }
 
-// getClusterGroups can be used to run handwritten query strings to return a slice of objects.
+// getClusterGroupsRaw can be used to run handwritten query strings to return a slice of objects.
 func getClusterGroupsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]ClusterGroup, error) {
 	objects := make([]ClusterGroup, 0)
 

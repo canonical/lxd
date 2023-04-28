@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
 	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/lxc/lxd/shared"
 )
 
 // Method generates a code snippet for a particular database query method.
@@ -263,7 +264,15 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 			var args string
 			for _, name := range filter {
-				args += fmt.Sprintf("filter.%s,", name)
+				for _, field := range mapping.Fields {
+					if name == field.Name && shared.IsTrue(field.Config.Get("marshal")) {
+						buf.L("marshaledFilter%s, err := query.Marshal(filter.%s)", name, name)
+						m.ifErrNotNil(buf, true, "nil", "err")
+						args += fmt.Sprintf("marshaledFilter%s,", name)
+					} else if name == field.Name {
+						args += fmt.Sprintf("filter.%s,", name)
+					}
+				}
 			}
 
 			buf.L("args = append(args, []any{%s}...)", args)
@@ -598,7 +607,15 @@ func (m *Method) id(buf *file.Buffer) error {
 	}
 
 	m.ifErrNotNil(buf, true, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "ID")))
-	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParams(nk))
+
+	for _, field := range nk {
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+			m.ifErrNotNil(buf, true, "-1", "err")
+		}
+	}
+
+	buf.L("row := stmt.QueryRowContext(ctx, %s)", mapping.FieldParamsMarshal(nk))
 	buf.L("var id int64")
 	buf.L("err = row.Scan(&id)")
 	buf.L("if errors.Is(err, sql.ErrNoRows) {")
@@ -744,7 +761,13 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		buf.L("// Populate the statement arguments. ")
 		for i, field := range fields {
-			buf.L("args[%d] = object.%s", i, field.Name)
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
+				m.ifErrNotNil(buf, true, "-1", "err")
+				buf.L("args[%d] = marshaled%s", i, field.Name)
+			} else {
+				buf.L("args[%d] = object.%s", i, field.Name)
+			}
 		}
 
 		buf.N()
@@ -898,7 +921,15 @@ func (m *Method) rename(buf *file.Buffer) error {
 	}
 
 	m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "rename")))
-	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
+
+	for _, field := range nk {
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+			m.ifErrNotNil(buf, true, "err")
+		}
+	}
+
+	buf.L("result, err := stmt.Exec(to, %s)", mapping.FieldParamsMarshal(nk))
 	m.ifErrNotNil(buf, true, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
 	buf.L("n, err := result.RowsAffected()")
 	m.ifErrNotNil(buf, true, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
@@ -1007,7 +1038,13 @@ func (m *Method) update(buf *file.Buffer) error {
 		params := make([]string, len(fields))
 
 		for i, field := range fields {
-			params[i] = fmt.Sprintf("object.%s", field.Name)
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(object.%s)", field.Name, field.Name)
+				m.ifErrNotNil(buf, true, "err")
+				params[i] = fmt.Sprintf("marshaled%s", field.Name)
+			} else {
+				params[i] = fmt.Sprintf("object.%s", field.Name)
+			}
 		}
 
 		buf.L("id, err := Get%sID(ctx, tx, %s)", lex.Camel(m.entity), mapping.FieldParams(nk))
@@ -1129,8 +1166,15 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 			buf.L("stmt, err := %s.Stmt(tx, %s)", m.db, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		}
 
+		for _, field := range activeFilters {
+			if shared.IsTrue(field.Config.Get("marshal")) {
+				buf.L("marshaled%s, err := query.Marshal(%s)", field.Name, lex.Minuscule(field.Name))
+				m.ifErrNotNil(buf, true, "err")
+			}
+		}
+
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" prepared statement: %%w", err)`, stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...)))
-		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
+		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParamsMarshal(activeFilters))
 		m.ifErrNotNil(buf, true, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity, m.config["table"])))
 	}
 
@@ -1503,7 +1547,7 @@ func (m *Method) getManyTemplateFuncs(buf *file.Buffer, mapping *Mapping) error 
 	buf.N()
 
 	// Create a function supporting raw queries.
-	buf.L("// get%s can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
+	buf.L("// get%sRaw can be used to run handwritten query strings to return a slice of objects.", lex.Plural(mapping.Name))
 	if mapping.Type != ReferenceTable && mapping.Type != MapTable {
 		buf.L("func get%sRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]%s, error) {", lex.Plural(mapping.Name), mapping.Name)
 	} else {

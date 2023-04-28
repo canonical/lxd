@@ -149,7 +149,7 @@ func getProfiles(ctx context.Context, stmt *sql.Stmt, args ...any) ([]Profile, e
 	return objects, nil
 }
 
-// getProfiles can be used to run handwritten query strings to return a slice of objects.
+// getProfilesRaw can be used to run handwritten query strings to return a slice of objects.
 func getProfilesRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]Profile, error) {
 	objects := make([]Profile, 0)
 
