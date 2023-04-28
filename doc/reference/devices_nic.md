@@ -1,6 +1,10 @@
 (devices-nic)=
 # Type: `nic`
 
+```{youtube} https://www.youtube.com/watch?v=W62eno28KMY
+   :title: LXD NIC devices
+```
+
 ```{note}
 The `nic` device type is supported for both containers and VMs.
 
@@ -62,7 +66,7 @@ The available device options depend on the NIC type and are listed in the tables
 ### `nictype`: `bridged`
 
 ```{note}
-You can select this NIC type through the `nictype` option or the `network` option.
+You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-bridge` for information about the managed `bridge` network).
 ```
 
 A `bridged` NIC uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
@@ -103,10 +107,13 @@ Key                      | Type    | Default           | Managed | Description
 ### `nictype`: `macvlan`
 
 ```{note}
-You can select this NIC type through the `nictype` option or the `network` option.
+You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-macvlan` for information about the managed `macvlan` network).
 ```
 
 A `macvlan` NIC sets up a new network device based on an existing one, but using a different MAC address.
+
+If you are using a `macvlan` NIC, communication between the LXD host and the instances is not possible.
+Both the host and the instances can talk to the gateway, but they cannot communicate directly.
 
 #### Device options
 
@@ -129,7 +136,7 @@ Key                     | Type    | Default           | Managed | Description
 ### `nictype`: `sriov`
 
 ```{note}
-You can select this NIC type through the `nictype` option or the `network` option.
+You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-sriov` for information about the managed `sriov` network).
 ```
 
 An `sriov` NIC passes a virtual function of an SR-IOV-enabled physical network device into the instance.
@@ -174,7 +181,7 @@ Key                     | Type    | Default           | Managed | Description
 ### `nictype`: `ovn`
 
 ```{note}
-- You can select this NIC type only through the `network` option.
+- You can select this NIC type only through the `network` option (see {ref}`network-ovn` for information about the managed `ovn` network).
 - This NIC type supports hotplugging only for containers, not for VMs.
 ```
 
@@ -248,7 +255,7 @@ Key                                   | Type    | Default           | Managed | 
 ### `nictype`: `physical`
 
 ```{note}
-- You can select this NIC type through the `nictype` option or the `network` option.
+- You can select this NIC type through the `nictype` option or the `network` option (see {ref}`network-physical` for information about the managed `physical` network).
 - You can have only one `physical` NIC for each parent device.
 ```
 
@@ -282,6 +289,9 @@ Key                     | Type    | Default           | Managed | Description
 ```
 
 An `ipvlan` NIC sets up a new network device based on an existing one, using the same MAC address but a different IP.
+
+If you are using an `ipvlan` NIC, communication between the LXD host and the instances is not possible.
+Both the host and the instances can talk to the gateway, but they cannot communicate directly.
 
 LXD currently supports IPVLAN in L2 and L3S mode.
 In this mode, the gateway is automatically set by LXD, but the IP addresses must be manually specified using the `ipv4.address` and/or `ipv6.address` options before the container is started.
