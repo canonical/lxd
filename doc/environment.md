@@ -1,5 +1,7 @@
 # Environment variables
 
+- doesn't work for snap users
+
 ## Introduction
 
 The LXD client and daemon respect some environment variables to adapt to

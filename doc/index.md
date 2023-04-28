@@ -51,6 +51,7 @@ The LXD project is sponsored by [Canonical Ltd](https://www.canonical.com).
 
 self
 getting_started
+Server and client <operation>
 security
 instances
 images
@@ -59,7 +60,7 @@ networks
 projects
 clustering
 production-setup
-operation
+migration
 restapi_landing
 internals
 external_resources
