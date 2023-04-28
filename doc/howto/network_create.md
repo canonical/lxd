@@ -87,6 +87,8 @@ For example, to attach the network `my-network` to the instance `my-instance` as
 
     lxc network attach my-network my-instance eth0
 
+### Attach the network as a device
+
 The `lxc network attach` command is a shortcut for adding a NIC device to an instance.
 Alternatively, you can add a NIC device based on the network configuration in the usual way:
 
