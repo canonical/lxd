@@ -1,4 +1,12 @@
-# Remotes
+# How to add remote servers
+
+- concept of the client, not the server
+- list remotes
+- add a remote
+- add a global remote
+- switch to a remote
+- some explanation as below
+- link to info about remote image servers
 
 ## Introduction
 
