@@ -1,19 +1,13 @@
 package operationlock
 
 import (
+	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/logger"
 )
-
-// TimeoutDefault timeout the operation lock will be kept alive for without needing to call Reset().
-const TimeoutDefault time.Duration = time.Second * time.Duration(30)
-
-// TimeoutShutdown timeout that can be used when shutting down an instance.
-const TimeoutShutdown time.Duration = time.Minute * time.Duration(5)
 
 // Action indicates the operation action type.
 type Action string
@@ -50,7 +44,6 @@ var instanceOperations = make(map[string]*InstanceOperation)
 type InstanceOperation struct {
 	action            Action
 	chanDone          chan error
-	chanReset         chan time.Duration
 	err               error
 	projectName       string
 	instanceName      string
@@ -75,8 +68,6 @@ func Create(projectName string, instanceName string, action Action, createReusua
 	op := instanceOperations[opKey]
 	if op != nil {
 		if op.reusable && reuseExisting {
-			// Reset operation timeout without releasing lock or deadlocking using Reset() function.
-			op.chanReset <- TimeoutDefault
 			logger.Debug("Instance operation lock reused", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
 
 			return op, nil
@@ -91,41 +82,9 @@ func Create(projectName string, instanceName string, action Action, createReusua
 	op.action = action
 	op.reusable = createReusuable
 	op.chanDone = make(chan error)
-	op.chanReset = make(chan time.Duration)
 
 	instanceOperations[opKey] = op
 	logger.Debug("Instance operation lock created", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
-
-	go func(op *InstanceOperation) {
-		timeout := TimeoutDefault
-		timer := time.NewTimer(timeout)
-		defer timer.Stop()
-
-		for {
-			select {
-			case <-op.chanDone:
-				return
-			case timeout = <-op.chanReset:
-				if !timer.Stop() {
-					// Empty timer's channel if needed.
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-
-				// A timeout less than zero will never expire.
-				if timeout > -1 {
-					timer.Reset(timeout)
-				}
-
-				continue
-			case <-timer.C:
-				op.Done(fmt.Errorf("Instance %q operation timed out after %v", op.action, timeout))
-				return
-			}
-		}
-	}(op)
 
 	return op, nil
 }
@@ -156,7 +115,7 @@ func CreateWaitGet(projectName string, instanceName string, action Action, inher
 	// Operation action matches but is not reusable or we have been asked not to reuse,
 	// so wait and return result.
 	if op.action == action && (!reuseExisting || !op.reusable) {
-		err := op.Wait()
+		err := op.Wait(context.Background())
 		if err != nil {
 			return nil, err
 		}
@@ -210,44 +169,19 @@ func (op *InstanceOperation) ActionMatch(matchActions ...Action) bool {
 	return false
 }
 
-// Reset resets the operation using TimeoutDefault until it expires.
-func (op *InstanceOperation) Reset() error {
-	return op.ResetTimeout(TimeoutDefault)
-}
-
-// ResetTimeout resets the operation using a custom timeout until it expires.
-// A timeout less than zero will never expire.
-func (op *InstanceOperation) ResetTimeout(timeout time.Duration) error {
-	// This function can be called on a nil struct.
-	if op == nil {
-		return nil
-	}
-
-	instanceOperationsLock.Lock()
-	defer instanceOperationsLock.Unlock()
-
-	opKey := project.Instance(op.projectName, op.instanceName)
-
-	// Check if already done
-	runningOp, ok := instanceOperations[opKey]
-	if !ok || runningOp != op {
-		return fmt.Errorf("Operation is already done or expired")
-	}
-
-	op.chanReset <- timeout
-	return nil
-}
-
 // Wait waits for an operation to finish.
-func (op *InstanceOperation) Wait() error {
+func (op *InstanceOperation) Wait(ctx context.Context) error {
 	// This function can be called on a nil struct.
 	if op == nil {
 		return nil
 	}
 
-	<-op.chanDone
-
-	return op.err
+	select {
+	case <-op.chanDone:
+		return op.err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Done indicates the operation has finished.
