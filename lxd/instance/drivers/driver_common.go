@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
@@ -514,6 +515,16 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 
 	// Handle ephemeral instances.
 	ephemeral := inst.IsEphemeral()
+
+	ctxMap := logger.Ctx{
+		"action":    "shutdown",
+		"created":   d.creationDate,
+		"ephemeral": ephemeral,
+		"used":      d.lastUsedDate,
+		"timeout":   timeout}
+
+	d.logger.Info("Restarting instance", ctxMap)
+
 	if ephemeral {
 		// Unset ephemeral flag
 		args := db.InstanceArgs{
@@ -553,7 +564,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 			return err
 		}
 
-		err := inst.Shutdown(timeout * time.Second)
+		err := inst.Shutdown(timeout)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -571,6 +582,9 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 		op.Done(err)
 		return err
 	}
+
+	d.logger.Info("Restarted instance", ctxMap)
+	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
 }
