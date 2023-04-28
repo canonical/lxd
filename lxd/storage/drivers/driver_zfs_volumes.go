@@ -630,6 +630,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		_ = unfreezeFS()
 	}
 
+	// Delete the volume created on failure.
+	revert.Add(func() { _ = d.DeleteVolume(vol, op) })
+
 	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
 	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 		snapName := strings.SplitN(srcSnapshot, "@", 2)[1]
@@ -691,20 +694,43 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		// Configure the pipes.
 		receiver.Stdin, _ = sender.StdoutPipe()
 		receiver.Stdout = os.Stdout
-		receiver.Stderr = os.Stderr
+
+		var recvStderr bytes.Buffer
+		receiver.Stderr = &recvStderr
 
 		// Run the transfer.
 		err := receiver.Start()
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed starting ZFS receive: %w", err)
 		}
 
-		err = sender.Run()
+		var sendStderr bytes.Buffer
+		sender.Stderr = &sendStderr
+		err = sender.Start()
 		if err != nil {
-			return err
+			_ = receiver.Process.Kill()
+			return fmt.Errorf("Failed starting ZFS send: %w", err)
 		}
+
+		senderErr := make(chan error)
+		go func() {
+			err = sender.Wait()
+			if err != nil {
+				_ = receiver.Process.Kill()
+				senderErr <- fmt.Errorf("Failed ZFS send: %w (%s)", err, sendStderr.String())
+				return
+			}
+
+			senderErr <- nil
+		}()
 
 		err = receiver.Wait()
+		if err != nil {
+			_ = receiver.Process.Kill()
+			return fmt.Errorf("Failed ZFS receive: %w (%s)", err, recvStderr.String())
+		}
+
+		err = <-senderErr
 		if err != nil {
 			return err
 		}
@@ -754,9 +780,6 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		if err != nil {
 			return err
 		}
-
-		// Delete on revert.
-		revert.Add(func() { _ = d.DeleteVolume(vol, op) })
 	}
 
 	// Apply the properties.
@@ -803,7 +826,9 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol, vol.config["size"], false, op)
+	// Pass allowUnsafeResize as true because if the resize fails we will delete the volume anyway so don't
+	// have to worry about it being left in an inconsistent state.
+	err = d.SetVolumeQuota(vol, vol.config["size"], true, op)
 	if err != nil {
 		return err
 	}
