@@ -3,10 +3,8 @@
 ```{toctree}
 :maxdepth: 1
 
-Container environment <container-environment>
 daemon-behavior
-database
-debugging
+Debug LXD <debugging>
 environment
 syscall-interception
 User namespace setup <userns-idmap>
