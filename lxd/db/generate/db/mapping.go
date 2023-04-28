@@ -229,6 +229,26 @@ func (m *Mapping) FieldParams(fields []*Field) string {
 	return strings.Join(args, ", ")
 }
 
+// FieldParamsMarshal converts the given fields to function parameters, rendering their
+// name. If the field is configured to marshal input/output, the name will be `marshaled{name}`.
+func (m *Mapping) FieldParamsMarshal(fields []*Field) string {
+	args := make([]string, len(fields))
+	for i, field := range fields {
+		name := lex.Minuscule(field.Name)
+		if name == "type" {
+			name = lex.Minuscule(m.Name) + field.Name
+		}
+
+		if shared.IsTrue(field.Config.Get("marshal")) {
+			name = fmt.Sprintf("marshaled%s", field.Name)
+		}
+
+		args[i] = name
+	}
+
+	return strings.Join(args, ", ")
+}
+
 // Field holds all information about a field in a Go struct that is relevant
 // for database code generation.
 type Field struct {

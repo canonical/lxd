@@ -67,7 +67,7 @@ func getCertificateProjects(ctx context.Context, stmt *sql.Stmt, args ...any) ([
 	return objects, nil
 }
 
-// getCertificateProjects can be used to run handwritten query strings to return a slice of objects.
+// getCertificateProjectsRaw can be used to run handwritten query strings to return a slice of objects.
 func getCertificateProjectsRaw(ctx context.Context, tx *sql.Tx, sql string, args ...any) ([]CertificateProject, error) {
 	objects := make([]CertificateProject, 0)
 
