@@ -62,6 +62,16 @@ If you want to use a different device name, you can add it to the command:
     lxc storage volume attach <pool_name> <filesystem_volume_name> <instance_name> <device_name> <location>
     lxc storage volume attach <pool_name> <block_volume_name> <instance_name> <device_name>
 
+#### Attach the volume as a device
+
+The `lxc storage volume attach` command is a shortcut for adding a disk device to an instance.
+Alternatively, you can add a disk device for the storage volume in the usual way:
+
+    lxc config device add <instance_name> <device_name> disk pool=<pool_name> source=<volume_name> [path=<location>]
+
+When using this way, you can add further configuration to the command if needed.
+See {ref}`disk device <devices-disk>` for all available device options.
+
 (storage-configure-IO)=
 #### Configure I/O limits
 
