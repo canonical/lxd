@@ -937,7 +937,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	op := operationlock.Get(d.Project().Name, d.Name())
 	if op != nil && !op.ActionMatch(operationlock.ActionStart, operationlock.ActionRestart, operationlock.ActionStop, operationlock.ActionRestore) {
 		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
-		_ = op.Wait()
+		_ = op.Wait(context.Background())
 		op = nil
 	}
 
