@@ -738,14 +738,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	err := d.restartCommon(d, timeout)
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
-
-	return nil
+	return d.restartCommon(d, timeout)
 }
 
 func (d *qemu) ovmfPath() string {
