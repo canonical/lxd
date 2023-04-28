@@ -9,6 +9,11 @@ You can then assign IP addresses based on the randomly generated MAC addresses.
 The `macvlan` network type allows to specify presets to use when connecting instances to a parent interface.
 In this case, the instance NICs can simply set the `network` option to the network they connect to without knowing any of the underlying configuration details.
 
+```{note}
+If you are using a `macvlan` network, communication between the LXD host and the instances is not possible.
+Both the host and the instances can talk to the gateway, but they cannot communicate directly.
+```
+
 (network-macvlan-options)=
 ## Configuration options
 
