@@ -561,10 +561,6 @@ func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperatio
 			return false
 		}
 
-		if op != nil {
-			_ = op.Reset() // Reset timeout to default.
-		}
-
 		time.Sleep(time.Millisecond * time.Duration(250))
 	}
 
@@ -586,17 +582,15 @@ func (d *qemu) onStop(target string) error {
 	defer op.Done(nil)
 
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
-	// Wait up to operationlock.TimeoutShutdown to allow for flushing any pending data to disk.
+	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
-	waitTimeout := operationlock.TimeoutShutdown
+	waitTimeout := time.Minute * 5
 	if d.pidWait(waitTimeout, op) {
 		d.logger.Debug("VM process finished")
 	} else {
 		// Log a warning, but continue clean up as best we can.
 		d.logger.Error("VM process failed to stop", logger.Ctx{"timeout": waitTimeout})
 	}
-
-	_ = op.Reset() // Reset timeout to default.
 
 	// Record power state.
 	err = d.VolatileSet(map[string]string{
@@ -614,7 +608,6 @@ func (d *qemu) onStop(target string) error {
 	_ = os.Remove(d.monitorPath())
 
 	// Stop the storage for the instance.
-	_ = op.ResetTimeout(waitTimeout)
 	err = d.unmount()
 	if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 		err = fmt.Errorf("Failed unmounting instance: %w", err)
@@ -636,8 +629,6 @@ func (d *qemu) onStop(target string) error {
 
 	// Reboot the instance.
 	if target == "reboot" {
-		_ = op.Reset() // Reset timeout to default.
-
 		err = d.Start(false)
 		if err != nil {
 			op.Done(err)
@@ -646,8 +637,6 @@ func (d *qemu) onStop(target string) error {
 
 		d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
-		_ = op.Reset() // Reset timeout to default.
-
 		// Destroy ephemeral virtual machines.
 		err = d.delete(true)
 		if err != nil {
@@ -718,21 +707,13 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	// Use default operation timeout if not specified (negatively or positively).
-	if timeout == 0 {
-		timeout = operationlock.TimeoutDefault
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	// Extend operation lock for the requested timeout.
-	err = op.ResetTimeout(timeout)
-	if err != nil {
-		return err
-	}
-
-	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
-	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
-	// However if the operation has failed for another reason we will collect the error here.
-	err = op.Wait()
+	// Wait for operation lock to be Done or context to timeout. The operation lock is normally completed by
+	// onStop which picks up the same lock and then marks it as Done after the instance stops and the devices
+	// have been cleaned up. However if the operation has failed for another reason we collect the error here.
+	err = op.Wait(ctx)
 	status := d.statusCode()
 	if status != api.Stopped {
 		errPrefix := fmt.Errorf("Failed shutting down instance, status is %q", status)
@@ -757,14 +738,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *qemu) Restart(timeout time.Duration) error {
-	err := d.restartCommon(d, timeout)
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
-
-	return nil
+	return d.restartCommon(d, timeout)
 }
 
 func (d *qemu) ovmfPath() string {
@@ -1556,8 +1530,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		return err
 	}
 
-	_ = op.Reset() // Reset timeout to default.
-
 	err = p.StartWithFiles(context.Background(), fdFiles)
 	if err != nil {
 		op.Done(err)
@@ -1664,8 +1636,6 @@ func (d *qemu) start(stateful bool, op *operationlock.InstanceOperation) error {
 		op.Done(err)
 		return fmt.Errorf("Failed setting reboot action: %w", err)
 	}
-
-	_ = op.Reset() // Reset timeout to default.
 
 	// Restore the state.
 	if stateful {
@@ -4351,7 +4321,7 @@ func (d *qemu) Stop(stateful bool) error {
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
 	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
 	// However if the operation has failed for another reason we will collect the error here.
-	err = op.Wait()
+	err = op.Wait(context.Background())
 	status := d.statusCode()
 	if status != api.Stopped {
 		errPrefix := fmt.Errorf("Failed stopping instance, status is %q", status)
