@@ -223,25 +223,31 @@ func instanceActionToOptype(action string) (operationtype.Type, error) {
 }
 
 func doInstanceStatePut(inst instance.Instance, req api.InstanceStatePut) error {
+	if req.Force {
+		// A zero timeout indicates to do a forced stop/restart.
+		req.Timeout = 0
+	} else if req.Timeout < 0 {
+		// If no timeout requested set a high default shutdown timeout. This way if the instance does not
+		// respond to shutdown request the operation lock won't linger forever.
+		req.Timeout = 600
+	}
+
+	timeout := time.Duration(req.Timeout) * time.Second
+
 	switch shared.InstanceAction(req.Action) {
 	case shared.Start:
 		return inst.Start(req.Stateful)
 	case shared.Stop:
 		if req.Stateful {
 			return inst.Stop(req.Stateful)
-		} else if req.Timeout == 0 || req.Force {
+		} else if req.Timeout == 0 {
 			return inst.Stop(false)
 		} else {
-			return inst.Shutdown(time.Duration(req.Timeout) * time.Second)
+			return inst.Shutdown(timeout)
 		}
 
 	case shared.Restart:
-		timeout := req.Timeout
-		if req.Force {
-			timeout = 0
-		}
-
-		return inst.Restart(time.Duration(timeout))
+		return inst.Restart(timeout)
 	case shared.Freeze:
 		return inst.Freeze()
 	case shared.Unfreeze:

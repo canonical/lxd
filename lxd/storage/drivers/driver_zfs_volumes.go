@@ -20,7 +20,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
@@ -1943,7 +1942,7 @@ func (d *zfs) deactivateVolume(vol Volume) (bool, error) {
 
 		// We cannot wait longer than the operationlock.TimeoutShutdown to avoid continuing
 		// the unmount process beyond the ongoing request.
-		waitDuration := operationlock.TimeoutShutdown
+		waitDuration := time.Minute * 5
 		waitUntil := time.Now().Add(waitDuration)
 		i := 0
 		for {

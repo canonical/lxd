@@ -2631,7 +2631,7 @@ func (d *lxc) Stop(stateful bool) error {
 			return err
 		}
 
-		err = op.Wait()
+		err = op.Wait(context.Background())
 		if err != nil && d.IsRunning() {
 			return err
 		}
@@ -2685,7 +2685,7 @@ func (d *lxc) Stop(stateful bool) error {
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
 	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
 	// However if the operation has failed for another reason we will collect the error here.
-	err = op.Wait()
+	err = op.Wait(context.Background())
 	status := d.statusCode()
 	if status != api.Stopped {
 		errPrefix := fmt.Errorf("Failed stopping instance, status is %q", status)
@@ -2788,21 +2788,13 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	d.logger.Debug("Shutdown request sent to instance")
 
-	// Use default operation timeout if not specified (negatively or positively).
-	if timeout == 0 {
-		timeout = operationlock.TimeoutDefault
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	// Extend operation lock for the requested timeout.
-	err = op.ResetTimeout(timeout)
-	if err != nil {
-		return err
-	}
-
-	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
-	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
-	// However if the operation has failed for another reason we will collect the error here.
-	err = op.Wait()
+	// Wait for operation lock to be Done or context to timeout. The operation lock is normally completed by
+	// onStop which picks up the same lock and then marks it as Done after the instance stops and the devices
+	// have been cleaned up. However if the operation has failed for another reason we collect the error here.
+	err = op.Wait(ctx)
 	status := d.statusCode()
 	if status != api.Stopped {
 		errPrefix := fmt.Errorf("Failed shutting down instance, status is %q", status)
@@ -2827,24 +2819,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 // Restart restart the instance.
 func (d *lxc) Restart(timeout time.Duration) error {
-	ctxMap := logger.Ctx{
-		"action":    "shutdown",
-		"created":   d.creationDate,
-		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate,
-		"timeout":   timeout}
-
-	d.logger.Info("Restarting instance", ctxMap)
-
-	err := d.restartCommon(d, timeout)
-	if err != nil {
-		return err
-	}
-
-	d.logger.Info("Restarted instance", ctxMap)
-	d.state.Events.SendLifecycle(d.project.Name, lifecycle.InstanceRestarted.Event(d, nil))
-
-	return nil
+	return d.restartCommon(d, timeout)
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
@@ -2860,12 +2835,10 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	op, err := d.onStopOperationSetup(target)
+	_, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
-
-	_ = op.Reset()
 
 	// Clean up devices.
 	d.cleanupDevices(false, netns)
@@ -2890,8 +2863,6 @@ func (d *lxc) onStop(args map[string]string) error {
 		return err
 	}
 
-	_ = op.Reset()
-
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
 
@@ -2911,8 +2882,6 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Unlock on return
 		defer op.Done(nil)
-
-		_ = op.ResetTimeout(operationlock.TimeoutShutdown)
 
 		d.logger.Debug("Instance stopped, cleaning up")
 
@@ -6645,7 +6614,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// volume when the instance is running, so there should be no reason to wait for the operation to finish.
 	op := operationlock.Get(d.Project().Name, d.Name())
 	if op.Action() != operationlock.ActionUpdate || !d.IsRunning() {
-		_ = op.Wait()
+		_ = op.Wait(context.Background())
 	}
 
 	// Setup reverter.
