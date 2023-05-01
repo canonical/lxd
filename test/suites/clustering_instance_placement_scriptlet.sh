@@ -157,8 +157,11 @@ EOF
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster evacuate node1 --force
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "status: Evacuated"
   LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node3"
-
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
+
+  # Delete the storage pool
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
 
   # Shut down cluster
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
