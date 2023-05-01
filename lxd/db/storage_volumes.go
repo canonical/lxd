@@ -853,21 +853,6 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error
 	return nil
 }
 
-// RemoveStorageVolumeImages removes the volumes associated with the images
-// with the given fingerprints.
-func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
-	stmt := fmt.Sprintf(
-		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",
-		query.Params(len(fingerprints)))
-	args := []any{StoragePoolVolumeTypeImage}
-	for _, fingerprint := range fingerprints {
-		args = append(args, fingerprint)
-	}
-
-	err := exec(c, stmt, args...)
-	return err
-}
-
 // Convert a volume integer type code to its human-readable name.
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
