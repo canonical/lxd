@@ -151,10 +151,41 @@ test_basic_usage() {
   # change the container filesystem so the resulting image is different
   lxc exec baz touch /somefile
   lxc stop baz --force
-  # publishing another image with same alias doesn't fail
-  lxc publish baz --alias=foo-image
+  # publishing another image with same alias should fail
+  ! lxc publish baz --alias=foo-image || false
+  # publishing another image with same alias and '--reuse' flag should success
+  lxc publish baz --alias=foo-image --reuse
+  fooImage=$(lxc image list -cF -fcsv foo-image)
+  fooImage2=$(lxc image list -cF -fcsv foo-image2)
   lxc delete baz
   lxc image delete foo-image foo-image2
+
+  # the first image should have foo-image2 alias and the second imgae foo-image alias
+  if [ "$fooImage" = "$fooImage2" ]; then
+    echo "foo-image and foo-image2 aliases should be assigned to two different images"
+    false
+  fi
+
+
+  # Test container publish with existing alias
+  lxc publish bar --alias=foo-image --alias=foo-image2
+  lxc launch testimage baz
+  # change the container filesystem so the resulting image is different
+  lxc exec baz touch /somefile
+  lxc stop baz --force
+  # publishing another image with same aliases
+  lxc publish baz --alias=foo-image --alias=foo-image2 --reuse
+  fooImage=$(lxc image list -cF -fcsv foo-image)
+  fooImage2=$(lxc image list -cF -fcsv foo-image2)
+  lxc delete baz
+  lxc image delete foo-image
+
+  # the second image should have foo-image and foo-image2 aliases and the first one should be removed
+  if [ "$fooImage" != "$fooImage2" ]; then
+    echo "foo-image and foo-image2 aliases should be assigned to the same image"
+    false
+  fi
+
 
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
