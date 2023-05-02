@@ -1027,10 +1027,22 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 		scanner := bufio.NewScanner(strings.NewReader(val))
 
 		for scanner.Scan() {
-			devID, stats, _ := strings.Cut(scanner.Text(), " ")
+			var devID string
 			ioStats := &IOStats{}
 
-			for _, statPart := range strings.Split(stats, " ") {
+			for _, statPart := range strings.Split(scanner.Text(), " ") {
+				// If the stat part is empty, skip it.
+				if statPart == "" {
+					continue
+				}
+
+				if strings.Contains(statPart, ":") {
+					// Store the last dev ID as this works around a kernel bug where multiple dev IDs could appear on a single line.
+					devID = statPart
+					continue
+				}
+
+				// Parse the stat value.
 				statName, statValueStr, found := strings.Cut(statPart, "=")
 				if !found {
 					return nil, fmt.Errorf("Failed extracting io.stat %q (from %q)", statPart, scanner.Text())
