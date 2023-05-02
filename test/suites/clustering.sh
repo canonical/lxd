@@ -2763,7 +2763,7 @@ test_clustering_image_refresh() {
   # Modify public testimage
   old_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --public
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
 
   pids=""
@@ -2835,7 +2835,7 @@ test_clustering_image_refresh() {
 
   # Modify public testimage
   dd if=/dev/urandom count=32 | LXD_DIR="${LXD_REMOTE_DIR}" lxc file push - c1/foo
-  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --public
+  LXD_DIR="${LXD_REMOTE_DIR}" lxc publish c1 --alias testimage --reuse --public
   new_fingerprint="$(LXD_DIR="${LXD_REMOTE_DIR}" lxc image ls testimage -c f --format csv)"
 
   pids=""

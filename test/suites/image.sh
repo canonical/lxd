@@ -147,7 +147,7 @@ test_image_refresh() {
   # Change image and publish it
   lxc init l2:testimage l2:c1
   echo test | lxc file push - l2:c1/tmp/testfile
-  lxc publish l2:c1 l2: --alias testimage --public
+  lxc publish l2:c1 l2: --alias testimage --reuse --public
   new_fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
 
   # Ensure the images differ
