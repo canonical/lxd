@@ -1073,38 +1073,3 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 
 	return nil, ErrUnknownVersion
 }
-
-// GetTotalProcesses returns the total number of processes.
-func (cg *CGroup) GetTotalProcesses() (int64, error) {
-	version := cgControllers["pids"]
-	switch version {
-	case Unavailable:
-		return -1, ErrControllerMissing
-	case V1:
-		val, err := cg.rw.Get(version, "pids", "pids.current")
-		if err != nil {
-			return -1, err
-		}
-
-		n, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
-		}
-
-		return n, nil
-	case V2:
-		val, err := cg.rw.Get(version, "pids", "pids.current")
-		if err != nil {
-			return -1, err
-		}
-
-		n, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
-		}
-
-		return n, nil
-	}
-
-	return -1, ErrUnknownVersion
-}
