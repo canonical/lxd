@@ -549,3 +549,13 @@ func (r *manualResponse) Render(w http.ResponseWriter) error {
 func (r *manualResponse) String() string {
 	return "unknown"
 }
+
+// Unauthorized return an unauthorized response (401) with the given error.
+func Unauthorized(err error) Response {
+	message := "unauthorized"
+	if err != nil {
+		message = err.Error()
+	}
+
+	return &errorResponse{http.StatusUnauthorized, message}
+}
