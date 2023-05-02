@@ -16,7 +16,7 @@ import (
 
 var lxdEarlyPatches = map[string]func(b *lxdBackend) error{
 	"storage_missing_snapshot_records":    patchMissingSnapshotRecords,
-	"storage_delete_old_snapshot_records": patchCleanStorageVolumes,
+	"storage_delete_old_snapshot_records": patchDeleteOldSnapshotRecords,
 }
 
 var lxdLatePatches = map[string]func(b *lxdBackend) error{}
@@ -126,9 +126,9 @@ func patchMissingSnapshotRecords(b *lxdBackend) error {
 	return nil
 }
 
-// patchCleanStorageVolumes deletes the remaining snapshot records in storage_volumes
+// patchDeleteOldSnapshotRecords deletes the remaining snapshot records in storage_volumes
 // (a previous patch would have already moved them into storage_volume_snapshots).
-func patchCleanStorageVolumes(b *lxdBackend) error {
+func patchDeleteOldSnapshotRecords(b *lxdBackend) error {
 	err := b.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodeID := tx.GetNodeID()
 		_, err := tx.Tx().Exec(`
