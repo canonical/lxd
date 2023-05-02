@@ -329,7 +329,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	}
 
 	if d.oidcVerifier != nil && d.oidcVerifier.IsRequest(r) {
-		userName, err := d.oidcVerifier.Auth(d.shutdownCtx, r)
+		userName, err := d.oidcVerifier.Auth(d.shutdownCtx, w, r)
 		if err != nil {
 			return false, "", "", err
 		}
