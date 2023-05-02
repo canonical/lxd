@@ -457,6 +457,11 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)
 			if !ok {
+				// Ensure the OIDC headers are set if needed.
+				if d.oidcVerifier != nil {
+					_ = d.oidcVerifier.WriteHeaders(w)
+				}
+
 				_ = response.InternalError(err).Render(w)
 				return
 			}
