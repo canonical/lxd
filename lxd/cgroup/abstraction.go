@@ -50,7 +50,7 @@ func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -62,7 +62,7 @@ func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -104,7 +104,7 @@ func (cg *CGroup) GetMemoryLimit() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -116,7 +116,7 @@ func (cg *CGroup) GetMemoryLimit() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -175,7 +175,7 @@ func (cg *CGroup) GetMemoryUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -187,7 +187,7 @@ func (cg *CGroup) GetMemoryUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -212,7 +212,7 @@ func (cg *CGroup) GetProcessesUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -358,7 +358,7 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -386,7 +386,7 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 
 			val, err := strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
-				return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+				return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 			}
 
 			// Convert usec to nsec
@@ -466,7 +466,7 @@ func (cg *CGroup) GetMemoryMaxUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -568,7 +568,7 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -613,7 +613,7 @@ func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -636,7 +636,7 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -648,7 +648,7 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 
 		n, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+			return -1, fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return n, nil
@@ -1072,39 +1072,4 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 	}
 
 	return nil, ErrUnknownVersion
-}
-
-// GetTotalProcesses returns the total number of processes.
-func (cg *CGroup) GetTotalProcesses() (int64, error) {
-	version := cgControllers["pids"]
-	switch version {
-	case Unavailable:
-		return -1, ErrControllerMissing
-	case V1:
-		val, err := cg.rw.Get(version, "pids", "pids.current")
-		if err != nil {
-			return -1, err
-		}
-
-		n, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
-		}
-
-		return n, nil
-	case V2:
-		val, err := cg.rw.Get(version, "pids", "pids.current")
-		if err != nil {
-			return -1, err
-		}
-
-		n, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
-		}
-
-		return n, nil
-	}
-
-	return -1, ErrUnknownVersion
 }
