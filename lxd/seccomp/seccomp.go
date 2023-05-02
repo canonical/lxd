@@ -1789,7 +1789,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	}
 
 	// Get instance process count.
-	pids, err := cg.GetTotalProcesses()
+	pids, err := cg.GetProcessesUsage()
 	if err != nil {
 		l.Warn("Failed getting process count", logger.Ctx{"err": err})
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
