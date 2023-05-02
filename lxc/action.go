@@ -49,6 +49,7 @@ func (c *cmdPause) Command() *cobra.Command {
 	cmd.Short = i18n.G("Pause instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pause instances`))
+	cmd.Aliases = []string{"freeze"}
 	cmd.Hidden = true
 
 	return cmd
