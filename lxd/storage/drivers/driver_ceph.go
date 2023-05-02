@@ -29,8 +29,9 @@ type ceph struct {
 func (d *ceph) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_lvm_skipactivation":       nil,
-		"storage_missing_snapshot_records": nil,
+		"storage_lvm_skipactivation":          nil,
+		"storage_missing_snapshot_records":    nil,
+		"storage_delete_old_snapshot_records": nil,
 	}
 
 	// Done if previously loaded.
