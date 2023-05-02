@@ -138,7 +138,7 @@ DELETE FROM storage_volumes WHERE id IN (
 		/* Create a two column intermediary table containing the container name and its snapshot name */
 		SELECT sv.name inst_name, svs.name snap_name FROM storage_volumes AS sv
 		JOIN storage_volumes_snapshots AS svs ON sv.id = svs.storage_volume_id AND node_id=? AND type=?
-	) j1 ON name=FORMAT("%s/%s", j1.inst_name, j1.snap_name)
+	) j1 ON name=printf("%s/%s", j1.inst_name, j1.snap_name)
 	/* Only keep the records with a matching 'name' pattern, 'node_id' and 'type' */
 );
 `, nodeID, db.StoragePoolVolumeTypeContainer)
