@@ -28,6 +28,19 @@ type Verifier struct {
 	cookieKey []byte
 }
 
+// AuthError represents an authentication error.
+type AuthError struct {
+	Err error
+}
+
+func (e AuthError) Error() string {
+	return fmt.Sprintf("Failed to authenticate: %s", e.Err.Error())
+}
+
+func (e AuthError) Unwrap() error {
+	return e.Err
+}
+
 // Auth extracts the token, validates it and returns the user information.
 func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Request) (string, error) {
 	var token string
@@ -42,7 +55,7 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		// Both returned errors contain information which are needed for the client to authenticate.
 		parts := strings.Split(auth, "Bearer ")
 		if len(parts) != 2 {
-			return "", fmt.Errorf("Bad authorization token, expected a Bearer token")
+			return "", &AuthError{fmt.Errorf("Bad authorization token, expected a Bearer token")}
 		}
 
 		token = parts[1]
@@ -50,7 +63,7 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		// When not using a Bearer token, fetch the equivalent from a cookie and move on with it.
 		cookie, err := r.Cookie("oidc_access")
 		if err != nil {
-			return "", err
+			return "", &AuthError{err}
 		}
 
 		token = cookie.Value
@@ -61,25 +74,25 @@ func (o *Verifier) Auth(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		// See if we can refresh the access token.
 		cookie, cookieErr := r.Cookie("oidc_refresh")
 		if cookieErr != nil {
-			return "", err
+			return "", &AuthError{err}
 		}
 
 		// Get the provider.
 		provider, err := o.getProvider(r)
 		if err != nil {
-			return "", err
+			return "", &AuthError{err}
 		}
 
 		// Attempt the refresh.
 		tokens, err := rp.RefreshAccessToken(provider, cookie.Value, "", "")
 		if err != nil {
-			return "", err
+			return "", &AuthError{err}
 		}
 
 		// Validate the refreshed token.
 		claims, err = o.VerifyAccessToken(ctx, tokens.AccessToken)
 		if err != nil {
-			return "", err
+			return "", &AuthError{err}
 		}
 
 		// Update the access token cookie.
