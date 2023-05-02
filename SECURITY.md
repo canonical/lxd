@@ -37,9 +37,9 @@ The easiest way to report a security issue is by e-mail to:
 
 This e-mail address will reach the three main maintainers for LXC/LXD/LXCFS:
 
-- Christian Brauner
-- Stéphane Graber
-- Serge Hallyn
+- Christian Brauner ([GPG](https://keyoxide.org/4880B8C9BD0E5106FC070F4F7B3C391EFEA93624))
+- Stéphane Graber ([GPG](https://keyoxide.org/602f567663e593bcbd14f338c638974d64792d67))
+- Serge Hallyn ([GPG](https://keyserver.ubuntu.com/pks/lookup?fingerprint=on&op=index&search=0xF1D08DB778185BF784002DFFE9FEEA06A85E3F9D))
 
 We will be working with you to determine whether the issue qualifies as a
 security issue, if so in what component and then handle figuring out a
