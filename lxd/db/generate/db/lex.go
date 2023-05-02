@@ -101,29 +101,31 @@ func destFunc(slice string, typ string, fields []*Field) string {
 		checkErr()
 	}
 
-	args := make([]string, 0, len(fields))
+	args := make([]string, len(fields))
 	declVars := make(map[string]*Field, len(fields))
-	for _, field := range fields {
+	declVarNames := make([]string, 0, len(fields))
+	for i, field := range fields {
 		var arg string
 		if shared.IsTrue(field.Config.Get("marshal")) {
 			declVarName := fmt.Sprintf("%sStr", lex.Minuscule(field.Name))
+			declVarNames = append(declVarNames, declVarName)
 			declVars[declVarName] = field
 			arg = fmt.Sprintf("&%s", declVarName)
 		} else {
 			arg = fmt.Sprintf("&%s.%s", varName, field.Name)
 		}
 
-		args = append(args, arg)
+		args[i] = arg
 	}
 
-	for declVar := range declVars {
-		writeLine(fmt.Sprintf("var %s string", declVar))
+	for _, declVarName := range declVarNames {
+		writeLine(fmt.Sprintf("var %s string", declVarName))
 	}
 
 	writeLine(fmt.Sprintf("err := scan(%s)", strings.Join(args, ", ")))
 	checkErr()
-	for declVar, field := range declVars {
-		unmarshal(declVar, field)
+	for _, declVarName := range declVarNames {
+		unmarshal(declVarName, declVars[declVarName])
 	}
 
 	writeLine(fmt.Sprintf("%s = append(%s, %s)\n", slice, slice, varName))
