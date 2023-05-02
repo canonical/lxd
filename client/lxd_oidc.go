@@ -19,6 +19,8 @@ import (
 	httphelper "github.com/zitadel/oidc/v2/pkg/http"
 	"github.com/zitadel/oidc/v2/pkg/oidc"
 	"golang.org/x/oauth2"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 func (r *ProtocolLXD) setupOIDCClient(token *oidc.Tokens[*oidc.IDTokenClaims]) {
@@ -112,6 +114,11 @@ func (o *oidcClient) do(req *http.Request) (*http.Response, error) {
 	if err == nil {
 		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		return resp, nil
+	}
+
+	// Return immediately if the error is not HTTP status unauthorized.
+	if !api.StatusErrorCheck(err, http.StatusUnauthorized) {
+		return nil, err
 	}
 
 	issuer := resp.Header.Get("X-LXD-OIDC-issuer")
