@@ -454,14 +454,20 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Authentication
 		trusted, username, protocol, err := d.Authenticate(w, r)
 		if err != nil {
-			// If not a macaroon discharge request, return the error
-			_, ok := err.(*bakery.DischargeRequiredError)
-			if !ok {
+			_, ok := err.(*oidc.AuthError)
+			if ok {
 				// Ensure the OIDC headers are set if needed.
 				if d.oidcVerifier != nil {
 					_ = d.oidcVerifier.WriteHeaders(w)
 				}
 
+				_ = response.Unauthorized(err).Render(w)
+				return
+			}
+
+			// If not a macaroon discharge request, return the error
+			_, ok = err.(*bakery.DischargeRequiredError)
+			if !ok {
 				_ = response.InternalError(err).Render(w)
 				return
 			}
