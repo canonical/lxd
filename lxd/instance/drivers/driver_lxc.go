@@ -3283,13 +3283,15 @@ func (d *lxc) renderState(statusCode api.StatusCode, hostInterfaces []net.Interf
 		StatusCode: statusCode,
 	}
 
+	pid := d.InitPID()
+	processesState, _ := d.processesState(pid)
+
 	if d.isRunningStatusCode(statusCode) {
-		pid := d.InitPID()
 		status.CPU = d.cpuState()
 		status.Memory = d.memoryState()
 		status.Network = d.networkState(hostInterfaces)
 		status.Pid = int64(pid)
-		status.Processes = d.processesState()
+		status.Processes = processesState
 	}
 
 	status.Disk = d.diskState()
@@ -7218,25 +7220,24 @@ func (d *lxc) networkState(hostInterfaces []net.Interface) map[string]api.Instan
 	return result
 }
 
-func (d *lxc) processesState() int64 {
+func (d *lxc) processesState(pid int) (int64, error) {
 	// Return 0 if not running
-	pid := d.InitPID()
 	if pid == -1 {
-		return 0
+		return 0, fmt.Errorf("PID of LXC instance could not be initialized")
 	}
 
 	cg, err := d.cgroup(nil)
 	if err != nil {
-		return 0
+		return 0, err
 	}
 
 	if d.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 		value, err := cg.GetProcessesUsage()
 		if err != nil {
-			return -1
+			return -1, err
 		}
 
-		return value
+		return value, nil
 	}
 
 	pids := []int64{int64(pid)}
@@ -7259,7 +7260,7 @@ func (d *lxc) processesState() int64 {
 		}
 	}
 
-	return int64(len(pids))
+	return int64(len(pids)), nil
 }
 
 // getStorageType returns the storage type of the instance's storage pool.
@@ -8302,7 +8303,7 @@ func (d *lxc) Metrics(hostInterfaces []net.Interface) (*metrics.MetricSet, error
 	}
 
 	// Get number of processes
-	pids, err := cg.GetTotalProcesses()
+	pids, err := d.processesState(d.InitPID())
 	if err != nil {
 		d.logger.Warn("Failed to get total number of processes", logger.Ctx{"err": err})
 	} else {
