@@ -1110,11 +1110,6 @@ func (d *Daemon) init() error {
 		config.VsockSupport = true
 	}
 
-	d.endpoints, err = endpoints.Up(config)
-	if err != nil {
-		return err
-	}
-
 	// Have the db package determine remote storage drivers
 	db.StorageRemoteDriverNames = storageDrivers.RemoteDriverNames
 
@@ -1307,7 +1302,6 @@ func (d *Daemon) init() error {
 
 	instancePlacementScriptlet := d.globalConfig.InstancesPlacementScriptlet()
 
-	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
 	d.globalConfigMu.Unlock()
 
 	// Setup Loki logger.
@@ -1398,12 +1392,22 @@ func (d *Daemon) init() error {
 		logger.Info("Started DNS server")
 	}
 
-	// Setup the networks.
+	// Setup the networks (starting the networks before bringing up the LXD endpoints
+	// allows the networks to be used by the LXD endpoints if necessary).
 	logger.Infof("Initializing networks")
 	err = networkStartup(d.State())
 	if err != nil {
 		return err
 	}
+
+	d.endpoints, err = endpoints.Up(config)
+	if err != nil {
+		return err
+	}
+
+	d.globalConfigMu.Lock()
+	d.endpoints.NetworkUpdateTrustedProxy(d.globalConfig.HTTPSTrustedProxy())
+	d.globalConfigMu.Unlock()
 
 	// Load instance placement scriptlet.
 	if instancePlacementScriptlet != "" {
