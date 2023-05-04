@@ -1797,7 +1797,7 @@ func (d *qemu) getAgentConnectionInfo() (*agentAPI.API10Put, error) {
 	req := agentAPI.API10Put{
 		Certificate: string(d.state.Endpoints.NetworkCert().PublicKey()),
 		Devlxd:      shared.IsTrueOrEmpty(d.expandedConfig["security.devlxd"]),
-		CID:         vsockaddr.ContextID,
+		CID:         vsock.Host, // Always tell lxd-agent to connect to LXD using Host Context ID to support nesting.
 		Port:        vsockaddr.Port,
 	}
 
