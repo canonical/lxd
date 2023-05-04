@@ -191,7 +191,7 @@ func (e *Endpoints) up(config *Config) error {
 		pprof:          pprofCreateServer(),
 		metrics:        config.MetricsServer,
 		storageBuckets: config.StorageBucketsServer,
-		vsock:          config.VsockServer,
+		vmvsock:        config.VsockServer,
 	}
 
 	e.cert = config.Cert
@@ -228,7 +228,7 @@ func (e *Endpoints) up(config *Config) error {
 
 	// Start the VM sock listener.
 	if config.VsockSupport {
-		e.listeners[vsock], err = createVsockListener(e.cert)
+		e.listeners[vmvsock], err = createVsockListener(e.cert)
 		if err != nil {
 			return err
 		}
@@ -334,8 +334,8 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(storageBuckets)
 	}
 
-	if e.listeners[vsock] != nil {
-		e.serve(vsock)
+	if e.listeners[vmvsock] != nil {
+		e.serve(vmvsock)
 	}
 
 	e.serve(devlxd)
@@ -398,8 +398,8 @@ func (e *Endpoints) Down() error {
 		}
 	}
 
-	if e.listeners[vsock] != nil {
-		err := e.closeListener(vsock)
+	if e.listeners[vmvsock] != nil {
+		err := e.closeListener(vmvsock)
 		if err != nil {
 			return err
 		}
@@ -494,7 +494,7 @@ const (
 	pprof
 	cluster
 	metrics
-	vsock
+	vmvsock
 	storageBuckets
 )
 
@@ -506,6 +506,6 @@ var descriptions = map[kind]string{
 	pprof:          "pprof socket",
 	cluster:        "cluster socket",
 	metrics:        "metrics socket",
-	vsock:          "VM socket",
+	vmvsock:        "VM socket",
 	storageBuckets: "Storage buckets socket",
 }
