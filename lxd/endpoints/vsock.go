@@ -41,7 +41,7 @@ func (e *Endpoints) VsockAddress() net.Addr {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	listener := e.listeners[vsock]
+	listener := e.listeners[vmvsock]
 	if listener == nil {
 		return nil
 	}
