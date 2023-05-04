@@ -182,7 +182,7 @@ func (e *Endpoints) up(config *Config) error {
 		cluster: config.RestServer,
 		pprof:   pprofCreateServer(),
 		metrics: config.MetricsServer,
-		vsock:   config.VsockServer,
+		vmvsock: config.VsockServer,
 	}
 
 	e.cert = config.Cert
@@ -219,7 +219,7 @@ func (e *Endpoints) up(config *Config) error {
 
 	// Start the VM sock listener.
 	if config.VsockSupport {
-		e.listeners[vsock], err = createVsockListener(e.cert)
+		e.listeners[vmvsock], err = createVsockListener(e.cert)
 		if err != nil {
 			return err
 		}
@@ -316,8 +316,8 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(metrics)
 	}
 
-	if e.listeners[vsock] != nil {
-		e.serve(vsock)
+	if e.listeners[vmvsock] != nil {
+		e.serve(vmvsock)
 	}
 
 	e.serve(devlxd)
@@ -373,8 +373,8 @@ func (e *Endpoints) Down() error {
 		}
 	}
 
-	if e.listeners[vsock] != nil {
-		err := e.closeListener(vsock)
+	if e.listeners[vmvsock] != nil {
+		err := e.closeListener(vmvsock)
 		if err != nil {
 			return err
 		}
@@ -469,7 +469,7 @@ const (
 	pprof
 	cluster
 	metrics
-	vsock
+	vmvsock
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
@@ -480,5 +480,5 @@ var descriptions = map[kind]string{
 	pprof:   "pprof socket",
 	cluster: "cluster socket",
 	metrics: "metrics socket",
-	vsock:   "VM socket",
+	vmvsock: "VM socket",
 }
