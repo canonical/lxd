@@ -8,10 +8,10 @@ import (
 	"math/rand"
 	"net"
 
+	"github.com/mdlayher/vsock"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/util"
-	lxdvsock "github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -20,7 +20,8 @@ func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {
 		// Get random port between 1024 and 65535.
 		port := 1024 + rand.Int31n(math.MaxUint16-1024)
 
-		listener, err := lxdvsock.Listen(uint32(port))
+		// Setup listener on host context ID for inbound connections from lxd-agent running inside VMs.
+		listener, err := vsock.ListenContextID(vsock.Host, uint32(port), nil)
 		if err != nil {
 			// Try a different port.
 			if errors.Is(err, unix.EADDRINUSE) {
@@ -41,7 +42,7 @@ func (e *Endpoints) VsockAddress() net.Addr {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	listener := e.listeners[vsock]
+	listener := e.listeners[vmvsock]
 	if listener == nil {
 		return nil
 	}
