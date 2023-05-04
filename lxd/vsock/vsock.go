@@ -22,11 +22,6 @@ func Dial(cid, port uint32) (net.Conn, error) {
 	return vsock.Dial(cid, port, nil)
 }
 
-// Listen listens for a connection.
-func Listen(port uint32) (net.Listener, error) {
-	return vsock.Listen(port, nil)
-}
-
 // HTTPClient provides an HTTP client for using over vsock.
 func HTTPClient(vsockID int, port int, tlsClientCert string, tlsClientKey string, tlsServerCert string) (*http.Client, error) {
 	client := &http.Client{}
