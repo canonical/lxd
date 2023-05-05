@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -29,20 +30,18 @@ var eventsCmd = APIEndpoint{
 
 type eventsServe struct {
 	req *http.Request
-	d   *Daemon
+	s   *state.State
 }
 
 func (r *eventsServe) Render(w http.ResponseWriter) error {
-	return eventsSocket(r.d, r.req, w)
+	return eventsSocket(r.s, r.req, w)
 }
 
 func (r *eventsServe) String() string {
 	return "event handler"
 }
 
-func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
-	s := d.State()
-
+func eventsSocket(s *state.State, r *http.Request, w http.ResponseWriter) error {
 	// Detect project mode.
 	projectName := queryParam(r, "project")
 	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
@@ -54,7 +53,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 
 	if !allProjects && projectName != project.Default {
-		_, err := d.db.GetProject(context.Background(), projectName)
+		_, err := s.DB.GetProject(context.Background(), projectName)
 		if err != nil {
 			return err
 		}
@@ -94,13 +93,13 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	defer func() { _ = conn.Close() }() // Ensure listener below ends when this function ends.
 
-	d.events.SetLocalLocation(s.ServerName)
+	s.Events.SetLocalLocation(s.ServerName)
 
 	var excludeLocations []string
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if isClusterNotification(r) {
 			ctx := r.Context()
 
@@ -135,13 +134,13 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		recvFunc = func(event api.Event) {
 			// Inject event received via push from event listener client so its forwarded to
 			// other event hub members (if operating in event hub mode).
-			d.events.Inject(event, events.EventSourcePush)
+			s.Events.Inject(event, events.EventSourcePush)
 		}
 	}
 
 	listenerConnection := events.NewWebsocketListenerConnection(conn)
 
-	listener, err := d.events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
+	listener, err := s.Events.AddListener(projectName, allProjects, listenerConnection, types, excludeSources, recvFunc, excludeLocations)
 	if err != nil {
 		l.Warn("Failed to add event listener", logger.Ctx{"err": err})
 		return nil
@@ -186,5 +185,5 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func eventsGet(d *Daemon, r *http.Request) response.Response {
-	return &eventsServe{req: r, d: d}
+	return &eventsServe{req: r, s: d.State()}
 }
