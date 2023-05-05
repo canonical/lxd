@@ -1,7 +1,6 @@
 package endpoints
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"math"
@@ -11,7 +10,7 @@ import (
 	"github.com/mdlayher/vsock"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -31,7 +30,7 @@ func createVsockListener(cert *shared.CertInfo) (net.Listener, error) {
 			return nil, err
 		}
 
-		return tls.NewListener(listener, util.ServerTLSConfig(cert)), nil
+		return listeners.NewFancyTLSListener(listener, cert), nil
 	}
 
 	return nil, fmt.Errorf("Failed finding free listen port for vsock listener")
