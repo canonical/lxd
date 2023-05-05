@@ -108,7 +108,7 @@ var clusterGroupsCmd = APIEndpoint{
 	Path: "cluster/groups",
 
 	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterGroupsPost},
 }
 
 var clusterGroupCmd = APIEndpoint{
