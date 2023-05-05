@@ -44,9 +44,9 @@ var projectCmd = APIEndpoint{
 
 	Delete: APIEndpointAction{Handler: projectDelete},
 	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowAuthenticated},
+	Patch:  APIEndpointAction{Handler: projectPatch},
 	Post:   APIEndpointAction{Handler: projectPost},
-	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowAuthenticated},
+	Put:    APIEndpointAction{Handler: projectPut},
 }
 
 var projectStateCmd = APIEndpoint{
