@@ -1638,7 +1638,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	if d.gateway != nil {
 		d.stopClusterTasks()
 
-		err := handoverMemberRole(d)
+		err := handoverMemberRole(d.State(), d.gateway)
 		if err != nil {
 			logger.Warn("Could not handover member's responsibilities", logger.Ctx{"err": err})
 			d.gateway.Kill()
@@ -2132,7 +2132,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := rebalanceMemberRoles(d, nil, unavailableMembers)
+			err := rebalanceMemberRoles(d.State(), d.gateway, nil, unavailableMembers)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
@@ -2143,7 +2143,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Upgrading members without raft role in heartbeat", logger.Ctx{"local": localClusterAddress})
-			err := upgradeNodesWithoutRaftRole(d)
+			err := upgradeNodesWithoutRaftRole(d.State(), d.gateway)
 			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Failed upgrading raft roles:", logger.Ctx{"err": err, "local": localClusterAddress})
 			}
