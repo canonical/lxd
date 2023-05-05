@@ -600,6 +600,10 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if server.Config == nil {
+		server.Config = map[string]any{}
+	}
+
 	for k, v := range keys {
 		server.Config[k] = v
 	}
