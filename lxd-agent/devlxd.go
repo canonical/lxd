@@ -59,7 +59,7 @@ func getVsockClient(d *Daemon) (lxd.InstanceServer, error) {
 var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
@@ -73,7 +73,7 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 
 	err = resp.MetadataAsStruct(&config)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	filtered := []string{}
@@ -97,7 +97,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 
 	client, err := getVsockClient(d)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
@@ -111,7 +111,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 
 	err = resp.MetadataAsStruct(&value)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(value, "raw")
@@ -131,7 +131,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 	}
 
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
@@ -145,7 +145,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 
 	err = resp.MetadataAsStruct(&metaData)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(metaData, "raw")
@@ -163,7 +163,7 @@ var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.Respon
 var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
@@ -178,7 +178,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 
 		err = resp.MetadataAsStruct(&instanceData)
 		if err != nil {
-			return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+			return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 		}
 
 		return okResponse(instanceData, "json")
@@ -197,7 +197,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	client, err := getVsockClient(d)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed connecting to LXD over vsock: %w", err))
 	}
 
 	defer client.Disconnect()
@@ -211,7 +211,7 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 
 	err = resp.MetadataAsStruct(&devices)
 	if err != nil {
-		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+		return smartResponse(fmt.Errorf("Failed parsing response from LXD: %w", err))
 	}
 
 	return okResponse(devices, "json")
