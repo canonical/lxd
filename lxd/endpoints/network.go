@@ -137,15 +137,12 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.cert = cert
-	listener, ok := e.listeners[network]
-	if ok {
-		listener.(*listeners.FancyTLSListener).Config(cert)
-	}
 
-	// Update the cluster listener too, if enabled.
-	listener, ok = e.listeners[cluster]
-	if ok {
-		listener.(*listeners.FancyTLSListener).Config(cert)
+	for _, listenerKey := range []kind{network, cluster, vmvsock, storageBuckets, metrics} {
+		listener, found := e.listeners[listenerKey]
+		if found {
+			listener.(*listeners.FancyTLSListener).Config(cert)
+		}
 	}
 }
 
