@@ -2,12 +2,14 @@ package device
 
 import (
 	"fmt"
+	"os"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -111,6 +113,12 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	revert.Add(func() { _ = network.InterfaceRemove(saveData["host_name"]) })
+
+	// Attempt to disable router advertisement acceptance.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
