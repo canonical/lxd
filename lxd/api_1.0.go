@@ -750,7 +750,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "candid.api.url":
 			candidChanged = true
 		case "cluster.images_minimal_replica":
-			err := autoSyncImages(d.shutdownCtx, d)
+			err := autoSyncImages(d.shutdownCtx, s)
 			if err != nil {
 				logger.Warn("Could not auto-sync images", logger.Ctx{"err": err})
 			}
