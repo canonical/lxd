@@ -43,8 +43,8 @@ func forwardedResponseIfTargetIsRemote(s *state.State, r *http.Request) response
 // forwardedResponseIfInstanceIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
-	client, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
+func forwardedResponseIfInstanceIsRemote(s *state.State, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
+	client, err := cluster.ConnectIfInstanceIsRemote(s.DB.Cluster, project, name, s.Endpoints.NetworkCert(), s.ServerCert(), r, instanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -63,12 +63,12 @@ func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, na
 //
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
-func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolName string, projectName string, volumeName string, volumeType int) response.Response {
+func forwardedResponseIfVolumeIsRemote(s *state.State, r *http.Request, poolName string, projectName string, volumeName string, volumeType int) response.Response {
 	if queryParam(r, "target") != "" {
 		return nil
 	}
 
-	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, d.endpoints.NetworkCert(), d.serverCert(), r)
+	client, err := cluster.ConnectIfVolumeIsRemote(s, poolName, projectName, volumeName, volumeType, s.Endpoints.NetworkCert(), s.ServerCert(), r)
 	if err != nil {
 		return response.SmartError(err)
 	}
