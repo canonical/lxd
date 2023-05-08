@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -306,8 +307,8 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
-func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(d.State(), r, projectName, operationtype.ClusterJoinToken)
+func clusterMemberJoinTokenValid(s *state.State, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
+	ops, err := operationsGetByType(s, r, projectName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -340,7 +341,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(d.State(), r, projectName, foundOp)
+		err = operationCancel(s, r, projectName, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -350,7 +351,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 			var expiry time.Time
 
 			// Depending on whether it's a local operation or not, expiry will either be a time.Time or a string.
-			if d.serverName == foundOp.Location {
+			if s.ServerName == foundOp.Location {
 				expiry, _ = expiresAt.(time.Time)
 			} else {
 				expiry, _ = time.Parse(time.RFC3339Nano, expiresAt.(string))
@@ -371,8 +372,8 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 
 // certificateTokenValid searches for certificate token that matches the add token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
-func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(d.State(), r, project.Default, operationtype.CertificateAddToken)
+func certificateTokenValid(s *state.State, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
+	ops, err := operationsGetByType(s, r, project.Default, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
@@ -396,7 +397,7 @@ func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.Certificate
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(d.State(), r, project.Default, foundOp)
+		err = operationCancel(s, r, project.Default, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -553,7 +554,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		joinToken, err := shared.JoinTokenDecode(req.Password)
 		if err == nil {
 			// If so then check there is a matching join operation.
-			joinOp, err := clusterMemberJoinTokenValid(d, r, project.Default, joinToken)
+			joinOp, err := clusterMemberJoinTokenValid(s, r, project.Default, joinToken)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
 			}
@@ -566,7 +567,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			joinToken, err := shared.CertificateTokenDecode(req.Password)
 			if err == nil {
 				// If so then check there is a matching join operation.
-				joinOp, err := certificateTokenValid(d, r, joinToken)
+				joinOp, err := certificateTokenValid(s, r, joinToken)
 				if err != nil {
 					return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 				}
