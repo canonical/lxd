@@ -13,6 +13,7 @@ import (
 
 	"github.com/canonical/lxd/lxd/db/operationtype"
 	"github.com/canonical/lxd/lxd/operations"
+	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/lxd/task"
 	"github.com/canonical/lxd/lxd/util"
 	"github.com/canonical/lxd/shared"
@@ -74,14 +75,16 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	// returning in case the context expires.
 	_, hasCancellationSupport := any(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
+		s := d.State()
+
 		opRun := func(op *operations.Operation) error {
 			if hasCancellationSupport {
-				return instanceRefreshTypes(ctx, d)
+				return instanceRefreshTypes(ctx, s)
 			}
 
 			ch := make(chan error)
 			go func() {
-				ch <- instanceRefreshTypes(ctx, d)
+				ch <- instanceRefreshTypes(ctx, s)
 			}()
 			select {
 			case <-ctx.Done():
@@ -110,12 +113,12 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
+func instanceRefreshTypes(ctx context.Context, s *state.State) error {
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target any) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
 
-		httpClient, err := util.HTTPClient("", d.proxy)
+		httpClient, err := util.HTTPClient("", s.Proxy)
 		if err != nil {
 			return err
 		}
