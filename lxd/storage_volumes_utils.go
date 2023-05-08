@@ -70,7 +70,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
 		pUpdate.Devices = profile.Devices
-		err = doProfileUpdate(d, p, profile.Name, profileID, &profile, pUpdate)
+		err = doProfileUpdate(s, p, profile.Name, profileID, &profile, pUpdate)
 		if err != nil {
 			return err
 		}

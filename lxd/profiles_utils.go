@@ -10,13 +10,14 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
+func doProfileUpdate(s *state.State, p api.Project, profileName string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return project.AllowProfileUpdate(tx, p.Name, profileName, req)
 	})
 	if err != nil {
@@ -24,19 +25,19 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 	}
 
 	// Quick checks.
-	err = instance.ValidConfig(d.os, req.Config, false, instancetype.Any)
+	err = instance.ValidConfig(s.OS, req.Config, false, instancetype.Any)
 	if err != nil {
 		return err
 	}
 
 	// Profiles can be applied to any instance type, so just use instancetype.Any type for validation so that
 	// instance type specific validation checks are not performed.
-	err = instance.ValidDevices(d.State(), p, instancetype.Any, deviceConfig.NewDevices(req.Devices), nil)
+	err = instance.ValidDevices(s, p, instancetype.Any, deviceConfig.NewDevices(req.Devices), nil)
 	if err != nil {
 		return err
 	}
 
-	insts, projects, err := getProfileInstancesInfo(d.db.Cluster, p.Name, profileName)
+	insts, projects, err := getProfileInstancesInfo(s.DB.Cluster, p.Name, profileName)
 	if err != nil {
 		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
 	}
@@ -56,7 +57,7 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 
 			// Check what profile the device comes from by working backwards along the profiles list.
 			for i := len(inst.Profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.db.Cluster.GetProfile(p.Name, inst.Profiles[i].Name)
+				_, profile, err := s.DB.Cluster.GetProfile(p.Name, inst.Profiles[i].Name)
 				if err != nil {
 					return err
 				}
@@ -78,7 +79,7 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 	}
 
 	// Update the database.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		devices, err := cluster.APIToDevices(req.Devices)
 		if err != nil {
 			return err
@@ -124,17 +125,15 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 	}
 
 	// Update all the instances on this node using the profile. Must be done after db.TxCommit due to DB lock.
-	serverName := d.State().ServerName
-
 	failures := map[*db.InstanceArgs]error{}
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
 
-		if inst.Node != "" && inst.Node != serverName {
+		if inst.Node != "" && inst.Node != s.ServerName {
 			continue // This instance does not belong to this member, skip.
 		}
 
-		err := doProfileUpdateInstance(d, inst, *projects[inst.Project])
+		err := doProfileUpdateInstance(s, inst, *projects[inst.Project])
 		if err != nil {
 			failures[&inst] = err
 		}
@@ -154,10 +153,8 @@ func doProfileUpdate(d *Daemon, p api.Project, profileName string, id int64, pro
 
 // Like doProfileUpdate but does not update the database, since it was already
 // updated by doProfileUpdate itself, called on the notifying node.
-func doProfileUpdateCluster(d *Daemon, projectName string, profileName string, old api.ProfilePut) error {
-	serverName := d.State().ServerName
-
-	insts, projects, err := getProfileInstancesInfo(d.db.Cluster, projectName, profileName)
+func doProfileUpdateCluster(s *state.State, projectName string, profileName string, old api.ProfilePut) error {
+	insts, projects, err := getProfileInstancesInfo(s.DB.Cluster, projectName, profileName)
 	if err != nil {
 		return fmt.Errorf("Failed to query instances associated with profile %q: %w", profileName, err)
 	}
@@ -166,7 +163,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, profileName string, o
 	for _, it := range insts {
 		inst := it // Local var for instance pointer.
 
-		if inst.Node != "" && inst.Node != serverName {
+		if inst.Node != "" && inst.Node != s.ServerName {
 			continue // This instance does not belong to this member, skip.
 		}
 
@@ -181,7 +178,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, profileName string, o
 			}
 		}
 
-		err := doProfileUpdateInstance(d, inst, *projects[inst.Project])
+		err := doProfileUpdateInstance(s, inst, *projects[inst.Project])
 		if err != nil {
 			failures[&inst] = err
 		}
@@ -200,19 +197,20 @@ func doProfileUpdateCluster(d *Daemon, projectName string, profileName string, o
 }
 
 // Profile update of a single instance.
-func doProfileUpdateInstance(d *Daemon, args db.InstanceArgs, p api.Project) error {
+func doProfileUpdateInstance(s *state.State, args db.InstanceArgs, p api.Project) error {
 	profileNames := make([]string, 0, len(args.Profiles))
+
 	for _, profile := range args.Profiles {
 		profileNames = append(profileNames, profile.Name)
 	}
 
-	profiles, err := d.db.Cluster.GetProfiles(args.Project, profileNames)
+	profiles, err := s.DB.Cluster.GetProfiles(args.Project, profileNames)
 	if err != nil {
 		return err
 	}
 
 	// Load the instance using the old profile config.
-	inst, err := instance.Load(d.State(), args, p)
+	inst, err := instance.Load(s, args, p)
 	if err != nil {
 		return err
 	}
