@@ -1082,7 +1082,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoRemoveOrphanedOperations(ctx, d)
+			return autoRemoveOrphanedOperations(ctx, d.State())
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
@@ -1107,10 +1107,9 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 // behind if a cluster member abruptly becomes unreachable. If the affected cluster members comes
 // back online, these operations won't be cleaned up. We therefore need to periodically clean up
 // such operations.
-func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
+func autoRemoveOrphanedOperations(ctx context.Context, s *state.State) error {
 	logger.Debug("Removing orphaned operations across the cluster")
 
-	s := d.State()
 	offlineThreshold := s.GlobalConfig.OfflineThreshold()
 
 	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
