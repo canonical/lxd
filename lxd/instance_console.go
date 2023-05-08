@@ -557,7 +557,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the container is remote.
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
