@@ -459,7 +459,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = doProfileUpdateCluster(d, p.Name, name, old)
+		err = doProfileUpdateCluster(d.State(), p.Name, name, old)
 		return response.SmartError(err)
 	}
 
@@ -498,7 +498,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = doProfileUpdate(d, *p, name, id, profile, req)
+	err = doProfileUpdate(d.State(), *p, name, id, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -648,7 +648,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(p.Name, lifecycle.ProfileUpdated.Event(name, p.Name, requestor, nil))
 
-	return response.SmartError(doProfileUpdate(d, *p, name, id, profile, req))
+	return response.SmartError(doProfileUpdate(d.State(), *p, name, id, profile, req))
 }
 
 // swagger:operation POST /1.0/profiles/{name} profiles profile_post
