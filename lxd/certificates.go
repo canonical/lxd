@@ -307,7 +307,7 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 // clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(d, r, projectName, operationtype.ClusterJoinToken)
+	ops, err := operationsGetByType(d.State(), r, projectName, operationtype.ClusterJoinToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
@@ -340,7 +340,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(d, r, projectName, foundOp)
+		err = operationCancel(d.State(), r, projectName, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
@@ -372,7 +372,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 // certificateTokenValid searches for certificate token that matches the add token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
-	ops, err := operationsGetByType(d, r, project.Default, operationtype.CertificateAddToken)
+	ops, err := operationsGetByType(d.State(), r, project.Default, operationtype.CertificateAddToken)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
@@ -396,7 +396,7 @@ func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.Certificate
 
 	if foundOp != nil {
 		// Token is single-use, so cancel it now.
-		err = operationCancel(d, r, project.Default, foundOp)
+		err = operationCancel(d.State(), r, project.Default, foundOp)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
