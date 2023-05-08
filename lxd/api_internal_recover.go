@@ -69,9 +69,7 @@ type internalRecoverImportPost struct {
 }
 
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
-func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
-	s := d.State()
-
+func internalRecoverScan(s *state.State, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
 	var projects map[string]*api.Project
 	var projectProfiles map[string][]*api.Profile
@@ -130,7 +128,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		return response.SmartError(fmt.Errorf("Failed getting validate dependency check info: %w", err))
 	}
 
-	isClustered, err := cluster.Enabled(d.db.Node)
+	isClustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -571,7 +569,7 @@ func internalRecoverValidate(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return internalRecoverScan(d, req.Pools, true)
+	return internalRecoverScan(d.State(), req.Pools, true)
 }
 
 // internalRecoverImport performs the pool volume recovery.
@@ -583,5 +581,5 @@ func internalRecoverImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return internalRecoverScan(d, req.Pools, false)
+	return internalRecoverScan(d.State(), req.Pools, false)
 }

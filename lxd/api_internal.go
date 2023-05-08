@@ -578,12 +578,10 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 
 // internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImportFromBackup(d *Daemon, projectName string, instName string, force bool, allowNameOverride bool) error {
+func internalImportFromBackup(s *state.State, projectName string, instName string, force bool, allowNameOverride bool) error {
 	if instName == "" {
 		return fmt.Errorf("The name of the instance is required")
 	}
-
-	s := d.State()
 
 	storagePoolsPath := shared.VarPath("storage-pools")
 	storagePoolsDir, err := os.Open(storagePoolsPath)
@@ -703,7 +701,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	// Check if a storage volume entry for the instance already exists.
 	var dbVolume *db.StorageVolume
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, backupConf.Container.Name, true)
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
@@ -721,7 +719,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Check if an entry for the instance already exists in the db.
-	_, instanceErr := d.db.Cluster.GetInstanceID(projectName, backupConf.Container.Name)
+	_, instanceErr := s.DB.Cluster.GetInstanceID(projectName, backupConf.Container.Name)
 	if instanceErr != nil && !response.IsNotFoundError(instanceErr) {
 		return instanceErr
 	}
@@ -745,7 +743,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.db.Cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+		err := s.DB.Cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
 		if err != nil {
 			return err
 		}
@@ -753,7 +751,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	if instanceErr == nil {
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.db.Cluster.DeleteInstance(projectName, backupConf.Container.Name)
+		err := s.DB.Cluster.DeleteInstance(projectName, backupConf.Container.Name)
 		if err != nil {
 			return err
 		}
@@ -810,7 +808,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		snapInstName := fmt.Sprintf("%s%s%s", backupConf.Container.Name, shared.SnapshotDelimiter, snap.Name)
 
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.db.Cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
+		_, snapErr := s.DB.Cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
 		if snapErr != nil && !response.IsNotFoundError(snapErr) {
 			return snapErr
 		}
@@ -822,7 +820,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		// Check if a storage volume entry for the snapshot already exists.
 		var dbVolume *db.StorageVolume
-		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			dbVolume, err = tx.GetStoragePoolVolume(ctx, pool.ID(), projectName, instanceDBVolType, snapInstName, true)
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
@@ -840,14 +838,14 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		if snapErr == nil {
-			err := d.db.Cluster.DeleteInstance(projectName, snapInstName)
+			err := s.DB.Cluster.DeleteInstance(projectName, snapInstName)
 			if err != nil {
 				return err
 			}
 		}
 
 		if dbVolume != nil {
-			err := d.db.Cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
+			err := s.DB.Cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 			if err != nil {
 				return err
 			}
