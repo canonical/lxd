@@ -802,7 +802,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Ensure all images are available after this node has joined.
-		err = autoSyncImages(d.shutdownCtx, d)
+		err = autoSyncImages(d.shutdownCtx, s)
 		if err != nil {
 			logger.Warn("Failed to sync images")
 		}
@@ -1996,7 +1996,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	logger.Info("Deleting member from cluster", logger.Ctx{"name": name, "force": force})
 
-	err = autoSyncImages(d.shutdownCtx, d)
+	err = autoSyncImages(d.shutdownCtx, s)
 	if err != nil {
 		if force == 0 {
 			return response.SmartError(fmt.Errorf("Failed to sync images: %w", err))
@@ -2095,7 +2095,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	updateCertificateCache(d)
 
 	// Ensure all images are available after this node has been deleted.
-	err = autoSyncImages(d.shutdownCtx, d)
+	err = autoSyncImages(d.shutdownCtx, s)
 	if err != nil {
 		logger.Warn("Failed to sync images")
 	}
