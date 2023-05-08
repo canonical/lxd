@@ -73,6 +73,9 @@ func restServer(d *Daemon) *http.Server {
 	if uiEnabled {
 		uiHttpDir := uiHttpDir{http.Dir(uiPath)}
 		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(uiHttpDir)))
+		mux.HandleFunc("/ui", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/ui/", 301)
+		})
 	}
 
 	// OIDC browser login (code flow).
