@@ -1340,7 +1340,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Cleanup leftover images.
-	pruneLeftoverImages(d)
+	pruneLeftoverImages(d.State())
 
 	var instances []instance.Instance
 
