@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -255,7 +256,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update the file.
-	return doInstanceMetadataUpdate(d, inst, metadata, r)
+	return doInstanceMetadataUpdate(d.State(), inst, metadata, r)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/metadata instances instance_metadata_put
@@ -344,10 +345,10 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 
 	defer func() { _ = storagePools.InstanceUnmount(pool, inst, nil) }()
 
-	return doInstanceMetadataUpdate(d, inst, metadata, r)
+	return doInstanceMetadataUpdate(d.State(), inst, metadata, r)
 }
 
-func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
+func doInstanceMetadataUpdate(s *state.State, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
 	// Convert YAML.
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
@@ -361,7 +362,7 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
+	s.Events.SendLifecycle(inst.Project().Name, lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
