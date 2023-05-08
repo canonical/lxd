@@ -1045,7 +1045,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, srcPoolName, projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, srcPoolName, projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1365,7 +1365,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, volumeProjectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, volumeProjectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1484,7 +1484,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.Name(), projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, pool.Name(), projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1658,7 +1658,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.Name(), projectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, pool.Name(), projectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1786,7 +1786,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	resp = forwardedResponseIfVolumeIsRemote(d, r, poolName, volumeProjectName, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(s, r, poolName, volumeProjectName, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
