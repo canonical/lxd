@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -342,7 +343,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
 	// pool, either way finalize the config in the db and actually create the pool on all nodes in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
-		err = storagePoolsPostCluster(d, pool, req, clientType)
+		err = storagePoolsPostCluster(d.State(), pool, req, clientType)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -381,7 +382,7 @@ func storagePoolPartiallyCreated(pool *api.StoragePool) bool {
 
 // storagePoolsPostCluster handles creating storage pools after the per-node config records have been created.
 // Accepts an optional existing pool record, which will exist when performing subsequent re-create attempts.
-func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePoolsPost, clientType clusterRequest.ClientType) error {
+func storagePoolsPostCluster(s *state.State, pool *api.StoragePool, req api.StoragePoolsPost, clientType clusterRequest.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificStorageConfig) {
@@ -405,7 +406,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	// Check that the pool is properly defined, fetch the node-specific configs and insert the global config.
 	var configs map[string]map[string]string
 	var poolID int64
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Check that the pool was defined at all. Must come before partially created checks.
@@ -448,7 +449,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	}
 
 	// Create notifier for other nodes to create the storage pool.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
+	notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 	if err != nil {
 		return err
 	}
@@ -456,14 +457,12 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	// Create the pool on this node.
 	nodeReq := req
 
-	serverName := d.State().ServerName
-
 	// Merge node specific config items into global config.
-	for key, value := range configs[serverName] {
+	for key, value := range configs[s.ServerName] {
 		nodeReq.Config[key] = value
 	}
 
-	updatedConfig, err := storagePoolCreateLocal(d.State(), poolID, req, clientType)
+	updatedConfig, err := storagePoolCreateLocal(s, poolID, req, clientType)
 	if err != nil {
 		return err
 	}
@@ -511,7 +510,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	}
 
 	// Finally update the storage pool state.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.StoragePoolCreated(req.Name)
 	})
 	if err != nil {
@@ -747,7 +746,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	response := doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
+	response := doStoragePoolUpdate(s, pool, req, targetNode, clientType, r.Method, clustered)
 
 	requestor := request.CreateRequestor(r)
 
@@ -806,7 +805,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 
 // doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
 // validates and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
+func doStoragePoolUpdate(s *state.State, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -841,7 +840,7 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 
 	// Notify the other nodes, unless this is itself a notification.
 	if clustered && clientType != clusterRequest.ClientTypeNotifier && targetNode == "" {
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
+		notifier, err := cluster.NewNotifier(s, s.Endpoints.NetworkCert(), s.ServerCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
 		}
