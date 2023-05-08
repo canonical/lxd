@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -419,7 +420,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
-			return pruneResolvedWarnings(ctx, d)
+			return pruneResolvedWarnings(ctx, d.State())
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.WarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
@@ -441,8 +442,8 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+func pruneResolvedWarnings(ctx context.Context, s *state.State) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Retrieve warnings by resolved status.
 		statusResolved := warningtype.StatusResolved
 		filter := cluster.WarningFilter{
