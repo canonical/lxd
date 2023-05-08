@@ -122,7 +122,7 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
