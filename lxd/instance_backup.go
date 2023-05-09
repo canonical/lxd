@@ -118,6 +118,8 @@ import (
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -134,7 +136,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, cname, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -145,7 +147,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, cname)
+	c, err := instance.LoadByProjectAndName(s, projectName, cname)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -209,6 +211,8 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -224,7 +228,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := project.AllowBackupCreation(tx, projectName)
 		return err
 	})
@@ -233,7 +237,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node.
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -242,7 +246,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -323,7 +327,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(d.State(), args, inst, op)
+		err := backupCreate(s, args, inst, op)
 		if err != nil {
 			return fmt.Errorf("Create backup: %w", err)
 		}
@@ -340,7 +344,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	resources["backups"] = []string{req.Name}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupCreate, resources, nil, backup, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
@@ -390,6 +394,8 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -411,7 +417,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -421,7 +427,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := instance.BackupLoadByName(d.State(), projectName, fullName)
+	backup, err := instance.BackupLoadByName(s, projectName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -462,6 +468,8 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -483,7 +491,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -504,7 +512,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := instance.BackupLoadByName(d.State(), projectName, oldName)
+	backup, err := instance.BackupLoadByName(s, projectName, oldName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -524,7 +532,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	resources["instances"] = []string{name}
 	resources["containers"] = resources["instances"]
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
@@ -560,6 +568,8 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -581,7 +591,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -591,7 +601,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := instance.BackupLoadByName(d.State(), projectName, fullName)
+	backup, err := instance.BackupLoadByName(s, projectName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -608,7 +618,7 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["container"] = []string{name}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask,
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask,
 		operationtype.BackupRemove, resources, nil, remove, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
@@ -640,6 +650,8 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -661,7 +673,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -671,7 +683,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := instance.BackupLoadByName(d.State(), projectName, fullName)
+	backup, err := instance.BackupLoadByName(s, projectName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -680,7 +692,7 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 		Path: shared.VarPath("backups", "instances", project.Instance(projectName, backup.Name())),
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(fullName, backup.Instance(), nil))
+	s.Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(fullName, backup.Instance(), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }

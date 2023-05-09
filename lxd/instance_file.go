@@ -25,6 +25,8 @@ import (
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
@@ -41,7 +43,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -51,7 +53,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the instance.
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -68,13 +70,13 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return instanceFileGet(d.State(), inst, path, r)
+		return instanceFileGet(s, inst, path, r)
 	case "HEAD":
-		return instanceFileHead(d.State(), inst, path, r)
+		return instanceFileHead(s, inst, path, r)
 	case "POST":
-		return instanceFilePost(d.State(), inst, path, r)
+		return instanceFilePost(s, inst, path, r)
 	case "DELETE":
-		return instanceFileDelete(d.State(), inst, path, r)
+		return instanceFileDelete(s, inst, path, r)
 	default:
 		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}

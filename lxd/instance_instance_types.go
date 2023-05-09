@@ -94,7 +94,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.InstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start instance types update operation", logger.Ctx{"err": err})
 			return
