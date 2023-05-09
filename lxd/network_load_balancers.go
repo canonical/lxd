@@ -130,7 +130,9 @@ var networkLoadBalancerCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
-	projectName, reqProject, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
+	s := d.State()
+
+	projectName, reqProject, err := project.NetworkProject(s.DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -140,7 +142,7 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -157,7 +159,7 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := false // Get load balancers for all cluster members.
 
 	if util.IsRecursionRequest(r) {
-		records, err := d.State().DB.Cluster.GetNetworkLoadBalancers(r.Context(), n.ID(), memberSpecific)
+		records, err := s.DB.Cluster.GetNetworkLoadBalancers(r.Context(), n.ID(), memberSpecific)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network load balancers: %w", err))
 		}
@@ -170,7 +172,7 @@ func networkLoadBalancersGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, loadBalancers)
 	}
 
-	listenAddresses, err := d.State().DB.Cluster.GetNetworkLoadBalancerListenAddresses(n.ID(), memberSpecific)
+	listenAddresses, err := s.DB.Cluster.GetNetworkLoadBalancerListenAddresses(n.ID(), memberSpecific)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network load balancers: %w", err))
 	}
@@ -243,7 +245,7 @@ func networkLoadBalancersPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, networkName)
+	n, err := network.LoadByName(s, projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -423,7 +425,7 @@ func networkLoadBalancerGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := queryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	_, loadBalancer, err := d.State().DB.Cluster.GetNetworkLoadBalancer(r.Context(), n.ID(), memberSpecific, listenAddress)
+	_, loadBalancer, err := s.DB.Cluster.GetNetworkLoadBalancer(r.Context(), n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -548,7 +550,7 @@ func networkLoadBalancerPut(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := targetMember != ""
 
 	if r.Method == http.MethodPatch {
-		_, loadBalancer, err := d.State().DB.Cluster.GetNetworkLoadBalancer(r.Context(), n.ID(), memberSpecific, listenAddress)
+		_, loadBalancer, err := s.DB.Cluster.GetNetworkLoadBalancer(r.Context(), n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return response.SmartError(err)
 		}
