@@ -169,6 +169,8 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func operationGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
@@ -189,7 +191,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
@@ -213,7 +215,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -240,6 +242,8 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func operationDelete(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
@@ -264,14 +268,14 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r), nil))
+		s.Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r), nil))
 
 		return response.EmptySyncResponse
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
@@ -295,7 +299,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -444,6 +448,8 @@ func operationCancel(s *state.State, r *http.Request, projectName string, op *ap
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func operationsGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	projectName := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
@@ -539,7 +545,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -552,7 +558,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	// Get all nodes with running operations in this project.
 	var membersWithOps []string
 	var members []db.NodeInfo
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		membersWithOps, err = tx.GetNodesWithOperations(ctx, projectName)
@@ -570,8 +576,6 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	s := d.State()
 
 	// Get local address.
 	localClusterAddress := s.LocalConfig.ClusterAddress()
@@ -592,7 +596,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return false
 	}
 
-	networkCert := d.endpoints.NetworkCert()
+	networkCert := s.Endpoints.NetworkCert()
 	for _, memberAddress := range membersWithOps {
 		if memberAddress == localClusterAddress {
 			continue
@@ -603,7 +607,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
-		client, err := cluster.Connect(memberAddress, networkCert, d.serverCert(), r, true)
+		client, err := cluster.Connect(memberAddress, networkCert, s.ServerCert(), r, true)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
 		}
@@ -845,6 +849,8 @@ func operationsGetByType(s *state.State, r *http.Request, projectName string, op
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
@@ -896,7 +902,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
@@ -920,7 +926,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1007,6 +1013,8 @@ func (r *operationWebSocket) String() string {
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
+	s := d.State()
+
 	id, err := url.PathUnescape(mux.Vars(r)["id"])
 	if err != nil {
 		return response.SmartError(err)
@@ -1025,7 +1033,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var address string
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := dbCluster.OperationFilter{UUID: &id}
 		ops, err := dbCluster.GetOperations(ctx, tx.Tx(), filter)
 		if err != nil {
@@ -1049,7 +1057,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+	client, err := cluster.Connect(address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1064,7 +1072,9 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		localClusterAddress := d.State().LocalConfig.ClusterAddress()
+		s := d.State()
+
+		localClusterAddress := s.LocalConfig.ClusterAddress()
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
@@ -1082,10 +1092,10 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return autoRemoveOrphanedOperations(ctx, d.State())
+			return autoRemoveOrphanedOperations(ctx, s)
 		}
 
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
+		op, err := operations.OperationCreate(s, "", operations.OperationClassTask, operationtype.RemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start remove orphaned operations operation", logger.Ctx{"err": err})
 			return
