@@ -64,7 +64,6 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 
 	resp := &sftpServeResponse{
 		req:         r,
-		d:           d,
 		projectName: projectName,
 		instName:    instName,
 	}
@@ -97,7 +96,6 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 
 type sftpServeResponse struct {
 	req         *http.Request
-	d           *Daemon
 	projectName string
 	instName    string
 	instConn    net.Conn
