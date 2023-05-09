@@ -142,6 +142,10 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		if profile.Devices == nil {
+			profile.Devices = make(map[string]map[string]string)
+		}
+
 		_, ok := profile.Devices[devname]
 		if ok {
 			return fmt.Errorf(i18n.G("The device already exists"))
