@@ -151,7 +151,9 @@ var storagePoolVolumeTypeCustomBackupExportCmd = APIEndpoint{
 //	  "500":
 //	    $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
+	s := d.State()
+
+	projectName, err := project.StorageVolumeProject(s.DB.Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -185,20 +187,20 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Handle requests targeted to a volume on a different node
-	resp := forwardedResponseIfVolumeIsRemote(d.State(), r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
+	resp := forwardedResponseIfVolumeIsRemote(s, r, poolName, projectName, volumeName, db.StoragePoolVolumeTypeCustom)
 	if resp != nil {
 		return resp
 	}
 
 	recursion := util.IsRecursionRequest(r)
 
-	volumeBackups, err := d.State().DB.Cluster.GetStoragePoolVolumeBackups(projectName, volumeName, poolID)
+	volumeBackups, err := s.DB.Cluster.GetStoragePoolVolumeBackups(projectName, volumeName, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -206,7 +208,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	backups := make([]*backup.VolumeBackup, len(volumeBackups))
 
 	for i, b := range volumeBackups {
-		backups[i] = backup.NewVolumeBackup(d.State(), projectName, poolName, volumeName, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.VolumeOnly, b.OptimizedStorage)
+		backups[i] = backup.NewVolumeBackup(s, projectName, poolName, volumeName, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.VolumeOnly, b.OptimizedStorage)
 	}
 
 	resultString := []string{}
@@ -317,7 +319,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 		return resp
 	}
 
-	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -534,7 +536,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 
 	fullName := volumeName + shared.SnapshotDelimiter + backupName
 
-	backup, err := storagePoolVolumeBackupLoadByName(d.State(), projectName, poolName, fullName)
+	backup, err := storagePoolVolumeBackupLoadByName(s, projectName, poolName, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -666,7 +668,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 	resources := map[string][]string{}
 	resources["volume"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectParam(r), operations.OperationClassTask, operationtype.CustomVolumeBackupRename, resources, nil, rename, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}
