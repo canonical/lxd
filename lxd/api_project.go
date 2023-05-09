@@ -139,7 +139,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result any
-	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projects, err := cluster.GetProjects(ctx, tx.Tx())
 		if err != nil {
 			return err
@@ -411,7 +411,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get the database entry
 	var project *api.Project
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -481,7 +481,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbProject, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
@@ -803,7 +803,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		var id int64
-		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			project, err := cluster.GetProject(ctx, tx.Tx(), req.Name)
 			if err != nil && !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed checking if project %q exists: %w", req.Name, err)
@@ -896,7 +896,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var id int64
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		project, err := cluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
@@ -985,7 +985,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		result, err := projecthelpers.GetCurrentAllocations(ctx, tx, name)
 		if err != nil {
 			return err
