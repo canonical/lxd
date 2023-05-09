@@ -39,7 +39,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 
 	// If we're clustered, forwared the request to the leader if necessary.
 	// That is because only the leader knows the token, and any other node will return 404.
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -55,7 +55,7 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 
 		if clusterAddress != "" && clusterAddress != leader {
 			// Forward the request to the leader
-			client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			client, err := cluster.Connect(leader, s.Endpoints.NetworkCert(), s.ServerCert(), r, true)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -83,13 +83,13 @@ func acmeProvideChallenge(d *Daemon, r *http.Request) response.Response {
 func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 	s := d.State()
 
-	domain, email, caURL, agreeToS := d.globalConfig.ACME()
+	domain, email, caURL, agreeToS := s.GlobalConfig.ACME()
 
 	if domain == "" || email == "" || !agreeToS {
 		return nil
 	}
 
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 				ClusterCertificateKey: string(newCert.PrivateKey),
 			}
 
-			err = updateClusterCertificate(d.shutdownCtx, s, d.gateway, nil, req)
+			err = updateClusterCertificate(s.ShutdownCtx, s, d.gateway, nil, req)
 			if err != nil {
 				return err
 			}
@@ -139,9 +139,9 @@ func autoRenewCertificate(ctx context.Context, d *Daemon, force bool) error {
 			return err
 		}
 
-		d.endpoints.NetworkUpdateCert(cert)
+		s.Endpoints.NetworkUpdateCert(cert)
 
-		err = util.WriteCert(d.os.VarDir, "server", newCert.Certificate, newCert.PrivateKey, nil)
+		err = util.WriteCert(s.OS.VarDir, "server", newCert.Certificate, newCert.PrivateKey, nil)
 		if err != nil {
 			return err
 		}
