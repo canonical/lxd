@@ -117,7 +117,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Add internal metrics.
-		metricSet.Merge(internalMetrics(ctx, d.startTime, tx))
+		metricSet.Merge(internalMetrics(ctx, s.StartTime, tx))
 
 		return nil
 	})
