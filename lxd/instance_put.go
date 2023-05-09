@@ -61,6 +61,8 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with instance while in setup mode.
 	<-d.waitReady.Done()
 
+	s := d.State()
+
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
@@ -79,7 +81,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Handle requests targeted to a container on a different node
-	resp, err := forwardedResponseIfInstanceIsRemote(d.State(), r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfInstanceIsRemote(s, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -88,7 +90,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	inst, err := instance.LoadByProjectAndName(s, projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -116,7 +118,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	if configRaw.Restore == "" {
 		// Check project limits.
 		apiProfiles := make([]api.Profile, 0, len(configRaw.Profiles))
-		err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 			profiles, err := cluster.GetProfilesIfEnabled(ctx, tx.Tx(), projectName, configRaw.Profiles)
 			if err != nil {
 				return err
@@ -161,7 +163,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operations.Operation) error {
-			return instanceSnapRestore(d.State(), projectName, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(s, projectName, name, configRaw.Restore, configRaw.Stateful)
 		}
 
 		opType = operationtype.SnapshotRestore
@@ -174,7 +176,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		resources["containers"] = resources["instances"]
 	}
 
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
+	op, err := operations.OperationCreate(s, projectName, operations.OperationClassTask, opType, resources, nil, do, nil, nil, r)
 	if err != nil {
 		return response.InternalError(err)
 	}

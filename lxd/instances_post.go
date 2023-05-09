@@ -831,7 +831,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db.Node)
+	clustered, err := cluster.Enabled(s.DB.Node)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
@@ -845,7 +845,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	var candidateMembers []db.NodeInfo
 	var targetMemberInfo *db.NodeInfo
 
-	err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 		target := queryParam(r, "target")
 		if !clustered && target != "" {
 			return api.StatusErrorf(http.StatusBadRequest, "Target only allowed when clustered")
@@ -974,7 +974,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			// If so then use the cached image fingerprint for loading the cache image profiles.
 			// As its possible for a remote cached image to have its profiles modified after download.
 			if req.Source.Server != "" {
-				for _, architecture := range d.os.Architectures {
+				for _, architecture := range s.OS.Architectures {
 					cachedFingerprint, err := tx.GetCachedImageSourceFingerprint(ctx, req.Source.Server, req.Source.Protocol, sourceImageRef, string(req.Type), architecture)
 					if err == nil && cachedFingerprint != sourceImageHash {
 						sourceImageHash = cachedFingerprint
@@ -1145,7 +1145,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		// If no target member was selected yet, pick the member with the least number of instances.
 		if targetMemberInfo == nil {
-			err = d.db.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
+			err = s.DB.Cluster.Transaction(r.Context(), func(ctx context.Context, tx *db.ClusterTx) error {
 				targetMemberInfo, err = tx.GetNodeWithLeastInstances(ctx, candidateMembers)
 				if err != nil {
 					return err
@@ -1164,7 +1164,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if targetMemberInfo != nil && targetMemberInfo.Address != "" && targetMemberInfo.Name != s.ServerName {
-		client, err := cluster.Connect(targetMemberInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
+		client, err := cluster.Connect(targetMemberInfo.Address, s.Endpoints.NetworkCert(), s.ServerCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1184,13 +1184,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d.State(), r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
+		return createFromImage(s, r, *targetProject, profiles, sourceImage, sourceImageRef, &req)
 	case "none":
-		return createFromNone(d.State(), r, targetProjectName, profiles, &req)
+		return createFromNone(s, r, targetProjectName, profiles, &req)
 	case "migration":
-		return createFromMigration(d.State(), r, targetProjectName, profiles, &req)
+		return createFromMigration(s, r, targetProjectName, profiles, &req)
 	case "copy":
-		return createFromCopy(d.State(), r, targetProjectName, profiles, &req)
+		return createFromCopy(s, r, targetProjectName, profiles, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
